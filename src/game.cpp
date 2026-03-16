@@ -8,13 +8,17 @@
 namespace astra {
 
 static const char* title_art[] = {
-    R"(    _        _             )",
-    R"(   / \   ___| |_ _ __ __ _ )",
-    R"(  / _ \ / __| __| '__/ _` |)",
-    R"( / ___ \\__ \ |_| | | (_| |)",
-    R"(/_/   \_\___/\__|_|  \__,_|)",
+    R"(        .            *                .          |  )",
+    R"(   *         .              .                .  -o- )",
+    R"(        _        _                   *           |  )",
+    R"(  .    / \   ___| |_ _ __ __ _           .         )",
+    R"(      / _ \ / __| __| '__/ _` |   .                )",
+    R"( *   / ___ \\__ \ |_| | | (_| |        *           )",
+    R"(    /_/   \_\___/\__|_|  \__,_|  .                 )",
+    R"(         .          *       .          .            )",
+    R"(   .            .                 *                 )",
 };
-static constexpr int title_art_lines = 5;
+static constexpr int title_art_lines = 9;
 
 static const char* menu_items[] = {
     "New Game",
