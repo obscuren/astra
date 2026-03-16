@@ -463,6 +463,19 @@ void Game::render_tabs() {
     sep.hline(0, '-');
 }
 
+// Deterministic star at any world coordinate
+static char star_at(int x, int y) {
+    // Hash the coordinate to get a deterministic pseudo-random value
+    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    if ((h % 100) >= 3) return '\0'; // ~3% chance of a star
+    unsigned st = (h >> 8) % 10;
+    if (st < 6) return '.';
+    if (st < 9) return '*';
+    return '+';
+}
+
 void Game::render_map() {
     DrawContext ctx(renderer_.get(), map_rect_);
 
@@ -471,11 +484,14 @@ void Game::render_map() {
             int mx = camera_x_ + sx;
             int my = camera_y_ + sy;
 
-            // Backdrop (stars) — always visible
-            char bg = map_.backdrop(mx, my);
-            if (bg) {
-                Color c = (bg == '*' || bg == '+') ? Color::White : Color::Cyan;
-                ctx.put(sx, sy, bg, c);
+            // Starfield backdrop — covers entire viewport
+            bool has_tile = (map_.get(mx, my) != Tile::Empty);
+            if (!has_tile) {
+                char star = star_at(mx, my);
+                if (star) {
+                    Color c = (star == '*' || star == '+') ? Color::White : Color::Cyan;
+                    ctx.put(sx, sy, star, c);
+                }
             }
 
             // Tiles respect FOV
