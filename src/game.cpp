@@ -428,7 +428,7 @@ void Game::render_bars() {
         DrawContext ctx(renderer_.get(), hp_bar_rect_);
         ctx.text(1, 0, "HP:", Color::DarkGray);
         ctx.text(4, 0, hp_val, hp_color());
-        int bar_w = ctx.width() - bar_start - 1;
+        int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
             ctx.bar(bar_start, 0, bar_w, player_.hp, player_.max_hp, hp_color());
         }
@@ -439,7 +439,7 @@ void Game::render_bars() {
         DrawContext ctx(renderer_.get(), xp_bar_rect_);
         ctx.text(1, 0, "XP:", Color::DarkGray);
         ctx.text(4, 0, xp_val, Color::Cyan);
-        int bar_w = ctx.width() - bar_start - 1;
+        int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
             ctx.bar(bar_start, 0, bar_w, player_.xp, player_.max_xp, Color::Cyan);
         }
