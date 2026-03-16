@@ -45,6 +45,9 @@ void Game::run() {
         int h = renderer_->get_height();
         if (w != screen_w_ || h != screen_h_) {
             compute_layout();
+            if (state_ == GameState::Playing) {
+                compute_camera();
+            }
         }
 
         int key = renderer_->poll_input();
@@ -143,7 +146,7 @@ void Game::handle_play_input(int key) {
 void Game::new_game() {
     compute_layout();
 
-    map_ = TileMap(map_rect_.w, map_rect_.h);
+    map_ = TileMap(120, 60);
     map_.generate(static_cast<unsigned>(std::time(nullptr)));
     map_.set_location_name("The Heavens Above");
 
@@ -152,6 +155,7 @@ void Game::new_game() {
 
     visibility_ = VisibilityMap(map_.width(), map_.height());
     recompute_fov();
+    compute_camera();
 
     messages_.clear();
     active_tab_ = 0; // Start on Messages tab
@@ -168,7 +172,21 @@ void Game::try_move(int dx, int dy) {
         player_.x = nx;
         player_.y = ny;
         recompute_fov();
+        compute_camera();
     }
+}
+
+void Game::compute_camera() {
+    // Center camera on player, clamped to map edges
+    camera_x_ = player_.x - map_rect_.w / 2;
+    camera_y_ = player_.y - map_rect_.h / 2;
+
+    if (camera_x_ < 0) camera_x_ = 0;
+    if (camera_y_ < 0) camera_y_ = 0;
+    if (camera_x_ + map_rect_.w > map_.width()) camera_x_ = map_.width() - map_rect_.w;
+    if (camera_y_ + map_rect_.h > map_.height()) camera_y_ = map_.height() - map_rect_.h;
+    if (camera_x_ < 0) camera_x_ = 0;
+    if (camera_y_ < 0) camera_y_ = 0;
 }
 
 void Game::recompute_fov() {
@@ -378,31 +396,37 @@ void Game::render_tabs() {
 void Game::render_map() {
     DrawContext ctx(renderer_.get(), map_rect_);
 
-    for (int y = 0; y < map_rect_.h && y < map_.height(); ++y) {
-        for (int x = 0; x < map_rect_.w && x < map_.width(); ++x) {
-            char bg = map_.backdrop(x, y);
+    for (int sy = 0; sy < map_rect_.h; ++sy) {
+        for (int sx = 0; sx < map_rect_.w; ++sx) {
+            int mx = camera_x_ + sx;
+            int my = camera_y_ + sy;
+
+            // Backdrop (stars) — always visible
+            char bg = map_.backdrop(mx, my);
             if (bg) {
                 Color c = (bg == '*' || bg == '+') ? Color::White : Color::Cyan;
-                ctx.put(x, y, bg, c);
+                ctx.put(sx, sy, bg, c);
             }
 
-            Visibility v = visibility_.get(x, y);
+            // Tiles respect FOV
+            Visibility v = visibility_.get(mx, my);
             if (v == Visibility::Unexplored) continue;
 
-            char g = tile_glyph(map_.get(x, y));
+            char g = tile_glyph(map_.get(mx, my));
             if (g == ' ') continue;
 
             if (v == Visibility::Visible) {
-                Tile t = map_.get(x, y);
+                Tile t = map_.get(mx, my);
                 Color c = (t == Tile::Wall) ? Color::White : Color::Default;
-                ctx.put(x, y, g, c);
+                ctx.put(sx, sy, g, c);
             } else {
-                ctx.put(x, y, g, Color::Blue);
+                ctx.put(sx, sy, g, Color::Blue);
             }
         }
     }
 
-    ctx.put(player_.x, player_.y, '@', Color::Yellow);
+    // Draw player relative to camera
+    ctx.put(player_.x - camera_x_, player_.y - camera_y_, '@', Color::Yellow);
 }
 
 void Game::render_side_panel() {

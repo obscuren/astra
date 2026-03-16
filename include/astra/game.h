@@ -58,6 +58,7 @@ private:
 
     // Layout
     void compute_layout();
+    void compute_camera();
 
     // Helpers
     void log(const std::string& msg);
@@ -76,6 +77,8 @@ private:
     Player player_;
     TileMap map_;
     VisibilityMap visibility_;
+    int camera_x_ = 0;
+    int camera_y_ = 0;
 
     // Tabs
     int active_tab_ = 0;
