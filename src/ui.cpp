@@ -210,4 +210,227 @@ void TextList::draw(DrawContext& ctx, const std::deque<std::string>& lines,
     }
 }
 
+// --- Window ---
+
+Window::Window(Renderer* renderer, Rect bounds, std::string_view title)
+    : renderer_(renderer), bounds_(bounds), title_(title) {}
+
+Window::Window(Renderer* renderer, int screen_w, int screen_h,
+               int width, int height, std::string_view title)
+    : renderer_(renderer),
+      bounds_{(screen_w - width) / 2, (screen_h - height) / 2, width, height},
+      title_(title) {}
+
+void Window::draw() {
+    DrawContext ctx(renderer_, bounds_);
+
+    // Clear window area
+    ctx.fill(' ');
+
+    // Border
+    for (int x = 1; x < bounds_.w - 1; ++x) {
+        ctx.put(x, 0, '-', Color::DarkGray);
+        ctx.put(x, bounds_.h - 1, '-', Color::DarkGray);
+    }
+    for (int y = 1; y < bounds_.h - 1; ++y) {
+        ctx.put(0, y, '|', Color::DarkGray);
+        ctx.put(bounds_.w - 1, y, '|', Color::DarkGray);
+    }
+    ctx.put(0, 0, '+', Color::DarkGray);
+    ctx.put(bounds_.w - 1, 0, '+', Color::DarkGray);
+    ctx.put(0, bounds_.h - 1, '+', Color::DarkGray);
+    ctx.put(bounds_.w - 1, bounds_.h - 1, '+', Color::DarkGray);
+
+    // Title (centered, row 1)
+    if (!title_.empty()) {
+        ctx.text_center(1, title_, Color::White);
+
+        // Decorative ornament below title (row 2)
+        draw_ornament(ctx, 2);
+    }
+
+    // Footer
+    if (!footer_.empty()) {
+        // Separator above footer
+        int sep_y = bounds_.h - 3;
+        draw_ornament(ctx, sep_y);
+
+        // Footer text centered
+        ctx.text_center(bounds_.h - 2, footer_, footer_color_);
+    }
+}
+
+void Window::draw_ornament(DrawContext& ctx, int y) {
+    // Decorative separator: ------=+  ||  +=------
+    int inner_w = bounds_.w - 2; // inside borders
+    int center = inner_w / 2;
+
+    // Center piece: " || "
+    int cp_start = center - 1;
+    ctx.put(1 + cp_start, y, '|', Color::Cyan);
+    ctx.put(1 + cp_start + 1, y, '|', Color::Cyan);
+
+    // Connectors: +=  and  =+
+    int left_conn = cp_start - 2;
+    if (left_conn >= 0) {
+        ctx.put(1 + left_conn, y, '+', Color::DarkGray);
+        ctx.put(1 + left_conn + 1, y, '=', Color::DarkGray);
+    }
+    int right_conn = cp_start + 2;
+    if (right_conn + 1 < inner_w) {
+        ctx.put(1 + right_conn, y, '=', Color::DarkGray);
+        ctx.put(1 + right_conn + 1, y, '+', Color::DarkGray);
+    }
+
+    // Dashes extending outward
+    for (int x = 1; x < 1 + left_conn; ++x) {
+        ctx.put(x, y, '-', Color::DarkGray);
+    }
+    for (int x = 1 + right_conn + 2; x < bounds_.w - 1; ++x) {
+        ctx.put(x, y, '-', Color::DarkGray);
+    }
+}
+
+DrawContext Window::content() const {
+    // Content area: inside border, below title+ornament, above footer+ornament
+    int top = title_.empty() ? 1 : 3;
+    int bottom = footer_.empty() ? 1 : 3;
+    Rect content_rect = {
+        bounds_.x + 2,            // 1 border + 1 padding
+        bounds_.y + top,
+        bounds_.w - 4,            // 2 border + 2 padding
+        bounds_.h - top - bottom
+    };
+    return DrawContext(renderer_, content_rect);
+}
+
+void Window::set_footer(std::string_view text, Color color) {
+    footer_ = text;
+    footer_color_ = color;
+}
+
+const Rect& Window::bounds() const { return bounds_; }
+
+// --- Dialog ---
+
+Dialog::Dialog(std::string_view title, std::string_view body)
+    : title_(title), body_(body) {}
+
+void Dialog::add_option(std::string_view label, int hotkey) {
+    options_.push_back({std::string(label), hotkey});
+}
+
+DialogResult Dialog::handle_input(int key) {
+    if (!open_) return DialogResult::None;
+
+    // Close on Escape
+    if (key == '\033') {
+        close();
+        return DialogResult::Closed;
+    }
+
+    // Confirm selection
+    if (key == '\n' || key == '\r') {
+        close();
+        return DialogResult::Selected;
+    }
+
+    // Arrow keys / vim keys to navigate
+    if (key == KEY_UP || key == 'k') {
+        if (!options_.empty()) {
+            selection_ = (selection_ - 1 + static_cast<int>(options_.size())) % static_cast<int>(options_.size());
+        }
+        return DialogResult::None;
+    }
+    if (key == KEY_DOWN || key == 'j') {
+        if (!options_.empty()) {
+            selection_ = (selection_ + 1) % static_cast<int>(options_.size());
+        }
+        return DialogResult::None;
+    }
+
+    // Hotkeys
+    for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
+        if (options_[i].hotkey != -1 && options_[i].hotkey == key) {
+            selection_ = i;
+            close();
+            return DialogResult::Selected;
+        }
+    }
+
+    return DialogResult::None;
+}
+
+void Dialog::draw(Renderer* renderer, int screen_w, int screen_h) {
+    if (!open_) return;
+
+    // Compute window size based on content
+    int content_w = static_cast<int>(title_.size());
+    if (static_cast<int>(body_.size()) > content_w) content_w = static_cast<int>(body_.size());
+    for (const auto& opt : options_) {
+        int opt_w = static_cast<int>(opt.label.size()) + 6; // "> [x] label"
+        if (opt_w > content_w) content_w = opt_w;
+    }
+    content_w += 6; // padding
+
+    // Height: body (if any) + blank + options (each with spacing) + padding
+    int body_lines = body_.empty() ? 0 : 2; // body text + blank line
+    int option_lines = static_cast<int>(options_.size()) * 2;
+    int content_h = body_lines + option_lines + 1;
+
+    // Window size = content + border(2) + title(2) + footer(3) + padding
+    int win_w = std::min(content_w + 4, screen_w - 4);
+    int win_h = std::min(content_h + 8, screen_h - 4);
+
+    Window win(renderer, screen_w, screen_h, win_w, win_h, title_);
+    win.set_footer("[Esc] Close   [Enter] Select");
+    win.draw();
+
+    DrawContext ctx = win.content();
+    int y = 0;
+
+    // Body text
+    if (!body_.empty()) {
+        // Simple word wrap
+        std::string_view remaining = body_;
+        int max_w = ctx.width();
+        while (!remaining.empty() && y < ctx.height()) {
+            if (static_cast<int>(remaining.size()) <= max_w) {
+                ctx.text(0, y++, remaining, Color::Default);
+                break;
+            }
+            // Find last space within max_w
+            int cut = max_w;
+            while (cut > 0 && remaining[cut] != ' ') --cut;
+            if (cut == 0) cut = max_w; // no space found, hard break
+            ctx.text(0, y++, remaining.substr(0, cut), Color::Default);
+            remaining = remaining.substr(cut);
+            if (!remaining.empty() && remaining[0] == ' ') remaining = remaining.substr(1);
+        }
+        y++; // blank line after body
+    }
+
+    // Options
+    for (int i = 0; i < static_cast<int>(options_.size()) && y < ctx.height(); ++i) {
+        bool active = (i == selection_);
+        std::string prefix;
+        if (options_[i].hotkey != -1) {
+            prefix += '[';
+            prefix += static_cast<char>(options_[i].hotkey);
+            prefix += "] ";
+        }
+
+        if (active) {
+            ctx.text(0, y, "> ", Color::Yellow);
+            ctx.text(2, y, prefix, Color::DarkGray);
+            ctx.text(2 + static_cast<int>(prefix.size()), y, options_[i].label, Color::Yellow);
+        } else {
+            ctx.text(0, y, "  ", Color::Default);
+            ctx.text(2, y, prefix, Color::DarkGray);
+            ctx.text(2 + static_cast<int>(prefix.size()), y, options_[i].label, Color::Cyan);
+        }
+        y += 2; // spacing between options
+    }
+}
+
 } // namespace astra

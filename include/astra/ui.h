@@ -4,6 +4,7 @@
 #include <deque>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace astra {
 
@@ -67,6 +68,74 @@ private:
 struct TextList {
     static void draw(DrawContext& ctx, const std::deque<std::string>& lines,
                      int scroll_offset = -1, Color fg = Color::Default);
+};
+
+class Window {
+public:
+    // Create a window at a specific rect
+    Window(Renderer* renderer, Rect bounds, std::string_view title = "");
+
+    // Create a centered window given screen dimensions
+    Window(Renderer* renderer, int screen_w, int screen_h,
+           int width, int height, std::string_view title = "");
+
+    // Draw the window frame (border, title, ornament, footer)
+    void draw();
+
+    // Get the content area DrawContext (inside border, below title ornament)
+    DrawContext content() const;
+
+    // Set footer key hints
+    void set_footer(std::string_view text, Color color = Color::DarkGray);
+
+    const Rect& bounds() const;
+
+private:
+    void draw_ornament(DrawContext& ctx, int y);
+
+    Renderer* renderer_;
+    Rect bounds_;
+    std::string title_;
+    std::string footer_;
+    Color footer_color_ = Color::DarkGray;
+};
+
+struct DialogOption {
+    std::string label;
+    int hotkey = -1;  // ASCII key that selects this option, or -1 for none
+};
+
+// Result of Dialog::handle_input()
+enum class DialogResult {
+    None,       // No action taken
+    Closed,     // User pressed close key
+    Selected,   // User confirmed an option (check selected())
+};
+
+class Dialog {
+public:
+    Dialog(std::string_view title, std::string_view body = "");
+
+    // Build options
+    void add_option(std::string_view label, int hotkey = -1);
+
+    // Input — returns what happened
+    DialogResult handle_input(int key);
+
+    // Render into a centered window
+    void draw(Renderer* renderer, int screen_w, int screen_h);
+
+    int selected() const { return selection_; }
+    bool is_open() const { return open_; }
+    void open() { open_ = true; selection_ = 0; }
+    void close() { open_ = false; }
+
+private:
+    std::string title_;
+    std::string body_;
+    std::vector<DialogOption> options_;
+    int selection_ = 0;
+    bool open_ = false;
 };
 
 } // namespace astra
