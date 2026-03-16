@@ -219,8 +219,11 @@ void Game::handle_play_input(int key) {
 void Game::new_game() {
     compute_layout();
 
+    unsigned seed = static_cast<unsigned>(std::time(nullptr));
+    rng_.seed(seed);
+
     map_ = TileMap(120, 60);
-    map_.generate(static_cast<unsigned>(std::time(nullptr)));
+    map_.generate(seed);
     map_.set_location_name("The Heavens Above");
 
     player_ = Player{};
@@ -270,7 +273,13 @@ void Game::new_game() {
 void Game::try_move(int dx, int dy) {
     int nx = player_.x + dx;
     int ny = player_.y + dy;
-    if (!map_.passable(nx, ny)) return;
+    if (!map_.passable(nx, ny)) {
+        auto msg = random_bump_message(map_.get(nx, ny), map_.map_type(), rng_);
+        if (!msg.empty()) {
+            log(std::string(msg));
+        }
+        return;
+    }
 
     // Check NPC collision
     for (const auto& npc : npcs_) {

@@ -4,11 +4,13 @@
 #include "astra/npc.h"
 #include "astra/player.h"
 #include "astra/renderer.h"
+#include "astra/tile_props.h"
 #include "astra/tilemap.h"
 #include "astra/ui.h"
 #include "astra/visibility_map.h"
 #include <deque>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -79,6 +81,7 @@ private:
     static constexpr int menu_item_count_ = 2;
 
     // Gameplay
+    std::mt19937 rng_;
     Player player_;
     std::vector<Npc> npcs_;
     TileMap map_;
