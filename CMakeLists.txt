@@ -13,6 +13,11 @@ set(ASTRA_SOURCES
     src/game.cpp
     src/ui.cpp
     src/fov.cpp
+    src/npc.cpp
+    src/npcs/station_keeper.cpp
+    src/npcs/merchant.cpp
+    src/npcs/drifter.cpp
+    src/npcs/xytomorph.cpp
     src/tilemap.cpp
     src/visibility_map.cpp
     src/terminal_renderer.cpp

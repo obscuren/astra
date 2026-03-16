@@ -364,23 +364,13 @@ DialogResult Dialog::handle_input(int key) {
 void Dialog::draw(Renderer* renderer, int screen_w, int screen_h) {
     if (!open_) return;
 
-    // Compute window size based on content
-    int content_w = static_cast<int>(title_.size());
-    if (static_cast<int>(body_.size()) > content_w) content_w = static_cast<int>(body_.size());
-    for (const auto& opt : options_) {
-        int opt_w = static_cast<int>(opt.label.size()) + 6; // "> [x] label"
-        if (opt_w > content_w) content_w = opt_w;
-    }
-    content_w += 6; // padding
-
-    // Height: body (if any) + blank + options (each with spacing) + padding
-    int body_lines = body_.empty() ? 0 : 2; // body text + blank line
-    int option_lines = static_cast<int>(options_.size()) * 2;
-    int content_h = body_lines + option_lines + 1;
-
-    // Window size = content + border(2) + title(2) + footer(3) + padding
-    int win_w = std::min(content_w + 4, screen_w - 4);
-    int win_h = std::min(content_h + 8, screen_h - 4);
+    // Fixed size: 60% of terminal
+    int win_w = screen_w * 60 / 100;
+    int win_h = screen_h * 60 / 100;
+    if (win_w < 30) win_w = 30;
+    if (win_h < 12) win_h = 12;
+    if (win_w > screen_w - 4) win_w = screen_w - 4;
+    if (win_h > screen_h - 4) win_h = screen_h - 4;
 
     Window win(renderer, screen_w, screen_h, win_w, win_h, title_);
     win.set_footer("[Esc] Close   [Enter] Select");

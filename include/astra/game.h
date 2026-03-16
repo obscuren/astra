@@ -44,6 +44,9 @@ private:
     void update();
     void new_game();
     void try_move(int dx, int dy);
+    void try_interact(int dx, int dy);
+    void open_npc_dialog(Npc& npc);
+    void advance_dialog(int selected);
     void recompute_fov();
 
     // Rendering
@@ -87,9 +90,19 @@ private:
     int active_tab_ = 0;
     bool panel_visible_ = true;
 
-    // Dialogs
-    Dialog test_dialog_;
+    // Input modes
+    bool awaiting_interact_ = false;
+
+    // Dialogs / interaction state
+    Dialog npc_dialog_{""};
     Dialog pause_menu_;
+    Npc* interacting_npc_ = nullptr;
+    const std::vector<DialogNode>* dialog_tree_ = nullptr; // active tree (talk or quest)
+    int dialog_node_ = -1;
+
+    // Tracks which top-level options map to which trait action
+    enum class InteractOption : uint8_t { Talk, Shop, Quest, Farewell };
+    std::vector<InteractOption> interact_options_;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

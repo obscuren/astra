@@ -34,13 +34,7 @@ static const char* tab_names[] = {
 
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)),
-      test_dialog_("Station Keeper", "Greetings, commander. Welcome to The Heavens Above."),
       pause_menu_("Menu") {
-    test_dialog_.add_option("Tell me about this station.", '1');
-    test_dialog_.add_option("I need supplies.", '2');
-    test_dialog_.add_option("Any work available?", '3');
-    test_dialog_.add_option("Nevermind.", '4');
-
     pause_menu_.add_option("Return to Game");
     pause_menu_.add_option("Save Game");
     pause_menu_.add_option("Load Game");
@@ -167,23 +161,39 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Other dialogs intercept input when open
-    if (test_dialog_.is_open()) {
-        DialogResult result = test_dialog_.handle_input(key);
+    // NPC dialog intercepts input when open
+    if (npc_dialog_.is_open()) {
+        DialogResult result = npc_dialog_.handle_input(key);
         if (result == DialogResult::Selected) {
-            switch (test_dialog_.selected()) {
-                case 0: log("The keeper describes the station's history."); break;
-                case 1: log("\"Check the supply depot, east wing.\""); break;
-                case 2: log("\"Speak to the dock foreman about cargo runs.\""); break;
-                case 3: log("\"Safe travels, commander.\""); break;
-            }
+            advance_dialog(npc_dialog_.selected());
+        } else if (result == DialogResult::Closed) {
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
         }
         return;
     }
 
+    // Awaiting interact direction (e + direction)
+    if (awaiting_interact_) {
+        awaiting_interact_ = false;
+        switch (key) {
+            case 'w': case 'k': case KEY_UP:    try_interact( 0, -1); return;
+            case 's': case 'j': case KEY_DOWN:  try_interact( 0,  1); return;
+            case 'a': case 'h': case KEY_LEFT:  try_interact(-1,  0); return;
+            case 'd': case 'l': case KEY_RIGHT: try_interact( 1,  0); return;
+            default:
+                log("Cancelled.");
+                return;
+        }
+    }
+
     switch (key) {
         case '\033': pause_menu_.open(); break;
-        case 4: test_dialog_.open(); break; // Ctrl+D
+        case 'e':
+            awaiting_interact_ = true;
+            log("Interact -- choose a direction.");
+            break;
         case 8: // Ctrl+H
             panel_visible_ = !panel_visible_;
             compute_layout();
@@ -221,42 +231,35 @@ void Game::new_game() {
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
 
-    {
-        Npc keeper;
-        keeper.glyph = 'K';
-        keeper.color = Color::Green;
-        keeper.name = "Station Keeper";
-        keeper.hp = 20;
-        keeper.max_hp = 20;
-        keeper.disposition = Disposition::Friendly;
-        keeper.invulnerable = true;
-        if (map_.find_open_spot_near(player_.x, player_.y,
-                                     keeper.x, keeper.y, occupied, &npc_rng)) {
-            occupied.push_back({keeper.x, keeper.y});
-            npcs_.push_back(std::move(keeper));
+    auto spawn_near = [&](NpcRole role, Race race, int near_x, int near_y) {
+        Npc npc = create_npc(role, race, npc_rng);
+        if (map_.find_open_spot_near(near_x, near_y,
+                                     npc.x, npc.y, occupied, &npc_rng)) {
+            occupied.push_back({npc.x, npc.y});
+            npcs_.push_back(std::move(npc));
         }
-    }
-    {
-        Npc merchant;
-        merchant.glyph = 'M';
-        merchant.color = Color::Cyan;
-        merchant.name = "Merchant";
-        merchant.hp = 15;
-        merchant.max_hp = 15;
-        merchant.disposition = Disposition::Neutral;
-        merchant.invulnerable = true;
-        if (map_.find_open_spot_near(player_.x, player_.y,
-                                     merchant.x, merchant.y, occupied, &npc_rng)) {
-            occupied.push_back({merchant.x, merchant.y});
-            npcs_.push_back(std::move(merchant));
+    };
+
+    auto spawn_other_room = [&](NpcRole role, Race race) {
+        Npc npc = create_npc(role, race, npc_rng);
+        if (map_.find_open_spot_other_room(player_.x, player_.y,
+                                           npc.x, npc.y, occupied, &npc_rng)) {
+            occupied.push_back({npc.x, npc.y});
+            npcs_.push_back(std::move(npc));
         }
-    }
+    };
+
+    spawn_near(NpcRole::StationKeeper, Race::Human, player_.x, player_.y);
+    spawn_near(NpcRole::Merchant, Race::Veldrani, player_.x, player_.y);
+    spawn_near(NpcRole::Drifter, Race::Sylphari, player_.x, player_.y);
+    spawn_other_room(NpcRole::Xytomorph, Race::Xytomorph);
 
     visibility_ = VisibilityMap(map_.width(), map_.height());
     recompute_fov();
     compute_camera();
 
     messages_.clear();
+    awaiting_interact_ = false;
     active_tab_ = 0; // Start on Messages tab
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
@@ -272,7 +275,7 @@ void Game::try_move(int dx, int dy) {
     // Check NPC collision
     for (const auto& npc : npcs_) {
         if (npc.x == nx && npc.y == ny) {
-            log("You see " + npc.name + ".");
+            log("You see " + npc.display_name() + ".");
             return;
         }
     }
@@ -281,6 +284,164 @@ void Game::try_move(int dx, int dy) {
     player_.y = ny;
     recompute_fov();
     compute_camera();
+}
+
+void Game::try_interact(int dx, int dy) {
+    int tx = player_.x + dx;
+    int ty = player_.y + dy;
+
+    // Find NPC at target tile
+    Npc* target = nullptr;
+    for (auto& npc : npcs_) {
+        if (npc.x == tx && npc.y == ty) {
+            target = &npc;
+            break;
+        }
+    }
+
+    if (!target) {
+        Tile t = map_.get(tx, ty);
+        if (t == Tile::Wall) {
+            log("You run your hand along the cold bulkhead. Nothing of interest.");
+        } else if (t == Tile::Empty) {
+            log("You stare into the void. It stares back.");
+        } else {
+            log("Nothing to interact with there.");
+        }
+        return;
+    }
+
+    if (target->disposition == Disposition::Hostile) {
+        log(target->display_name() + " snarls at you.");
+        return;
+    }
+
+    if (target->interactions.empty()) {
+        log(target->display_name() + " has nothing to say.");
+        return;
+    }
+
+    log("You approach " + target->display_name() + ".");
+    open_npc_dialog(*target);
+}
+
+void Game::open_npc_dialog(Npc& npc) {
+    interacting_npc_ = &npc;
+    dialog_tree_ = nullptr;
+    dialog_node_ = -1;
+    interact_options_.clear();
+
+    const auto& data = npc.interactions;
+    std::string greeting;
+    if (data.talk) {
+        greeting = "\"" + data.talk->greeting + "\"";
+    }
+
+    npc_dialog_ = Dialog(npc.display_name(), greeting);
+    int hotkey = '1';
+
+    if (data.talk && !data.talk->nodes.empty()) {
+        npc_dialog_.add_option("Talk.", hotkey++);
+        interact_options_.push_back(InteractOption::Talk);
+    }
+    if (data.shop) {
+        npc_dialog_.add_option("Show me your wares.", hotkey++);
+        interact_options_.push_back(InteractOption::Shop);
+    }
+    if (data.quest) {
+        npc_dialog_.add_option(data.quest->quest_intro, hotkey++);
+        interact_options_.push_back(InteractOption::Quest);
+    }
+
+    npc_dialog_.add_option("Farewell.", hotkey);
+    interact_options_.push_back(InteractOption::Farewell);
+
+    npc_dialog_.open();
+}
+
+void Game::advance_dialog(int selected) {
+    if (!interacting_npc_) return;
+
+    // Currently navigating a dialog tree
+    if (dialog_tree_ && dialog_node_ >= 0) {
+        const auto& node = (*dialog_tree_)[dialog_node_];
+        if (selected < 0 || selected >= static_cast<int>(node.choices.size())) {
+            // Invalid selection, close
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
+            return;
+        }
+
+        int next = node.choices[selected].next_node;
+        if (next < 0 || next >= static_cast<int>(dialog_tree_->size())) {
+            // End of conversation — return to top-level menu
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
+            open_npc_dialog(*interacting_npc_);
+            return;
+        }
+
+        // Advance to next node
+        dialog_node_ = next;
+        const auto& next_node = (*dialog_tree_)[dialog_node_];
+        npc_dialog_ = Dialog(interacting_npc_->display_name(),
+                             "\"" + next_node.text + "\"");
+        int hotkey = '1';
+        for (const auto& choice : next_node.choices) {
+            npc_dialog_.add_option(choice.label, hotkey++);
+        }
+        npc_dialog_.open();
+        return;
+    }
+
+    // Top-level menu selection
+    if (selected < 0 || selected >= static_cast<int>(interact_options_.size())) {
+        interacting_npc_ = nullptr;
+        return;
+    }
+
+    switch (interact_options_[selected]) {
+        case InteractOption::Talk: {
+            dialog_tree_ = &interacting_npc_->interactions.talk->nodes;
+            dialog_node_ = 0;
+            const auto& node = (*dialog_tree_)[0];
+            npc_dialog_ = Dialog(interacting_npc_->display_name(),
+                                 "\"" + node.text + "\"");
+            int hotkey = '1';
+            for (const auto& choice : node.choices) {
+                npc_dialog_.add_option(choice.label, hotkey++);
+            }
+            npc_dialog_.open();
+            break;
+        }
+        case InteractOption::Shop:
+            log("\"Have a look.\" [Shop not yet implemented]");
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
+            break;
+
+        case InteractOption::Quest: {
+            dialog_tree_ = &interacting_npc_->interactions.quest->nodes;
+            dialog_node_ = 0;
+            const auto& node = (*dialog_tree_)[0];
+            npc_dialog_ = Dialog(interacting_npc_->display_name(),
+                                 "\"" + node.text + "\"");
+            int hotkey = '1';
+            for (const auto& choice : node.choices) {
+                npc_dialog_.add_option(choice.label, hotkey++);
+            }
+            npc_dialog_.open();
+            break;
+        }
+        case InteractOption::Farewell:
+            log("\"Safe travels, commander.\"");
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
+            break;
+    }
 }
 
 void Game::compute_camera() {
@@ -379,7 +540,7 @@ void Game::render_play() {
     render_abilities_bar();
 
     // Dialog overlays
-    test_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
+    npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
 }
 

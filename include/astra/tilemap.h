@@ -75,6 +75,11 @@ public:
                              const std::vector<std::pair<int,int>>& exclude = {},
                              std::mt19937* rng = nullptr) const;
 
+    // Find a floor tile in a different room region than (avoid_x, avoid_y).
+    bool find_open_spot_other_room(int avoid_x, int avoid_y, int& out_x, int& out_y,
+                                   const std::vector<std::pair<int,int>>& exclude = {},
+                                   std::mt19937* rng = nullptr) const;
+
 private:
     void carve_room(int x1, int y1, int x2, int y2);
     void carve_corridor_h(int x1, int x2, int y, int rid);
