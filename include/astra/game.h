@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/fov.h"
+#include "astra/npc.h"
 #include "astra/player.h"
 #include "astra/renderer.h"
 #include "astra/tilemap.h"
@@ -9,6 +10,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -75,6 +77,7 @@ private:
 
     // Gameplay
     Player player_;
+    std::vector<Npc> npcs_;
     TileMap map_;
     VisibilityMap visibility_;
     int camera_x_ = 0;

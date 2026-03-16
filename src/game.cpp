@@ -216,6 +216,42 @@ void Game::new_game() {
     player_ = Player{};
     map_.find_open_spot(player_.x, player_.y);
 
+    // Spawn NPCs in the player's starting room
+    npcs_.clear();
+    std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
+    std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+
+    {
+        Npc keeper;
+        keeper.glyph = 'K';
+        keeper.color = Color::Green;
+        keeper.name = "Station Keeper";
+        keeper.hp = 20;
+        keeper.max_hp = 20;
+        keeper.disposition = Disposition::Friendly;
+        keeper.invulnerable = true;
+        if (map_.find_open_spot_near(player_.x, player_.y,
+                                     keeper.x, keeper.y, occupied, &npc_rng)) {
+            occupied.push_back({keeper.x, keeper.y});
+            npcs_.push_back(std::move(keeper));
+        }
+    }
+    {
+        Npc merchant;
+        merchant.glyph = 'M';
+        merchant.color = Color::Cyan;
+        merchant.name = "Merchant";
+        merchant.hp = 15;
+        merchant.max_hp = 15;
+        merchant.disposition = Disposition::Neutral;
+        merchant.invulnerable = true;
+        if (map_.find_open_spot_near(player_.x, player_.y,
+                                     merchant.x, merchant.y, occupied, &npc_rng)) {
+            occupied.push_back({merchant.x, merchant.y});
+            npcs_.push_back(std::move(merchant));
+        }
+    }
+
     visibility_ = VisibilityMap(map_.width(), map_.height());
     recompute_fov();
     compute_camera();
@@ -231,12 +267,20 @@ void Game::new_game() {
 void Game::try_move(int dx, int dy) {
     int nx = player_.x + dx;
     int ny = player_.y + dy;
-    if (map_.passable(nx, ny)) {
-        player_.x = nx;
-        player_.y = ny;
-        recompute_fov();
-        compute_camera();
+    if (!map_.passable(nx, ny)) return;
+
+    // Check NPC collision
+    for (const auto& npc : npcs_) {
+        if (npc.x == nx && npc.y == ny) {
+            log("You see " + npc.name + ".");
+            return;
+        }
     }
+
+    player_.x = nx;
+    player_.y = ny;
+    recompute_fov();
+    compute_camera();
 }
 
 void Game::compute_camera() {
@@ -508,6 +552,13 @@ void Game::render_map() {
             } else {
                 ctx.put(sx, sy, g, Color::Blue);
             }
+        }
+    }
+
+    // Draw visible NPCs
+    for (const auto& npc : npcs_) {
+        if (visibility_.get(npc.x, npc.y) == Visibility::Visible) {
+            ctx.put(npc.x - camera_x_, npc.y - camera_y_, npc.glyph, npc.color);
         }
     }
 

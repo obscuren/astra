@@ -201,6 +201,44 @@ void TileMap::find_open_spot(int& out_x, int& out_y) const {
     out_y = height_ / 2;
 }
 
+bool TileMap::find_open_spot_near(int near_x, int near_y, int& out_x, int& out_y,
+                                  const std::vector<std::pair<int,int>>& exclude,
+                                  std::mt19937* rng) const {
+    int rid = region_id(near_x, near_y);
+    if (rid < 0) return false;
+
+    // Collect all valid candidates in the region
+    std::vector<std::pair<int,int>> candidates;
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            if (region_id(x, y) != rid) continue;
+            if (get(x, y) != Tile::Floor) continue;
+
+            bool excluded = false;
+            for (const auto& [ex, ey] : exclude) {
+                if (x == ex && y == ey) { excluded = true; break; }
+            }
+            if (excluded) continue;
+
+            // Fast path: return first match when no rng
+            if (!rng) {
+                out_x = x;
+                out_y = y;
+                return true;
+            }
+            candidates.push_back({x, y});
+        }
+    }
+
+    if (candidates.empty()) return false;
+
+    std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+    auto [cx, cy] = candidates[dist(*rng)];
+    out_x = cx;
+    out_y = cy;
+    return true;
+}
+
 void TileMap::carve_room(int x1, int y1, int x2, int y2) {
     for (int y = y1; y <= y2; ++y) {
         for (int x = x1; x <= x2; ++x) {

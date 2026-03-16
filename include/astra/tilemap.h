@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace astra {
@@ -66,6 +68,12 @@ public:
 
     // Returns a valid floor position for spawning
     void find_open_spot(int& out_x, int& out_y) const;
+
+    // Find a floor tile in the same region as (near_x, near_y), avoiding exclude list.
+    // Pass an rng to pick randomly; nullptr picks the first match.
+    bool find_open_spot_near(int near_x, int near_y, int& out_x, int& out_y,
+                             const std::vector<std::pair<int,int>>& exclude = {},
+                             std::mt19937* rng = nullptr) const;
 
 private:
     void carve_room(int x1, int y1, int x2, int y2);
