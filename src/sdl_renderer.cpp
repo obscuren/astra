@@ -88,6 +88,11 @@ void SdlRenderer::draw_char(int x, int y, char ch) {
     }
 }
 
+void SdlRenderer::draw_char(int x, int y, char ch, Color /*fg*/) {
+    // TODO: color support for SDL renderer
+    draw_char(x, y, ch);
+}
+
 void SdlRenderer::draw_string(int x, int y, const std::string& text) {
     for (size_t i = 0; i < text.size(); ++i) {
         draw_char(x + static_cast<int>(i), y, text[i]);

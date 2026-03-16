@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace astra {
@@ -10,6 +11,18 @@ enum Key {
     KEY_DOWN,
     KEY_LEFT,
     KEY_RIGHT,
+};
+
+enum class Color : uint8_t {
+    Default,
+    Black,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White,
 };
 
 // Abstract rendering interface.
@@ -24,6 +37,7 @@ public:
     virtual void present() = 0;
 
     virtual void draw_char(int x, int y, char ch) = 0;
+    virtual void draw_char(int x, int y, char ch, Color fg) = 0;
     virtual void draw_string(int x, int y, const std::string& text) = 0;
 
     virtual int get_width() const = 0;
