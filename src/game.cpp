@@ -755,17 +755,49 @@ void Game::render_side_panel() {
 
     switch (static_cast<PanelTab>(active_tab_)) {
         case PanelTab::Messages: {
-            // Render message log with auto-scroll
-            int line = 0;
-            int total = static_cast<int>(messages_.size());
+            int max_w = ctx.width();
             int visible = ctx.height();
-            int start = (total > visible) ? total - visible : 0;
-            for (int i = start; i < total && line < visible; ++i, ++line) {
-                std::string_view msg = messages_[i];
-                if (static_cast<int>(msg.size()) > ctx.width()) {
-                    msg = msg.substr(0, ctx.width());
+            if (max_w <= 0 || visible <= 0) break;
+
+            // Word-wrap all messages into display lines
+            // Continuation lines are indented to align past the ":: " prefix
+            static constexpr int indent = 3; // matches ":: " prefix
+            struct WrappedLine {
+                std::string_view text;
+                int x; // 0 for first line, indent for continuations
+            };
+            std::vector<WrappedLine> lines;
+
+            for (const auto& msg : messages_) {
+                std::string_view remaining = msg;
+                bool first = true;
+                while (!remaining.empty()) {
+                    int line_w = first ? max_w : max_w - indent;
+                    if (line_w <= 0) line_w = 1;
+                    int x = first ? 0 : indent;
+                    first = false;
+
+                    if (static_cast<int>(remaining.size()) <= line_w) {
+                        lines.push_back({remaining, x});
+                        break;
+                    }
+                    // Find last space within line_w
+                    int cut = line_w;
+                    while (cut > 0 && remaining[cut] != ' ') --cut;
+                    if (cut == 0) cut = line_w;
+                    lines.push_back({remaining.substr(0, cut), x});
+                    remaining = remaining.substr(cut);
+                    if (!remaining.empty() && remaining[0] == ' ')
+                        remaining = remaining.substr(1);
                 }
-                ctx.text(0, line, msg, Color::Default);
+            }
+
+            // Auto-scroll: show the last 'visible' lines
+            int total = static_cast<int>(lines.size());
+            int start = (total > visible) ? total - visible : 0;
+            int y = 0;
+            for (int i = start; i < total && y < visible; ++i, ++y) {
+                ctx.text(lines[i].x, y, lines[i].text, Color::Default);
             }
             break;
         }
