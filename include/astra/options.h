@@ -4,7 +4,7 @@
 #include <vector>
 #include <iostream>
 
-namespace crawler {
+namespace astra {
 
 enum class RendererBackend {
     Terminal,
@@ -47,4 +47,4 @@ struct Options {
     }
 };
 
-} // namespace crawler
+} // namespace astra

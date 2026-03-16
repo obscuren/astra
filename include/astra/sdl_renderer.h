@@ -1,12 +1,12 @@
 #pragma once
 
-#include "crawler/renderer.h"
+#include "astra/renderer.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <vector>
 
-namespace crawler {
+namespace astra {
 
 class SdlRenderer : public Renderer {
 public:
@@ -41,4 +41,4 @@ private:
     void render_cell(int x, int y, char ch);
 };
 
-} // namespace crawler
+} // namespace astra

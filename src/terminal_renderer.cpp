@@ -1,11 +1,11 @@
-#include "crawler/terminal_renderer.h"
+#include "astra/terminal_renderer.h"
 
 #include <cstdio>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-namespace crawler {
+namespace astra {
 
 void TerminalRenderer::init() {
     // Switch to raw mode for unbuffered input
@@ -76,10 +76,27 @@ int TerminalRenderer::get_height() const { return height_; }
 
 int TerminalRenderer::poll_input() {
     char ch;
-    if (read(STDIN_FILENO, &ch, 1) == 1) {
-        return static_cast<int>(ch);
+    if (read(STDIN_FILENO, &ch, 1) != 1) {
+        return -1;
     }
-    return -1;
+
+    // Escape sequence: arrow keys are \033 [ A/B/C/D
+    if (ch == '\033') {
+        char seq[2];
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\033';
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\033';
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A': return KEY_UP;
+                case 'B': return KEY_DOWN;
+                case 'C': return KEY_RIGHT;
+                case 'D': return KEY_LEFT;
+            }
+        }
+        return '\033';
+    }
+
+    return static_cast<int>(ch);
 }
 
-} // namespace crawler
+} // namespace astra

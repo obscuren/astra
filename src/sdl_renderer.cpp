@@ -1,8 +1,8 @@
-#include "crawler/sdl_renderer.h"
+#include "astra/sdl_renderer.h"
 
 #include <stdexcept>
 
-namespace crawler {
+namespace astra {
 
 SdlRenderer::SdlRenderer(int cols, int rows, float font_size)
     : cols_(cols), rows_(rows), font_size_(font_size) {}
@@ -38,7 +38,7 @@ void SdlRenderer::init() {
     int win_w = cols_ * cell_w_;
     int win_h = rows_ * cell_h_;
 
-    window_ = SDL_CreateWindow("Crawler", win_w, win_h, 0);
+    window_ = SDL_CreateWindow("Astra", win_w, win_h, 0);
     if (!window_) {
         throw std::runtime_error(std::string("SDL_CreateWindow failed: ") + SDL_GetError());
     }
@@ -109,11 +109,13 @@ int SdlRenderer::poll_input() {
                 return 'a' + (key - SDLK_A);
             }
             switch (key) {
-                case SDLK_ESCAPE: return 'q';
-                case SDLK_UP:    return 'w';
-                case SDLK_DOWN:  return 's';
-                case SDLK_LEFT:  return 'a';
-                case SDLK_RIGHT: return 'd';
+                case SDLK_ESCAPE:  return 'q';
+                case SDLK_RETURN:  return '\n';
+                case SDLK_SPACE:   return ' ';
+                case SDLK_UP:      return KEY_UP;
+                case SDLK_DOWN:    return KEY_DOWN;
+                case SDLK_LEFT:    return KEY_LEFT;
+                case SDLK_RIGHT:   return KEY_RIGHT;
             }
         }
     }
@@ -141,4 +143,4 @@ void SdlRenderer::render_cell(int x, int y, char ch) {
     SDL_DestroyTexture(texture);
 }
 
-} // namespace crawler
+} // namespace astra

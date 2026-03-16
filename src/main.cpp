@@ -1,9 +1,9 @@
-#include "crawler/game.h"
-#include "crawler/options.h"
-#include "crawler/terminal_renderer.h"
+#include "astra/game.h"
+#include "astra/options.h"
+#include "astra/terminal_renderer.h"
 
-#ifdef CRAWLER_HAS_SDL
-#include "crawler/sdl_renderer.h"
+#ifdef ASTRA_HAS_SDL
+#include "astra/sdl_renderer.h"
 #include <SDL3/SDL_main.h>
 #endif
 
@@ -12,17 +12,17 @@
 
 int main(int argc, char* argv[]) {
     try {
-        auto opts = crawler::Options::parse(argc, argv);
+        auto opts = astra::Options::parse(argc, argv);
 
-        std::unique_ptr<crawler::Renderer> renderer;
+        std::unique_ptr<astra::Renderer> renderer;
 
         switch (opts.backend) {
-            case crawler::RendererBackend::Terminal:
-                renderer = std::make_unique<crawler::TerminalRenderer>();
+            case astra::RendererBackend::Terminal:
+                renderer = std::make_unique<astra::TerminalRenderer>();
                 break;
-            case crawler::RendererBackend::SDL:
-#ifdef CRAWLER_HAS_SDL
-                renderer = std::make_unique<crawler::SdlRenderer>();
+            case astra::RendererBackend::SDL:
+#ifdef ASTRA_HAS_SDL
+                renderer = std::make_unique<astra::SdlRenderer>();
 #else
                 std::cerr << "SDL support was not compiled in.\n"
                           << "Rebuild with: cmake -B build -DSDL=ON\n";
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
                 break;
         }
 
-        crawler::Game game(std::move(renderer));
+        astra::Game game(std::move(renderer));
         game.run();
     } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << "\n";

@@ -2,7 +2,15 @@
 
 #include <string>
 
-namespace crawler {
+namespace astra {
+
+// Virtual key codes for non-ASCII keys
+enum Key {
+    KEY_UP    = 256,
+    KEY_DOWN,
+    KEY_LEFT,
+    KEY_RIGHT,
+};
 
 // Abstract rendering interface.
 // Terminal now, SDL later — game logic never touches this directly.
@@ -25,4 +33,4 @@ public:
     virtual int poll_input() = 0;
 };
 
-} // namespace crawler
+} // namespace astra

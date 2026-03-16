@@ -1,10 +1,10 @@
 #pragma once
 
-#include "crawler/renderer.h"
+#include "astra/renderer.h"
 #include <vector>
 #include <termios.h>
 
-namespace crawler {
+namespace astra {
 
 class TerminalRenderer : public Renderer {
 public:
@@ -28,4 +28,4 @@ private:
     struct termios orig_termios_;
 };
 
-} // namespace crawler
+} // namespace astra
