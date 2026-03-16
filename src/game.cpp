@@ -263,9 +263,11 @@ void Game::new_game() {
 
     messages_.clear();
     awaiting_interact_ = false;
+    current_region_ = -1;
     active_tab_ = 0; // Start on Messages tab
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
+    check_region_change();
 
     state_ = GameState::Playing;
 }
@@ -293,6 +295,18 @@ void Game::try_move(int dx, int dy) {
     player_.y = ny;
     recompute_fov();
     compute_camera();
+    check_region_change();
+}
+
+void Game::check_region_change() {
+    int rid = map_.region_id(player_.x, player_.y);
+    if (rid == current_region_ || rid < 0) return;
+
+    current_region_ = rid;
+    const auto& reg = map_.region(rid);
+    if (!reg.enter_message.empty()) {
+        log(reg.enter_message);
+    }
 }
 
 void Game::try_interact(int dx, int dy) {

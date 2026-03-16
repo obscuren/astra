@@ -34,9 +34,38 @@ enum class RegionType : uint8_t {
     Corridor,
 };
 
+enum class RoomFlavor : uint8_t {
+    // Space station
+    EmptyRoom,
+    Cantina,
+    StorageBay,
+    CrewQuarters,
+    Medbay,
+    Engineering,
+    CommandCenter,
+    CargoHold,
+    Armory,
+    Observatory,
+    // Rocky / asteroid
+    CavernEmpty,
+    CavernMushroom,
+    CavernCrystal,
+    CavernPool,
+    MinedOut,
+    CollapseZone,
+    // Corridors (all map types)
+    CorridorPlain,
+    CorridorDimLit,
+    CorridorMaintenance,
+    CorridorDamaged,
+};
+
 struct Region {
     RegionType type = RegionType::Room;
     bool lit = false;
+    RoomFlavor flavor = RoomFlavor::EmptyRoom;
+    std::string name;           // e.g. "Storage Bay 7"
+    std::string enter_message;  // shown when player enters
 };
 
 class TileMap {
@@ -86,6 +115,7 @@ private:
     void carve_corridor_v(int y1, int y2, int x, int rid);
     void set_region(int x, int y, int rid);
     void generate_backdrop(unsigned seed);
+    void generate_flavors(std::mt19937& rng);
 
     MapType map_type_ = MapType::SpaceStation;
     int width_ = 0;

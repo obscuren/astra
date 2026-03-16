@@ -50,6 +50,7 @@ private:
     void open_npc_dialog(Npc& npc);
     void advance_dialog(int selected);
     void recompute_fov();
+    void check_region_change();
 
     // Rendering
     void render();
@@ -88,6 +89,7 @@ private:
     VisibilityMap visibility_;
     int camera_x_ = 0;
     int camera_y_ = 0;
+    int current_region_ = -1;
 
     // Tabs
     int active_tab_ = 0;

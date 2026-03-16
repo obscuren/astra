@@ -122,7 +122,133 @@ void TileMap::generate(unsigned seed) {
         }
     }
 
+    generate_flavors(rng);
     generate_backdrop(seed);
+}
+
+// --- Room / corridor flavor tables ---
+
+struct FlavorEntry {
+    RoomFlavor flavor;
+    const char* name;
+    const char* enter_message;
+};
+
+static constexpr FlavorEntry station_room_flavors[] = {
+    {RoomFlavor::EmptyRoom,     "Empty Compartment",
+        "An empty compartment. Dust motes drift in the recycled air."},
+    {RoomFlavor::Cantina,       "Cantina",
+        "The faint smell of synth-brew lingers. A cantina, long since abandoned."},
+    {RoomFlavor::StorageBay,    "Storage Bay",
+        "Crates and containers line the walls. A storage bay, mostly picked clean."},
+    {RoomFlavor::CrewQuarters,  "Crew Quarters",
+        "Bunks are bolted to the walls. Someone lived here once."},
+    {RoomFlavor::Medbay,        "Medbay",
+        "Medical equipment hums on standby. The air smells faintly of antiseptic."},
+    {RoomFlavor::Engineering,   "Engineering Bay",
+        "Conduits and junction boxes crowd every surface. The station's guts."},
+    {RoomFlavor::CommandCenter,  "Command Center",
+        "Consoles flicker with residual power. This was the nerve center."},
+    {RoomFlavor::CargoHold,     "Cargo Hold",
+        "A cavernous hold. Magnetic clamps line the deck, most of them empty."},
+    {RoomFlavor::Armory,        "Armory",
+        "Weapon racks stand in rows, most stripped bare. A few lockers remain sealed."},
+    {RoomFlavor::Observatory,   "Observatory",
+        "A viewport dominates the far wall. Jupiter's swirling storms fill the view."},
+};
+
+static constexpr FlavorEntry station_corridor_flavors[] = {
+    {RoomFlavor::CorridorPlain,       "Corridor",
+        "A standard station corridor. Overhead lights cast a sterile glow."},
+    {RoomFlavor::CorridorDimLit,      "Dim Corridor",
+        "The lights here flicker and buzz. Shadows pool in the corners."},
+    {RoomFlavor::CorridorMaintenance, "Maintenance Shaft",
+        "Exposed piping and cable runs. A maintenance access corridor."},
+    {RoomFlavor::CorridorDamaged,     "Damaged Corridor",
+        "Scorch marks streak the walls. Something violent happened here."},
+};
+
+static constexpr FlavorEntry rocky_room_flavors[] = {
+    {RoomFlavor::CavernEmpty,    "Empty Cavern",
+        "A rough-hewn cavern. Dripping water echoes off the stone."},
+    {RoomFlavor::CavernMushroom, "Fungal Cavern",
+        "Bioluminescent fungi cling to the walls, casting a sickly green glow."},
+    {RoomFlavor::CavernCrystal,  "Crystal Grotto",
+        "Crystalline formations jut from every surface, refracting your light."},
+    {RoomFlavor::CavernPool,     "Subterranean Pool",
+        "A still pool of dark water fills the center. Something glints beneath."},
+    {RoomFlavor::MinedOut,       "Mined-Out Chamber",
+        "Pick marks scar the walls. Whatever was here has been extracted."},
+    {RoomFlavor::CollapseZone,   "Unstable Cavern",
+        "Rubble litters the floor. The ceiling looks ready to give."},
+};
+
+static constexpr FlavorEntry rocky_corridor_flavors[] = {
+    {RoomFlavor::CorridorPlain,       "Tunnel",
+        "A narrow tunnel through the rock. Your footsteps echo ahead."},
+    {RoomFlavor::CorridorDimLit,      "Dark Passage",
+        "The darkness presses close. You can barely see a few meters ahead."},
+    {RoomFlavor::CorridorMaintenance, "Bore Shaft",
+        "Machine-cut walls. An old mining bore shaft."},
+    {RoomFlavor::CorridorDamaged,     "Collapsed Passage",
+        "Fallen rock narrows the path. You squeeze through carefully."},
+};
+
+template <std::size_t N>
+static const FlavorEntry& pick_flavor(const FlavorEntry (&table)[N], std::mt19937& rng) {
+    std::uniform_int_distribution<std::size_t> dist(0, N - 1);
+    return table[dist(rng)];
+}
+
+void TileMap::generate_flavors(std::mt19937& rng) {
+    bool first_room = true;
+    for (auto& reg : regions_) {
+        const FlavorEntry* entry = nullptr;
+
+        if (reg.type == RegionType::Room) {
+            // First room is the spawn point — give it a special flavor
+            if (first_room && map_type_ == MapType::SpaceStation) {
+                first_room = false;
+                reg.flavor = RoomFlavor::EmptyRoom;
+                reg.name = "Docking Bay";
+                reg.enter_message = "The main docking bay. Shuttle clamps line the deck "
+                                    "and the hum of life support fills the air.";
+                continue;
+            }
+            first_room = false;
+
+            switch (map_type_) {
+                case MapType::SpaceStation:
+                    entry = &pick_flavor(station_room_flavors, rng);
+                    break;
+                case MapType::Rocky:
+                case MapType::Lava:
+                    entry = &pick_flavor(rocky_room_flavors, rng);
+                    break;
+                case MapType::Nebula:
+                    // Reuse rocky for now until nebula flavors are added
+                    entry = &pick_flavor(rocky_room_flavors, rng);
+                    break;
+            }
+        } else {
+            switch (map_type_) {
+                case MapType::SpaceStation:
+                    entry = &pick_flavor(station_corridor_flavors, rng);
+                    break;
+                case MapType::Rocky:
+                case MapType::Lava:
+                case MapType::Nebula:
+                    entry = &pick_flavor(rocky_corridor_flavors, rng);
+                    break;
+            }
+        }
+
+        if (entry) {
+            reg.flavor = entry->flavor;
+            reg.name = entry->name;
+            reg.enter_message = entry->enter_message;
+        }
+    }
 }
 
 char TileMap::backdrop(int x, int y) const {
