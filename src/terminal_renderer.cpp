@@ -44,8 +44,9 @@ static int ansi_fg(Color c) {
         case Color::Blue:    return 34;
         case Color::Magenta: return 35;
         case Color::Cyan:    return 36;
-        case Color::White:   return 37;
-        default:             return 0;
+        case Color::White:    return 37;
+        case Color::DarkGray: return 90;
+        default:              return 0;
     }
 }
 

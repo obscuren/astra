@@ -23,6 +23,7 @@ enum class Color : uint8_t {
     Magenta,
     Cyan,
     White,
+    DarkGray,
 };
 
 // Abstract rendering interface.

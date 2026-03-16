@@ -5,9 +5,10 @@
 
 namespace astra {
 
-TileMap::TileMap(int width, int height)
-    : width_(width), height_(height),
+TileMap::TileMap(int width, int height, MapType type)
+    : map_type_(type), width_(width), height_(height),
       tiles_(width * height, Tile::Empty),
+      backdrop_(width * height, '\0'),
       region_ids_(width * height, -1) {}
 
 void TileMap::generate(unsigned seed) {
@@ -117,6 +118,39 @@ void TileMap::generate(unsigned seed) {
                     set(rx, ry, Tile::Floor);
                 }
                 set_region(rx, ry, rid);
+            }
+        }
+    }
+
+    generate_backdrop(seed);
+}
+
+char TileMap::backdrop(int x, int y) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return '\0';
+    return backdrop_[y * width_ + x];
+}
+
+void TileMap::generate_backdrop(unsigned seed) {
+    std::fill(backdrop_.begin(), backdrop_.end(), '\0');
+
+    if (map_type_ != MapType::SpaceStation) return;
+
+    // Scatter stars on empty tiles
+    std::mt19937 rng(seed ^ 0xBACDu);
+    std::uniform_int_distribution<int> chance(0, 99);
+    std::uniform_int_distribution<int> star_type(0, 9);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            if (get(x, y) != Tile::Empty) continue;
+
+            int roll = chance(rng);
+            if (roll < 3) {
+                // 3% chance of a star
+                int st = star_type(rng);
+                if (st < 6)       backdrop_[y * width_ + x] = '.';
+                else if (st < 9)  backdrop_[y * width_ + x] = '*';
+                else              backdrop_[y * width_ + x] = '+';
             }
         }
     }

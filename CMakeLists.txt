@@ -11,6 +11,7 @@ option(SDL "Build with SDL3 renderer support" OFF)
 set(ASTRA_SOURCES
     src/main.cpp
     src/game.cpp
+    src/ui.cpp
     src/fov.cpp
     src/tilemap.cpp
     src/visibility_map.cpp
