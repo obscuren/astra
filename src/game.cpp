@@ -33,7 +33,20 @@ static const char* tab_names[] = {
 };
 
 Game::Game(std::unique_ptr<Renderer> renderer)
-    : renderer_(std::move(renderer)) {}
+    : renderer_(std::move(renderer)),
+      test_dialog_("Station Keeper", "Greetings, commander. Welcome to The Heavens Above."),
+      pause_menu_("Menu") {
+    test_dialog_.add_option("Tell me about this station.", '1');
+    test_dialog_.add_option("I need supplies.", '2');
+    test_dialog_.add_option("Any work available?", '3');
+    test_dialog_.add_option("Nevermind.", '4');
+
+    pause_menu_.add_option("Return to Game");
+    pause_menu_.add_option("Save Game");
+    pause_menu_.add_option("Load Game");
+    pause_menu_.add_option("Options");
+    pause_menu_.add_option("Save and Quit");
+}
 
 void Game::run() {
     renderer_->init();
@@ -74,24 +87,29 @@ void Game::compute_layout() {
     if (panel_w < 30) panel_w = 30;
     if (panel_w > screen_w_ / 2) panel_w = screen_w_ / 2;
 
-    int left_w = screen_w_ - panel_w - 1; // -1 for separator
+    int left_w = screen_w_ - panel_w - 1;
     int sep_x = left_w;
+    int main_h = screen_h_ - 5; // 1 stats + 2 bars + 1 effects + 1 abilities
+
+    // Tabs always visible in top-right
+    tabs_rect_ = {sep_x + 1, 1, panel_w, 1};
+
+    // Bars always stop before the tab column
+    hp_bar_rect_ = {0, 1, left_w, 1};
+    xp_bar_rect_ = {0, 2, left_w, 1};
+
+    if (panel_visible_) {
+        map_rect_ = {0, 3, left_w, main_h};
+        separator_rect_ = {sep_x, 1, 1, screen_h_ - 3};
+        side_panel_rect_ = {sep_x + 1, 3, panel_w, main_h};
+    } else {
+        map_rect_ = {0, 3, screen_w_, main_h};
+        separator_rect_ = {sep_x, 1, 1, 2}; // only rows 1-2 (tabs + separator)
+        side_panel_rect_ = {0, 0, 0, 0};
+    }
 
     // Row 1: stats bar (full width)
     stats_bar_rect_ = {0, 0, screen_w_, 1};
-
-    // Row 2: HP/XP bars (left), tabs (right)
-    hp_bar_rect_ = {0, 1, left_w, 1};
-    xp_bar_rect_ = {0, 2, left_w, 1};
-    tabs_rect_ = {sep_x + 1, 1, panel_w, 1};
-
-    // Row 3: map (left), side panel (right)
-    int main_h = screen_h_ - 5; // 1 stats + 2 bars + 1 effects + 1 abilities
-    map_rect_ = {0, 3, left_w, main_h};
-    side_panel_rect_ = {sep_x + 1, 3, panel_w, main_h};
-
-    // Vertical separator
-    separator_rect_ = {sep_x, 1, 1, screen_h_ - 3}; // from row 1 to above effects
 
     // Row 4 & 5: bottom bars
     effects_rect_ = {0, screen_h_ - 2, screen_w_, 1};
@@ -129,9 +147,54 @@ void Game::handle_menu_input(int key) {
 }
 
 void Game::handle_play_input(int key) {
+    // Pause menu intercepts all input when open
+    if (pause_menu_.is_open()) {
+        // Esc toggles the pause menu closed
+        if (key == '\033') {
+            pause_menu_.close();
+            return;
+        }
+        DialogResult result = pause_menu_.handle_input(key);
+        if (result == DialogResult::Selected) {
+            switch (pause_menu_.selected()) {
+                case 0: break; // Return to Game — just closes
+                case 1: log("Save not yet implemented."); break;
+                case 2: log("Load not yet implemented."); break;
+                case 3: log("Options not yet implemented."); break;
+                case 4: running_ = false; break; // Save and Quit
+            }
+        }
+        return;
+    }
+
+    // Other dialogs intercept input when open
+    if (test_dialog_.is_open()) {
+        DialogResult result = test_dialog_.handle_input(key);
+        if (result == DialogResult::Selected) {
+            switch (test_dialog_.selected()) {
+                case 0: log("The keeper describes the station's history."); break;
+                case 1: log("\"Check the supply depot, east wing.\""); break;
+                case 2: log("\"Speak to the dock foreman about cargo runs.\""); break;
+                case 3: log("\"Safe travels, commander.\""); break;
+            }
+        }
+        return;
+    }
+
     switch (key) {
-        case 'q': state_ = GameState::MainMenu; break;
+        case '\033': pause_menu_.open(); break;
+        case 4: test_dialog_.open(); break; // Ctrl+D
+        case 8: // Ctrl+H
+            panel_visible_ = !panel_visible_;
+            compute_layout();
+            compute_camera();
+            break;
         case '\t':
+            if (!panel_visible_) {
+                panel_visible_ = true;
+                compute_layout();
+                compute_camera();
+            }
             active_tab_ = (active_tab_ + 1) % panel_tab_count;
             break;
         case 'w': case 'k': case KEY_UP:    try_move( 0, -1); break;
@@ -257,16 +320,23 @@ void Game::render_menu() {
 void Game::render_play() {
     render_stats_bar();
     render_bars();
+
     render_tabs();
 
-    // Vertical separator
     DrawContext sep_ctx(renderer_.get(), separator_rect_);
     sep_ctx.vline(0, '|');
 
     render_map();
-    render_side_panel();
+
+    if (panel_visible_) {
+        render_side_panel();
+    }
     render_effects_bar();
     render_abilities_bar();
+
+    // Dialog overlays
+    test_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
+    pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
 }
 
 void Game::render_stats_bar() {

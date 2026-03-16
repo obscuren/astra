@@ -82,6 +82,11 @@ private:
 
     // Tabs
     int active_tab_ = 0;
+    bool panel_visible_ = true;
+
+    // Dialogs
+    Dialog test_dialog_;
+    Dialog pause_menu_;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;
