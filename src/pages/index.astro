@@ -204,6 +204,11 @@ const description = "A sci-fi roguelike dungeon crawler set in the far future. T
       .t-ui { color: #8b949e; }
       .t-hp { color: var(--green); }
       .t-label { color: var(--text-dim); }
+      .t-cyan { color: var(--cyan); }
+      .t-blue { color: var(--blue); }
+      .t-yellow { color: var(--accent); }
+      .t-tab-active { color: var(--accent); font-weight: bold; }
+      .t-tab { color: #3d4450; }
 
       /* Features */
       .features {
@@ -360,8 +365,8 @@ const description = "A sci-fi roguelike dungeon crawler set in the far future. T
         <h1>Astra</h1>
         <p class="tagline">A sci-fi roguelike set in the far future. Explore asteroid dungeons, upgrade your starship, and journey to Sagittarius&nbsp;A*.</p>
         <div class="hero-links">
-          <a class="btn btn-primary" href="https://github.com/jeffrydegrande/crawler">Source Code</a>
-          <a class="btn btn-secondary" href="https://github.com/jeffrydegrande/crawler/releases">Releases</a>
+          <a class="btn btn-primary" href="https://github.com/obscuren/astra">Source Code</a>
+          <a class="btn btn-secondary" href="https://github.com/obscuren/astra/releases">Releases</a>
         </div>
       </section>
 
@@ -373,22 +378,21 @@ const description = "A sci-fi roguelike dungeon crawler set in the far future. T
           <span class="terminal-title">astra --terminal</span>
         </div>
         <div class="terminal-body">
-          <pre><span class="t-ui">-- Status --</span>    <span class="t-ui">|</span> <span class="t-label">HP:</span> <span class="t-hp">10/10</span>  <span class="t-label">Depth:</span> 1
-                    <span class="t-ui">|</span>
-<span class="t-label"> HP:</span> <span class="t-hp">10/10</span>        <span class="t-ui">|</span>  <span class="t-explored">################</span>
-<span class="t-label"> Depth:</span> 1         <span class="t-ui">|</span>  <span class="t-explored">#</span><span class="t-floor">..............#</span>
-                    <span class="t-ui">|</span>  <span class="t-explored">#</span><span class="t-floor">..............#</span>
-<span class="t-ui">-- Position --</span>  <span class="t-ui">|</span>  <span class="t-wall">#</span><span class="t-floor">.....</span><span class="t-player">@</span><span class="t-floor">........#</span>
-                    <span class="t-ui">|</span>  <span class="t-wall">#</span><span class="t-floor">..............#</span>
-<span class="t-label"> X:</span> 22            <span class="t-ui">|</span>  <span class="t-wall">#</span><span class="t-floor">..............#</span>
-<span class="t-label"> Y:</span> 8             <span class="t-ui">|</span>  <span class="t-wall">####</span><span class="t-floor">...</span><span class="t-wall">###########</span>
-                    <span class="t-ui">|</span>      <span class="t-explored">.</span>
-                    <span class="t-ui">|</span>      <span class="t-explored">.</span>
-                    <span class="t-ui">|</span>  <span class="t-explored">########</span>
-                    <span class="t-ui">|</span>  <span class="t-explored">#......#</span>
-                    <span class="t-ui">|</span>
-                    <span class="t-ui">|</span> <span class="t-dim">---------------------------------------</span>
-                    <span class="t-ui">|</span> Welcome aboard, commander.</pre>
+          <pre><span class="t-label">LVL:</span>1 <span class="t-label">::</span> <span class="t-label">T:</span>20~ <span class="t-label">::</span> <span class="t-hp">Satiated</span> <span class="t-label">::</span> <span class="t-yellow">0$</span> <span class="t-cyan">&lt;&lt;&gt;&gt;&lt;&lt;&gt;&gt;&lt;&lt;&gt;&gt;</span> <span class="t-label">QN:</span>100 <span class="t-label">::</span> <span class="t-label">MS:</span>100 <span class="t-label">::</span> <span class="t-label">AV:</span><span class="t-blue">1</span> <span class="t-label">::</span> <span class="t-label">DV:</span><span class="t-blue">5</span> <span class="t-label">::</span> The Heavens Above
+<span class="t-label">HP:</span> <span class="t-hp">10/10</span>  <span class="t-hp">[==================]</span>  <span class="t-ui">|</span> <span class="t-tab-active">[Messages]</span> <span class="t-tab">[Inventory]</span> <span class="t-tab">[Equipment]</span> <span class="t-tab">[Ship]</span>
+<span class="t-label">XP:</span> <span class="t-cyan"> 0/100</span> <span class="t-dim">[------------------]</span>  <span class="t-ui">|</span> <span class="t-dim">------------------------------------------</span>
+  <span class="t-explored">################</span>               <span class="t-ui">|</span> :: Welcome aboard, commander. Your
+  <span class="t-explored">#</span><span class="t-floor">..............</span><span class="t-explored">#</span>               <span class="t-ui">|</span>    journey to Sgr A* begins.
+  <span class="t-wall">#</span><span class="t-floor">..............</span><span class="t-wall">#</span>     <span class="t-dim">.</span>    <span class="t-dim">*</span>  <span class="t-ui">|</span> :: You are docked at The Heavens
+  <span class="t-wall">#</span><span class="t-floor">.....</span><span class="t-player">@</span><span class="t-floor">........</span><span class="t-wall">#</span>               <span class="t-ui">|</span>    Above, the space station
+  <span class="t-wall">#</span><span class="t-floor">..............</span><span class="t-wall">#</span>               <span class="t-ui">|</span>    orbiting Jupiter.
+  <span class="t-wall">#</span><span class="t-floor">..............</span><span class="t-wall">#</span>               <span class="t-ui">|</span>
+  <span class="t-wall">####</span><span class="t-floor">...</span><span class="t-wall">###########</span>             <span class="t-ui">|</span>
+       <span class="t-explored">.</span>             <span class="t-dim">*</span>        <span class="t-ui">|</span>
+    <span class="t-explored">########</span>                    <span class="t-ui">|</span>
+    <span class="t-explored">#</span><span class="t-blue">......</span><span class="t-explored">#</span>                    <span class="t-ui">|</span>
+<span class="t-label">EFFECTS:</span> <span class="t-dim">[none]</span>          <span class="t-label">TARGET:</span> <span class="t-dim">[none]</span>
+<span class="t-label">ABILITIES:</span> <span class="t-dim">[reserved]</span></pre>
         </div>
       </div>
 
@@ -446,7 +450,7 @@ const description = "A sci-fi roguelike dungeon crawler set in the far future. T
       </section>
 
       <footer>
-        <p>Astra is open source &mdash; <a href="https://github.com/jeffrydegrande/crawler">view on GitHub</a></p>
+        <p>Astra is open source &mdash; <a href="https://github.com/obscuren/astra">view on GitHub</a></p>
       </footer>
     </div>
   </body>
