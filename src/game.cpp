@@ -25,6 +25,13 @@ static const char* menu_items[] = {
     "Quit",
 };
 
+static const char* tab_names[] = {
+    "Messages",
+    "Inventory",
+    "Equipment",
+    "Ship",
+};
+
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
@@ -34,7 +41,6 @@ void Game::run() {
     compute_layout();
 
     while (running_) {
-        // Recompute layout if screen size changed
         int w = renderer_->get_width();
         int h = renderer_->get_height();
         if (w != screen_w_ || h != screen_h_) {
@@ -59,16 +65,34 @@ void Game::compute_layout() {
     screen_w_ = renderer_->get_width();
     screen_h_ = renderer_->get_height();
 
-    pane_w_ = screen_w_ / 5;
-    if (pane_w_ < 14) pane_w_ = 14;
+    screen_rect_ = {0, 0, screen_w_, screen_h_};
 
-    pane_x_ = 0;       // pane on the left
-    map_view_x_ = pane_w_ + 1; // after pane + separator
-    map_view_y_ = 1;   // row 0 = status bar
-    map_view_w_ = screen_w_ - pane_w_ - 1; // -1 for separator
-    map_view_h_ = screen_h_ - 1 - log_h_ - 1; // -1 status bar, -1 log separator
+    int panel_w = screen_w_ * 35 / 100;
+    if (panel_w < 30) panel_w = 30;
+    if (panel_w > screen_w_ / 2) panel_w = screen_w_ / 2;
 
-    log_y_ = map_view_y_ + map_view_h_;
+    int left_w = screen_w_ - panel_w - 1; // -1 for separator
+    int sep_x = left_w;
+
+    // Row 1: stats bar (full width)
+    stats_bar_rect_ = {0, 0, screen_w_, 1};
+
+    // Row 2: HP/XP bars (left), tabs (right)
+    hp_bar_rect_ = {0, 1, left_w, 1};
+    xp_bar_rect_ = {0, 2, left_w, 1};
+    tabs_rect_ = {sep_x + 1, 1, panel_w, 1};
+
+    // Row 3: map (left), side panel (right)
+    int main_h = screen_h_ - 5; // 1 stats + 2 bars + 1 effects + 1 abilities
+    map_rect_ = {0, 3, left_w, main_h};
+    side_panel_rect_ = {sep_x + 1, 3, panel_w, main_h};
+
+    // Vertical separator
+    separator_rect_ = {sep_x, 1, 1, screen_h_ - 3}; // from row 1 to above effects
+
+    // Row 4 & 5: bottom bars
+    effects_rect_ = {0, screen_h_ - 2, screen_w_, 1};
+    abilities_rect_ = {0, screen_h_ - 1, screen_w_, 1};
 }
 
 // --- Input ---
@@ -104,6 +128,9 @@ void Game::handle_menu_input(int key) {
 void Game::handle_play_input(int key) {
     switch (key) {
         case 'q': state_ = GameState::MainMenu; break;
+        case '\t':
+            active_tab_ = (active_tab_ + 1) % panel_tab_count;
+            break;
         case 'w': case 'k': case KEY_UP:    try_move( 0, -1); break;
         case 's': case 'j': case KEY_DOWN:  try_move( 0,  1); break;
         case 'a': case 'h': case KEY_LEFT:  try_move(-1,  0); break;
@@ -116,8 +143,9 @@ void Game::handle_play_input(int key) {
 void Game::new_game() {
     compute_layout();
 
-    map_ = TileMap(map_view_w_, map_view_h_);
+    map_ = TileMap(map_rect_.w, map_rect_.h);
     map_.generate(static_cast<unsigned>(std::time(nullptr)));
+    map_.set_location_name("The Heavens Above");
 
     player_ = Player{};
     map_.find_open_spot(player_.x, player_.y);
@@ -126,7 +154,9 @@ void Game::new_game() {
     recompute_fov();
 
     messages_.clear();
+    active_tab_ = 0; // Start on Messages tab
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
+    log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
 
     state_ = GameState::Playing;
 }
@@ -144,7 +174,6 @@ void Game::try_move(int dx, int dy) {
 void Game::recompute_fov() {
     compute_fov(map_, visibility_, player_.x, player_.y, player_.view_radius);
 
-    // If any tile of a lit region is visible, reveal the entire region
     std::vector<bool> reveal(map_.region_count(), false);
     for (int y = 0; y < map_.height(); ++y) {
         for (int x = 0; x < map_.width(); ++x) {
@@ -157,7 +186,6 @@ void Game::recompute_fov() {
         }
     }
 
-    // Mark all tiles of revealed lit regions as visible
     for (int y = 0; y < map_.height(); ++y) {
         for (int x = 0; x < map_.width(); ++x) {
             int rid = map_.region_id(x, y);
@@ -169,8 +197,7 @@ void Game::recompute_fov() {
 }
 
 void Game::update() {
-    // Tick-based — world updates happen in response to player actions,
-    // not continuously. Future: enemy AI, environmental effects, etc.
+    // Tick-based — world updates happen in response to player actions.
 }
 
 // --- Rendering ---
@@ -187,10 +214,12 @@ void Game::render() {
 }
 
 void Game::render_menu() {
+    DrawContext ctx(renderer_.get(), screen_rect_);
+
     int art_start_y = screen_h_ / 2 - title_art_lines - 2;
 
     for (int i = 0; i < title_art_lines; ++i) {
-        center_string(art_start_y + i, title_art[i]);
+        ctx.text_center(art_start_y + i, title_art[i]);
     }
 
     int menu_y = art_start_y + title_art_lines + 2;
@@ -201,32 +230,162 @@ void Game::render_menu() {
         } else {
             label = "  " + std::string(menu_items[i]) + "  ";
         }
-        center_string(menu_y + i, label);
+        ctx.text_center(menu_y + i, label);
     }
 
-    center_string(screen_h_ - 2, "wasd/hjkl to navigate, enter to select");
+    ctx.text_center(screen_h_ - 2, "wasd/hjkl to navigate, enter to select");
 }
 
 void Game::render_play() {
-    // Status bar (row 0, full width)
-    std::string status = " HP: " + std::to_string(player_.hp) + "/"
-                       + std::to_string(player_.max_hp)
-                       + "  |  Depth: " + std::to_string(player_.depth)
-                       + "  |  q: menu";
-    if (static_cast<int>(status.size()) < screen_w_) {
-        status.append(screen_w_ - status.size(), ' ');
-    }
-    renderer_->draw_string(0, 0, status);
+    render_stats_bar();
+    render_bars();
+    render_tabs();
+
+    // Vertical separator
+    DrawContext sep_ctx(renderer_.get(), separator_rect_);
+    sep_ctx.vline(0, '|');
 
     render_map();
-    render_pane();
-    render_log();
+    render_side_panel();
+    render_effects_bar();
+    render_abilities_bar();
+}
+
+void Game::render_stats_bar() {
+    DrawContext ctx(renderer_.get(), stats_bar_rect_);
+
+    // Left side: level :: temp :: hunger :: money
+    int lx = 1;
+    lx = ctx.label_value(lx, 0, "LVL:", Color::DarkGray,
+        std::to_string(player_.level), Color::White);
+
+    ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
+    lx = ctx.label_value(lx, 0, "T:", Color::DarkGray,
+        std::to_string(player_.temperature) + "~", Color::White);
+
+    const char* hname = hunger_name(player_.hunger);
+    if (hname[0] != '\0') {
+        ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
+        ctx.text(lx, 0, hname, hunger_color());
+        lx += static_cast<int>(std::string_view(hname).size());
+    }
+
+    ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
+    lx = ctx.label_value(lx, 0, "", Color::DarkGray,
+        std::to_string(player_.money) + "$", Color::Yellow);
+
+    // Right side: stats, calendar, location — measure total width for right-alignment
+    std::string right;
+    right += " QN:";  right += std::to_string(player_.quickness);
+    right += " :: MS:"; right += std::to_string(player_.move_speed);
+    right += " :: AV:"; right += std::to_string(player_.attack_value);
+    right += " :: DV:"; right += std::to_string(player_.defense_value);
+    right += " :: Cycle 1, Day 1";
+    right += " :: ";    right += map_.location_name();
+    right += " ";
+
+    int rx = ctx.width() - static_cast<int>(right.size());
+    if (rx < lx + 2) rx = lx + 2;
+
+    // Fill gap between left items and right items with repeating <<>>
+    {
+        const char pattern[] = "<<>>";
+        int gap_start = lx + 1;
+        int gap_end = rx - 1;
+        for (int i = gap_start; i < gap_end; ++i) {
+            ctx.put(i, 0, pattern[(i - gap_start) % 4], Color::Cyan);
+        }
+    }
+
+    // Render right side with per-segment colors
+    int x = rx;
+    x = ctx.label_value(x, 0, "QN:", Color::DarkGray,
+        std::to_string(player_.quickness), Color::White);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    x = ctx.label_value(x, 0, "MS:", Color::DarkGray,
+        std::to_string(player_.move_speed), Color::White);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    x = ctx.label_value(x, 0, "AV:", Color::DarkGray,
+        std::to_string(player_.attack_value), Color::Blue);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    x = ctx.label_value(x, 0, "DV:", Color::DarkGray,
+        std::to_string(player_.defense_value), Color::Blue);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    ctx.text(x, 0, "Cycle 1, Day 1", Color::DarkGray); x += 14;
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    ctx.text(x, 0, map_.location_name(), Color::White);
+}
+
+void Game::render_bars() {
+    // Format value strings and find max width for alignment
+    std::string hp_val = std::to_string(player_.hp) + "/" + std::to_string(player_.max_hp);
+    std::string xp_val = std::to_string(player_.xp) + "/" + std::to_string(player_.max_xp);
+    int val_w = static_cast<int>(std::max(hp_val.size(), xp_val.size()));
+
+    // Right-justify values by padding with spaces
+    while (static_cast<int>(hp_val.size()) < val_w) hp_val = " " + hp_val;
+    while (static_cast<int>(xp_val.size()) < val_w) xp_val = " " + xp_val;
+
+    // "HP: " and "XP: " are both 4 chars — labels already align
+    // bar_start = 1 (margin) + 4 (label) + val_w + 1 (space)
+    int bar_start = 1 + 4 + val_w + 1;
+
+    // HP bar
+    {
+        DrawContext ctx(renderer_.get(), hp_bar_rect_);
+        ctx.text(1, 0, "HP:", Color::DarkGray);
+        ctx.text(4, 0, hp_val, hp_color());
+        int bar_w = ctx.width() - bar_start - 1;
+        if (bar_w > 0) {
+            ctx.bar(bar_start, 0, bar_w, player_.hp, player_.max_hp, hp_color());
+        }
+    }
+
+    // XP bar
+    {
+        DrawContext ctx(renderer_.get(), xp_bar_rect_);
+        ctx.text(1, 0, "XP:", Color::DarkGray);
+        ctx.text(4, 0, xp_val, Color::Cyan);
+        int bar_w = ctx.width() - bar_start - 1;
+        if (bar_w > 0) {
+            ctx.bar(bar_start, 0, bar_w, player_.xp, player_.max_xp, Color::Cyan);
+        }
+    }
+}
+
+void Game::render_tabs() {
+    DrawContext ctx(renderer_.get(), tabs_rect_);
+    int x = 1;
+
+    for (int i = 0; i < panel_tab_count; ++i) {
+        bool active = (i == active_tab_);
+        std::string label = std::string("[") + tab_names[i] + "]";
+        Color fg = active ? Color::Yellow : Color::DarkGray;
+        ctx.text(x, 0, label, fg);
+        x += static_cast<int>(label.size()) + 1;
+    }
+
+    // Horizontal separator below tabs (row 2 on right side)
+    DrawContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
+    sep.hline(0, '-');
 }
 
 void Game::render_map() {
-    // Draw tile map into the map viewport area, respecting visibility
-    for (int y = 0; y < map_view_h_ && y < map_.height(); ++y) {
-        for (int x = 0; x < map_view_w_ && x < map_.width(); ++x) {
+    DrawContext ctx(renderer_.get(), map_rect_);
+
+    for (int y = 0; y < map_rect_.h && y < map_.height(); ++y) {
+        for (int x = 0; x < map_rect_.w && x < map_.width(); ++x) {
+            char bg = map_.backdrop(x, y);
+            if (bg) {
+                Color c = (bg == '*' || bg == '+') ? Color::White : Color::Cyan;
+                ctx.put(x, y, bg, c);
+            }
+
             Visibility v = visibility_.get(x, y);
             if (v == Visibility::Unexplored) continue;
 
@@ -236,76 +395,90 @@ void Game::render_map() {
             if (v == Visibility::Visible) {
                 Tile t = map_.get(x, y);
                 Color c = (t == Tile::Wall) ? Color::White : Color::Default;
-                renderer_->draw_char(map_view_x_ + x, map_view_y_ + y, g, c);
+                ctx.put(x, y, g, c);
             } else {
-                // Explored — dimmed blue
-                renderer_->draw_char(map_view_x_ + x, map_view_y_ + y, g, Color::Blue);
+                ctx.put(x, y, g, Color::Blue);
             }
         }
     }
 
-    // Draw player
-    renderer_->draw_char(map_view_x_ + player_.x, map_view_y_ + player_.y, '@', Color::Yellow);
+    ctx.put(player_.x, player_.y, '@', Color::Yellow);
 }
 
-void Game::render_pane() {
-    int sep_x = pane_w_;
+void Game::render_side_panel() {
+    DrawContext ctx(renderer_.get(), side_panel_rect_);
 
-    // Vertical separator
-    for (int y = 0; y < screen_h_; ++y) {
-        renderer_->draw_char(sep_x, y, '|');
-    }
-
-    int y = 1;
-    auto pane_line = [&](const std::string& text) {
-        renderer_->draw_string(pane_x_ + 1, y++, text);
-    };
-
-    pane_line("-- Status --");
-    y++;
-    pane_line("HP: " + std::to_string(player_.hp) + "/" + std::to_string(player_.max_hp));
-    pane_line("Depth: " + std::to_string(player_.depth));
-    y++;
-    pane_line("-- Position --");
-    y++;
-    pane_line("X: " + std::to_string(player_.x));
-    pane_line("Y: " + std::to_string(player_.y));
-}
-
-void Game::render_log() {
-    // Separator line above log
-    for (int x = map_view_x_; x < screen_w_; ++x) {
-        renderer_->draw_char(x, log_y_ - 1, '-');
-    }
-
-    // Render most recent messages
-    int visible = log_h_;
-    int start = static_cast<int>(messages_.size()) > visible
-        ? static_cast<int>(messages_.size()) - visible : 0;
-    int line = 0;
-    for (int i = start; i < static_cast<int>(messages_.size()); ++i) {
-        std::string msg = messages_[i];
-        if (static_cast<int>(msg.size()) > map_view_w_ - 2) {
-            msg.resize(map_view_w_ - 2);
+    switch (static_cast<PanelTab>(active_tab_)) {
+        case PanelTab::Messages: {
+            // Render message log with auto-scroll
+            int line = 0;
+            int total = static_cast<int>(messages_.size());
+            int visible = ctx.height();
+            int start = (total > visible) ? total - visible : 0;
+            for (int i = start; i < total && line < visible; ++i, ++line) {
+                std::string_view msg = messages_[i];
+                if (static_cast<int>(msg.size()) > ctx.width()) {
+                    msg = msg.substr(0, ctx.width());
+                }
+                ctx.text(0, line, msg, Color::Default);
+            }
+            break;
         }
-        renderer_->draw_string(map_view_x_ + 1, log_y_ + line, msg);
-        ++line;
+        case PanelTab::Inventory:
+            ctx.text(1, 1, "Inventory is empty.", Color::DarkGray);
+            break;
+        case PanelTab::Equipment:
+            ctx.text(1, 1, "No equipment.", Color::DarkGray);
+            break;
+        case PanelTab::Ship:
+            ctx.text(1, 1, "Ship: Docked", Color::DarkGray);
+            ctx.text(1, 2, "Hull: 100%", Color::DarkGray);
+            break;
     }
+}
+
+void Game::render_effects_bar() {
+    DrawContext ctx(renderer_.get(), effects_rect_);
+    int x = 1;
+    ctx.text(x, 0, "EFFECTS:", Color::DarkGray);
+    x += 8;
+    ctx.text(x, 0, " [none]", Color::DarkGray);
+
+    int mid = ctx.width() / 3;
+    ctx.text(mid, 0, "TARGET:", Color::DarkGray);
+    ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
+}
+
+void Game::render_abilities_bar() {
+    DrawContext ctx(renderer_.get(), abilities_rect_);
+    ctx.text(1, 0, "ABILITIES:", Color::DarkGray);
+    ctx.text(12, 0, "[reserved]", Color::DarkGray);
 }
 
 // --- Helpers ---
 
+Color Game::hp_color() const {
+    int pct = (player_.max_hp > 0) ? (100 * player_.hp / player_.max_hp) : 0;
+    if (pct < 30) return Color::Red;
+    if (pct < 80) return Color::Yellow;
+    return Color::Green;
+}
+
+Color Game::hunger_color() const {
+    switch (player_.hunger) {
+        case HungerState::Satiated: return Color::Green;
+        case HungerState::Normal:   return Color::Default;
+        case HungerState::Hungry:   return Color::Yellow;
+        case HungerState::Starving: return Color::Red;
+    }
+    return Color::Default;
+}
+
 void Game::log(const std::string& msg) {
-    messages_.push_back(msg);
+    messages_.push_back(":: " + msg);
     if (messages_.size() > max_messages_) {
         messages_.pop_front();
     }
-}
-
-void Game::center_string(int y, const std::string& text) {
-    int x = (screen_w_ - static_cast<int>(text.size())) / 2;
-    if (x < 0) x = 0;
-    renderer_->draw_string(x, y, text);
 }
 
 } // namespace astra
