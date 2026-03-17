@@ -211,4 +211,45 @@ int TerminalRenderer::poll_input() {
     return static_cast<int>(ch);
 }
 
+int TerminalRenderer::wait_input() {
+    // Block until first byte arrives
+    struct termios blocking = impl_->orig;
+    blocking.c_lflag &= ~(ECHO | ICANON);
+    blocking.c_cc[VMIN] = 1;
+    blocking.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &blocking);
+
+    char ch;
+    if (read(STDIN_FILENO, &ch, 1) != 1) {
+        check_resize();
+        return -1;
+    }
+
+    // Switch to non-blocking for escape sequence reads
+    struct termios raw = impl_->orig;
+    raw.c_lflag &= ~(ECHO | ICANON);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+
+    check_resize();
+
+    if (ch == '\033') {
+        char seq[2];
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\033';
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\033';
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A': return KEY_UP;
+                case 'B': return KEY_DOWN;
+                case 'C': return KEY_RIGHT;
+                case 'D': return KEY_LEFT;
+            }
+        }
+        return '\033';
+    }
+
+    return static_cast<int>(ch);
+}
+
 } // namespace astra

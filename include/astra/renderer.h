@@ -46,6 +46,9 @@ public:
 
     // Returns -1 on no input, otherwise a key code.
     virtual int poll_input() = 0;
+
+    // Blocks until a key is pressed. Returns the key code.
+    virtual int wait_input() = 0;
 };
 
 } // namespace astra

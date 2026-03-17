@@ -221,4 +221,13 @@ int TerminalRenderer::poll_input() {
     return -1;
 }
 
+int TerminalRenderer::wait_input() {
+    // Block until we get a meaningful key
+    for (;;) {
+        WaitForSingleObject(impl_->h_in, INFINITE);
+        int key = poll_input();
+        if (key != -1) return key;
+    }
+}
+
 } // namespace astra

@@ -25,6 +25,7 @@ public:
     int get_height() const override;
 
     int poll_input() override;
+    int wait_input() override;
 
 private:
     void check_resize();
