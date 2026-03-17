@@ -896,27 +896,59 @@ void Game::render() {
     renderer_->present();
 }
 
+// Deterministic star at any world coordinate
+static char star_at(int x, int y) {
+    // Hash the coordinate to get a deterministic pseudo-random value
+    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    if ((h % 100) >= 3) return '\0'; // ~3% chance of a star
+    unsigned st = (h >> 8) % 10;
+    if (st < 6) return '.';
+    if (st < 9) return '*';
+    return '+';
+}
+
 void Game::render_menu() {
     DrawContext ctx(renderer_.get(), screen_rect_);
+
+    // Starfield backdrop
+    for (int sy = 0; sy < screen_h_; ++sy) {
+        for (int sx = 0; sx < screen_w_; ++sx) {
+            char star = star_at(sx, sy);
+            if (star) {
+                Color c = (star == '+') ? Color::Yellow
+                        : (star == '*') ? Color::White
+                                        : Color::Cyan;
+                ctx.put(sx, sy, star, c);
+            }
+        }
+    }
 
     int art_start_y = screen_h_ / 2 - title_art_lines - 2;
 
     for (int i = 0; i < title_art_lines; ++i) {
-        ctx.text_center(art_start_y + i, title_art[i]);
+        ctx.text_center(art_start_y + i, title_art[i], Color::White);
     }
 
     int menu_y = art_start_y + title_art_lines + 2;
     for (int i = 0; i < menu_item_count_; ++i) {
-        std::string label;
         if (i == menu_selection_) {
-            label = "> " + std::string(menu_items[i]) + " <";
+            // ·::|  Label  |::·
+            std::string item = menu_items[i];
+            std::string padded = "  " + item + "  ";
+            std::string full = ".::|" + padded + "|::.";
+            int x = (screen_w_ - static_cast<int>(full.size())) / 2;
+            ctx.text(x, menu_y + i, ".::", Color::Red);
+            ctx.put(x + 3, menu_y + i, '|', Color::Cyan);
+            ctx.text(x + 4, menu_y + i, padded, Color::Yellow);
+            ctx.put(x + 4 + static_cast<int>(padded.size()), menu_y + i, '|', Color::Cyan);
+            ctx.text(x + 5 + static_cast<int>(padded.size()), menu_y + i, "::.", Color::Red);
         } else {
-            label = "  " + std::string(menu_items[i]) + "  ";
+            std::string label = "     " + std::string(menu_items[i]) + "     ";
+            ctx.text_center(menu_y + i, label, Color::DarkGray);
         }
-        ctx.text_center(menu_y + i, label);
     }
-
-    ctx.text_center(screen_h_ - 2, "wasd/hjkl to navigate, enter to select");
 }
 
 void Game::render_play() {
@@ -1063,19 +1095,6 @@ void Game::render_tabs() {
     // Horizontal separator below tabs (row 2 on right side)
     DrawContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
     sep.hline(0, '-');
-}
-
-// Deterministic star at any world coordinate
-static char star_at(int x, int y) {
-    // Hash the coordinate to get a deterministic pseudo-random value
-    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
-    h = (h ^ (h >> 13)) * 1274126177;
-    h ^= h >> 16;
-    if ((h % 100) >= 3) return '\0'; // ~3% chance of a star
-    unsigned st = (h >> 8) % 10;
-    if (st < 6) return '.';
-    if (st < 9) return '*';
-    return '+';
 }
 
 void Game::render_map() {

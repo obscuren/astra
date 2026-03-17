@@ -16,7 +16,7 @@ cmake -B build && cmake --build build
 cmake -B build -DSDL=ON && cmake --build build
 ```
 
-Run: `./build/astra` (add `--sdl` for graphical mode, `--terminal` is default).
+Run: `./build/astra` (add `--sdl` for graphical mode, `--term` is default).
 
 ## Architecture
 

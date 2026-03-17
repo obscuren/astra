@@ -22,7 +22,7 @@ struct Options {
 
             if (arg == "--sdl") {
                 opts.backend = RendererBackend::SDL;
-            } else if (arg == "--terminal") {
+            } else if (arg == "--term") {
                 opts.backend = RendererBackend::Terminal;
             } else if (arg == "--help" || arg == "-h") {
                 print_help(argv[0]);
@@ -41,7 +41,7 @@ struct Options {
         std::cout << "Usage: " << program << " [options]\n"
                   << "\n"
                   << "Options:\n"
-                  << "  --terminal   Use terminal renderer (default)\n"
+                  << "  --term       Use terminal renderer (default)\n"
                   << "  --sdl        Use SDL2 graphical renderer\n"
                   << "  -h, --help   Show this help message\n";
     }
