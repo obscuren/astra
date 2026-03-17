@@ -5,6 +5,7 @@
 #include "astra/npc.h"
 #include "astra/player.h"
 #include "astra/renderer.h"
+#include "astra/save_file.h"
 #include "astra/tile_props.h"
 #include "astra/tilemap.h"
 #include "astra/ui.h"
@@ -21,6 +22,8 @@ enum class GameState {
     MainMenu,
     Playing,
     GameOver,
+    LoadMenu,
+    HallOfFame,
 };
 
 enum class PanelTab : uint8_t {
@@ -44,6 +47,8 @@ private:
     void handle_menu_input(int key);
     void handle_play_input(int key);
     void handle_gameover_input(int key);
+    void handle_load_input(int key);
+    void handle_hall_input(int key);
 
     // Logic
     void update();
@@ -59,12 +64,16 @@ private:
     void advance_dialog(int selected);
     void recompute_fov();
     void check_region_change();
+    void save_game();
+    bool load_game(const std::string& filename);
 
     // Rendering
     void render();
     void render_menu();
     void render_play();
     void render_gameover();
+    void render_load_menu();
+    void render_hall_of_fame();
     void render_stats_bar();
     void render_bars();
     void render_tabs();
@@ -89,9 +98,10 @@ private:
 
     // Menu
     int menu_selection_ = 0;
-    static constexpr int menu_item_count_ = 2;
+    static constexpr int menu_item_count_ = 4;
 
     // Gameplay
+    unsigned seed_ = 0;
     std::mt19937 rng_;
     Player player_;
     std::vector<Npc> npcs_;
@@ -133,6 +143,11 @@ private:
     Rect side_panel_rect_;
     Rect effects_rect_;
     Rect abilities_rect_;
+
+    // Save/load
+    std::vector<SaveSlot> save_slots_;
+    int load_selection_ = 0;
+    bool confirm_delete_ = false;
 
     // Death
     std::string death_message_;

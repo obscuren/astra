@@ -29,6 +29,8 @@ static constexpr int title_art_lines = 9;
 
 static const char* menu_items[] = {
     "New Game",
+    "Load Game",
+    "Hall of Fame",
     "Quit",
 };
 
@@ -119,9 +121,11 @@ void Game::compute_layout() {
 
 void Game::handle_input(int key) {
     switch (state_) {
-        case GameState::MainMenu: handle_menu_input(key);     break;
-        case GameState::Playing:  handle_play_input(key);     break;
-        case GameState::GameOver: handle_gameover_input(key);  break;
+        case GameState::MainMenu:  handle_menu_input(key);     break;
+        case GameState::Playing:   handle_play_input(key);     break;
+        case GameState::GameOver:  handle_gameover_input(key);  break;
+        case GameState::LoadMenu:  handle_load_input(key);     break;
+        case GameState::HallOfFame: handle_hall_input(key);    break;
     }
 }
 
@@ -137,6 +141,31 @@ void Game::handle_menu_input(int key) {
             if (menu_selection_ == 0) {
                 new_game();
             } else if (menu_selection_ == 1) {
+                save_slots_ = list_saves();
+                // Filter to alive saves only
+                save_slots_.erase(
+                    std::remove_if(save_slots_.begin(), save_slots_.end(),
+                                   [](const SaveSlot& s) { return s.dead; }),
+                    save_slots_.end());
+                load_selection_ = 0;
+                state_ = GameState::LoadMenu;
+            } else if (menu_selection_ == 2) {
+                save_slots_ = list_saves();
+                // Filter to dead saves only, sort by level desc then ticks desc
+                save_slots_.erase(
+                    std::remove_if(save_slots_.begin(), save_slots_.end(),
+                                   [](const SaveSlot& s) { return !s.dead; }),
+                    save_slots_.end());
+                std::sort(save_slots_.begin(), save_slots_.end(),
+                          [](const SaveSlot& a, const SaveSlot& b) {
+                              if (a.player_level != b.player_level)
+                                  return a.player_level > b.player_level;
+                              return a.world_tick > b.world_tick;
+                          });
+                load_selection_ = 0;
+                confirm_delete_ = false;
+                state_ = GameState::HallOfFame;
+            } else if (menu_selection_ == 3) {
                 running_ = false;
             }
             break;
@@ -158,10 +187,19 @@ void Game::handle_play_input(int key) {
         if (result == DialogResult::Selected) {
             switch (pause_menu_.selected()) {
                 case 0: break; // Return to Game — just closes
-                case 1: log("Save not yet implemented."); break;
-                case 2: log("Load not yet implemented."); break;
+                case 1: save_game(); log("Game saved."); break;
+                case 2: {
+                    save_slots_ = list_saves();
+                    save_slots_.erase(
+                        std::remove_if(save_slots_.begin(), save_slots_.end(),
+                                       [](const SaveSlot& s) { return s.dead; }),
+                        save_slots_.end());
+                    load_selection_ = 0;
+                    state_ = GameState::LoadMenu;
+                    break;
+                }
                 case 3: log("Options not yet implemented."); break;
-                case 4: running_ = false; break; // Save and Quit
+                case 4: save_game(); running_ = false; break; // Save and Quit
             }
         }
         return;
@@ -225,11 +263,11 @@ void Game::handle_play_input(int key) {
 void Game::new_game() {
     compute_layout();
 
-    unsigned seed = static_cast<unsigned>(std::time(nullptr));
-    rng_.seed(seed);
+    seed_ = static_cast<unsigned>(std::time(nullptr));
+    rng_.seed(seed_);
 
     map_ = TileMap(120, 60);
-    map_.generate(seed);
+    map_.generate(seed_);
     map_.set_location_name("The Heavens Above");
 
     player_ = Player{};
@@ -626,6 +664,7 @@ void Game::attack_npc(Npc& npc) {
         std::to_string(damage) + " damage!");
     if (!npc.alive()) {
         log(npc.display_name() + " is destroyed!");
+        player_.kills++;
         int xp = npc.xp_reward();
         if (xp > 0) {
             player_.xp += xp;
@@ -650,6 +689,28 @@ void Game::remove_dead_npcs() {
 
 void Game::check_player_death() {
     if (player_.hp <= 0) {
+        // Permadeath: save with dead flag
+        SaveData data;
+        data.version = 1;
+        data.seed = seed_;
+        data.world_tick = world_tick_;
+        data.dead = true;
+        data.player = player_;
+        data.current_map_id = 0;
+        data.current_region = current_region_;
+        data.active_tab = active_tab_;
+        data.panel_visible = panel_visible_;
+        data.messages = messages_;
+        data.death_message = death_message_;
+
+        MapState ms;
+        ms.map_id = 0;
+        ms.tilemap = map_;
+        ms.visibility = visibility_;
+        ms.npcs = npcs_;
+        data.maps.push_back(std::move(ms));
+
+        write_save("save_" + std::to_string(seed_), data);
         state_ = GameState::GameOver;
     }
 }
@@ -666,6 +727,138 @@ void Game::handle_gameover_input(int key) {
     }
 }
 
+void Game::handle_load_input(int key) {
+    switch (key) {
+        case '\033':
+            state_ = GameState::MainMenu;
+            menu_selection_ = 0;
+            break;
+        case 'w': case 'k': case KEY_UP:
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ - 1 + static_cast<int>(save_slots_.size()))
+                                  % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case 's': case 'j': case KEY_DOWN:
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ + 1) % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case '\n': case '\r':
+            if (!save_slots_.empty() &&
+                load_selection_ >= 0 &&
+                load_selection_ < static_cast<int>(save_slots_.size())) {
+                if (load_game(save_slots_[load_selection_].filename)) {
+                    log("Game loaded.");
+                }
+            }
+            break;
+    }
+}
+
+void Game::handle_hall_input(int key) {
+    switch (key) {
+        case '\033':
+            state_ = GameState::MainMenu;
+            menu_selection_ = 0;
+            confirm_delete_ = false;
+            break;
+        case 'w': case 'k': case KEY_UP:
+            confirm_delete_ = false;
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ - 1 + static_cast<int>(save_slots_.size()))
+                                  % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case 's': case 'j': case KEY_DOWN:
+            confirm_delete_ = false;
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ + 1) % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case 'd': case 'D':
+            if (!save_slots_.empty()) {
+                confirm_delete_ = !confirm_delete_;
+            }
+            break;
+        case 'y': case 'Y':
+            if (confirm_delete_ && !save_slots_.empty() &&
+                load_selection_ >= 0 &&
+                load_selection_ < static_cast<int>(save_slots_.size())) {
+                delete_save(save_slots_[load_selection_].filename);
+                save_slots_.erase(save_slots_.begin() + load_selection_);
+                if (load_selection_ >= static_cast<int>(save_slots_.size())) {
+                    load_selection_ = static_cast<int>(save_slots_.size()) - 1;
+                }
+                if (load_selection_ < 0) load_selection_ = 0;
+                confirm_delete_ = false;
+            }
+            break;
+        case 'n': case 'N':
+            confirm_delete_ = false;
+            break;
+    }
+}
+
+void Game::save_game() {
+    SaveData data;
+    data.version = 1;
+    data.seed = seed_;
+    data.world_tick = world_tick_;
+    data.dead = false;
+    data.player = player_;
+    data.current_map_id = 0;
+    data.current_region = current_region_;
+    data.active_tab = active_tab_;
+    data.panel_visible = panel_visible_;
+    data.messages = messages_;
+    data.death_message = death_message_;
+
+    MapState ms;
+    ms.map_id = 0;
+    ms.tilemap = map_;
+    ms.visibility = visibility_;
+    ms.npcs = npcs_;
+    data.maps.push_back(std::move(ms));
+
+    write_save("save_" + std::to_string(seed_), data);
+}
+
+bool Game::load_game(const std::string& filename) {
+    SaveData data;
+    if (!read_save(filename, data)) return false;
+    if (data.dead) return false;
+    if (data.maps.empty()) return false;
+
+    seed_ = data.seed;
+    rng_.seed(seed_);
+    world_tick_ = data.world_tick;
+    player_ = data.player;
+    death_message_ = data.death_message;
+    current_region_ = data.current_region;
+    active_tab_ = data.active_tab;
+    panel_visible_ = data.panel_visible;
+    messages_ = data.messages;
+
+    // Restore first map
+    const auto& ms = data.maps[0];
+    map_ = ms.tilemap;
+    visibility_ = ms.visibility;
+    npcs_ = ms.npcs;
+
+    // Reset interaction state
+    awaiting_interact_ = false;
+    interacting_npc_ = nullptr;
+    dialog_tree_ = nullptr;
+    dialog_node_ = -1;
+    pause_menu_.close();
+
+    compute_layout();
+    compute_camera();
+    state_ = GameState::Playing;
+    return true;
+}
+
 void Game::update() {
     // Tick-based — world updates happen in response to player actions.
 }
@@ -676,9 +869,11 @@ void Game::render() {
     renderer_->clear();
 
     switch (state_) {
-        case GameState::MainMenu: render_menu();     break;
-        case GameState::Playing:  render_play();     break;
-        case GameState::GameOver: render_gameover();  break;
+        case GameState::MainMenu:   render_menu();          break;
+        case GameState::Playing:    render_play();          break;
+        case GameState::GameOver:   render_gameover();      break;
+        case GameState::LoadMenu:   render_load_menu();     break;
+        case GameState::HallOfFame: render_hall_of_fame();  break;
     }
 
     renderer_->present();
@@ -1008,6 +1203,80 @@ void Game::render_gameover() {
     ctx.text_center(cy + 1, "Reached level " + std::to_string(player_.level));
     cy += 3;
     ctx.text_center(cy,     "[Enter] Main Menu    [Q] Quit", Color::DarkGray);
+}
+
+void Game::render_load_menu() {
+    int win_w = std::min(screen_w_ - 4, 60);
+    int win_h = std::min(screen_h_ - 4, static_cast<int>(save_slots_.size()) + 6);
+    if (win_h < 8) win_h = 8;
+
+    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, "Load Game");
+    win.set_footer("[Enter] Load  [Esc] Back");
+    win.draw();
+    DrawContext ctx = win.content();
+
+    if (save_slots_.empty()) {
+        ctx.text_center(ctx.height() / 2, "No saved games found.", Color::DarkGray);
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(save_slots_.size()); ++i) {
+        if (i >= ctx.height()) break;
+        const auto& slot = save_slots_[i];
+        bool selected = (i == load_selection_);
+
+        std::string line;
+        if (selected) line += "> "; else line += "  ";
+        line += slot.location;
+        line += "  LVL:" + std::to_string(slot.player_level);
+        line += "  T:" + std::to_string(slot.world_tick);
+
+        Color fg = selected ? Color::Yellow : Color::Default;
+        ctx.text(0, i, line, fg);
+    }
+}
+
+void Game::render_hall_of_fame() {
+    int win_w = std::min(screen_w_ - 4, 70);
+    int win_h = std::min(screen_h_ - 4, static_cast<int>(save_slots_.size()) + 6);
+    if (win_h < 8) win_h = 8;
+
+    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, "Hall of Fame");
+    if (confirm_delete_) {
+        win.set_footer("Delete this entry? [Y] Yes  [N] No", Color::Red);
+    } else {
+        win.set_footer("[D] Delete  [Esc] Back");
+    }
+    win.draw();
+    DrawContext ctx = win.content();
+
+    if (save_slots_.empty()) {
+        ctx.text_center(ctx.height() / 2, "No fallen heroes yet.", Color::DarkGray);
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(save_slots_.size()); ++i) {
+        if (i >= ctx.height()) break;
+        const auto& slot = save_slots_[i];
+        bool selected = (i == load_selection_);
+
+        std::string line;
+        if (selected) line += "> "; else line += "  ";
+
+        if (!slot.death_message.empty()) {
+            line += slot.death_message;
+        } else {
+            line += "Unknown cause";
+        }
+        line += "  LVL:" + std::to_string(slot.player_level);
+        line += "  T:" + std::to_string(slot.world_tick);
+        line += "  XP:" + std::to_string(slot.xp);
+        line += "  $" + std::to_string(slot.money);
+        line += "  K:" + std::to_string(slot.kills);
+
+        Color fg = selected ? Color::Yellow : Color::DarkGray;
+        ctx.text(0, i, line, fg);
+    }
 }
 
 // --- Helpers ---

@@ -25,4 +25,10 @@ Visibility VisibilityMap::get(int x, int y) const {
     return cells_[y * width_ + x];
 }
 
+void VisibilityMap::load_from(int w, int h, std::vector<Visibility> cells) {
+    width_ = w;
+    height_ = h;
+    cells_ = std::move(cells);
+}
+
 } // namespace astra

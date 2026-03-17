@@ -40,6 +40,8 @@ struct Player {
     int level = 1;
     int xp = 0;
     int max_xp = 100;
+    int energy = 0;
+    int kills = 0;
 };
 
 } // namespace astra

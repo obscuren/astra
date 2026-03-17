@@ -95,6 +95,17 @@ public:
     const std::string& location_name() const { return location_name_; }
     void set_location_name(const std::string& name) { location_name_ = name; }
 
+    // Const accessors for serialization
+    const std::vector<Tile>& tiles() const { return tiles_; }
+    const std::vector<int>& region_ids() const { return region_ids_; }
+    const std::vector<Region>& regions_vec() const { return regions_; }
+    const std::vector<char>& backdrop_data() const { return backdrop_; }
+
+    // Bulk load from deserialized data
+    void load_from(int w, int h, MapType type, std::string location,
+                   std::vector<Tile> tiles, std::vector<int> rids,
+                   std::vector<Region> regions, std::vector<char> backdrop);
+
     // Returns a valid floor position for spawning
     void find_open_spot(int& out_x, int& out_y) const;
 

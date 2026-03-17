@@ -445,4 +445,17 @@ void TileMap::carve_corridor_v(int y1, int y2, int x, int rid) {
     }
 }
 
+void TileMap::load_from(int w, int h, MapType type, std::string location,
+                        std::vector<Tile> tiles, std::vector<int> rids,
+                        std::vector<Region> regions, std::vector<char> backdrop) {
+    width_ = w;
+    height_ = h;
+    map_type_ = type;
+    location_name_ = std::move(location);
+    tiles_ = std::move(tiles);
+    region_ids_ = std::move(rids);
+    regions_ = std::move(regions);
+    backdrop_ = std::move(backdrop);
+}
+
 } // namespace astra

@@ -25,6 +25,12 @@ public:
     int width() const { return width_; }
     int height() const { return height_; }
 
+    // Const accessor for serialization
+    const std::vector<Visibility>& cells() const { return cells_; }
+
+    // Bulk load from deserialized data
+    void load_from(int w, int h, std::vector<Visibility> cells);
+
 private:
     int width_ = 0;
     int height_ = 0;
