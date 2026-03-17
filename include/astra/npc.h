@@ -35,9 +35,18 @@ struct Npc {
     int max_hp = 1;
     Disposition disposition = Disposition::Neutral;
     bool invulnerable = false;
+    int quickness = 100;
+    int energy = 0;
+    int level = 1;
+    bool elite = false;
+    int base_xp = 0;
+    int base_damage = 0;
     InteractionData interactions;
 
-    // "Krath the Station Keeper" or just "Angry Xytomorph" if no personal name
+    bool alive() const { return hp > 0; }
+    int xp_reward() const { return base_xp * level * (elite ? 3 : 1); }
+    int attack_damage() const { return base_damage * level + (elite ? 1 : 0); }
+    void scale_to_level(int lvl, bool is_elite);
     std::string display_name() const;
 };
 

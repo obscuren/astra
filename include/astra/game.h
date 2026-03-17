@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/action.h"
 #include "astra/fov.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -19,6 +20,7 @@ namespace astra {
 enum class GameState {
     MainMenu,
     Playing,
+    GameOver,
 };
 
 enum class PanelTab : uint8_t {
@@ -41,12 +43,18 @@ private:
     void handle_input(int key);
     void handle_menu_input(int key);
     void handle_play_input(int key);
+    void handle_gameover_input(int key);
 
     // Logic
     void update();
     void new_game();
     void try_move(int dx, int dy);
     void try_interact(int dx, int dy);
+    void advance_world(int cost);
+    void process_npc_turn(Npc& npc);
+    void attack_npc(Npc& npc);
+    void remove_dead_npcs();
+    void check_player_death();
     void open_npc_dialog(Npc& npc);
     void advance_dialog(int selected);
     void recompute_fov();
@@ -56,6 +64,7 @@ private:
     void render();
     void render_menu();
     void render_play();
+    void render_gameover();
     void render_stats_bar();
     void render_bars();
     void render_tabs();
@@ -72,6 +81,7 @@ private:
     void log(const std::string& msg);
     Color hp_color() const;
     Color hunger_color() const;
+    bool tile_occupied(int x, int y) const;
 
     std::unique_ptr<Renderer> renderer_;
     GameState state_ = GameState::MainMenu;
@@ -90,6 +100,7 @@ private:
     int camera_x_ = 0;
     int camera_y_ = 0;
     int current_region_ = -1;
+    int world_tick_ = 0;
 
     // Tabs
     int active_tab_ = 0;
@@ -122,6 +133,9 @@ private:
     Rect side_panel_rect_;
     Rect effects_rect_;
     Rect abilities_rect_;
+
+    // Death
+    std::string death_message_;
 
     // Message log
     std::deque<std::string> messages_;

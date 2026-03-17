@@ -52,16 +52,31 @@ std::string generate_name(Race race, std::mt19937& rng) {
     return "Unknown";
 }
 
+// --- Level scaling ---
+
+void Npc::scale_to_level(int lvl, bool is_elite) {
+    level = lvl;
+    elite = is_elite;
+    hp = hp * level;
+    max_hp = hp;
+    if (elite) {
+        hp *= 2;
+        max_hp *= 2;
+        quickness = quickness * 3 / 2;
+    }
+}
+
 // --- Display name ---
 
 std::string Npc::display_name() const {
+    std::string prefix = elite ? "Elite " : "";
     if (name.empty()) {
-        return role;
+        return prefix + role;
     }
     if (role.empty()) {
-        return name;
+        return prefix + name;
     }
-    return name + " the " + role;
+    return prefix + name + " the " + role;
 }
 
 // --- Factory dispatcher ---

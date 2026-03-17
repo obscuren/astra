@@ -12,6 +12,7 @@ Npc build_merchant(Race race, std::mt19937& rng) {
     npc.max_hp = 15;
     npc.disposition = Disposition::Neutral;
     npc.invulnerable = true;
+    npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
     // --- Talk: brief introduction ---

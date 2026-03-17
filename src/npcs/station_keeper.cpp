@@ -12,6 +12,7 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
     npc.max_hp = 20;
     npc.disposition = Disposition::Friendly;
     npc.invulnerable = true;
+    npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
     // --- Talk: station lore ---

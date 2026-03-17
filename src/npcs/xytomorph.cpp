@@ -12,7 +12,9 @@ Npc build_xytomorph(std::mt19937& /*rng*/) {
     npc.max_hp = 12;
     npc.disposition = Disposition::Hostile;
     npc.invulnerable = false;
-    // Hostile — no interactions, no personal name
+    npc.quickness = 150;
+    npc.base_xp = 25;
+    npc.base_damage = 2;
     return npc;
 }
 

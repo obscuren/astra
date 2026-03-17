@@ -1,11 +1,18 @@
 #include "astra/game.h"
+#include "astra/debug_spawn.h"
 
-#include <chrono>
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <ctime>
-#include <thread>
 
 namespace astra {
+
+static int sign(int v) { return (v > 0) - (v < 0); }
+
+static int chebyshev_dist(int x1, int y1, int x2, int y2) {
+    return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
+}
 
 static const char* title_art[] = {
     R"(        .            *                .          |  )",
@@ -47,7 +54,12 @@ void Game::run() {
     running_ = true;
     compute_layout();
 
+    render();
+
     while (running_) {
+        int key = renderer_->wait_input();
+        handle_input(key);
+
         int w = renderer_->get_width();
         int h = renderer_->get_height();
         if (w != screen_w_ || h != screen_h_) {
@@ -57,15 +69,8 @@ void Game::run() {
             }
         }
 
-        int key = renderer_->poll_input();
-        if (key != -1) {
-            handle_input(key);
-        }
-
         update();
         render();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 
     renderer_->shutdown();
@@ -114,8 +119,9 @@ void Game::compute_layout() {
 
 void Game::handle_input(int key) {
     switch (state_) {
-        case GameState::MainMenu: handle_menu_input(key); break;
-        case GameState::Playing:  handle_play_input(key);  break;
+        case GameState::MainMenu: handle_menu_input(key);     break;
+        case GameState::Playing:  handle_play_input(key);     break;
+        case GameState::GameOver: handle_gameover_input(key);  break;
     }
 }
 
@@ -255,7 +261,8 @@ void Game::new_game() {
     spawn_near(NpcRole::StationKeeper, Race::Human, player_.x, player_.y);
     spawn_near(NpcRole::Merchant, Race::Veldrani, player_.x, player_.y);
     spawn_near(NpcRole::Drifter, Race::Sylphari, player_.x, player_.y);
-    spawn_other_room(NpcRole::Xytomorph, Race::Xytomorph);
+
+    debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
 
     visibility_ = VisibilityMap(map_.width(), map_.height());
     recompute_fov();
@@ -284,8 +291,13 @@ void Game::try_move(int dx, int dy) {
     }
 
     // Check NPC collision
-    for (const auto& npc : npcs_) {
-        if (npc.x == nx && npc.y == ny) {
+    for (auto& npc : npcs_) {
+        if (npc.alive() && npc.x == nx && npc.y == ny) {
+            if (npc.disposition == Disposition::Hostile) {
+                attack_npc(npc);
+                advance_world(ActionCost::move);
+                return;
+            }
             log("You see " + npc.display_name() + ".");
             return;
         }
@@ -296,6 +308,7 @@ void Game::try_move(int dx, int dy) {
     recompute_fov();
     compute_camera();
     check_region_change();
+    advance_world(ActionCost::move);
 }
 
 void Game::check_region_change() {
@@ -336,6 +349,7 @@ void Game::try_interact(int dx, int dy) {
 
     if (target->disposition == Disposition::Hostile) {
         log(target->display_name() + " snarls at you.");
+        advance_world(ActionCost::interact);
         return;
     }
 
@@ -346,6 +360,7 @@ void Game::try_interact(int dx, int dy) {
 
     log("You approach " + target->display_name() + ".");
     open_npc_dialog(*target);
+    advance_world(ActionCost::interact);
 }
 
 void Game::open_npc_dialog(Npc& npc) {
@@ -505,6 +520,152 @@ void Game::recompute_fov() {
     }
 }
 
+void Game::advance_world(int cost) {
+    // Grant energy to all NPCs on the current map
+    for (auto& npc : npcs_) {
+        npc.energy += cost * npc.quickness / 100;
+    }
+
+    // Process NPC turns until no NPC can act
+    bool acted = true;
+    while (acted) {
+        acted = false;
+        for (auto& npc : npcs_) {
+            while (npc.energy >= energy_threshold) {
+                npc.energy -= energy_threshold;
+                process_npc_turn(npc);
+                acted = true;
+            }
+        }
+    }
+
+    remove_dead_npcs();
+    check_player_death();
+    ++world_tick_;
+}
+
+void Game::process_npc_turn(Npc& npc) {
+    if (!npc.alive()) return;
+    if (npc.disposition == Disposition::Friendly || npc.quickness == 0)
+        return;
+
+    if (npc.disposition == Disposition::Hostile) {
+        int dist = chebyshev_dist(npc.x, npc.y, player_.x, player_.y);
+
+        // Adjacent — attack
+        if (dist <= 1) {
+            int damage = npc.attack_damage();
+            if (damage < 1) damage = 1;
+            player_.hp -= damage;
+            if (player_.hp < 0) player_.hp = 0;
+            log(npc.display_name() + " strikes you for " +
+                std::to_string(damage) + " damage!");
+            if (player_.hp <= 0) {
+                death_message_ = "Slain by " + npc.display_name();
+            }
+            return;
+        }
+
+        // Within detection range — chase
+        if (dist <= 8) {
+            int dx = sign(player_.x - npc.x);
+            int dy = sign(player_.y - npc.y);
+
+            // Try diagonal, then each cardinal fallback
+            struct { int x, y; } candidates[] = {
+                {dx, dy}, {dx, 0}, {0, dy}
+            };
+            for (auto [cx, cy] : candidates) {
+                if (cx == 0 && cy == 0) continue;
+                int nx = npc.x + cx;
+                int ny = npc.y + cy;
+                if (map_.passable(nx, ny) && !tile_occupied(nx, ny)) {
+                    npc.x = nx;
+                    npc.y = ny;
+                    return;
+                }
+            }
+            return; // all blocked, skip turn
+        }
+
+        // Fall through to wander
+    }
+
+    // Wander: try random cardinal directions
+    std::array<std::pair<int,int>, 4> dirs = {{{0,-1},{0,1},{-1,0},{1,0}}};
+    std::shuffle(dirs.begin(), dirs.end(), rng_);
+    for (auto [dx, dy] : dirs) {
+        int nx = npc.x + dx;
+        int ny = npc.y + dy;
+        if (map_.passable(nx, ny) && !tile_occupied(nx, ny)) {
+            npc.x = nx;
+            npc.y = ny;
+            return;
+        }
+    }
+}
+
+bool Game::tile_occupied(int x, int y) const {
+    if (player_.x == x && player_.y == y) return true;
+    for (const auto& npc : npcs_) {
+        if (npc.alive() && npc.x == x && npc.y == y) return true;
+    }
+    return false;
+}
+
+void Game::attack_npc(Npc& npc) {
+    if (npc.invulnerable) {
+        log("Your attack has no effect on " + npc.display_name() + ".");
+        return;
+    }
+    int damage = player_.attack_value;
+    if (damage < 1) damage = 1;
+    npc.hp -= damage;
+    if (npc.hp < 0) npc.hp = 0;
+    log("You strike " + npc.display_name() + " for " +
+        std::to_string(damage) + " damage!");
+    if (!npc.alive()) {
+        log(npc.display_name() + " is destroyed!");
+        int xp = npc.xp_reward();
+        if (xp > 0) {
+            player_.xp += xp;
+            log("You gain " + std::to_string(xp) + " XP.");
+        }
+    }
+}
+
+void Game::remove_dead_npcs() {
+    // Nullify interacting_npc_ if it died
+    if (interacting_npc_ && !interacting_npc_->alive()) {
+        npc_dialog_.close();
+        interacting_npc_ = nullptr;
+        dialog_tree_ = nullptr;
+        dialog_node_ = -1;
+    }
+    npcs_.erase(
+        std::remove_if(npcs_.begin(), npcs_.end(),
+                        [](const Npc& n) { return !n.alive(); }),
+        npcs_.end());
+}
+
+void Game::check_player_death() {
+    if (player_.hp <= 0) {
+        state_ = GameState::GameOver;
+    }
+}
+
+void Game::handle_gameover_input(int key) {
+    switch (key) {
+        case '\n': case '\r':
+            state_ = GameState::MainMenu;
+            menu_selection_ = 0;
+            break;
+        case 'q': case 'Q':
+            running_ = false;
+            break;
+    }
+}
+
 void Game::update() {
     // Tick-based — world updates happen in response to player actions.
 }
@@ -515,8 +676,9 @@ void Game::render() {
     renderer_->clear();
 
     switch (state_) {
-        case GameState::MainMenu: render_menu(); break;
-        case GameState::Playing:  render_play(); break;
+        case GameState::MainMenu: render_menu();     break;
+        case GameState::Playing:  render_play();     break;
+        case GameState::GameOver: render_gameover();  break;
     }
 
     renderer_->present();
@@ -741,7 +903,7 @@ void Game::render_map() {
 
     // Draw visible NPCs
     for (const auto& npc : npcs_) {
-        if (visibility_.get(npc.x, npc.y) == Visibility::Visible) {
+        if (npc.alive() && visibility_.get(npc.x, npc.y) == Visibility::Visible) {
             ctx.put(npc.x - camera_x_, npc.y - camera_y_, npc.glyph, npc.color);
         }
     }
@@ -830,6 +992,22 @@ void Game::render_abilities_bar() {
     DrawContext ctx(renderer_.get(), abilities_rect_);
     ctx.text(1, 0, "ABILITIES:", Color::DarkGray);
     ctx.text(12, 0, "[reserved]", Color::DarkGray);
+}
+
+void Game::render_gameover() {
+    DrawContext ctx(renderer_.get(), screen_rect_);
+
+    int cy = screen_h_ / 2 - 4;
+    ctx.text_center(cy,     "YOU HAVE DIED", Color::Red);
+    cy += 2;
+    if (!death_message_.empty()) {
+        ctx.text_center(cy, death_message_);
+        cy += 2;
+    }
+    ctx.text_center(cy,     "Survived " + std::to_string(world_tick_) + " ticks");
+    ctx.text_center(cy + 1, "Reached level " + std::to_string(player_.level));
+    cy += 3;
+    ctx.text_center(cy,     "[Enter] Main Menu    [Q] Quit", Color::DarkGray);
 }
 
 // --- Helpers ---
