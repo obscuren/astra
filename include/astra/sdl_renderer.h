@@ -25,6 +25,8 @@ public:
     int get_height() const override;
 
     int poll_input() override;
+    int wait_input() override;
+    int wait_input_timeout(int timeout_ms) override;
 
 private:
     int cols_;

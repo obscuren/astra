@@ -60,8 +60,14 @@ void Game::run() {
     render();
 
     while (running_) {
-        int key = renderer_->wait_input();
-        handle_input(key);
+        int key = targeting_ ? renderer_->wait_input_timeout(300)
+                             : renderer_->wait_input();
+        if (key == -1) {
+            // Timeout — toggle blink phase for reticule
+            ++blink_phase_;
+        } else {
+            handle_input(key);
+        }
 
         int w = renderer_->get_width();
         int h = renderer_->get_height();
@@ -219,14 +225,20 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Targeting mode intercept
+    if (targeting_) {
+        handle_targeting_input(key);
+        return;
+    }
+
     // Awaiting interact direction (e + direction)
     if (awaiting_interact_) {
         awaiting_interact_ = false;
         switch (key) {
-            case 'w': case 'k': case KEY_UP:    try_interact( 0, -1); return;
-            case 's': case 'j': case KEY_DOWN:  try_interact( 0,  1); return;
-            case 'a': case 'h': case KEY_LEFT:  try_interact(-1,  0); return;
-            case 'd': case 'l': case KEY_RIGHT: try_interact( 1,  0); return;
+            case 'k': case KEY_UP:    try_interact( 0, -1); return;
+            case 'j': case KEY_DOWN:  try_interact( 0,  1); return;
+            case 'h': case KEY_LEFT:  try_interact(-1,  0); return;
+            case 'l': case KEY_RIGHT: try_interact( 1,  0); return;
             default:
                 log("Cancelled.");
                 return;
@@ -256,10 +268,12 @@ void Game::handle_play_input(int key) {
             log("You wait...");
             advance_world(ActionCost::wait);
             break;
-        case 'w': case 'k': case KEY_UP:    try_move( 0, -1); break;
-        case 's': case 'j': case KEY_DOWN:  try_move( 0,  1); break;
-        case 'a': case 'h': case KEY_LEFT:  try_move(-1,  0); break;
-        case 'd': case 'l': case KEY_RIGHT: try_move( 1,  0); break;
+        case 't': begin_targeting(); break;
+        case 's': shoot_target(); break;
+        case 'k': case KEY_UP:    try_move( 0, -1); break;
+        case 'j': case KEY_DOWN:  try_move( 0,  1); break;
+        case 'h': case KEY_LEFT:  try_move(-1,  0); break;
+        case 'l': case KEY_RIGHT: try_move( 1,  0); break;
     }
 }
 
@@ -323,6 +337,8 @@ void Game::new_game() {
 
     messages_.clear();
     awaiting_interact_ = false;
+    targeting_ = false;
+    target_npc_ = nullptr;
     current_region_ = -1;
     active_tab_ = 0; // Start on Messages tab
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
@@ -701,7 +717,125 @@ void Game::attack_npc(Npc& npc) {
     }
 }
 
+void Game::begin_targeting() {
+    targeting_ = true;
+    blink_phase_ = 0;
+
+    // Find nearest visible hostile NPC
+    Npc* nearest = nullptr;
+    int best_dist = 9999;
+    for (auto& npc : npcs_) {
+        if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
+        if (visibility_.get(npc.x, npc.y) != Visibility::Visible) continue;
+        int d = chebyshev_dist(player_.x, player_.y, npc.x, npc.y);
+        if (d < best_dist) {
+            best_dist = d;
+            nearest = &npc;
+        }
+    }
+
+    if (nearest) {
+        target_x_ = nearest->x;
+        target_y_ = nearest->y;
+    } else {
+        target_x_ = player_.x;
+        target_y_ = player_.y;
+    }
+
+    log("Targeting mode. Move cursor, [Enter] to confirm, [Esc] to cancel.");
+}
+
+void Game::handle_targeting_input(int key) {
+    auto try_move_cursor = [&](int dx, int dy) {
+        // Scan up to 20 tiles in direction to skip walls/unexplored gaps
+        for (int i = 1; i <= 20; ++i) {
+            int nx = target_x_ + dx * i;
+            int ny = target_y_ + dy * i;
+            if (nx < 0 || nx >= map_.width() || ny < 0 || ny >= map_.height()) return;
+            if (map_.passable(nx, ny) && visibility_.get(nx, ny) == Visibility::Visible) {
+                target_x_ = nx;
+                target_y_ = ny;
+                return;
+            }
+        }
+    };
+    switch (key) {
+        case 'k': case KEY_UP:    try_move_cursor( 0, -1); break;
+        case 'j': case KEY_DOWN:  try_move_cursor( 0,  1); break;
+        case 'h': case KEY_LEFT:  try_move_cursor(-1,  0); break;
+        case 'l': case KEY_RIGHT: try_move_cursor( 1,  0); break;
+        case '\n': case '\r': {
+            // Check for alive NPC at cursor
+            Npc* found = nullptr;
+            for (auto& npc : npcs_) {
+                if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
+                    found = &npc;
+                    break;
+                }
+            }
+            if (found) {
+                target_npc_ = found;
+                targeting_ = false;
+                log("Targeted: " + found->display_name());
+            } else {
+                log("No target there.");
+            }
+            break;
+        }
+        case '\033': // Escape
+            targeting_ = false;
+            target_npc_ = nullptr;
+            log("Targeting cancelled.");
+            break;
+        default:
+            break;
+    }
+}
+
+void Game::shoot_target() {
+    if (!target_npc_ || !target_npc_->alive()) {
+        target_npc_ = nullptr;
+        log("No target selected. Press [t] to target.");
+        return;
+    }
+
+    if (visibility_.get(target_npc_->x, target_npc_->y) != Visibility::Visible) {
+        log("Target not visible.");
+        return;
+    }
+
+    if (target_npc_->invulnerable) {
+        log("Your shot has no effect on " + target_npc_->display_name() + ".");
+        advance_world(ActionCost::shoot);
+        return;
+    }
+
+    int damage = player_.attack_value;
+    if (damage < 1) damage = 1;
+    target_npc_->hp -= damage;
+    if (target_npc_->hp < 0) target_npc_->hp = 0;
+    log("You shoot " + target_npc_->display_name() + " for " +
+        std::to_string(damage) + " damage.");
+
+    if (!target_npc_->alive()) {
+        log(target_npc_->display_name() + " is destroyed!");
+        player_.kills++;
+        int xp = target_npc_->xp_reward();
+        if (xp > 0) {
+            player_.xp += xp;
+            log("You gain " + std::to_string(xp) + " XP.");
+        }
+        target_npc_ = nullptr;
+    }
+
+    advance_world(ActionCost::shoot);
+}
+
 void Game::remove_dead_npcs() {
+    // Nullify target_npc_ if it died
+    if (target_npc_ && !target_npc_->alive()) {
+        target_npc_ = nullptr;
+    }
     // Nullify interacting_npc_ if it died
     if (interacting_npc_ && !interacting_npc_->alive()) {
         npc_dialog_.close();
@@ -876,6 +1010,8 @@ bool Game::load_game(const std::string& filename) {
 
     // Reset interaction state
     awaiting_interact_ = false;
+    targeting_ = false;
+    target_npc_ = nullptr;
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
     dialog_node_ = -1;
@@ -1152,6 +1288,45 @@ void Game::render_map() {
 
     // Draw player relative to camera
     ctx.put(player_.x - camera_x_, player_.y - camera_y_, '@', Color::Yellow);
+
+    // Draw targeting line and reticule
+    if (targeting_) {
+        // Bresenham line from player to reticule
+        int x0 = player_.x, y0 = player_.y;
+        int x1 = target_x_, y1 = target_y_;
+        int dx = std::abs(x1 - x0), dy = std::abs(y1 - y0);
+        int sx = (x0 < x1) ? 1 : -1;
+        int sy = (y0 < y1) ? 1 : -1;
+        int err = dx - dy;
+
+        int lx = x0, ly = y0;
+        while (lx != x1 || ly != y1) {
+            int e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; lx += sx; }
+            if (e2 <  dx) { err += dx; ly += sy; }
+            if (lx == x1 && ly == y1) break; // don't draw on reticule pos
+            int scx = lx - camera_x_, scy = ly - camera_y_;
+            if (scx >= 0 && scx < map_rect_.w && scy >= 0 && scy < map_rect_.h) {
+                ctx.put(scx, scy, '*', Color::Magenta);
+            }
+        }
+
+        // Reticule: blink only when over something interesting (NPC, item, etc.)
+        int rx = target_x_ - camera_x_, ry = target_y_ - camera_y_;
+        if (rx >= 0 && rx < map_rect_.w && ry >= 0 && ry < map_rect_.h) {
+            bool has_entity = false;
+            for (const auto& npc : npcs_) {
+                if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
+                    has_entity = true;
+                    break;
+                }
+            }
+            if (!has_entity || blink_phase_ % 2 == 0) {
+                ctx.put(rx, ry, '+', Color::Red);
+            }
+            // else: let the underlying NPC/item glyph show through
+        }
+    }
 }
 
 void Game::render_side_panel() {
@@ -1227,7 +1402,20 @@ void Game::render_effects_bar() {
 
     int mid = ctx.width() / 3;
     ctx.text(mid, 0, "TARGET:", Color::DarkGray);
-    ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
+    if (target_npc_ && target_npc_->alive()) {
+        std::string info = " " + target_npc_->display_name() +
+            " (" + std::to_string(target_npc_->hp) + "/" +
+            std::to_string(target_npc_->max_hp) + ")";
+        Color tc = Color::DarkGray;
+        switch (target_npc_->disposition) {
+            case Disposition::Hostile:  tc = Color::Red; break;
+            case Disposition::Neutral:  tc = Color::Yellow; break;
+            case Disposition::Friendly: tc = Color::Green; break;
+        }
+        ctx.text(mid + 7, 0, info, tc);
+    } else {
+        ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
+    }
 }
 
 void Game::render_abilities_bar() {

@@ -26,6 +26,7 @@ public:
 
     int poll_input() override;
     int wait_input() override;
+    int wait_input_timeout(int timeout_ms) override;
 
 private:
     void check_resize();

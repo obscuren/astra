@@ -219,4 +219,10 @@ int TerminalRenderer::wait_input() {
     }
 }
 
+int TerminalRenderer::wait_input_timeout(int timeout_ms) {
+    DWORD result = WaitForSingleObject(impl_->h_in, static_cast<DWORD>(timeout_ms));
+    if (result != WAIT_OBJECT_0) return -1;
+    return poll_input();
+}
+
 } // namespace astra

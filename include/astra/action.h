@@ -5,6 +5,7 @@ namespace astra {
 struct ActionCost {
     static constexpr int move = 50;
     static constexpr int attack = 100;
+    static constexpr int shoot = 100;
     static constexpr int interact = 50;
     static constexpr int wait = 50;
 };

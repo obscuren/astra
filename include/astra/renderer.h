@@ -53,6 +53,9 @@ public:
 
     // Blocks until a key is pressed. Returns the key code.
     virtual int wait_input() = 0;
+
+    // Blocks up to timeout_ms milliseconds. Returns -1 on timeout.
+    virtual int wait_input_timeout(int timeout_ms) = 0;
 };
 
 } // namespace astra

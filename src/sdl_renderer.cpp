@@ -148,4 +148,23 @@ void SdlRenderer::render_cell(int x, int y, char ch) {
     SDL_DestroyTexture(texture);
 }
 
+int SdlRenderer::wait_input() {
+    for (;;) {
+        int key = poll_input();
+        if (key != -1) return key;
+        SDL_Delay(10);
+    }
+}
+
+int SdlRenderer::wait_input_timeout(int timeout_ms) {
+    int elapsed = 0;
+    while (elapsed < timeout_ms) {
+        int key = poll_input();
+        if (key != -1) return key;
+        SDL_Delay(10);
+        elapsed += 10;
+    }
+    return -1;
+}
+
 } // namespace astra

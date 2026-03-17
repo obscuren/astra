@@ -58,6 +58,9 @@ private:
     void advance_world(int cost);
     void process_npc_turn(Npc& npc);
     void attack_npc(Npc& npc);
+    void begin_targeting();
+    void handle_targeting_input(int key);
+    void shoot_target();
     void remove_dead_npcs();
     void check_player_death();
     void open_npc_dialog(Npc& npc);
@@ -118,6 +121,10 @@ private:
 
     // Input modes
     bool awaiting_interact_ = false;
+    bool targeting_ = false;
+    int target_x_ = 0, target_y_ = 0;
+    int blink_phase_ = 0;
+    Npc* target_npc_ = nullptr;
 
     // Dialogs / interaction state
     Dialog npc_dialog_{""};
