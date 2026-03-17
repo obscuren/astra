@@ -251,6 +251,10 @@ void Game::handle_play_input(int key) {
             }
             active_tab_ = (active_tab_ + 1) % panel_tab_count;
             break;
+        case '.':
+            log("You wait...");
+            advance_world(ActionCost::wait);
+            break;
         case 'w': case 'k': case KEY_UP:    try_move( 0, -1); break;
         case 's': case 'j': case KEY_DOWN:  try_move( 0,  1); break;
         case 'a': case 'h': case KEY_LEFT:  try_move(-1,  0); break;
@@ -580,6 +584,19 @@ void Game::advance_world(int cost) {
     remove_dead_npcs();
     check_player_death();
     ++world_tick_;
+
+    // Passive health regeneration
+    if (player_.hp > 0 && player_.hp < player_.max_hp) {
+        int interval = regen_interval(player_.hunger);
+        if (interval > 0) {
+            ++player_.regen_counter;
+            if (player_.regen_counter >= interval) {
+                player_.regen_counter = 0;
+                ++player_.hp;
+                log("You feel a little better.");
+            }
+        }
+    }
 }
 
 void Game::process_npc_turn(Npc& npc) {

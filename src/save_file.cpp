@@ -196,6 +196,7 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.max_xp);
     w.write_i32(p.energy);
     w.write_i32(p.kills);
+    w.write_i32(p.regen_counter);
     w.end_section(pos);
 }
 
@@ -357,6 +358,7 @@ static void read_player_section(BinaryReader& r, Player& p) {
     p.max_xp = r.read_i32();
     p.energy = r.read_i32();
     p.kills = r.read_i32();
+    p.regen_counter = r.read_i32();
 }
 
 static Npc read_npc(BinaryReader& r) {

@@ -42,6 +42,17 @@ struct Player {
     int max_xp = 100;
     int energy = 0;
     int kills = 0;
+    int regen_counter = 0;
 };
+
+inline int regen_interval(HungerState h) {
+    switch (h) {
+        case HungerState::Satiated:  return 15;
+        case HungerState::Normal:    return 20;
+        case HungerState::Hungry:    return 40;
+        case HungerState::Starving:  return 0;
+    }
+    return 0;
+}
 
 } // namespace astra
