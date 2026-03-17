@@ -18,6 +18,7 @@ set(ASTRA_SOURCES
     src/npcs/merchant.cpp
     src/npcs/drifter.cpp
     src/npcs/xytomorph.cpp
+    src/npcs/nova.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp
     src/tilemap.cpp

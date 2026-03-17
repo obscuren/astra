@@ -34,19 +34,15 @@ static void sigwinch_handler(int) {
     s_resized = 1;
 }
 
-// ANSI foreground color code (30-37), 0 for reset
-static int ansi_fg(Color c) {
-    switch (c) {
-        case Color::Black:   return 30;
-        case Color::Red:     return 31;
-        case Color::Green:   return 32;
-        case Color::Yellow:  return 33;
-        case Color::Blue:    return 34;
-        case Color::Magenta: return 35;
-        case Color::Cyan:    return 36;
-        case Color::White:    return 37;
-        case Color::DarkGray: return 90;
-        default:              return 0;
+// Append a 256-color foreground escape sequence, or reset for Default.
+static void append_color(std::string& buf, Color c) {
+    if (c == Color::Default) {
+        buf += "\033[0m";
+    } else {
+        char seq[16];
+        int len = std::snprintf(seq, sizeof(seq), "\033[38;5;%dm",
+                                static_cast<uint8_t>(c));
+        buf.append(seq, len);
     }
 }
 
@@ -126,14 +122,7 @@ void TerminalRenderer::present() {
             const auto& cell = buffer_[y][x];
 
             if (cell.fg != prev_color) {
-                int code = ansi_fg(cell.fg);
-                if (code == 0) {
-                    out_buf_ += "\033[0m";
-                } else {
-                    char seq[8];
-                    int len = std::snprintf(seq, sizeof(seq), "\033[%dm", code);
-                    out_buf_.append(seq, len);
-                }
+                append_color(out_buf_, cell.fg);
                 prev_color = cell.fg;
             }
 

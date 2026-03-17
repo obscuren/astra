@@ -13,4 +13,7 @@ Npc build_merchant(Race race, std::mt19937& rng);
 Npc build_drifter(Race race, std::mt19937& rng);
 Npc build_xytomorph(std::mt19937& rng);
 
+// Unique named NPC — no race/rng params needed.
+Npc build_nova();
+
 } // namespace astra

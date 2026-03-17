@@ -21,6 +21,7 @@ enum class Race : uint8_t {
     Kreth,      // stocky, mineral-skinned engineers
     Sylphari,   // wispy, luminescent wanderers
     Xytomorph,  // hostile chitinous predators
+    Stellari,   // luminous stellar engineers, ancient and enigmatic
 };
 
 struct Npc {

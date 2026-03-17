@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/debug_spawn.h"
+#include "astra/npc_defs.h"
 
 #include <algorithm>
 #include <array>
@@ -303,6 +304,16 @@ void Game::new_game() {
     spawn_near(NpcRole::StationKeeper, Race::Human, player_.x, player_.y);
     spawn_near(NpcRole::Merchant, Race::Veldrani, player_.x, player_.y);
     spawn_near(NpcRole::Drifter, Race::Sylphari, player_.x, player_.y);
+
+    // Spawn Nova — unique Stellari NPC, always in starting room
+    {
+        Npc nova = build_nova();
+        if (map_.find_open_spot_near(player_.x, player_.y,
+                                      nova.x, nova.y, occupied, &npc_rng)) {
+            occupied.push_back({nova.x, nova.y});
+            npcs_.push_back(std::move(nova));
+        }
+    }
 
     debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
 

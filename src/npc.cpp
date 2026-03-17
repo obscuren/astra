@@ -48,6 +48,7 @@ std::string generate_name(Race race, std::mt19937& rng) {
         case Race::Kreth:     return pick(kreth_first, rng);
         case Race::Sylphari:  return pick(sylphari_first, rng);
         case Race::Xytomorph: return pick(xytomorph_first, rng);
+        case Race::Stellari:  return "Nova";
     }
     return "Unknown";
 }

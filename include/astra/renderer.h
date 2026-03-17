@@ -13,17 +13,21 @@ enum Key {
     KEY_RIGHT,
 };
 
+// 256-color palette indices stored directly in the enum.
+// Named values map to xterm-256 indices (0–15 = standard/bright colors).
+// Cast any 0–255 value for extended palette: static_cast<Color>(208).
 enum class Color : uint8_t {
-    Default,
-    Black,
-    Red,
-    Green,
-    Yellow,
-    Blue,
-    Magenta,
-    Cyan,
-    White,
-    DarkGray,
+    Default       = 255,  // sentinel: reset / no color
+    Black         = 0,
+    Red           = 1,
+    Green         = 2,
+    Yellow        = 3,
+    Blue          = 4,
+    Magenta       = 5,
+    Cyan          = 6,
+    White         = 7,
+    DarkGray      = 8,
+    BrightMagenta = 13,
 };
 
 // Abstract rendering interface.
