@@ -21,8 +21,13 @@ set(ASTRA_SOURCES
     src/tile_props.cpp
     src/tilemap.cpp
     src/visibility_map.cpp
-    src/terminal_renderer.cpp
 )
+
+if(WIN32)
+    list(APPEND ASTRA_SOURCES src/terminal_renderer_win.cpp)
+else()
+    list(APPEND ASTRA_SOURCES src/terminal_renderer.cpp)
+endif()
 
 if(SDL)
     find_package(PkgConfig REQUIRED)
