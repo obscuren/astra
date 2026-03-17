@@ -1,457 +1,1034 @@
 ---
-const title = "Astra";
-const description = "A sci-fi roguelike dungeon crawler set in the far future. Travel across star systems, crawl asteroid dungeons, and journey to the supermassive black hole at the center of the galaxy.";
+const title = "ASTRA — Sci-Fi Roguelike";
+const description = "A sci-fi roguelike dungeon crawler. Command a starship, explore the unknown, navigate through black holes, and reach Sagittarius A* at the heart of the galaxy.";
 ---
 
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={description} />
-    <meta name="generator" content={Astro.generator} />
-    <title>{title}</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap');
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" href="/favicon.ico" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style is:inline>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-      :root {
-        --bg: #06080f;
-        --surface: #0d1117;
-        --surface-2: #151b27;
-        --border: #1c2333;
-        --text: #c9d1d9;
-        --text-dim: #6e7681;
-        --accent: #f0c040;
-        --accent-dim: #9e7c1a;
-        --blue: #58a6ff;
-        --green: #3fb950;
-        --red: #f85149;
-        --cyan: #56d4dd;
-        --mono: 'JetBrains Mono', 'Fira Code', monospace;
-        --sans: 'Space Grotesk', system-ui, sans-serif;
-      }
+:root {
+  --void: #050508;
+  --deep: #0a0a10;
+  --panel: #0c0c14;
+  --border: #1a1a2e;
+  --dim: #2a2a3e;
+  --muted: #4a4a6a;
+  --text: #8888aa;
+  --light: #c0c0d8;
+  --white: #e8e8f0;
+  --cyan: #00e5ff;
+  --cyan-dim: #00e5ff33;
+  --cyan-glow: #00e5ff15;
+  --amber: #ffb300;
+  --amber-dim: #ffb30033;
+  --green: #00e676;
+  --green-dim: #00e67633;
+  --red: #ff1744;
+  --magenta: #e040fb;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+}
 
-      * { margin: 0; padding: 0; box-sizing: border-box; }
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
 
-      body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--sans);
-        line-height: 1.6;
-        min-height: 100vh;
-        overflow-x: hidden;
-      }
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--mono);
+  overflow-x: hidden;
+  overflow-y: hidden;
+  -webkit-font-smoothing: antialiased;
+}
 
-      /* Starfield background */
-      body::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background:
-          radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.3), transparent),
-          radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.2), transparent),
-          radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.3), transparent),
-          radial-gradient(1px 1px at 80% 50%, rgba(255,255,255,0.15), transparent),
-          radial-gradient(1.5px 1.5px at 10% 80%, rgba(240,192,64,0.4), transparent),
-          radial-gradient(1.5px 1.5px at 90% 10%, rgba(88,166,255,0.4), transparent),
-          radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,0.2), transparent),
-          radial-gradient(1px 1px at 30% 90%, rgba(255,255,255,0.15), transparent),
-          radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,0.25), transparent),
-          radial-gradient(1px 1px at 15% 55%, rgba(255,255,255,0.2), transparent),
-          radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,0.15), transparent),
-          radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.2), transparent);
-        pointer-events: none;
-        z-index: 0;
-      }
+body.booted {
+  overflow-y: auto;
+}
 
-      .container {
-        position: relative;
-        z-index: 1;
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
+/* ── Scanline overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
 
-      /* Hero */
-      .hero {
-        padding: 100px 0 80px;
-        text-align: center;
-      }
+/* ── Starfield canvas ── */
+#starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
 
-      .hero-ascii {
-        font-family: var(--mono);
-        font-size: 14px;
-        line-height: 1.3;
-        color: var(--accent);
-        margin: 0 auto 32px;
-        white-space: pre;
-        display: inline-block;
-        text-align: left;
-        text-shadow: 0 0 20px rgba(240, 192, 64, 0.3);
-      }
+/* ── Main content ── */
+.content {
+  position: relative;
+  z-index: 1;
+}
 
-      .hero h1 {
-        font-family: var(--sans);
-        font-size: 3.5rem;
-        font-weight: 700;
-        color: #fff;
-        margin-bottom: 16px;
-        letter-spacing: -0.5px;
-      }
+/* ── Boot sequence ── */
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: var(--void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
 
-      .hero .tagline {
-        font-size: 1.25rem;
-        color: var(--text-dim);
-        max-width: 560px;
-        margin: 0 auto 40px;
-      }
+.boot-screen.done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 
-      .hero-links {
-        display: flex;
-        gap: 16px;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
+.boot-text {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--cyan);
+  text-align: left;
+  width: 520px;
+  max-width: 90vw;
+  line-height: 1.6;
+}
 
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 28px;
-        border-radius: 8px;
-        font-family: var(--mono);
-        font-size: 0.9rem;
-        font-weight: 700;
-        text-decoration: none;
-        transition: all 0.2s;
-      }
+.boot-text .line {
+  opacity: 0;
+  transform: translateY(4px);
+}
 
-      .btn-primary {
-        background: var(--accent);
-        color: var(--bg);
-      }
-      .btn-primary:hover {
-        background: #ffd04a;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 20px rgba(240, 192, 64, 0.3);
-      }
+.boot-text .line.visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s, transform 0.3s;
+}
 
-      .btn-secondary {
-        background: var(--surface-2);
-        color: var(--text);
-        border: 1px solid var(--border);
-      }
-      .btn-secondary:hover {
-        background: var(--border);
-        transform: translateY(-1px);
-      }
+.boot-text .ok { color: var(--green); }
+.boot-text .warn { color: var(--amber); }
+.boot-text .label { color: var(--muted); }
 
-      /* Terminal demo */
-      .terminal {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
-        margin: 60px 0;
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
-      }
+.cursor-blink {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: var(--cyan);
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+}
 
-      .terminal-bar {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: var(--surface-2);
-        border-bottom: 1px solid var(--border);
-      }
+@keyframes blink {
+  50% { opacity: 0; }
+}
 
-      .terminal-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-      }
-      .terminal-dot.red { background: var(--red); }
-      .terminal-dot.yellow { background: var(--accent); }
-      .terminal-dot.green { background: var(--green); }
+/* ── Hero ── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
 
-      .terminal-title {
-        flex: 1;
-        text-align: center;
-        font-family: var(--mono);
-        font-size: 0.8rem;
-        color: var(--text-dim);
-      }
+.hero-ascii {
+  font-family: var(--mono);
+  font-size: clamp(0.45rem, 1.2vw, 0.75rem);
+  line-height: 1.2;
+  color: var(--cyan);
+  white-space: pre;
+  text-shadow: 0 0 20px var(--cyan-dim), 0 0 40px rgba(0, 229, 255, 0.08);
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 1s ease 0.3s, transform 1s ease 0.3s;
+  margin-bottom: 2rem;
+}
 
-      .terminal-body {
-        padding: 24px;
-        font-family: var(--mono);
-        font-size: 13px;
-        line-height: 1.5;
-        overflow-x: auto;
-      }
+.hero-ascii.visible {
+  opacity: 1;
+  transform: scale(1);
+}
 
-      .terminal-body pre {
-        white-space: pre;
-        margin: 0;
-      }
+.hero-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(3rem, 8vw, 7rem);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--white);
+  text-shadow: 0 0 60px var(--cyan-dim), 0 0 120px rgba(0, 229, 255, 0.05);
+  margin-bottom: 0.5rem;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease 0.6s, transform 0.8s ease 0.6s;
+}
 
-      .t-wall { color: #e6e6e6; }
-      .t-floor { color: #6e7681; }
-      .t-player { color: var(--accent); font-weight: bold; }
-      .t-explored { color: var(--blue); }
-      .t-dim { color: #3d4450; }
-      .t-ui { color: #8b949e; }
-      .t-hp { color: var(--green); }
-      .t-label { color: var(--text-dim); }
-      .t-cyan { color: var(--cyan); }
-      .t-blue { color: var(--blue); }
-      .t-yellow { color: var(--accent); }
-      .t-tab-active { color: var(--accent); font-weight: bold; }
-      .t-tab { color: #3d4450; }
+.hero-title.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
 
-      /* Features */
-      .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin: 0 0 80px;
-      }
+.hero-subtitle {
+  font-family: var(--mono);
+  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+  color: var(--muted);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+  opacity: 0;
+  transition: opacity 0.8s ease 1s;
+}
 
-      .feature {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 28px;
-        transition: border-color 0.2s;
-      }
-      .feature:hover {
-        border-color: var(--accent-dim);
-      }
+.hero-subtitle.visible { opacity: 1; }
 
-      .feature-icon {
-        font-family: var(--mono);
-        font-size: 1.5rem;
-        margin-bottom: 12px;
-        color: var(--accent);
-      }
+.hero-tagline {
+  font-family: var(--mono);
+  font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+  color: var(--light);
+  max-width: 600px;
+  line-height: 1.7;
+  margin-bottom: 3rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.8s ease 1.2s, transform 0.8s ease 1.2s;
+}
 
-      .feature h3 {
-        font-size: 1.1rem;
-        color: #fff;
-        margin-bottom: 8px;
-      }
+.hero-tagline.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
 
-      .feature p {
-        font-size: 0.9rem;
-        color: var(--text-dim);
-        line-height: 1.5;
-      }
+.hero-tagline em {
+  color: var(--cyan);
+  font-style: normal;
+}
 
-      /* Lore section */
-      .lore {
-        margin: 0 0 80px;
-        padding: 48px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        position: relative;
-        overflow: hidden;
-      }
+.hero-actions {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.8s ease 1.5s, transform 0.8s ease 1.5s;
+}
 
-      .lore::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, var(--accent), transparent);
-      }
+.hero-actions.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
 
-      .lore h2 {
-        font-size: 1.8rem;
-        color: #fff;
-        margin-bottom: 20px;
-      }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.8rem 2rem;
+  border: 1px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
 
-      .lore p {
-        color: var(--text-dim);
-        font-size: 1rem;
-        margin-bottom: 16px;
-        max-width: 700px;
-      }
-      .lore p:last-child {
-        margin-bottom: 0;
-      }
+.btn:hover {
+  background: var(--cyan);
+  color: var(--void);
+  box-shadow: 0 0 30px var(--cyan-dim), inset 0 0 30px rgba(0, 229, 255, 0.1);
+}
 
-      .lore .highlight {
-        color: var(--accent);
-        font-weight: 600;
-      }
+.btn.secondary {
+  border-color: var(--dim);
+  color: var(--muted);
+}
 
-      /* Tech section */
-      .tech {
-        margin: 0 0 80px;
-        text-align: center;
-      }
+.btn.secondary:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: transparent;
+  box-shadow: 0 0 30px var(--amber-dim);
+}
 
-      .tech h2 {
-        font-size: 1.8rem;
-        color: #fff;
-        margin-bottom: 12px;
-      }
+/* ── Scroll indicator ── */
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  animation: float 3s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 0.8s ease 2s;
+}
 
-      .tech .sub {
-        color: var(--text-dim);
-        margin-bottom: 32px;
-      }
+.scroll-indicator.visible { opacity: 1; }
 
-      .tech-grid {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
+.scroll-indicator::after {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 30px;
+  background: linear-gradient(to bottom, var(--dim), transparent);
+  margin: 0.8rem auto 0;
+}
 
-      .tech-tag {
-        font-family: var(--mono);
-        font-size: 0.85rem;
-        padding: 8px 16px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        color: var(--cyan);
-      }
+@keyframes float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
 
-      /* Footer */
-      footer {
-        padding: 40px 0;
-        text-align: center;
-        border-top: 1px solid var(--border);
-        color: var(--text-dim);
-        font-size: 0.85rem;
-      }
+/* ── Section styling ── */
+section {
+  padding: 6rem 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
 
-      footer a {
-        color: var(--accent);
-        text-decoration: none;
-      }
-      footer a:hover {
-        text-decoration: underline;
-      }
+.section-divider {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  border: none;
+  border-top: 1px solid var(--border);
+}
 
-      @media (max-width: 600px) {
-        .hero { padding: 60px 0 40px; }
-        .hero h1 { font-size: 2.5rem; }
-        .hero-ascii { font-size: 10px; }
-        .terminal-body { font-size: 11px; padding: 16px; }
-        .lore { padding: 28px; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <section class="hero">
-        <pre class="hero-ascii" aria-hidden="true">        .            *                .          |
-   *         .              .                .  -o-
-        _        _                   *           |
-  .    / \   ___| |_ _ __ __ _           .
-      / _ \ / __| __| '__/ _` |   .
- *   / ___ \\__ \ |_| | | (_| |        *
-    /_/   \_\___/\__|_|  \__,_|  .
-         .          *       .          .
-   .            .                 *                 </pre>
-        <h1>Astra</h1>
-        <p class="tagline">A sci-fi roguelike set in the far future. Explore asteroid dungeons, upgrade your starship, and journey to Sagittarius&nbsp;A*.</p>
-        <div class="hero-links">
-          <a class="btn btn-primary" href="https://github.com/obscuren/astra">Source Code</a>
-          <a class="btn btn-secondary" href="https://github.com/obscuren/astra/releases">Releases</a>
-        </div>
-      </section>
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
 
-      <div class="terminal">
-        <div class="terminal-bar">
-          <span class="terminal-dot red"></span>
-          <span class="terminal-dot yellow"></span>
-          <span class="terminal-dot green"></span>
-          <span class="terminal-title">astra --terminal</span>
-        </div>
-        <div class="terminal-body">
-          <pre><span class="t-label">LVL:</span>1 <span class="t-label">::</span> <span class="t-label">T:</span>20~ <span class="t-label">::</span> <span class="t-hp">Satiated</span> <span class="t-label">::</span> <span class="t-yellow">0$</span> <span class="t-cyan">&lt;&lt;&gt;&gt;&lt;&lt;&gt;&gt;&lt;&lt;&gt;&gt;&lt;&lt;&gt;&gt;</span> <span class="t-label">QN:</span>100 <span class="t-label">::</span> <span class="t-label">AV:</span><span class="t-blue">1</span> <span class="t-label">::</span> <span class="t-label">DV:</span><span class="t-blue">5</span> <span class="t-label">::</span> The Heavens Above
-<span class="t-label">HP:</span> <span class="t-hp">10/10</span>  <span class="t-hp">[===================]</span>        <span class="t-ui">|</span> <span class="t-tab-active">[Messages]</span> <span class="t-tab">[Inventory]</span> <span class="t-tab">[Equip]</span> <span class="t-tab">[Ship]</span>
-<span class="t-label">XP:</span> <span class="t-cyan"> 0/100</span> <span class="t-dim">[-------------------]</span>        <span class="t-ui">|</span> <span class="t-dim">--------------------------------------</span>
-  <span class="t-explored">################</span>                      <span class="t-ui">|</span> :: Welcome aboard, commander. Your
-  <span class="t-explored">#</span><span class="t-floor">..............</span><span class="t-explored">#</span>                      <span class="t-ui">|</span>    journey to Sgr A* begins.
-  <span class="t-wall">#</span><span class="t-floor">..............</span><span class="t-wall">#</span>     <span class="t-dim">.</span>    <span class="t-dim">*</span>           <span class="t-ui">|</span> :: You are docked at The Heavens
-  <span class="t-wall">#</span><span class="t-floor">.....</span><span class="t-player">@</span><span class="t-floor">........</span><span class="t-wall">#</span>                      <span class="t-ui">|</span>    Above, the space station
-  <span class="t-wall">#</span><span class="t-floor">..............</span><span class="t-wall">#</span>                      <span class="t-ui">|</span>    orbiting Jupiter.
-  <span class="t-wall">#</span><span class="t-floor">..............</span><span class="t-wall">#</span>                      <span class="t-ui">|</span>
-  <span class="t-wall">####</span><span class="t-floor">...</span><span class="t-wall">###########</span>                    <span class="t-ui">|</span>
-       <span class="t-explored">.</span>              <span class="t-dim">*</span>                 <span class="t-ui">|</span>
-    <span class="t-explored">########</span>                            <span class="t-ui">|</span>
-    <span class="t-explored">#</span><span class="t-blue">......</span><span class="t-explored">#</span>                            <span class="t-ui">|</span>
-<span class="t-label">EFFECTS:</span> <span class="t-dim">[none]</span>          <span class="t-label">TARGET:</span> <span class="t-dim">[none]</span>
-<span class="t-label">ABILITIES:</span> <span class="t-dim">[reserved]</span></pre>
-        </div>
-      </div>
+.section-tag {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--void);
+  background: var(--cyan);
+  padding: 0.2rem 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
 
-      <div class="features">
-        <div class="feature">
-          <div class="feature-icon">#</div>
-          <h3>Procedural Dungeons</h3>
-          <p>Every asteroid, space station, and dungeon is randomly generated. Rooms, corridors, and secrets are never the same twice.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">*</div>
-          <h3>FOV &amp; Exploration</h3>
-          <p>Recursive shadowcasting reveals the world around you. Lit rooms glow in the distance; dark corridors demand caution.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">~</div>
-          <h3>Interstellar Travel</h3>
-          <p>Navigate between star systems via black holes. Upgrade your Hyperspace Engine and Navi Computer to plot longer routes.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">+</div>
-          <h3>Gear &amp; Upgrades</h3>
-          <p>Equip weapons, improve stats, and upgrade your starship. Your view radius, hull strength, and jump range all grow with you.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">$</div>
-          <h3>Trade &amp; Barter</h3>
-          <p>Space stations host shopkeepers from across the galaxy. Some don't speak your language. All want your credits.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">@</div>
-          <h3>Classic Roguelike</h3>
-          <p>Turn-based, permadeath, and ASCII-rendered. Inspired by Rogue, NetHack, Angband, and Moria &mdash; but set among the stars.</p>
-        </div>
-      </div>
+.section-tag.amber { background: var(--amber); }
+.section-tag.green { background: var(--green); }
+.section-tag.magenta { background: var(--magenta); }
 
-      <section class="lore">
-        <h2>The Story</h2>
-        <p>All stories begin on <span class="highlight">The Heavens Above</span>, a space station orbiting Jupiter. From here, you'll dock your starship, trade with merchants, and prepare for the journey of a lifetime.</p>
-        <p>Your goal: reach the center of the galaxy and enter <span class="highlight">Sagittarius A*</span>, the supermassive black hole. Those who survive the crossing are reborn in a new universe &mdash; their starship intact, their knowledge of the cosmos infinite.</p>
-        <p>Space is vast. Asteroid belts hide dungeons filled with ancient tech, hostile creatures, and forgotten relics. Star systems are generated from the real map of the universe, connected by black hole jump points that only a Navi Computer can calculate.</p>
-      </section>
+.section-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  color: var(--white);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
-      <section class="tech">
-        <h2>Built With</h2>
-        <p class="sub">C++20, zero dependencies for terminal mode</p>
-        <div class="tech-grid">
-          <span class="tech-tag">C++20</span>
-          <span class="tech-tag">CMake</span>
-          <span class="tech-tag">POSIX Terminal</span>
-          <span class="tech-tag">SDL3 (optional)</span>
-          <span class="tech-tag">Recursive Shadowcasting</span>
-          <span class="tech-tag">Procedural Generation</span>
-        </div>
-      </section>
+/* ── Terminal block ── */
+.terminal {
+  background: var(--deep);
+  border: 1px solid var(--border);
+  padding: 2rem;
+  margin-bottom: 3rem;
+  position: relative;
+  overflow: hidden;
+}
 
-      <footer>
-        <p>Astra is open source &mdash; <a href="https://github.com/obscuren/astra">view on GitHub</a></p>
-      </footer>
+.terminal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.4;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.terminal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.terminal-dot.r { background: var(--red); }
+.terminal-dot.y { background: var(--amber); }
+.terminal-dot.g { background: var(--green); }
+
+.terminal-path {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-left: 0.5rem;
+}
+
+.terminal pre {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--light);
+  overflow-x: auto;
+}
+
+.terminal pre .prompt { color: var(--cyan); }
+.terminal pre .comment { color: var(--muted); }
+.terminal pre .flag { color: var(--amber); }
+.terminal pre .string { color: var(--green); }
+.terminal pre .output { color: var(--text); }
+
+/* ── Features grid ── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background: var(--deep);
+  border: 1px solid var(--border);
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--dim);
+  transform: translateY(-2px);
+}
+
+.feature-card::before {
+  content: attr(data-index);
+  position: absolute;
+  top: -0.5rem;
+  right: 1rem;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 4rem;
+  color: var(--border);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.feature-glyph {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.feature-name {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--white);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+.feature-desc {
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+/* ── Lore section ── */
+.lore-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.lore-text {
+  font-size: 0.85rem;
+  line-height: 1.9;
+  color: var(--text);
+}
+
+.lore-text p { margin-bottom: 1.5rem; }
+.lore-text em {
+  color: var(--light);
+  font-style: normal;
+}
+
+.lore-ascii {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  line-height: 1.15;
+  color: var(--dim);
+  white-space: pre;
+  text-align: center;
+  padding: 2rem;
+  border: 1px solid var(--border);
+  background: var(--deep);
+  overflow: hidden;
+}
+
+.lore-ascii .highlight { color: var(--cyan); }
+.lore-ascii .star { color: var(--amber); }
+
+/* ── Races section ── */
+.races-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.race-card {
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  background: var(--deep);
+  transition: border-color 0.3s;
+}
+
+.race-card:hover {
+  border-color: var(--dim);
+}
+
+.race-glyph {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.race-name {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+}
+
+.race-trait {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+.race-desc {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.race-card .race-glyph.human { color: var(--cyan); }
+.race-card .race-glyph.veldrani { color: #7c4dff; }
+.race-card .race-glyph.kreth { color: var(--amber); }
+.race-card .race-glyph.sylphari { color: var(--green); }
+.race-card .race-glyph.xytomorph { color: var(--red); }
+
+/* ── Tech specs ── */
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.spec {
+  background: var(--deep);
+  padding: 1.8rem 1.5rem;
+  text-align: center;
+}
+
+.spec-value {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: var(--white);
+  margin-bottom: 0.3rem;
+}
+
+.spec-value.cyan { color: var(--cyan); }
+.spec-value.amber { color: var(--amber); }
+.spec-value.green { color: var(--green); }
+
+.spec-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.footer-ascii {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  line-height: 1.3;
+  color: var(--dim);
+  white-space: pre;
+  margin-bottom: 1.5rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.footer-links a {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+.footer-links a:hover { color: var(--cyan); }
+
+.footer-copy {
+  font-size: 0.65rem;
+  color: var(--dim);
+  letter-spacing: 0.1em;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .lore-block {
+    grid-template-columns: 1fr;
+  }
+  .specs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lore-ascii {
+    font-size: 0.4rem;
+  }
+}
+
+/* ── Reveal animations ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+</head>
+<body>
+
+<!-- Boot Sequence -->
+<div class="boot-screen" id="bootScreen">
+  <div class="boot-text" id="bootText"></div>
+</div>
+
+<!-- Starfield -->
+<canvas id="starfield"></canvas>
+
+<!-- Content -->
+<div class="content" id="mainContent">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-ascii" id="heroAscii">
+         .                    *           .        +
+                  +                             .            .
+     *       .          .    *    .                      *
+          .       *                 +        .
+   .          +          *              .          .     +
+        *          .            .                *
+              .         *    +         .    *
+     +              .              *            .       *
+          *    .          .    .         +          .
+    .              *                .         *
+         .    +          *    .         .            +
+  *          .       .              *       .    *
+        .         *          +    .              .
+</div>
+    <h1 class="hero-title" id="heroTitle">ASTRA</h1>
+    <p class="hero-subtitle" id="heroSubtitle">A Sci-Fi Roguelike</p>
+    <p class="hero-tagline" id="heroTagline">
+      Command a starship. Explore the unknown.
+      Navigate through <em>black holes</em>.
+      Reach <em>Sagittarius&nbsp;A*</em> at the heart of the galaxy
+      &mdash; or die trying.
+    </p>
+    <div class="hero-actions" id="heroActions">
+      <a href="https://github.com/obscuren/astra/releases" class="btn">Download</a>
+      <a href="https://github.com/obscuren/astra" class="btn secondary">Source Code</a>
     </div>
-  </body>
+    <div class="scroll-indicator" id="scrollIndicator">Descend</div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Install -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag">SYS</span>
+      <h2 class="section-title">Quick Start</h2>
+    </div>
+    <div class="terminal reveal">
+      <div class="terminal-header">
+        <span class="terminal-dot r"></span>
+        <span class="terminal-dot y"></span>
+        <span class="terminal-dot g"></span>
+        <span class="terminal-path">~/astra</span>
+      </div>
+      <pre><span class="comment"># Clone and build</span>
+<span class="prompt">$</span> git clone https://github.com/obscuren/astra.git
+<span class="prompt">$</span> cd astra && mkdir build && cd build
+<span class="prompt">$</span> cmake <span class="flag">-DCMAKE_BUILD_TYPE=Release</span> ..
+<span class="prompt">$</span> make <span class="flag">-j$(nproc)</span>
+
+<span class="comment"># Launch</span>
+<span class="prompt">$</span> ./astra <span class="flag">--term</span>
+<span class="output">
+:: Welcome aboard, commander.
+:: Your journey to Sgr A* begins.
+:: You are docked at The Heavens Above,
+   the space station orbiting Jupiter.</span></pre>
+    </div>
+    <div class="specs-grid reveal">
+      <div class="spec">
+        <div class="spec-value cyan">C++20</div>
+        <div class="spec-label">Language</div>
+      </div>
+      <div class="spec">
+        <div class="spec-value amber">0</div>
+        <div class="spec-label">Dependencies</div>
+      </div>
+      <div class="spec">
+        <div class="spec-value green">POSIX</div>
+        <div class="spec-label">Terminal</div>
+      </div>
+      <div class="spec">
+        <div class="spec-value">SDL3</div>
+        <div class="spec-label">Optional GUI</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Lore -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag amber">LOG</span>
+      <h2 class="section-title">The Journey</h2>
+    </div>
+    <div class="lore-block reveal">
+      <div class="lore-text">
+        <p>
+          In the distant future, at the edge of explored space,
+          <em>The Heavens Above</em> orbits Jupiter &mdash; a waystation
+          for the desperate, the brave, and the mad.
+        </p>
+        <p>
+          Adventurers dock their vessels, trade with alien merchants,
+          and embark on an interstellar journey toward the center of
+          the galaxy: <em>Sagittarius&nbsp;A*</em>, the supermassive
+          black hole.
+        </p>
+        <p>
+          Those who reach its event horizon are said to be
+          reborn in a new universe, carrying with them the knowledge
+          and scars of every previous life. But the path is treacherous
+          &mdash; each star system generated uniquely, filled with
+          hostile creatures, forgotten stations, and infinite darkness.
+        </p>
+        <p>
+          <em>Death is permanent. Knowledge is eternal.</em>
+        </p>
+      </div>
+      <div class="lore-ascii">
+<span class="star">                          *</span>
+                      .       .
+                  .               .
+              .        <span class="highlight">. . .</span>        .
+           .       <span class="highlight">. .     . .</span>       .
+         .      <span class="highlight">.               .</span>      .
+        .     <span class="highlight">.    Sgr A*    .</span>     .
+         .      <span class="highlight">.               .</span>      .
+           .       <span class="highlight">. .     . .</span>       .
+              .        <span class="highlight">. . .</span>        .
+                  .               .
+                      .       .
+<span class="star">                          *</span>
+
+        <span class="star">[  ACCRETION DISK — SGR A*  ]</span>
+      <span class="star">   4.15 million solar masses   </span>
+      <span class="star">   26,000 light-years distant  </span></div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Features -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag green">MOD</span>
+      <h2 class="section-title">Systems</h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal" data-index="01">
+        <span class="feature-glyph">#</span>
+        <div class="feature-name">Procedural Generation</div>
+        <div class="feature-desc">Every asteroid, station, and dungeon is uniquely generated each playthrough. No two journeys to Sgr A* are the same.</div>
+      </div>
+      <div class="feature-card reveal" data-index="02">
+        <span class="feature-glyph">@</span>
+        <div class="feature-name">Recursive Shadowcasting</div>
+        <div class="feature-desc">Dynamic field-of-view reveals the environment with realistic line-of-sight. What lurks in the darkness stays hidden until you find it.</div>
+      </div>
+      <div class="feature-card reveal" data-index="03">
+        <span class="feature-glyph">*</span>
+        <div class="feature-name">Interstellar Navigation</div>
+        <div class="feature-desc">Travel between star systems through black holes. Upgrade engines and navigation computers to reach more distant sectors.</div>
+      </div>
+      <div class="feature-card reveal" data-index="04">
+        <span class="feature-glyph">+</span>
+        <div class="feature-name">Trading & Barter</div>
+        <div class="feature-desc">Visit space stations to buy, sell, and barter with galactic merchants. Resources are scarce. Every transaction matters.</div>
+      </div>
+      <div class="feature-card reveal" data-index="05">
+        <span class="feature-glyph">X</span>
+        <div class="feature-name">Ranged Combat</div>
+        <div class="feature-desc">Engage hostile Xytomorphs and unknown threats with ranged weapons. Turn-based tactics demand every move counts.</div>
+      </div>
+      <div class="feature-card reveal" data-index="06">
+        <span class="feature-glyph">&#x2620;</span>
+        <div class="feature-name">Permadeath</div>
+        <div class="feature-desc">Death is permanent. Every decision carries weight. Reach Sgr A* and be reborn &mdash; or be forgotten in the void.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Races -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag magenta">BIO</span>
+      <h2 class="section-title">Species</h2>
+    </div>
+    <div class="races-grid">
+      <div class="race-card reveal">
+        <span class="race-glyph human">H</span>
+        <div class="race-name">Human</div>
+        <div class="race-trait">Adaptable Explorers</div>
+        <div class="race-desc">Versatile and tenacious. Names like Marcus, Elena, Jin carry the last echoes of Earth.</div>
+      </div>
+      <div class="race-card reveal">
+        <span class="race-glyph veldrani">V</span>
+        <div class="race-name">Veldrani</div>
+        <div class="race-trait">Traders & Diplomats</div>
+        <div class="race-desc">Tall, blue-skinned. Their melodic names &mdash; Vel'thar, Syndara &mdash; are spoken in trade halls across the sector.</div>
+      </div>
+      <div class="race-card reveal">
+        <span class="race-glyph kreth">K</span>
+        <div class="race-name">Kreth</div>
+        <div class="race-trait">Mineral-Skinned Engineers</div>
+        <div class="race-desc">Stocky and enduring. Gromm, Thukka, Brekk &mdash; they build what others only dream of.</div>
+      </div>
+      <div class="race-card reveal">
+        <span class="race-glyph sylphari">S</span>
+        <div class="race-name">Sylphari</div>
+        <div class="race-trait">Luminescent Wanderers</div>
+        <div class="race-desc">Wispy and ethereal. Aelith, Lumyn, Whisp &mdash; they drift between stars like living light.</div>
+      </div>
+      <div class="race-card reveal">
+        <span class="race-glyph xytomorph">X</span>
+        <div class="race-name">Xytomorph</div>
+        <div class="race-trait">Chitinous Predators</div>
+        <div class="race-desc">Hostile. Relentless. Skrix, Gnash, Thrax &mdash; you don't trade with them. You survive them.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-ascii">
+    *   .   *   .   *   .   *   .   *
+  .   *   .   *   .   *   .   *   .
+    *   .   *   .   *   .   *   .   *
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/obscuren/astra">GitHub</a>
+      <a href="https://github.com/obscuren/astra/releases">Releases</a>
+      <a href="https://jeff.lookingforteam.com/astra/">Docs</a>
+    </div>
+    <p class="footer-copy">
+      ASTRA &mdash; Built with C++20 and cosmic ambition
+    </p>
+  </footer>
+</div>
+
+<script is:inline>
+// ── Starfield ──
+(() => {
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  const STAR_COUNT = 200;
+  const COLORS = ['#ffffff', '#aaccff', '#ffddaa', '#ffaaaa', '#aaffcc'];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight * 5;
+  }
+
+  function init() {
+    resize();
+    stars = [];
+    for (let i = 0; i < STAR_COUNT; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 1.5 + 0.5,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        twinkle: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.02 + 0.005,
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const t = performance.now() / 1000;
+    for (const s of stars) {
+      const alpha = 0.3 + 0.7 * Math.abs(Math.sin(t * s.speed + s.twinkle));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  init();
+  draw();
+})();
+
+// ── Boot sequence ──
+(() => {
+  const lines = [
+    { text: 'ASTRA SYSTEMS v0.1.0', cls: '' },
+    { text: 'Initializing subsystems...', cls: 'label' },
+    { text: '  Navigation computer     [OK]', cls: 'ok' },
+    { text: '  Shadowcasting engine    [OK]', cls: 'ok' },
+    { text: '  Procedural generator    [OK]', cls: 'ok' },
+    { text: '  Life support            [OK]', cls: 'ok' },
+    { text: '  Weapons array           [OK]', cls: 'ok' },
+    { text: '  Shield harmonics        [WARN: degraded]', cls: 'warn' },
+    { text: 'Loading star charts... done.', cls: 'label' },
+    { text: 'Connecting to The Heavens Above...', cls: 'label' },
+    { text: '', cls: '' },
+    { text: 'Welcome aboard, commander.', cls: '' },
+  ];
+
+  const container = document.getElementById('bootText');
+  let i = 0;
+
+  function addLine() {
+    if (i >= lines.length) {
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor-blink';
+      container.appendChild(cursor);
+      setTimeout(() => {
+        document.getElementById('bootScreen').classList.add('done');
+        document.body.classList.add('booted');
+        revealHero();
+      }, 800);
+      return;
+    }
+    const div = document.createElement('div');
+    div.className = 'line';
+    if (lines[i].cls) {
+      div.innerHTML = `<span class="${lines[i].cls}">${lines[i].text}</span>`;
+    } else {
+      div.textContent = lines[i].text;
+    }
+    container.appendChild(div);
+    requestAnimationFrame(() => div.classList.add('visible'));
+    i++;
+    setTimeout(addLine, lines[i - 1].text === '' ? 100 : 120 + Math.random() * 80);
+  }
+
+  setTimeout(addLine, 500);
+})();
+
+// ── Hero reveal ──
+function revealHero() {
+  const ids = ['heroAscii', 'heroTitle', 'heroSubtitle', 'heroTagline', 'heroActions', 'scrollIndicator'];
+  ids.forEach(id => document.getElementById(id).classList.add('visible'));
+}
+
+// ── Scroll reveal ──
+(() => {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+})();
+</script>
+</body>
 </html>
