@@ -11,6 +11,7 @@ enum Key {
     KEY_DOWN,
     KEY_LEFT,
     KEY_RIGHT,
+    KEY_SHIFT_TAB,
 };
 
 // 256-color palette indices stored directly in the enum.

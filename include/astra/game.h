@@ -61,6 +61,11 @@ private:
     void begin_targeting();
     void handle_targeting_input(int key);
     void shoot_target();
+    void pickup_ground_item();
+    void drop_item(int index);
+    void use_item(int index);
+    void equip_item(int index);
+    void unequip_slot(int index);
     void remove_dead_npcs();
     void check_player_death();
     void open_npc_dialog(Npc& npc);
@@ -82,6 +87,7 @@ private:
     void render_tabs();
     void render_map();
     void render_side_panel();
+    void render_item_inspect();
     void render_effects_bar();
     void render_abilities_bar();
 
@@ -108,6 +114,7 @@ private:
     std::mt19937 rng_;
     Player player_;
     std::vector<Npc> npcs_;
+    std::vector<GroundItem> ground_items_;
     TileMap map_;
     VisibilityMap visibility_;
     int camera_x_ = 0;
@@ -125,6 +132,9 @@ private:
     int target_x_ = 0, target_y_ = 0;
     int blink_phase_ = 0;
     Npc* target_npc_ = nullptr;
+    int inventory_cursor_ = 0;
+    bool inspecting_item_ = false;
+    Item inspected_item_;
 
     // Dialogs / interaction state
     Dialog npc_dialog_{""};

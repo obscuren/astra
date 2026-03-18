@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/item.h"
+
 #include <cstdint>
 
 namespace astra {
@@ -43,6 +45,17 @@ struct Player {
     int energy = 0;
     int kills = 0;
     int regen_counter = 0;
+
+    // Equipment & inventory
+    Equipment equipment;
+    Inventory inventory;
+
+    int effective_attack() const {
+        return attack_value + equipment.total_modifiers().attack;
+    }
+    int effective_defense() const {
+        return defense_value + equipment.total_modifiers().defense;
+    }
 };
 
 inline int regen_interval(HungerState h) {

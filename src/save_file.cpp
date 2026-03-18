@@ -173,6 +173,133 @@ static bool read_header(std::ifstream& in, SaveHeader& h) {
 }
 
 // ---------------------------------------------------------------------------
+// Item serialization helpers
+// ---------------------------------------------------------------------------
+
+static void write_stat_modifiers(BinaryWriter& w, const StatModifiers& m) {
+    w.write_i32(m.attack);
+    w.write_i32(m.defense);
+    w.write_i32(m.max_hp);
+    w.write_i32(m.view_radius);
+    w.write_i32(m.quickness);
+}
+
+static StatModifiers read_stat_modifiers(BinaryReader& r) {
+    StatModifiers m;
+    m.attack = r.read_i32();
+    m.defense = r.read_i32();
+    m.max_hp = r.read_i32();
+    m.view_radius = r.read_i32();
+    m.quickness = r.read_i32();
+    return m;
+}
+
+static void write_item(BinaryWriter& w, const Item& item) {
+    w.write_u32(item.id);
+    w.write_string(item.name);
+    w.write_string(item.description);
+    w.write_u8(static_cast<uint8_t>(item.type));
+    w.write_u8(item.slot.has_value() ? 1 : 0);
+    if (item.slot) w.write_u8(static_cast<uint8_t>(*item.slot));
+    w.write_u8(static_cast<uint8_t>(item.rarity));
+    w.write_u8(static_cast<uint8_t>(item.glyph));
+    w.write_u8(static_cast<uint8_t>(item.color));
+    w.write_i32(item.weight);
+    w.write_u8(item.stackable ? 1 : 0);
+    w.write_i32(item.stack_count);
+    w.write_i32(item.buy_value);
+    w.write_i32(item.sell_value);
+    write_stat_modifiers(w, item.modifiers);
+    w.write_i32(item.level_requirement);
+    w.write_i32(item.durability);
+    w.write_i32(item.max_durability);
+    w.write_u8(item.usable ? 1 : 0);
+    w.write_u8(item.ranged.has_value() ? 1 : 0);
+    if (item.ranged) {
+        w.write_i32(item.ranged->charge_capacity);
+        w.write_i32(item.ranged->charge_per_shot);
+        w.write_i32(item.ranged->current_charge);
+    }
+}
+
+static Item read_item(BinaryReader& r) {
+    Item item;
+    item.id = r.read_u32();
+    item.name = r.read_string();
+    item.description = r.read_string();
+    item.type = static_cast<ItemType>(r.read_u8());
+    bool has_slot = r.read_u8() != 0;
+    if (has_slot) item.slot = static_cast<EquipSlot>(r.read_u8());
+    item.rarity = static_cast<Rarity>(r.read_u8());
+    item.glyph = static_cast<char>(r.read_u8());
+    item.color = static_cast<Color>(r.read_u8());
+    item.weight = r.read_i32();
+    item.stackable = r.read_u8() != 0;
+    item.stack_count = r.read_i32();
+    item.buy_value = r.read_i32();
+    item.sell_value = r.read_i32();
+    item.modifiers = read_stat_modifiers(r);
+    item.level_requirement = r.read_i32();
+    item.durability = r.read_i32();
+    item.max_durability = r.read_i32();
+    item.usable = r.read_u8() != 0;
+    bool has_ranged = r.read_u8() != 0;
+    if (has_ranged) {
+        RangedData rd;
+        rd.charge_capacity = r.read_i32();
+        rd.charge_per_shot = r.read_i32();
+        rd.current_charge = r.read_i32();
+        item.ranged = rd;
+    }
+    return item;
+}
+
+static void write_optional_item(BinaryWriter& w, const std::optional<Item>& opt) {
+    w.write_u8(opt.has_value() ? 1 : 0);
+    if (opt) write_item(w, *opt);
+}
+
+static std::optional<Item> read_optional_item(BinaryReader& r) {
+    if (r.read_u8() != 0) return read_item(r);
+    return std::nullopt;
+}
+
+static void write_equipment(BinaryWriter& w, const Equipment& eq) {
+    write_optional_item(w, eq.head);
+    write_optional_item(w, eq.chest);
+    write_optional_item(w, eq.legs);
+    write_optional_item(w, eq.feet);
+    write_optional_item(w, eq.hands);
+    write_optional_item(w, eq.melee_weapon);
+    write_optional_item(w, eq.ranged_weapon);
+    write_optional_item(w, eq.special_slot);
+}
+
+static void read_equipment(BinaryReader& r, Equipment& eq) {
+    eq.head = read_optional_item(r);
+    eq.chest = read_optional_item(r);
+    eq.legs = read_optional_item(r);
+    eq.feet = read_optional_item(r);
+    eq.hands = read_optional_item(r);
+    eq.melee_weapon = read_optional_item(r);
+    eq.ranged_weapon = read_optional_item(r);
+    eq.special_slot = read_optional_item(r);
+}
+
+static void write_inventory(BinaryWriter& w, const Inventory& inv) {
+    w.write_i32(inv.max_carry_weight);
+    w.write_u32(static_cast<uint32_t>(inv.items.size()));
+    for (const auto& item : inv.items) write_item(w, item);
+}
+
+static void read_inventory(BinaryReader& r, Inventory& inv) {
+    inv.max_carry_weight = r.read_i32();
+    uint32_t count = r.read_u32();
+    inv.items.resize(count);
+    for (uint32_t i = 0; i < count; ++i) inv.items[i] = read_item(r);
+}
+
+// ---------------------------------------------------------------------------
 // Section writers
 // ---------------------------------------------------------------------------
 
@@ -197,6 +324,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.energy);
     w.write_i32(p.kills);
     w.write_i32(p.regen_counter);
+    write_equipment(w, p.equipment);
+    write_inventory(w, p.inventory);
     w.end_section(pos);
 }
 
@@ -302,6 +431,14 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         write_npc(w, npc);
     }
 
+    // Ground items
+    w.write_u32(static_cast<uint32_t>(ms.ground_items.size()));
+    for (const auto& gi : ms.ground_items) {
+        w.write_i32(gi.x);
+        w.write_i32(gi.y);
+        write_item(w, gi.item);
+    }
+
     w.end_section(pos);
 }
 
@@ -359,6 +496,9 @@ static void read_player_section(BinaryReader& r, Player& p) {
     p.energy = r.read_i32();
     p.kills = r.read_i32();
     p.regen_counter = r.read_i32();
+    // Equipment & inventory — may be absent in old saves (section guard handles it)
+    read_equipment(r, p.equipment);
+    read_inventory(r, p.inventory);
 }
 
 static Npc read_npc(BinaryReader& r) {
@@ -448,6 +588,15 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
     ms.npcs.resize(npc_count);
     for (uint32_t i = 0; i < npc_count; ++i) {
         ms.npcs[i] = read_npc(r);
+    }
+
+    // Ground items — may be absent in old saves (section guard handles it)
+    uint32_t gi_count = r.read_u32();
+    ms.ground_items.resize(gi_count);
+    for (uint32_t i = 0; i < gi_count; ++i) {
+        ms.ground_items[i].x = r.read_i32();
+        ms.ground_items[i].y = r.read_i32();
+        ms.ground_items[i].item = read_item(r);
     }
 }
 

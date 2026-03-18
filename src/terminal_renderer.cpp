@@ -234,6 +234,7 @@ int TerminalRenderer::wait_input() {
                 case 'B': return KEY_DOWN;
                 case 'C': return KEY_RIGHT;
                 case 'D': return KEY_LEFT;
+                case 'Z': return KEY_SHIFT_TAB;
             }
         }
         return '\033';
@@ -275,6 +276,7 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
                 case 'B': return KEY_DOWN;
                 case 'C': return KEY_RIGHT;
                 case 'D': return KEY_LEFT;
+                case 'Z': return KEY_SHIFT_TAB;
             }
         }
         return '\033';

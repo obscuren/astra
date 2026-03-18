@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/debug_spawn.h"
+#include "astra/item_defs.h"
 #include "astra/npc_defs.h"
 
 #include <algorithm>
@@ -225,6 +226,12 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Item inspect overlay — any key closes
+    if (inspecting_item_) {
+        inspecting_item_ = false;
+        return;
+    }
+
     // Targeting mode intercept
     if (targeting_) {
         handle_targeting_input(key);
@@ -257,12 +264,17 @@ void Game::handle_play_input(int key) {
             compute_camera();
             break;
         case '\t':
+        case KEY_SHIFT_TAB:
             if (!panel_visible_) {
                 panel_visible_ = true;
                 compute_layout();
                 compute_camera();
             }
-            active_tab_ = (active_tab_ + 1) % panel_tab_count;
+            if (key == KEY_SHIFT_TAB)
+                active_tab_ = (active_tab_ - 1 + panel_tab_count) % panel_tab_count;
+            else
+                active_tab_ = (active_tab_ + 1) % panel_tab_count;
+            inventory_cursor_ = 0;
             break;
         case '.':
             log("You wait...");
@@ -270,6 +282,84 @@ void Game::handle_play_input(int key) {
             break;
         case 't': begin_targeting(); break;
         case 's': shoot_target(); break;
+        case 'g': pickup_ground_item(); break;
+        case '+': case '=': {
+            auto tab = static_cast<PanelTab>(active_tab_);
+            if (tab == PanelTab::Inventory) {
+                int count = static_cast<int>(player_.inventory.items.size());
+                if (count > 0 && inventory_cursor_ < count - 1) ++inventory_cursor_;
+            } else if (tab == PanelTab::Equipment) {
+                if (inventory_cursor_ < equip_slot_count - 1) ++inventory_cursor_;
+            }
+            break;
+        }
+        case '-': {
+            auto tab = static_cast<PanelTab>(active_tab_);
+            if (tab == PanelTab::Inventory || tab == PanelTab::Equipment) {
+                if (inventory_cursor_ > 0) --inventory_cursor_;
+            }
+            break;
+        }
+        case 'i': {
+            // Auto-switch to Inventory tab if on a non-item tab
+            auto tab = static_cast<PanelTab>(active_tab_);
+            if (tab != PanelTab::Inventory && tab != PanelTab::Equipment) {
+                active_tab_ = static_cast<int>(PanelTab::Inventory);
+                inventory_cursor_ = 0;
+                if (!panel_visible_) {
+                    panel_visible_ = true;
+                    compute_layout();
+                    compute_camera();
+                }
+                break;
+            }
+            if (tab == PanelTab::Inventory) {
+                int count = static_cast<int>(player_.inventory.items.size());
+                if (count > 0 && inventory_cursor_ < count) {
+                    inspected_item_ = player_.inventory.items[inventory_cursor_];
+                    inspecting_item_ = true;
+                }
+            } else if (tab == PanelTab::Equipment) {
+                auto slot = static_cast<EquipSlot>(inventory_cursor_);
+                const auto& opt = player_.equipment.slot_ref(slot);
+                if (opt) {
+                    inspected_item_ = *opt;
+                    inspecting_item_ = true;
+                }
+            }
+            break;
+        }
+        case '\n': case '\r': {
+            auto tab = static_cast<PanelTab>(active_tab_);
+            if (tab == PanelTab::Inventory) {
+                int count = static_cast<int>(player_.inventory.items.size());
+                if (count > 0 && inventory_cursor_ < count) {
+                    const auto& item = player_.inventory.items[inventory_cursor_];
+                    if (item.type == ItemType::Equipment && item.slot) {
+                        equip_item(inventory_cursor_);
+                    } else if (item.usable) {
+                        use_item(inventory_cursor_);
+                    }
+                    if (inventory_cursor_ >= static_cast<int>(player_.inventory.items.size()))
+                        inventory_cursor_ = std::max(0, static_cast<int>(player_.inventory.items.size()) - 1);
+                }
+            } else if (tab == PanelTab::Equipment) {
+                unequip_slot(inventory_cursor_);
+            }
+            break;
+        }
+        case 'd': {
+            auto tab = static_cast<PanelTab>(active_tab_);
+            if (tab == PanelTab::Inventory) {
+                int count = static_cast<int>(player_.inventory.items.size());
+                if (count > 0 && inventory_cursor_ < count) {
+                    drop_item(inventory_cursor_);
+                    if (inventory_cursor_ >= static_cast<int>(player_.inventory.items.size()))
+                        inventory_cursor_ = std::max(0, static_cast<int>(player_.inventory.items.size()) - 1);
+                }
+            }
+            break;
+        }
         case 'k': case KEY_UP:    try_move( 0, -1); break;
         case 'j': case KEY_DOWN:  try_move( 0,  1); break;
         case 'h': case KEY_LEFT:  try_move(-1,  0); break;
@@ -294,6 +384,7 @@ void Game::new_game() {
 
     // Spawn NPCs in the player's starting room
     npcs_.clear();
+    ground_items_.clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
 
@@ -339,11 +430,22 @@ void Game::new_game() {
     awaiting_interact_ = false;
     targeting_ = false;
     target_npc_ = nullptr;
+    inventory_cursor_ = 0;
+    inspecting_item_ = false;
     current_region_ = -1;
     active_tab_ = 0; // Start on Messages tab
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
     check_region_change();
+
+    // Starter gear: random ranged weapon + battery
+    Item weapon = random_ranged_weapon(rng_);
+    player_.equipment.ranged_weapon = weapon;
+    log("You are armed with a " + weapon.name + ".");
+
+    Item battery = build_battery();
+    battery.stack_count = 3;
+    player_.inventory.items.push_back(battery);
 
     state_ = GameState::Playing;
 }
@@ -831,6 +933,128 @@ void Game::shoot_target() {
     advance_world(ActionCost::shoot);
 }
 
+void Game::pickup_ground_item() {
+    for (auto it = ground_items_.begin(); it != ground_items_.end(); ++it) {
+        if (it->x == player_.x && it->y == player_.y) {
+            if (!player_.inventory.can_add(it->item)) {
+                log("Too heavy to pick up " + it->item.name + ".");
+                return;
+            }
+            log("You pick up " + it->item.name + ".");
+            player_.inventory.items.push_back(std::move(it->item));
+            ground_items_.erase(it);
+            advance_world(ActionCost::move);
+            return;
+        }
+    }
+    log("Nothing here to pick up.");
+}
+
+void Game::drop_item(int index) {
+    auto& items = player_.inventory.items;
+    if (index < 0 || index >= static_cast<int>(items.size())) return;
+
+    Item item = std::move(items[index]);
+    items.erase(items.begin() + index);
+
+    log("You drop " + item.name + ".");
+    ground_items_.push_back({player_.x, player_.y, std::move(item)});
+}
+
+void Game::use_item(int index) {
+    auto& items = player_.inventory.items;
+    if (index < 0 || index >= static_cast<int>(items.size())) return;
+
+    auto& item = items[index];
+    switch (item.type) {
+        case ItemType::Food: {
+            int heal = 3;
+            player_.hp = std::min(player_.hp + heal, player_.max_hp);
+            if (player_.hunger > HungerState::Satiated)
+                player_.hunger = static_cast<HungerState>(
+                    static_cast<uint8_t>(player_.hunger) - 1);
+            log("You eat the " + item.name + ". (+3 HP)");
+            break;
+        }
+        case ItemType::Stim: {
+            int heal = 5;
+            player_.hp = std::min(player_.hp + heal, player_.max_hp);
+            log("You inject the " + item.name + ". (+5 HP)");
+            break;
+        }
+        case ItemType::Battery: {
+            auto& eq = player_.equipment.ranged_weapon;
+            if (!eq || !eq->ranged) {
+                log("No ranged weapon equipped to recharge.");
+                return;
+            }
+            auto& rd = *eq->ranged;
+            if (rd.current_charge >= rd.charge_capacity) {
+                log("Weapon is already fully charged.");
+                return;
+            }
+            int added = std::min(5, rd.charge_capacity - rd.current_charge);
+            rd.current_charge += added;
+            log("You recharge " + eq->name + ". (+" + std::to_string(added) + " charge)");
+            break;
+        }
+        default:
+            log("You can't use " + item.name + ".");
+            return;
+    }
+
+    // Consume the item
+    if (item.stackable && item.stack_count > 1) {
+        --item.stack_count;
+    } else {
+        items.erase(items.begin() + index);
+    }
+    advance_world(ActionCost::wait);
+}
+
+void Game::equip_item(int index) {
+    auto& items = player_.inventory.items;
+    if (index < 0 || index >= static_cast<int>(items.size())) return;
+
+    auto& item = items[index];
+    if (item.type != ItemType::Equipment || !item.slot) {
+        log("Can't equip " + item.name + ".");
+        return;
+    }
+
+    auto& slot = player_.equipment.slot_ref(*item.slot);
+    Item to_equip = std::move(item);
+    items.erase(items.begin() + index);
+
+    if (slot) {
+        // Swap: old equipped item goes to inventory
+        items.push_back(std::move(*slot));
+        log("You unequip " + items.back().name + ".");
+    }
+    log("You equip " + to_equip.name + ".");
+    slot = std::move(to_equip);
+}
+
+void Game::unequip_slot(int index) {
+    auto slot = static_cast<EquipSlot>(index);
+    auto& opt = player_.equipment.slot_ref(slot);
+    if (!opt) {
+        log("Nothing equipped in that slot.");
+        return;
+    }
+
+    Item item = std::move(*opt);
+    opt.reset();
+
+    if (!player_.inventory.can_add(item)) {
+        log("Inventory too heavy. " + item.name + " stays equipped.");
+        opt = std::move(item);
+        return;
+    }
+    log("You unequip " + item.name + ".");
+    player_.inventory.items.push_back(std::move(item));
+}
+
 void Game::remove_dead_npcs() {
     // Nullify target_npc_ if it died
     if (target_npc_ && !target_npc_->alive()) {
@@ -981,6 +1205,7 @@ void Game::save_game() {
     ms.tilemap = map_;
     ms.visibility = visibility_;
     ms.npcs = npcs_;
+    ms.ground_items = ground_items_;
     data.maps.push_back(std::move(ms));
 
     write_save("save_" + std::to_string(seed_), data);
@@ -1007,11 +1232,14 @@ bool Game::load_game(const std::string& filename) {
     map_ = ms.tilemap;
     visibility_ = ms.visibility;
     npcs_ = ms.npcs;
+    ground_items_ = ms.ground_items;
 
     // Reset interaction state
     awaiting_interact_ = false;
     targeting_ = false;
     target_npc_ = nullptr;
+    inventory_cursor_ = 0;
+    inspecting_item_ = false;
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
     dialog_node_ = -1;
@@ -1115,7 +1343,8 @@ void Game::render_play() {
     render_effects_bar();
     render_abilities_bar();
 
-    // Dialog overlays
+    // Overlay windows
+    if (inspecting_item_) render_item_inspect();
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
 }
@@ -1279,6 +1508,14 @@ void Game::render_map() {
         }
     }
 
+    // Draw visible ground items
+    for (const auto& gi : ground_items_) {
+        if (visibility_.get(gi.x, gi.y) == Visibility::Visible) {
+            ctx.put(gi.x - camera_x_, gi.y - camera_y_,
+                    gi.item.glyph, gi.item.color);
+        }
+    }
+
     // Draw visible NPCs
     for (const auto& npc : npcs_) {
         if (npc.alive() && visibility_.get(npc.x, npc.y) == Visibility::Visible) {
@@ -1380,16 +1617,233 @@ void Game::render_side_panel() {
             }
             break;
         }
-        case PanelTab::Inventory:
-            ctx.text(1, 1, "Inventory is empty.", Color::DarkGray);
+        case PanelTab::Inventory: {
+            const auto& inv = player_.inventory;
+            if (inv.items.empty()) {
+                ctx.text(1, 1, "Inventory is empty.", Color::DarkGray);
+            } else {
+                int y = 0;
+                for (int idx = 0; idx < static_cast<int>(inv.items.size()); ++idx) {
+                    if (y >= ctx.height() - 2) break; // reserve space for weight + hints
+                    const auto& item = inv.items[idx];
+                    bool selected = (idx == inventory_cursor_);
+                    if (selected) ctx.text(0, y, ">", Color::Yellow);
+                    ctx.put(1, y, item.glyph, item.color);
+                    std::string label = " " + item.name;
+                    if (item.stackable && item.stack_count > 1)
+                        label += " x" + std::to_string(item.stack_count);
+                    Color fg = selected ? Color::White : rarity_color(item.rarity);
+                    ctx.text(2, y, label, fg);
+                    ++y;
+                }
+                // Weight summary
+                int wy = ctx.height() - 2;
+                if (wy > static_cast<int>(inv.items.size())) {
+                    std::string wt = "Weight: " + std::to_string(inv.total_weight())
+                                   + "/" + std::to_string(inv.max_carry_weight);
+                    ctx.text(1, wy, wt, Color::DarkGray);
+                }
+            }
+            // Key hints at bottom — context-sensitive
+            int hy = ctx.height() - 1;
+            if (!inv.items.empty() && inventory_cursor_ < static_cast<int>(inv.items.size())) {
+                const auto& sel = inv.items[inventory_cursor_];
+                std::string hints = "+/- ";
+                if (sel.type == ItemType::Equipment && sel.slot)
+                    hints += "[Enter]equip ";
+                else if (sel.usable)
+                    hints += "[Enter]use ";
+                hints += "[i]nfo [d]rop";
+                ctx.text(1, hy, hints, Color::DarkGray);
+            } else {
+                ctx.text(1, hy, "+/- navigate", Color::DarkGray);
+            }
             break;
-        case PanelTab::Equipment:
-            ctx.text(1, 1, "No equipment.", Color::DarkGray);
+        }
+        case PanelTab::Equipment: {
+            const auto& eq = player_.equipment;
+            int y = 0;
+            int slot_idx = 0;
+            auto draw_slot = [&](const char* label, const std::optional<Item>& slot) {
+                if (y >= ctx.height() - 2) return;
+                bool selected = (slot_idx == inventory_cursor_);
+                if (selected) {
+                    ctx.text(0, y, ">", Color::Yellow);
+                }
+                ctx.text(1, y, label, Color::DarkGray);
+                int lx = 1 + static_cast<int>(std::string_view(label).size());
+                if (slot) {
+                    ctx.put(lx, y, slot->glyph, slot->color);
+                    Color fg = selected ? Color::White : rarity_color(slot->rarity);
+                    ctx.text(lx + 1, y, " " + slot->name, fg);
+                } else {
+                    ctx.text(lx, y, "---", Color::DarkGray);
+                }
+                ++y;
+                ++slot_idx;
+            };
+            draw_slot("Head:    ", eq.head);
+            draw_slot("Chest:   ", eq.chest);
+            draw_slot("Legs:    ", eq.legs);
+            draw_slot("Feet:    ", eq.feet);
+            draw_slot("Hands:   ", eq.hands);
+            draw_slot("Melee:   ", eq.melee_weapon);
+            draw_slot("Ranged:  ", eq.ranged_weapon);
+            draw_slot("Special: ", eq.special_slot);
+
+            // Stat bonuses summary
+            y++;
+            if (y < ctx.height() - 1) {
+                auto mods = eq.total_modifiers();
+                ctx.text(1, y, "Bonuses:", Color::DarkGray);
+                ++y;
+                if (mods.attack && y < ctx.height() - 1) {
+                    ctx.text(2, y, "ATK +" + std::to_string(mods.attack), Color::Red);
+                    ++y;
+                }
+                if (mods.defense && y < ctx.height() - 1) {
+                    ctx.text(2, y, "DEF +" + std::to_string(mods.defense), Color::Blue);
+                    ++y;
+                }
+                if (mods.max_hp && y < ctx.height() - 1) {
+                    ctx.text(2, y, "HP  +" + std::to_string(mods.max_hp), Color::Green);
+                    ++y;
+                }
+                if (mods.view_radius && y < ctx.height() - 1) {
+                    ctx.text(2, y, "VIS +" + std::to_string(mods.view_radius), Color::Cyan);
+                    ++y;
+                }
+                if (mods.quickness && y < ctx.height() - 1) {
+                    std::string sign = mods.quickness > 0 ? "+" : "";
+                    ctx.text(2, y, "QCK " + sign + std::to_string(mods.quickness), Color::Yellow);
+                    ++y;
+                }
+            }
+            // Key hints at bottom
+            int hy = ctx.height() - 1;
+            auto sel_slot = static_cast<EquipSlot>(inventory_cursor_);
+            const auto& sel_opt = eq.slot_ref(sel_slot);
+            if (sel_opt) {
+                ctx.text(1, hy, "+/- [Enter]unequip [i]nfo", Color::DarkGray);
+            } else {
+                ctx.text(1, hy, "+/- navigate", Color::DarkGray);
+            }
             break;
+        }
         case PanelTab::Ship:
             ctx.text(1, 1, "Ship: Docked", Color::DarkGray);
             ctx.text(1, 2, "Hull: 100%", Color::DarkGray);
             break;
+    }
+}
+
+void Game::render_item_inspect() {
+    const auto& item = inspected_item_;
+
+    int win_w = 44;
+    int win_h = 18;
+    if (win_w > screen_w_ - 4) win_w = screen_w_ - 4;
+    if (win_h > screen_h_ - 4) win_h = screen_h_ - 4;
+
+    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, item.name);
+    win.set_footer("[any key] Close");
+    win.draw();
+
+    DrawContext ctx = win.content();
+    int y = 0;
+
+    // Rarity + type
+    ctx.put(0, y, item.glyph, item.color);
+    std::string rarity_type = std::string(" ") + rarity_name(item.rarity);
+    ctx.text(1, y, rarity_type, rarity_color(item.rarity));
+    ++y;
+
+    // Description (word-wrapped)
+    if (!item.description.empty()) {
+        ++y;
+        std::string_view desc = item.description;
+        int max_w = ctx.width();
+        while (!desc.empty() && y < ctx.height()) {
+            if (static_cast<int>(desc.size()) <= max_w) {
+                ctx.text(0, y++, desc, Color::Default);
+                break;
+            }
+            int cut = max_w;
+            while (cut > 0 && desc[cut] != ' ') --cut;
+            if (cut == 0) cut = max_w;
+            ctx.text(0, y++, desc.substr(0, cut), Color::Default);
+            desc = desc.substr(cut);
+            if (!desc.empty() && desc[0] == ' ') desc = desc.substr(1);
+        }
+    }
+
+    ++y;
+
+    // Stat modifiers
+    const auto& m = item.modifiers;
+    if (m.attack) {
+        ctx.label_value(0, y, "Attack:    ", Color::DarkGray,
+            (m.attack > 0 ? "+" : "") + std::to_string(m.attack), Color::Red);
+        ++y;
+    }
+    if (m.defense) {
+        ctx.label_value(0, y, "Defense:   ", Color::DarkGray,
+            (m.defense > 0 ? "+" : "") + std::to_string(m.defense), Color::Blue);
+        ++y;
+    }
+    if (m.max_hp) {
+        ctx.label_value(0, y, "Max HP:    ", Color::DarkGray,
+            (m.max_hp > 0 ? "+" : "") + std::to_string(m.max_hp), Color::Green);
+        ++y;
+    }
+    if (m.view_radius) {
+        ctx.label_value(0, y, "Vision:    ", Color::DarkGray,
+            (m.view_radius > 0 ? "+" : "") + std::to_string(m.view_radius), Color::Cyan);
+        ++y;
+    }
+    if (m.quickness) {
+        ctx.label_value(0, y, "Quickness: ", Color::DarkGray,
+            (m.quickness > 0 ? "+" : "") + std::to_string(m.quickness), Color::Yellow);
+        ++y;
+    }
+
+    // Ranged weapon charge
+    if (item.ranged) {
+        const auto& rd = *item.ranged;
+        ctx.text(0, y, "Charge: ", Color::DarkGray);
+        int bar_w = std::min(16, ctx.width() - 10);
+        if (bar_w > 0) {
+            ctx.bar(8, y, bar_w, rd.current_charge, rd.charge_capacity,
+                    Color::Cyan, Color::DarkGray);
+        }
+        std::string charge_str = std::to_string(rd.current_charge) + "/"
+                               + std::to_string(rd.charge_capacity);
+        ctx.text(8 + bar_w + 3, y, charge_str, Color::Cyan);
+        ++y;
+    }
+
+    // Durability
+    if (item.max_durability > 0 && y < ctx.height()) {
+        ctx.text(0, y, "Durabl: ", Color::DarkGray);
+        int bar_w = std::min(16, ctx.width() - 10);
+        if (bar_w > 0) {
+            Color dur_color = (item.durability * 3 > item.max_durability) ? Color::Green : Color::Red;
+            ctx.bar(8, y, bar_w, item.durability, item.max_durability,
+                    dur_color, Color::DarkGray);
+        }
+        std::string dur_str = std::to_string(item.durability) + "/"
+                            + std::to_string(item.max_durability);
+        ctx.text(8 + bar_w + 3, y, dur_str, Color::Green);
+        ++y;
+    }
+
+    // Weight + value
+    if (y < ctx.height()) {
+        ++y;
+        std::string info = "Wt:" + std::to_string(item.weight);
+        info += "  Buy:" + std::to_string(item.buy_value);
+        info += "  Sell:" + std::to_string(item.sell_value);
+        ctx.text(0, y, info, Color::DarkGray);
     }
 }
 

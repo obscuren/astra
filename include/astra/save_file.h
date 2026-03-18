@@ -32,6 +32,7 @@ struct MapState {
     TileMap tilemap;
     VisibilityMap visibility;
     std::vector<Npc> npcs;
+    std::vector<GroundItem> ground_items;
 };
 
 struct SaveData {

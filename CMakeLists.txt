@@ -24,6 +24,8 @@ set(ASTRA_SOURCES
     src/tilemap.cpp
     src/visibility_map.cpp
     src/save_file.cpp
+    src/item.cpp
+    src/item_defs.cpp
 )
 
 if(WIN32)
