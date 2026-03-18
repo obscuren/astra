@@ -56,16 +56,28 @@ if(SDL)
     list(APPEND ASTRA_SOURCES src/sdl_renderer.cpp)
 endif()
 
-add_executable(astra ${ASTRA_SOURCES})
-target_include_directories(astra PRIVATE include)
+# ---------------------------------------------------------------------------
+# Determine artifact name based on build configuration
+# ---------------------------------------------------------------------------
+set(ASTRA_BIN "astra")
+if(DEV AND SDL)
+    set(ASTRA_BIN "astra-sdl-dev")
+elseif(DEV)
+    set(ASTRA_BIN "astra-dev")
+elseif(SDL)
+    set(ASTRA_BIN "astra-sdl")
+endif()
+
+add_executable(${ASTRA_BIN} ${ASTRA_SOURCES})
+target_include_directories(${ASTRA_BIN} PRIVATE include)
 
 if(DEV)
-    target_compile_definitions(astra PRIVATE ASTRA_DEV_MODE=1)
+    target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_DEV_MODE=1)
 endif()
 
 if(SDL)
-    target_compile_definitions(astra PRIVATE ASTRA_HAS_SDL=1)
-    target_include_directories(astra PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS})
-    target_link_directories(astra PRIVATE ${SDL3_LIBRARY_DIRS} ${SDL3_TTF_LIBRARY_DIRS})
-    target_link_libraries(astra PRIVATE ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES})
+    target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_HAS_SDL=1)
+    target_include_directories(${ASTRA_BIN} PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS})
+    target_link_directories(${ASTRA_BIN} PRIVATE ${SDL3_LIBRARY_DIRS} ${SDL3_TTF_LIBRARY_DIRS})
+    target_link_libraries(${ASTRA_BIN} PRIVATE ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES})
 endif()

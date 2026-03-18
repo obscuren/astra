@@ -1,0 +1,47 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "release",
+            "displayName": "Release (terminal only)",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "DEV": "OFF",
+                "SDL": "OFF"
+            }
+        },
+        {
+            "name": "dev",
+            "displayName": "Dev (terminal + dev mode)",
+            "binaryDir": "${sourceDir}/build/dev",
+            "cacheVariables": {
+                "DEV": "ON",
+                "SDL": "OFF"
+            }
+        },
+        {
+            "name": "sdl",
+            "displayName": "SDL (release)",
+            "binaryDir": "${sourceDir}/build/sdl",
+            "cacheVariables": {
+                "DEV": "OFF",
+                "SDL": "ON"
+            }
+        },
+        {
+            "name": "sdl-dev",
+            "displayName": "SDL + Dev mode",
+            "binaryDir": "${sourceDir}/build/sdl-dev",
+            "cacheVariables": {
+                "DEV": "ON",
+                "SDL": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "release",  "configurePreset": "release" },
+        { "name": "dev",      "configurePreset": "dev" },
+        { "name": "sdl",      "configurePreset": "sdl" },
+        { "name": "sdl-dev",  "configurePreset": "sdl-dev" }
+    ]
+}

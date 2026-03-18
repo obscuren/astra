@@ -16,18 +16,44 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Release builds
           - os: ubuntu-latest
             artifact: astra-linux-x86_64
             c_compiler: gcc
             cpp_compiler: g++
+            dev: OFF
+            binary: astra
           - os: macos-latest
             artifact: astra-macos-arm64
             c_compiler: clang
             cpp_compiler: clang++
+            dev: OFF
+            binary: astra
           - os: windows-latest
             artifact: astra-windows-x86_64
             c_compiler: cl
             cpp_compiler: cl
+            dev: OFF
+            binary: astra
+          # Dev builds
+          - os: ubuntu-latest
+            artifact: astra-dev-linux-x86_64
+            c_compiler: gcc
+            cpp_compiler: g++
+            dev: ON
+            binary: astra-dev
+          - os: macos-latest
+            artifact: astra-dev-macos-arm64
+            c_compiler: clang
+            cpp_compiler: clang++
+            dev: ON
+            binary: astra-dev
+          - os: windows-latest
+            artifact: astra-dev-windows-x86_64
+            c_compiler: cl
+            cpp_compiler: cl
+            dev: ON
+            binary: astra-dev
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +64,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=Release
+          -DDEV=${{ matrix.dev }}
           -S ${{ github.workspace }}
 
       - name: Build
@@ -47,7 +74,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir -p staging
-          cp build/astra staging/
+          cp build/${{ matrix.binary }} staging/
           cp LICENSE README.md staging/
           tar czf ${{ matrix.artifact }}.tar.gz -C staging .
 
@@ -56,7 +83,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p staging
-          cp build/Release/astra.exe staging/
+          cp build/Release/${{ matrix.binary }}.exe staging/
           cp LICENSE README.md staging/
           cd staging && 7z a -tzip ../${{ matrix.artifact }}.zip .
 
@@ -85,4 +112,7 @@ jobs:
             --generate-notes \
             astra-linux-x86_64.tar.gz \
             astra-macos-arm64.tar.gz \
-            astra-windows-x86_64.zip
+            astra-windows-x86_64.zip \
+            astra-dev-linux-x86_64.tar.gz \
+            astra-dev-macos-arm64.tar.gz \
+            astra-dev-windows-x86_64.zip
