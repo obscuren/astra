@@ -56,6 +56,11 @@ private:
     void center_on_cursor();
     void center_on_sol();
 
+    // Scanning
+    void scan_system();
+    std::string scan_message_;
+    int scan_message_timer_ = 0;
+
     // Find nearest system to a galactic coordinate
     int find_nearest_system(float gx, float gy, float max_dist = 1e9f) const;
 };

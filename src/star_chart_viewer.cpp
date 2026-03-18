@@ -65,10 +65,10 @@ bool StarChartViewer::handle_input(int key) {
     switch (zoom_) {
         case ChartZoom::Galaxy: {
             switch (key) {
-                case KEY_UP:    case 'w': view_cy_ -= 15.0f; return true;
-                case KEY_DOWN:  case 's': view_cy_ += 15.0f; return true;
-                case KEY_LEFT:  case 'a': view_cx_ -= 15.0f; return true;
-                case KEY_RIGHT: case 'd': view_cx_ += 15.0f; return true;
+                case KEY_UP:    view_cy_ -= 15.0f; return true;
+                case KEY_DOWN:  view_cy_ += 15.0f; return true;
+                case KEY_LEFT:  view_cx_ -= 15.0f; return true;
+                case KEY_RIGHT: view_cx_ += 15.0f; return true;
                 case '+': case '=': case '\n': case '\r':
                     zoom_ = ChartZoom::Region;
                     cursor_index_ = find_nearest_system(view_cx_, view_cy_);
@@ -84,10 +84,10 @@ bool StarChartViewer::handle_input(int key) {
         }
         case ChartZoom::Region: {
             switch (key) {
-                case KEY_UP:    case 'w': view_cy_ -= 5.0f; return true;
-                case KEY_DOWN:  case 's': view_cy_ += 5.0f; return true;
-                case KEY_LEFT:  case 'a': view_cx_ -= 5.0f; return true;
-                case KEY_RIGHT: case 'd': view_cx_ += 5.0f; return true;
+                case KEY_UP:    view_cy_ -= 5.0f; return true;
+                case KEY_DOWN:  view_cy_ += 5.0f; return true;
+                case KEY_LEFT:  view_cx_ -= 5.0f; return true;
+                case KEY_RIGHT: view_cx_ += 5.0f; return true;
                 case '\t':
                     cycle_cursor();
                     return true;
@@ -101,6 +101,9 @@ bool StarChartViewer::handle_input(int key) {
                 case '-': case '\b':
                     zoom_ = ChartZoom::Galaxy;
                     cursor_index_ = -1;
+                    return true;
+                case 's':
+                    scan_system();
                     return true;
                 case 'h':
                     center_on_sol();
@@ -118,10 +121,6 @@ bool StarChartViewer::handle_input(int key) {
                 case KEY_DOWN:  move_cursor_direction(0,  1); return true;
                 case KEY_LEFT:  move_cursor_direction(-1, 0); return true;
                 case KEY_RIGHT: move_cursor_direction( 1, 0); return true;
-                case 'w': move_cursor_direction(0, -1); return true;
-                case 's': move_cursor_direction(0,  1); return true;
-                case 'a': move_cursor_direction(-1, 0); return true;
-                case 'd': move_cursor_direction( 1, 0); return true;
                 case '\t':
                     cycle_cursor();
                     center_on_cursor();
@@ -141,6 +140,9 @@ bool StarChartViewer::handle_input(int key) {
                 case '-': case '\b':
                     zoom_ = ChartZoom::Region;
                     return true;
+                case 's':
+                    scan_system();
+                    return true;
                 case 'h':
                     center_on_sol();
                     cursor_index_ = find_nearest_system(view_cx_, view_cy_);
@@ -159,16 +161,16 @@ bool StarChartViewer::handle_input(int key) {
             const auto& sys = nav_->systems[cursor_index_];
             int body_count = static_cast<int>(sys.bodies.size());
             switch (key) {
-                case KEY_UP: case 'w':
+                case KEY_UP:
                     if (body_cursor_ > 0) --body_cursor_;
                     return true;
-                case KEY_DOWN: case 's':
+                case KEY_DOWN:
                     if (body_cursor_ < body_count - 1) ++body_cursor_;
                     return true;
-                case KEY_LEFT: case 'a':
+                case KEY_LEFT:
                     if (body_cursor_ > 0) --body_cursor_;
                     return true;
-                case KEY_RIGHT: case 'd':
+                case KEY_RIGHT:
                     if (body_cursor_ < body_count - 1) ++body_cursor_;
                     return true;
                 case '-': case '\b': case '\033': case 'q':
@@ -275,6 +277,21 @@ void StarChartViewer::move_cursor_direction(int dx, int dy) {
     }
 }
 
+void StarChartViewer::scan_system() {
+    if (!nav_ || cursor_index_ < 0 ||
+        cursor_index_ >= static_cast<int>(nav_->systems.size()))
+        return;
+
+    auto& sys = nav_->systems[cursor_index_];
+    if (sys.discovered) return; // already known
+
+    sys.discovered = true;
+    generate_system_bodies(sys);
+
+    scan_message_ = "Scanned: " + sys.name;
+    scan_message_timer_ = 90; // ~1.5s at 60fps
+}
+
 void StarChartViewer::center_on_cursor() {
     if (cursor_index_ >= 0 && nav_) {
         view_cx_ = nav_->systems[cursor_index_].gx;
@@ -318,10 +335,10 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
             win.set_footer("[Arrows] Pan  [+] Zoom in  [H] Home  [Esc] Close");
             break;
         case ChartZoom::Region:
-            win.set_footer("[Arrows] Pan  [Tab] Select  [+] Zoom in  [-] Zoom out  [H] Home  [Esc] Back");
+            win.set_footer("[Arrows] Pan  [Tab] Select  [s] Scan  [+] Zoom in  [-] Zoom out  [H] Home  [Esc] Back");
             break;
         case ChartZoom::Local:
-            win.set_footer("[Arrows] Select  [Tab] Cycle  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
+            win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
             break;
         case ChartZoom::System:
             win.set_footer("[Up/Down] Select body  [-] Back  [Esc] Back");
@@ -353,6 +370,17 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
         case ChartZoom::Region: draw_region_view(map_ctx, info_ctx); break;
         case ChartZoom::Local:  draw_local_view(map_ctx, info_ctx);  break;
         case ChartZoom::System: draw_system_view(map_ctx, info_ctx); break;
+    }
+
+    // Scan feedback message
+    if (scan_message_timer_ > 0) {
+        int msg_x = (map_ctx.width() - static_cast<int>(scan_message_.size())) / 2;
+        if (msg_x < 0) msg_x = 0;
+        int msg_y = map_ctx.height() - 2;
+        if (msg_y >= 0) {
+            map_ctx.text(msg_x, msg_y, scan_message_, Color::Cyan);
+        }
+        --scan_message_timer_;
     }
 }
 
