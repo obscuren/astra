@@ -20,6 +20,8 @@ set(ASTRA_SOURCES
     src/npcs/drifter.cpp
     src/npcs/xytomorph.cpp
     src/npcs/nova.cpp
+    src/npcs/hub_npcs.cpp
+    src/npc_spawner.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp
     src/tilemap.cpp
@@ -27,10 +29,14 @@ set(ASTRA_SOURCES
     src/generators/station_generator.cpp
     src/generators/open_cave_generator.cpp
     src/generators/tunnel_cave_generator.cpp
+    src/generators/hub_station_generator.cpp
     src/visibility_map.cpp
     src/save_file.cpp
+    src/star_chart.cpp
+    src/star_chart_viewer.cpp
     src/item.cpp
     src/item_defs.cpp
+    src/shop.cpp
     src/boot_sequence.cpp
 )
 

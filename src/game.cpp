@@ -5,6 +5,8 @@
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
 #include "astra/npc_defs.h"
+#include "astra/npc_spawner.h"
+#include "astra/shop.h"
 
 #include <algorithm>
 #include <array>
@@ -239,6 +241,12 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Star chart viewer intercepts input when open
+    if (star_chart_viewer_.is_open()) {
+        star_chart_viewer_.handle_input(key);
+        return;
+    }
+
     // NPC dialog intercepts input when open
     if (npc_dialog_.is_open()) {
         DialogResult result = npc_dialog_.handle_input(key);
@@ -315,6 +323,11 @@ void Game::handle_play_input(int key) {
                 warp_to_dungeon();
             } else {
                 log("There is no portal here.");
+            }
+            break;
+        case 'm':
+            if (dev_mode_) {
+                star_chart_viewer_.open();
             }
             break;
         case '+': case '=': {
@@ -416,53 +429,24 @@ void Game::new_game() {
     rng_.seed(seed_);
 
     auto props = default_properties(MapType::SpaceStation);
+    props.height = 80; // hub needs extra vertical space for 3-row grid
     map_ = TileMap(props.width, props.height, MapType::SpaceStation);
-    auto gen = create_generator(MapType::SpaceStation);
+    auto gen = create_hub_generator();
     gen->generate(map_, props, seed_);
     map_.set_location_name("The Heavens Above");
 
     player_ = Player{};
-    map_.find_open_spot(player_.x, player_.y);
+    player_.money = 10;
+    // Always start in the Docking Bay (region 0)
+    if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
+        map_.find_open_spot(player_.x, player_.y);
+    }
 
-    // Spawn NPCs in the player's starting room
+    // Spawn NPCs in rooms based on room flavor
     npcs_.clear();
     ground_items_.clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-
-    auto spawn_near = [&](NpcRole role, Race race, int near_x, int near_y) {
-        Npc npc = create_npc(role, race, npc_rng);
-        if (map_.find_open_spot_near(near_x, near_y,
-                                     npc.x, npc.y, occupied, &npc_rng)) {
-            occupied.push_back({npc.x, npc.y});
-            npcs_.push_back(std::move(npc));
-        }
-    };
-
-    auto spawn_other_room = [&](NpcRole role, Race race) {
-        Npc npc = create_npc(role, race, npc_rng);
-        if (map_.find_open_spot_other_room(player_.x, player_.y,
-                                           npc.x, npc.y, occupied, &npc_rng)) {
-            occupied.push_back({npc.x, npc.y});
-            npcs_.push_back(std::move(npc));
-        }
-    };
-
-    spawn_near(NpcRole::StationKeeper, Race::Human, player_.x, player_.y);
-    spawn_near(NpcRole::Merchant, Race::Veldrani, player_.x, player_.y);
-    spawn_near(NpcRole::Drifter, Race::Sylphari, player_.x, player_.y);
-
-    // Spawn Nova — unique Stellari NPC, always in starting room
-    {
-        Npc nova = build_nova();
-        if (map_.find_open_spot_near(player_.x, player_.y,
-                                      nova.x, nova.y, occupied, &npc_rng)) {
-            occupied.push_back({nova.x, nova.y});
-            npcs_.push_back(std::move(nova));
-        }
-    }
-
-    debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+    spawn_hub_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
 
     visibility_ = VisibilityMap(map_.width(), map_.height());
     recompute_fov();
@@ -505,6 +489,10 @@ void Game::new_game() {
             log("A shimmering portal appears nearby. (Dev: step on '>' to warp)");
         }
     }
+
+    // Generate the galaxy
+    navigation_ = generate_galaxy(seed_);
+    star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
 
     state_ = GameState::Playing;
 }
@@ -650,6 +638,20 @@ void Game::check_region_change() {
     if (!reg.enter_message.empty()) {
         log(reg.enter_message);
     }
+
+    // Feature hints for hub rooms
+    if (has_feature(reg.features, RoomFeature::Healing)) {
+        log("Healing pods hum softly, ready for use. [e to interact]");
+    }
+    if (has_feature(reg.features, RoomFeature::FoodShop)) {
+        log("A food terminal glows nearby. [e to interact]");
+    }
+    if (has_feature(reg.features, RoomFeature::Rest)) {
+        log("A rest pod glows at the far end. [e to interact]");
+    }
+    if (has_feature(reg.features, RoomFeature::Repair)) {
+        log("A repair bench sits against the wall. [e to interact]");
+    }
 }
 
 void Game::try_interact(int dx, int dy) {
@@ -667,6 +669,17 @@ void Game::try_interact(int dx, int dy) {
 
     if (!target) {
         Tile t = map_.get(tx, ty);
+        if (t == Tile::Fixture) {
+            int fid = map_.fixture_id(tx, ty);
+            if (fid >= 0 && map_.fixture(fid).interactable) {
+                interact_fixture(fid);
+                advance_world(ActionCost::interact);
+                return;
+            }
+            // Non-interactable fixture
+            log("Nothing useful here.");
+            return;
+        }
         if (t == Tile::Wall) {
             log("You run your hand along the cold bulkhead. Nothing of interest.");
         } else if (t == Tile::Empty) {
@@ -691,6 +704,100 @@ void Game::try_interact(int dx, int dy) {
     log("You approach " + target->display_name() + ".");
     open_npc_dialog(*target);
     advance_world(ActionCost::interact);
+}
+
+void Game::interact_fixture(int fid) {
+    auto& f = map_.fixture_mut(fid);
+
+    switch (f.type) {
+        case FixtureType::HealPod: {
+            if (f.last_used_tick >= 0 && f.cooldown > 0) {
+                int elapsed = world_tick_ - f.last_used_tick;
+                if (elapsed < f.cooldown) {
+                    int remaining = f.cooldown - elapsed;
+                    log("The healing pod is recharging (" +
+                        std::to_string(remaining) + " ticks remaining).");
+                    return;
+                }
+            }
+            if (player_.hp >= player_.max_hp) {
+                log("You step into the healing pod. No injuries detected.");
+                return;
+            }
+            player_.hp = player_.max_hp;
+            f.last_used_tick = world_tick_;
+            log("Nanites flood the pod. Your wounds close and vitals normalize. Fully healed.");
+            break;
+        }
+        case FixtureType::FoodTerminal: {
+            auto menu = food_terminal_menu();
+            npc_dialog_ = Dialog("Food Terminal", "What'll it be?");
+            for (const auto& entry : menu) {
+                std::string label = entry.label + " (" +
+                    std::to_string(entry.cost) + "$";
+                if (entry.to_inventory) {
+                    label += ", for inventory";
+                } else if (entry.heal < 0) {
+                    label += ", full heal";
+                } else {
+                    label += ", +" + std::to_string(entry.heal) + " HP";
+                }
+                label += ")";
+                npc_dialog_.add_option(label);
+            }
+            npc_dialog_.add_option("Leave");
+            npc_dialog_.open();
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -2; // sentinel: food terminal mode
+            break;
+        }
+        case FixtureType::RestPod: {
+            if (f.last_used_tick >= 0 && f.cooldown > 0) {
+                int elapsed = world_tick_ - f.last_used_tick;
+                if (elapsed < f.cooldown) {
+                    int remaining = f.cooldown - elapsed;
+                    log("The rest pod needs to reset (" +
+                        std::to_string(remaining) + " ticks remaining).");
+                    return;
+                }
+            }
+            player_.hp = player_.max_hp;
+            f.last_used_tick = world_tick_;
+            advance_world(20);
+            log("You climb into the rest pod and sleep deeply. Fully restored.");
+            break;
+        }
+        case FixtureType::RepairBench: {
+            log("A sign reads: 'Under maintenance. Check back later.'");
+            break;
+        }
+        case FixtureType::SupplyLocker: {
+            npc_dialog_ = Dialog("Supply Locker",
+                "Stash (" + std::to_string(stash_.size()) + "/" +
+                std::to_string(max_stash_size_) + ")");
+            npc_dialog_.add_option("Store an item");
+            npc_dialog_.add_option("Retrieve an item");
+            npc_dialog_.add_option("Close");
+            npc_dialog_.open();
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -3; // sentinel: stash main menu
+            break;
+        }
+        case FixtureType::StarChart: {
+            star_chart_viewer_.open();
+            log("The star chart hums to life, projecting a holographic galaxy map.");
+            break;
+        }
+        case FixtureType::WeaponDisplay: {
+            log("Weapons gleam behind reinforced glass. Talk to the Arms Dealer to browse.");
+            break;
+        }
+        default:
+            log("Nothing happens.");
+            break;
+    }
 }
 
 void Game::open_npc_dialog(Npc& npc) {
@@ -728,6 +835,98 @@ void Game::open_npc_dialog(Npc& npc) {
 }
 
 void Game::advance_dialog(int selected) {
+    // Food terminal dialog (no NPC involved)
+    if (dialog_node_ == -2) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        auto menu = food_terminal_menu();
+        if (selected >= 0 && selected < static_cast<int>(menu.size())) {
+            auto result = buy_food_item(player_, menu[selected]);
+            log(result.message);
+        }
+        // last option or out of range: Leave
+        return;
+    }
+
+    // Stash main menu
+    if (dialog_node_ == -3) {
+        if (selected == 0) {
+            // Store mode — show player inventory
+            if (player_.inventory.items.empty()) {
+                log("You have nothing to store.");
+                dialog_node_ = -1;
+                return;
+            }
+            if (static_cast<int>(stash_.size()) >= max_stash_size_) {
+                log("Stash is full! (" + std::to_string(max_stash_size_) +
+                    "/" + std::to_string(max_stash_size_) + ")");
+                dialog_node_ = -1;
+                return;
+            }
+            npc_dialog_ = Dialog("Store Item",
+                "Select item to store (" + std::to_string(stash_.size()) +
+                "/" + std::to_string(max_stash_size_) + "):");
+            for (const auto& item : player_.inventory.items) {
+                npc_dialog_.add_option(item.name);
+            }
+            npc_dialog_.add_option("Cancel");
+            npc_dialog_.open();
+            dialog_node_ = -4; // sentinel: store mode
+        } else if (selected == 1) {
+            // Retrieve mode — show stash contents
+            if (stash_.empty()) {
+                log("The stash is empty.");
+                dialog_node_ = -1;
+                return;
+            }
+            npc_dialog_ = Dialog("Retrieve Item",
+                "Select item to retrieve (" + std::to_string(stash_.size()) +
+                "/" + std::to_string(max_stash_size_) + "):");
+            for (const auto& item : stash_) {
+                npc_dialog_.add_option(item.name);
+            }
+            npc_dialog_.add_option("Cancel");
+            npc_dialog_.open();
+            dialog_node_ = -5; // sentinel: retrieve mode
+        } else {
+            // Close
+            dialog_node_ = -1;
+        }
+        return;
+    }
+
+    // Stash store mode — player selected an inventory item to store
+    if (dialog_node_ == -4) {
+        dialog_node_ = -1;
+        int item_count = static_cast<int>(player_.inventory.items.size());
+        if (selected >= 0 && selected < item_count) {
+            Item stored = std::move(player_.inventory.items[selected]);
+            player_.inventory.items.erase(
+                player_.inventory.items.begin() + selected);
+            log("Stored " + stored.name + " in the stash.");
+            stash_.push_back(std::move(stored));
+        }
+        return;
+    }
+
+    // Stash retrieve mode — player selected a stash item to retrieve
+    if (dialog_node_ == -5) {
+        dialog_node_ = -1;
+        int stash_count = static_cast<int>(stash_.size());
+        if (selected >= 0 && selected < stash_count) {
+            Item retrieved = std::move(stash_[selected]);
+            stash_.erase(stash_.begin() + selected);
+            if (!player_.inventory.can_add(retrieved)) {
+                log("Too heavy! Can't carry " + retrieved.name + ".");
+                stash_.insert(stash_.begin() + selected, std::move(retrieved));
+            } else {
+                log("Retrieved " + retrieved.name + " from the stash.");
+                player_.inventory.items.push_back(std::move(retrieved));
+            }
+        }
+        return;
+    }
+
     if (!interacting_npc_) return;
 
     // Currently navigating a dialog tree
@@ -1002,6 +1201,11 @@ void Game::attack_npc(Npc& npc) {
             player_.xp += xp;
             log("You gain " + std::to_string(xp) + " XP.");
         }
+        int credits = npc.level * 2 + (npc.elite ? 5 : 0);
+        if (credits > 0) {
+            player_.money += credits;
+            log("You salvage " + std::to_string(credits) + "$.");
+        }
     }
 }
 
@@ -1239,12 +1443,14 @@ void Game::use_item(int index) {
     auto& item = items[index];
     switch (item.type) {
         case ItemType::Food: {
-            int heal = 3;
+            int heal = item.buy_value * 5; // scale heal with item value
+            if (heal < 5) heal = 5;
             player_.hp = std::min(player_.hp + heal, player_.max_hp);
             if (player_.hunger > HungerState::Satiated)
                 player_.hunger = static_cast<HungerState>(
                     static_cast<uint8_t>(player_.hunger) - 1);
-            log("You eat the " + item.name + ". (+3 HP)");
+            log("You eat the " + item.name + ". (+" +
+                std::to_string(heal) + " HP)");
             break;
         }
         case ItemType::Stim: {
@@ -1470,6 +1676,8 @@ void Game::save_game() {
     data.panel_visible = panel_visible_;
     data.messages = messages_;
     data.death_message = death_message_;
+    data.stash = stash_;
+    data.navigation = navigation_;
 
     MapState ms;
     ms.map_id = 0;
@@ -1498,6 +1706,7 @@ bool Game::load_game(const std::string& filename) {
     active_tab_ = data.active_tab;
     panel_visible_ = data.panel_visible;
     messages_ = data.messages;
+    stash_ = data.stash;
 
     // Restore first map
     const auto& ms = data.maps[0];
@@ -1505,6 +1714,14 @@ bool Game::load_game(const std::string& filename) {
     visibility_ = ms.visibility;
     npcs_ = ms.npcs;
     ground_items_ = ms.ground_items;
+
+    // Restore navigation data (or bootstrap for old saves)
+    if (!data.navigation.systems.empty()) {
+        navigation_ = data.navigation;
+    } else {
+        navigation_ = generate_galaxy(seed_);
+    }
+    star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
 
     // Reset interaction state
     awaiting_interact_ = false;
@@ -1619,6 +1836,7 @@ void Game::render_play() {
     if (inspecting_item_) render_item_inspect();
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
+    star_chart_viewer_.draw(screen_w_, screen_h_);
 }
 
 void Game::render_stats_bar() {
@@ -1801,18 +2019,28 @@ void Game::render_map() {
             Visibility v = visibility_.get(mx, my);
             if (v == Visibility::Unexplored) continue;
 
-            char g = tile_glyph(map_.get(mx, my));
-            if (g == ' ') continue;
+            Tile tile_at = map_.get(mx, my);
+            char g = tile_glyph(tile_at);
+            if (g == ' ' && tile_at != Tile::Fixture) continue;
 
+            auto bc = biome_colors(map_.biome());
             if (v == Visibility::Visible) {
-                Tile t = map_.get(mx, my);
-                auto bc = biome_colors(map_.biome());
                 Color c = bc.floor;
-                if (t == Tile::Wall) c = bc.wall;
-                else if (t == Tile::Portal) c = Color::Magenta;
-                else if (t == Tile::Water) c = bc.water;
-                else if (t == Tile::Ice) c = static_cast<Color>(39);
-                else if (t == Tile::Floor) {
+                if (tile_at == Tile::Wall) c = bc.wall;
+                else if (tile_at == Tile::Portal) c = Color::Magenta;
+                else if (tile_at == Tile::Water) c = bc.water;
+                else if (tile_at == Tile::Ice) c = static_cast<Color>(39);
+                else if (tile_at == Tile::Fixture) {
+                    int fid = map_.fixture_id(mx, my);
+                    if (fid >= 0 && fid < map_.fixture_count()) {
+                        const auto& f = map_.fixture(fid);
+                        g = f.glyph;
+                        c = f.color;
+                    } else {
+                        g = '?'; c = Color::Red;
+                    }
+                }
+                else if (tile_at == Tile::Floor) {
                     char sg = floor_scatter(mx, my, map_.biome());
                     if (sg != '.') {
                         g = sg;
@@ -1821,7 +2049,14 @@ void Game::render_map() {
                 }
                 ctx.put(sx, sy, g, c);
             } else {
-                ctx.put(sx, sy, g, biome_colors(map_.biome()).remembered);
+                // Remembered tiles: fixtures use remembered color
+                if (tile_at == Tile::Fixture) {
+                    int fid = map_.fixture_id(mx, my);
+                    if (fid >= 0 && fid < map_.fixture_count()) {
+                        g = map_.fixture(fid).glyph;
+                    }
+                }
+                ctx.put(sx, sy, g, bc.remembered);
             }
         }
     }

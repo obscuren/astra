@@ -25,6 +25,10 @@ public:
         if (len > 0) out_.write(s.data(), len);
     }
 
+    void write_f32(float v) {
+        out_.write(reinterpret_cast<const char*>(&v), 4);
+    }
+
     void write_bytes(const void* data, size_t n) {
         out_.write(static_cast<const char*>(data), static_cast<std::streamsize>(n));
     }
@@ -66,6 +70,12 @@ public:
         std::string s(len, '\0');
         if (len > 0) in_.read(s.data(), len);
         return s;
+    }
+
+    float read_f32() {
+        float v = 0;
+        in_.read(reinterpret_cast<char*>(&v), 4);
+        return v;
     }
 
     void read_bytes(void* data, size_t n) {
@@ -415,6 +425,7 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_u8(static_cast<uint8_t>(r.type));
         w.write_u8(r.lit ? 1 : 0);
         w.write_u8(static_cast<uint8_t>(r.flavor));
+        w.write_u16(static_cast<uint16_t>(r.features));
         w.write_string(r.name);
         w.write_string(r.enter_message);
     }
@@ -442,6 +453,25 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         write_item(w, gi.item);
     }
 
+    // Fixtures (v3+)
+    const auto& fixtures = tm.fixtures_vec();
+    w.write_u32(static_cast<uint32_t>(fixtures.size()));
+    for (const auto& f : fixtures) {
+        w.write_u8(static_cast<uint8_t>(f.type));
+        w.write_u8(static_cast<uint8_t>(f.glyph));
+        w.write_u8(static_cast<uint8_t>(f.color));
+        w.write_u8(f.passable ? 1 : 0);
+        w.write_u8(f.interactable ? 1 : 0);
+        w.write_i32(f.cooldown);
+        w.write_i32(f.last_used_tick);
+    }
+    // Fixture IDs (parallel to tiles)
+    const auto& fids = tm.fixture_ids();
+    for (int fid : fids) w.write_i32(fid);
+
+    // Hub flag
+    w.write_u8(tm.is_hub() ? 1 : 0);
+
     w.end_section(pos);
 }
 
@@ -449,6 +479,34 @@ static void write_messages_section(BinaryWriter& w, const std::deque<std::string
     auto pos = w.begin_section("MSGS");
     w.write_u32(static_cast<uint32_t>(msgs.size()));
     for (const auto& m : msgs) w.write_string(m);
+    w.end_section(pos);
+}
+
+static void write_stash_section(BinaryWriter& w, const std::vector<Item>& stash) {
+    auto pos = w.begin_section("STSH");
+    w.write_u32(static_cast<uint32_t>(stash.size()));
+    for (const auto& item : stash) write_item(w, item);
+    w.end_section(pos);
+}
+
+static void write_navigation_section(BinaryWriter& w, const NavigationData& nav) {
+    auto pos = w.begin_section("STAR");
+    w.write_u32(nav.current_system_id);
+    w.write_i32(nav.navi_range);
+    w.write_u32(static_cast<uint32_t>(nav.systems.size()));
+    for (const auto& sys : nav.systems) {
+        w.write_u32(sys.id);
+        w.write_string(sys.name);
+        w.write_u8(static_cast<uint8_t>(sys.star_class));
+        w.write_u8(sys.binary ? 1 : 0);
+        w.write_u8(sys.has_station ? 1 : 0);
+        w.write_i32(sys.planet_count);
+        w.write_i32(sys.asteroid_belts);
+        w.write_i32(sys.danger_level);
+        w.write_f32(sys.gx);
+        w.write_f32(sys.gy);
+        w.write_u8(sys.discovered ? 1 : 0);
+    }
     w.end_section(pos);
 }
 
@@ -576,6 +634,11 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         reg.type = static_cast<RegionType>(r.read_u8());
         reg.lit = r.read_u8() != 0;
         reg.flavor = static_cast<RoomFlavor>(r.read_u8());
+        if (version >= 3) {
+            reg.features = static_cast<RoomFeature>(r.read_u16());
+        } else {
+            reg.features = default_features(reg.flavor);
+        }
         reg.name = r.read_string();
         reg.enter_message = r.read_string();
     }
@@ -607,6 +670,27 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         ms.ground_items[i].y = r.read_i32();
         ms.ground_items[i].item = read_item(r);
     }
+
+    // Fixtures (v3+)
+    if (version >= 3) {
+        uint32_t fixture_count = r.read_u32();
+        std::vector<FixtureData> fixtures(fixture_count);
+        for (auto& f : fixtures) {
+            f.type = static_cast<FixtureType>(r.read_u8());
+            f.glyph = static_cast<char>(r.read_u8());
+            f.color = static_cast<Color>(r.read_u8());
+            f.passable = r.read_u8() != 0;
+            f.interactable = r.read_u8() != 0;
+            f.cooldown = r.read_i32();
+            f.last_used_tick = r.read_i32();
+        }
+        std::vector<int> fids(area);
+        for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
+        ms.tilemap.load_fixtures(std::move(fixtures), std::move(fids));
+
+        bool hub = r.read_u8() != 0;
+        ms.tilemap.set_hub(hub);
+    }
 }
 
 static void read_messages_section(BinaryReader& r, std::deque<std::string>& msgs) {
@@ -614,6 +698,33 @@ static void read_messages_section(BinaryReader& r, std::deque<std::string>& msgs
     msgs.clear();
     for (uint32_t i = 0; i < count; ++i) {
         msgs.push_back(r.read_string());
+    }
+}
+
+static void read_stash_section(BinaryReader& r, std::vector<Item>& stash) {
+    uint32_t count = r.read_u32();
+    stash.resize(count);
+    for (uint32_t i = 0; i < count; ++i) stash[i] = read_item(r);
+}
+
+static void read_navigation_section(BinaryReader& r, NavigationData& nav) {
+    nav.current_system_id = r.read_u32();
+    nav.navi_range = r.read_i32();
+    uint32_t count = r.read_u32();
+    nav.systems.resize(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        auto& sys = nav.systems[i];
+        sys.id = r.read_u32();
+        sys.name = r.read_string();
+        sys.star_class = static_cast<StarClass>(r.read_u8());
+        sys.binary = r.read_u8() != 0;
+        sys.has_station = r.read_u8() != 0;
+        sys.planet_count = r.read_i32();
+        sys.asteroid_belts = r.read_i32();
+        sys.danger_level = r.read_i32();
+        sys.gx = r.read_f32();
+        sys.gy = r.read_f32();
+        sys.discovered = r.read_u8() != 0;
     }
 }
 
@@ -678,6 +789,12 @@ bool write_save(const std::string& name, const SaveData& data) {
     }
     write_messages_section(w, data.messages);
     write_game_state_section(w, data);
+    if (!data.stash.empty()) {
+        write_stash_section(w, data.stash);
+    }
+    if (!data.navigation.systems.empty()) {
+        write_navigation_section(w, data.navigation);
+    }
 
     // Sentinel
     out.write("END\0", 4);
@@ -723,6 +840,10 @@ bool read_save(const std::string& name, SaveData& data) {
             read_messages_section(r, data.messages);
         } else if (std::memcmp(tag, "GSTA", 4) == 0) {
             read_game_state_section(r, data);
+        } else if (std::memcmp(tag, "STSH", 4) == 0) {
+            read_stash_section(r, data.stash);
+        } else if (std::memcmp(tag, "STAR", 4) == 0) {
+            read_navigation_section(r, data.navigation);
         } else {
             // Unknown section — skip
             r.skip(size);

@@ -6,6 +6,8 @@
 #include "astra/player.h"
 #include "astra/renderer.h"
 #include "astra/save_file.h"
+#include "astra/star_chart.h"
+#include "astra/star_chart_viewer.h"
 #include "astra/tile_props.h"
 #include "astra/tilemap.h"
 #include "astra/ui.h"
@@ -72,6 +74,7 @@ private:
     void check_player_death();
     void open_npc_dialog(Npc& npc);
     void advance_dialog(int selected);
+    void interact_fixture(int fixture_id);
     void recompute_fov();
     void check_region_change();
     void save_game();
@@ -124,8 +127,12 @@ private:
     Player player_;
     std::vector<Npc> npcs_;
     std::vector<GroundItem> ground_items_;
+    std::vector<Item> stash_;
+    static constexpr int max_stash_size_ = 20;
     TileMap map_;
     VisibilityMap visibility_;
+    NavigationData navigation_;
+    StarChartViewer star_chart_viewer_;
     int camera_x_ = 0;
     int camera_y_ = 0;
     int current_region_ = -1;

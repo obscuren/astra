@@ -2,6 +2,7 @@
 
 #include "astra/npc.h"
 #include "astra/player.h"
+#include "astra/star_chart.h"
 #include "astra/tilemap.h"
 #include "astra/visibility_map.h"
 
@@ -36,7 +37,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 2;
+    uint32_t version = 3;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -48,6 +49,8 @@ struct SaveData {
     bool panel_visible = true;
     std::deque<std::string> messages;
     std::string death_message;
+    std::vector<Item> stash;
+    NavigationData navigation;
 };
 
 std::filesystem::path save_directory();
