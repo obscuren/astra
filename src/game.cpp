@@ -310,6 +310,13 @@ void Game::handle_play_input(int key) {
         case 's': shoot_target(); break;
         case 'r': reload_weapon(); break;
         case 'g': pickup_ground_item(); break;
+        case '>':
+            if (dev_mode_ && map_.get(player_.x, player_.y) == Tile::Portal) {
+                warp_to_dungeon();
+            } else {
+                log("There is no portal here.");
+            }
+            break;
         case '+': case '=': {
             auto tab = static_cast<PanelTab>(active_tab_);
             if (tab == PanelTab::Inventory) {
@@ -583,12 +590,6 @@ void Game::try_move(int dx, int dy) {
 
     player_.x = nx;
     player_.y = ny;
-
-    // Check for portal
-    if (dev_mode_ && map_.get(nx, ny) == Tile::Portal) {
-        warp_to_dungeon();
-        return;
-    }
 
     recompute_fov();
     compute_camera();
