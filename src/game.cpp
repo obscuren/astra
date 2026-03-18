@@ -282,6 +282,7 @@ void Game::handle_play_input(int key) {
             break;
         case 't': begin_targeting(); break;
         case 's': shoot_target(); break;
+        case 'r': reload_weapon(); break;
         case 'g': pickup_ground_item(); break;
         case '+': case '=': {
             auto tab = static_cast<PanelTab>(active_tab_);
@@ -844,7 +845,7 @@ void Game::begin_targeting() {
         target_y_ = player_.y;
     }
 
-    log("Targeting mode. Move cursor, [Enter] to confirm, [Esc] to cancel.");
+    log("Targeting mode. Move cursor, [Enter] confirm, [Esc] cancel.");
 }
 
 void Game::handle_targeting_input(int key) {
@@ -895,6 +896,13 @@ void Game::handle_targeting_input(int key) {
 }
 
 void Game::shoot_target() {
+    // Check weapon equipped
+    auto& weapon = player_.equipment.ranged_weapon;
+    if (!weapon || !weapon->ranged) {
+        log("No ranged weapon equipped.");
+        return;
+    }
+
     if (!target_npc_ || !target_npc_->alive()) {
         target_npc_ = nullptr;
         log("No target selected. Press [t] to target.");
@@ -906,18 +914,62 @@ void Game::shoot_target() {
         return;
     }
 
+    // Check range
+    auto& rd = *weapon->ranged;
+    int dist = chebyshev_dist(player_.x, player_.y, target_npc_->x, target_npc_->y);
+    if (dist > rd.max_range) {
+        log("Target out of range (" + std::to_string(dist) + "/" +
+            std::to_string(rd.max_range) + ").");
+        return;
+    }
+
+    // Check charge — auto-reload if empty
+    if (rd.current_charge < rd.charge_per_shot) {
+        // Try auto-reload from inventory
+        bool reloaded = false;
+        for (int i = 0; i < static_cast<int>(player_.inventory.items.size()); ++i) {
+            if (player_.inventory.items[i].type == ItemType::Battery) {
+                int added = std::min(5, rd.charge_capacity - rd.current_charge);
+                rd.current_charge += added;
+                log("Auto-reload: +" + std::to_string(added) + " charge.");
+                auto& cell = player_.inventory.items[i];
+                if (cell.stackable && cell.stack_count > 1) {
+                    --cell.stack_count;
+                } else {
+                    player_.inventory.items.erase(player_.inventory.items.begin() + i);
+                }
+                reloaded = true;
+                break;
+            }
+        }
+        if (!reloaded) {
+            log("Weapon empty. No energy cells to reload.");
+            return;
+        }
+        if (rd.current_charge < rd.charge_per_shot) {
+            log("Not enough charge to fire.");
+            return;
+        }
+    }
+
+    // Consume charge
+    rd.current_charge -= rd.charge_per_shot;
+
     if (target_npc_->invulnerable) {
         log("Your shot has no effect on " + target_npc_->display_name() + ".");
         advance_world(ActionCost::shoot);
         return;
     }
 
-    int damage = player_.attack_value;
+    // Damage = weapon attack modifier + player base attack
+    int damage = player_.attack_value + weapon->modifiers.attack;
     if (damage < 1) damage = 1;
     target_npc_->hp -= damage;
     if (target_npc_->hp < 0) target_npc_->hp = 0;
     log("You shoot " + target_npc_->display_name() + " for " +
-        std::to_string(damage) + " damage.");
+        std::to_string(damage) + " damage. [" +
+        std::to_string(rd.current_charge) + "/" +
+        std::to_string(rd.charge_capacity) + "]");
 
     if (!target_npc_->alive()) {
         log(target_npc_->display_name() + " is destroyed!");
@@ -931,6 +983,40 @@ void Game::shoot_target() {
     }
 
     advance_world(ActionCost::shoot);
+}
+
+void Game::reload_weapon() {
+    auto& weapon = player_.equipment.ranged_weapon;
+    if (!weapon || !weapon->ranged) {
+        log("No ranged weapon equipped.");
+        return;
+    }
+
+    auto& rd = *weapon->ranged;
+    if (rd.current_charge >= rd.charge_capacity) {
+        log(weapon->name + " is fully charged.");
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(player_.inventory.items.size()); ++i) {
+        if (player_.inventory.items[i].type == ItemType::Battery) {
+            int added = std::min(5, rd.charge_capacity - rd.current_charge);
+            rd.current_charge += added;
+            log("Reloaded " + weapon->name + ". (+" + std::to_string(added) +
+                " charge, " + std::to_string(rd.current_charge) + "/" +
+                std::to_string(rd.charge_capacity) + ")");
+            auto& cell = player_.inventory.items[i];
+            if (cell.stackable && cell.stack_count > 1) {
+                --cell.stack_count;
+            } else {
+                player_.inventory.items.erase(player_.inventory.items.begin() + i);
+            }
+            advance_world(ActionCost::wait);
+            return;
+        }
+    }
+
+    log("No energy cells to reload.");
 }
 
 void Game::pickup_ground_item() {
@@ -1536,6 +1622,11 @@ void Game::render_map() {
         int sy = (y0 < y1) ? 1 : -1;
         int err = dx - dy;
 
+        // Determine weapon range for coloring
+        int weapon_range = 0;
+        const auto& rw = player_.equipment.ranged_weapon;
+        if (rw && rw->ranged) weapon_range = rw->ranged->max_range;
+
         int lx = x0, ly = y0;
         while (lx != x1 || ly != y1) {
             int e2 = 2 * err;
@@ -1544,7 +1635,10 @@ void Game::render_map() {
             if (lx == x1 && ly == y1) break; // don't draw on reticule pos
             int scx = lx - camera_x_, scy = ly - camera_y_;
             if (scx >= 0 && scx < map_rect_.w && scy >= 0 && scy < map_rect_.h) {
-                ctx.put(scx, scy, '*', Color::Magenta);
+                int tile_dist = chebyshev_dist(x0, y0, lx, ly);
+                Color line_color = (weapon_range > 0 && tile_dist <= weapon_range)
+                    ? Color::Green : Color::Red;
+                ctx.put(scx, scy, '*', line_color);
             }
         }
 
@@ -1559,7 +1653,10 @@ void Game::render_map() {
                 }
             }
             if (!has_entity || blink_phase_ % 2 == 0) {
-                ctx.put(rx, ry, '+', Color::Red);
+                int target_dist = chebyshev_dist(player_.x, player_.y, target_x_, target_y_);
+                Color ret_color = (weapon_range > 0 && target_dist <= weapon_range)
+                    ? Color::Green : Color::Red;
+                ctx.put(rx, ry, '+', ret_color);
             }
             // else: let the underlying NPC/item glyph show through
         }
@@ -1820,6 +1917,11 @@ void Game::render_item_inspect() {
                                + std::to_string(rd.charge_capacity);
         ctx.text(8 + bar_w + 3, y, charge_str, Color::Cyan);
         ++y;
+        if (y < ctx.height()) {
+            ctx.label_value(0, y, "Range:     ", Color::DarkGray,
+                std::to_string(rd.max_range), Color::White);
+            ++y;
+        }
     }
 
     // Durability
@@ -1869,6 +1971,21 @@ void Game::render_effects_bar() {
         ctx.text(mid + 7, 0, info, tc);
     } else {
         ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
+    }
+
+    // Ranged weapon hints (right-aligned)
+    const auto& rw = player_.equipment.ranged_weapon;
+    if (rw && rw->ranged) {
+        const auto& rd = *rw->ranged;
+        std::string keys = "[t]arget [s]hoot [r]eload ";
+        std::string charge = std::to_string(rd.current_charge) + "/" +
+                             std::to_string(rd.charge_capacity);
+        std::string full = keys + charge;
+        int ix = ctx.width() - static_cast<int>(full.size()) - 1;
+        Color charge_color = (rd.current_charge >= rd.charge_per_shot)
+            ? Color::Cyan : Color::Red;
+        ctx.text(ix, 0, keys, Color::DarkGray);
+        ctx.text(ix + static_cast<int>(keys.size()), 0, charge, charge_color);
     }
 }
 

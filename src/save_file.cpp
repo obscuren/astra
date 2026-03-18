@@ -219,6 +219,7 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_i32(item.ranged->charge_capacity);
         w.write_i32(item.ranged->charge_per_shot);
         w.write_i32(item.ranged->current_charge);
+        w.write_i32(item.ranged->max_range);
     }
 }
 
@@ -249,6 +250,7 @@ static Item read_item(BinaryReader& r) {
         rd.charge_capacity = r.read_i32();
         rd.charge_per_shot = r.read_i32();
         rd.current_charge = r.read_i32();
+        rd.max_range = r.read_i32();
         item.ranged = rd;
     }
     return item;

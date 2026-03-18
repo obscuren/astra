@@ -22,7 +22,7 @@ Item build_plasma_pistol() {
     it.modifiers.attack = 3;
     it.max_durability = 80;
     it.durability = 80;
-    it.ranged = RangedData{20, 1, 20};
+    it.ranged = RangedData{20, 1, 20, 6};
     return it;
 }
 
@@ -42,7 +42,7 @@ Item build_ion_blaster() {
     it.modifiers.attack = 5;
     it.max_durability = 60;
     it.durability = 60;
-    it.ranged = RangedData{15, 2, 15};
+    it.ranged = RangedData{15, 2, 15, 8};
     return it;
 }
 
@@ -63,7 +63,7 @@ Item build_pulse_rifle() {
     it.modifiers.quickness = -5;
     it.max_durability = 100;
     it.durability = 100;
-    it.ranged = RangedData{30, 2, 30};
+    it.ranged = RangedData{30, 2, 30, 12};
     return it;
 }
 
@@ -84,7 +84,7 @@ Item build_arc_caster() {
     it.modifiers.quickness = -10;
     it.max_durability = 50;
     it.durability = 50;
-    it.ranged = RangedData{12, 3, 12};
+    it.ranged = RangedData{12, 3, 12, 5};
     return it;
 }
 
@@ -105,7 +105,7 @@ Item build_void_lance() {
     it.modifiers.view_radius = 2;
     it.max_durability = 40;
     it.durability = 40;
-    it.ranged = RangedData{10, 4, 10};
+    it.ranged = RangedData{10, 4, 10, 15};
     return it;
 }
 

@@ -75,6 +75,7 @@ struct RangedData {
     int charge_capacity = 0;
     int charge_per_shot = 1;
     int current_charge = 0;
+    int max_range = 8;
 };
 
 struct Item {
