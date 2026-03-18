@@ -74,7 +74,13 @@ void TerminalRenderer::init() {
     std::atexit(restore_terminal);
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
-    signal(SIGWINCH, sigwinch_handler);
+    // Use sigaction without SA_RESTART so SIGWINCH interrupts blocking reads,
+    // allowing the game loop to detect resize and redraw immediately.
+    struct sigaction sa{};
+    sa.sa_handler = sigwinch_handler;
+    sa.sa_flags = 0; // no SA_RESTART
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGWINCH, &sa, nullptr);
 
     // Query terminal size
     struct winsize ws;
