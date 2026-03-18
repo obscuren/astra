@@ -25,7 +25,8 @@ set(ASTRA_SOURCES
     src/tilemap.cpp
     src/map_generator.cpp
     src/generators/station_generator.cpp
-    src/generators/cave_generator.cpp
+    src/generators/open_cave_generator.cpp
+    src/generators/tunnel_cave_generator.cpp
     src/visibility_map.cpp
     src/save_file.cpp
     src/item.cpp

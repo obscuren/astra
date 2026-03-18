@@ -504,8 +504,9 @@ void Game::new_game() {
 
 void Game::warp_to_dungeon() {
     // Pick a random map type
-    static constexpr MapType warp_types[] = {MapType::SpaceStation, MapType::Rocky};
-    std::uniform_int_distribution<int> type_dist(0, 1);
+    static constexpr MapType warp_types[] = {
+        MapType::SpaceStation, MapType::Rocky, MapType::Asteroid};
+    std::uniform_int_distribution<int> type_dist(0, 2);
     MapType dest_type = warp_types[type_dist(rng_)];
 
     unsigned warp_seed = rng_();
@@ -514,8 +515,13 @@ void Game::warp_to_dungeon() {
     auto gen = create_generator(dest_type);
     gen->generate(map_, props, warp_seed);
 
-    const char* type_name = (dest_type == MapType::SpaceStation)
-                            ? "Space Station" : "Cave System";
+    const char* type_name = "Unknown";
+    switch (dest_type) {
+        case MapType::SpaceStation: type_name = "Space Station"; break;
+        case MapType::Rocky:        type_name = "Open Cavern"; break;
+        case MapType::Asteroid:     type_name = "Asteroid Tunnel"; break;
+        default: break;
+    }
     map_.set_location_name(type_name);
 
     // Reset entities

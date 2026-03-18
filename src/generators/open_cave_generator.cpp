@@ -6,7 +6,7 @@
 
 namespace astra {
 
-class CaveGenerator : public MapGenerator {
+class OpenCaveGenerator : public MapGenerator {
 protected:
     void generate_layout(std::mt19937& rng) override;
     void connect_rooms(std::mt19937& rng) override;
@@ -23,7 +23,7 @@ private:
     void dig_tunnel(int x1, int y1, int x2, int y2, int region_id, std::mt19937& rng);
 };
 
-int CaveGenerator::count_wall_neighbors(int x, int y) const {
+int OpenCaveGenerator::count_wall_neighbors(int x, int y) const {
     int count = 0;
     for (int dy = -1; dy <= 1; ++dy) {
         for (int dx = -1; dx <= 1; ++dx) {
@@ -37,7 +37,7 @@ int CaveGenerator::count_wall_neighbors(int x, int y) const {
     return count;
 }
 
-std::vector<std::pair<int,int>> CaveGenerator::flood_fill(int x, int y, int label) {
+std::vector<std::pair<int,int>> OpenCaveGenerator::flood_fill(int x, int y, int label) {
     std::vector<std::pair<int,int>> cells;
     std::queue<std::pair<int,int>> q;
     q.push({x, y});
@@ -64,7 +64,7 @@ std::vector<std::pair<int,int>> CaveGenerator::flood_fill(int x, int y, int labe
     return cells;
 }
 
-void CaveGenerator::dig_tunnel(int x1, int y1, int x2, int y2, int region_id, std::mt19937& rng) {
+void OpenCaveGenerator::dig_tunnel(int x1, int y1, int x2, int y2, int region_id, std::mt19937& rng) {
     int cx = x1, cy = y1;
     std::uniform_int_distribution<int> jitter(-1, 1);
     int max_steps = (map_->width() + map_->height()) * 3;
@@ -119,7 +119,7 @@ void CaveGenerator::dig_tunnel(int x1, int y1, int x2, int y2, int region_id, st
     }
 }
 
-void CaveGenerator::generate_layout(std::mt19937& rng) {
+void OpenCaveGenerator::generate_layout(std::mt19937& rng) {
     int w = map_->width();
     int h = map_->height();
 
@@ -243,7 +243,7 @@ void CaveGenerator::generate_layout(std::mt19937& rng) {
     }
 }
 
-void CaveGenerator::connect_rooms(std::mt19937& rng) {
+void OpenCaveGenerator::connect_rooms(std::mt19937& rng) {
     if (rooms_.size() <= 1) return;
 
     // Connect each cavern to the nearest unconnected one
@@ -292,8 +292,8 @@ void CaveGenerator::connect_rooms(std::mt19937& rng) {
     }
 }
 
-std::unique_ptr<MapGenerator> make_cave_generator() {
-    return std::make_unique<CaveGenerator>();
+std::unique_ptr<MapGenerator> make_open_cave_generator() {
+    return std::make_unique<OpenCaveGenerator>();
 }
 
 } // namespace astra

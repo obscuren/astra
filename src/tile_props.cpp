@@ -73,6 +73,7 @@ TileProps tile_props(Tile tile, MapType map_type) {
             case MapType::SpaceStation:
                 return {Material::Bulkhead, station_wall_bumps};
             case MapType::Rocky:
+            case MapType::Asteroid:
                 return {Material::Rock, rocky_wall_bumps};
             case MapType::Lava:
                 return {Material::Obsidianite, lava_wall_bumps};

@@ -29,6 +29,7 @@ enum class MapType : uint8_t {
     Nebula,
     Rocky,
     Lava,
+    Asteroid,
 };
 
 enum class RegionType : uint8_t {

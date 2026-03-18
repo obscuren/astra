@@ -132,6 +132,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
                     break;
                 case MapType::Rocky:
                 case MapType::Lava:
+                case MapType::Asteroid:
                     entry = &pick_flavor(rocky_room_flavors, rng);
                     break;
                 case MapType::Nebula:
@@ -146,6 +147,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
                 case MapType::Rocky:
                 case MapType::Lava:
                 case MapType::Nebula:
+                case MapType::Asteroid:
                     entry = &pick_flavor(rocky_corridor_flavors, rng);
                     break;
             }
@@ -280,6 +282,16 @@ MapProperties default_properties(MapType type) {
             p.width = 120;
             p.height = 60;
             break;
+        case MapType::Asteroid:
+            p.environment = Environment::Cave;
+            p.climate = Climate::Vacuum;
+            p.has_backdrop = false;
+            p.room_count_min = 5;
+            p.room_count_max = 9;
+            p.light_bias = 20;
+            p.width = 120;
+            p.height = 60;
+            break;
     }
     return p;
 }
@@ -288,7 +300,8 @@ MapProperties default_properties(MapType type) {
 
 // Forward declarations of concrete generators
 std::unique_ptr<MapGenerator> make_station_generator();
-std::unique_ptr<MapGenerator> make_cave_generator();
+std::unique_ptr<MapGenerator> make_open_cave_generator();
+std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 
 std::unique_ptr<MapGenerator> create_generator(MapType type) {
     switch (type) {
@@ -296,7 +309,9 @@ std::unique_ptr<MapGenerator> create_generator(MapType type) {
             return make_station_generator();
         case MapType::Rocky:
         case MapType::Lava:
-            return make_cave_generator();
+            return make_open_cave_generator();
+        case MapType::Asteroid:
+            return make_tunnel_cave_generator();
         case MapType::Nebula:
             // Fall back to station for now
             return make_station_generator();
