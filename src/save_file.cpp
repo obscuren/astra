@@ -506,6 +506,26 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
         w.write_f32(sys.gx);
         w.write_f32(sys.gy);
         w.write_u8(sys.discovered ? 1 : 0);
+
+        // v4: celestial bodies
+        w.write_u8(sys.bodies_generated ? 1 : 0);
+        if (sys.bodies_generated) {
+            w.write_u16(static_cast<uint16_t>(sys.bodies.size()));
+            for (const auto& body : sys.bodies) {
+                w.write_string(body.name);
+                w.write_u8(static_cast<uint8_t>(body.type));
+                w.write_u8(static_cast<uint8_t>(body.atmosphere));
+                w.write_u8(static_cast<uint8_t>(body.temperature));
+                w.write_u16(body.resources);
+                w.write_u8(body.size);
+                w.write_u8(body.moons);
+                w.write_f32(body.orbital_distance);
+                w.write_u8(body.landable ? 1 : 0);
+                w.write_u8(body.explored ? 1 : 0);
+                w.write_u8(body.has_dungeon ? 1 : 0);
+                w.write_i32(body.danger_level);
+            }
+        }
     }
     w.end_section(pos);
 }
@@ -707,7 +727,7 @@ static void read_stash_section(BinaryReader& r, std::vector<Item>& stash) {
     for (uint32_t i = 0; i < count; ++i) stash[i] = read_item(r);
 }
 
-static void read_navigation_section(BinaryReader& r, NavigationData& nav) {
+static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32_t version) {
     nav.current_system_id = r.read_u32();
     nav.navi_range = r.read_i32();
     uint32_t count = r.read_u32();
@@ -725,6 +745,29 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav) {
         sys.gx = r.read_f32();
         sys.gy = r.read_f32();
         sys.discovered = r.read_u8() != 0;
+
+        // v4: celestial bodies
+        if (version >= 4) {
+            sys.bodies_generated = r.read_u8() != 0;
+            if (sys.bodies_generated) {
+                uint16_t body_count = r.read_u16();
+                sys.bodies.resize(body_count);
+                for (auto& body : sys.bodies) {
+                    body.name = r.read_string();
+                    body.type = static_cast<BodyType>(r.read_u8());
+                    body.atmosphere = static_cast<Atmosphere>(r.read_u8());
+                    body.temperature = static_cast<Temperature>(r.read_u8());
+                    body.resources = r.read_u16();
+                    body.size = r.read_u8();
+                    body.moons = r.read_u8();
+                    body.orbital_distance = r.read_f32();
+                    body.landable = r.read_u8() != 0;
+                    body.explored = r.read_u8() != 0;
+                    body.has_dungeon = r.read_u8() != 0;
+                    body.danger_level = r.read_i32();
+                }
+            }
+        }
     }
 }
 
@@ -843,7 +886,7 @@ bool read_save(const std::string& name, SaveData& data) {
         } else if (std::memcmp(tag, "STSH", 4) == 0) {
             read_stash_section(r, data.stash);
         } else if (std::memcmp(tag, "STAR", 4) == 0) {
-            read_navigation_section(r, data.navigation);
+            read_navigation_section(r, data.navigation, data.version);
         } else {
             // Unknown section — skip
             r.skip(size);

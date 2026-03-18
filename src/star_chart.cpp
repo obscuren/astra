@@ -102,6 +102,197 @@ void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy) {
 }
 
 // ---------------------------------------------------------------------------
+// Celestial body generation
+// ---------------------------------------------------------------------------
+
+static const char* roman_numerals[] = {
+    "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+    "XI", "XII", "XIII", "XIV", "XV",
+};
+
+static void generate_sol_bodies(StarSystem& sys) {
+    using R = Resource;
+    auto r = [](Resource a, Resource b) { return static_cast<uint16_t>(a | b); };
+    auto r1 = [](Resource a) { return static_cast<uint16_t>(a); };
+
+    sys.bodies = {
+        {"Mercury",       BodyType::Rocky,        Atmosphere::None,     Temperature::Scorching, r1(R::Metals),              2, 0, 0.39f,  true,  false, false, 2},
+        {"Venus",         BodyType::Rocky,        Atmosphere::Toxic,    Temperature::Scorching, r(R::Metals, R::RareMetals),5, 0, 0.72f,  true,  false, false, 4},
+        {"Earth",         BodyType::Terrestrial,  Atmosphere::Standard, Temperature::Temperate, r(R::Water, R::Organics),   5, 1, 1.0f,   true,  false, false, 1},
+        {"Mars",          BodyType::Rocky,        Atmosphere::Thin,     Temperature::Cold,      r(R::Metals, R::Water),     3, 2, 1.52f,  true,  false, true,  2},
+        {"Asteroid Belt", BodyType::AsteroidBelt, Atmosphere::None,     Temperature::Cold,      r(R::Metals, R::RareMetals),1, 0, 2.7f,   false, false, false, 3},
+        {"Jupiter",       BodyType::GasGiant,     Atmosphere::Reducing, Temperature::Frozen,    r(R::Gas, R::Fuel),         10,4, 5.2f,   false, false, false, 3},
+        {"Saturn",        BodyType::GasGiant,     Atmosphere::Reducing, Temperature::Frozen,    r(R::Gas, R::Fuel),         9, 3, 9.5f,   false, false, false, 3},
+        {"Uranus",        BodyType::IceGiant,     Atmosphere::Reducing, Temperature::Frozen,    r1(R::Gas),                 7, 2, 19.2f,  false, false, false, 2},
+        {"Neptune",       BodyType::IceGiant,     Atmosphere::Reducing, Temperature::Frozen,    r1(R::Gas),                 7, 1, 30.0f,  false, false, false, 2},
+        {"Pluto",         BodyType::DwarfPlanet,  Atmosphere::Thin,     Temperature::Frozen,    r(R::Water, R::Crystals),   1, 1, 39.5f,  true,  false, true,  1},
+        {"Kuiper Belt",   BodyType::AsteroidBelt, Atmosphere::None,     Temperature::Frozen,    r(R::Metals, R::Crystals),  1, 0, 45.0f,  false, false, false, 2},
+    };
+}
+
+void generate_system_bodies(StarSystem& sys) {
+    if (sys.bodies_generated) return;
+    sys.bodies_generated = true;
+
+    // Sol — hardcoded real planets
+    if (sys.id == 1) {
+        generate_sol_bodies(sys);
+        return;
+    }
+
+    // Sgr A* — supermassive black hole, no bodies
+    if (sys.id == 0) return;
+
+    std::mt19937 rng(sys.id ^ 0x504C4E54u);
+
+    // Habitable zone bounds based on star class
+    float hz_inner, hz_outer;
+    switch (sys.star_class) {
+        case StarClass::ClassM: hz_inner = 0.1f;  hz_outer = 0.4f;  break;
+        case StarClass::ClassK: hz_inner = 0.4f;  hz_outer = 0.8f;  break;
+        case StarClass::ClassG: hz_inner = 0.8f;  hz_outer = 1.5f;  break;
+        case StarClass::ClassF: hz_inner = 1.0f;  hz_outer = 2.0f;  break;
+        case StarClass::ClassA: hz_inner = 1.5f;  hz_outer = 3.0f;  break;
+        case StarClass::ClassB: hz_inner = 3.0f;  hz_outer = 8.0f;  break;
+        case StarClass::ClassO: hz_inner = 5.0f;  hz_outer = 15.0f; break;
+    }
+
+    int total_bodies = sys.planet_count + sys.asteroid_belts;
+    if (total_bodies <= 0) return;
+
+    std::uniform_real_distribution<float> spacing_dist(1.4f, 2.2f);
+    std::uniform_int_distribution<int> size_dist(1, 10);
+    std::uniform_int_distribution<int> percent(0, 99);
+    std::uniform_int_distribution<int> moon_rocky(0, 2);
+    std::uniform_int_distribution<int> moon_gas(1, 6);
+
+    float distance = 0.2f + hz_inner * 0.3f; // start near inner zone
+    int planet_num = 0;
+    int belt_num = 0;
+    int belts_placed = 0;
+
+    for (int i = 0; i < total_bodies; ++i) {
+        CelestialBody body;
+        body.orbital_distance = distance;
+
+        // Place asteroid belts between inner and outer zones
+        if (belts_placed < sys.asteroid_belts &&
+            distance > hz_outer && distance < hz_outer * 3.0f &&
+            percent(rng) < 50) {
+            body.type = BodyType::AsteroidBelt;
+            body.name = sys.name + " Belt";
+            if (belts_placed > 0) body.name += " " + std::to_string(belts_placed + 1);
+            body.atmosphere = Atmosphere::None;
+            body.temperature = (distance < hz_inner) ? Temperature::Hot : Temperature::Cold;
+            body.size = 1;
+            body.moons = 0;
+            body.landable = false;
+            body.resources = static_cast<uint16_t>(Resource::Metals);
+            if (percent(rng) < 30) body.resources |= static_cast<uint16_t>(Resource::RareMetals);
+            body.danger_level = std::max(1, sys.danger_level - 1);
+            ++belts_placed;
+        } else {
+            // Planet
+            if (planet_num < 15) {
+                body.name = sys.name + " " + roman_numerals[planet_num];
+            } else {
+                body.name = sys.name + " " + std::to_string(planet_num + 1);
+            }
+            ++planet_num;
+
+            // Determine type based on zone
+            if (distance < hz_inner) {
+                // Inner zone — rocky, hot
+                body.type = BodyType::Rocky;
+                body.temperature = (distance < hz_inner * 0.5f) ? Temperature::Scorching : Temperature::Hot;
+                body.atmosphere = (percent(rng) < 30) ? Atmosphere::Thin : Atmosphere::None;
+                body.size = static_cast<uint8_t>(std::uniform_int_distribution<int>(1, 5)(rng));
+                body.moons = static_cast<uint8_t>(moon_rocky(rng));
+                body.landable = true;
+                body.resources = static_cast<uint16_t>(Resource::Metals);
+                if (percent(rng) < 20) body.resources |= static_cast<uint16_t>(Resource::RareMetals);
+            } else if (distance >= hz_inner && distance <= hz_outer) {
+                // Habitable zone
+                if (percent(rng) < 40) {
+                    body.type = BodyType::Terrestrial;
+                    body.atmosphere = Atmosphere::Standard;
+                    body.resources = static_cast<uint16_t>(Resource::Water | Resource::Organics);
+                    if (percent(rng) < 30) body.resources |= static_cast<uint16_t>(Resource::Metals);
+                } else {
+                    body.type = BodyType::Rocky;
+                    body.atmosphere = (percent(rng) < 50) ? Atmosphere::Thin : Atmosphere::None;
+                    body.resources = static_cast<uint16_t>(Resource::Metals);
+                    if (percent(rng) < 25) body.resources |= static_cast<uint16_t>(Resource::Water);
+                }
+                body.temperature = Temperature::Temperate;
+                body.size = static_cast<uint8_t>(std::uniform_int_distribution<int>(2, 7)(rng));
+                body.moons = static_cast<uint8_t>(moon_rocky(rng));
+                body.landable = true;
+            } else if (distance <= hz_outer * 5.0f) {
+                // Outer zone — gas/ice giants
+                if (percent(rng) < 60) {
+                    body.type = BodyType::GasGiant;
+                    body.size = static_cast<uint8_t>(std::uniform_int_distribution<int>(7, 10)(rng));
+                    body.resources = static_cast<uint16_t>(Resource::Gas | Resource::Fuel);
+                } else {
+                    body.type = BodyType::IceGiant;
+                    body.size = static_cast<uint8_t>(std::uniform_int_distribution<int>(5, 8)(rng));
+                    body.resources = static_cast<uint16_t>(Resource::Gas);
+                }
+                body.atmosphere = Atmosphere::Reducing;
+                body.temperature = Temperature::Frozen;
+                body.moons = static_cast<uint8_t>(moon_gas(rng));
+                body.landable = false;
+            } else {
+                // Far zone — dwarf planets or ice giants
+                if (percent(rng) < 70) {
+                    body.type = BodyType::DwarfPlanet;
+                    body.size = static_cast<uint8_t>(std::uniform_int_distribution<int>(1, 3)(rng));
+                    body.landable = true;
+                    body.resources = static_cast<uint16_t>(Resource::Water);
+                    if (percent(rng) < 20) body.resources |= static_cast<uint16_t>(Resource::Crystals);
+                } else {
+                    body.type = BodyType::IceGiant;
+                    body.size = static_cast<uint8_t>(std::uniform_int_distribution<int>(4, 7)(rng));
+                    body.landable = false;
+                    body.resources = static_cast<uint16_t>(Resource::Gas);
+                }
+                body.atmosphere = (body.type == BodyType::DwarfPlanet) ? Atmosphere::Thin : Atmosphere::Reducing;
+                body.temperature = Temperature::Frozen;
+                body.moons = (body.type == BodyType::DwarfPlanet) ?
+                    static_cast<uint8_t>(moon_rocky(rng)) : static_cast<uint8_t>(moon_gas(rng));
+            }
+
+            // Dungeon on landable bodies with some probability
+            body.has_dungeon = body.landable && (percent(rng) < 40);
+            body.danger_level = std::max(1, sys.danger_level + std::uniform_int_distribution<int>(-2, 2)(rng));
+            if (body.danger_level > 10) body.danger_level = 10;
+        }
+
+        sys.bodies.push_back(std::move(body));
+        distance *= spacing_dist(rng);
+    }
+
+    // Place remaining belts if we didn't get them all
+    while (belts_placed < sys.asteroid_belts) {
+        CelestialBody belt;
+        belt.type = BodyType::AsteroidBelt;
+        belt.name = sys.name + " Belt";
+        if (belts_placed > 0) belt.name += " " + std::to_string(belts_placed + 1);
+        belt.orbital_distance = distance;
+        belt.atmosphere = Atmosphere::None;
+        belt.temperature = Temperature::Frozen;
+        belt.size = 1;
+        belt.landable = false;
+        belt.resources = static_cast<uint16_t>(Resource::Metals);
+        belt.danger_level = std::max(1, sys.danger_level - 1);
+        sys.bodies.push_back(std::move(belt));
+        ++belts_placed;
+        distance *= spacing_dist(rng);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
 

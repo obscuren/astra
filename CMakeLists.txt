@@ -32,6 +32,7 @@ set(ASTRA_SOURCES
     src/generators/hub_station_generator.cpp
     src/visibility_map.cpp
     src/save_file.cpp
+    src/celestial_body.cpp
     src/star_chart.cpp
     src/star_chart_viewer.cpp
     src/item.cpp

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/celestial_body.h"
 #include "astra/renderer.h"
 
 #include <cstdint>
@@ -31,6 +32,8 @@ struct StarSystem {
     float gx = 0.0f;
     float gy = 0.0f;
     bool discovered = false;
+    std::vector<CelestialBody> bodies;
+    bool bodies_generated = false;
 };
 
 struct NavigationData {
@@ -47,6 +50,9 @@ void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy);
 
 // Generate a sci-fi system name
 std::string generate_system_name(std::mt19937& rng);
+
+// Generate celestial bodies for a system (lazy, idempotent)
+void generate_system_bodies(StarSystem& sys);
 
 // Display helpers
 const char* star_class_name(StarClass sc);

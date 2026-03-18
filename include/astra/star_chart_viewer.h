@@ -6,7 +6,7 @@
 
 namespace astra {
 
-enum class ChartZoom { Galaxy, Region, Local };
+enum class ChartZoom { Galaxy, Region, Local, System };
 
 class StarChartViewer {
 public:
@@ -35,11 +35,16 @@ private:
     // System cursor (index into nav_->systems, -1 = none)
     int cursor_index_ = -1;
 
+    // Body cursor (index into system's bodies, -1 = none)
+    int body_cursor_ = -1;
+
     // Rendering
     void draw_galaxy_view(DrawContext& map_ctx, DrawContext& info_ctx);
     void draw_region_view(DrawContext& map_ctx, DrawContext& info_ctx);
     void draw_local_view(DrawContext& map_ctx, DrawContext& info_ctx);
-    void draw_system_info(DrawContext& ctx, const StarSystem& sys, int start_y);
+    void draw_system_view(DrawContext& map_ctx, DrawContext& info_ctx);
+    void draw_system_info(DrawContext& ctx, const StarSystem& sys, int start_y, int max_h = 100);
+    void draw_body_info(DrawContext& ctx, const CelestialBody& body, const StarSystem& sys, int start_y);
 
     // Map projection helpers
     int to_screen_x(float gx, float view_left, float view_width, int screen_w) const;
