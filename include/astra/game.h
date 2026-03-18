@@ -53,6 +53,7 @@ private:
     // Logic
     void update();
     void new_game();
+    void warp_to_dungeon();
     void try_move(int dx, int dy);
     void try_interact(int dx, int dy);
     void advance_world(int cost);

@@ -2,6 +2,8 @@
 #include "astra/boot_sequence.h"
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
+#include "astra/map_generator.h"
+#include "astra/map_properties.h"
 #include "astra/npc_defs.h"
 
 #include <algorithm>
@@ -406,8 +408,10 @@ void Game::new_game() {
     seed_ = static_cast<unsigned>(std::time(nullptr));
     rng_.seed(seed_);
 
-    map_ = TileMap(120, 60);
-    map_.generate(seed_);
+    auto props = default_properties(MapType::SpaceStation);
+    map_ = TileMap(props.width, props.height, MapType::SpaceStation);
+    auto gen = create_generator(MapType::SpaceStation);
+    gen->generate(map_, props, seed_);
     map_.set_location_name("The Heavens Above");
 
     player_ = Player{};
@@ -481,7 +485,70 @@ void Game::new_game() {
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
+    // Dev mode: place a portal in the starting room for testing generators
+    if (dev_mode_) {
+        int px, py;
+        std::vector<std::pair<int,int>> portal_exclude = {{player_.x, player_.y}};
+        for (const auto& npc : npcs_) {
+            portal_exclude.push_back({npc.x, npc.y});
+        }
+        if (map_.find_open_spot_near(player_.x, player_.y, px, py,
+                                      portal_exclude, &rng_)) {
+            map_.set(px, py, Tile::Portal);
+            log("A shimmering portal appears nearby. (Dev: step on '>' to warp)");
+        }
+    }
+
     state_ = GameState::Playing;
+}
+
+void Game::warp_to_dungeon() {
+    // Pick a random map type
+    static constexpr MapType warp_types[] = {MapType::SpaceStation, MapType::Rocky};
+    std::uniform_int_distribution<int> type_dist(0, 1);
+    MapType dest_type = warp_types[type_dist(rng_)];
+
+    unsigned warp_seed = rng_();
+    auto props = default_properties(dest_type);
+    map_ = TileMap(props.width, props.height, dest_type);
+    auto gen = create_generator(dest_type);
+    gen->generate(map_, props, warp_seed);
+
+    const char* type_name = (dest_type == MapType::SpaceStation)
+                            ? "Space Station" : "Cave System";
+    map_.set_location_name(type_name);
+
+    // Reset entities
+    npcs_.clear();
+    ground_items_.clear();
+
+    // Respawn player
+    map_.find_open_spot(player_.x, player_.y);
+
+    // Spawn hostile NPCs in other rooms
+    std::mt19937 npc_rng(warp_seed ^ 0xD3ADu);
+    std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+    debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+
+    visibility_ = VisibilityMap(map_.width(), map_.height());
+    current_region_ = -1;
+    recompute_fov();
+    compute_camera();
+    check_region_change();
+
+    log("You step through the portal...");
+    log("You arrive at a " + std::string(type_name) + ".");
+
+    // Place another portal for chaining
+    int px, py;
+    std::vector<std::pair<int,int>> portal_exclude = {{player_.x, player_.y}};
+    for (const auto& npc : npcs_) {
+        portal_exclude.push_back({npc.x, npc.y});
+    }
+    if (map_.find_open_spot_near(player_.x, player_.y, px, py,
+                                  portal_exclude, &rng_)) {
+        map_.set(px, py, Tile::Portal);
+    }
 }
 
 void Game::try_move(int dx, int dy) {
@@ -510,6 +577,13 @@ void Game::try_move(int dx, int dy) {
 
     player_.x = nx;
     player_.y = ny;
+
+    // Check for portal
+    if (dev_mode_ && map_.get(nx, ny) == Tile::Portal) {
+        warp_to_dungeon();
+        return;
+    }
+
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -1626,7 +1700,9 @@ void Game::render_map() {
 
             if (v == Visibility::Visible) {
                 Tile t = map_.get(mx, my);
-                Color c = (t == Tile::Wall) ? Color::White : Color::Default;
+                Color c = Color::Default;
+                if (t == Tile::Wall) c = Color::White;
+                else if (t == Tile::Portal) c = Color::Magenta;
                 ctx.put(sx, sy, g, c);
             } else {
                 ctx.put(sx, sy, g, Color::Blue);

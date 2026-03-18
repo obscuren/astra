@@ -12,13 +12,15 @@ enum class Tile : uint8_t {
     Empty,
     Floor,
     Wall,
+    Portal,
 };
 
 inline char tile_glyph(Tile t) {
     switch (t) {
-        case Tile::Floor: return '.';
-        case Tile::Wall:  return '#';
-        default:          return ' ';
+        case Tile::Floor:  return '.';
+        case Tile::Wall:   return '#';
+        case Tile::Portal: return '>';
+        default:           return ' ';
     }
 }
 
@@ -73,8 +75,6 @@ public:
     TileMap() = default;
     TileMap(int width, int height, MapType type = MapType::SpaceStation);
 
-    void generate(unsigned seed);
-
     MapType map_type() const { return map_type_; }
     char backdrop(int x, int y) const;
 
@@ -87,6 +87,13 @@ public:
     int region_id(int x, int y) const;
     int region_count() const { return static_cast<int>(regions_.size()); }
     const Region& region(int id) const { return regions_[id]; }
+
+    // Public setters for map generators
+    void set_region(int x, int y, int rid);
+    int add_region(Region reg);
+    void update_region(int id, const Region& reg);
+    void set_backdrop(int x, int y, char c);
+    void clear_all();
 
     int width() const { return width_; }
     int height() const { return height_; }
@@ -121,13 +128,6 @@ public:
                                    std::mt19937* rng = nullptr) const;
 
 private:
-    void carve_room(int x1, int y1, int x2, int y2);
-    void carve_corridor_h(int x1, int x2, int y, int rid);
-    void carve_corridor_v(int y1, int y2, int x, int rid);
-    void set_region(int x, int y, int rid);
-    void generate_backdrop(unsigned seed);
-    void generate_flavors(std::mt19937& rng);
-
     MapType map_type_ = MapType::SpaceStation;
     int width_ = 0;
     int height_ = 0;

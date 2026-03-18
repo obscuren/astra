@@ -23,6 +23,9 @@ set(ASTRA_SOURCES
     src/debug_spawn.cpp
     src/tile_props.cpp
     src/tilemap.cpp
+    src/map_generator.cpp
+    src/generators/station_generator.cpp
+    src/generators/cave_generator.cpp
     src/visibility_map.cpp
     src/save_file.cpp
     src/item.cpp
