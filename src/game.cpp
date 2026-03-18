@@ -30,6 +30,9 @@ static const char* title_art[] = {
 static constexpr int title_art_lines = 9;
 
 static const char* menu_items[] = {
+#ifdef ASTRA_DEV_MODE
+    "Developer Mode (new character)",
+#endif
     "New Game",
     "Load Game",
     "Hall of Fame",
@@ -145,10 +148,23 @@ void Game::handle_menu_input(int key) {
         case 's': case 'j': case KEY_DOWN:
             menu_selection_ = (menu_selection_ + 1) % menu_item_count_;
             break;
-        case '\n': case '\r': case ' ':
+        case '\n': case '\r': case ' ': {
+#ifdef ASTRA_DEV_MODE
+            // Dev mode is index 0; shift others by 1
+            static constexpr int off = 1;
+#else
+            static constexpr int off = 0;
+#endif
+#ifdef ASTRA_DEV_MODE
             if (menu_selection_ == 0) {
+                dev_mode_ = true;
                 new_game();
-            } else if (menu_selection_ == 1) {
+            } else
+#endif
+            if (menu_selection_ == off + 0) {
+                dev_mode_ = false;
+                new_game();
+            } else if (menu_selection_ == off + 1) {
                 save_slots_ = list_saves();
                 // Filter to alive saves only
                 save_slots_.erase(
@@ -157,7 +173,7 @@ void Game::handle_menu_input(int key) {
                     save_slots_.end());
                 load_selection_ = 0;
                 state_ = GameState::LoadMenu;
-            } else if (menu_selection_ == 2) {
+            } else if (menu_selection_ == off + 2) {
                 save_slots_ = list_saves();
                 // Filter to dead saves only, sort by level desc then ticks desc
                 save_slots_.erase(
@@ -173,10 +189,11 @@ void Game::handle_menu_input(int key) {
                 load_selection_ = 0;
                 confirm_delete_ = false;
                 state_ = GameState::HallOfFame;
-            } else if (menu_selection_ == 3) {
+            } else if (menu_selection_ == menu_item_count_ - 1) {
                 running_ = false;
             }
             break;
+        }
         case 'q':
             running_ = false;
             break;
@@ -195,7 +212,10 @@ void Game::handle_play_input(int key) {
         if (result == DialogResult::Selected) {
             switch (pause_menu_.selected()) {
                 case 0: break; // Return to Game — just closes
-                case 1: save_game(); log("Game saved."); break;
+                case 1:
+                    if (dev_mode_) { log("Saving disabled in dev mode."); }
+                    else { save_game(); log("Game saved."); }
+                    break;
                 case 2: {
                     save_slots_ = list_saves();
                     save_slots_.erase(
@@ -207,7 +227,10 @@ void Game::handle_play_input(int key) {
                     break;
                 }
                 case 3: log("Options not yet implemented."); break;
-                case 4: save_game(); running_ = false; break; // Save and Quit
+                case 4:
+                    if (!dev_mode_) save_game();
+                    running_ = false;
+                    break; // Save and Quit (skip save in dev mode)
             }
         }
         return;
@@ -435,6 +458,9 @@ void Game::new_game() {
     inspecting_item_ = false;
     current_region_ = -1;
     active_tab_ = 0; // Start on Messages tab
+    if (dev_mode_) {
+        log("--- DEVELOPER MODE --- Saving disabled.");
+    }
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
     check_region_change();
@@ -1303,6 +1329,7 @@ bool Game::load_game(const std::string& filename) {
     if (data.dead) return false;
     if (data.maps.empty()) return false;
 
+    dev_mode_ = false;
     seed_ = data.seed;
     rng_.seed(seed_);
     world_tick_ = data.world_tick;
@@ -1438,8 +1465,14 @@ void Game::render_play() {
 void Game::render_stats_bar() {
     DrawContext ctx(renderer_.get(), stats_bar_rect_);
 
-    // Left side: level :: temp :: hunger :: money
+    // Dev mode indicator
     int lx = 1;
+    if (dev_mode_) {
+        ctx.text(lx, 0, "[DEV]", Color::Red);
+        lx += 6;
+    }
+
+    // Left side: level :: temp :: hunger :: money
     lx = ctx.label_value(lx, 0, "LVL:", Color::DarkGray,
         std::to_string(player_.level), Color::White);
 

@@ -108,7 +108,14 @@ private:
 
     // Menu
     int menu_selection_ = 0;
+#ifdef ASTRA_DEV_MODE
+    static constexpr int menu_item_count_ = 5;
+#else
     static constexpr int menu_item_count_ = 4;
+#endif
+
+    // Dev mode
+    bool dev_mode_ = false;
 
     // Gameplay
     unsigned seed_ = 0;

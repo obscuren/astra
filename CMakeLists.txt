@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(SDL "Build with SDL3 renderer support" OFF)
+option(DEV "Build with developer mode enabled" OFF)
 
 set(ASTRA_SOURCES
     src/main.cpp
@@ -44,6 +45,10 @@ endif()
 
 add_executable(astra ${ASTRA_SOURCES})
 target_include_directories(astra PRIVATE include)
+
+if(DEV)
+    target_compile_definitions(astra PRIVATE ASTRA_DEV_MODE=1)
+endif()
 
 if(SDL)
     target_compile_definitions(astra PRIVATE ASTRA_HAS_SDL=1)
