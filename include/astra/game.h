@@ -13,9 +13,11 @@
 #include "astra/ui.h"
 #include "astra/visibility_map.h"
 #include <deque>
+#include <map>
 #include <memory>
 #include <random>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace astra {
@@ -55,7 +57,9 @@ private:
     // Logic
     void update();
     void new_game();
-    void warp_to_dungeon();
+    void travel_to_destination(const ChartAction& action);
+    void save_current_location();
+    void restore_location(const std::tuple<uint32_t, int, bool>& key);
     void try_move(int dx, int dy);
     void try_interact(int dx, int dy);
     void advance_world(int cost);
@@ -188,6 +192,21 @@ private:
     // Message log
     std::deque<std::string> messages_;
     static constexpr size_t max_messages_ = 200;
+
+    // Location cache — preserves visited locations
+    // Key: {system_id, body_index, is_station}
+    //   station: {system_id, -1, true}
+    //   body:    {system_id, body_index, false}
+    struct LocationState {
+        TileMap map;
+        VisibilityMap visibility;
+        std::vector<Npc> npcs;
+        std::vector<GroundItem> ground_items;
+        int player_x = 0;
+        int player_y = 0;
+    };
+    using LocationKey = std::tuple<uint32_t, int, bool>;
+    std::map<LocationKey, LocationState> location_cache_;
 };
 
 } // namespace astra

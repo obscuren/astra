@@ -244,6 +244,9 @@ void Game::handle_play_input(int key) {
     // Star chart viewer intercepts input when open
     if (star_chart_viewer_.is_open()) {
         star_chart_viewer_.handle_input(key);
+        if (star_chart_viewer_.has_pending_action()) {
+            travel_to_destination(star_chart_viewer_.consume_action());
+        }
         return;
     }
 
@@ -318,13 +321,6 @@ void Game::handle_play_input(int key) {
         case 's': shoot_target(); break;
         case 'r': reload_weapon(); break;
         case 'g': pickup_ground_item(); break;
-        case '>':
-            if (dev_mode_ && map_.get(player_.x, player_.y) == Tile::Portal) {
-                warp_to_dungeon();
-            } else {
-                log("There is no portal here.");
-            }
-            break;
         case 'm':
             if (dev_mode_) {
                 star_chart_viewer_.open();
@@ -476,20 +472,6 @@ void Game::new_game() {
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
-    // Dev mode: place a portal in the starting room for testing generators
-    if (dev_mode_) {
-        int px, py;
-        std::vector<std::pair<int,int>> portal_exclude = {{player_.x, player_.y}};
-        for (const auto& npc : npcs_) {
-            portal_exclude.push_back({npc.x, npc.y});
-        }
-        if (map_.find_open_spot_near(player_.x, player_.y, px, py,
-                                      portal_exclude, &rng_)) {
-            map_.set(px, py, Tile::Portal);
-            log("A shimmering portal appears nearby. (Dev: step on '>' to warp)");
-        }
-    }
-
     // Generate the galaxy
     navigation_ = generate_galaxy(seed_);
     navigation_.at_station = true;
@@ -499,118 +481,181 @@ void Game::new_game() {
     state_ = GameState::Playing;
 }
 
-void Game::warp_to_dungeon() {
-    // Pick a random map type
-    static constexpr MapType warp_types[] = {
-        MapType::SpaceStation, MapType::Rocky, MapType::Asteroid};
-    std::uniform_int_distribution<int> type_dist(0, 2);
-    MapType dest_type = warp_types[type_dist(rng_)];
+void Game::save_current_location() {
+    LocationKey key;
+    if (navigation_.at_station) {
+        key = {navigation_.current_system_id, -1, true};
+    } else {
+        key = {navigation_.current_system_id, navigation_.current_body_index, false};
+    }
+    LocationState& state = location_cache_[key];
+    state.map = std::move(map_);
+    state.visibility = std::move(visibility_);
+    state.npcs = std::move(npcs_);
+    state.ground_items = std::move(ground_items_);
+    state.player_x = player_.x;
+    state.player_y = player_.y;
+}
 
-    // Pick a biome based on map type
-    Biome dest_biome = Biome::Station;
-    switch (dest_type) {
-        case MapType::SpaceStation:
-            dest_biome = Biome::Station;
-            break;
-        case MapType::Rocky: {
-            static constexpr Biome rocky_biomes[] = {
-                Biome::Rocky, Biome::Ice, Biome::Sandy, Biome::Aquatic,
-                Biome::Fungal, Biome::Crystal, Biome::Corroded};
-            dest_biome = rocky_biomes[std::uniform_int_distribution<int>(0, 6)(rng_)];
-            break;
-        }
-        case MapType::Asteroid: {
-            static constexpr Biome asteroid_biomes[] = {
-                Biome::Rocky, Biome::Ice, Biome::Volcanic, Biome::Crystal, Biome::Corroded};
-            dest_biome = asteroid_biomes[std::uniform_int_distribution<int>(0, 4)(rng_)];
-            break;
-        }
-        case MapType::Lava:
-            dest_biome = Biome::Volcanic;
-            break;
-        default: break;
+void Game::restore_location(const LocationKey& key) {
+    auto it = location_cache_.find(key);
+    if (it == location_cache_.end()) return;
+    LocationState& state = it->second;
+    map_ = std::move(state.map);
+    visibility_ = std::move(state.visibility);
+    npcs_ = std::move(state.npcs);
+    ground_items_ = std::move(state.ground_items);
+
+    // Spawn at the map's starting area (docking bay / entrance), not cached position
+    std::vector<std::pair<int,int>> exclude;
+    for (const auto& npc : npcs_) {
+        exclude.push_back({npc.x, npc.y});
+    }
+    if (!map_.find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
+        map_.find_open_spot(player_.x, player_.y);
     }
 
-    unsigned warp_seed = rng_();
-    auto props = default_properties(dest_type);
-    props.biome = dest_biome;
-    map_ = TileMap(props.width, props.height, dest_type);
-    auto gen = create_generator(dest_type);
-    gen->generate(map_, props, warp_seed);
+    location_cache_.erase(it);
+}
 
-    // Build location name from biome + generator type
-    auto biome_prefix = [](Biome b) -> const char* {
-        switch (b) {
-            case Biome::Station:  return "Space";
-            case Biome::Rocky:    return "Rocky";
-            case Biome::Volcanic: return "Volcanic";
-            case Biome::Ice:      return "Frozen";
-            case Biome::Sandy:    return "Dust";
-            case Biome::Aquatic:  return "Flooded";
-            case Biome::Fungal:   return "Fungal";
-            case Biome::Crystal:  return "Crystal";
-            case Biome::Corroded: return "Acid-Eaten";
+void Game::travel_to_destination(const ChartAction& action) {
+    if (action.system_index < 0 ||
+        action.system_index >= static_cast<int>(navigation_.systems.size()))
+        return;
+
+    auto& target_sys = navigation_.systems[action.system_index];
+    generate_system_bodies(target_sys);
+
+    // Determine destination key and metadata
+    LocationKey dest_key;
+    MapType dest_type = MapType::SpaceStation;
+    Biome dest_biome = Biome::Station;
+    std::string location_name;
+
+    switch (action.type) {
+        case ChartActionType::WarpToSystem: {
+            dest_key = {target_sys.id, -1, true};
+            dest_type = target_sys.station.derelict ? MapType::DerelictStation
+                                                    : MapType::SpaceStation;
+            dest_biome = Biome::Station;
+            location_name = target_sys.station.name;
+            break;
         }
-        return "Unknown";
-    };
-    auto type_suffix = [](MapType t) -> const char* {
-        switch (t) {
-            case MapType::SpaceStation: return "Station";
-            case MapType::Rocky:        return "Cavern";
-            case MapType::Asteroid:     return "Asteroid";
-            case MapType::Lava:         return "Vent";
-            default:                    return "Zone";
+        case ChartActionType::TravelToStation: {
+            dest_key = {target_sys.id, -1, true};
+            dest_type = target_sys.station.derelict ? MapType::DerelictStation
+                                                    : MapType::SpaceStation;
+            dest_biome = Biome::Station;
+            location_name = target_sys.station.name;
+            break;
         }
-    };
-    std::string type_name = std::string(biome_prefix(dest_biome)) + " " + type_suffix(dest_type);
-    map_.set_location_name(type_name);
+        case ChartActionType::TravelToBody: {
+            if (action.body_index < 0 ||
+                action.body_index >= static_cast<int>(target_sys.bodies.size()))
+                return;
 
-    // Reset entities
-    npcs_.clear();
-    ground_items_.clear();
+            dest_key = {target_sys.id, action.body_index, false};
+            const auto& body = target_sys.bodies[action.body_index];
 
-    // Respawn player
-    map_.find_open_spot(player_.x, player_.y);
+            // Map body type to map type
+            switch (body.type) {
+                case BodyType::Rocky:
+                case BodyType::Terrestrial:
+                    dest_type = MapType::Rocky;
+                    break;
+                case BodyType::DwarfPlanet:
+                case BodyType::AsteroidBelt:
+                    dest_type = MapType::Asteroid;
+                    break;
+                default:
+                    dest_type = MapType::Rocky;
+                    break;
+            }
 
-    // Spawn hostile NPCs in other rooms
-    std::mt19937 npc_rng(warp_seed ^ 0xD3ADu);
-    std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-    debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+            // Map temperature to biome
+            switch (body.temperature) {
+                case Temperature::Frozen:
+                case Temperature::Cold:
+                    dest_biome = Biome::Ice;
+                    break;
+                case Temperature::Temperate:
+                    dest_biome = Biome::Rocky;
+                    break;
+                case Temperature::Hot:
+                    dest_biome = Biome::Sandy;
+                    break;
+                case Temperature::Scorching:
+                    dest_biome = Biome::Volcanic;
+                    break;
+            }
 
-    visibility_ = VisibilityMap(map_.width(), map_.height());
+            location_name = body.name;
+            break;
+        }
+        default:
+            return;
+    }
+
+    // Save current location before leaving
+    save_current_location();
+
+    // Update navigation state
+    switch (action.type) {
+        case ChartActionType::WarpToSystem:
+            navigation_.current_system_id = target_sys.id;
+            discover_nearby(navigation_, target_sys.id, 20.0f);
+            navigation_.at_station = true;
+            navigation_.current_body_index = -1;
+            break;
+        case ChartActionType::TravelToStation:
+            navigation_.at_station = true;
+            navigation_.current_body_index = -1;
+            break;
+        case ChartActionType::TravelToBody:
+            navigation_.at_station = false;
+            navigation_.current_body_index = action.body_index;
+            break;
+        default:
+            break;
+    }
+
+    // Check cache for a previously visited location
+    if (location_cache_.count(dest_key)) {
+        restore_location(dest_key);
+    } else {
+        // Generate fresh map
+        unsigned travel_seed = rng_();
+        auto props = default_properties(dest_type);
+        props.biome = dest_biome;
+        map_ = TileMap(props.width, props.height, dest_type);
+        auto gen = create_generator(dest_type);
+        gen->generate(map_, props, travel_seed);
+        map_.set_location_name(location_name);
+
+        npcs_.clear();
+        ground_items_.clear();
+        map_.find_open_spot(player_.x, player_.y);
+
+        std::mt19937 npc_rng(travel_seed ^ 0xD3ADu);
+        std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+        debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+
+        visibility_ = VisibilityMap(map_.width(), map_.height());
+    }
+
     current_region_ = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
 
-    // Update location tracking
-    navigation_.at_station = false;
-    navigation_.current_body_index = -1;
-    for (size_t i = 0; i < navigation_.systems.size(); ++i) {
-        if (navigation_.systems[i].id == navigation_.current_system_id) {
-            auto& sys = navigation_.systems[i];
-            generate_system_bodies(sys);
-            std::vector<int> landable;
-            for (int bi = 0; bi < static_cast<int>(sys.bodies.size()); ++bi)
-                if (sys.bodies[bi].landable) landable.push_back(bi);
-            if (!landable.empty())
-                navigation_.current_body_index = landable[std::uniform_int_distribution<int>(0, static_cast<int>(landable.size()) - 1)(rng_)];
-            break;
-        }
-    }
-
-    log("You step through the portal...");
-    log("You arrive at a " + colored(type_name, Color::Cyan) + ".");
-
-    // Place another portal for chaining
-    int px, py;
-    std::vector<std::pair<int,int>> portal_exclude = {{player_.x, player_.y}};
-    for (const auto& npc : npcs_) {
-        portal_exclude.push_back({npc.x, npc.y});
-    }
-    if (map_.find_open_spot_near(player_.x, player_.y, px, py,
-                                  portal_exclude, &rng_)) {
-        map_.set(px, py, Tile::Portal);
+    if (action.type == ChartActionType::WarpToSystem) {
+        log("Warp drive engaged...");
+        log("You arrive at " + colored(target_sys.name, Color::Yellow)
+            + " and dock at " + colored(location_name, Color::Cyan) + ".");
+    } else if (action.type == ChartActionType::TravelToStation) {
+        log("You dock at " + colored(location_name, Color::Cyan) + ".");
+    } else {
+        log("You land on " + colored(location_name, Color::Cyan) + ".");
     }
 }
 

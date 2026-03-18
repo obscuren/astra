@@ -8,6 +8,15 @@ namespace astra {
 
 enum class ChartZoom { Galaxy, Region, Local, System };
 
+enum class ChartActionType { None, WarpToSystem, TravelToBody, TravelToStation };
+
+struct ChartAction {
+    ChartActionType type = ChartActionType::None;
+    int system_index = -1;   // index into nav_->systems
+    int body_index = -1;     // destination body
+    bool to_station = false; // docking at station
+};
+
 class StarChartViewer {
 public:
     StarChartViewer() = default;
@@ -16,6 +25,9 @@ public:
     bool is_open() const { return open_; }
     void open();
     void close();
+
+    bool has_pending_action() const;
+    ChartAction consume_action();
 
     // Returns true if input was consumed
     bool handle_input(int key);
@@ -67,6 +79,9 @@ private:
     void scan_system();
     std::string scan_message_;
     int scan_message_timer_ = 0;
+
+    // Pending travel action
+    ChartAction pending_action_;
 
     // Find nearest system to a galactic coordinate
     int find_nearest_system(float gx, float gy, float max_dist = 1e9f) const;

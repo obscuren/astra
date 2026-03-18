@@ -33,13 +33,55 @@ StarChartViewer::StarChartViewer(NavigationData* nav, Renderer* renderer)
 
 void StarChartViewer::open() {
     open_ = true;
+    center_on_sol();
+
+    // Start zoomed into the current system
+    if (nav_) {
+        for (size_t i = 0; i < nav_->systems.size(); ++i) {
+            if (nav_->systems[i].id == nav_->current_system_id) {
+                cursor_index_ = static_cast<int>(i);
+                auto& sys = nav_->systems[i];
+                generate_system_bodies(sys);
+                if (!sys.bodies.empty()) {
+                    zoom_ = ChartZoom::System;
+                    // Select the body/station we're currently at
+                    if (nav_->at_station) {
+                        int host = station_host_body(sys);
+                        body_cursor_ = (host >= 0) ? host : 0;
+                        sub_cursor_ = (host >= 0) ? 0 : -1;
+                    } else if (nav_->current_body_index >= 0) {
+                        body_cursor_ = nav_->current_body_index;
+                        sub_cursor_ = -1;
+                    } else {
+                        body_cursor_ = 0;
+                        sub_cursor_ = -1;
+                    }
+                } else {
+                    zoom_ = ChartZoom::Local;
+                    body_cursor_ = -1;
+                    sub_cursor_ = -1;
+                }
+                return;
+            }
+        }
+    }
+
     zoom_ = ChartZoom::Galaxy;
     cursor_index_ = -1;
-    center_on_sol();
 }
 
 void StarChartViewer::close() {
     open_ = false;
+}
+
+bool StarChartViewer::has_pending_action() const {
+    return pending_action_.type != ChartActionType::None;
+}
+
+ChartAction StarChartViewer::consume_action() {
+    ChartAction a = pending_action_;
+    pending_action_ = {};
+    return a;
 }
 
 void StarChartViewer::center_on_sol() {
@@ -144,6 +186,42 @@ bool StarChartViewer::handle_input(int key) {
                 case 's':
                     scan_system();
                     return true;
+                case 'w': {
+                    if (cursor_index_ < 0 || cursor_index_ >= static_cast<int>(nav_->systems.size())) break;
+                    auto& target = nav_->systems[cursor_index_];
+                    if (!target.discovered) {
+                        scan_message_ = "System not yet scanned.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    if (target.id == nav_->current_system_id) {
+                        scan_message_ = "Already in this system.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    if (!target.has_station) {
+                        scan_message_ = "No station to dock at.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    // Check warp range
+                    const StarSystem* current_sys = nullptr;
+                    for (const auto& s : nav_->systems) {
+                        if (s.id == nav_->current_system_id) { current_sys = &s; break; }
+                    }
+                    if (current_sys) {
+                        float dist = system_distance(*current_sys, target);
+                        float max_range = static_cast<float>(nav_->navi_range) * 20.0f;
+                        if (dist > max_range) {
+                            scan_message_ = "Out of warp range.";
+                            scan_message_timer_ = 90;
+                            break;
+                        }
+                    }
+                    pending_action_ = {ChartActionType::WarpToSystem, cursor_index_, -1, true};
+                    close();
+                    return true;
+                }
                 case 'h':
                     center_on_sol();
                     cursor_index_ = find_nearest_system(view_cx_, view_cy_);
@@ -196,6 +274,78 @@ bool StarChartViewer::handle_input(int key) {
                         ++sub_cursor_;
                     }
                     return true;
+                case 'w': {
+                    // Warp — same logic as Local view
+                    if (sys.id == nav_->current_system_id) {
+                        scan_message_ = "Already in this system.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    if (!sys.has_station) {
+                        scan_message_ = "No station to dock at.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    const StarSystem* cur_sys = nullptr;
+                    for (const auto& s : nav_->systems) {
+                        if (s.id == nav_->current_system_id) { cur_sys = &s; break; }
+                    }
+                    if (cur_sys) {
+                        float dist = system_distance(*cur_sys, sys);
+                        float max_range = static_cast<float>(nav_->navi_range) * 20.0f;
+                        if (dist > max_range) {
+                            scan_message_ = "Out of warp range.";
+                            scan_message_timer_ = 90;
+                            break;
+                        }
+                    }
+                    pending_action_ = {ChartActionType::WarpToSystem, cursor_index_, -1, true};
+                    close();
+                    return true;
+                }
+                case 't': {
+                    // Travel within current system only
+                    if (sys.id != nav_->current_system_id) {
+                        scan_message_ = "Must warp to this system first.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    if (sub_cursor_ == 0 && hosts_station) {
+                        // Station selected
+                        if (nav_->at_station) {
+                            scan_message_ = "Already docked here.";
+                            scan_message_timer_ = 90;
+                            break;
+                        }
+                        pending_action_ = {ChartActionType::TravelToStation, cursor_index_, -1, true};
+                        close();
+                        return true;
+                    } else if (sub_cursor_ == -1 && body_cursor_ >= 0 && body_cursor_ < body_count) {
+                        // Body selected
+                        const auto& body = sys.bodies[body_cursor_];
+                        if (!body.landable) {
+                            scan_message_ = "Not landable.";
+                            scan_message_timer_ = 90;
+                            break;
+                        }
+                        if (!nav_->at_station && nav_->current_body_index == body_cursor_) {
+                            scan_message_ = "Already here.";
+                            scan_message_timer_ = 90;
+                            break;
+                        }
+                        pending_action_ = {ChartActionType::TravelToBody, cursor_index_, body_cursor_, false};
+                        close();
+                        return true;
+                    } else if (sub_cursor_ >= 1) {
+                        // Moon selected — treat as body travel
+                        if (body_cursor_ >= 0 && body_cursor_ < body_count) {
+                            pending_action_ = {ChartActionType::TravelToBody, cursor_index_, body_cursor_, false};
+                            close();
+                            return true;
+                        }
+                    }
+                    break;
+                }
                 case '-': case '\b': case '\033': case 'q':
                     zoom_ = ChartZoom::Local;
                     body_cursor_ = -1;
@@ -362,10 +512,10 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
             win.set_footer("[Arrows] Pan  [Tab] Select  [s] Scan  [+] Zoom in  [-] Zoom out  [H] Home  [Esc] Back");
             break;
         case ChartZoom::Local:
-            win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
+            win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [w] Warp  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
             break;
         case ChartZoom::System:
-            win.set_footer("[Left/Right] Select body  [Up/Down] Sub-items  [-] Back  [Esc] Back");
+            win.set_footer("[Left/Right] Select body  [Up/Down] Sub-items  [t] Travel  [w] Warp  [-] Back  [Esc] Back");
             break;
     }
 
