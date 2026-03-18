@@ -34,6 +34,21 @@ enum class Color : uint8_t {
 // Sentinel char that renderers expand to a full-block glyph (█).
 static constexpr char BLOCK_CHAR = '\x01';
 
+// Inline color markers for styled log messages.
+// COLOR_BEGIN is followed by one byte (Color value). COLOR_END resets to default.
+static constexpr char COLOR_BEGIN = '\x02';
+static constexpr char COLOR_END   = '\x03';
+
+// Wrap a string in inline color markers for styled log messages.
+inline std::string colored(const std::string& text, Color c) {
+    std::string s;
+    s += COLOR_BEGIN;
+    s += static_cast<char>(static_cast<uint8_t>(c));
+    s += text;
+    s += COLOR_END;
+    return s;
+}
+
 // Abstract rendering interface.
 // Terminal now, SDL later — game logic never touches this directly.
 class Renderer {

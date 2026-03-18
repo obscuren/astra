@@ -26,6 +26,7 @@ enum class Climate : uint8_t {
 struct MapProperties {
     Environment environment = Environment::Station;
     Climate climate = Climate::Temperate;
+    Biome biome = Biome::Station;
     int difficulty = 1;       // 1-10, drives NPC levels & density
     int loot_tier = 1;        // 1-5, controls item quality ceiling
     int light_bias = 60;      // 0-100, % of rooms that start lit

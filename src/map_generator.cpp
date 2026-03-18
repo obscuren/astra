@@ -12,6 +12,7 @@ void MapGenerator::generate(TileMap& map, const MapProperties& props, unsigned s
     rooms_.clear();
 
     map.clear_all();
+    map.set_biome(props.biome);
 
     std::mt19937 rng(seed);
 

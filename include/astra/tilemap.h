@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/renderer.h"
+
 #include <cstdint>
 #include <random>
 #include <string>
@@ -13,6 +15,8 @@ enum class Tile : uint8_t {
     Floor,
     Wall,
     Portal,
+    Water,
+    Ice,
 };
 
 inline char tile_glyph(Tile t) {
@@ -20,6 +24,8 @@ inline char tile_glyph(Tile t) {
         case Tile::Floor:  return '.';
         case Tile::Wall:   return '#';
         case Tile::Portal: return '>';
+        case Tile::Water:  return '~';
+        case Tile::Ice:    return '~';
         default:           return ' ';
     }
 }
@@ -31,6 +37,27 @@ enum class MapType : uint8_t {
     Lava,
     Asteroid,
 };
+
+enum class Biome : uint8_t {
+    Station,
+    Rocky,
+    Volcanic,
+    Ice,
+    Sandy,
+    Aquatic,
+    Fungal,
+    Crystal,
+    Corroded,
+};
+
+struct BiomeColors {
+    Color wall;
+    Color floor;
+    Color water;
+    Color remembered;
+};
+
+BiomeColors biome_colors(Biome b);
 
 enum class RegionType : uint8_t {
     Room,
@@ -77,6 +104,8 @@ public:
     TileMap(int width, int height, MapType type = MapType::SpaceStation);
 
     MapType map_type() const { return map_type_; }
+    Biome biome() const { return biome_; }
+    void set_biome(Biome b) { biome_ = b; }
     char backdrop(int x, int y) const;
 
     Tile get(int x, int y) const;
@@ -110,7 +139,7 @@ public:
     const std::vector<char>& backdrop_data() const { return backdrop_; }
 
     // Bulk load from deserialized data
-    void load_from(int w, int h, MapType type, std::string location,
+    void load_from(int w, int h, MapType type, Biome biome, std::string location,
                    std::vector<Tile> tiles, std::vector<int> rids,
                    std::vector<Region> regions, std::vector<char> backdrop);
 
@@ -130,6 +159,7 @@ public:
 
 private:
     MapType map_type_ = MapType::SpaceStation;
+    Biome biome_ = Biome::Station;
     int width_ = 0;
     int height_ = 0;
     std::string location_name_ = "Unknown";

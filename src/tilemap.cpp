@@ -29,7 +29,7 @@ void TileMap::set(int x, int y, Tile t) {
 
 bool TileMap::passable(int x, int y) const {
     Tile t = get(x, y);
-    return t == Tile::Floor || t == Tile::Portal;
+    return t == Tile::Floor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice;
 }
 
 bool TileMap::opaque(int x, int y) const {
@@ -162,17 +162,42 @@ bool TileMap::find_open_spot_other_room(int avoid_x, int avoid_y, int& out_x, in
     return true;
 }
 
-void TileMap::load_from(int w, int h, MapType type, std::string location,
+void TileMap::load_from(int w, int h, MapType type, Biome biome, std::string location,
                         std::vector<Tile> tiles, std::vector<int> rids,
                         std::vector<Region> regions, std::vector<char> backdrop) {
     width_ = w;
     height_ = h;
     map_type_ = type;
+    biome_ = biome;
     location_name_ = std::move(location);
     tiles_ = std::move(tiles);
     region_ids_ = std::move(rids);
     regions_ = std::move(regions);
     backdrop_ = std::move(backdrop);
+}
+
+BiomeColors biome_colors(Biome b) {
+    switch (b) {
+        case Biome::Station:
+            return {Color::White, Color::Default, Color::Blue, Color::Blue};
+        case Biome::Rocky:
+            return {Color::White, Color::DarkGray, Color::Blue, Color::Blue};
+        case Biome::Volcanic:
+            return {Color::Red, static_cast<Color>(52), Color::Red, static_cast<Color>(52)};
+        case Biome::Ice:
+            return {Color::Cyan, Color::White, static_cast<Color>(39), Color::Blue};
+        case Biome::Sandy:
+            return {Color::Yellow, static_cast<Color>(180), Color::Blue, static_cast<Color>(58)};
+        case Biome::Aquatic:
+            return {static_cast<Color>(30), static_cast<Color>(24), Color::Blue, static_cast<Color>(24)};
+        case Biome::Fungal:
+            return {Color::Green, static_cast<Color>(22), Color::Green, static_cast<Color>(22)};
+        case Biome::Crystal:
+            return {Color::BrightMagenta, Color::Magenta, Color::Magenta, static_cast<Color>(54)};
+        case Biome::Corroded:
+            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), static_cast<Color>(58)};
+    }
+    return {Color::White, Color::Default, Color::Blue, Color::Blue};
 }
 
 } // namespace astra

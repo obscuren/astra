@@ -516,19 +516,63 @@ void Game::warp_to_dungeon() {
     std::uniform_int_distribution<int> type_dist(0, 2);
     MapType dest_type = warp_types[type_dist(rng_)];
 
+    // Pick a biome based on map type
+    Biome dest_biome = Biome::Station;
+    switch (dest_type) {
+        case MapType::SpaceStation:
+            dest_biome = Biome::Station;
+            break;
+        case MapType::Rocky: {
+            static constexpr Biome rocky_biomes[] = {
+                Biome::Rocky, Biome::Ice, Biome::Sandy, Biome::Aquatic,
+                Biome::Fungal, Biome::Crystal, Biome::Corroded};
+            dest_biome = rocky_biomes[std::uniform_int_distribution<int>(0, 6)(rng_)];
+            break;
+        }
+        case MapType::Asteroid: {
+            static constexpr Biome asteroid_biomes[] = {
+                Biome::Rocky, Biome::Ice, Biome::Volcanic, Biome::Crystal, Biome::Corroded};
+            dest_biome = asteroid_biomes[std::uniform_int_distribution<int>(0, 4)(rng_)];
+            break;
+        }
+        case MapType::Lava:
+            dest_biome = Biome::Volcanic;
+            break;
+        default: break;
+    }
+
     unsigned warp_seed = rng_();
     auto props = default_properties(dest_type);
+    props.biome = dest_biome;
     map_ = TileMap(props.width, props.height, dest_type);
     auto gen = create_generator(dest_type);
     gen->generate(map_, props, warp_seed);
 
-    const char* type_name = "Unknown";
-    switch (dest_type) {
-        case MapType::SpaceStation: type_name = "Space Station"; break;
-        case MapType::Rocky:        type_name = "Open Cavern"; break;
-        case MapType::Asteroid:     type_name = "Asteroid Tunnel"; break;
-        default: break;
-    }
+    // Build location name from biome + generator type
+    auto biome_prefix = [](Biome b) -> const char* {
+        switch (b) {
+            case Biome::Station:  return "Space";
+            case Biome::Rocky:    return "Rocky";
+            case Biome::Volcanic: return "Volcanic";
+            case Biome::Ice:      return "Frozen";
+            case Biome::Sandy:    return "Dust";
+            case Biome::Aquatic:  return "Flooded";
+            case Biome::Fungal:   return "Fungal";
+            case Biome::Crystal:  return "Crystal";
+            case Biome::Corroded: return "Acid-Eaten";
+        }
+        return "Unknown";
+    };
+    auto type_suffix = [](MapType t) -> const char* {
+        switch (t) {
+            case MapType::SpaceStation: return "Station";
+            case MapType::Rocky:        return "Cavern";
+            case MapType::Asteroid:     return "Asteroid";
+            case MapType::Lava:         return "Vent";
+            default:                    return "Zone";
+        }
+    };
+    std::string type_name = std::string(biome_prefix(dest_biome)) + " " + type_suffix(dest_type);
     map_.set_location_name(type_name);
 
     // Reset entities
@@ -550,7 +594,7 @@ void Game::warp_to_dungeon() {
     check_region_change();
 
     log("You step through the portal...");
-    log("You arrive at a " + std::string(type_name) + ".");
+    log("You arrive at a " + colored(type_name, Color::Cyan) + ".");
 
     // Place another portal for chaining
     int px, py;
@@ -828,6 +872,33 @@ void Game::advance_world(int cost) {
     remove_dead_npcs();
     check_player_death();
     ++world_tick_;
+
+    // Water damage
+    if (player_.hp > 0 && map_.get(player_.x, player_.y) == Tile::Water) {
+        player_.hp -= 1;
+        if (player_.hp < 0) player_.hp = 0;
+        switch (map_.biome()) {
+            case Biome::Fungal:
+                log("Spores sting as you wade through the pool. (-1 HP)");
+                break;
+            case Biome::Crystal:
+                log("Sharp mineral deposits cut at your legs. (-1 HP)");
+                break;
+            case Biome::Corroded:
+                log("The toxic sludge burns! (-1 HP)");
+                break;
+            case Biome::Aquatic:
+                log("The underground current pulls at you. (-1 HP)");
+                break;
+            default:
+                log("The dark water chills you to the bone. (-1 HP)");
+                break;
+        }
+        if (player_.hp <= 0) {
+            death_message_ = "Drowned";
+        }
+        check_player_death();
+    }
 
     // Passive health regeneration
     if (player_.hp > 0 && player_.hp < player_.max_hp) {
@@ -1680,6 +1751,35 @@ void Game::render_tabs() {
     sep.hline(0, '-');
 }
 
+// Floor scatter: biome-specific alternate glyphs for visual texture.
+// Returns the base '.' if no scatter, or an alternate glyph.
+// Uses a position hash so the result is stable across frames.
+static char floor_scatter(int x, int y, Biome biome) {
+    if (biome == Biome::Station) return '.';
+
+    // Simple spatial hash
+    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    int roll = static_cast<int>(h % 100);
+
+    struct ScatterSet { int threshold; const char* glyphs; int count; };
+    ScatterSet s;
+    switch (biome) {
+        case Biome::Rocky:    s = {15, ",:`",  3}; break;
+        case Biome::Volcanic: s = {20, ",';" , 3}; break;
+        case Biome::Ice:      s = {12, "'`,",  3}; break;
+        case Biome::Sandy:    s = {20, ",`:",  3}; break;
+        case Biome::Aquatic:  s = {10, ",:",   2}; break;
+        case Biome::Fungal:   s = {18, "\",'", 3}; break;
+        case Biome::Crystal:  s = {15, "*'`",  3}; break;
+        case Biome::Corroded: s = {20, ",:;",  3}; break;
+        default: return '.';
+    }
+    if (roll >= s.threshold) return '.';
+    return s.glyphs[h / 100 % s.count];
+}
+
 void Game::render_map() {
     DrawContext ctx(renderer_.get(), map_rect_);
 
@@ -1688,9 +1788,8 @@ void Game::render_map() {
             int mx = camera_x_ + sx;
             int my = camera_y_ + sy;
 
-            // Starfield backdrop — covers entire viewport
-            bool has_tile = (map_.get(mx, my) != Tile::Empty);
-            if (!has_tile) {
+            // Starfield backdrop — space stations only
+            if (map_.biome() == Biome::Station && map_.get(mx, my) == Tile::Empty) {
                 char star = star_at(mx, my);
                 if (star) {
                     Color c = (star == '*' || star == '+') ? Color::White : Color::Cyan;
@@ -1707,12 +1806,22 @@ void Game::render_map() {
 
             if (v == Visibility::Visible) {
                 Tile t = map_.get(mx, my);
-                Color c = Color::Default;
-                if (t == Tile::Wall) c = Color::White;
+                auto bc = biome_colors(map_.biome());
+                Color c = bc.floor;
+                if (t == Tile::Wall) c = bc.wall;
                 else if (t == Tile::Portal) c = Color::Magenta;
+                else if (t == Tile::Water) c = bc.water;
+                else if (t == Tile::Ice) c = static_cast<Color>(39);
+                else if (t == Tile::Floor) {
+                    char sg = floor_scatter(mx, my, map_.biome());
+                    if (sg != '.') {
+                        g = sg;
+                        c = bc.remembered; // dimmer shade for scatter
+                    }
+                }
                 ctx.put(sx, sy, g, c);
             } else {
-                ctx.put(sx, sy, g, Color::Blue);
+                ctx.put(sx, sy, g, biome_colors(map_.biome()).remembered);
             }
         }
     }
@@ -1798,6 +1907,17 @@ void Game::render_side_panel() {
             // Word-wrap all messages into display lines
             // Continuation lines are indented to align past the ":: " prefix
             static constexpr int indent = 3; // matches ":: " prefix
+            // Count visible (non-marker) characters in a string
+            auto visible_len = [](std::string_view s) {
+                int len = 0;
+                for (size_t i = 0; i < s.size(); ++i) {
+                    if (s[i] == COLOR_BEGIN) { ++i; continue; } // skip color byte
+                    if (s[i] == COLOR_END) continue;
+                    ++len;
+                }
+                return len;
+            };
+
             struct WrappedLine {
                 std::string_view text;
                 int x; // 0 for first line, indent for continuations
@@ -1813,14 +1933,23 @@ void Game::render_side_panel() {
                     int x = first ? 0 : indent;
                     first = false;
 
-                    if (static_cast<int>(remaining.size()) <= line_w) {
+                    if (visible_len(remaining) <= line_w) {
                         lines.push_back({remaining, x});
                         break;
                     }
-                    // Find last space within line_w
-                    int cut = line_w;
-                    while (cut > 0 && remaining[cut] != ' ') --cut;
-                    if (cut == 0) cut = line_w;
+                    // Find cut point at line_w visible chars
+                    int vis = 0;
+                    int cut = 0;
+                    int last_space = 0;
+                    for (size_t i = 0; i < remaining.size() && vis < line_w; ++i) {
+                        if (remaining[i] == COLOR_BEGIN) { ++i; continue; }
+                        if (remaining[i] == COLOR_END) continue;
+                        if (remaining[i] == ' ') last_space = static_cast<int>(i);
+                        ++vis;
+                        cut = static_cast<int>(i) + 1;
+                    }
+                    if (last_space > 0) cut = last_space;
+                    if (cut == 0) cut = static_cast<int>(remaining.size());
                     lines.push_back({remaining.substr(0, cut), x});
                     remaining = remaining.substr(cut);
                     if (!remaining.empty() && remaining[0] == ' ')
@@ -1833,7 +1962,24 @@ void Game::render_side_panel() {
             int start = (total > visible) ? total - visible : 0;
             int y = 0;
             for (int i = start; i < total && y < visible; ++i, ++y) {
-                ctx.text(lines[i].x, y, lines[i].text, Color::Default);
+                // Render with inline color markers
+                int px = lines[i].x;
+                Color cur = Color::Default;
+                for (size_t ci = 0; ci < lines[i].text.size(); ++ci) {
+                    char ch = lines[i].text[ci];
+                    if (ch == COLOR_BEGIN && ci + 1 < lines[i].text.size()) {
+                        cur = static_cast<Color>(
+                            static_cast<uint8_t>(lines[i].text[ci + 1]));
+                        ++ci;
+                        continue;
+                    }
+                    if (ch == COLOR_END) {
+                        cur = Color::Default;
+                        continue;
+                    }
+                    ctx.put(px, y, ch, cur);
+                    ++px;
+                }
             }
             break;
         }

@@ -10,8 +10,11 @@ class OpenCaveGenerator : public MapGenerator {
 protected:
     void generate_layout(std::mt19937& rng) override;
     void connect_rooms(std::mt19937& rng) override;
+    void place_features(std::mt19937& rng) override;
 
 private:
+    void place_pond(int cx, int cy, int radius, Tile tile, std::mt19937& rng);
+    void place_river(std::mt19937& rng, Tile tile);
     // Cellular automata grid (true = wall)
     std::vector<bool> cells_;
     // Region label per cell (-1 = wall/unassigned)
@@ -289,6 +292,125 @@ void OpenCaveGenerator::connect_rooms(std::mt19937& rng) {
 
         dig_tunnel(fx, fy, tx, ty, crid, rng);
         connected[best_to] = true;
+    }
+}
+
+void OpenCaveGenerator::place_pond(int cx, int cy, int radius, Tile tile, std::mt19937& rng) {
+    // BFS blob from center — each neighbor has ~60% chance of inclusion
+    std::queue<std::pair<int,int>> q;
+    std::vector<std::pair<int,int>> visited;
+    q.push({cx, cy});
+
+    auto key = [&](int x, int y) { return y * map_->width() + x; };
+    std::vector<bool> seen(map_->width() * map_->height(), false);
+    seen[key(cx, cy)] = true;
+
+    std::uniform_int_distribution<int> chance(0, 99);
+
+    while (!q.empty()) {
+        auto [px, py] = q.front();
+        q.pop();
+
+        if (map_->get(px, py) != Tile::Floor) continue;
+
+        int dx = px - cx, dy = py - cy;
+        if (dx * dx + dy * dy > radius * radius) continue;
+
+        map_->set(px, py, tile);
+        visited.push_back({px, py});
+
+        static constexpr int dirs[][2] = {{0,-1},{0,1},{-1,0},{1,0}};
+        for (auto [ddx, ddy] : dirs) {
+            int nx = px + ddx, ny = py + ddy;
+            if (!in_bounds(nx, ny)) continue;
+            if (seen[key(nx, ny)]) continue;
+            seen[key(nx, ny)] = true;
+            if (chance(rng) < 60) {
+                q.push({nx, ny});
+            }
+        }
+    }
+}
+
+void OpenCaveGenerator::place_river(std::mt19937& rng, Tile tile) {
+    int w = map_->width();
+    int h = map_->height();
+
+    // Pick a random start on the left or top edge
+    bool horizontal = rng() % 2 == 0;
+    int cx, cy;
+    if (horizontal) {
+        cx = 1;
+        cy = std::uniform_int_distribution<int>(5, h - 6)(rng);
+    } else {
+        cx = std::uniform_int_distribution<int>(5, w - 6)(rng);
+        cy = 1;
+    }
+
+    std::uniform_int_distribution<int> jitter(-1, 1);
+    int max_steps = horizontal ? w : h;
+
+    for (int step = 0; step < max_steps * 2; ++step) {
+        if (!in_bounds(cx, cy)) break;
+
+        if (map_->get(cx, cy) == Tile::Floor) {
+            map_->set(cx, cy, tile);
+        } else if (map_->get(cx, cy) == Tile::Wall) {
+            break; // river disappears into rock
+        }
+
+        // Advance in primary direction with perpendicular jitter
+        if (horizontal) {
+            cx += 1;
+            cy += (rng() % 3 == 0) ? jitter(rng) : 0;
+        } else {
+            cy += 1;
+            cx += (rng() % 3 == 0) ? jitter(rng) : 0;
+        }
+        cy = std::max(1, std::min(cy, h - 2));
+        cx = std::max(1, std::min(cx, w - 2));
+    }
+}
+
+void OpenCaveGenerator::place_features(std::mt19937& rng) {
+    Biome biome = map_->biome();
+
+    // No water features for stations or volcanic biomes
+    if (biome == Biome::Station || biome == Biome::Volcanic) return;
+
+    Tile water_tile = (biome == Biome::Ice) ? Tile::Ice : Tile::Water;
+
+    // Determine chance of water features
+    int pond_chance;
+    switch (biome) {
+        case Biome::Aquatic:  pond_chance = 100; break;
+        case Biome::Fungal:   pond_chance = 50; break;
+        case Biome::Corroded: pond_chance = 50; break;
+        case Biome::Crystal:  pond_chance = 30; break;
+        case Biome::Ice:      pond_chance = 60; break;
+        default:              pond_chance = 40; break;
+    }
+
+    std::uniform_int_distribution<int> pct(0, 99);
+    if (pct(rng) >= pond_chance && biome != Biome::Aquatic) return;
+
+    // Place 1-2 ponds in random rooms
+    int pond_count = std::uniform_int_distribution<int>(1, 2)(rng);
+    if (rooms_.empty()) return;
+
+    std::uniform_int_distribution<int> room_dist(0, static_cast<int>(rooms_.size()) - 1);
+    for (int i = 0; i < pond_count; ++i) {
+        auto& room = rooms_[room_dist(rng)];
+        int cx = std::uniform_int_distribution<int>(room.x1 + 2, std::max(room.x1 + 2, room.x2 - 2))(rng);
+        int cy = std::uniform_int_distribution<int>(room.y1 + 2, std::max(room.y1 + 2, room.y2 - 2))(rng);
+        int radius = std::uniform_int_distribution<int>(2, 3)(rng);
+        place_pond(cx, cy, radius, water_tile, rng);
+    }
+
+    // River: 30% chance (50% for Aquatic)
+    int river_chance = (biome == Biome::Aquatic) ? 50 : 30;
+    if (pct(rng) < river_chance) {
+        place_river(rng, water_tile);
     }
 }
 

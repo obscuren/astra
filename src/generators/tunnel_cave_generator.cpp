@@ -10,8 +10,10 @@ class TunnelCaveGenerator : public MapGenerator {
 protected:
     void generate_layout(std::mt19937& rng) override;
     void connect_rooms(std::mt19937& rng) override;
+    void place_features(std::mt19937& rng) override;
 
 private:
+    void place_pond(int cx, int cy, int radius, Tile tile, std::mt19937& rng);
     // Solid grid (true = wall)
     std::vector<bool> cells_;
     // Region label per cell
@@ -285,6 +287,70 @@ void TunnelCaveGenerator::generate_layout(std::mt19937& rng) {
 void TunnelCaveGenerator::connect_rooms(std::mt19937& /*rng*/) {
     // Connectivity is handled in generate_layout via biased walks
     // Nothing to do here — tunnels already connect all chambers
+}
+
+void TunnelCaveGenerator::place_pond(int cx, int cy, int radius, Tile tile, std::mt19937& rng) {
+    std::queue<std::pair<int,int>> q;
+    q.push({cx, cy});
+
+    auto key = [&](int x, int y) { return y * map_->width() + x; };
+    std::vector<bool> seen(map_->width() * map_->height(), false);
+    seen[key(cx, cy)] = true;
+
+    std::uniform_int_distribution<int> chance(0, 99);
+
+    while (!q.empty()) {
+        auto [px, py] = q.front();
+        q.pop();
+
+        if (map_->get(px, py) != Tile::Floor) continue;
+
+        int dx = px - cx, dy = py - cy;
+        if (dx * dx + dy * dy > radius * radius) continue;
+
+        map_->set(px, py, tile);
+
+        static constexpr int dirs[][2] = {{0,-1},{0,1},{-1,0},{1,0}};
+        for (auto [ddx, ddy] : dirs) {
+            int nx = px + ddx, ny = py + ddy;
+            if (!in_bounds(nx, ny)) continue;
+            if (seen[key(nx, ny)]) continue;
+            seen[key(nx, ny)] = true;
+            if (chance(rng) < 60) {
+                q.push({nx, ny});
+            }
+        }
+    }
+}
+
+void TunnelCaveGenerator::place_features(std::mt19937& rng) {
+    Biome biome = map_->biome();
+
+    if (biome == Biome::Station || biome == Biome::Volcanic) return;
+
+    Tile water_tile = (biome == Biome::Ice) ? Tile::Ice : Tile::Water;
+
+    int pond_chance;
+    switch (biome) {
+        case Biome::Aquatic:  pond_chance = 100; break;
+        case Biome::Fungal:   pond_chance = 50; break;
+        case Biome::Corroded: pond_chance = 50; break;
+        case Biome::Crystal:  pond_chance = 30; break;
+        case Biome::Ice:      pond_chance = 60; break;
+        default:              pond_chance = 40; break;
+    }
+
+    std::uniform_int_distribution<int> pct(0, 99);
+    if (pct(rng) >= pond_chance && biome != Biome::Aquatic) return;
+
+    // Place 1 pond in a random room (smaller than open caves)
+    if (rooms_.empty()) return;
+
+    std::uniform_int_distribution<int> room_dist(0, static_cast<int>(rooms_.size()) - 1);
+    auto& room = rooms_[room_dist(rng)];
+    int cx = std::uniform_int_distribution<int>(room.x1 + 1, std::max(room.x1 + 1, room.x2 - 1))(rng);
+    int cy = std::uniform_int_distribution<int>(room.y1 + 1, std::max(room.y1 + 1, room.y2 - 1))(rng);
+    place_pond(cx, cy, 2, water_tile, rng);
 }
 
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator() {

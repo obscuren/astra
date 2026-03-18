@@ -395,6 +395,7 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
     w.write_u32(ms.map_id);
     const auto& tm = ms.tilemap;
     w.write_u8(static_cast<uint8_t>(tm.map_type()));
+    w.write_u8(static_cast<uint8_t>(tm.biome()));
     w.write_i32(tm.width());
     w.write_i32(tm.height());
     w.write_string(tm.location_name());
@@ -548,9 +549,15 @@ static Npc read_npc(BinaryReader& r) {
     return npc;
 }
 
-static void read_map_section(BinaryReader& r, MapState& ms) {
+static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
     ms.map_id = r.read_u32();
     auto map_type = static_cast<MapType>(r.read_u8());
+    Biome biome = Biome::Station;
+    if (version >= 2) {
+        biome = static_cast<Biome>(r.read_u8());
+    } else {
+        biome = (map_type == MapType::SpaceStation) ? Biome::Station : Biome::Rocky;
+    }
     int width = r.read_i32();
     int height = r.read_i32();
     std::string location = r.read_string();
@@ -576,7 +583,7 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
     std::vector<char> backdrop(area);
     r.read_bytes(backdrop.data(), area);
 
-    ms.tilemap.load_from(width, height, map_type, std::move(location),
+    ms.tilemap.load_from(width, height, map_type, biome, std::move(location),
                          std::move(tiles), std::move(rids),
                          std::move(regions), std::move(backdrop));
 
@@ -710,7 +717,7 @@ bool read_save(const std::string& name, SaveData& data) {
             read_player_section(r, data.player);
         } else if (std::memcmp(tag, "MPDT", 4) == 0) {
             MapState ms;
-            read_map_section(r, ms);
+            read_map_section(r, ms, data.version);
             data.maps.push_back(std::move(ms));
         } else if (std::memcmp(tag, "MSGS", 4) == 0) {
             read_messages_section(r, data.messages);

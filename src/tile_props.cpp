@@ -91,6 +91,10 @@ TileProps tile_props(Tile tile, MapType map_type) {
         }
     }
 
+    if (tile == Tile::Water || tile == Tile::Ice) {
+        return {Material::None, {}};
+    }
+
     return {Material::None, {}};
 }
 
