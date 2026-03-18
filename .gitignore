@@ -5,3 +5,12 @@ compile_commands.json
 .DS_Store
 *.o
 *.a
+
+# Web / Astro
+.astro/
+dist/
+node_modules/
+
+# Editor
+.qe/
+*.un~
