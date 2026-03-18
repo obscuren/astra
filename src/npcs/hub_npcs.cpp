@@ -1,0 +1,273 @@
+#include "astra/npc_defs.h"
+
+namespace astra {
+
+Npc build_food_merchant(Race race, std::mt19937& rng) {
+    Npc npc;
+    npc.race = race;
+    npc.glyph = 'F';
+    npc.color = Color::Yellow;
+    npc.role = "Food Merchant";
+    npc.hp = 12;
+    npc.max_hp = 12;
+    npc.disposition = Disposition::Friendly;
+    npc.invulnerable = true;
+    npc.quickness = 0;
+    npc.name = generate_name(race, rng);
+
+    npc.interactions.talk = TalkTrait{
+        "Welcome! Best synth-grub on the station. What'll it be?",
+        {
+            {
+                "Everything's fresh — well, fresh as anything gets on a "
+                "station orbiting a gas giant. I've got protein bars, "
+                "nutrient paste, and the house special: spiced void-eel.",
+                {
+                    {"What's void-eel?", 1},
+                    {"Sounds good.", -1},
+                },
+            },
+            {
+                "Deep-space catch. The haulers bring 'em in frozen from "
+                "the outer belt. Tastes better than it sounds, trust me.",
+                {
+                    {"I'll take your word for it.", -1},
+                },
+            },
+        },
+    };
+
+    npc.interactions.shop = ShopTrait{
+        npc.name + "'s Kitchen",
+    };
+
+    return npc;
+}
+
+Npc build_medic(Race race, std::mt19937& rng) {
+    Npc npc;
+    npc.race = race;
+    npc.glyph = 'D';
+    npc.color = Color::Green;
+    npc.role = "Medic";
+    npc.hp = 10;
+    npc.max_hp = 10;
+    npc.disposition = Disposition::Friendly;
+    npc.invulnerable = true;
+    npc.quickness = 0;
+    npc.name = generate_name(race, rng);
+
+    npc.interactions.talk = TalkTrait{
+        "Come in. The healing pods are available if you need them.",
+        {
+            {
+                "I've patched up more spacers than I can count. Plasma "
+                "burns, decompression injuries, alien parasites — you name it. "
+                "The pods handle most of the work now, but I keep an eye "
+                "on the diagnostics.",
+                {
+                    {"What are healing pods exactly?", 1},
+                    {"Thanks, doc.", -1},
+                },
+            },
+            {
+                "Nanite-infused gel capsules. You climb in, the nanites "
+                "assess your injuries and repair tissue at the cellular "
+                "level. Takes about thirty seconds for a full restore. "
+                "Just don't use them too frequently — they need time to "
+                "recharge between sessions.",
+                {
+                    {"Good to know.", -1},
+                },
+            },
+        },
+    };
+
+    return npc;
+}
+
+Npc build_commander(Race race, std::mt19937& rng) {
+    Npc npc;
+    npc.race = race;
+    npc.glyph = 'C';
+    npc.color = Color::White;
+    npc.role = "Station Commander";
+    npc.hp = 25;
+    npc.max_hp = 25;
+    npc.disposition = Disposition::Friendly;
+    npc.invulnerable = true;
+    npc.quickness = 0;
+    npc.name = generate_name(race, rng);
+
+    npc.interactions.talk = TalkTrait{
+        "Commander. I run this station. What do you need?",
+        {
+            {
+                "The Heavens Above is the last major outpost before the "
+                "inner systems. We keep the peace, maintain the docks, "
+                "and make sure the supply lines stay open. Beyond here, "
+                "you're on your own.",
+                {
+                    {"What's the situation out there?", 1},
+                    {"Understood.", -1},
+                },
+            },
+            {
+                "Xytomorph activity has been increasing in the asteroid "
+                "belts. We've lost contact with two survey teams this "
+                "cycle. If you're heading out, watch yourself. And if "
+                "you find anything useful, report back.",
+                {
+                    {"I'll keep my eyes open.", -1},
+                },
+            },
+        },
+    };
+
+    npc.interactions.quest = QuestTrait{
+        "Any assignments available?",
+        {
+            {
+                "Actually, yes. We lost a cargo hauler in the asteroid "
+                "belt three cycles ago. The transponder went dark near "
+                "sector 7G. If you can locate the wreckage and recover "
+                "the manifest data, there's a reward in it for you.",
+                {
+                    {"I'll look into it.", -1},
+                    {"Not right now.", -1},
+                },
+            },
+        },
+    };
+
+    return npc;
+}
+
+Npc build_arms_dealer(Race race, std::mt19937& rng) {
+    Npc npc;
+    npc.race = race;
+    npc.glyph = 'A';
+    npc.color = Color::Red;
+    npc.role = "Arms Dealer";
+    npc.hp = 20;
+    npc.max_hp = 20;
+    npc.disposition = Disposition::Neutral;
+    npc.invulnerable = true;
+    npc.quickness = 0;
+    npc.name = generate_name(race, rng);
+
+    npc.interactions.talk = TalkTrait{
+        "Looking for firepower? You've come to the right place.",
+        {
+            {
+                "I deal in personal defense systems. Plasma sidearms, "
+                "ion disruptors, kinetic accelerators — whatever you "
+                "need to stay alive out there. Everything's tested and "
+                "certified. Mostly.",
+                {
+                    {"What do you recommend?", 1},
+                    {"Just browsing.", -1},
+                },
+            },
+            {
+                "Depends on what you're facing. Xytomorphs? You want "
+                "something with stopping power — plasma or kinetic. For "
+                "general exploration, an ion disruptor gives you range "
+                "and reliability. Come back when you've got credits.",
+                {
+                    {"I'll think about it.", -1},
+                },
+            },
+        },
+    };
+
+    npc.interactions.shop = ShopTrait{
+        npc.name + "'s Arsenal",
+    };
+
+    return npc;
+}
+
+Npc build_astronomer(Race race, std::mt19937& rng) {
+    Npc npc;
+    npc.race = race;
+    npc.glyph = 'P';
+    npc.color = Color::Cyan;
+    npc.role = "Astronomer";
+    npc.hp = 8;
+    npc.max_hp = 8;
+    npc.disposition = Disposition::Friendly;
+    npc.invulnerable = true;
+    npc.quickness = 0;
+    npc.name = generate_name(race, rng);
+
+    npc.interactions.talk = TalkTrait{
+        "Ah, a visitor. Come, look at the stars with me.",
+        {
+            {
+                "I've been mapping the gravitational anomalies near "
+                "Sagittarius A* for decades. The patterns are... "
+                "unsettling. Almost deliberate. As if something is "
+                "arranging the stars.",
+                {
+                    {"What do you mean, deliberate?", 1},
+                    {"Fascinating.", -1},
+                },
+            },
+            {
+                "The mass distributions around the galactic center don't "
+                "match any natural model. There are structures there — "
+                "ancient ones. Whatever civilization built them is long "
+                "gone, but their work endures. If you're truly heading "
+                "for Sgr A*, you'll see for yourself.",
+                {
+                    {"I will.", -1},
+                },
+            },
+        },
+    };
+
+    return npc;
+}
+
+Npc build_engineer(Race race, std::mt19937& rng) {
+    Npc npc;
+    npc.race = race;
+    npc.glyph = 'E';
+    npc.color = Color::Yellow;
+    npc.role = "Engineer";
+    npc.hp = 15;
+    npc.max_hp = 15;
+    npc.disposition = Disposition::Friendly;
+    npc.invulnerable = true;
+    npc.quickness = 0;
+    npc.name = generate_name(race, rng);
+
+    npc.interactions.talk = TalkTrait{
+        "Watch your step — live conduits everywhere.",
+        {
+            {
+                "I keep this station running. Power distribution, life "
+                "support, hull integrity — it all flows through here. "
+                "Half of these systems are older than I am, but they "
+                "still work. Barely.",
+                {
+                    {"Can you repair my gear?", 1},
+                    {"Keep up the good work.", -1},
+                },
+            },
+            {
+                "The repair bench is under maintenance right now. "
+                "Give me a few more cycles and I'll have it online. "
+                "In the meantime, try not to break anything too badly.",
+                {
+                    {"I'll manage.", -1},
+                },
+            },
+        },
+    };
+
+    return npc;
+}
+
+} // namespace astra

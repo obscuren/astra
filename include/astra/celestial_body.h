@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -61,6 +62,7 @@ struct CelestialBody {
     uint16_t resources = 0;
     uint8_t size = 1;
     uint8_t moons = 0;
+    std::vector<std::string> moon_names;
     float orbital_distance = 0.0f;
     bool landable = false;
     bool explored = false;

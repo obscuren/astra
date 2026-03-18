@@ -74,6 +74,24 @@ static constexpr FlavorEntry station_corridor_flavors[] = {
         "Scorch marks streak the walls. Something violent happened here."},
 };
 
+static constexpr FlavorEntry derelict_room_flavors[] = {
+    {RoomFlavor::DerelictBay,   "Derelict Bay",
+        "Twisted metal and shattered hull plating. The station groans."},
+    {RoomFlavor::HullBreach,    "Hull Breach",
+        "Stars are visible through a gaping tear in the hull. Atmosphere vents into space."},
+    {RoomFlavor::StorageBay,    "Ruined Storage Bay",
+        "Crates lie scattered and crushed. Whatever was stored here is long gone."},
+    {RoomFlavor::EmptyRoom,     "Dark Compartment",
+        "An empty compartment. The silence is absolute."},
+};
+
+static constexpr FlavorEntry derelict_corridor_flavors[] = {
+    {RoomFlavor::CorridorDamaged,     "Wrecked Corridor",
+        "Scorch marks and buckled panels. The corridor has seen catastrophic damage."},
+    {RoomFlavor::CorridorDimLit,      "Dark Passage",
+        "Emergency lighting has failed. Only your lamp cuts through the void."},
+};
+
 static constexpr FlavorEntry rocky_room_flavors[] = {
     {RoomFlavor::CavernEmpty,    "Empty Cavern",
         "A rough-hewn cavern. Dripping water echoes off the stone."},
@@ -131,6 +149,9 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
                 case MapType::SpaceStation:
                     entry = &pick_flavor(station_room_flavors, rng);
                     break;
+                case MapType::DerelictStation:
+                    entry = &pick_flavor(derelict_room_flavors, rng);
+                    break;
                 case MapType::Rocky:
                 case MapType::Lava:
                 case MapType::Asteroid:
@@ -145,6 +166,9 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
                 case MapType::SpaceStation:
                     entry = &pick_flavor(station_corridor_flavors, rng);
                     break;
+                case MapType::DerelictStation:
+                    entry = &pick_flavor(derelict_corridor_flavors, rng);
+                    break;
                 case MapType::Rocky:
                 case MapType::Lava:
                 case MapType::Nebula:
@@ -158,6 +182,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
             reg.flavor = entry->flavor;
             reg.name = entry->name;
             reg.enter_message = entry->enter_message;
+            reg.features = default_features(reg.flavor);
             map_->update_region(i, reg);
         }
     }
@@ -254,6 +279,16 @@ MapProperties default_properties(MapType type) {
             p.width = 120;
             p.height = 60;
             break;
+        case MapType::DerelictStation:
+            p.environment = Environment::Derelict;
+            p.climate = Climate::Vacuum;
+            p.has_backdrop = true;
+            p.room_count_min = 4;
+            p.room_count_max = 7;
+            p.light_bias = 0;
+            p.width = 120;
+            p.height = 60;
+            break;
         case MapType::Rocky:
             p.environment = Environment::Cave;
             p.climate = Climate::Temperate;
@@ -301,13 +336,17 @@ MapProperties default_properties(MapType type) {
 
 // Forward declarations of concrete generators
 std::unique_ptr<MapGenerator> make_station_generator();
+std::unique_ptr<MapGenerator> make_derelict_station_generator();
 std::unique_ptr<MapGenerator> make_open_cave_generator();
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
+std::unique_ptr<MapGenerator> make_hub_station_generator();
 
 std::unique_ptr<MapGenerator> create_generator(MapType type) {
     switch (type) {
         case MapType::SpaceStation:
             return make_station_generator();
+        case MapType::DerelictStation:
+            return make_derelict_station_generator();
         case MapType::Rocky:
         case MapType::Lava:
             return make_open_cave_generator();
@@ -318,6 +357,14 @@ std::unique_ptr<MapGenerator> create_generator(MapType type) {
             return make_station_generator();
     }
     return make_station_generator();
+}
+
+std::unique_ptr<MapGenerator> create_hub_generator() {
+    return make_hub_station_generator();
+}
+
+std::unique_ptr<MapGenerator> create_derelict_generator() {
+    return make_derelict_station_generator();
 }
 
 } // namespace astra

@@ -20,12 +20,18 @@ enum class StarClass : uint8_t {
     ClassO,  // Blue (rarest)
 };
 
+struct StationInfo {
+    std::string name;
+    bool derelict = false;
+};
+
 struct StarSystem {
     uint32_t id = 0;
     std::string name;
     StarClass star_class = StarClass::ClassM;
     bool binary = false;
     bool has_station = false;
+    StationInfo station;
     int planet_count = 0;
     int asteroid_belts = 0;
     int danger_level = 1;
@@ -50,6 +56,9 @@ void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy);
 
 // Generate a sci-fi system name
 std::string generate_system_name(std::mt19937& rng);
+
+// Generate a station name
+std::string generate_station_name(std::mt19937& rng);
 
 // Generate celestial bodies for a system (lazy, idempotent)
 void generate_system_bodies(StarSystem& sys);

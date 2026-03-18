@@ -33,11 +33,17 @@ protected:
     // Access during generation
     TileMap* map_ = nullptr;
     const MapProperties* props_ = nullptr;
+
+public:
     struct RoomRect { int x1, y1, x2, y2; };
+
+protected:
     std::vector<RoomRect> rooms_;
 };
 
 // Factory
 std::unique_ptr<MapGenerator> create_generator(MapType type);
+std::unique_ptr<MapGenerator> create_hub_generator();
+std::unique_ptr<MapGenerator> create_derelict_generator();
 
 } // namespace astra

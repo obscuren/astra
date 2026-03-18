@@ -55,6 +55,49 @@ std::string generate_system_name(std::mt19937& rng) {
 }
 
 // ---------------------------------------------------------------------------
+// Station name generation
+// ---------------------------------------------------------------------------
+
+static const char* station_prefixes[] = {
+    "Waystation", "Outpost", "Relay", "Station", "Hub",
+    "Beacon", "Port", "Depot", "Anchorage", "Haven",
+};
+
+static const char* station_name_parts[] = {
+    "Orion", "Cygnus", "Vega", "Altair", "Rigel", "Lyra",
+    "Draco", "Corvus", "Aquila", "Hydra", "Pavo", "Indus",
+    "Mensa", "Pyxis", "Norma", "Ara", "Crux", "Lupus",
+};
+
+std::string generate_station_name(std::mt19937& rng) {
+    std::uniform_int_distribution<int> prefix_dist(0, 9);
+    std::uniform_int_distribution<int> name_dist(0, 17);
+    std::uniform_int_distribution<int> style(0, 3);
+    std::uniform_int_distribution<int> num_dist(1, 99);
+
+    int s = style(rng);
+    if (s == 0) {
+        // "Waystation Orion"
+        return std::string(station_prefixes[prefix_dist(rng)]) + " "
+               + station_name_parts[name_dist(rng)];
+    } else if (s == 1) {
+        // "Orion Relay"
+        return std::string(station_name_parts[name_dist(rng)]) + " "
+               + station_prefixes[prefix_dist(rng)];
+    } else if (s == 2) {
+        // "Station Orion-7"
+        return std::string(station_prefixes[prefix_dist(rng)]) + " "
+               + station_name_parts[name_dist(rng)] + "-"
+               + std::to_string(num_dist(rng));
+    } else {
+        // "Orion-42 Outpost"
+        return std::string(station_name_parts[name_dist(rng)]) + "-"
+               + std::to_string(num_dist(rng)) + " "
+               + station_prefixes[prefix_dist(rng)];
+    }
+}
+
+// ---------------------------------------------------------------------------
 // System generation from seed + position
 // ---------------------------------------------------------------------------
 
@@ -84,6 +127,12 @@ void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy) {
     std::uniform_int_distribution<int> station_roll(0, 99);
     sys.has_station = station_roll(rng) < 80;
 
+    if (sys.has_station) {
+        // ~2% derelict
+        sys.station.derelict = station_roll(rng) < 2;
+        sys.station.name = generate_station_name(rng);
+    }
+
     // Planets and belts
     std::uniform_int_distribution<int> planet_dist(0, 8);
     std::uniform_int_distribution<int> belt_dist(0, 3);
@@ -110,23 +159,76 @@ static const char* roman_numerals[] = {
     "XI", "XII", "XIII", "XIV", "XV",
 };
 
+// ---------------------------------------------------------------------------
+// Moon name generation
+// ---------------------------------------------------------------------------
+
+static const char* moon_prefixes[] = {
+    "Ath", "Cal", "Dor", "Ery", "Gal", "Hel", "Ith", "Kyr",
+    "Lar", "Myr", "Nyx", "Obi", "Pel", "Rha", "Syr", "Thal",
+    "Umi", "Val", "Xen", "Zor",
+};
+
+static const char* moon_suffixes[] = {
+    "os", "is", "on", "us", "ax", "en", "ar", "ia",
+    "ys", "or", "ix", "al", "um", "as", "el", "an",
+};
+
+static std::vector<std::string> generate_moon_names(const std::string& body_name,
+                                                     int count, std::mt19937& rng) {
+    std::vector<std::string> names;
+    std::uniform_int_distribution<int> prefix_dist(0, 19);
+    std::uniform_int_distribution<int> suffix_dist(0, 15);
+
+    for (int i = 0; i < count; ++i) {
+        std::string name = std::string(moon_prefixes[prefix_dist(rng)])
+                         + moon_suffixes[suffix_dist(rng)];
+        names.push_back(std::move(name));
+    }
+    return names;
+}
+
+// ---------------------------------------------------------------------------
+// Sol bodies
+// ---------------------------------------------------------------------------
+
 static void generate_sol_bodies(StarSystem& sys) {
     using R = Resource;
     auto r = [](Resource a, Resource b) { return static_cast<uint16_t>(a | b); };
     auto r1 = [](Resource a) { return static_cast<uint16_t>(a); };
 
+    auto body = [](const char* name, BodyType type, Atmosphere atmo, Temperature temp,
+                   uint16_t res, uint8_t sz, uint8_t moons, std::vector<std::string> mnames,
+                   float dist, bool land, bool explored, bool dungeon, int danger) {
+        CelestialBody b;
+        b.name = name;
+        b.type = type;
+        b.atmosphere = atmo;
+        b.temperature = temp;
+        b.resources = res;
+        b.size = sz;
+        b.moons = moons;
+        b.moon_names = std::move(mnames);
+        b.orbital_distance = dist;
+        b.landable = land;
+        b.explored = explored;
+        b.has_dungeon = dungeon;
+        b.danger_level = danger;
+        return b;
+    };
+
     sys.bodies = {
-        {"Mercury",       BodyType::Rocky,        Atmosphere::None,     Temperature::Scorching, r1(R::Metals),              2, 0, 0.39f,  true,  false, false, 2},
-        {"Venus",         BodyType::Rocky,        Atmosphere::Toxic,    Temperature::Scorching, r(R::Metals, R::RareMetals),5, 0, 0.72f,  true,  false, false, 4},
-        {"Earth",         BodyType::Terrestrial,  Atmosphere::Standard, Temperature::Temperate, r(R::Water, R::Organics),   5, 1, 1.0f,   true,  false, false, 1},
-        {"Mars",          BodyType::Rocky,        Atmosphere::Thin,     Temperature::Cold,      r(R::Metals, R::Water),     3, 2, 1.52f,  true,  false, true,  2},
-        {"Asteroid Belt", BodyType::AsteroidBelt, Atmosphere::None,     Temperature::Cold,      r(R::Metals, R::RareMetals),1, 0, 2.7f,   false, false, false, 3},
-        {"Jupiter",       BodyType::GasGiant,     Atmosphere::Reducing, Temperature::Frozen,    r(R::Gas, R::Fuel),         10,4, 5.2f,   false, false, false, 3},
-        {"Saturn",        BodyType::GasGiant,     Atmosphere::Reducing, Temperature::Frozen,    r(R::Gas, R::Fuel),         9, 3, 9.5f,   false, false, false, 3},
-        {"Uranus",        BodyType::IceGiant,     Atmosphere::Reducing, Temperature::Frozen,    r1(R::Gas),                 7, 2, 19.2f,  false, false, false, 2},
-        {"Neptune",       BodyType::IceGiant,     Atmosphere::Reducing, Temperature::Frozen,    r1(R::Gas),                 7, 1, 30.0f,  false, false, false, 2},
-        {"Pluto",         BodyType::DwarfPlanet,  Atmosphere::Thin,     Temperature::Frozen,    r(R::Water, R::Crystals),   1, 1, 39.5f,  true,  false, true,  1},
-        {"Kuiper Belt",   BodyType::AsteroidBelt, Atmosphere::None,     Temperature::Frozen,    r(R::Metals, R::Crystals),  1, 0, 45.0f,  false, false, false, 2},
+        body("Mercury",       BodyType::Rocky,        Atmosphere::None,     Temperature::Scorching, r1(R::Metals),              2, 0, {}, 0.39f,  true,  false, false, 2),
+        body("Venus",         BodyType::Rocky,        Atmosphere::Toxic,    Temperature::Scorching, r(R::Metals, R::RareMetals),5, 0, {}, 0.72f,  true,  false, false, 4),
+        body("Earth",         BodyType::Terrestrial,  Atmosphere::Standard, Temperature::Temperate, r(R::Water, R::Organics),   5, 1, {"Luna"}, 1.0f,   true,  false, false, 1),
+        body("Mars",          BodyType::Rocky,        Atmosphere::Thin,     Temperature::Cold,      r(R::Metals, R::Water),     3, 2, {"Phobos", "Deimos"}, 1.52f,  true,  false, true,  2),
+        body("Asteroid Belt", BodyType::AsteroidBelt, Atmosphere::None,     Temperature::Cold,      r(R::Metals, R::RareMetals),1, 0, {}, 2.7f,   false, false, false, 3),
+        body("Jupiter",       BodyType::GasGiant,     Atmosphere::Reducing, Temperature::Frozen,    r(R::Gas, R::Fuel),         10,4, {"Io", "Europa", "Ganymede", "Callisto"}, 5.2f,   false, false, false, 3),
+        body("Saturn",        BodyType::GasGiant,     Atmosphere::Reducing, Temperature::Frozen,    r(R::Gas, R::Fuel),         9, 3, {"Titan", "Enceladus", "Mimas"}, 9.5f,   false, false, false, 3),
+        body("Uranus",        BodyType::IceGiant,     Atmosphere::Reducing, Temperature::Frozen,    r1(R::Gas),                 7, 2, {"Titania", "Oberon"}, 19.2f,  false, false, false, 2),
+        body("Neptune",       BodyType::IceGiant,     Atmosphere::Reducing, Temperature::Frozen,    r1(R::Gas),                 7, 1, {"Triton"}, 30.0f,  false, false, false, 2),
+        body("Pluto",         BodyType::DwarfPlanet,  Atmosphere::Thin,     Temperature::Frozen,    r(R::Water, R::Crystals),   1, 1, {"Charon"}, 39.5f,  true,  false, true,  1),
+        body("Kuiper Belt",   BodyType::AsteroidBelt, Atmosphere::None,     Temperature::Frozen,    r(R::Metals, R::Crystals),  1, 0, {}, 45.0f,  false, false, false, 2),
     };
 }
 
@@ -267,6 +369,11 @@ void generate_system_bodies(StarSystem& sys) {
             body.has_dungeon = body.landable && (percent(rng) < 40);
             body.danger_level = std::max(1, sys.danger_level + std::uniform_int_distribution<int>(-2, 2)(rng));
             if (body.danger_level > 10) body.danger_level = 10;
+
+            // Generate moon names
+            if (body.moons > 0) {
+                body.moon_names = generate_moon_names(body.name, body.moons, rng);
+            }
         }
 
         sys.bodies.push_back(std::move(body));
@@ -479,6 +586,8 @@ NavigationData generate_galaxy(unsigned game_seed) {
         sol.star_class = StarClass::ClassG;
         sol.binary = false;
         sol.has_station = true;
+        sol.station.name = "The Heavens Above";
+        sol.station.derelict = false;
         sol.planet_count = 8;
         sol.asteroid_belts = 1;
         sol.danger_level = 1;

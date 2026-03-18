@@ -38,6 +38,9 @@ private:
     // Body cursor (index into system's bodies, -1 = none)
     int body_cursor_ = -1;
 
+    // Sub-item cursor within a body (-1 = body itself, 0+ = sub-item like station/moon)
+    int sub_cursor_ = -1;
+
     // Rendering
     void draw_galaxy_view(DrawContext& map_ctx, DrawContext& info_ctx);
     void draw_region_view(DrawContext& map_ctx, DrawContext& info_ctx);
@@ -45,6 +48,10 @@ private:
     void draw_system_view(DrawContext& map_ctx, DrawContext& info_ctx);
     void draw_system_info(DrawContext& ctx, const StarSystem& sys, int start_y, int max_h = 100);
     void draw_body_info(DrawContext& ctx, const CelestialBody& body, const StarSystem& sys, int start_y);
+    void draw_station_detail(DrawContext& ctx, const StarSystem& sys, int start_y);
+
+    // Find which body index the station orbits (first gas giant, or -1)
+    int station_host_body(const StarSystem& sys) const;
 
     // Map projection helpers
     int to_screen_x(float gx, float view_left, float view_width, int screen_w) const;

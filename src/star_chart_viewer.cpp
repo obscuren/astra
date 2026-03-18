@@ -133,6 +133,7 @@ bool StarChartViewer::handle_input(int key) {
                             if (!sys.bodies.empty()) {
                                 zoom_ = ChartZoom::System;
                                 body_cursor_ = 0;
+                                sub_cursor_ = -1;
                             }
                         }
                     }
@@ -160,22 +161,45 @@ bool StarChartViewer::handle_input(int key) {
             }
             const auto& sys = nav_->systems[cursor_index_];
             int body_count = static_cast<int>(sys.bodies.size());
+            int cur_moons = (body_cursor_ >= 0 && body_cursor_ < body_count)
+                            ? sys.bodies[body_cursor_].moons : 0;
+            bool hosts_station = sys.has_station &&
+                                 body_cursor_ == station_host_body(sys);
             switch (key) {
-                case KEY_UP:
-                    if (body_cursor_ > 0) --body_cursor_;
-                    return true;
-                case KEY_DOWN:
-                    if (body_cursor_ < body_count - 1) ++body_cursor_;
-                    return true;
                 case KEY_LEFT:
-                    if (body_cursor_ > 0) --body_cursor_;
+                    if (body_cursor_ > 0) { --body_cursor_; sub_cursor_ = -1; }
                     return true;
                 case KEY_RIGHT:
-                    if (body_cursor_ < body_count - 1) ++body_cursor_;
+                    if (body_cursor_ < body_count - 1) { ++body_cursor_; sub_cursor_ = -1; }
+                    return true;
+                case KEY_UP:
+                    if (sub_cursor_ > 1) {
+                        // Move up through moons
+                        --sub_cursor_;
+                    } else if (sub_cursor_ == 1) {
+                        // From first moon back to body
+                        sub_cursor_ = -1;
+                    } else if (sub_cursor_ == -1 && hosts_station) {
+                        // From body up to station
+                        sub_cursor_ = 0;
+                    }
+                    return true;
+                case KEY_DOWN:
+                    if (sub_cursor_ == 0) {
+                        // From station back to body
+                        sub_cursor_ = -1;
+                    } else if (sub_cursor_ == -1 && cur_moons > 0) {
+                        // From body down to first moon
+                        sub_cursor_ = 1;
+                    } else if (sub_cursor_ >= 1 && sub_cursor_ < cur_moons) {
+                        // Move down through moons
+                        ++sub_cursor_;
+                    }
                     return true;
                 case '-': case '\b': case '\033': case 'q':
                     zoom_ = ChartZoom::Local;
                     body_cursor_ = -1;
+                    sub_cursor_ = -1;
                     return true;
             }
             break;
@@ -341,15 +365,15 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
             win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
             break;
         case ChartZoom::System:
-            win.set_footer("[Up/Down] Select body  [-] Back  [Esc] Back");
+            win.set_footer("[Left/Right] Select body  [Up/Down] Sub-items  [-] Back  [Esc] Back");
             break;
     }
 
     win.draw();
     DrawContext content = win.content();
 
-    // Split content: left 70% = map, right 30% = info panel
-    int info_width = std::max(28, content.width() * 30 / 100);
+    // Split content: left 80% = map, right 20% = info panel
+    int info_width = std::max(22, content.width() * 20 / 100);
     int map_width = content.width() - info_width - 1; // 1 for separator
 
     Rect map_rect = {content.bounds().x, content.bounds().y,
@@ -677,58 +701,181 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
         if (cy - 2 >= 0) map_ctx.text(lx, cy - 2, sys.name, star_color);
     }
 
-    // Draw bodies across the width using sqrt scale for spacing
+    // Draw bodies across the width using log scale for spacing
+    // log(1+d) spreads inner planets much better than sqrt for large distance ratios
     if (!sys.bodies.empty()) {
         float max_dist = sys.bodies.back().orbital_distance;
         if (max_dist < 1.0f) max_dist = 1.0f;
-        float sqrt_max = std::sqrt(max_dist);
+        float log_max = std::log(1.0f + max_dist);
 
-        // Bodies span from star_x+5 to mw-3
+        // Bodies span from star_x+5 to mw-14 (leave room for moon labels)
         int orbit_left = star_x + 5;
-        int orbit_right = mw - 3;
+        int orbit_right = mw - 14;
         int orbit_span = orbit_right - orbit_left;
         if (orbit_span < 4) orbit_span = 4;
 
+        int station_host = sys.has_station ? station_host_body(sys) : -1;
+
+        // --- Pass 1: compute screen x for each body ---
+        std::vector<int> body_sx(sys.bodies.size());
+        for (int i = 0; i < static_cast<int>(sys.bodies.size()); ++i) {
+            float t = std::log(1.0f + sys.bodies[i].orbital_distance) / log_max;
+            body_sx[i] = orbit_left + static_cast<int>(t * orbit_span);
+        }
+
+        // --- Pass 2: compute max label width per body based on gap to next ---
+        std::vector<int> max_label(sys.bodies.size(), 12);
+        for (int i = 0; i < static_cast<int>(sys.bodies.size()); ++i) {
+            if (i + 1 < static_cast<int>(sys.bodies.size())) {
+                int gap = body_sx[i + 1] - body_sx[i];
+                // Leave at least 1 char between centered labels
+                max_label[i] = std::max(3, gap - 1);
+                if (max_label[i] > 12) max_label[i] = 12;
+            }
+        }
+
+        // --- Pass 3: draw everything ---
         for (int i = 0; i < static_cast<int>(sys.bodies.size()); ++i) {
             const auto& body = sys.bodies[i];
-            // sqrt scale so inner planets get more room
-            float t = std::sqrt(body.orbital_distance) / sqrt_max;
-            int bx = orbit_left + static_cast<int>(t * orbit_span);
+            int bx = body_sx[i];
             if (bx < 0 || bx >= mw) continue;
 
-            bool selected = (i == body_cursor_);
+            bool is_cursor = (i == body_cursor_);
+            bool body_selected = is_cursor && sub_cursor_ == -1;
             char glyph = body_type_glyph(body.type);
             Color color = body_type_color(body.type);
 
-            // Draw orbital track marker
-            if (cy < mh) map_ctx.put(bx, cy, '.', Color::DarkGray);
+            // --- Station above (if this body hosts it) ---
+            if (i == station_host) {
+                bool st_sel = is_cursor && sub_cursor_ == 0;
+                char st_glyph = sys.station.derelict ? '#' : 'H';
+                Color st_color = sys.station.derelict ? Color::DarkGray : Color::Cyan;
 
-            // Draw body above the track
-            int by = cy - 1;
-            if (by < 0) by = 0;
+                int st_y = cy - 3;
+                if (st_y >= 0) {
+                    if (st_sel) {
+                        map_ctx.put(bx, st_y, st_glyph, Color::White);
+                        if (bx > 0) map_ctx.put(bx - 1, st_y, '[', Color::White);
+                        if (bx < mw - 1) map_ctx.put(bx + 1, st_y, ']', Color::White);
+                    } else {
+                        map_ctx.put(bx, st_y, st_glyph, st_color);
+                    }
+                }
 
-            if (selected) {
-                map_ctx.put(bx, by, glyph, Color::White);
-                if (bx > 0) map_ctx.put(bx - 1, by, '[', Color::White);
-                if (bx < mw - 1) map_ctx.put(bx + 1, by, ']', Color::White);
-            } else {
-                map_ctx.put(bx, by, glyph, color);
+                if (st_y - 1 >= 0) {
+                    std::string slabel = sys.station.name;
+                    if (slabel.size() > 20) slabel = slabel.substr(0, 19) + ".";
+                    int lx = bx - static_cast<int>(slabel.size()) / 2;
+                    if (lx < 0) lx = 0;
+                    map_ctx.text(lx, st_y - 1, slabel,
+                                 st_sel ? Color::White : st_color);
+                }
+
+                for (int ly = st_y + 1; ly < cy - 1; ++ly) {
+                    if (ly >= 0 && ly < mh)
+                        map_ctx.put(bx, ly, ':', Color::DarkGray);
+                }
             }
 
-            // Name below track (staggered to avoid overlap)
-            int name_y = cy + 1 + (i % 2);
-            if (name_y < mh) {
-                std::string label = body.name;
-                // Truncate long names
-                if (static_cast<int>(label.size()) > 12) {
-                    label = label.substr(0, 11) + ".";
+            // --- Body glyph (one row above track) ---
+            int by = cy - 1;
+            if (by >= 0 && by < mh) {
+                if (body_selected) {
+                    map_ctx.put(bx, by, glyph, Color::White);
+                    if (bx > 0) map_ctx.put(bx - 1, by, '[', Color::White);
+                    if (bx < mw - 1) map_ctx.put(bx + 1, by, ']', Color::White);
+                } else {
+                    map_ctx.put(bx, by, glyph, color);
                 }
+            }
+
+            // --- Orbital track dot ---
+            if (cy >= 0 && cy < mh) map_ctx.put(bx, cy, '.', Color::DarkGray);
+
+            // --- Body name (cy+1) — truncated; selected body drawn later on top ---
+            if (cy + 1 < mh && !body_selected) {
+                std::string label = body.name;
+                int mlw = max_label[i];
+                if (static_cast<int>(label.size()) > mlw)
+                    label = label.substr(0, mlw - 1) + ".";
                 int lx = bx - static_cast<int>(label.size()) / 2;
                 if (lx < 0) lx = 0;
-                if (lx + static_cast<int>(label.size()) >= mw) {
+                if (lx + static_cast<int>(label.size()) >= mw)
                     lx = mw - static_cast<int>(label.size()) - 1;
+                map_ctx.text(lx, cy + 1, label, Color::DarkGray);
+            }
+
+            // --- Moons below: colon on cy+2, then alternating moon/colon ---
+            if (body.moons > 0) {
+                // Max label width: space to next body minus room for "* "
+                int next_bx = mw;
+                if (i + 1 < static_cast<int>(sys.bodies.size()))
+                    next_bx = body_sx[i + 1];
+                int moon_label_max = next_bx - bx - 3; // "* " = 2, plus 1 gap
+                if (moon_label_max < 3) moon_label_max = 3;
+
+                int row = cy + 2;
+                for (int m = 0; m < body.moons; ++m) {
+                    if (row >= mh) break;
+                    map_ctx.put(bx, row, ':', Color::DarkGray);
+                    ++row;
+
+                    if (row >= mh) break;
+                    bool moon_sel = is_cursor && sub_cursor_ == m + 1;
+                    if (moon_sel) {
+                        map_ctx.put(bx, row, '*', Color::White);
+                        if (bx > 0) map_ctx.put(bx - 1, row, '[', Color::White);
+                        if (bx < mw - 1) map_ctx.put(bx + 1, row, ']', Color::White);
+                    } else {
+                        map_ctx.put(bx, row, '*', Color::DarkGray);
+                    }
+
+                    std::string mlabel = (m < static_cast<int>(body.moon_names.size()))
+                                         ? body.moon_names[m]
+                                         : "Moon " + std::to_string(m + 1);
+                    // Truncate unless selected
+                    if (!moon_sel && static_cast<int>(mlabel.size()) > moon_label_max)
+                        mlabel = mlabel.substr(0, moon_label_max - 1) + ".";
+                    int mlx = bx + 2;
+                    if (mlx + static_cast<int>(mlabel.size()) < mw) {
+                        map_ctx.text(mlx, row, mlabel,
+                                     moon_sel ? Color::White : Color::DarkGray);
+                    }
+                    ++row;
                 }
-                map_ctx.text(lx, name_y, label, selected ? Color::White : Color::DarkGray);
+            }
+        }
+
+        // --- Draw selected item's full name on top, padded with spaces ---
+        if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
+            int sel_bx = body_sx[body_cursor_];
+            const auto& sel_body = sys.bodies[body_cursor_];
+
+            if (sub_cursor_ == -1 && cy + 1 < mh && sel_bx >= 0 && sel_bx < mw) {
+                // Selected body label — padded
+                std::string label = " " + sel_body.name + " ";
+                if (static_cast<int>(label.size()) > 14)
+                    label = " " + sel_body.name.substr(0, 11) + ". ";
+                int lx = sel_bx - static_cast<int>(label.size()) / 2;
+                if (lx < 0) lx = 0;
+                if (lx + static_cast<int>(label.size()) >= mw)
+                    lx = mw - static_cast<int>(label.size()) - 1;
+                map_ctx.text(lx, cy + 1, label, Color::White);
+            } else if (sub_cursor_ >= 1 && sel_bx >= 0 && sel_bx < mw) {
+                // Selected moon label — padded, drawn on top
+                int m = sub_cursor_ - 1;
+                int moon_row = cy + 2 + sub_cursor_ * 2 - 1; // row of the selected moon
+                if (moon_row < mh) {
+                    std::string mlabel = (m < static_cast<int>(sel_body.moon_names.size()))
+                                         ? sel_body.moon_names[m]
+                                         : "Moon " + std::to_string(m + 1);
+                    std::string padded = " " + mlabel + " ";
+                    int mlx = sel_bx + 2;
+                    // Clear and redraw with padding
+                    if (mlx - 1 >= 0 && mlx + static_cast<int>(padded.size()) - 1 < mw) {
+                        map_ctx.text(mlx - 1, moon_row, padded, Color::White);
+                    }
+                }
             }
         }
     }
@@ -743,9 +890,35 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
     info_ctx.text(10, y++, star_class_name(sys.star_class), star_class_color(sys.star_class));
     info_ctx.text(1, y, "Bodies", Color::DarkGray);
     info_ctx.text(10, y++, std::to_string(sys.bodies.size()), Color::White);
+
+    if (sys.has_station) {
+        Color sc = sys.station.derelict ? Color::Red : Color::Cyan;
+        std::string slabel = sys.station.name;
+        if (sys.station.derelict) slabel += " [!]";
+        info_ctx.text(1, y, "Station", Color::DarkGray);
+        info_ctx.text(10, y++, slabel, sc);
+    }
     y++;
 
-    if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
+    if (sub_cursor_ == 0 && sys.has_station) {
+        draw_station_detail(info_ctx, sys, y);
+    } else if (sub_cursor_ >= 1 && body_cursor_ >= 0 &&
+               body_cursor_ < static_cast<int>(sys.bodies.size())) {
+        // Moon selected — show basic moon info
+        const auto& body = sys.bodies[body_cursor_];
+        int mi = sub_cursor_ - 1; // sub_cursor 1 = first moon (index 0)
+        std::string mname = (mi >= 0 && mi < static_cast<int>(body.moon_names.size()))
+                            ? body.moon_names[mi]
+                            : body.name + " Moon " + std::to_string(sub_cursor_);
+        info_ctx.put(1, y, '*', Color::DarkGray);
+        info_ctx.text(3, y++, mname, Color::White);
+        info_ctx.hline(y++, '-');
+        y++;
+        info_ctx.text(1, y, "Type", Color::DarkGray);
+        info_ctx.text(10, y++, "Moon", Color::White);
+        info_ctx.text(1, y, "Orbits", Color::DarkGray);
+        info_ctx.text(10, y++, body.name, body_type_color(body.type));
+    } else if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
         draw_body_info(info_ctx, sys.bodies[body_cursor_], sys, y);
     }
 }
@@ -861,7 +1034,10 @@ void StarChartViewer::draw_system_info(DrawContext& ctx, const StarSystem& sys, 
 
     if (sys.has_station) {
         ctx.text(1, y, "Station", Color::DarkGray);
-        ctx.text(10, y++, "Yes", Color::Cyan);
+        Color sc = sys.station.derelict ? Color::Red : Color::Cyan;
+        std::string slabel = sys.station.name;
+        if (sys.station.derelict) slabel += " [!]";
+        ctx.text(10, y++, slabel, sc);
     } else {
         ctx.text(1, y, "Station", Color::DarkGray);
         ctx.text(10, y++, "None", Color::DarkGray);
@@ -932,6 +1108,50 @@ void StarChartViewer::draw_system_info(DrawContext& ctx, const StarSystem& sys, 
             ctx.text(3, y, display_name, color);
             ++y;
         }
+    }
+}
+
+int StarChartViewer::station_host_body(const StarSystem& sys) const {
+    // Station orbits the first gas giant; fallback to last body
+    for (int i = 0; i < static_cast<int>(sys.bodies.size()); ++i) {
+        if (sys.bodies[i].type == BodyType::GasGiant) return i;
+    }
+    return sys.bodies.empty() ? -1 : static_cast<int>(sys.bodies.size()) - 1;
+}
+
+void StarChartViewer::draw_station_detail(DrawContext& ctx, const StarSystem& sys, int start_y) {
+    int y = start_y;
+
+    char glyph = sys.station.derelict ? '#' : 'H';
+    Color color = sys.station.derelict ? Color::Red : Color::Cyan;
+    ctx.put(1, y, glyph, color);
+    ctx.text(3, y++, sys.station.name, Color::White);
+    ctx.hline(y++, '-');
+    y++;
+
+    ctx.text(1, y, "Type", Color::DarkGray);
+    if (sys.station.derelict) {
+        ctx.text(10, y++, "Derelict", Color::Red);
+    } else {
+        ctx.text(10, y++, "Station", Color::Cyan);
+    }
+
+    // Show which body it orbits
+    int host = station_host_body(sys);
+    if (host >= 0 && host < static_cast<int>(sys.bodies.size())) {
+        ctx.text(1, y, "Orbits", Color::DarkGray);
+        ctx.text(10, y++, sys.bodies[host].name, body_type_color(sys.bodies[host].type));
+    }
+
+    y++;
+    if (sys.station.derelict) {
+        ctx.text(1, y++, "DERELICT", Color::Red);
+        ctx.text(1, y++, "Power systems offline", Color::DarkGray);
+        ctx.text(1, y++, "Structural integrity", Color::DarkGray);
+        ctx.text(1, y++, "compromised", Color::DarkGray);
+    } else {
+        ctx.text(1, y++, "OPERATIONAL", Color::Green);
+        ctx.text(1, y++, "Docking available", Color::DarkGray);
     }
 }
 

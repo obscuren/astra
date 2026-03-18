@@ -17,6 +17,7 @@ enum class Tile : uint8_t {
     Portal,
     Water,
     Ice,
+    Fixture,
 };
 
 inline char tile_glyph(Tile t) {
@@ -32,6 +33,7 @@ inline char tile_glyph(Tile t) {
 
 enum class MapType : uint8_t {
     SpaceStation,
+    DerelictStation,
     Nebula,
     Rocky,
     Lava,
@@ -76,6 +78,9 @@ enum class RoomFlavor : uint8_t {
     CargoHold,
     Armory,
     Observatory,
+    // Derelict station
+    DerelictBay,
+    HullBreach,
     // Rocky / asteroid
     CavernEmpty,
     CavernMushroom,
@@ -90,10 +95,79 @@ enum class RoomFlavor : uint8_t {
     CorridorDamaged,
 };
 
+// --- Fixture system ---
+
+enum class FixtureType : uint8_t {
+    // Decorative (impassable, no interaction)
+    Table,          // 'o'  — cantina tables, command tables
+    Console,        // '#'  — computer terminals (decorative)
+    Crate,          // '='  — cargo crates
+    Bunk,           // '='  — sleeping bunks
+    Rack,           // '|'  — weapon/supply racks (decorative)
+    Conduit,        // '%'  — engineering pipes
+    ShuttleClamp,   // '='  — docking bay clamps
+    Shelf,          // '['  — storage shelving
+    Viewport,       // '"'  — observatory window
+
+    // Walkable (floor-like, no interaction)
+    Stool,          // 'o'  — bar stools, chairs
+    Debris,         // ','  — floor clutter
+
+    // Interactable (impassable, player presses 'e' adjacent)
+    HealPod,        // '+'  — medbay healing pod, cooldown-based full heal
+    FoodTerminal,   // '$'  — buy food: eat-here or take-away
+    WeaponDisplay,  // '/'  — browse/buy weapons
+    RepairBench,    // '%'  — repair gear (future)
+    SupplyLocker,   // '&'  — search for random loot (future)
+    StarChart,      // '*'  — observatory lore terminal (future)
+    RestPod,        // '='  — crew quarters rest (advance ticks, full heal)
+};
+
+struct FixtureData {
+    FixtureType type = FixtureType::Table;
+    char glyph = '?';
+    Color color = Color::White;
+    bool passable = false;
+    bool interactable = false;
+    int cooldown = 0;           // ticks until reusable (0 = no cooldown, -1 = one-time)
+    int last_used_tick = -1;    // world_tick when last used (-1 = never)
+};
+
+FixtureData make_fixture(FixtureType type);
+
+// --- Room features ---
+
+enum class RoomFeature : uint16_t {
+    None           = 0,
+    Healing        = 1 << 0,
+    Rest           = 1 << 1,
+    FoodShop       = 1 << 2,
+    WeaponShop     = 1 << 3,
+    QuestGiver     = 1 << 4,
+    LoreSource     = 1 << 5,
+    Repair         = 1 << 6,
+    Storage        = 1 << 7,
+};
+
+inline RoomFeature operator|(RoomFeature a, RoomFeature b) {
+    return static_cast<RoomFeature>(
+        static_cast<uint16_t>(a) | static_cast<uint16_t>(b));
+}
+inline RoomFeature operator&(RoomFeature a, RoomFeature b) {
+    return static_cast<RoomFeature>(
+        static_cast<uint16_t>(a) & static_cast<uint16_t>(b));
+}
+inline bool has_feature(RoomFeature set, RoomFeature flag) {
+    return (static_cast<uint16_t>(set) & static_cast<uint16_t>(flag)) != 0;
+}
+
+RoomFeature default_features(RoomFlavor flavor);
+
 struct Region {
     RegionType type = RegionType::Room;
     bool lit = false;
     RoomFlavor flavor = RoomFlavor::EmptyRoom;
+    RoomFeature features = RoomFeature::None;
     std::string name;           // e.g. "Storage Bay 7"
     std::string enter_message;  // shown when player enters
 };
@@ -132,6 +206,19 @@ public:
     const std::string& location_name() const { return location_name_; }
     void set_location_name(const std::string& name) { location_name_ = name; }
 
+    // Fixture accessors
+    int fixture_id(int x, int y) const;
+    const FixtureData& fixture(int id) const { return fixtures_[id]; }
+    FixtureData& fixture_mut(int id) { return fixtures_[id]; }
+    int add_fixture(int x, int y, FixtureData fd);
+    int fixture_count() const { return static_cast<int>(fixtures_.size()); }
+    const std::vector<FixtureData>& fixtures_vec() const { return fixtures_; }
+    const std::vector<int>& fixture_ids() const { return fixture_ids_; }
+
+    // Hub flag
+    bool is_hub() const { return hub_; }
+    void set_hub(bool h) { hub_ = h; }
+
     // Const accessors for serialization
     const std::vector<Tile>& tiles() const { return tiles_; }
     const std::vector<int>& region_ids() const { return region_ids_; }
@@ -142,6 +229,7 @@ public:
     void load_from(int w, int h, MapType type, Biome biome, std::string location,
                    std::vector<Tile> tiles, std::vector<int> rids,
                    std::vector<Region> regions, std::vector<char> backdrop);
+    void load_fixtures(std::vector<FixtureData> fixtures, std::vector<int> fixture_ids);
 
     // Returns a valid floor position for spawning
     void find_open_spot(int& out_x, int& out_y) const;
@@ -157,16 +245,24 @@ public:
                                    const std::vector<std::pair<int,int>>& exclude = {},
                                    std::mt19937* rng = nullptr) const;
 
+    // Find a floor tile in a specific region by ID.
+    bool find_open_spot_in_region(int region_id, int& out_x, int& out_y,
+                                  const std::vector<std::pair<int,int>>& exclude = {},
+                                  std::mt19937* rng = nullptr) const;
+
 private:
     MapType map_type_ = MapType::SpaceStation;
     Biome biome_ = Biome::Station;
     int width_ = 0;
     int height_ = 0;
     std::string location_name_ = "Unknown";
+    bool hub_ = false;
     std::vector<Tile> tiles_;
     std::vector<char> backdrop_;
     std::vector<int> region_ids_;
     std::vector<Region> regions_;
+    std::vector<FixtureData> fixtures_;
+    std::vector<int> fixture_ids_;  // parallel to tiles_, -1 if no fixture
 };
 
 } // namespace astra

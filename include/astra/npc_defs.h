@@ -16,4 +16,12 @@ Npc build_xytomorph(std::mt19937& rng);
 // Unique named NPC — no race/rng params needed.
 Npc build_nova();
 
+// Hub station NPC builders
+Npc build_food_merchant(Race race, std::mt19937& rng);
+Npc build_medic(Race race, std::mt19937& rng);
+Npc build_commander(Race race, std::mt19937& rng);
+Npc build_arms_dealer(Race race, std::mt19937& rng);
+Npc build_astronomer(Race race, std::mt19937& rng);
+Npc build_engineer(Race race, std::mt19937& rng);
+
 } // namespace astra

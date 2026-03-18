@@ -71,6 +71,7 @@ TileProps tile_props(Tile tile, MapType map_type) {
     if (tile == Tile::Wall) {
         switch (map_type) {
             case MapType::SpaceStation:
+            case MapType::DerelictStation:
                 return {Material::Bulkhead, station_wall_bumps};
             case MapType::Rocky:
             case MapType::Asteroid:

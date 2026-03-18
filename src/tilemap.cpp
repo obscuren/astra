@@ -9,7 +9,8 @@ TileMap::TileMap(int width, int height, MapType type)
     : map_type_(type), width_(width), height_(height),
       tiles_(width * height, Tile::Empty),
       backdrop_(width * height, '\0'),
-      region_ids_(width * height, -1) {}
+      region_ids_(width * height, -1),
+      fixture_ids_(width * height, -1) {}
 
 char TileMap::backdrop(int x, int y) const {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return '\0';
@@ -29,12 +30,36 @@ void TileMap::set(int x, int y, Tile t) {
 
 bool TileMap::passable(int x, int y) const {
     Tile t = get(x, y);
+    if (t == Tile::Fixture) {
+        int fid = fixture_id(x, y);
+        return fid >= 0 && fixtures_[fid].passable;
+    }
     return t == Tile::Floor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice;
 }
 
 bool TileMap::opaque(int x, int y) const {
     Tile t = get(x, y);
+    // Fixtures are never opaque (they don't block line of sight)
     return t == Tile::Wall || t == Tile::Empty;
+}
+
+int TileMap::fixture_id(int x, int y) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return -1;
+    if (fixture_ids_.empty()) return -1;
+    return fixture_ids_[y * width_ + x];
+}
+
+int TileMap::add_fixture(int x, int y, FixtureData fd) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return -1;
+    // Ensure fixture_ids_ is sized
+    if (fixture_ids_.empty()) {
+        fixture_ids_.resize(width_ * height_, -1);
+    }
+    int id = static_cast<int>(fixtures_.size());
+    fixtures_.push_back(std::move(fd));
+    fixture_ids_[y * width_ + x] = id;
+    set(x, y, Tile::Fixture);
+    return id;
 }
 
 int TileMap::region_id(int x, int y) const {
@@ -71,6 +96,10 @@ void TileMap::clear_all() {
     std::fill(backdrop_.begin(), backdrop_.end(), '\0');
     std::fill(region_ids_.begin(), region_ids_.end(), -1);
     regions_.clear();
+    fixtures_.clear();
+    if (!fixture_ids_.empty()) {
+        std::fill(fixture_ids_.begin(), fixture_ids_.end(), -1);
+    }
 }
 
 void TileMap::find_open_spot(int& out_x, int& out_y) const {
@@ -174,6 +203,131 @@ void TileMap::load_from(int w, int h, MapType type, Biome biome, std::string loc
     region_ids_ = std::move(rids);
     regions_ = std::move(regions);
     backdrop_ = std::move(backdrop);
+}
+
+void TileMap::load_fixtures(std::vector<FixtureData> fixtures, std::vector<int> fids) {
+    fixtures_ = std::move(fixtures);
+    fixture_ids_ = std::move(fids);
+}
+
+bool TileMap::find_open_spot_in_region(int rid, int& out_x, int& out_y,
+                                        const std::vector<std::pair<int,int>>& exclude,
+                                        std::mt19937* rng) const {
+    if (rid < 0) return false;
+
+    std::vector<std::pair<int,int>> candidates;
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            if (region_id(x, y) != rid) continue;
+            if (get(x, y) != Tile::Floor) continue;
+
+            bool excluded = false;
+            for (const auto& [ex, ey] : exclude) {
+                if (x == ex && y == ey) { excluded = true; break; }
+            }
+            if (excluded) continue;
+
+            if (!rng) {
+                out_x = x;
+                out_y = y;
+                return true;
+            }
+            candidates.push_back({x, y});
+        }
+    }
+
+    if (candidates.empty()) return false;
+
+    std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+    auto [cx, cy] = candidates[dist(*rng)];
+    out_x = cx;
+    out_y = cy;
+    return true;
+}
+
+// --- Fixture factory ---
+
+FixtureData make_fixture(FixtureType type) {
+    FixtureData fd;
+    fd.type = type;
+    fd.cooldown = 0;
+    fd.last_used_tick = -1;
+
+    switch (type) {
+        case FixtureType::Table:
+            fd.glyph = 'o'; fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Console:
+            fd.glyph = '#'; fd.color = Color::Cyan;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Crate:
+            fd.glyph = '='; fd.color = Color::Yellow;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Bunk:
+            fd.glyph = '='; fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Rack:
+            fd.glyph = '|'; fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Conduit:
+            fd.glyph = '%'; fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::ShuttleClamp:
+            fd.glyph = '='; fd.color = Color::White;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Shelf:
+            fd.glyph = '['; fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Viewport:
+            fd.glyph = '"'; fd.color = Color::Cyan;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Stool:
+            fd.glyph = 'o'; fd.color = Color::DarkGray;
+            fd.passable = true; fd.interactable = false; break;
+        case FixtureType::Debris:
+            fd.glyph = ','; fd.color = Color::DarkGray;
+            fd.passable = true; fd.interactable = false; break;
+        case FixtureType::HealPod:
+            fd.glyph = '+'; fd.color = Color::Green;
+            fd.passable = false; fd.interactable = true;
+            fd.cooldown = 50; break;
+        case FixtureType::FoodTerminal:
+            fd.glyph = '$'; fd.color = Color::Yellow;
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::WeaponDisplay:
+            fd.glyph = '/'; fd.color = Color::Red;
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::RepairBench:
+            fd.glyph = '%'; fd.color = Color::Cyan;
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::SupplyLocker:
+            fd.glyph = '&'; fd.color = Color::Yellow;
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::StarChart:
+            fd.glyph = '*'; fd.color = Color::Cyan;
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::RestPod:
+            fd.glyph = '='; fd.color = Color::Green;
+            fd.passable = false; fd.interactable = true;
+            fd.cooldown = 50; break;
+    }
+    return fd;
+}
+
+// --- Room feature defaults ---
+
+RoomFeature default_features(RoomFlavor flavor) {
+    switch (flavor) {
+        case RoomFlavor::Medbay:        return RoomFeature::Healing;
+        case RoomFlavor::CrewQuarters:  return RoomFeature::Rest;
+        case RoomFlavor::Cantina:       return RoomFeature::FoodShop;
+        case RoomFlavor::Armory:        return RoomFeature::WeaponShop;
+        case RoomFlavor::CommandCenter: return RoomFeature::QuestGiver;
+        case RoomFlavor::Observatory:   return RoomFeature::LoreSource;
+        case RoomFlavor::Engineering:   return RoomFeature::Repair;
+        case RoomFlavor::StorageBay:    return RoomFeature::Storage;
+        default:                        return RoomFeature::None;
+    }
 }
 
 BiomeColors biome_colors(Biome b) {
