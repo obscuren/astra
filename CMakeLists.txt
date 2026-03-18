@@ -27,6 +27,7 @@ set(ASTRA_SOURCES
     src/save_file.cpp
     src/item.cpp
     src/item_defs.cpp
+    src/boot_sequence.cpp
 )
 
 if(WIN32)

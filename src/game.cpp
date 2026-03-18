@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/boot_sequence.h"
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
 #include "astra/npc_defs.h"
@@ -395,6 +396,12 @@ void Game::handle_play_input(int key) {
 
 void Game::new_game() {
     compute_layout();
+
+    // Boot sequence for normal games, skip in dev mode
+    if (!dev_mode_) {
+        BootSequence boot(renderer_.get());
+        boot.play();
+    }
 
     seed_ = static_cast<unsigned>(std::time(nullptr));
     rng_.seed(seed_);

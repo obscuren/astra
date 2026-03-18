@@ -127,7 +127,11 @@ void TerminalRenderer::present() {
                 prev_color = cell.fg;
             }
 
-            out_buf_ += cell.ch;
+            if (cell.ch == '\x01') {
+                out_buf_ += "\xe2\x96\x88"; // UTF-8 for █ (U+2588)
+            } else {
+                out_buf_ += cell.ch;
+            }
         }
         if (y < height_ - 1) {
             out_buf_ += '\n';

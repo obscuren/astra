@@ -31,6 +31,9 @@ enum class Color : uint8_t {
     BrightMagenta = 13,
 };
 
+// Sentinel char that renderers expand to a full-block glyph (█).
+static constexpr char BLOCK_CHAR = '\x01';
+
 // Abstract rendering interface.
 // Terminal now, SDL later — game logic never touches this directly.
 class Renderer {
