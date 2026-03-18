@@ -44,6 +44,8 @@ struct StarSystem {
 
 struct NavigationData {
     uint32_t current_system_id = 0;
+    int current_body_index = -1;  // index into current system's bodies (-1 = none)
+    bool at_station = true;       // true if docked at the system's station
     std::vector<StarSystem> systems;
     int navi_range = 1;
 };

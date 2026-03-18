@@ -492,6 +492,8 @@ void Game::new_game() {
 
     // Generate the galaxy
     navigation_ = generate_galaxy(seed_);
+    navigation_.at_station = true;
+    navigation_.current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
 
     state_ = GameState::Playing;
@@ -580,6 +582,22 @@ void Game::warp_to_dungeon() {
     recompute_fov();
     compute_camera();
     check_region_change();
+
+    // Update location tracking
+    navigation_.at_station = false;
+    navigation_.current_body_index = -1;
+    for (size_t i = 0; i < navigation_.systems.size(); ++i) {
+        if (navigation_.systems[i].id == navigation_.current_system_id) {
+            auto& sys = navigation_.systems[i];
+            generate_system_bodies(sys);
+            std::vector<int> landable;
+            for (int bi = 0; bi < static_cast<int>(sys.bodies.size()); ++bi)
+                if (sys.bodies[bi].landable) landable.push_back(bi);
+            if (!landable.empty())
+                navigation_.current_body_index = landable[std::uniform_int_distribution<int>(0, static_cast<int>(landable.size()) - 1)(rng_)];
+            break;
+        }
+    }
 
     log("You step through the portal...");
     log("You arrive at a " + colored(type_name, Color::Cyan) + ".");

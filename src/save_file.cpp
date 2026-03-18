@@ -493,6 +493,8 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
     auto pos = w.begin_section("STAR");
     w.write_u32(nav.current_system_id);
     w.write_i32(nav.navi_range);
+    w.write_i32(nav.current_body_index);
+    w.write_u8(nav.at_station ? 1 : 0);
     w.write_u32(static_cast<uint32_t>(nav.systems.size()));
     for (const auto& sys : nav.systems) {
         w.write_u32(sys.id);
@@ -730,6 +732,13 @@ static void read_stash_section(BinaryReader& r, std::vector<Item>& stash) {
 static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32_t version) {
     nav.current_system_id = r.read_u32();
     nav.navi_range = r.read_i32();
+    if (version >= 5) {
+        nav.current_body_index = r.read_i32();
+        nav.at_station = r.read_u8() != 0;
+    } else {
+        nav.current_body_index = -1;
+        nav.at_station = true;
+    }
     uint32_t count = r.read_u32();
     nav.systems.resize(count);
     for (uint32_t i = 0; i < count; ++i) {

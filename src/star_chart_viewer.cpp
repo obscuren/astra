@@ -878,6 +878,24 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
                 }
             }
         }
+
+        // --- Draw player location marker '@' ---
+        if (sys.id == nav_->current_system_id) {
+            int station_host_idx = sys.has_station ? station_host_body(sys) : -1;
+            if (nav_->at_station && sys.has_station && station_host_idx >= 0 &&
+                station_host_idx < static_cast<int>(body_sx.size())) {
+                int px = body_sx[station_host_idx];
+                int py = cy - 3;
+                if (px + 2 < mw && py >= 0)
+                    map_ctx.put(px + 2, py, '@', Color::Green);
+            } else if (nav_->current_body_index >= 0 &&
+                       nav_->current_body_index < static_cast<int>(body_sx.size())) {
+                int px = body_sx[nav_->current_body_index];
+                int py = cy - 1;
+                if (px + 2 < mw && py >= 0)
+                    map_ctx.put(px + 2, py, '@', Color::Green);
+            }
+        }
     }
 
     // Info panel — show selected body details or system overview
@@ -897,6 +915,17 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
         if (sys.station.derelict) slabel += " [!]";
         info_ctx.text(1, y, "Station", Color::DarkGray);
         info_ctx.text(10, y++, slabel, sc);
+    }
+
+    if (sys.id == nav_->current_system_id) {
+        if (nav_->at_station && sys.has_station) {
+            info_ctx.text(1, y, "You", Color::Green);
+            info_ctx.text(10, y++, "@ " + sys.station.name, Color::Green);
+        } else if (nav_->current_body_index >= 0 &&
+                   nav_->current_body_index < static_cast<int>(sys.bodies.size())) {
+            info_ctx.text(1, y, "You", Color::Green);
+            info_ctx.text(10, y++, "@ " + sys.bodies[nav_->current_body_index].name, Color::Green);
+        }
     }
     y++;
 
