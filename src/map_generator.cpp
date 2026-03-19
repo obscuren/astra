@@ -147,6 +147,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
 
             switch (mt) {
                 case MapType::SpaceStation:
+                case MapType::Starship:
                     entry = &pick_flavor(station_room_flavors, rng);
                     break;
                 case MapType::DerelictStation:
@@ -164,6 +165,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
         } else {
             switch (mt) {
                 case MapType::SpaceStation:
+                case MapType::Starship:
                     entry = &pick_flavor(station_corridor_flavors, rng);
                     break;
                 case MapType::DerelictStation:
@@ -328,6 +330,15 @@ MapProperties default_properties(MapType type) {
             p.width = 120;
             p.height = 60;
             break;
+        case MapType::Starship:
+            p.environment = Environment::Station;
+            p.climate = Climate::Vacuum;
+            p.has_backdrop = true;
+            p.room_count_min = 4;
+            p.room_count_max = 4;
+            p.width = 50;
+            p.height = 20;
+            break;
     }
     return p;
 }
@@ -340,6 +351,7 @@ std::unique_ptr<MapGenerator> make_derelict_station_generator();
 std::unique_ptr<MapGenerator> make_open_cave_generator();
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator();
+std::unique_ptr<MapGenerator> make_starship_generator();
 
 std::unique_ptr<MapGenerator> create_generator(MapType type) {
     switch (type) {
@@ -355,6 +367,8 @@ std::unique_ptr<MapGenerator> create_generator(MapType type) {
         case MapType::Nebula:
             // Fall back to station for now
             return make_station_generator();
+        case MapType::Starship:
+            return make_starship_generator();
     }
     return make_station_generator();
 }
@@ -365,6 +379,10 @@ std::unique_ptr<MapGenerator> create_hub_generator() {
 
 std::unique_ptr<MapGenerator> create_derelict_generator() {
     return make_derelict_station_generator();
+}
+
+std::unique_ptr<MapGenerator> create_starship_generator() {
+    return make_starship_generator();
 }
 
 } // namespace astra

@@ -494,7 +494,9 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
     w.write_u32(nav.current_system_id);
     w.write_i32(nav.navi_range);
     w.write_i32(nav.current_body_index);
+    w.write_i32(nav.current_moon_index);
     w.write_u8(nav.at_station ? 1 : 0);
+    w.write_u8(nav.on_ship ? 1 : 0);
     w.write_u32(static_cast<uint32_t>(nav.systems.size()));
     for (const auto& sys : nav.systems) {
         w.write_u32(sys.id);
@@ -734,10 +736,20 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
     nav.navi_range = r.read_i32();
     if (version >= 5) {
         nav.current_body_index = r.read_i32();
-        nav.at_station = r.read_u8() != 0;
+        if (version >= 6) {
+            nav.current_moon_index = r.read_i32();
+            nav.at_station = r.read_u8() != 0;
+            nav.on_ship = r.read_u8() != 0;
+        } else {
+            nav.current_moon_index = -1;
+            nav.at_station = r.read_u8() != 0;
+            nav.on_ship = false;
+        }
     } else {
         nav.current_body_index = -1;
+        nav.current_moon_index = -1;
         nav.at_station = true;
+        nav.on_ship = false;
     }
     uint32_t count = r.read_u32();
     nav.systems.resize(count);

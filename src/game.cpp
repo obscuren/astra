@@ -483,10 +483,13 @@ void Game::new_game() {
 
 void Game::save_current_location() {
     LocationKey key;
-    if (navigation_.at_station) {
-        key = {navigation_.current_system_id, -1, true};
+    if (navigation_.on_ship) {
+        key = ship_key_;
+    } else if (navigation_.at_station) {
+        key = {navigation_.current_system_id, -1, -1, true};
     } else {
-        key = {navigation_.current_system_id, navigation_.current_body_index, false};
+        key = {navigation_.current_system_id, navigation_.current_body_index,
+               navigation_.current_moon_index, false};
     }
     LocationState& state = location_cache_[key];
     state.map = std::move(map_);
@@ -506,16 +509,54 @@ void Game::restore_location(const LocationKey& key) {
     npcs_ = std::move(state.npcs);
     ground_items_ = std::move(state.ground_items);
 
-    // Spawn at the map's starting area (docking bay / entrance), not cached position
-    std::vector<std::pair<int,int>> exclude;
-    for (const auto& npc : npcs_) {
-        exclude.push_back({npc.x, npc.y});
-    }
-    if (!map_.find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
-        map_.find_open_spot(player_.x, player_.y);
+    if (key == ship_key_) {
+        // Restore cached position on the ship
+        player_.x = state.player_x;
+        player_.y = state.player_y;
+    } else {
+        // Spawn at the map's starting area (docking bay / entrance), not cached position
+        std::vector<std::pair<int,int>> exclude;
+        for (const auto& npc : npcs_) {
+            exclude.push_back({npc.x, npc.y});
+        }
+        if (!map_.find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
+            map_.find_open_spot(player_.x, player_.y);
+        }
     }
 
     location_cache_.erase(it);
+}
+
+void Game::enter_ship() {
+    save_current_location();
+    navigation_.on_ship = true;
+
+    if (location_cache_.count(ship_key_)) {
+        restore_location(ship_key_);
+    } else {
+        // Generate the ship for the first time
+        unsigned ship_seed = seed_ ^ 0x5B1Bu;
+        auto props = default_properties(MapType::Starship);
+        map_ = TileMap(props.width, props.height, MapType::Starship);
+        auto gen = create_starship_generator();
+        gen->generate(map_, props, ship_seed);
+        map_.set_location_name("Your Starship");
+
+        npcs_.clear();
+        ground_items_.clear();
+        // Spawn in region 0 (cockpit)
+        if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
+            map_.find_open_spot(player_.x, player_.y);
+        }
+
+        visibility_ = VisibilityMap(map_.width(), map_.height());
+    }
+
+    visibility_.reveal_all();
+    current_region_ = -1;
+    compute_camera();
+    check_region_change();
+    log("You board your starship.");
 }
 
 void Game::travel_to_destination(const ChartAction& action) {
@@ -534,15 +575,45 @@ void Game::travel_to_destination(const ChartAction& action) {
 
     switch (action.type) {
         case ChartActionType::WarpToSystem: {
-            dest_key = {target_sys.id, -1, true};
-            dest_type = target_sys.station.derelict ? MapType::DerelictStation
-                                                    : MapType::SpaceStation;
-            dest_biome = Biome::Station;
-            location_name = target_sys.station.name;
-            break;
+            // Warp puts you on your ship in the new system
+            save_current_location();
+            navigation_.current_system_id = target_sys.id;
+            discover_nearby(navigation_, target_sys.id, 20.0f);
+            navigation_.on_ship = true;
+            navigation_.at_station = false;
+            navigation_.current_body_index = -1;
+            navigation_.current_moon_index = -1;
+
+            if (location_cache_.count(ship_key_)) {
+                restore_location(ship_key_);
+            } else {
+                // Generate ship for the first time
+                unsigned ship_seed = seed_ ^ 0x5B1Bu;
+                auto props = default_properties(MapType::Starship);
+                map_ = TileMap(props.width, props.height, MapType::Starship);
+                auto gen = create_starship_generator();
+                gen->generate(map_, props, ship_seed);
+                map_.set_location_name("Your Starship");
+                npcs_.clear();
+                ground_items_.clear();
+                if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
+                    map_.find_open_spot(player_.x, player_.y);
+                }
+                visibility_ = VisibilityMap(map_.width(), map_.height());
+            }
+
+            visibility_.reveal_all();
+            current_region_ = -1;
+            recompute_fov();
+            compute_camera();
+            check_region_change();
+            log("Warp drive engaged...");
+            log("You arrive at " + colored(target_sys.name, Color::Yellow)
+                + ". Open the star chart to navigate.");
+            return;
         }
         case ChartActionType::TravelToStation: {
-            dest_key = {target_sys.id, -1, true};
+            dest_key = {target_sys.id, -1, -1, true};
             dest_type = target_sys.station.derelict ? MapType::DerelictStation
                                                     : MapType::SpaceStation;
             dest_biome = Biome::Station;
@@ -554,7 +625,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 action.body_index >= static_cast<int>(target_sys.bodies.size()))
                 return;
 
-            dest_key = {target_sys.id, action.body_index, false};
+            dest_key = {target_sys.id, action.body_index, action.moon_index, false};
             const auto& body = target_sys.bodies[action.body_index];
 
             // Map body type to map type
@@ -589,7 +660,14 @@ void Game::travel_to_destination(const ChartAction& action) {
                     break;
             }
 
-            location_name = body.name;
+            if (action.moon_index >= 0 &&
+                action.moon_index < static_cast<int>(body.moon_names.size())) {
+                location_name = body.moon_names[action.moon_index];
+            } else if (action.moon_index >= 0) {
+                location_name = body.name + " Moon " + std::to_string(action.moon_index + 1);
+            } else {
+                location_name = body.name;
+            }
             break;
         }
         default:
@@ -601,19 +679,17 @@ void Game::travel_to_destination(const ChartAction& action) {
 
     // Update navigation state
     switch (action.type) {
-        case ChartActionType::WarpToSystem:
-            navigation_.current_system_id = target_sys.id;
-            discover_nearby(navigation_, target_sys.id, 20.0f);
-            navigation_.at_station = true;
-            navigation_.current_body_index = -1;
-            break;
         case ChartActionType::TravelToStation:
+            navigation_.on_ship = false;
             navigation_.at_station = true;
             navigation_.current_body_index = -1;
+            navigation_.current_moon_index = -1;
             break;
         case ChartActionType::TravelToBody:
+            navigation_.on_ship = false;
             navigation_.at_station = false;
             navigation_.current_body_index = action.body_index;
+            navigation_.current_moon_index = action.moon_index;
             break;
         default:
             break;
@@ -643,16 +719,34 @@ void Game::travel_to_destination(const ChartAction& action) {
         visibility_ = VisibilityMap(map_.width(), map_.height());
     }
 
+    // Place ShipTerminal at stations so the player can re-board
+    if (action.type == ChartActionType::TravelToStation) {
+        // Check if a ShipTerminal already exists
+        bool has_terminal = false;
+        for (int i = 0; i < map_.fixture_count(); ++i) {
+            if (map_.fixture(i).type == FixtureType::ShipTerminal) {
+                has_terminal = true;
+                break;
+            }
+        }
+        if (!has_terminal) {
+            std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+            for (const auto& npc : npcs_) {
+                occupied.push_back({npc.x, npc.y});
+            }
+            int tx, ty;
+            if (map_.find_open_spot_near(player_.x, player_.y, tx, ty, occupied, &rng_)) {
+                map_.add_fixture(tx, ty, make_fixture(FixtureType::ShipTerminal));
+            }
+        }
+    }
+
     current_region_ = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
 
-    if (action.type == ChartActionType::WarpToSystem) {
-        log("Warp drive engaged...");
-        log("You arrive at " + colored(target_sys.name, Color::Yellow)
-            + " and dock at " + colored(location_name, Color::Cyan) + ".");
-    } else if (action.type == ChartActionType::TravelToStation) {
+    if (action.type == ChartActionType::TravelToStation) {
         log("You dock at " + colored(location_name, Color::Cyan) + ".");
     } else {
         log("You land on " + colored(location_name, Color::Cyan) + ".");
@@ -857,6 +951,17 @@ void Game::interact_fixture(int fid) {
             log("Weapons gleam behind reinforced glass. Talk to the Arms Dealer to browse.");
             break;
         }
+        case FixtureType::ShipTerminal: {
+            npc_dialog_ = Dialog("Shipping Terminal",
+                "Your starship is docked and ready.");
+            npc_dialog_.add_option("Board ship");
+            npc_dialog_.add_option("Cancel");
+            npc_dialog_.open();
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -6; // sentinel: ship terminal
+            break;
+        }
         default:
             log("Nothing happens.");
             break;
@@ -990,6 +1095,16 @@ void Game::advance_dialog(int selected) {
         return;
     }
 
+    // Ship terminal dialog
+    if (dialog_node_ == -6) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        if (selected == 0) {
+            enter_ship();
+        }
+        return;
+    }
+
     if (!interacting_npc_) return;
 
     // Currently navigating a dialog tree
@@ -1088,6 +1203,11 @@ void Game::compute_camera() {
 }
 
 void Game::recompute_fov() {
+    if (navigation_.on_ship) {
+        visibility_.reveal_all();
+        return;
+    }
+
     compute_fov(map_, visibility_, player_.x, player_.y, player_.view_radius);
 
     std::vector<bool> reveal(map_.region_count(), false);

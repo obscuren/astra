@@ -107,6 +107,11 @@ static void furnish_docking_bay(RoomContext& ctx) {
     ctx.place(ctx.ix1, ctx.iy1 + 1, make_fixture(FixtureType::Crate));
     ctx.place(ctx.ix2, ctx.iy1, make_fixture(FixtureType::Crate));
     ctx.place(ctx.ix2 - 1, ctx.iy1, make_fixture(FixtureType::Crate));
+
+    // ShipTerminal near center of docking bay
+    int mid_x = (ctx.ix1 + ctx.ix2) / 2;
+    int mid_y = (ctx.iy1 + ctx.iy2) / 2;
+    ctx.place(mid_x, mid_y, make_fixture(FixtureType::ShipTerminal));
 }
 
 static void furnish_cantina(RoomContext& ctx) {

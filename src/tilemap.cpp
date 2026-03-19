@@ -310,6 +310,9 @@ FixtureData make_fixture(FixtureType type) {
             fd.glyph = '='; fd.color = Color::Green;
             fd.passable = false; fd.interactable = true;
             fd.cooldown = 50; break;
+        case FixtureType::ShipTerminal:
+            fd.glyph = '>'; fd.color = Color::Yellow;
+            fd.passable = false; fd.interactable = true; break;
     }
     return fd;
 }

@@ -14,6 +14,7 @@ struct ChartAction {
     ChartActionType type = ChartActionType::None;
     int system_index = -1;   // index into nav_->systems
     int body_index = -1;     // destination body
+    int moon_index = -1;     // destination moon (-1 = body itself)
     bool to_station = false; // docking at station
 };
 

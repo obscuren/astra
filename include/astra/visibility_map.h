@@ -20,6 +20,7 @@ public:
     void clear_visible();
 
     void set_visible(int x, int y);
+    void reveal_all();
     Visibility get(int x, int y) const;
 
     int width() const { return width_; }

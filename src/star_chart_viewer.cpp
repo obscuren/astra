@@ -51,6 +51,11 @@ void StarChartViewer::open() {
                         sub_cursor_ = (host >= 0) ? 0 : -1;
                     } else if (nav_->current_body_index >= 0) {
                         body_cursor_ = nav_->current_body_index;
+                        // If on a moon, select it
+                        sub_cursor_ = (nav_->current_moon_index >= 0)
+                                      ? nav_->current_moon_index + 1 : -1;
+                    } else if (nav_->on_ship) {
+                        body_cursor_ = 0; // in orbit around host star
                         sub_cursor_ = -1;
                     } else {
                         body_cursor_ = 0;
@@ -199,11 +204,6 @@ bool StarChartViewer::handle_input(int key) {
                         scan_message_timer_ = 90;
                         break;
                     }
-                    if (!target.has_station) {
-                        scan_message_ = "No station to dock at.";
-                        scan_message_timer_ = 90;
-                        break;
-                    }
                     // Check warp range
                     const StarSystem* current_sys = nullptr;
                     for (const auto& s : nav_->systems) {
@@ -218,7 +218,7 @@ bool StarChartViewer::handle_input(int key) {
                             break;
                         }
                     }
-                    pending_action_ = {ChartActionType::WarpToSystem, cursor_index_, -1, true};
+                    pending_action_ = {ChartActionType::WarpToSystem, cursor_index_, -1, -1, true};
                     close();
                     return true;
                 }
@@ -274,35 +274,6 @@ bool StarChartViewer::handle_input(int key) {
                         ++sub_cursor_;
                     }
                     return true;
-                case 'w': {
-                    // Warp — same logic as Local view
-                    if (sys.id == nav_->current_system_id) {
-                        scan_message_ = "Already in this system.";
-                        scan_message_timer_ = 90;
-                        break;
-                    }
-                    if (!sys.has_station) {
-                        scan_message_ = "No station to dock at.";
-                        scan_message_timer_ = 90;
-                        break;
-                    }
-                    const StarSystem* cur_sys = nullptr;
-                    for (const auto& s : nav_->systems) {
-                        if (s.id == nav_->current_system_id) { cur_sys = &s; break; }
-                    }
-                    if (cur_sys) {
-                        float dist = system_distance(*cur_sys, sys);
-                        float max_range = static_cast<float>(nav_->navi_range) * 20.0f;
-                        if (dist > max_range) {
-                            scan_message_ = "Out of warp range.";
-                            scan_message_timer_ = 90;
-                            break;
-                        }
-                    }
-                    pending_action_ = {ChartActionType::WarpToSystem, cursor_index_, -1, true};
-                    close();
-                    return true;
-                }
                 case 't': {
                     // Travel within current system only
                     if (sys.id != nav_->current_system_id) {
@@ -317,7 +288,7 @@ bool StarChartViewer::handle_input(int key) {
                             scan_message_timer_ = 90;
                             break;
                         }
-                        pending_action_ = {ChartActionType::TravelToStation, cursor_index_, -1, true};
+                        pending_action_ = {ChartActionType::TravelToStation, cursor_index_, -1, -1, true};
                         close();
                         return true;
                     } else if (sub_cursor_ == -1 && body_cursor_ >= 0 && body_cursor_ < body_count) {
@@ -328,18 +299,20 @@ bool StarChartViewer::handle_input(int key) {
                             scan_message_timer_ = 90;
                             break;
                         }
-                        if (!nav_->at_station && nav_->current_body_index == body_cursor_) {
+                        if (!nav_->at_station && nav_->current_body_index == body_cursor_ &&
+                            nav_->current_moon_index < 0) {
                             scan_message_ = "Already here.";
                             scan_message_timer_ = 90;
                             break;
                         }
-                        pending_action_ = {ChartActionType::TravelToBody, cursor_index_, body_cursor_, false};
+                        pending_action_ = {ChartActionType::TravelToBody, cursor_index_, body_cursor_, -1, false};
                         close();
                         return true;
                     } else if (sub_cursor_ >= 1) {
-                        // Moon selected — treat as body travel
+                        // Moon selected — travel to moon on this body
                         if (body_cursor_ >= 0 && body_cursor_ < body_count) {
-                            pending_action_ = {ChartActionType::TravelToBody, cursor_index_, body_cursor_, false};
+                            int moon_idx = sub_cursor_ - 1;
+                            pending_action_ = {ChartActionType::TravelToBody, cursor_index_, body_cursor_, moon_idx, false};
                             close();
                             return true;
                         }
@@ -515,7 +488,7 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
             win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [w] Warp  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
             break;
         case ChartZoom::System:
-            win.set_footer("[Left/Right] Select body  [Up/Down] Sub-items  [t] Travel  [w] Warp  [-] Back  [Esc] Back");
+            win.set_footer("[Left/Right] Select body  [Up/Down] Sub-items  [t] Travel  [-] Back  [Esc] Back");
             break;
     }
 
@@ -1041,6 +1014,25 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
             } else if (nav_->current_body_index >= 0 &&
                        nav_->current_body_index < static_cast<int>(body_sx.size())) {
                 int px = body_sx[nav_->current_body_index];
+                if (nav_->current_moon_index >= 0) {
+                    // On a moon: row = cy + 3 + moon_index * 2
+                    int py = cy + 3 + nav_->current_moon_index * 2;
+                    const auto& body = sys.bodies[nav_->current_body_index];
+                    int mi = nav_->current_moon_index;
+                    std::string mname = (mi < static_cast<int>(body.moon_names.size()))
+                                        ? body.moon_names[mi]
+                                        : "Moon " + std::to_string(mi + 1);
+                    int ax = px + 2 + static_cast<int>(mname.size()) + 1;
+                    if (ax < mw && py >= 0 && py < mh)
+                        map_ctx.put(ax, py, '@', Color::Green);
+                } else {
+                    int py = cy - 1;
+                    if (px + 2 < mw && py >= 0)
+                        map_ctx.put(px + 2, py, '@', Color::Green);
+                }
+            } else if (nav_->on_ship && !body_sx.empty()) {
+                // Ship in orbit — show at host star (body 0)
+                int px = body_sx[0];
                 int py = cy - 1;
                 if (px + 2 < mw && py >= 0)
                     map_ctx.put(px + 2, py, '@', Color::Green);
@@ -1070,11 +1062,25 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
     if (sys.id == nav_->current_system_id) {
         if (nav_->at_station && sys.has_station) {
             info_ctx.text(1, y, "You", Color::Green);
-            info_ctx.text(10, y++, "@ " + sys.station.name, Color::Green);
+            std::string loc = "@ " + sys.station.name;
+            if (nav_->on_ship) loc += " (ship)";
+            info_ctx.text(10, y++, loc, Color::Green);
         } else if (nav_->current_body_index >= 0 &&
                    nav_->current_body_index < static_cast<int>(sys.bodies.size())) {
             info_ctx.text(1, y, "You", Color::Green);
-            info_ctx.text(10, y++, "@ " + sys.bodies[nav_->current_body_index].name, Color::Green);
+            const auto& body = sys.bodies[nav_->current_body_index];
+            if (nav_->current_moon_index >= 0 &&
+                nav_->current_moon_index < static_cast<int>(body.moon_names.size())) {
+                info_ctx.text(10, y++, "@ " + body.moon_names[nav_->current_moon_index], Color::Green);
+            } else if (nav_->current_moon_index >= 0) {
+                info_ctx.text(10, y++, "@ " + body.name + " Moon " +
+                              std::to_string(nav_->current_moon_index + 1), Color::Green);
+            } else {
+                info_ctx.text(10, y++, "@ " + body.name, Color::Green);
+            }
+        } else if (nav_->on_ship) {
+            info_ctx.text(1, y, "You", Color::Green);
+            info_ctx.text(10, y++, "@ Starship (in orbit)", Color::Green);
         }
     }
     y++;

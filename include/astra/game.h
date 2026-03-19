@@ -59,7 +59,8 @@ private:
     void new_game();
     void travel_to_destination(const ChartAction& action);
     void save_current_location();
-    void restore_location(const std::tuple<uint32_t, int, bool>& key);
+    void restore_location(const std::tuple<uint32_t, int, int, bool>& key);
+    void enter_ship();
     void try_move(int dx, int dy);
     void try_interact(int dx, int dy);
     void advance_world(int cost);
@@ -194,9 +195,10 @@ private:
     static constexpr size_t max_messages_ = 200;
 
     // Location cache — preserves visited locations
-    // Key: {system_id, body_index, is_station}
-    //   station: {system_id, -1, true}
-    //   body:    {system_id, body_index, false}
+    // Key: {system_id, body_index, moon_index, is_station}
+    //   station: {system_id, -1, -1, true}
+    //   body:    {system_id, body_index, -1, false}
+    //   moon:    {system_id, body_index, moon_index, false}
     struct LocationState {
         TileMap map;
         VisibilityMap visibility;
@@ -205,7 +207,8 @@ private:
         int player_x = 0;
         int player_y = 0;
     };
-    using LocationKey = std::tuple<uint32_t, int, bool>;
+    using LocationKey = std::tuple<uint32_t, int, int, bool>;
+    static constexpr LocationKey ship_key_ = {0, -2, -1, false};
     std::map<LocationKey, LocationState> location_cache_;
 };
 

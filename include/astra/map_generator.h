@@ -45,5 +45,6 @@ protected:
 std::unique_ptr<MapGenerator> create_generator(MapType type);
 std::unique_ptr<MapGenerator> create_hub_generator();
 std::unique_ptr<MapGenerator> create_derelict_generator();
+std::unique_ptr<MapGenerator> create_starship_generator();
 
 } // namespace astra

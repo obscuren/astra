@@ -38,6 +38,7 @@ enum class MapType : uint8_t {
     Rocky,
     Lava,
     Asteroid,
+    Starship,
 };
 
 enum class Biome : uint8_t {
@@ -93,6 +94,11 @@ enum class RoomFlavor : uint8_t {
     CorridorDimLit,
     CorridorMaintenance,
     CorridorDamaged,
+    // Starship interiors
+    ShipCockpit,
+    ShipCommandCenter,
+    ShipMessHall,
+    ShipQuarters,
 };
 
 // --- Fixture system ---
@@ -121,6 +127,7 @@ enum class FixtureType : uint8_t {
     SupplyLocker,   // '&'  — search for random loot (future)
     StarChart,      // '*'  — observatory lore terminal (future)
     RestPod,        // '='  — crew quarters rest (advance ticks, full heal)
+    ShipTerminal,   // '>'  — board your starship
 };
 
 struct FixtureData {

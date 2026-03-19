@@ -1,5 +1,7 @@
 #include "astra/visibility_map.h"
 
+#include <algorithm>
+
 namespace astra {
 
 VisibilityMap::VisibilityMap(int width, int height)
@@ -12,6 +14,10 @@ void VisibilityMap::clear_visible() {
             c = Visibility::Explored;
         }
     }
+}
+
+void VisibilityMap::reveal_all() {
+    std::fill(cells_.begin(), cells_.end(), Visibility::Visible);
 }
 
 void VisibilityMap::set_visible(int x, int y) {
