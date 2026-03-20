@@ -596,10 +596,64 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
         place_n(habitat_stamps, habitat_stamp_count, count);
     }
 
-    // --- Caves ---
+    // --- Caves (terrain-aware placement) ---
     if (props_->body_has_dungeon) {
         int count = std::uniform_int_distribution<int>(2, 5)(rng);
-        place_n(cave_stamps, cave_stamp_count, count);
+
+        // Build terrain-biased candidate lists for caves
+        std::vector<Pos> mountain_edge;  // passable tiles adjacent to mountains
+        std::vector<Pos> water_edge;     // passable tiles adjacent to lakes
+        for (const auto& c : candidates) {
+            Tile t = map_->get(c.x, c.y);
+            if (t >= Tile::OW_CaveEntrance && t <= Tile::OW_Landing) continue;
+            bool adj_mountain = false, adj_water = false;
+            static const int dx4[] = {0, 0, -1, 1};
+            static const int dy4[] = {-1, 1, 0, 0};
+            for (int d = 0; d < 4; ++d) {
+                Tile nb = map_->get(c.x + dx4[d], c.y + dy4[d]);
+                if (nb == Tile::OW_Mountains) adj_mountain = true;
+                if (nb == Tile::OW_Lake) adj_water = true;
+            }
+            if (adj_mountain) mountain_edge.push_back(c);
+            if (adj_water) water_edge.push_back(c);
+        }
+        std::shuffle(mountain_edge.begin(), mountain_edge.end(), rng);
+        std::shuffle(water_edge.begin(), water_edge.end(), rng);
+
+        int placed_caves = 0;
+
+        // Place ~60% of caves at mountain edges
+        int mountain_caves = std::max(1, count * 3 / 5);
+        for (const auto& c : mountain_edge) {
+            if (placed_caves >= mountain_caves) break;
+            if (too_close(c.x, c.y)) continue;
+            // Pick a random cave stamp
+            std::uniform_int_distribution<int> si(0, cave_stamp_count - 1);
+            int idx = si(rng);
+            if (stamp_fits(cave_stamps[idx], c.x, c.y)) {
+                place_stamp(cave_stamps[idx], c.x, c.y);
+                ++placed_caves;
+            }
+        }
+
+        // Place ~20% as water caves (next to lakes)
+        int water_caves = std::max(0, count / 5);
+        for (const auto& c : water_edge) {
+            if (placed_caves >= mountain_caves + water_caves) break;
+            if (too_close(c.x, c.y)) continue;
+            std::uniform_int_distribution<int> si(0, cave_stamp_count - 1);
+            int idx = si(rng);
+            if (stamp_fits(cave_stamps[idx], c.x, c.y)) {
+                place_stamp(cave_stamps[idx], c.x, c.y);
+                ++placed_caves;
+            }
+        }
+
+        // Fill remainder from general candidates
+        int remaining = count - placed_caves;
+        if (remaining > 0) {
+            place_n(cave_stamps, cave_stamp_count, remaining);
+        }
     }
 
     // --- Ruins ---
