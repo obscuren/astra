@@ -46,6 +46,8 @@ public:
     void run();
 
 private:
+    using LocationKey = std::tuple<uint32_t, int, int, bool, int, int>;
+
     // Input
     void handle_input(int key);
     void handle_menu_input(int key);
@@ -59,8 +61,10 @@ private:
     void new_game();
     void travel_to_destination(const ChartAction& action);
     void save_current_location();
-    void restore_location(const std::tuple<uint32_t, int, int, bool>& key);
+    void restore_location(const LocationKey& key);
     void enter_ship();
+    void enter_overworld_tile();
+    void exit_to_overworld();
     void try_move(int dx, int dy);
     void try_interact(int dx, int dy);
     void advance_world(int cost);
@@ -195,10 +199,10 @@ private:
     static constexpr size_t max_messages_ = 200;
 
     // Location cache — preserves visited locations
-    // Key: {system_id, body_index, moon_index, is_station}
-    //   station: {system_id, -1, -1, true}
-    //   body:    {system_id, body_index, -1, false}
-    //   moon:    {system_id, body_index, moon_index, false}
+    // Key: {system_id, body_index, moon_index, is_station, ow_x, ow_y}
+    //   station:   {system_id, -1, -1, true, -1, -1}
+    //   overworld: {system_id, body_index, moon_index, false, -1, -1}
+    //   detail:    {system_id, body_index, moon_index, false, ow_x, ow_y}
     struct LocationState {
         TileMap map;
         VisibilityMap visibility;
@@ -207,9 +211,13 @@ private:
         int player_x = 0;
         int player_y = 0;
     };
-    using LocationKey = std::tuple<uint32_t, int, int, bool>;
-    static constexpr LocationKey ship_key_ = {0, -2, -1, false};
+    static constexpr LocationKey ship_key_ = {0, -2, -1, false, -1, -1};
     std::map<LocationKey, LocationState> location_cache_;
+
+    // Overworld state
+    bool on_overworld_ = false;
+    int overworld_x_ = 0;
+    int overworld_y_ = 0;
 };
 
 } // namespace astra

@@ -81,6 +81,8 @@ TileProps tile_props(Tile tile, MapType map_type) {
                 return {Material::Obsidianite, lava_wall_bumps};
             case MapType::Nebula:
                 return {Material::Nebula, nebula_wall_bumps};
+            case MapType::Overworld:
+                return {Material::Rock, rocky_wall_bumps};
         }
     }
 

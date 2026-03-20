@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/celestial_body.h"
 #include "astra/tilemap.h"
 
 #include <cstdint>
@@ -35,6 +36,13 @@ struct MapProperties {
     int room_count_max = 12;
     int width = 120;
     int height = 60;
+
+    // Overworld generation context (only used for MapType::Overworld)
+    BodyType body_type = BodyType::Rocky;
+    Atmosphere body_atmosphere = Atmosphere::None;
+    Temperature body_temperature = Temperature::Cold;
+    bool body_has_dungeon = false;
+    int body_danger_level = 1;
 };
 
 MapProperties default_properties(MapType type);
