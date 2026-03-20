@@ -68,6 +68,128 @@ inline char tile_glyph(Tile t) {
     }
 }
 
+// Position-varied UTF-8 glyphs for overworld tiles (CP437-inspired).
+// Returns a null-terminated UTF-8 string occupying one terminal cell.
+inline const char* overworld_glyph(Tile t, int x, int y) {
+    // Deterministic position hash for glyph variation
+    unsigned h = static_cast<unsigned>(x) * 374761393u
+               + static_cast<unsigned>(y) * 668265263u;
+    h = (h ^ (h >> 13)) * 1103515245u;
+    h = h ^ (h >> 16);
+
+    switch (t) {
+        case Tile::OW_Mountains: {
+            static const char* g[] = {
+                "\xe2\x96\xb2",  // ▲
+                "\xe2\x88\xa9",  // ∩
+                "^",
+                "\xce\x93",      // Γ
+                "\xe2\x96\xb2",  // ▲
+            };
+            return g[h % 5];
+        }
+        case Tile::OW_Forest: {
+            static const char* g[] = {
+                "\xe2\x99\xa0",  // ♠
+                "\xce\xa6",      // Φ
+                "\xc6\x92",      // ƒ
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_Plains: {
+            static const char* g[] = {
+                "\xc2\xb7",      // ·
+                ".",
+                ",",
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_Desert: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xc2\xb7",      // ·
+                ".",
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_Lake: {
+            return "\xe2\x89\x88"; // ≈
+        }
+        case Tile::OW_River: {
+            static const char* g[] = {
+                "\xe2\x89\x88",  // ≈
+                "~",
+            };
+            return g[h % 2];
+        }
+        case Tile::OW_Swamp: {
+            static const char* g[] = {
+                "\xcf\x84",      // τ
+                "\"",
+                ",",
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_Fungal: {
+            static const char* g[] = {
+                "\xce\xa6",      // Φ
+                "\"",
+                "\xcf\x84",      // τ
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_IceField: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xc2\xb7",      // ·
+                "'",
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_LavaFlow: {
+            static const char* g[] = {
+                "\xe2\x89\x88",  // ≈
+                "~",
+            };
+            return g[h % 2];
+        }
+        case Tile::OW_Crater: {
+            static const char* g[] = {
+                "o",
+                "\xc2\xb0",      // °
+            };
+            return g[h % 2];
+        }
+        case Tile::OW_CaveEntrance: {
+            static const char* g[] = {
+                "\xe2\x96\xbc",  // ▼
+                "\xce\x98",      // Θ
+            };
+            return g[h % 2];
+        }
+        case Tile::OW_Ruins: {
+            static const char* g[] = {
+                "\xcf\x80",      // π
+                "\xce\xa9",      // Ω
+                "\xc2\xa7",      // §
+                "\xce\xa3",      // Σ
+            };
+            return g[h % 4];
+        }
+        case Tile::OW_Settlement:  return "\xe2\x99\xa6"; // ♦
+        case Tile::OW_CrashedShip: {
+            static const char* g[] = {
+                "%",
+                "\xc2\xa4",      // ¤
+            };
+            return g[h % 2];
+        }
+        case Tile::OW_Outpost:     return "+";
+        case Tile::OW_Landing:     return "\xe2\x89\xa1"; // ≡
+        default:                   return " ";
+    }
+}
+
 enum class MapType : uint8_t {
     SpaceStation,
     DerelictStation,
@@ -264,6 +386,12 @@ public:
     bool is_hub() const { return hub_; }
     void set_hub(bool h) { hub_ = h; }
 
+    // Glyph override layer (for stamp system)
+    uint8_t glyph_override(int x, int y) const;
+    void set_glyph_override(int x, int y, uint8_t idx);
+    const std::vector<uint8_t>& glyph_overrides() const { return glyph_override_; }
+    void load_glyph_overrides(std::vector<uint8_t> overrides);
+
     // Const accessors for serialization
     const std::vector<Tile>& tiles() const { return tiles_; }
     const std::vector<int>& region_ids() const { return region_ids_; }
@@ -308,6 +436,7 @@ private:
     std::vector<Region> regions_;
     std::vector<FixtureData> fixtures_;
     std::vector<int> fixture_ids_;  // parallel to tiles_, -1 if no fixture
+    std::vector<uint8_t> glyph_override_;  // parallel to tiles_, 0 = no override
 };
 
 } // namespace astra

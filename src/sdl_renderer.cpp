@@ -93,6 +93,11 @@ void SdlRenderer::draw_char(int x, int y, char ch, Color /*fg*/) {
     draw_char(x, y, ch);
 }
 
+void SdlRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
+    // TODO: UTF-8 glyph support for SDL renderer
+    if (utf8 && utf8[0]) draw_char(x, y, utf8[0], fg);
+}
+
 void SdlRenderer::draw_string(int x, int y, const std::string& text) {
     for (size_t i = 0; i < text.size(); ++i) {
         draw_char(x + static_cast<int>(i), y, text[i]);

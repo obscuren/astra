@@ -141,7 +141,23 @@ void TerminalRenderer::draw_char(int x, int y, char ch) {
 
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
-        buffer_[y][x] = {ch, fg};
+        auto& cell = buffer_[y][x];
+        cell.ch[0] = ch;
+        cell.ch[1] = '\0';
+        cell.fg = fg;
+    }
+}
+
+void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
+    if (x >= 0 && x < width_ && y >= 0 && y < height_) {
+        auto& cell = buffer_[y][x];
+        int i = 0;
+        while (i < 4 && utf8[i]) {
+            cell.ch[i] = utf8[i];
+            ++i;
+        }
+        cell.ch[i] = '\0';
+        cell.fg = fg;
     }
 }
 

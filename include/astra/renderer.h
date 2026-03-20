@@ -31,8 +31,8 @@ enum class Color : uint8_t {
     BrightMagenta = 13,
 };
 
-// Sentinel char that renderers expand to a full-block glyph (█).
-static constexpr char BLOCK_CHAR = '\x01';
+// UTF-8 full-block glyph (█).
+static constexpr const char* BLOCK_GLYPH = "\xe2\x96\x88";
 
 // Inline color markers for styled log messages.
 // COLOR_BEGIN is followed by one byte (Color value). COLOR_END resets to default.
@@ -62,6 +62,7 @@ public:
 
     virtual void draw_char(int x, int y, char ch) = 0;
     virtual void draw_char(int x, int y, char ch, Color fg) = 0;
+    virtual void draw_glyph(int x, int y, const char* utf8, Color fg) = 0;
     virtual void draw_string(int x, int y, const std::string& text) = 0;
 
     virtual int get_width() const = 0;

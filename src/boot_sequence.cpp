@@ -134,7 +134,7 @@ void BootSequence::draw_title() {
                 int py = start_y + row;
                 if (px < 0 || px >= w || py < 0 || py >= h) continue;
                 if (line[c] == '#') {
-                    renderer_->draw_char(px, py, BLOCK_CHAR, Color::White);
+                    renderer_->draw_glyph(px, py, BLOCK_GLYPH, Color::White);
                 }
             }
         }

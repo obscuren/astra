@@ -347,8 +347,8 @@ MapProperties default_properties(MapType type) {
             p.has_backdrop = false;
             p.room_count_min = 0;
             p.room_count_max = 0;
-            p.width = 80;
-            p.height = 40;
+            p.width = 120;
+            p.height = 60;
             break;
     }
     return p;

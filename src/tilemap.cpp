@@ -10,7 +10,8 @@ TileMap::TileMap(int width, int height, MapType type)
       tiles_(width * height, Tile::Empty),
       backdrop_(width * height, '\0'),
       region_ids_(width * height, -1),
-      fixture_ids_(width * height, -1) {}
+      fixture_ids_(width * height, -1),
+      glyph_override_(width * height, 0) {}
 
 char TileMap::backdrop(int x, int y) const {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return '\0';
@@ -107,6 +108,28 @@ void TileMap::clear_all() {
     if (!fixture_ids_.empty()) {
         std::fill(fixture_ids_.begin(), fixture_ids_.end(), -1);
     }
+    if (!glyph_override_.empty()) {
+        std::fill(glyph_override_.begin(), glyph_override_.end(), static_cast<uint8_t>(0));
+    }
+}
+
+uint8_t TileMap::glyph_override(int x, int y) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return 0;
+    if (glyph_override_.empty()) return 0;
+    return glyph_override_[y * width_ + x];
+}
+
+void TileMap::set_glyph_override(int x, int y, uint8_t idx) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    if (glyph_override_.empty()) {
+        glyph_override_.resize(width_ * height_, 0);
+    }
+    glyph_override_[y * width_ + x] = idx;
+}
+
+void TileMap::load_glyph_overrides(std::vector<uint8_t> overrides) {
+    overrides.resize(static_cast<size_t>(width_) * height_, 0);
+    glyph_override_ = std::move(overrides);
 }
 
 void TileMap::find_open_spot(int& out_x, int& out_y) const {

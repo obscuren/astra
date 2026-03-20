@@ -33,6 +33,7 @@ set(ASTRA_SOURCES
     src/generators/derelict_station_generator.cpp
     src/generators/starship_generator.cpp
     src/generators/overworld_generator.cpp
+    src/overworld_stamps.cpp
     src/visibility_map.cpp
     src/save_file.cpp
     src/celestial_body.cpp

@@ -434,6 +434,16 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
     const auto& backdrop = tm.backdrop_data();
     w.write_bytes(backdrop.data(), backdrop.size());
 
+    // Glyph overrides (v8+)
+    const auto& glyph_ov = tm.glyph_overrides();
+    size_t tile_area = static_cast<size_t>(tm.width()) * tm.height();
+    if (!glyph_ov.empty()) {
+        w.write_bytes(glyph_ov.data(), tile_area);
+    } else {
+        std::vector<uint8_t> zeros(tile_area, 0);
+        w.write_bytes(zeros.data(), tile_area);
+    }
+
     // Visibility
     const auto& vis = ms.visibility;
     const auto& cells = vis.cells();
@@ -674,9 +684,16 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
     std::vector<char> backdrop(area);
     r.read_bytes(backdrop.data(), area);
 
+    // Glyph overrides (v8+)
+    std::vector<uint8_t> glyph_ov(area, 0);
+    if (version >= 8) {
+        r.read_bytes(glyph_ov.data(), area);
+    }
+
     ms.tilemap.load_from(width, height, map_type, biome, std::move(location),
                          std::move(tiles), std::move(rids),
                          std::move(regions), std::move(backdrop));
+    ms.tilemap.load_glyph_overrides(std::move(glyph_ov));
 
     // Visibility
     std::vector<Visibility> cells(area);

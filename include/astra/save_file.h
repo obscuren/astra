@@ -37,7 +37,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 7;
+    uint32_t version = 8;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

@@ -1,5 +1,6 @@
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/overworld_stamps.h"
 
 #include <algorithm>
 #include <cmath>
@@ -471,11 +472,25 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
     int w = map_->width();
     int h = map_->height();
 
-    // Collect passable, non-special positions
+    // Classify world type
+    bool habitable = props_->body_type == BodyType::Terrestrial &&
+        (props_->body_atmosphere == Atmosphere::Standard ||
+         props_->body_atmosphere == Atmosphere::Dense);
+    bool marginal = props_->body_type == BodyType::Terrestrial &&
+        (props_->body_atmosphere == Atmosphere::Thin ||
+         props_->body_atmosphere == Atmosphere::Toxic ||
+         props_->body_atmosphere == Atmosphere::Reducing);
+    bool airless = (props_->body_type == BodyType::Rocky ||
+                    props_->body_type == BodyType::DwarfPlanet) ||
+                   (props_->body_type == BodyType::Terrestrial &&
+                    props_->body_atmosphere == Atmosphere::None);
+    bool asteroid = props_->body_type == BodyType::AsteroidBelt;
+
+    // Collect candidate anchor positions (passable, not water/river/landing)
     struct Pos { int x, y; };
     std::vector<Pos> candidates;
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
+    for (int y = 2; y < h - 2; ++y) {
+        for (int x = 2; x < w - 2; ++x) {
             Tile t = map_->get(x, y);
             if (t != Tile::OW_Mountains && t != Tile::OW_Lake &&
                 t != Tile::OW_River && t != Tile::OW_Landing) {
@@ -483,65 +498,137 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
             }
         }
     }
-
     if (candidates.empty()) return;
-
     std::shuffle(candidates.begin(), candidates.end(), rng);
 
+    // Track placed anchor positions for spacing
     std::vector<Pos> placed;
 
     auto too_close = [&](int px, int py) {
         for (const auto& p : placed) {
-            if (std::abs(p.x - px) + std::abs(p.y - py) < 6) return true;
+            if (std::abs(p.x - px) + std::abs(p.y - py) < 8) return true;
         }
         return false;
     };
 
-    auto place = [&](Tile poi_tile, int max_count) {
-        int count = 0;
-        for (const auto& c : candidates) {
-            if (count >= max_count) break;
-            if (too_close(c.x, c.y)) continue;
-            Tile existing = map_->get(c.x, c.y);
-            if (existing >= Tile::OW_CaveEntrance && existing <= Tile::OW_Landing) continue;
+    // Check if a stamp fits at (ax, ay): all cells in-bounds, passable terrain, no POIs
+    auto stamp_fits = [&](const StampDef& stamp, int ax, int ay) -> bool {
+        for (int i = 0; i < stamp.cell_count; ++i) {
+            int cx = ax + stamp.cells[i].dx;
+            int cy = ay + stamp.cells[i].dy;
+            if (cx < 0 || cx >= w || cy < 0 || cy >= h) return false;
+            Tile t = map_->get(cx, cy);
+            if (t == Tile::OW_Mountains || t == Tile::OW_Lake ||
+                t == Tile::OW_River || t == Tile::OW_Landing) return false;
+            if (t >= Tile::OW_CaveEntrance && t <= Tile::OW_Outpost) return false;
+        }
+        return true;
+    };
 
-            map_->set(c.x, c.y, poi_tile);
-            placed.push_back({c.x, c.y});
-            ++count;
+    // Place a stamp at (ax, ay)
+    auto place_stamp = [&](const StampDef& stamp, int ax, int ay) {
+        for (int i = 0; i < stamp.cell_count; ++i) {
+            int cx = ax + stamp.cells[i].dx;
+            int cy = ay + stamp.cells[i].dy;
+            map_->set(cx, cy, stamp.cells[i].tile);
+            if (stamp.cells[i].glyph_index != SG_None) {
+                map_->set_glyph_override(cx, cy, stamp.cells[i].glyph_index);
+            }
+        }
+        placed.push_back({ax, ay});
+    };
+
+    // Try to place a stamp from the given pool
+    auto try_place = [&](const StampDef* pool, int pool_size,
+                         int max_stamp_idx = -1) -> bool {
+        // max_stamp_idx: limit which stamps to consider (-1 = all)
+        int limit = (max_stamp_idx < 0) ? pool_size : std::min(max_stamp_idx + 1, pool_size);
+
+        // Shuffle stamp indices
+        std::vector<int> stamp_order(limit);
+        for (int i = 0; i < limit; ++i) stamp_order[i] = i;
+        std::shuffle(stamp_order.begin(), stamp_order.end(), rng);
+
+        for (const auto& c : candidates) {
+            if (too_close(c.x, c.y)) continue;
+            for (int si : stamp_order) {
+                if (stamp_fits(pool[si], c.x, c.y)) {
+                    place_stamp(pool[si], c.x, c.y);
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    // Place N stamps from a pool
+    auto place_n = [&](const StampDef* pool, int pool_size, int count,
+                       int max_stamp_idx = -1) {
+        for (int i = 0; i < count; ++i) {
+            try_place(pool, pool_size, max_stamp_idx);
         }
     };
 
     std::uniform_int_distribution<int> pct(0, 99);
 
-    // Cave entrances: 2-5
+    // --- Guaranteed settlement for habitable worlds (place first) ---
+    if (habitable) {
+        // Try large stamps first (indices 1-3), fall back to 1x1 (index 0)
+        if (!try_place(settlement_stamps, settlement_stamp_count, -1)) {
+            // Extremely unlikely, but try 1x1 only
+            try_place(settlement_stamps, settlement_stamp_count, 0);
+        }
+        // Additional settlements: 0-2 more
+        int extra = std::uniform_int_distribution<int>(0, 2)(rng);
+        place_n(settlement_stamps, settlement_stamp_count, extra);
+    } else if (marginal) {
+        // Settlement possible but not guaranteed
+        if (pct(rng) < 40) {
+            int count = std::uniform_int_distribution<int>(1, 1)(rng);
+            // Only 1x1 and small stamps (indices 0-1)
+            place_n(settlement_stamps, settlement_stamp_count, count, 1);
+        }
+    }
+
+    // --- Space habitats for airless worlds ---
+    if (airless && !asteroid && pct(rng) < 40) {
+        int count = std::uniform_int_distribution<int>(1, 2)(rng);
+        place_n(habitat_stamps, habitat_stamp_count, count);
+    }
+
+    // --- Caves ---
     if (props_->body_has_dungeon) {
-        std::uniform_int_distribution<int> d_cave(2, 5);
-        place(Tile::OW_CaveEntrance, d_cave(rng));
+        int count = std::uniform_int_distribution<int>(2, 5)(rng);
+        place_n(cave_stamps, cave_stamp_count, count);
     }
 
-    // Ruins: 0-3
+    // --- Ruins ---
     {
-        int ruins_count = (props_->body_danger_level >= 3)
-            ? std::uniform_int_distribution<int>(1, 3)(rng)
-            : (pct(rng) < 30 ? 1 : 0);
-        if (ruins_count > 0) place(Tile::OW_Ruins, ruins_count);
+        int count = 0;
+        if (props_->body_danger_level >= 3) {
+            count = std::uniform_int_distribution<int>(1, 4)(rng);
+        } else if (pct(rng) < 30) {
+            count = std::uniform_int_distribution<int>(1, 2)(rng);
+        }
+        if (count > 0) {
+            // On asteroids/airless, only 1x1 stamps
+            int max_idx = (asteroid || airless) ? 1 : -1;
+            place_n(ruin_stamps, ruin_stamp_count, count, max_idx);
+        }
     }
 
-    // Settlements: 0-2
-    if (props_->body_danger_level <= 3 &&
-        props_->body_atmosphere != Atmosphere::None &&
-        pct(rng) < 40) {
-        place(Tile::OW_Settlement, std::uniform_int_distribution<int>(1, 2)(rng));
-    }
-
-    // Crashed ships: 0-2
+    // --- Crashed ships ---
     if (pct(rng) < 20 + props_->body_danger_level * 10) {
-        place(Tile::OW_CrashedShip, std::uniform_int_distribution<int>(1, 2)(rng));
+        int count = std::uniform_int_distribution<int>(1, 3)(rng);
+        int max_idx = (asteroid) ? 1 : -1;
+        place_n(crashed_ship_stamps, crashed_ship_stamp_count, count, max_idx);
     }
 
-    // Outposts: 0-2
+    // --- Outposts ---
     if (pct(rng) < 30) {
-        place(Tile::OW_Outpost, std::uniform_int_distribution<int>(1, 2)(rng));
+        int count = std::uniform_int_distribution<int>(1, 2)(rng);
+        int max_idx = (asteroid) ? 0 : -1;
+        place_n(outpost_stamps, outpost_stamp_count, count, max_idx);
     }
 }
 

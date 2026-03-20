@@ -4,6 +4,7 @@
 #include "astra/item_defs.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/overworld_stamps.h"
 #include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
 #include "astra/shop.h"
@@ -1028,8 +1029,22 @@ void Game::try_move(int dx, int dy) {
             log("Impassable terrain.");
             return;
         }
+        Tile prev_tile = map_.get(player_.x, player_.y);
         player_.x = nx;
         player_.y = ny;
+        // Walk-over messages for POI tiles (suppress when moving within same tile type)
+        Tile stepped = map_.get(nx, ny);
+        if (stepped != prev_tile) {
+            switch (stepped) {
+                case Tile::OW_Settlement:   log("A settlement. Press > to enter."); break;
+                case Tile::OW_CaveEntrance: log("A cave entrance. Press > to descend."); break;
+                case Tile::OW_Ruins:        log("Ancient ruins. Press > to explore."); break;
+                case Tile::OW_CrashedShip:  log("Wreckage of a starship. Press > to investigate."); break;
+                case Tile::OW_Outpost:      log("An outpost. Press > to enter."); break;
+                case Tile::OW_Landing:      log("Your starship. Press 'e' to board."); break;
+                default: break;
+            }
+        }
         compute_camera();
         advance_world(15);
         return;
@@ -2529,10 +2544,13 @@ void Game::render_map() {
             char g = tile_glyph(tile_at);
             if (g == ' ' && tile_at != Tile::Fixture) continue;
 
-            // Overworld: no FOV dimming, use overworld colors
+            // Overworld: no FOV dimming, use overworld colors + UTF-8 glyphs
             if (map_.map_type() == MapType::Overworld) {
                 Color c = overworld_tile_color(tile_at, map_.biome());
-                ctx.put(sx, sy, g, c);
+                uint8_t gov = map_.glyph_override(mx, my);
+                const char* og = (gov != 0) ? stamp_glyph(gov) : nullptr;
+                if (!og) og = overworld_glyph(tile_at, mx, my);
+                ctx.put(sx, sy, og, c);
                 continue;
             }
 

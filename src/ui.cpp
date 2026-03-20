@@ -73,6 +73,14 @@ void DrawContext::put(int x, int y, char ch, Color fg) {
     }
 }
 
+void DrawContext::put(int x, int y, const char* utf8, Color fg) {
+    int ax = bounds_.x + x;
+    int ay = bounds_.y + y;
+    if (bounds_.contains(ax, ay)) {
+        renderer_->draw_glyph(ax, ay, utf8, fg);
+    }
+}
+
 void DrawContext::text(int x, int y, std::string_view s, Color fg) {
     for (int i = 0; i < static_cast<int>(s.size()); ++i) {
         put(x + i, y, s[i], fg);
