@@ -8,6 +8,27 @@
 
 namespace astra {
 
+namespace BoxDraw {
+    // Single-line box drawing
+    constexpr const char* H     = "\xe2\x94\x80";  // ─  horizontal
+    constexpr const char* V     = "\xe2\x94\x82";  // │  vertical
+    constexpr const char* TL    = "\xe2\x94\x8c";  // ┌  top-left
+    constexpr const char* TR    = "\xe2\x94\x90";  // ┐  top-right
+    constexpr const char* BL    = "\xe2\x94\x94";  // └  bottom-left
+    constexpr const char* BR    = "\xe2\x94\x98";  // ┘  bottom-right
+    constexpr const char* LT    = "\xe2\x94\x9c";  // ├  left T
+    constexpr const char* RT    = "\xe2\x94\xa4";  // ┤  right T
+    constexpr const char* TT    = "\xe2\x94\xac";  // ┬  top T
+    constexpr const char* BT    = "\xe2\x94\xb4";  // ┴  bottom T
+    constexpr const char* CROSS = "\xe2\x94\xbc";  // ┼  cross
+
+    // Double-line accents (for ornaments)
+    constexpr const char* DH    = "\xe2\x95\x90";  // ═  double horizontal
+    constexpr const char* DV    = "\xe2\x95\x91";  // ║  double vertical
+    constexpr const char* DL    = "\xe2\x95\x9e";  // ╞  single-vert + double-horiz left
+    constexpr const char* DR    = "\xe2\x95\xa1";  // ╡  single-vert + double-horiz right
+}
+
 struct Rect {
     int x = 0, y = 0, w = 0, h = 0;
 
@@ -35,8 +56,11 @@ public:
 
     // Lines
     void hline(int y, char ch = '-');
+    void hline(int y, const char* utf8, Color fg = Color::DarkGray);
     void vline(int x, char ch = '|');
+    void vline(int x, const char* utf8, Color fg = Color::DarkGray);
     void border(char h = '-', char v = '|', char corner = '+');
+    void box(Color fg = Color::DarkGray);
     void fill(char ch = ' ');
 
     // Aligned text

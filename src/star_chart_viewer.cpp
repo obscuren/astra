@@ -510,7 +510,7 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
     DrawContext sep_ctx(renderer_, sep_rect);
     DrawContext info_ctx(renderer_, info_rect);
 
-    sep_ctx.vline(0, '|');
+    sep_ctx.vline(0, BoxDraw::V, Color::DarkGray);
 
     switch (zoom_) {
         case ChartZoom::Galaxy: draw_galaxy_view(map_ctx, info_ctx); break;
@@ -1097,7 +1097,7 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
                             : body.name + " Moon " + std::to_string(sub_cursor_);
         info_ctx.put(1, y, '*', Color::DarkGray);
         info_ctx.text(3, y++, mname, Color::White);
-        info_ctx.hline(y++, '-');
+        info_ctx.hline(y++, BoxDraw::H, Color::DarkGray);
         y++;
         info_ctx.text(1, y, "Type", Color::DarkGray);
         info_ctx.text(10, y++, "Moon", Color::White);
@@ -1118,7 +1118,7 @@ void StarChartViewer::draw_body_info(DrawContext& ctx, const CelestialBody& body
     Color color = body_type_color(body.type);
     ctx.put(1, y, glyph, color);
     ctx.text(3, y++, body.name, Color::White);
-    ctx.hline(y++, '-');
+    ctx.hline(y++, BoxDraw::H, Color::DarkGray);
     y++;
 
     ctx.text(1, y, "Type", Color::DarkGray);
@@ -1189,7 +1189,7 @@ void StarChartViewer::draw_body_info(DrawContext& ctx, const CelestialBody& body
     y++;
     if (body.resources != 0) {
         ctx.text(1, y++, "RESOURCES", Color::White);
-        ctx.hline(y++, '-');
+        ctx.hline(y++, BoxDraw::H, Color::DarkGray);
         if (has_resource(body.resources, Resource::Metals))     ctx.text(2, y++, "Metals", Color::White);
         if (has_resource(body.resources, Resource::RareMetals)) ctx.text(2, y++, "Rare Metals", Color::BrightMagenta);
         if (has_resource(body.resources, Resource::Water))      ctx.text(2, y++, "Water", Color::Blue);
@@ -1268,7 +1268,7 @@ void StarChartViewer::draw_system_info(DrawContext& ctx, const StarSystem& sys, 
     if (!sys.bodies.empty() && y + 2 < max_h) {
         y++;
         ctx.text(1, y++, "BODIES", Color::White);
-        ctx.hline(y++, '-');
+        ctx.hline(y++, BoxDraw::H, Color::DarkGray);
 
         int panel_w = ctx.width();
         for (const auto& body : sys.bodies) {
@@ -1311,7 +1311,7 @@ void StarChartViewer::draw_station_detail(DrawContext& ctx, const StarSystem& sy
     Color color = sys.station.derelict ? Color::Red : Color::Cyan;
     ctx.put(1, y, glyph, color);
     ctx.text(3, y++, sys.station.name, Color::White);
-    ctx.hline(y++, '-');
+    ctx.hline(y++, BoxDraw::H, Color::DarkGray);
     y++;
 
     ctx.text(1, y, "Type", Color::DarkGray);

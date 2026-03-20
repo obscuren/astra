@@ -107,7 +107,7 @@ void Game::compute_layout() {
 
     int left_w = screen_w_ - panel_w - 1;
     int sep_x = left_w;
-    int main_h = screen_h_ - 5; // 1 stats + 2 bars + 1 effects + 1 abilities
+    int main_h = screen_h_ - 6; // 1 stats + 2 bars + 1 separator + 1 effects + 1 abilities
 
     // Tabs always visible in top-right
     tabs_rect_ = {sep_x + 1, 1, panel_w, 1};
@@ -129,7 +129,8 @@ void Game::compute_layout() {
     // Row 1: stats bar (full width)
     stats_bar_rect_ = {0, 0, screen_w_, 1};
 
-    // Row 4 & 5: bottom bars
+    // Bottom: separator + effects + abilities
+    bottom_sep_rect_ = {0, screen_h_ - 3, screen_w_, 1};
     effects_rect_ = {0, screen_h_ - 2, screen_w_, 1};
     abilities_rect_ = {0, screen_h_ - 1, screen_w_, 1};
 }
@@ -2296,9 +2297,9 @@ void Game::render_menu() {
             std::string full = ".::|" + padded + "|::.";
             int x = (screen_w_ - static_cast<int>(full.size())) / 2;
             ctx.text(x, menu_y + i, ".::", Color::Red);
-            ctx.put(x + 3, menu_y + i, '|', Color::Cyan);
+            ctx.put(x + 3, menu_y + i, BoxDraw::V, Color::Cyan);
             ctx.text(x + 4, menu_y + i, padded, Color::Yellow);
-            ctx.put(x + 4 + static_cast<int>(padded.size()), menu_y + i, '|', Color::Cyan);
+            ctx.put(x + 4 + static_cast<int>(padded.size()), menu_y + i, BoxDraw::V, Color::Cyan);
             ctx.text(x + 5 + static_cast<int>(padded.size()), menu_y + i, "::.", Color::Red);
         } else {
             std::string label = "     " + std::string(menu_items[i]) + "     ";
@@ -2314,13 +2315,16 @@ void Game::render_play() {
     render_tabs();
 
     DrawContext sep_ctx(renderer_.get(), separator_rect_);
-    sep_ctx.vline(0, '|');
+    sep_ctx.vline(0, BoxDraw::V, Color::DarkGray);
 
     render_map();
 
     if (panel_visible_) {
         render_side_panel();
     }
+    DrawContext bottom_sep(renderer_.get(), bottom_sep_rect_);
+    bottom_sep.hline(0, BoxDraw::H, Color::DarkGray);
+
     render_effects_bar();
     render_abilities_bar();
 
@@ -2458,7 +2462,7 @@ void Game::render_tabs() {
 
     // Horizontal separator below tabs (row 2 on right side)
     DrawContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
-    sep.hline(0, '-');
+    sep.hline(0, BoxDraw::H, Color::DarkGray);
 }
 
 // Floor scatter: biome-specific alternate glyphs for visual texture.

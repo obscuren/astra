@@ -82,8 +82,30 @@ void DrawContext::put(int x, int y, const char* utf8, Color fg) {
 }
 
 void DrawContext::text(int x, int y, std::string_view s, Color fg) {
-    for (int i = 0; i < static_cast<int>(s.size()); ++i) {
-        put(x + i, y, s[i], fg);
+    int col = 0;
+    int i = 0;
+    int len = static_cast<int>(s.size());
+    while (i < len) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c < 0x80) {
+            // ASCII byte
+            put(x + col, y, s[i], fg);
+            ++i;
+        } else {
+            // UTF-8 lead byte — determine sequence length
+            int seq_len = 1;
+            if ((c & 0xE0) == 0xC0) seq_len = 2;
+            else if ((c & 0xF0) == 0xE0) seq_len = 3;
+            else if ((c & 0xF8) == 0xF0) seq_len = 4;
+
+            char buf[5] = {};
+            for (int j = 0; j < seq_len && i + j < len; ++j) {
+                buf[j] = s[i + j];
+            }
+            put(x + col, y, buf, fg);
+            i += seq_len;
+        }
+        ++col;
     }
 }
 
@@ -93,9 +115,21 @@ void DrawContext::hline(int y, char ch) {
     }
 }
 
+void DrawContext::hline(int y, const char* utf8, Color fg) {
+    for (int x = 0; x < bounds_.w; ++x) {
+        put(x, y, utf8, fg);
+    }
+}
+
 void DrawContext::vline(int x, char ch) {
     for (int y = 0; y < bounds_.h; ++y) {
         put(x, y, ch);
+    }
+}
+
+void DrawContext::vline(int x, const char* utf8, Color fg) {
+    for (int y = 0; y < bounds_.h; ++y) {
+        put(x, y, utf8, fg);
     }
 }
 
@@ -115,6 +149,24 @@ void DrawContext::border(char h, char v, char corner) {
     put(bounds_.w - 1, 0, corner);
     put(0, bounds_.h - 1, corner);
     put(bounds_.w - 1, bounds_.h - 1, corner);
+}
+
+void DrawContext::box(Color fg) {
+    // Top and bottom
+    for (int x = 1; x < bounds_.w - 1; ++x) {
+        put(x, 0, BoxDraw::H, fg);
+        put(x, bounds_.h - 1, BoxDraw::H, fg);
+    }
+    // Left and right
+    for (int y = 1; y < bounds_.h - 1; ++y) {
+        put(0, y, BoxDraw::V, fg);
+        put(bounds_.w - 1, y, BoxDraw::V, fg);
+    }
+    // Corners
+    put(0, 0, BoxDraw::TL, fg);
+    put(bounds_.w - 1, 0, BoxDraw::TR, fg);
+    put(0, bounds_.h - 1, BoxDraw::BL, fg);
+    put(bounds_.w - 1, bounds_.h - 1, BoxDraw::BR, fg);
 }
 
 void DrawContext::fill(char ch) {
@@ -236,18 +288,7 @@ void Window::draw() {
     ctx.fill(' ');
 
     // Border
-    for (int x = 1; x < bounds_.w - 1; ++x) {
-        ctx.put(x, 0, '-', Color::DarkGray);
-        ctx.put(x, bounds_.h - 1, '-', Color::DarkGray);
-    }
-    for (int y = 1; y < bounds_.h - 1; ++y) {
-        ctx.put(0, y, '|', Color::DarkGray);
-        ctx.put(bounds_.w - 1, y, '|', Color::DarkGray);
-    }
-    ctx.put(0, 0, '+', Color::DarkGray);
-    ctx.put(bounds_.w - 1, 0, '+', Color::DarkGray);
-    ctx.put(0, bounds_.h - 1, '+', Color::DarkGray);
-    ctx.put(bounds_.w - 1, bounds_.h - 1, '+', Color::DarkGray);
+    ctx.box(Color::DarkGray);
 
     // Title (centered, row 1)
     if (!title_.empty()) {
@@ -269,34 +310,38 @@ void Window::draw() {
 }
 
 void Window::draw_ornament(DrawContext& ctx, int y) {
-    // Decorative separator: ------=+  ||  +=------
+    // Decorative separator: ──────═╡  ║║  ╞═──────
     int inner_w = bounds_.w - 2; // inside borders
     int center = inner_w / 2;
 
-    // Center piece: " || "
+    // Center piece: " ║║ "
     int cp_start = center - 1;
-    ctx.put(1 + cp_start, y, '|', Color::Cyan);
-    ctx.put(1 + cp_start + 1, y, '|', Color::Cyan);
+    ctx.put(1 + cp_start, y, BoxDraw::DV, Color::Cyan);
+    ctx.put(1 + cp_start + 1, y, BoxDraw::DV, Color::Cyan);
 
-    // Connectors: +=  and  =+
+    // Connectors: ╡═  and  ═╞
     int left_conn = cp_start - 2;
     if (left_conn >= 0) {
-        ctx.put(1 + left_conn, y, '+', Color::DarkGray);
-        ctx.put(1 + left_conn + 1, y, '=', Color::DarkGray);
+        ctx.put(1 + left_conn, y, BoxDraw::DR, Color::DarkGray);
+        ctx.put(1 + left_conn + 1, y, BoxDraw::DH, Color::DarkGray);
     }
     int right_conn = cp_start + 2;
     if (right_conn + 1 < inner_w) {
-        ctx.put(1 + right_conn, y, '=', Color::DarkGray);
-        ctx.put(1 + right_conn + 1, y, '+', Color::DarkGray);
+        ctx.put(1 + right_conn, y, BoxDraw::DH, Color::DarkGray);
+        ctx.put(1 + right_conn + 1, y, BoxDraw::DL, Color::DarkGray);
     }
 
-    // Dashes extending outward
+    // ─ extending outward
     for (int x = 1; x < 1 + left_conn; ++x) {
-        ctx.put(x, y, '-', Color::DarkGray);
+        ctx.put(x, y, BoxDraw::H, Color::DarkGray);
     }
     for (int x = 1 + right_conn + 2; x < bounds_.w - 1; ++x) {
-        ctx.put(x, y, '-', Color::DarkGray);
+        ctx.put(x, y, BoxDraw::H, Color::DarkGray);
     }
+
+    // Where ornament meets window border, use T-junctions
+    ctx.put(0, y, BoxDraw::LT, Color::DarkGray);
+    ctx.put(bounds_.w - 1, y, BoxDraw::RT, Color::DarkGray);
 }
 
 DrawContext Window::content() const {
