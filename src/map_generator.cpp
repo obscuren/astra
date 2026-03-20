@@ -156,6 +156,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
                 case MapType::Rocky:
                 case MapType::Lava:
                 case MapType::Asteroid:
+                case MapType::Overworld:
                     entry = &pick_flavor(rocky_room_flavors, rng);
                     break;
                 case MapType::Nebula:
@@ -175,6 +176,7 @@ void MapGenerator::assign_regions(std::mt19937& rng) {
                 case MapType::Lava:
                 case MapType::Nebula:
                 case MapType::Asteroid:
+                case MapType::Overworld:
                     entry = &pick_flavor(rocky_corridor_flavors, rng);
                     break;
             }
@@ -339,6 +341,15 @@ MapProperties default_properties(MapType type) {
             p.width = 50;
             p.height = 20;
             break;
+        case MapType::Overworld:
+            p.environment = Environment::Surface;
+            p.climate = Climate::Temperate;
+            p.has_backdrop = false;
+            p.room_count_min = 0;
+            p.room_count_max = 0;
+            p.width = 80;
+            p.height = 40;
+            break;
     }
     return p;
 }
@@ -352,6 +363,7 @@ std::unique_ptr<MapGenerator> make_open_cave_generator();
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator();
 std::unique_ptr<MapGenerator> make_starship_generator();
+std::unique_ptr<MapGenerator> make_overworld_generator();
 
 std::unique_ptr<MapGenerator> create_generator(MapType type) {
     switch (type) {
@@ -369,6 +381,8 @@ std::unique_ptr<MapGenerator> create_generator(MapType type) {
             return make_station_generator();
         case MapType::Starship:
             return make_starship_generator();
+        case MapType::Overworld:
+            return make_overworld_generator();
     }
     return make_station_generator();
 }

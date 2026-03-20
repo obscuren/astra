@@ -18,16 +18,53 @@ enum class Tile : uint8_t {
     Water,
     Ice,
     Fixture,
+    // Overworld terrain
+    OW_Plains,
+    OW_Mountains,
+    OW_Crater,
+    OW_IceField,
+    OW_LavaFlow,
+    OW_Desert,
+    OW_Fungal,
+    OW_Forest,
+    OW_River,
+    OW_Lake,
+    OW_Swamp,
+    // Overworld POIs
+    OW_CaveEntrance,
+    OW_Ruins,
+    OW_Settlement,
+    OW_CrashedShip,
+    OW_Outpost,
+    // Overworld special
+    OW_Landing,
 };
 
 inline char tile_glyph(Tile t) {
     switch (t) {
-        case Tile::Floor:  return '.';
-        case Tile::Wall:   return '#';
-        case Tile::Portal: return '>';
-        case Tile::Water:  return '~';
-        case Tile::Ice:    return '~';
-        default:           return ' ';
+        case Tile::Floor:          return '.';
+        case Tile::Wall:           return '#';
+        case Tile::Portal:         return '>';
+        case Tile::Water:          return '~';
+        case Tile::Ice:            return '~';
+        case Tile::OW_Plains:      return '.';
+        case Tile::OW_Mountains:   return '^';
+        case Tile::OW_Crater:      return 'o';
+        case Tile::OW_IceField:    return '~';
+        case Tile::OW_LavaFlow:    return '~';
+        case Tile::OW_Desert:      return '.';
+        case Tile::OW_Fungal:      return '"';
+        case Tile::OW_Forest:      return 'T';
+        case Tile::OW_River:       return '~';
+        case Tile::OW_Lake:        return '~';
+        case Tile::OW_Swamp:       return '"';
+        case Tile::OW_CaveEntrance:return '>';
+        case Tile::OW_Ruins:       return '#';
+        case Tile::OW_Settlement:  return '*';
+        case Tile::OW_CrashedShip: return '%';
+        case Tile::OW_Outpost:     return '+';
+        case Tile::OW_Landing:     return '=';
+        default:                   return ' ';
     }
 }
 
@@ -39,6 +76,7 @@ enum class MapType : uint8_t {
     Lava,
     Asteroid,
     Starship,
+    Overworld,
 };
 
 enum class Biome : uint8_t {

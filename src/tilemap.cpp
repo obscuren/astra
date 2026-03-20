@@ -34,12 +34,19 @@ bool TileMap::passable(int x, int y) const {
         int fid = fixture_id(x, y);
         return fid >= 0 && fixtures_[fid].passable;
     }
-    return t == Tile::Floor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice;
+    if (t == Tile::Floor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
+        return true;
+    // Overworld tiles: all passable except mountains and lakes
+    if (t == Tile::OW_Mountains || t == Tile::OW_Lake) return false;
+    if (t >= Tile::OW_Plains && t <= Tile::OW_Landing) return true;
+    return false;
 }
 
 bool TileMap::opaque(int x, int y) const {
     Tile t = get(x, y);
     // Fixtures are never opaque (they don't block line of sight)
+    // Overworld tiles are never opaque
+    if (t >= Tile::OW_Plains && t <= Tile::OW_Landing) return false;
     return t == Tile::Wall || t == Tile::Empty;
 }
 
