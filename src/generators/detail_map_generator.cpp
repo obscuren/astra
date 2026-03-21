@@ -75,6 +75,10 @@ static float terrain_wall_density(Tile t) {
         case Tile::OW_Plains:      return 0.08f;
         case Tile::OW_Desert:      return 0.06f;
         case Tile::OW_Swamp:       return 0.15f;
+        case Tile::OW_Ruins:       return 0.20f;
+        case Tile::OW_CaveEntrance:return 0.25f;
+        case Tile::OW_CrashedShip: return 0.15f;
+        case Tile::OW_Outpost:     return 0.18f;
         default:                   return 0.10f;
     }
 }
@@ -544,11 +548,75 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
 
     switch (props_->detail_poi_type) {
         case Tile::OW_CaveEntrance: {
-            for (int dy = -1; dy <= 1; ++dy)
-                for (int dx = -1; dx <= 1; ++dx)
-                    if (in_bounds(cx + dx, cy + dy))
-                        map_->set(cx + dx, cy + dy, Tile::Wall);
+            std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+            std::uniform_real_distribution<float> noise_dist(-1.5f, 1.5f);
+
+            // --- Rocky outcrop (~16x12) using distance-from-center with noise ---
+            int rx = 8, ry = 6; // half-extents
+            for (int dy = -ry; dy <= ry; ++dy) {
+                for (int dx = -rx; dx <= rx; ++dx) {
+                    int px = cx + dx, py = cy + dy;
+                    if (!in_bounds(px, py)) continue;
+                    float dist = std::sqrt(static_cast<float>(dx * dx) / (rx * rx)
+                                         + static_cast<float>(dy * dy) / (ry * ry));
+                    float noise = noise_dist(rng);
+                    float threshold = 0.85f;
+                    if (dist + noise * 0.25f < threshold) {
+                        // Edge weathering: ~80% wall at edges, 100% deeper inside
+                        if (dist > 0.6f && prob(rng) > 0.80f) continue;
+                        map_->set(px, py, Tile::Wall);
+                    }
+                }
+            }
+
+            // --- Cave mouth approach from south ---
+            // 3-wide corridor from south edge toward center, narrowing to 1-wide
+            for (int dy = ry; dy >= 1; --dy) {
+                int half_width = (dy > ry / 2) ? 1 : 0; // wide at south, narrow near center
+                if (dy > ry - 2) half_width = 1; // ensure 3-wide at south edge
+                for (int dx = -half_width; dx <= half_width; ++dx) {
+                    int px = cx + dx, py = cy + dy;
+                    if (in_bounds(px, py))
+                        map_->set(px, py, Tile::Floor);
+                }
+            }
+
+            // --- Scattered boulders (6-10 small wall clusters) ---
+            std::uniform_int_distribution<int> boulder_count(6, 10);
+            std::uniform_int_distribution<int> boulder_ox(-12, 12);
+            std::uniform_int_distribution<int> boulder_oy(-9, 9);
+            int num_boulders = boulder_count(rng);
+            for (int i = 0; i < num_boulders; ++i) {
+                int bx = cx + boulder_ox(rng);
+                int by = cy + boulder_oy(rng);
+                // Skip if inside the main outcrop
+                float bdist = std::sqrt(static_cast<float>((bx - cx) * (bx - cx)) / (rx * rx)
+                                       + static_cast<float>((by - cy) * (by - cy)) / (ry * ry));
+                if (bdist < 0.9f) continue;
+                // 1x1 or 2x2 boulder
+                int bsize = (prob(rng) < 0.5f) ? 1 : 2;
+                for (int bdy = 0; bdy < bsize; ++bdy)
+                    for (int bdx = 0; bdx < bsize; ++bdx)
+                        if (in_bounds(bx + bdx, by + bdy) && prob(rng) < 0.5f)
+                            map_->set(bx + bdx, by + bdy, Tile::Wall);
+            }
+
+            // --- Portal at center ---
             map_->set(cx, cy, Tile::Portal);
+
+            // --- Debris decorations near entrance ---
+            std::uniform_int_distribution<int> debris_count(3, 5);
+            std::uniform_int_distribution<int> debris_ox(-3, 3);
+            std::uniform_int_distribution<int> debris_oy(1, ry + 2);
+            int num_debris = debris_count(rng);
+            for (int i = 0; i < num_debris; ++i) {
+                int dx = cx + debris_ox(rng);
+                int dy = cy + debris_oy(rng);
+                if (in_bounds(dx, dy) && map_->get(dx, dy) == Tile::Floor) {
+                    map_->set(dx, dy, Tile::Fixture);
+                    map_->add_fixture(dx, dy, make_fixture(FixtureType::Debris));
+                }
+            }
             break;
         }
         case Tile::OW_Settlement: {
@@ -570,46 +638,540 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             break;
         }
         case Tile::OW_Ruins: {
-            std::uniform_int_distribution<int> gap(0, 2);
-            for (int i = 0; i < 3; ++i) {
-                int rx = cx - 5 + i * 4;
-                int ry = cy - 2;
-                for (int y = ry; y <= ry + 3; ++y)
-                    for (int x = rx; x <= rx + 3; ++x)
-                        if (in_bounds(x, y))
-                            map_->set(x, y, (gap(rng) == 0) ? Tile::Floor : Tile::Wall);
+            // --- Large ruins complex ---
+            // Central complex: 3-5 rooms of varying sizes within a ~20x16 area
+            std::uniform_int_distribution<int> room_count_dist(3, 5);
+            std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+            int num_rooms = room_count_dist(rng);
+
+            struct RuinRoom { int x, y, w, h; };
+            std::vector<RuinRoom> rooms;
+
+            // Place rooms within the central complex area (~20x16 centered)
+            int complex_x = cx - 10;
+            int complex_y = cy - 8;
+            int complex_w = 20;
+            int complex_h = 16;
+
+            // First room always at center
+            rooms.push_back({cx - 3, cy - 2, 7, 5});
+
+            std::uniform_int_distribution<int> rw_dist(4, 8);
+            std::uniform_int_distribution<int> rh_dist(4, 6);
+
+            for (int i = 1; i < num_rooms; ++i) {
+                int rw = rw_dist(rng);
+                int rh = rh_dist(rng);
+                std::uniform_int_distribution<int> rx_dist(complex_x, complex_x + complex_w - rw);
+                std::uniform_int_distribution<int> ry_dist(complex_y, complex_y + complex_h - rh);
+                int rx = rx_dist(rng);
+                int ry = ry_dist(rng);
+                rooms.push_back({rx, ry, rw, rh});
             }
-            for (int dy = -1; dy <= 1; ++dy)
-                for (int dx = -3; dx <= 3; ++dx)
-                    if (in_bounds(cx + dx, cy + dy))
-                        map_->set(cx + dx, cy + dy, Tile::Floor);
+
+            // Draw room walls with ~70% probability (crumbling effect)
+            for (const auto& room : rooms) {
+                for (int y = room.y; y < room.y + room.h; ++y) {
+                    for (int x = room.x; x < room.x + room.w; ++x) {
+                        if (!in_bounds(x, y)) continue;
+                        bool edge = (y == room.y || y == room.y + room.h - 1 ||
+                                     x == room.x || x == room.x + room.w - 1);
+                        if (edge) {
+                            if (prob(rng) < 0.70f)
+                                map_->set(x, y, Tile::Wall);
+                        } else {
+                            map_->set(x, y, Tile::Floor);
+                        }
+                    }
+                }
+                // Doorway: carve opening on a random wall
+                std::uniform_int_distribution<int> side_dist(0, 3);
+                int side = side_dist(rng);
+                switch (side) {
+                    case 0: // north wall
+                        if (in_bounds(room.x + room.w / 2, room.y))
+                            map_->set(room.x + room.w / 2, room.y, Tile::Floor);
+                        break;
+                    case 1: // south wall
+                        if (in_bounds(room.x + room.w / 2, room.y + room.h - 1))
+                            map_->set(room.x + room.w / 2, room.y + room.h - 1, Tile::Floor);
+                        break;
+                    case 2: // west wall
+                        if (in_bounds(room.x, room.y + room.h / 2))
+                            map_->set(room.x, room.y + room.h / 2, Tile::Floor);
+                        break;
+                    case 3: // east wall
+                        if (in_bounds(room.x + room.w - 1, room.y + room.h / 2))
+                            map_->set(room.x + room.w - 1, room.y + room.h / 2, Tile::Floor);
+                        break;
+                }
+            }
+
+            // Outer perimeter wall (~24x20) with ~40% probability (collapsed sections)
+            int perim_x = cx - 12;
+            int perim_y = cy - 10;
+            int perim_w = 24;
+            int perim_h = 20;
+            for (int x = perim_x; x < perim_x + perim_w; ++x) {
+                if (in_bounds(x, perim_y) && prob(rng) < 0.40f)
+                    map_->set(x, perim_y, Tile::Wall);
+                if (in_bounds(x, perim_y + perim_h - 1) && prob(rng) < 0.40f)
+                    map_->set(x, perim_y + perim_h - 1, Tile::Wall);
+            }
+            for (int y = perim_y; y < perim_y + perim_h; ++y) {
+                if (in_bounds(perim_x, y) && prob(rng) < 0.40f)
+                    map_->set(perim_x, y, Tile::Wall);
+                if (in_bounds(perim_x + perim_w - 1, y) && prob(rng) < 0.40f)
+                    map_->set(perim_x + perim_w - 1, y, Tile::Wall);
+            }
+
+            // Extending corridors: 2-3 corridors radiating outward
+            std::uniform_int_distribution<int> corr_count_dist(2, 3);
+            std::uniform_int_distribution<int> corr_len_dist(8, 15);
+            std::uniform_int_distribution<int> corr_dir_dist(0, 3);
+            int num_corridors = corr_count_dist(rng);
+
+            for (int i = 0; i < num_corridors; ++i) {
+                int dir = corr_dir_dist(rng);
+                int len = corr_len_dist(rng);
+                int sx = cx, sy = cy;
+                int ddx = 0, ddy = 0;
+                switch (dir) {
+                    case 0: ddy = -1; sy = perim_y; break; // north
+                    case 1: ddy =  1; sy = perim_y + perim_h - 1; break; // south
+                    case 2: ddx = -1; sx = perim_x; break; // west
+                    case 3: ddx =  1; sx = perim_x + perim_w - 1; break; // east
+                }
+                for (int step = 0; step < len; ++step) {
+                    int px = sx + ddx * step;
+                    int py = sy + ddy * step;
+                    for (int perp = -1; perp <= 1; ++perp) {
+                        int wx = px + (ddx == 0 ? perp : 0);
+                        int wy = py + (ddy == 0 ? perp : 0);
+                        if (!in_bounds(wx, wy)) continue;
+                        bool wall_edge = (perp == -1 || perp == 1);
+                        if (wall_edge && prob(rng) < 0.50f)
+                            map_->set(wx, wy, Tile::Wall);
+                        else if (perp == 0)
+                            map_->set(wx, wy, Tile::Floor);
+                    }
+                }
+            }
+
+            // Scattered wall fragments: 4-8 small clusters near center
+            std::uniform_int_distribution<int> frag_count_dist(4, 8);
+            std::uniform_int_distribution<int> frag_size_dist(2, 3);
+            std::uniform_int_distribution<int> frag_offset_dist(-15, 15);
+            int num_frags = frag_count_dist(rng);
+            for (int i = 0; i < num_frags; ++i) {
+                int fx = cx + frag_offset_dist(rng);
+                int fy = cy + frag_offset_dist(rng);
+                int fs = frag_size_dist(rng);
+                for (int y = fy; y < fy + fs; ++y)
+                    for (int x = fx; x < fx + fs; ++x)
+                        if (in_bounds(x, y) && prob(rng) < 0.50f)
+                            map_->set(x, y, Tile::Wall);
+            }
+
+            // Fixtures: debris in rooms, console in first room, crate in second
+            {
+                // Console in central room
+                int console_x = rooms[0].x + rooms[0].w / 2;
+                int console_y = rooms[0].y + rooms[0].h / 2;
+                if (in_bounds(console_x, console_y)) {
+                    map_->set(console_x, console_y, Tile::Fixture);
+                    map_->add_fixture(console_x, console_y, make_fixture(FixtureType::Console));
+                }
+                // Crate in another room if available
+                if (rooms.size() > 1) {
+                    int crate_x = rooms[1].x + rooms[1].w / 2;
+                    int crate_y = rooms[1].y + rooms[1].h / 2;
+                    if (in_bounds(crate_x, crate_y)) {
+                        map_->set(crate_x, crate_y, Tile::Fixture);
+                        map_->add_fixture(crate_x, crate_y, make_fixture(FixtureType::Crate));
+                    }
+                }
+                // Scatter debris fixtures in remaining rooms
+                for (size_t ri = 2; ri < rooms.size(); ++ri) {
+                    std::uniform_int_distribution<int> dx_dist(1, rooms[ri].w - 2);
+                    std::uniform_int_distribution<int> dy_dist(1, rooms[ri].h - 2);
+                    int debris_x = rooms[ri].x + dx_dist(rng);
+                    int debris_y = rooms[ri].y + dy_dist(rng);
+                    if (in_bounds(debris_x, debris_y) &&
+                        map_->get(debris_x, debris_y) == Tile::Floor &&
+                        map_->fixture_id(debris_x, debris_y) < 0) {
+                        map_->add_fixture(debris_x, debris_y,
+                            deco(',', nullptr, Color::DarkGray, true));
+                    }
+                }
+            }
+
+            // Portal in central room for dungeon access
+            {
+                int portal_x = rooms[0].x + rooms[0].w / 2 + 1;
+                int portal_y = rooms[0].y + rooms[0].h / 2;
+                if (in_bounds(portal_x, portal_y)) {
+                    map_->set(portal_x, portal_y, Tile::Portal);
+                }
+            }
             break;
         }
         case Tile::OW_CrashedShip: {
-            for (int dx = -4; dx <= 4; ++dx) {
-                int half_h = 2 - std::abs(dx) / 2;
-                for (int dy = -half_h; dy <= half_h; ++dy)
-                    if (in_bounds(cx + dx, cy + dy))
-                        map_->set(cx + dx, cy + dy, Tile::Wall);
+            std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+
+            // Fuselage dimensions: ~20x6, nose tapers, stern is wider
+            // Ship oriented east-west, nose at east (+x), stern at west (-x)
+            int ship_len = 20;
+            int ship_half = ship_len / 2; // 10
+            int body_half_h = 3; // half-height of widest section
+
+            // Slight diagonal offset for crash angle
+            std::uniform_int_distribution<int> skid_dist(-1, 1);
+            int skid_y = skid_dist(rng);
+
+            // --- Impact gouge (skid mark behind stern) ---
+            std::uniform_int_distribution<int> gouge_len_dist(8, 12);
+            int gouge_len = gouge_len_dist(rng);
+            for (int gx = 1; gx <= gouge_len; ++gx) {
+                int gxp = cx - ship_half - gx;
+                int gyp = cy + skid_y;
+                for (int perp = -1; perp <= 1; ++perp) {
+                    if (!in_bounds(gxp, gyp + perp)) continue;
+                    if (perp == 0) {
+                        map_->set(gxp, gyp + perp, Tile::Floor);
+                    } else if (prob(rng) < 0.40f) {
+                        map_->set(gxp, gyp + perp, Tile::Wall);
+                    }
+                }
             }
-            for (int dx = -2; dx <= 2; ++dx)
-                for (int dy = -1; dy <= 1; ++dy)
-                    if (in_bounds(cx + dx, cy + dy))
-                        map_->set(cx + dx, cy + dy, Tile::Floor);
-            if (in_bounds(cx, cy)) {
-                map_->set(cx, cy, Tile::Fixture);
-                map_->add_fixture(cx, cy, make_fixture(FixtureType::Debris));
+
+            // --- Main fuselage hull and interior ---
+            // For each x along the ship, compute half-height
+            auto hull_half_h = [&](int dx) -> int {
+                // dx is relative to cx, ranges from -ship_half to +ship_half
+                if (dx > ship_half - 4) {
+                    // Nose taper: narrow down over last 4 tiles
+                    int taper = dx - (ship_half - 4); // 1..4
+                    return std::max(1, body_half_h - taper);
+                }
+                if (dx < -ship_half + 2) {
+                    // Slight stern taper
+                    return body_half_h - 1;
+                }
+                return body_half_h;
+            };
+
+            // Draw hull walls and carve interior
+            for (int dx = -ship_half; dx <= ship_half; ++dx) {
+                int hh = hull_half_h(dx);
+                int y_off = (dx * skid_y) / ship_half; // slight diagonal
+                for (int dy = -hh; dy <= hh; ++dy) {
+                    int px = cx + dx;
+                    int py = cy + dy + y_off;
+                    if (!in_bounds(px, py)) continue;
+                    bool edge = (dy == -hh || dy == hh ||
+                                 dx == -ship_half || dx == ship_half);
+                    if (edge) {
+                        // Hull wall with ~75% probability (breached plating)
+                        if (prob(rng) < 0.75f)
+                            map_->set(px, py, Tile::Wall);
+                        else
+                            map_->set(px, py, Tile::Floor);
+                    } else {
+                        map_->set(px, py, Tile::Floor);
+                    }
+                }
+            }
+
+            // --- Interior bulkheads (partial walls separating rooms) ---
+            // Bulkhead 1: between engine bay and mid-section (at dx ~ -4)
+            int bulk1_x = cx - 4;
+            for (int dy = -(body_half_h - 1); dy <= (body_half_h - 1); ++dy) {
+                if (!in_bounds(bulk1_x, cy + dy)) continue;
+                if (std::abs(dy) != 0 && prob(rng) < 0.60f) // gap at center
+                    map_->set(bulk1_x, cy + dy, Tile::Wall);
+            }
+            // Bulkhead 2: between mid-section and cockpit (at dx ~ +4)
+            int bulk2_x = cx + 4;
+            for (int dy = -(body_half_h - 1); dy <= (body_half_h - 1); ++dy) {
+                if (!in_bounds(bulk2_x, cy + dy)) continue;
+                if (std::abs(dy) != 0 && prob(rng) < 0.60f)
+                    map_->set(bulk2_x, cy + dy, Tile::Wall);
+            }
+
+            // --- Breach points: 2-3 holes punched in hull ---
+            std::uniform_int_distribution<int> breach_count_dist(2, 3);
+            std::uniform_int_distribution<int> breach_x_dist(-ship_half + 2, ship_half - 3);
+            int num_breaches = breach_count_dist(rng);
+            for (int b = 0; b < num_breaches; ++b) {
+                int bx = cx + breach_x_dist(rng);
+                int hh = hull_half_h(bx - cx);
+                // Pick top or bottom hull edge
+                int by = cy + (prob(rng) < 0.5f ? -hh : hh);
+                int y_off = ((bx - cx) * skid_y) / ship_half;
+                by += y_off;
+                // Clear 2-3 tiles along hull
+                std::uniform_int_distribution<int> breach_len_dist(2, 3);
+                int blen = breach_len_dist(rng);
+                for (int i = 0; i < blen; ++i) {
+                    if (in_bounds(bx + i, by))
+                        map_->set(bx + i, by, Tile::Floor);
+                }
+            }
+
+            // --- Debris field (~30x20 around the ship) ---
+            // Small wall fragments
+            std::uniform_int_distribution<int> frag_count_dist(8, 15);
+            std::uniform_int_distribution<int> frag_x_dist(-15, 15);
+            std::uniform_int_distribution<int> frag_y_dist(-10, 10);
+            std::uniform_int_distribution<int> frag_size_dist(1, 2);
+            int num_frags = frag_count_dist(rng);
+            for (int i = 0; i < num_frags; ++i) {
+                int fx = cx + frag_x_dist(rng);
+                int fy = cy + frag_y_dist(rng);
+                int fs = frag_size_dist(rng);
+                for (int y = fy; y < fy + fs; ++y)
+                    for (int x = fx; x < fx + fs; ++x)
+                        if (in_bounds(x, y) && prob(rng) < 0.60f)
+                            map_->set(x, y, Tile::Wall);
+            }
+
+            // Debris fixtures scattered near the ship
+            std::uniform_int_distribution<int> debris_count_dist(6, 10);
+            std::uniform_int_distribution<int> debris_x_dist(-12, 12);
+            std::uniform_int_distribution<int> debris_y_dist(-8, 8);
+            int num_debris = debris_count_dist(rng);
+            for (int i = 0; i < num_debris; ++i) {
+                int dx = cx + debris_x_dist(rng);
+                int dy = cy + debris_y_dist(rng);
+                if (in_bounds(dx, dy) &&
+                    map_->get(dx, dy) == Tile::Floor &&
+                    map_->fixture_id(dx, dy) < 0) {
+                    map_->add_fixture(dx, dy,
+                        deco(',', nullptr, Color::DarkGray, true));
+                }
+            }
+
+            // --- Fixtures inside the ship ---
+            // Console in cockpit (front section, dx ~ +6)
+            {
+                int fx = cx + 6, fy = cy;
+                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::Floor) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Console));
+                }
+            }
+
+            // Crates in mid-section (1-2)
+            {
+                std::uniform_int_distribution<int> crate_count_dist(1, 2);
+                std::uniform_int_distribution<int> crate_x_dist(-3, 3);
+                std::uniform_int_distribution<int> crate_y_dist(-1, 1);
+                int num_crates = crate_count_dist(rng);
+                for (int i = 0; i < num_crates; ++i) {
+                    int fx = cx + crate_x_dist(rng);
+                    int fy = cy + crate_y_dist(rng);
+                    if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::Floor &&
+                        map_->fixture_id(fx, fy) < 0) {
+                        map_->set(fx, fy, Tile::Fixture);
+                        map_->add_fixture(fx, fy, make_fixture(FixtureType::Crate));
+                    }
+                }
+            }
+
+            // Conduit in engine bay (rear section, dx ~ -7)
+            {
+                int fx = cx - 7, fy = cy;
+                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::Floor) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Conduit));
+                }
+            }
+
+            // Portal in mid-section for dungeon access
+            {
+                int px = cx + 1, py = cy;
+                if (in_bounds(px, py)) {
+                    map_->set(px, py, Tile::Portal);
+                }
             }
             break;
         }
         case Tile::OW_Outpost: {
-            int bx = cx - 2, by = cy - 2;
-            for (int y = by; y <= by + 4; ++y)
-                for (int x = bx; x <= bx + 4; ++x)
+            // --- Military/frontier outpost compound ---
+            std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+
+            // Defensive perimeter (~24x18)
+            int perim_x = cx - 12;
+            int perim_y = cy - 9;
+            int perim_w = 24;
+            int perim_h = 18;
+
+            // Outer wall ring with ~60% probability (weathered fortification)
+            for (int x = perim_x; x < perim_x + perim_w; ++x) {
+                if (in_bounds(x, perim_y) && prob(rng) < 0.60f)
+                    map_->set(x, perim_y, Tile::Wall);
+                if (in_bounds(x, perim_y + perim_h - 1) && prob(rng) < 0.60f)
+                    map_->set(x, perim_y + perim_h - 1, Tile::Wall);
+            }
+            for (int y = perim_y; y < perim_y + perim_h; ++y) {
+                if (in_bounds(perim_x, y) && prob(rng) < 0.60f)
+                    map_->set(perim_x, y, Tile::Wall);
+                if (in_bounds(perim_x + perim_w - 1, y) && prob(rng) < 0.60f)
+                    map_->set(perim_x + perim_w - 1, y, Tile::Wall);
+            }
+
+            // North and south gate gaps (clear 3-wide openings)
+            for (int dx = -1; dx <= 1; ++dx) {
+                int gx = cx + dx;
+                if (in_bounds(gx, perim_y))
+                    map_->set(gx, perim_y, Tile::Floor);
+                if (in_bounds(gx, perim_y + perim_h - 1))
+                    map_->set(gx, perim_y + perim_h - 1, Tile::Floor);
+            }
+
+            // Guard towers at 4 corners (3x3 wall blocks with 1x1 interior floor)
+            int tower_offsets[][2] = {
+                {perim_x, perim_y},
+                {perim_x + perim_w - 3, perim_y},
+                {perim_x, perim_y + perim_h - 3},
+                {perim_x + perim_w - 3, perim_y + perim_h - 3}
+            };
+            for (const auto& off : tower_offsets) {
+                int tx = off[0], ty = off[1];
+                for (int y = ty; y < ty + 3; ++y)
+                    for (int x = tx; x < tx + 3; ++x)
+                        if (in_bounds(x, y))
+                            map_->set(x, y, Tile::Wall);
+                // Interior lookout
+                if (in_bounds(tx + 1, ty + 1))
+                    map_->set(tx + 1, ty + 1, Tile::Floor);
+            }
+
+            // Building coordinates (declared early for path layout)
+            int mb_x = cx - 5, mb_y = cy - 4;
+            int mb_w = 10, mb_h = 8;
+            int shed_x = cx + 6, shed_y = cy - 6;
+            int shed_w = 6, shed_h = 4;
+
+            // Courtyard paths — clear wall-noise along walkways but leave
+            // natural terrain elsewhere so the biome shows through.
+            // Path from south gate to main building entrance
+            for (int x = cx - 1; x <= cx + 1; ++x)
+                for (int y = mb_y + mb_h; y <= perim_y + perim_h - 2; ++y)
                     if (in_bounds(x, y))
-                        map_->set(x, y, (y == by || y == by + 4 || x == bx || x == bx + 4)
-                                  ? Tile::Wall : Tile::Floor);
-            map_->set(cx, by + 4, Tile::Floor);
+                        map_->set(x, y, Tile::Floor);
+            // Path from north gate to main building
+            for (int x = cx - 1; x <= cx + 1; ++x)
+                for (int y = perim_y + 1; y < mb_y; ++y)
+                    if (in_bounds(x, y))
+                        map_->set(x, y, Tile::Floor);
+            // Path from main building to storage shed
+            {
+                int path_y = mb_y + 1;
+                for (int x = mb_x + mb_w; x < shed_x; ++x)
+                    if (in_bounds(x, path_y))
+                        map_->set(x, path_y, Tile::Floor);
+            }
+
+            // Main building (10x8, centered)
+            for (int y = mb_y; y < mb_y + mb_h; ++y) {
+                for (int x = mb_x; x < mb_x + mb_w; ++x) {
+                    if (!in_bounds(x, y)) continue;
+                    bool edge = (y == mb_y || y == mb_y + mb_h - 1 ||
+                                 x == mb_x || x == mb_x + mb_w - 1);
+                    if (edge) {
+                        if (prob(rng) < 0.85f)
+                            map_->set(x, y, Tile::Wall);
+                    } else {
+                        map_->set(x, y, Tile::Floor);
+                    }
+                }
+            }
+            // South doorway
+            if (in_bounds(cx, mb_y + mb_h - 1))
+                map_->set(cx, mb_y + mb_h - 1, Tile::Floor);
+            // Internal dividing wall (partial, splits east/west halves)
+            int div_x = cx;
+            for (int y = mb_y + 1; y < mb_y + mb_h - 1; ++y) {
+                if (in_bounds(div_x, y) && y != cy) // gap at center for passage
+                    map_->set(div_x, y, Tile::Wall);
+            }
+
+            // Command room fixtures (west half)
+            {
+                int fx = cx - 3, fy = cy - 1;
+                if (in_bounds(fx, fy)) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Console));
+                }
+            }
+            // Portal in command room for underground access
+            {
+                int px = cx - 2, py = cy + 1;
+                if (in_bounds(px, py))
+                    map_->set(px, py, Tile::Portal);
+            }
+            // Barracks fixture (east half)
+            {
+                int fx = cx + 3, fy = cy - 1;
+                if (in_bounds(fx, fy)) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Bunk));
+                }
+            }
+
+            // Storage shed (6x4, northeast of main building)
+            for (int y = shed_y; y < shed_y + shed_h; ++y) {
+                for (int x = shed_x; x < shed_x + shed_w; ++x) {
+                    if (!in_bounds(x, y)) continue;
+                    bool edge = (y == shed_y || y == shed_y + shed_h - 1 ||
+                                 x == shed_x || x == shed_x + shed_w - 1);
+                    if (edge) {
+                        if (prob(rng) < 0.75f)
+                            map_->set(x, y, Tile::Wall);
+                    } else {
+                        map_->set(x, y, Tile::Floor);
+                    }
+                }
+            }
+            // Shed doorway on west wall (facing courtyard)
+            if (in_bounds(shed_x, shed_y + shed_h / 2))
+                map_->set(shed_x, shed_y + shed_h / 2, Tile::Floor);
+            // Shed fixtures: crates and rack
+            {
+                int fx = shed_x + 1, fy = shed_y + 1;
+                if (in_bounds(fx, fy)) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Crate));
+                }
+                fx = shed_x + 3; fy = shed_y + 1;
+                if (in_bounds(fx, fy)) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Crate));
+                }
+                fx = shed_x + 4; fy = shed_y + 2;
+                if (in_bounds(fx, fy)) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Rack));
+                }
+            }
+
+            // Courtyard debris (3-5 scattered decorations)
+            {
+                std::uniform_int_distribution<int> debris_count(3, 5);
+                std::uniform_int_distribution<int> dx_dist(perim_x + 3, perim_x + perim_w - 4);
+                std::uniform_int_distribution<int> dy_dist(perim_y + 3, perim_y + perim_h - 4);
+                int nd = debris_count(rng);
+                for (int i = 0; i < nd; ++i) {
+                    int dx = dx_dist(rng);
+                    int dy = dy_dist(rng);
+                    if (in_bounds(dx, dy) && map_->get(dx, dy) == Tile::Floor) {
+                        map_->set(dx, dy, Tile::Fixture);
+                        map_->add_fixture(dx, dy, make_fixture(FixtureType::Debris));
+                    }
+                }
+            }
             break;
         }
         case Tile::OW_Landing: {

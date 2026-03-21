@@ -126,6 +126,7 @@ private:
 
     // Dev tools
     void dev_warp_random();
+    void dev_warp_stamp_test();
 
     // Helpers
     void log(const std::string& msg);
@@ -147,6 +148,7 @@ private:
 
     // Dev mode
     bool dev_mode_ = false;
+    Tile dev_warp_stamp_test_poi_ = Tile::Empty;
 
     // Gameplay
     unsigned seed_ = 0;

@@ -364,6 +364,7 @@ void Game::handle_play_input(int key) {
             if (dev_mode_) {
                 npc_dialog_ = Dialog("[DEV] Developer Menu");
                 npc_dialog_.add_option("Warp to Random Map");
+                npc_dialog_.add_option("POI Stamp Test...");
                 npc_dialog_.add_option("Character Stats...");
                 npc_dialog_.add_option("Cancel");
                 npc_dialog_.open();
@@ -543,6 +544,32 @@ void Game::dev_warp_random() {
     surface_mode_ = SurfaceMode::Dungeon;
 
     log(std::string("[DEV] Warped to: ") + m.name);
+    check_region_change();
+}
+
+void Game::dev_warp_stamp_test() {
+    unsigned warp_seed = static_cast<unsigned>(std::time(nullptr));
+
+    auto props = default_properties(MapType::DetailMap);
+    props.biome = Biome::Rocky;
+    props.detail_terrain = Tile::OW_Plains;
+    props.detail_has_poi = true;
+    props.detail_poi_type = dev_warp_stamp_test_poi_;
+
+    map_ = TileMap(props.width, props.height, MapType::DetailMap);
+    auto gen = create_generator(MapType::DetailMap);
+    gen->generate(map_, props, warp_seed);
+    map_.set_location_name("[DEV] Stamp Test");
+
+    map_.find_open_spot(player_.x, player_.y);
+    npcs_.clear();
+    ground_items_.clear();
+    visibility_ = VisibilityMap(map_.width(), map_.height());
+    recompute_fov();
+    compute_camera();
+    current_region_ = -1;
+    surface_mode_ = SurfaceMode::Dungeon;
+
     check_region_change();
 }
 
@@ -1874,6 +1901,18 @@ void Game::advance_dialog(int selected) {
         if (selected == 0) {
             dev_warp_random();
         } else if (selected == 1) {
+            // POI Stamp Test submenu
+            npc_dialog_ = Dialog("[DEV] POI Stamp Test");
+            npc_dialog_.add_option("Ruins");
+            npc_dialog_.add_option("Crashed Ship");
+            npc_dialog_.add_option("Outpost");
+            npc_dialog_.add_option("Cave Entrance");
+            npc_dialog_.add_option("Settlement");
+            npc_dialog_.add_option("Landing Pad");
+            npc_dialog_.add_option("Back");
+            npc_dialog_.open();
+            dialog_node_ = -9; // sentinel: stamp test menu
+        } else if (selected == 2) {
             // Open character stats submenu
             npc_dialog_ = Dialog("[DEV] Character Stats");
             npc_dialog_.add_option(std::string("Invulnerability: ") +
@@ -1901,6 +1940,30 @@ void Game::advance_dialog(int selected) {
         } else {
             dialog_node_ = -1;
             dialog_tree_ = nullptr;
+        }
+        return;
+    }
+
+    // Dev menu — POI stamp test
+    if (dialog_node_ == -9) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        if (selected < 6) {
+            static constexpr Tile poi_types[] = {
+                Tile::OW_Ruins,
+                Tile::OW_CrashedShip,
+                Tile::OW_Outpost,
+                Tile::OW_CaveEntrance,
+                Tile::OW_Settlement,
+                Tile::OW_Landing,
+            };
+            static constexpr const char* poi_names[] = {
+                "Ruins", "Crashed Ship", "Outpost",
+                "Cave Entrance", "Settlement", "Landing Pad",
+            };
+            dev_warp_stamp_test_poi_ = poi_types[selected];
+            dev_warp_stamp_test();
+            log(std::string("[DEV] Stamp Test: ") + poi_names[selected]);
         }
         return;
     }

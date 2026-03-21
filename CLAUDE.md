@@ -107,3 +107,6 @@ The inventory for example displays the players items in their "bag" and what the
 
 The entire world state need to be able to be persisted. 
 
+## Plans
+
+After each plan is made also write it to the plans/ folder so we can track the plans
