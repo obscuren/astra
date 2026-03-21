@@ -79,6 +79,7 @@ static float terrain_wall_density(Tile t) {
         case Tile::OW_CaveEntrance:return 0.25f;
         case Tile::OW_CrashedShip: return 0.15f;
         case Tile::OW_Outpost:     return 0.18f;
+        case Tile::OW_Settlement:  return 0.10f;
         default:                   return 0.10f;
     }
 }
@@ -620,20 +621,184 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             break;
         }
         case Tile::OW_Settlement: {
-            int bx = cx - 3, by = cy - 2;
-            for (int y = by; y <= by + 4; ++y)
-                for (int x = bx; x <= bx + 6; ++x)
+            std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+
+            // --- Central plaza (~8x6 floor area centered on cx, cy) ---
+            int plaza_x = cx - 4, plaza_y = cy - 3;
+            int plaza_w = 8, plaza_h = 6;
+            for (int y = plaza_y; y < plaza_y + plaza_h; ++y)
+                for (int x = plaza_x; x < plaza_x + plaza_w; ++x)
                     if (in_bounds(x, y))
-                        map_->set(x, y, (y == by || y == by + 4 || x == bx || x == bx + 6)
-                                  ? Tile::Wall : Tile::Floor);
-            map_->set(cx, by + 4, Tile::Floor);
-            if (in_bounds(cx - 1, cy)) {
-                map_->set(cx - 1, cy, Tile::Fixture);
-                map_->add_fixture(cx - 1, cy, make_fixture(FixtureType::Table));
+                        map_->set(x, y, Tile::Floor);
+
+            // Scatter 3-5 stools in the plaza (outdoor seating)
+            std::uniform_int_distribution<int> stool_count_dist(3, 5);
+            int num_stools = stool_count_dist(rng);
+            for (int i = 0; i < num_stools; ++i) {
+                std::uniform_int_distribution<int> sx_dist(plaza_x + 1, plaza_x + plaza_w - 2);
+                std::uniform_int_distribution<int> sy_dist(plaza_y + 1, plaza_y + plaza_h - 2);
+                int sx = sx_dist(rng), sy = sy_dist(rng);
+                if (in_bounds(sx, sy) && map_->get(sx, sy) == Tile::Floor) {
+                    map_->set(sx, sy, Tile::Fixture);
+                    map_->add_fixture(sx, sy, make_fixture(FixtureType::Stool));
+                }
             }
-            if (in_bounds(cx + 1, cy)) {
-                map_->set(cx + 1, cy, Tile::Fixture);
-                map_->add_fixture(cx + 1, cy, make_fixture(FixtureType::Console));
+
+            // --- Main hall (10x6, north of plaza) ---
+            int hall_x = cx - 5, hall_y = cy - 10;
+            int hall_w = 10, hall_h = 6;
+            for (int y = hall_y; y < hall_y + hall_h; ++y) {
+                for (int x = hall_x; x < hall_x + hall_w; ++x) {
+                    if (!in_bounds(x, y)) continue;
+                    bool edge = (y == hall_y || y == hall_y + hall_h - 1 ||
+                                 x == hall_x || x == hall_x + hall_w - 1);
+                    if (edge) {
+                        if (prob(rng) < 0.90f)
+                            map_->set(x, y, Tile::Wall);
+                    } else {
+                        map_->set(x, y, Tile::Floor);
+                    }
+                }
+            }
+            // South doorway facing plaza
+            if (in_bounds(cx, hall_y + hall_h - 1))
+                map_->set(cx, hall_y + hall_h - 1, Tile::Floor);
+            // Console fixture (settlement admin terminal)
+            if (in_bounds(hall_x + 2, hall_y + 2)) {
+                map_->set(hall_x + 2, hall_y + 2, Tile::Fixture);
+                map_->add_fixture(hall_x + 2, hall_y + 2, make_fixture(FixtureType::Console));
+            }
+            // Portal for dungeon access
+            if (in_bounds(hall_x + hall_w - 3, hall_y + 2))
+                map_->set(hall_x + hall_w - 3, hall_y + 2, Tile::Portal);
+
+            // --- Market building (8x5, east of plaza) ---
+            int mkt_x = cx + 5, mkt_y = cy - 2;
+            int mkt_w = 8, mkt_h = 5;
+            for (int y = mkt_y; y < mkt_y + mkt_h; ++y) {
+                for (int x = mkt_x; x < mkt_x + mkt_w; ++x) {
+                    if (!in_bounds(x, y)) continue;
+                    bool edge = (y == mkt_y || y == mkt_y + mkt_h - 1 ||
+                                 x == mkt_x || x == mkt_x + mkt_w - 1);
+                    if (edge) {
+                        if (prob(rng) < 0.85f)
+                            map_->set(x, y, Tile::Wall);
+                    } else {
+                        map_->set(x, y, Tile::Floor);
+                    }
+                }
+            }
+            // West doorway facing plaza
+            if (in_bounds(mkt_x, mkt_y + mkt_h / 2))
+                map_->set(mkt_x, mkt_y + mkt_h / 2, Tile::Floor);
+            // 2 crates (trade goods) and 1 table (merchant counter)
+            if (in_bounds(mkt_x + 2, mkt_y + 1)) {
+                map_->set(mkt_x + 2, mkt_y + 1, Tile::Fixture);
+                map_->add_fixture(mkt_x + 2, mkt_y + 1, make_fixture(FixtureType::Crate));
+            }
+            if (in_bounds(mkt_x + 4, mkt_y + 1)) {
+                map_->set(mkt_x + 4, mkt_y + 1, Tile::Fixture);
+                map_->add_fixture(mkt_x + 4, mkt_y + 1, make_fixture(FixtureType::Crate));
+            }
+            if (in_bounds(mkt_x + 3, mkt_y + 3)) {
+                map_->set(mkt_x + 3, mkt_y + 3, Tile::Fixture);
+                map_->add_fixture(mkt_x + 3, mkt_y + 3, make_fixture(FixtureType::Table));
+            }
+
+            // --- Dwelling buildings (2-3 small ~5x4, west and south of plaza) ---
+            std::uniform_int_distribution<int> dwell_count_dist(2, 3);
+            int num_dwellings = dwell_count_dist(rng);
+            struct DwellPos { int x, y, door_side; }; // door_side: 0=north, 1=east
+            DwellPos dwell_positions[] = {
+                {cx - 11, cy - 1, 1},  // west of plaza, door facing east
+                {cx - 3,  cy + 5, 0},  // south of plaza, door facing north
+                {cx - 11, cy + 5, 1},  // southwest, door facing east
+            };
+            for (int i = 0; i < num_dwellings; ++i) {
+                auto& dp = dwell_positions[i];
+                int dw = 5, dh = 4;
+                for (int y = dp.y; y < dp.y + dh; ++y) {
+                    for (int x = dp.x; x < dp.x + dw; ++x) {
+                        if (!in_bounds(x, y)) continue;
+                        bool edge = (y == dp.y || y == dp.y + dh - 1 ||
+                                     x == dp.x || x == dp.x + dw - 1);
+                        if (edge) {
+                            if (prob(rng) < 0.80f)
+                                map_->set(x, y, Tile::Wall);
+                        } else {
+                            map_->set(x, y, Tile::Floor);
+                        }
+                    }
+                }
+                // Doorway
+                if (dp.door_side == 0) { // north
+                    if (in_bounds(dp.x + dw / 2, dp.y))
+                        map_->set(dp.x + dw / 2, dp.y, Tile::Floor);
+                } else { // east
+                    if (in_bounds(dp.x + dw - 1, dp.y + dh / 2))
+                        map_->set(dp.x + dw - 1, dp.y + dh / 2, Tile::Floor);
+                }
+                // Bunk fixture inside
+                if (in_bounds(dp.x + 2, dp.y + 1)) {
+                    map_->set(dp.x + 2, dp.y + 1, Tile::Fixture);
+                    map_->add_fixture(dp.x + 2, dp.y + 1, make_fixture(FixtureType::Bunk));
+                }
+            }
+
+            // --- Pathways (2-wide floor paths connecting buildings to plaza) ---
+            // North path: plaza to main hall doorway
+            for (int y = hall_y + hall_h; y < plaza_y; ++y)
+                for (int dx = -1; dx <= 0; ++dx)
+                    if (in_bounds(cx + dx, y))
+                        map_->set(cx + dx, y, Tile::Floor);
+
+            // East path: plaza to market doorway
+            for (int x = plaza_x + plaza_w; x < mkt_x; ++x)
+                for (int dy = -1; dy <= 0; ++dy)
+                    if (in_bounds(x, cy + dy))
+                        map_->set(x, cy + dy, Tile::Floor);
+
+            // South path: plaza toward south edge
+            for (int y = plaza_y + plaza_h; y < cy + 14; ++y)
+                for (int dx = -1; dx <= 0; ++dx)
+                    if (in_bounds(cx + dx, y))
+                        map_->set(cx + dx, y, Tile::Floor);
+
+            // West path: plaza toward west edge
+            for (int x = cx - 14; x < plaza_x; ++x)
+                for (int dy = -1; dy <= 0; ++dy)
+                    if (in_bounds(x, cy + dy))
+                        map_->set(x, cy + dy, Tile::Floor);
+
+            // --- Market stalls (open-air, south of plaza) ---
+            // 2-3 table+crate combos on floor tiles
+            std::uniform_int_distribution<int> stall_count_dist(2, 3);
+            int num_stalls = stall_count_dist(rng);
+            for (int i = 0; i < num_stalls; ++i) {
+                int stall_x = cx - 3 + i * 3;
+                int stall_y = cy + plaza_h / 2 + 1;
+                if (in_bounds(stall_x, stall_y) && map_->get(stall_x, stall_y) == Tile::Floor) {
+                    map_->set(stall_x, stall_y, Tile::Fixture);
+                    map_->add_fixture(stall_x, stall_y, make_fixture(FixtureType::Table));
+                }
+                if (in_bounds(stall_x + 1, stall_y) && map_->get(stall_x + 1, stall_y) == Tile::Floor) {
+                    map_->set(stall_x + 1, stall_y, Tile::Fixture);
+                    map_->add_fixture(stall_x + 1, stall_y, make_fixture(FixtureType::Crate));
+                }
+            }
+
+            // --- Debris/detail along paths ---
+            std::uniform_int_distribution<int> debris_count(3, 5);
+            std::uniform_int_distribution<int> debris_ox(-12, 12);
+            std::uniform_int_distribution<int> debris_oy(-10, 12);
+            int num_debris = debris_count(rng);
+            for (int i = 0; i < num_debris; ++i) {
+                int dx = cx + debris_ox(rng);
+                int dy = cy + debris_oy(rng);
+                if (in_bounds(dx, dy) && map_->get(dx, dy) == Tile::Floor) {
+                    map_->set(dx, dy, Tile::Fixture);
+                    map_->add_fixture(dx, dy, make_fixture(FixtureType::Debris));
+                }
             }
             break;
         }
