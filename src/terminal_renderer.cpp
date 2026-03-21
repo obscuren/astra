@@ -7,8 +7,37 @@
 #include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
+#include <wchar.h>
 
 namespace astra {
+
+// Decode a UTF-8 sequence to a Unicode codepoint and return its terminal width.
+// Returns 1 for normal chars, 2 for wide (CJK, block elements on some terminals).
+static int utf8_cell_width(const char* utf8) {
+    if (!utf8 || !utf8[0]) return 1;
+
+    unsigned char c = static_cast<unsigned char>(utf8[0]);
+    if (c < 0x80) return 1; // ASCII is always 1
+
+    // Decode to codepoint
+    wchar_t cp = 0;
+    if ((c & 0xE0) == 0xC0) {
+        cp = (c & 0x1F) << 6;
+        cp |= (static_cast<unsigned char>(utf8[1]) & 0x3F);
+    } else if ((c & 0xF0) == 0xE0) {
+        cp = (c & 0x0F) << 12;
+        cp |= (static_cast<unsigned char>(utf8[1]) & 0x3F) << 6;
+        cp |= (static_cast<unsigned char>(utf8[2]) & 0x3F);
+    } else if ((c & 0xF8) == 0xF0) {
+        cp = (c & 0x07) << 18;
+        cp |= (static_cast<unsigned char>(utf8[1]) & 0x3F) << 12;
+        cp |= (static_cast<unsigned char>(utf8[2]) & 0x3F) << 6;
+        cp |= (static_cast<unsigned char>(utf8[3]) & 0x3F);
+    }
+
+    int w = wcwidth(cp);
+    return (w > 1) ? w : 1;
+}
 
 // --- Signal-safe terminal restore ---
 
@@ -128,6 +157,9 @@ void TerminalRenderer::present() {
         for (int x = 0; x < width_; ++x) {
             const auto& cell = buffer_[y][x];
 
+            // Skip continuation cells — the wide glyph to the left covers this
+            if (cell.continuation) continue;
+
             if (cell.fg != prev_color) {
                 append_color(out_buf_, cell.fg);
                 prev_color = cell.fg;
@@ -156,15 +188,31 @@ void TerminalRenderer::draw_char(int x, int y, char ch) {
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
+        // If this cell was wide, clear its continuation cell
+        if (cell.wide && x + 1 < width_) {
+            auto& next = buffer_[y][x + 1];
+            next.continuation = false;
+            next.ch[0] = ' ';
+            next.ch[1] = '\0';
+        }
         cell.ch[0] = ch;
         cell.ch[1] = '\0';
         cell.fg = fg;
+        cell.wide = false;
+        cell.continuation = false;
     }
 }
 
 void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
+        // If this cell was previously wide, clean up old continuation
+        if (cell.wide && x + 1 < width_) {
+            auto& old_next = buffer_[y][x + 1];
+            old_next.continuation = false;
+            old_next.ch[0] = ' ';
+            old_next.ch[1] = '\0';
+        }
         int i = 0;
         while (i < 4 && utf8[i]) {
             cell.ch[i] = utf8[i];
@@ -172,6 +220,20 @@ void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
         }
         cell.ch[i] = '\0';
         cell.fg = fg;
+        cell.continuation = false;
+
+        int w = utf8_cell_width(utf8);
+        cell.wide = (w > 1);
+
+        // Mark following cells as continuations
+        if (cell.wide) {
+            for (int dx = 1; dx < w && x + dx < width_; ++dx) {
+                auto& next = buffer_[y][x + dx];
+                next.ch[0] = '\0';
+                next.continuation = true;
+                next.wide = false;
+            }
+        }
     }
 }
 

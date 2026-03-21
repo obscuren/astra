@@ -36,6 +36,8 @@ private:
     struct Cell {
         char ch[5] = {' ', '\0', '\0', '\0', '\0'};
         Color fg = Color::Default;
+        bool wide = false;       // this cell contains a double-width glyph
+        bool continuation = false; // this cell is covered by the wide glyph to its left
     };
 
     int width_ = 80;

@@ -2559,12 +2559,27 @@ void Game::render_map() {
             }
 
             auto bc = biome_colors(map_.biome());
+            Biome biome = map_.biome();
             if (v == Visibility::Visible) {
                 Color c = bc.floor;
-                if (tile_at == Tile::Wall) c = bc.wall;
-                else if (tile_at == Tile::Portal) c = Color::Magenta;
-                else if (tile_at == Tile::Water) c = bc.water;
-                else if (tile_at == Tile::Ice) c = static_cast<Color>(39);
+                const char* utf8 = nullptr;
+
+                if (tile_at == Tile::Wall) {
+                    c = bc.wall;
+                    utf8 = dungeon_wall_glyph(biome, mx, my);
+                }
+                else if (tile_at == Tile::Portal) {
+                    c = Color::Magenta;
+                    utf8 = dungeon_portal_glyph();
+                }
+                else if (tile_at == Tile::Water) {
+                    c = bc.water;
+                    utf8 = dungeon_water_glyph(biome, mx, my);
+                }
+                else if (tile_at == Tile::Ice) {
+                    c = static_cast<Color>(39);
+                    utf8 = dungeon_water_glyph(biome, mx, my);
+                }
                 else if (tile_at == Tile::Fixture) {
                     int fid = map_.fixture_id(mx, my);
                     if (fid >= 0 && fid < map_.fixture_count()) {
@@ -2576,22 +2591,38 @@ void Game::render_map() {
                     }
                 }
                 else if (tile_at == Tile::Floor) {
-                    char sg = floor_scatter(mx, my, map_.biome());
+                    char sg = floor_scatter(mx, my, biome);
                     if (sg != '.') {
                         g = sg;
                         c = bc.remembered; // dimmer shade for scatter
                     }
                 }
-                ctx.put(sx, sy, g, c);
+
+                if (utf8) {
+                    ctx.put(sx, sy, utf8, c);
+                } else {
+                    ctx.put(sx, sy, g, c);
+                }
             } else {
-                // Remembered tiles: fixtures use remembered color
-                if (tile_at == Tile::Fixture) {
+                // Remembered tiles: use UTF-8 glyphs too
+                const char* utf8 = nullptr;
+                if (tile_at == Tile::Wall)
+                    utf8 = dungeon_wall_glyph(biome, mx, my);
+                else if (tile_at == Tile::Portal)
+                    utf8 = dungeon_portal_glyph();
+                else if (tile_at == Tile::Water || tile_at == Tile::Ice)
+                    utf8 = dungeon_water_glyph(biome, mx, my);
+                else if (tile_at == Tile::Fixture) {
                     int fid = map_.fixture_id(mx, my);
                     if (fid >= 0 && fid < map_.fixture_count()) {
                         g = map_.fixture(fid).glyph;
                     }
                 }
-                ctx.put(sx, sy, g, bc.remembered);
+
+                if (utf8)
+                    ctx.put(sx, sy, utf8, bc.remembered);
+                else
+                    ctx.put(sx, sy, g, bc.remembered);
             }
         }
     }

@@ -9,8 +9,51 @@
 #include <windows.h>
 #include <cstdio>
 #include <cstdlib>
+#include <wchar.h>
 
 namespace astra {
+
+// Decode a UTF-8 sequence to a Unicode codepoint and return its terminal width.
+static int utf8_cell_width(const char* utf8) {
+    if (!utf8 || !utf8[0]) return 1;
+
+    unsigned char c = static_cast<unsigned char>(utf8[0]);
+    if (c < 0x80) return 1;
+
+    wchar_t cp = 0;
+    if ((c & 0xE0) == 0xC0) {
+        cp = (c & 0x1F) << 6;
+        cp |= (static_cast<unsigned char>(utf8[1]) & 0x3F);
+    } else if ((c & 0xF0) == 0xE0) {
+        cp = (c & 0x0F) << 12;
+        cp |= (static_cast<unsigned char>(utf8[1]) & 0x3F) << 6;
+        cp |= (static_cast<unsigned char>(utf8[2]) & 0x3F);
+    } else if ((c & 0xF8) == 0xF0) {
+        cp = (c & 0x07) << 18;
+        cp |= (static_cast<unsigned char>(utf8[1]) & 0x3F) << 12;
+        cp |= (static_cast<unsigned char>(utf8[2]) & 0x3F) << 6;
+        cp |= (static_cast<unsigned char>(utf8[3]) & 0x3F);
+    }
+
+    // On Windows, use a simple lookup for common wide ranges
+    // CJK Unified Ideographs, Fullwidth Forms, etc.
+    if ((cp >= 0x1100 && cp <= 0x115F) ||   // Hangul Jamo
+        cp == 0x2329 || cp == 0x232A ||      // Angle brackets
+        (cp >= 0x2E80 && cp <= 0x303E) ||    // CJK
+        (cp >= 0x3040 && cp <= 0x33BF) ||    // Japanese
+        (cp >= 0x3400 && cp <= 0x4DBF) ||    // CJK Ext A
+        (cp >= 0x4E00 && cp <= 0xA4CF) ||    // CJK Unified
+        (cp >= 0xAC00 && cp <= 0xD7A3) ||    // Hangul
+        (cp >= 0xF900 && cp <= 0xFAFF) ||    // CJK Compat
+        (cp >= 0xFE30 && cp <= 0xFE6F) ||    // CJK Compat Forms
+        (cp >= 0xFF01 && cp <= 0xFF60) ||    // Fullwidth Forms
+        (cp >= 0xFFE0 && cp <= 0xFFE6) ||    // Fullwidth Signs
+        (cp >= 0x20000 && cp <= 0x2FFFD) ||  // CJK Ext B+
+        (cp >= 0x30000 && cp <= 0x3FFFD)) {  // CJK Ext G+
+        return 2;
+    }
+    return 1;
+}
 
 // Append a 256-color foreground escape sequence, or reset for Default.
 static void append_color(std::string& buf, Color c) {
@@ -113,6 +156,8 @@ void TerminalRenderer::present() {
         for (int x = 0; x < width_; ++x) {
             const auto& cell = buffer_[y][x];
 
+            if (cell.continuation) continue;
+
             if (cell.fg != prev_color) {
                 append_color(out_buf_, cell.fg);
                 prev_color = cell.fg;
@@ -142,15 +187,29 @@ void TerminalRenderer::draw_char(int x, int y, char ch) {
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
+        if (cell.wide && x + 1 < width_) {
+            auto& next = buffer_[y][x + 1];
+            next.continuation = false;
+            next.ch[0] = ' ';
+            next.ch[1] = '\0';
+        }
         cell.ch[0] = ch;
         cell.ch[1] = '\0';
         cell.fg = fg;
+        cell.wide = false;
+        cell.continuation = false;
     }
 }
 
 void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
+        if (cell.wide && x + 1 < width_) {
+            auto& old_next = buffer_[y][x + 1];
+            old_next.continuation = false;
+            old_next.ch[0] = ' ';
+            old_next.ch[1] = '\0';
+        }
         int i = 0;
         while (i < 4 && utf8[i]) {
             cell.ch[i] = utf8[i];
@@ -158,6 +217,19 @@ void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
         }
         cell.ch[i] = '\0';
         cell.fg = fg;
+        cell.continuation = false;
+
+        int w = utf8_cell_width(utf8);
+        cell.wide = (w > 1);
+
+        if (cell.wide) {
+            for (int dx = 1; dx < w && x + dx < width_; ++dx) {
+                auto& next = buffer_[y][x + dx];
+                next.ch[0] = '\0';
+                next.continuation = true;
+                next.wide = false;
+            }
+        }
     }
 }
 
