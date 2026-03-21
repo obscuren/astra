@@ -2584,7 +2584,11 @@ void Game::render_map() {
                     int fid = map_.fixture_id(mx, my);
                     if (fid >= 0 && fid < map_.fixture_count()) {
                         const auto& f = map_.fixture(fid);
-                        g = f.glyph;
+                        if (f.utf8_glyph) {
+                            utf8 = f.utf8_glyph;
+                        } else {
+                            g = f.glyph;
+                        }
                         c = f.color;
                     } else {
                         g = '?'; c = Color::Red;
@@ -2615,7 +2619,12 @@ void Game::render_map() {
                 else if (tile_at == Tile::Fixture) {
                     int fid = map_.fixture_id(mx, my);
                     if (fid >= 0 && fid < map_.fixture_count()) {
-                        g = map_.fixture(fid).glyph;
+                        const auto& f = map_.fixture(fid);
+                        if (f.utf8_glyph) {
+                            utf8 = f.utf8_glyph;
+                        } else {
+                            g = f.glyph;
+                        }
                     }
                 }
 
