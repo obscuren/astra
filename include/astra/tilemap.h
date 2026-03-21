@@ -212,6 +212,9 @@ enum class Biome : uint8_t {
     Fungal,
     Crystal,
     Corroded,
+    Forest,
+    Grassland,
+    Jungle,
 };
 
 struct BiomeColors {
@@ -291,6 +294,30 @@ inline const char* dungeon_wall_glyph(Biome biome, int x, int y) {
             static const char* g[] = {
                 "\xe2\x96\x91",  // ░
                 "#",
+                "\xe2\x96\x92",  // ▒
+            };
+            return g[h % 3];
+        }
+        case Biome::Forest: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "#",
+            };
+            return g[h % 3];
+        }
+        case Biome::Grassland: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return g[h % 3];
+        }
+        case Biome::Jungle: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x93",  // ▓
                 "\xe2\x96\x92",  // ▒
             };
             return g[h % 3];

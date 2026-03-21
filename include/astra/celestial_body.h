@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/renderer.h"
+#include "astra/tilemap.h"
 
 #include <cstdint>
 #include <string>
@@ -76,5 +77,11 @@ Color body_type_color(BodyType type);
 const char* body_type_name(BodyType type);
 const char* atmosphere_name(Atmosphere atmo);
 const char* temperature_name(Temperature temp);
+
+// Determine biome from body properties (deterministic via seed)
+Biome determine_biome(BodyType type, Atmosphere atmo, Temperature temp, unsigned seed);
+
+// Generate independent moon properties from parent body
+CelestialBody generate_moon_body(const CelestialBody& parent, int moon_index, unsigned seed);
 
 } // namespace astra

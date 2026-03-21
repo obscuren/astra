@@ -329,7 +329,212 @@ void DetailMapGenerator::generate_layout(std::mt19937& rng) {
 
 // --- POI placement ---
 
+// --- Biome scatter: decorative features for terrain variety ---
+
+// Small decorative stamp shapes placed randomly on floor tiles.
+struct ScatterStamp {
+    enum Shape { Single, Cluster3, Ring3x3, Line3, Block2x2 };
+    Shape shape;
+    FixtureType fixture;
+    bool passable;
+};
+
+static void place_stamp(TileMap* map, int sx, int sy, ScatterStamp::Shape shape,
+                         FixtureData fd) {
+    auto try_place = [&](int x, int y) {
+        if (x < 1 || x >= map->width() - 1 || y < 1 || y >= map->height() - 1) return;
+        if (map->get(x, y) != Tile::Floor) return;
+        if (map->fixture_id(x, y) >= 0) return;
+        map->add_fixture(x, y, fd);
+    };
+
+    switch (shape) {
+        case ScatterStamp::Single:
+            try_place(sx, sy);
+            break;
+        case ScatterStamp::Cluster3:
+            try_place(sx, sy);
+            try_place(sx + 1, sy);
+            try_place(sx, sy + 1);
+            break;
+        case ScatterStamp::Ring3x3:
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx)
+                    if (dx != 0 || dy != 0)
+                        try_place(sx + dx, sy + dy);
+            break;
+        case ScatterStamp::Line3:
+            try_place(sx - 1, sy);
+            try_place(sx, sy);
+            try_place(sx + 1, sy);
+            break;
+        case ScatterStamp::Block2x2:
+            try_place(sx, sy);
+            try_place(sx + 1, sy);
+            try_place(sx, sy + 1);
+            try_place(sx + 1, sy + 1);
+            break;
+    }
+}
+
+// Helper to create a custom decorative fixture
+static FixtureData deco(char glyph, const char* utf8, Color color, bool passable) {
+    FixtureData fd;
+    fd.type = FixtureType::Debris;
+    fd.glyph = glyph;
+    fd.utf8_glyph = utf8;
+    fd.color = color;
+    fd.passable = passable;
+    fd.interactable = false;
+    fd.cooldown = 0;
+    fd.last_used_tick = -1;
+    return fd;
+}
+
+// Each biome defines a palette of scatter features with relative weights.
+struct ScatterEntry {
+    int weight;
+    ScatterStamp::Shape shape;
+    FixtureData fixture;
+};
+
+static void scatter_biome_features(TileMap* map, std::mt19937& rng, Biome biome) {
+    int w = map->width();
+    int h = map->height();
+    int area = w * h;
+
+    std::vector<ScatterEntry> palette;
+    int attempts = 0;
+
+    switch (biome) {
+        case Biome::Grassland:
+            palette = {
+                {5, ScatterStamp::Single,   deco('*', "\xc2\xb7", Color::Yellow, true)},       // wildflowers
+                {3, ScatterStamp::Cluster3, deco('"', nullptr, Color::Green, true)},            // tall grass
+                {2, ScatterStamp::Single,   deco('o', "\xc2\xb0", Color::DarkGray, false)},    // boulder
+                {1, ScatterStamp::Block2x2, deco('o', "\xc2\xb0", Color::DarkGray, false)},    // boulder cluster
+                {1, ScatterStamp::Single,   deco('*', nullptr, Color::Magenta, true)},          // rare flower
+            };
+            attempts = area / 40;
+            break;
+        case Biome::Forest:
+            palette = {
+                {4, ScatterStamp::Single,   deco(',', nullptr, static_cast<Color>(58), true)},  // undergrowth
+                {3, ScatterStamp::Cluster3, deco('"', nullptr, Color::Green, true)},            // ferns
+                {2, ScatterStamp::Single,   deco('o', "\xc2\xa4", static_cast<Color>(94), false)}, // tree stump
+                {1, ScatterStamp::Block2x2, deco('#', "\xe2\x96\x92", Color::Green, false)},    // dense thicket
+                {1, ScatterStamp::Single,   deco('*', nullptr, Color::Red, true)},              // berries
+            };
+            attempts = area / 50;
+            break;
+        case Biome::Jungle:
+            palette = {
+                {5, ScatterStamp::Cluster3, deco('"', nullptr, static_cast<Color>(22), true)},  // vines
+                {3, ScatterStamp::Single,   deco('o', "\xc2\xa4", static_cast<Color>(22), false)}, // thick trunk
+                {2, ScatterStamp::Block2x2, deco('#', "\xe2\x96\x93", static_cast<Color>(22), false)}, // root mass
+                {1, ScatterStamp::Single,   deco('*', nullptr, Color::Yellow, true)},           // exotic flower
+            };
+            attempts = area / 35;
+            break;
+        case Biome::Sandy:
+            palette = {
+                {4, ScatterStamp::Single,   deco(',', nullptr, Color::Yellow, true)},           // sand ripples
+                {2, ScatterStamp::Cluster3, deco('.', nullptr, static_cast<Color>(180), true)}, // pebbles
+                {1, ScatterStamp::Single,   deco('o', "\xc2\xb0", Color::DarkGray, false)},    // large rock
+            };
+            attempts = area / 80;
+            break;
+        case Biome::Ice:
+            palette = {
+                {3, ScatterStamp::Single,   deco('\'', nullptr, Color::Cyan, true)},            // ice shard
+                {2, ScatterStamp::Line3,    deco('-', nullptr, Color::White, true)},             // ice ridge
+                {1, ScatterStamp::Block2x2, deco('o', "\xc2\xb0", Color::Cyan, false)},        // frozen boulder
+            };
+            attempts = area / 70;
+            break;
+        case Biome::Fungal:
+            palette = {
+                {4, ScatterStamp::Cluster3, deco('"', nullptr, Color::Green, true)},            // spore clusters
+                {3, ScatterStamp::Single,   deco('o', "\xce\xa6", Color::Green, false)},        // large mushroom (Φ)
+                {1, ScatterStamp::Ring3x3,  deco(',', nullptr, static_cast<Color>(22), true)},  // fairy ring
+            };
+            attempts = area / 45;
+            break;
+        case Biome::Rocky:
+            palette = {
+                {4, ScatterStamp::Single,   deco(',', nullptr, Color::DarkGray, true)},         // loose rocks
+                {2, ScatterStamp::Cluster3, deco('o', "\xc2\xb0", Color::DarkGray, false)},    // rock pile
+                {1, ScatterStamp::Block2x2, deco('#', "\xe2\x96\x91", Color::White, false)},   // boulder
+            };
+            attempts = area / 60;
+            break;
+        case Biome::Volcanic:
+            palette = {
+                {3, ScatterStamp::Single,   deco(',', nullptr, static_cast<Color>(52), true)},  // slag
+                {2, ScatterStamp::Cluster3, deco(';', nullptr, Color::Red, true)},              // cinder
+                {1, ScatterStamp::Line3,    deco('o', "\xc2\xb0", Color::DarkGray, false)},    // lava tube
+            };
+            attempts = area / 60;
+            break;
+        case Biome::Aquatic:
+            palette = {
+                {3, ScatterStamp::Single,   deco(',', nullptr, static_cast<Color>(30), true)},  // driftwood
+                {2, ScatterStamp::Cluster3, deco('"', nullptr, Color::Green, true)},            // seaweed
+            };
+            attempts = area / 70;
+            break;
+        case Biome::Crystal:
+            palette = {
+                {3, ScatterStamp::Single,   deco('*', "\xe2\x97\x87", Color::BrightMagenta, false)}, // crystal (◇)
+                {2, ScatterStamp::Cluster3, deco('\'', nullptr, Color::Magenta, true)},         // crystal shards
+                {1, ScatterStamp::Ring3x3,  deco('.', nullptr, Color::BrightMagenta, true)},    // crystal circle
+            };
+            attempts = area / 55;
+            break;
+        case Biome::Corroded:
+            palette = {
+                {4, ScatterStamp::Single,   deco(',', nullptr, static_cast<Color>(142), true)}, // corroded junk
+                {2, ScatterStamp::Cluster3, deco(';', nullptr, static_cast<Color>(58), true)},  // acid residue
+                {1, ScatterStamp::Block2x2, deco('#', "\xe2\x96\x91", static_cast<Color>(142), false)}, // collapsed structure
+            };
+            attempts = area / 50;
+            break;
+        default:
+            return;
+    }
+
+    if (palette.empty()) return;
+
+    int total_weight = 0;
+    for (const auto& e : palette) total_weight += e.weight;
+
+    std::uniform_int_distribution<int> xdist(2, w - 3);
+    std::uniform_int_distribution<int> ydist(2, h - 3);
+    std::uniform_int_distribution<int> wdist(0, total_weight - 1);
+
+    for (int i = 0; i < attempts; ++i) {
+        int x = xdist(rng);
+        int y = ydist(rng);
+
+        if (map->get(x, y) != Tile::Floor) continue;
+        if (map->fixture_id(x, y) >= 0) continue;
+
+        int roll = wdist(rng);
+        int cumulative = 0;
+        const ScatterEntry* chosen = &palette[0];
+        for (const auto& e : palette) {
+            cumulative += e.weight;
+            if (roll < cumulative) { chosen = &e; break; }
+        }
+
+        place_stamp(map, x, y, chosen->shape, chosen->fixture);
+    }
+}
+
 void DetailMapGenerator::place_features(std::mt19937& rng) {
+    // Always scatter biome-specific decorations
+    scatter_biome_features(map_, rng, props_->biome);
+
     if (!props_->detail_has_poi) return;
 
     int w = map_->width();

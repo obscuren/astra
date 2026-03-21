@@ -402,6 +402,12 @@ BiomeColors biome_colors(Biome b) {
             return {Color::BrightMagenta, Color::Magenta, Color::Magenta, static_cast<Color>(54)};
         case Biome::Corroded:
             return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), static_cast<Color>(58)};
+        case Biome::Forest:
+            return {Color::Green, static_cast<Color>(58), Color::Blue, static_cast<Color>(22)};
+        case Biome::Grassland:
+            return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
+        case Biome::Jungle:
+            return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
     }
     return {Color::White, Color::Default, Color::Blue, Color::Blue};
 }

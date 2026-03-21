@@ -18,6 +18,24 @@ namespace astra {
 
 static int sign(int v) { return (v > 0) - (v < 0); }
 
+// Map overworld terrain to detail/dungeon biome, falling back to planet biome for POIs
+static Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
+    switch (terrain) {
+        case Tile::OW_Forest:    return Biome::Forest;
+        case Tile::OW_Plains:    return Biome::Grassland;
+        case Tile::OW_Desert:    return Biome::Sandy;
+        case Tile::OW_IceField:  return Biome::Ice;
+        case Tile::OW_LavaFlow:  return Biome::Volcanic;
+        case Tile::OW_Swamp:     return Biome::Aquatic;
+        case Tile::OW_Fungal:    return Biome::Fungal;
+        case Tile::OW_Mountains: return Biome::Rocky;
+        case Tile::OW_Crater:    return Biome::Rocky;
+        case Tile::OW_River:     return Biome::Aquatic;
+        case Tile::OW_Lake:      return Biome::Aquatic;
+        default:                 return planet_biome;
+    }
+}
+
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
@@ -695,7 +713,7 @@ void Game::enter_overworld_tile() {
 
     // Determine detail map type + biome from overworld tile
     MapType detail_type = MapType::Rocky;
-    Biome detail_biome = map_.biome();
+    Biome detail_biome = detail_biome_for_terrain(tile, map_.biome());
 
     const char* enter_msg = "You explore the area.";
 
@@ -727,23 +745,18 @@ void Game::enter_overworld_tile() {
         case Tile::OW_Plains:
         case Tile::OW_Desert:
             detail_type = MapType::Rocky;
-            detail_biome = (map_.biome() == Biome::Sandy || map_.biome() == Biome::Volcanic)
-                           ? Biome::Sandy : Biome::Rocky;
             enter_msg = "You survey the terrain closely.";
             break;
         case Tile::OW_IceField:
             detail_type = MapType::Rocky;
-            detail_biome = Biome::Ice;
             enter_msg = "You traverse the frozen landscape.";
             break;
         case Tile::OW_LavaFlow:
             detail_type = MapType::Lava;
-            detail_biome = Biome::Volcanic;
             enter_msg = "You carefully navigate the volcanic terrain.";
             break;
         case Tile::OW_Fungal:
             detail_type = MapType::Rocky;
-            detail_biome = Biome::Fungal;
             enter_msg = "You push through the alien growth.";
             break;
         case Tile::OW_Crater:
@@ -752,17 +765,14 @@ void Game::enter_overworld_tile() {
             break;
         case Tile::OW_Forest:
             detail_type = MapType::Rocky;
-            detail_biome = Biome::Fungal;
             enter_msg = "You push into the dense forest.";
             break;
         case Tile::OW_River:
             detail_type = MapType::Rocky;
-            detail_biome = Biome::Aquatic;
             enter_msg = "You ford the rushing river.";
             break;
         case Tile::OW_Swamp:
             detail_type = MapType::Rocky;
-            detail_biome = Biome::Aquatic;
             enter_msg = "You wade into the murky swamp.";
             break;
         default:
@@ -869,7 +879,7 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     if (!ow_map) return props;
 
     props.detail_terrain = ow_map->get(ow_x, ow_y);
-    props.biome = ow_map->biome();
+    props.biome = detail_biome_for_terrain(props.detail_terrain, ow_map->biome());
 
     // Sample neighbors
     if (ow_y > 0) props.detail_neighbor_n = ow_map->get(ow_x, ow_y - 1);
@@ -999,9 +1009,9 @@ void Game::enter_dungeon_from_detail() {
         ow_biome = it->second.map.biome();
     }
 
-    // Re-use enter_overworld_tile mapping for dungeon type
+    // Map overworld tile to dungeon type + biome
     MapType detail_type = MapType::Rocky;
-    Biome detail_biome = ow_biome;
+    Biome detail_biome = detail_biome_for_terrain(ow_tile, ow_biome);
     const char* enter_msg = "You descend deeper.";
 
     switch (ow_tile) {
@@ -1300,29 +1310,20 @@ void Game::travel_to_destination(const ChartAction& action) {
                     break;
             }
 
-            // Map temperature to biome
-            switch (body.temperature) {
-                case Temperature::Frozen:
-                case Temperature::Cold:
-                    dest_biome = Biome::Ice;
-                    break;
-                case Temperature::Temperate:
-                    dest_biome = Biome::Rocky;
-                    break;
-                case Temperature::Hot:
-                    dest_biome = Biome::Sandy;
-                    break;
-                case Temperature::Scorching:
-                    dest_biome = Biome::Volcanic;
-                    break;
-            }
+            // Determine biome from body or moon properties
+            unsigned biome_seed = seed_ ^ (target_sys.id * 997u)
+                                ^ (static_cast<unsigned>(action.body_index) * 6271u);
 
-            if (action.moon_index >= 0 &&
-                action.moon_index < static_cast<int>(body.moon_names.size())) {
-                location_name = body.moon_names[action.moon_index];
-            } else if (action.moon_index >= 0) {
-                location_name = body.name + " Moon " + std::to_string(action.moon_index + 1);
+            if (action.moon_index >= 0) {
+                // Generate independent moon body
+                unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
+                                   ^ (static_cast<unsigned>(action.body_index) * 6271u);
+                auto moon = generate_moon_body(body, action.moon_index, moon_seed);
+                biome_seed ^= (static_cast<unsigned>(action.moon_index) * 4219u);
+                dest_biome = determine_biome(moon.type, moon.atmosphere, moon.temperature, biome_seed);
+                location_name = moon.name;
             } else {
+                dest_biome = determine_biome(body.type, body.atmosphere, body.temperature, biome_seed);
                 location_name = body.name;
             }
             break;
@@ -1360,14 +1361,26 @@ void Game::travel_to_destination(const ChartAction& action) {
         if (location_cache_.count(dest_key)) {
             restore_location(dest_key);
         } else {
-            // Generate overworld from body properties
+            // Generate overworld from body or moon properties
             auto props = default_properties(MapType::Overworld);
             props.biome = dest_biome;
-            props.body_type = body.type;
-            props.body_atmosphere = body.atmosphere;
-            props.body_temperature = body.temperature;
-            props.body_has_dungeon = body.has_dungeon;
-            props.body_danger_level = body.danger_level;
+
+            if (action.moon_index >= 0) {
+                unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
+                                   ^ (static_cast<unsigned>(action.body_index) * 6271u);
+                auto moon = generate_moon_body(body, action.moon_index, moon_seed);
+                props.body_type = moon.type;
+                props.body_atmosphere = moon.atmosphere;
+                props.body_temperature = moon.temperature;
+                props.body_has_dungeon = moon.has_dungeon;
+                props.body_danger_level = moon.danger_level;
+            } else {
+                props.body_type = body.type;
+                props.body_atmosphere = body.atmosphere;
+                props.body_temperature = body.temperature;
+                props.body_has_dungeon = body.has_dungeon;
+                props.body_danger_level = body.danger_level;
+            }
 
             unsigned ow_seed = seed_ ^ (target_sys.id * 7919u)
                              ^ (static_cast<unsigned>(action.body_index) * 6271u)
@@ -2992,6 +3005,9 @@ static char floor_scatter(int x, int y, Biome biome) {
         case Biome::Fungal:   s = {18, "\",'", 3}; break;
         case Biome::Crystal:  s = {15, "*'`",  3}; break;
         case Biome::Corroded: s = {20, ",:;",  3}; break;
+        case Biome::Forest:   s = {18, "\",'", 3}; break;
+        case Biome::Grassland:s = {15, ",`.",  3}; break;
+        case Biome::Jungle:   s = {22, "\",'", 3}; break;
         default: return '.';
     }
     if (roll >= s.threshold) return '.';
