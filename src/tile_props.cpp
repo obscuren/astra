@@ -82,6 +82,7 @@ TileProps tile_props(Tile tile, MapType map_type) {
             case MapType::Nebula:
                 return {Material::Nebula, nebula_wall_bumps};
             case MapType::Overworld:
+            case MapType::DetailMap:
                 return {Material::Rock, rocky_wall_bumps};
         }
     }

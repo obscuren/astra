@@ -43,6 +43,15 @@ struct MapProperties {
     Temperature body_temperature = Temperature::Cold;
     bool body_has_dungeon = false;
     int body_danger_level = 1;
+
+    // Detail map generation context (only used for MapType::DetailMap)
+    Tile detail_terrain = Tile::OW_Plains;
+    Tile detail_neighbor_n = Tile::Empty;
+    Tile detail_neighbor_s = Tile::Empty;
+    Tile detail_neighbor_e = Tile::Empty;
+    Tile detail_neighbor_w = Tile::Empty;
+    bool detail_has_poi = false;
+    Tile detail_poi_type = Tile::Empty;
 };
 
 MapProperties default_properties(MapType type);

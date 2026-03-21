@@ -45,6 +45,7 @@ struct Player {
     int energy = 0;
     int kills = 0;
     int regen_counter = 0;
+    bool invulnerable = false;
 
     // Equipment & inventory
     Equipment equipment;

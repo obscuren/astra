@@ -9,6 +9,7 @@
 #include "astra/star_chart.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/tile_props.h"
+#include "astra/map_properties.h"
 #include "astra/tilemap.h"
 #include "astra/ui.h"
 #include "astra/visibility_map.h"
@@ -30,6 +31,12 @@ enum class GameState {
     HallOfFame,
 };
 
+enum class SurfaceMode : uint8_t {
+    Dungeon,
+    DetailMap,
+    Overworld,
+};
+
 enum class PanelTab : uint8_t {
     Messages,
     Inventory,
@@ -46,7 +53,7 @@ public:
     void run();
 
 private:
-    using LocationKey = std::tuple<uint32_t, int, int, bool, int, int>;
+    using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int>;
 
     // Input
     void handle_input(int key);
@@ -63,6 +70,14 @@ private:
     void save_current_location();
     void restore_location(const LocationKey& key);
     void enter_ship();
+    void enter_detail_map();
+    void exit_detail_to_overworld();
+    void enter_dungeon_from_detail();
+    void exit_dungeon_to_detail();
+    void transition_detail_edge(int dx, int dy);
+    MapProperties build_detail_props(int ow_x, int ow_y);
+
+    // Legacy — kept for dungeon-from-overworld POI flow
     void enter_overworld_tile();
     void exit_to_overworld();
     void try_move(int dx, int dy);
@@ -203,10 +218,11 @@ private:
     static constexpr size_t max_messages_ = 200;
 
     // Location cache — preserves visited locations
-    // Key: {system_id, body_index, moon_index, is_station, ow_x, ow_y}
-    //   station:   {system_id, -1, -1, true, -1, -1}
-    //   overworld: {system_id, body_index, moon_index, false, -1, -1}
-    //   detail:    {system_id, body_index, moon_index, false, ow_x, ow_y}
+    // Key: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}
+    //   station:    {system_id, -1, -1, true, -1, -1, 0}
+    //   overworld:  {system_id, body_index, moon_index, false, -1, -1, 0}
+    //   detail map: {system_id, body_index, moon_index, false, ow_x, ow_y, 0}
+    //   dungeon:    {system_id, body_index, moon_index, false, ow_x, ow_y, 1}
     struct LocationState {
         TileMap map;
         VisibilityMap visibility;
@@ -215,11 +231,13 @@ private:
         int player_x = 0;
         int player_y = 0;
     };
-    static constexpr LocationKey ship_key_ = {0, -2, -1, false, -1, -1};
+    static inline const LocationKey ship_key_ = {0, -2, -1, false, -1, -1, 0};
     std::map<LocationKey, LocationState> location_cache_;
 
-    // Overworld state
-    bool on_overworld_ = false;
+    // Surface mode
+    SurfaceMode surface_mode_ = SurfaceMode::Dungeon;
+    bool on_overworld() const { return surface_mode_ == SurfaceMode::Overworld; }
+    bool on_detail_map() const { return surface_mode_ == SurfaceMode::DetailMap; }
     int overworld_x_ = 0;
     int overworld_y_ = 0;
 };

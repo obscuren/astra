@@ -199,6 +199,7 @@ enum class MapType : uint8_t {
     Asteroid,
     Starship,
     Overworld,
+    DetailMap,
 };
 
 enum class Biome : uint8_t {

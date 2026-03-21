@@ -37,7 +37,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 8;
+    uint32_t version = 9;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -51,7 +51,7 @@ struct SaveData {
     std::string death_message;
     std::vector<Item> stash;
     NavigationData navigation;
-    bool on_overworld = false;
+    uint8_t surface_mode = 0;  // 0=Dungeon, 1=DetailMap, 2=Overworld
     int overworld_x = 0;
     int overworld_y = 0;
 };

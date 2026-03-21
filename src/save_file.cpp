@@ -550,8 +550,8 @@ static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     w.write_i32(data.active_tab);
     w.write_u8(data.panel_visible ? 1 : 0);
     w.write_string(data.death_message);
-    // v7: overworld state
-    w.write_u8(data.on_overworld ? 1 : 0);
+    // v7/v9: surface mode (was on_overworld bool)
+    w.write_u8(data.surface_mode);
     w.write_i32(data.overworld_x);
     w.write_i32(data.overworld_y);
     w.end_section(pos);
@@ -818,9 +818,14 @@ static void read_game_state_section(BinaryReader& r, SaveData& data) {
     data.active_tab = r.read_i32();
     data.panel_visible = r.read_u8() != 0;
     data.death_message = r.read_string();
-    // v7: overworld state
-    if (data.version >= 7) {
-        data.on_overworld = r.read_u8() != 0;
+    // v7/v9: surface mode (v7-8 stored bool on_overworld, v9+ stores surface_mode u8)
+    if (data.version >= 9) {
+        data.surface_mode = r.read_u8();
+        data.overworld_x = r.read_i32();
+        data.overworld_y = r.read_i32();
+    } else if (data.version >= 7) {
+        bool on_ow = r.read_u8() != 0;
+        data.surface_mode = on_ow ? 2 : 0; // 2=Overworld, 0=Dungeon
         data.overworld_x = r.read_i32();
         data.overworld_y = r.read_i32();
     }
