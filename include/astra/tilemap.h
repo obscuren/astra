@@ -256,8 +256,14 @@ inline const char* dungeon_wall_glyph(Biome biome, int x, int y) {
             };
             return g[h % 3];
         }
-        case Biome::Sandy:
-            return "#";
+        case Biome::Sandy: {
+            static const char* g[] = {
+                "\xe2\x96\x92",  // ▒
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return g[h % 3];
+        }
         case Biome::Aquatic: {
             static const char* g[] = {
                 "\xe2\x96\x93",  // ▓
@@ -265,8 +271,14 @@ inline const char* dungeon_wall_glyph(Biome biome, int x, int y) {
             };
             return g[h % 2];
         }
-        case Biome::Fungal:
-            return "#";
+        case Biome::Fungal: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "#",
+            };
+            return g[h % 3];
+        }
         case Biome::Crystal: {
             static const char* g[] = {
                 "\xe2\x97\x86",  // ◆
@@ -274,8 +286,14 @@ inline const char* dungeon_wall_glyph(Biome biome, int x, int y) {
             };
             return g[h % 2];
         }
-        case Biome::Corroded:
-            return "#";
+        case Biome::Corroded: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "#",
+                "\xe2\x96\x92",  // ▒
+            };
+            return g[h % 3];
+        }
         default:
             return "#";
     }

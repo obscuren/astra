@@ -342,6 +342,11 @@ void Game::handle_play_input(int key) {
                 star_chart_viewer_.open();
             }
             break;
+        case '?':
+            if (dev_mode_) {
+                dev_warp_random();
+            }
+            break;
         case '+': case '=': {
             auto tab = static_cast<PanelTab>(active_tab_);
             if (tab == PanelTab::Inventory) {
@@ -453,6 +458,56 @@ void Game::handle_play_input(int key) {
 }
 
 // --- Logic ---
+
+void Game::dev_warp_random() {
+    // All generator combinations: {MapType, Biome, label}
+    struct DevMap {
+        MapType type;
+        Biome biome;
+        const char* name;
+    };
+    static constexpr DevMap maps[] = {
+        {MapType::SpaceStation,    Biome::Station,  "Space Station"},
+        {MapType::DerelictStation, Biome::Station,  "Derelict Station"},
+        {MapType::Rocky,           Biome::Rocky,    "Rocky Cave"},
+        {MapType::Rocky,           Biome::Ice,      "Ice Cave"},
+        {MapType::Rocky,           Biome::Crystal,  "Crystal Cave"},
+        {MapType::Rocky,           Biome::Fungal,   "Fungal Cave"},
+        {MapType::Rocky,           Biome::Corroded, "Corroded Cave"},
+        {MapType::Rocky,           Biome::Sandy,    "Sandy Cave"},
+        {MapType::Rocky,           Biome::Aquatic,  "Aquatic Cave"},
+        {MapType::Lava,            Biome::Volcanic, "Volcanic Cave"},
+        {MapType::Asteroid,        Biome::Rocky,    "Asteroid Tunnel (Rocky)"},
+        {MapType::Asteroid,        Biome::Ice,      "Asteroid Tunnel (Ice)"},
+        {MapType::Asteroid,        Biome::Crystal,  "Asteroid Tunnel (Crystal)"},
+        {MapType::Starship,        Biome::Station,  "Starship Interior"},
+    };
+    constexpr int map_count = sizeof(maps) / sizeof(maps[0]);
+
+    unsigned warp_seed = static_cast<unsigned>(std::time(nullptr));
+    std::mt19937 rng(warp_seed);
+    int pick = std::uniform_int_distribution<int>(0, map_count - 1)(rng);
+    const auto& m = maps[pick];
+
+    auto props = default_properties(m.type);
+    props.biome = m.biome;
+    map_ = TileMap(props.width, props.height, m.type);
+    auto gen = create_generator(m.type);
+    gen->generate(map_, props, warp_seed);
+    map_.set_location_name(m.name);
+
+    map_.find_open_spot(player_.x, player_.y);
+    npcs_.clear();
+    ground_items_.clear();
+    visibility_ = VisibilityMap(map_.width(), map_.height());
+    recompute_fov();
+    compute_camera();
+    current_region_ = -1;
+    on_overworld_ = false;
+
+    log(std::string("[DEV] Warped to: ") + m.name);
+    check_region_change();
+}
 
 void Game::new_game() {
     compute_layout();

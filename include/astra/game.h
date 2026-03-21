@@ -109,6 +109,9 @@ private:
     void compute_layout();
     void compute_camera();
 
+    // Dev tools
+    void dev_warp_random();
+
     // Helpers
     void log(const std::string& msg);
     Color hp_color() const;
