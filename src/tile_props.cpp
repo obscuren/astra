@@ -68,7 +68,7 @@ TileProps tile_props(Tile tile, MapType map_type) {
         return {Material::None, void_bumps};
     }
 
-    if (tile == Tile::Wall) {
+    if (tile == Tile::Wall || tile == Tile::StructuralWall) {
         switch (map_type) {
             case MapType::SpaceStation:
             case MapType::DerelictStation:
@@ -87,7 +87,7 @@ TileProps tile_props(Tile tile, MapType map_type) {
         }
     }
 
-    if (tile == Tile::Floor) {
+    if (tile == Tile::Floor || tile == Tile::IndoorFloor) {
         switch (map_type) {
             case MapType::SpaceStation:
                 return {Material::Plating, station_floor_bumps};

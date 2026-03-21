@@ -79,7 +79,7 @@ static float terrain_wall_density(Tile t) {
         case Tile::OW_CaveEntrance:return 0.25f;
         case Tile::OW_CrashedShip: return 0.15f;
         case Tile::OW_Outpost:     return 0.18f;
-        case Tile::OW_Settlement:  return 0.10f;
+        case Tile::OW_Settlement:  return 0.05f;
         default:                   return 0.10f;
     }
 }
@@ -621,77 +621,295 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             break;
         }
         case Tile::OW_Settlement: {
-            std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+            // --- Randomly generated frontier settlement ---
+            // Plaza at center, buildings on shuffled cardinal sides,
+            // 3-wide paths connecting everything, solid walls, sparse windows.
 
-            // --- Central plaza (~8x6 floor area centered on cx, cy) ---
-            int plaza_x = cx - 4, plaza_y = cy - 3;
-            int plaza_w = 8, plaza_h = 6;
+            // Helper: draw a solid building with floor interior, a door, and
+            // at most 1 window per wall side (only on walls >= 6 tiles long).
+            // door_side: 0=north, 1=south, 2=west, 3=east
+            auto draw_building = [&](int bx, int by, int bw, int bh, int door_side,
+                                     std::pair<int,int>& door_out) {
+                // Solid walls and floor interior
+                for (int y = by; y < by + bh; ++y)
+                    for (int x = bx; x < bx + bw; ++x)
+                        if (in_bounds(x, y)) {
+                            bool edge = (y == by || y == by + bh - 1 ||
+                                         x == bx || x == bx + bw - 1);
+                            map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                        }
+                // Door
+                int dx = 0, dy = 0;
+                switch (door_side) {
+                    case 0: dx = bx + bw / 2; dy = by;          break;
+                    case 1: dx = bx + bw / 2; dy = by + bh - 1; break;
+                    case 2: dx = bx;          dy = by + bh / 2; break;
+                    case 3: dx = bx + bw - 1; dy = by + bh / 2; break;
+                }
+                if (in_bounds(dx, dy)) map_->set(dx, dy, Tile::IndoorFloor);
+                door_out = {dx, dy};
+                // Windows: 1 per wall side (2 on long walls), skip door and corners
+                auto place_window = [&](int wx, int wy) {
+                    if (wx == dx && wy == dy) return;       // skip door
+                    if (!in_bounds(wx, wy)) return;
+                    map_->set(wx, wy, Tile::Fixture);
+                    map_->add_fixture(wx, wy, make_fixture(FixtureType::Window));
+                };
+                // North wall
+                if (bw >= 6) place_window(bx + bw / 3, by);
+                if (bw >= 10) place_window(bx + 2 * bw / 3, by);
+                // South wall
+                if (bw >= 6) place_window(bx + bw / 3, by + bh - 1);
+                if (bw >= 10) place_window(bx + 2 * bw / 3, by + bh - 1);
+                // West wall
+                if (bh >= 6) place_window(bx, by + bh / 3);
+                if (bh >= 10) place_window(bx, by + 2 * bh / 3);
+                // East wall
+                if (bh >= 6) place_window(bx + bw - 1, by + bh / 3);
+                if (bh >= 10) place_window(bx + bw - 1, by + 2 * bh / 3);
+            };
+
+            // Helper: carve a 3-wide paved path (IndoorFloor) as a straight
+            // axis-aligned segment from (x1,y1) to (x2,y2).
+            auto carve_straight = [&](int x1, int y1, int x2, int y2) {
+                if (x1 == x2) { // vertical
+                    int lo = std::min(y1, y2), hi = std::max(y1, y2);
+                    for (int y = lo; y <= hi; ++y)
+                        for (int d = -1; d <= 1; ++d)
+                            if (in_bounds(x1 + d, y))
+                                map_->set(x1 + d, y, Tile::IndoorFloor);
+                } else { // horizontal
+                    int lo = std::min(x1, x2), hi = std::max(x1, x2);
+                    for (int x = lo; x <= hi; ++x)
+                        for (int d = -1; d <= 1; ++d)
+                            if (in_bounds(x, y1 + d))
+                                map_->set(x, y1 + d, Tile::IndoorFloor);
+                }
+            };
+
+            // --- Randomize layout ---
+            std::uniform_int_distribution<int> plaza_w_dist(10, 14);
+            std::uniform_int_distribution<int> plaza_h_dist(6, 10);
+            int plaza_w = plaza_w_dist(rng);
+            int plaza_h = plaza_h_dist(rng);
+            int plaza_x = cx - plaza_w / 2;
+            int plaza_y = cy - plaza_h / 2;
+
+            // Shuffle cardinal directions: 0=north, 1=south, 2=west, 3=east
+            int dirs[4] = {0, 1, 2, 3};
+            for (int i = 3; i > 0; --i) {
+                std::uniform_int_distribution<int> swap_dist(0, i);
+                std::swap(dirs[i], dirs[swap_dist(rng)]);
+            }
+            // dirs[0] = main hall, dirs[1] = market, dirs[2..3] = dwellings
+
+            // Buildings sit 8 tiles from plaza edge (room for 3-wide path + breathing room)
+            int gap = 8;
+
+            // Compute building origin + door side from cardinal direction.
+            // offset shifts the building along the wall for side-by-side placement.
+            auto place_on_side = [&](int side, int bw, int bh, int offset = 0)
+                -> std::tuple<int, int, int> {
+                switch (side) {
+                    case 0: return {cx - bw / 2 + offset, plaza_y - gap - bh, 1};
+                    case 1: return {cx - bw / 2 + offset, plaza_y + plaza_h + gap, 0};
+                    case 2: return {plaza_x - gap - bw, cy - bh / 2 + offset, 3};
+                    case 3: return {plaza_x + plaza_w + gap, cy - bh / 2 + offset, 2};
+                    default: return {cx, cy, 0};
+                }
+            };
+
+            // Plaza-edge midpoint on a given side (path endpoint from plaza)
+            auto plaza_edge_mid = [&](int side) -> std::pair<int,int> {
+                switch (side) {
+                    case 0: return {cx, plaza_y};          // north edge
+                    case 1: return {cx, plaza_y + plaza_h - 1}; // south edge
+                    case 2: return {plaza_x, cy};          // west edge
+                    case 3: return {plaza_x + plaza_w - 1, cy}; // east edge
+                    default: return {cx, cy};
+                }
+            };
+
+            // ============================================================
+            // PHASE 1: Compute all building positions (consume RNG state)
+            // ============================================================
+
+            // Main hall
+            std::uniform_int_distribution<int> hall_w_dist(14, 18);
+            std::uniform_int_distribution<int> hall_h_dist(7, 9);
+            int hall_w = hall_w_dist(rng), hall_h = hall_h_dist(rng);
+            auto [hall_x, hall_y, hall_door] = place_on_side(dirs[0], hall_w, hall_h);
+
+            // Market
+            std::uniform_int_distribution<int> mkt_w_dist(10, 14);
+            std::uniform_int_distribution<int> mkt_h_dist(6, 8);
+            int mkt_w = mkt_w_dist(rng), mkt_h = mkt_h_dist(rng);
+            auto [mkt_x, mkt_y, mkt_door] = place_on_side(dirs[1], mkt_w, mkt_h);
+
+            // Market stalls count
+            std::uniform_int_distribution<int> stall_count_dist(2, 3);
+            int num_stalls = stall_count_dist(rng);
+
+            // Dwellings
+            struct DwellInfo { int x, y, w, h, door_side, side; };
+            std::vector<DwellInfo> dwellings;
+            std::uniform_int_distribution<int> dwell_count_dist(2, 4);
+            int num_dwellings = dwell_count_dist(rng);
+            std::uniform_int_distribution<int> dw_dist(7, 9);
+            std::uniform_int_distribution<int> dh_dist(5, 7);
+            for (int i = 0; i < num_dwellings; ++i) {
+                int side = dirs[2 + (i % 2)];
+                int dw = dw_dist(rng), dh = dh_dist(rng);
+                // Spread dwellings apart: offset along the wall with generous spacing
+                int perp_offset = (i / 2) * (dw + 4) - ((i > 1) ? (dw + 4) / 2 : 0);
+                auto [bx, by, ds] = place_on_side(side, dw, dh, perp_offset);
+                dwellings.push_back({bx, by, dw, dh, ds, side});
+            }
+
+            // Stools
+            std::uniform_int_distribution<int> stool_count_dist(3, 5);
+            int num_stools = stool_count_dist(rng);
+            struct StoolPos { int x, y; };
+            std::vector<StoolPos> stools;
+            for (int i = 0; i < num_stools; ++i) {
+                std::uniform_int_distribution<int> sx_dist(plaza_x + 2, plaza_x + plaza_w - 3);
+                std::uniform_int_distribution<int> sy_dist(plaza_y + 2, plaza_y + plaza_h - 3);
+                stools.push_back({sx_dist(rng), sy_dist(rng)});
+            }
+
+            // ============================================================
+            // PHASE 2: Draw plaza, roads, and paths (floor layer)
+            // ============================================================
+
+            // Plaza (paved)
             for (int y = plaza_y; y < plaza_y + plaza_h; ++y)
                 for (int x = plaza_x; x < plaza_x + plaza_w; ++x)
                     if (in_bounds(x, y))
-                        map_->set(x, y, Tile::Floor);
+                        map_->set(x, y, Tile::IndoorFloor);
 
-            // Scatter 3-5 stools in the plaza (outdoor seating)
-            std::uniform_int_distribution<int> stool_count_dist(3, 5);
-            int num_stools = stool_count_dist(rng);
-            for (int i = 0; i < num_stools; ++i) {
-                std::uniform_int_distribution<int> sx_dist(plaza_x + 1, plaza_x + plaza_w - 2);
-                std::uniform_int_distribution<int> sy_dist(plaza_y + 1, plaza_y + plaza_h - 2);
-                int sx = sx_dist(rng), sy = sy_dist(rng);
-                if (in_bounds(sx, sy) && map_->get(sx, sy) == Tile::Floor) {
-                    map_->set(sx, sy, Tile::Fixture);
-                    map_->add_fixture(sx, sy, make_fixture(FixtureType::Stool));
+            // Entry roads (3-wide paved, 14 tiles outward from each plaza edge)
+            int road_len = 14;
+            for (int y = plaza_y - 1; y >= std::max(1, plaza_y - road_len); --y)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(cx + d, y))
+                        map_->set(cx + d, y, Tile::IndoorFloor);
+            for (int y = plaza_y + plaza_h; y < std::min(map_->height() - 1, plaza_y + plaza_h + road_len); ++y)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(cx + d, y))
+                        map_->set(cx + d, y, Tile::IndoorFloor);
+            for (int x = plaza_x - 1; x >= std::max(1, plaza_x - road_len); --x)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(x, cy + d))
+                        map_->set(x, cy + d, Tile::IndoorFloor);
+            for (int x = plaza_x + plaza_w; x < std::min(map_->width() - 1, plaza_x + plaza_w + road_len); ++x)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(x, cy + d))
+                        map_->set(x, cy + d, Tile::IndoorFloor);
+
+            // Paths from plaza edge to every building door.
+            // Main hall door
+            {
+                auto [ex, ey] = plaza_edge_mid(dirs[0]);
+                // Compute hall door pos
+                int hdx = 0, hdy = 0;
+                switch (hall_door) {
+                    case 0: hdx = hall_x + hall_w / 2; hdy = hall_y;            break;
+                    case 1: hdx = hall_x + hall_w / 2; hdy = hall_y + hall_h - 1; break;
+                    case 2: hdx = hall_x;             hdy = hall_y + hall_h / 2; break;
+                    case 3: hdx = hall_x + hall_w - 1; hdy = hall_y + hall_h / 2; break;
+                }
+                bool vert = (dirs[0] <= 1);
+                if (vert) {
+                    carve_straight(ex, ey, ex, hdy);
+                    carve_straight(ex, hdy, hdx, hdy);
+                } else {
+                    carve_straight(ex, ey, hdx, ey);
+                    carve_straight(hdx, ey, hdx, hdy);
+                }
+            }
+            // Market door
+            {
+                auto [ex, ey] = plaza_edge_mid(dirs[1]);
+                int mdx = 0, mdy = 0;
+                switch (mkt_door) {
+                    case 0: mdx = mkt_x + mkt_w / 2; mdy = mkt_y;            break;
+                    case 1: mdx = mkt_x + mkt_w / 2; mdy = mkt_y + mkt_h - 1; break;
+                    case 2: mdx = mkt_x;             mdy = mkt_y + mkt_h / 2; break;
+                    case 3: mdx = mkt_x + mkt_w - 1; mdy = mkt_y + mkt_h / 2; break;
+                }
+                bool vert = (dirs[1] <= 1);
+                if (vert) {
+                    carve_straight(ex, ey, ex, mdy);
+                    carve_straight(ex, mdy, mdx, mdy);
+                } else {
+                    carve_straight(ex, ey, mdx, ey);
+                    carve_straight(mdx, ey, mdx, mdy);
+                }
+            }
+            // Dwelling doors
+            for (auto& dw : dwellings) {
+                // Compute door position (same logic as draw_building)
+                int door_x = 0, door_y = 0;
+                switch (dw.door_side) {
+                    case 0: door_x = dw.x + dw.w / 2; door_y = dw.y;          break;
+                    case 1: door_x = dw.x + dw.w / 2; door_y = dw.y + dw.h - 1; break;
+                    case 2: door_x = dw.x;            door_y = dw.y + dw.h / 2; break;
+                    case 3: door_x = dw.x + dw.w - 1; door_y = dw.y + dw.h / 2; break;
+                }
+                auto [ex, ey] = plaza_edge_mid(dw.side);
+                bool vert = (dw.side <= 1);
+                if (vert) {
+                    carve_straight(ex, ey, ex, door_y);
+                    carve_straight(ex, door_y, door_x, door_y);
+                } else {
+                    carve_straight(ex, ey, door_x, ey);
+                    carve_straight(door_x, ey, door_x, door_y);
                 }
             }
 
-            // --- Main hall (10x6, north of plaza) ---
-            int hall_x = cx - 5, hall_y = cy - 10;
-            int hall_w = 10, hall_h = 6;
-            for (int y = hall_y; y < hall_y + hall_h; ++y) {
-                for (int x = hall_x; x < hall_x + hall_w; ++x) {
-                    if (!in_bounds(x, y)) continue;
-                    bool edge = (y == hall_y || y == hall_y + hall_h - 1 ||
-                                 x == hall_x || x == hall_x + hall_w - 1);
-                    if (edge) {
-                        if (prob(rng) < 0.90f)
-                            map_->set(x, y, Tile::Wall);
-                    } else {
-                        map_->set(x, y, Tile::Floor);
-                    }
+            // ============================================================
+            // PHASE 3: Draw all buildings (solid walls stamp over paths)
+            // ============================================================
+
+            // Main hall
+            std::pair<int,int> hall_door_pos;
+            draw_building(hall_x, hall_y, hall_w, hall_h, hall_door, hall_door_pos);
+
+            // Market
+            std::pair<int,int> mkt_door_pos;
+            draw_building(mkt_x, mkt_y, mkt_w, mkt_h, mkt_door, mkt_door_pos);
+
+            // Dwellings
+            for (auto& dw : dwellings) {
+                std::pair<int,int> ignore;
+                draw_building(dw.x, dw.y, dw.w, dw.h, dw.door_side, ignore);
+            }
+
+            // ============================================================
+            // PHASE 4: Place fixtures (after buildings are solid)
+            // ============================================================
+
+            // Plaza stools
+            for (auto& s : stools) {
+                if (in_bounds(s.x, s.y) && map_->get(s.x, s.y) == Tile::Floor) {
+                    map_->set(s.x, s.y, Tile::Fixture);
+                    map_->add_fixture(s.x, s.y, make_fixture(FixtureType::Stool));
                 }
             }
-            // South doorway facing plaza
-            if (in_bounds(cx, hall_y + hall_h - 1))
-                map_->set(cx, hall_y + hall_h - 1, Tile::Floor);
-            // Console fixture (settlement admin terminal)
+
+            // Main hall fixtures
             if (in_bounds(hall_x + 2, hall_y + 2)) {
                 map_->set(hall_x + 2, hall_y + 2, Tile::Fixture);
                 map_->add_fixture(hall_x + 2, hall_y + 2, make_fixture(FixtureType::Console));
             }
-            // Portal for dungeon access
+            if (in_bounds(hall_x + hall_w - 3, hall_y + hall_h - 2)) {
+                map_->set(hall_x + hall_w - 3, hall_y + hall_h - 2, Tile::Fixture);
+                map_->add_fixture(hall_x + hall_w - 3, hall_y + hall_h - 2, make_fixture(FixtureType::Rack));
+            }
             if (in_bounds(hall_x + hall_w - 3, hall_y + 2))
                 map_->set(hall_x + hall_w - 3, hall_y + 2, Tile::Portal);
 
-            // --- Market building (8x5, east of plaza) ---
-            int mkt_x = cx + 5, mkt_y = cy - 2;
-            int mkt_w = 8, mkt_h = 5;
-            for (int y = mkt_y; y < mkt_y + mkt_h; ++y) {
-                for (int x = mkt_x; x < mkt_x + mkt_w; ++x) {
-                    if (!in_bounds(x, y)) continue;
-                    bool edge = (y == mkt_y || y == mkt_y + mkt_h - 1 ||
-                                 x == mkt_x || x == mkt_x + mkt_w - 1);
-                    if (edge) {
-                        if (prob(rng) < 0.85f)
-                            map_->set(x, y, Tile::Wall);
-                    } else {
-                        map_->set(x, y, Tile::Floor);
-                    }
-                }
-            }
-            // West doorway facing plaza
-            if (in_bounds(mkt_x, mkt_y + mkt_h / 2))
-                map_->set(mkt_x, mkt_y + mkt_h / 2, Tile::Floor);
-            // 2 crates (trade goods) and 1 table (merchant counter)
+            // Market fixtures
             if (in_bounds(mkt_x + 2, mkt_y + 1)) {
                 map_->set(mkt_x + 2, mkt_y + 1, Tile::Fixture);
                 map_->add_fixture(mkt_x + 2, mkt_y + 1, make_fixture(FixtureType::Crate));
@@ -700,106 +918,46 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 map_->set(mkt_x + 4, mkt_y + 1, Tile::Fixture);
                 map_->add_fixture(mkt_x + 4, mkt_y + 1, make_fixture(FixtureType::Crate));
             }
-            if (in_bounds(mkt_x + 3, mkt_y + 3)) {
-                map_->set(mkt_x + 3, mkt_y + 3, Tile::Fixture);
-                map_->add_fixture(mkt_x + 3, mkt_y + 3, make_fixture(FixtureType::Table));
+            if (in_bounds(mkt_x + 3, mkt_y + mkt_h - 2)) {
+                map_->set(mkt_x + 3, mkt_y + mkt_h - 2, Tile::Fixture);
+                map_->add_fixture(mkt_x + 3, mkt_y + mkt_h - 2, make_fixture(FixtureType::Table));
             }
 
-            // --- Dwelling buildings (2-3 small ~5x4, west and south of plaza) ---
-            std::uniform_int_distribution<int> dwell_count_dist(2, 3);
-            int num_dwellings = dwell_count_dist(rng);
-            struct DwellPos { int x, y, door_side; }; // door_side: 0=north, 1=east
-            DwellPos dwell_positions[] = {
-                {cx - 11, cy - 1, 1},  // west of plaza, door facing east
-                {cx - 3,  cy + 5, 0},  // south of plaza, door facing north
-                {cx - 11, cy + 5, 1},  // southwest, door facing east
-            };
-            for (int i = 0; i < num_dwellings; ++i) {
-                auto& dp = dwell_positions[i];
-                int dw = 5, dh = 4;
-                for (int y = dp.y; y < dp.y + dh; ++y) {
-                    for (int x = dp.x; x < dp.x + dw; ++x) {
-                        if (!in_bounds(x, y)) continue;
-                        bool edge = (y == dp.y || y == dp.y + dh - 1 ||
-                                     x == dp.x || x == dp.x + dw - 1);
-                        if (edge) {
-                            if (prob(rng) < 0.80f)
-                                map_->set(x, y, Tile::Wall);
-                        } else {
-                            map_->set(x, y, Tile::Floor);
-                        }
+            // Market stalls (open-air, along path to market)
+            {
+                int mkt_side = dirs[1];
+                for (int i = 0; i < num_stalls; ++i) {
+                    int sx = 0, sy = 0, sx2 = 0, sy2 = 0;
+                    int off = (i - 1) * 3;
+                    switch (mkt_side) {
+                        case 0: sx = cx + off + 2; sy = plaza_y - 1;
+                                sx2 = sx + 1; sy2 = sy; break;
+                        case 1: sx = cx + off + 2; sy = plaza_y + plaza_h;
+                                sx2 = sx + 1; sy2 = sy; break;
+                        case 2: sx = plaza_x - 1; sy = cy + off + 2;
+                                sx2 = sx; sy2 = sy + 1; break;
+                        case 3: sx = plaza_x + plaza_w; sy = cy + off + 2;
+                                sx2 = sx; sy2 = sy + 1; break;
+                    }
+                    if (in_bounds(sx, sy) && map_->get(sx, sy) == Tile::Floor) {
+                        map_->set(sx, sy, Tile::Fixture);
+                        map_->add_fixture(sx, sy, make_fixture(FixtureType::Table));
+                    }
+                    if (in_bounds(sx2, sy2) && map_->get(sx2, sy2) == Tile::Floor) {
+                        map_->set(sx2, sy2, Tile::Fixture);
+                        map_->add_fixture(sx2, sy2, make_fixture(FixtureType::Crate));
                     }
                 }
-                // Doorway
-                if (dp.door_side == 0) { // north
-                    if (in_bounds(dp.x + dw / 2, dp.y))
-                        map_->set(dp.x + dw / 2, dp.y, Tile::Floor);
-                } else { // east
-                    if (in_bounds(dp.x + dw - 1, dp.y + dh / 2))
-                        map_->set(dp.x + dw - 1, dp.y + dh / 2, Tile::Floor);
-                }
-                // Bunk fixture inside
-                if (in_bounds(dp.x + 2, dp.y + 1)) {
-                    map_->set(dp.x + 2, dp.y + 1, Tile::Fixture);
-                    map_->add_fixture(dp.x + 2, dp.y + 1, make_fixture(FixtureType::Bunk));
+            }
+
+            // Dwelling fixtures
+            for (auto& dw : dwellings) {
+                if (in_bounds(dw.x + 2, dw.y + 1)) {
+                    map_->set(dw.x + 2, dw.y + 1, Tile::Fixture);
+                    map_->add_fixture(dw.x + 2, dw.y + 1, make_fixture(FixtureType::Bunk));
                 }
             }
 
-            // --- Pathways (2-wide floor paths connecting buildings to plaza) ---
-            // North path: plaza to main hall doorway
-            for (int y = hall_y + hall_h; y < plaza_y; ++y)
-                for (int dx = -1; dx <= 0; ++dx)
-                    if (in_bounds(cx + dx, y))
-                        map_->set(cx + dx, y, Tile::Floor);
-
-            // East path: plaza to market doorway
-            for (int x = plaza_x + plaza_w; x < mkt_x; ++x)
-                for (int dy = -1; dy <= 0; ++dy)
-                    if (in_bounds(x, cy + dy))
-                        map_->set(x, cy + dy, Tile::Floor);
-
-            // South path: plaza toward south edge
-            for (int y = plaza_y + plaza_h; y < cy + 14; ++y)
-                for (int dx = -1; dx <= 0; ++dx)
-                    if (in_bounds(cx + dx, y))
-                        map_->set(cx + dx, y, Tile::Floor);
-
-            // West path: plaza toward west edge
-            for (int x = cx - 14; x < plaza_x; ++x)
-                for (int dy = -1; dy <= 0; ++dy)
-                    if (in_bounds(x, cy + dy))
-                        map_->set(x, cy + dy, Tile::Floor);
-
-            // --- Market stalls (open-air, south of plaza) ---
-            // 2-3 table+crate combos on floor tiles
-            std::uniform_int_distribution<int> stall_count_dist(2, 3);
-            int num_stalls = stall_count_dist(rng);
-            for (int i = 0; i < num_stalls; ++i) {
-                int stall_x = cx - 3 + i * 3;
-                int stall_y = cy + plaza_h / 2 + 1;
-                if (in_bounds(stall_x, stall_y) && map_->get(stall_x, stall_y) == Tile::Floor) {
-                    map_->set(stall_x, stall_y, Tile::Fixture);
-                    map_->add_fixture(stall_x, stall_y, make_fixture(FixtureType::Table));
-                }
-                if (in_bounds(stall_x + 1, stall_y) && map_->get(stall_x + 1, stall_y) == Tile::Floor) {
-                    map_->set(stall_x + 1, stall_y, Tile::Fixture);
-                    map_->add_fixture(stall_x + 1, stall_y, make_fixture(FixtureType::Crate));
-                }
-            }
-
-            // --- Debris/detail along paths ---
-            std::uniform_int_distribution<int> debris_count(3, 5);
-            std::uniform_int_distribution<int> debris_ox(-12, 12);
-            std::uniform_int_distribution<int> debris_oy(-10, 12);
-            int num_debris = debris_count(rng);
-            for (int i = 0; i < num_debris; ++i) {
-                int dx = cx + debris_ox(rng);
-                int dy = cy + debris_oy(rng);
-                if (in_bounds(dx, dy) && map_->get(dx, dy) == Tile::Floor) {
-                    map_->set(dx, dy, Tile::Fixture);
-                    map_->add_fixture(dx, dy, make_fixture(FixtureType::Debris));
-                }
-            }
             break;
         }
         case Tile::OW_Ruins: {

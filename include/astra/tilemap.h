@@ -18,6 +18,8 @@ enum class Tile : uint8_t {
     Water,
     Ice,
     Fixture,
+    StructuralWall,   // Intact building wall — always renders as █
+    IndoorFloor,      // Interior flooring — distinct glyph/color from outdoor floor
     // Overworld terrain
     OW_Plains,
     OW_Mountains,
@@ -43,7 +45,9 @@ enum class Tile : uint8_t {
 inline char tile_glyph(Tile t) {
     switch (t) {
         case Tile::Floor:          return '.';
+        case Tile::IndoorFloor:    return '.';
         case Tile::Wall:           return '#';
+        case Tile::StructuralWall: return '#';
         case Tile::Portal:         return '>';
         case Tile::Water:          return '~';
         case Tile::Ice:            return '~';
@@ -400,6 +404,9 @@ enum class FixtureType : uint8_t {
     ShuttleClamp,   // '='  — docking bay clamps
     Shelf,          // '['  — storage shelving
     Viewport,       // '"'  — observatory window
+
+    // Structural (impassable, no interaction)
+    Window,         // '◻'  — building window (blue)
 
     // Walkable (floor-like, no interaction)
     Stool,          // 'o'  — bar stools, chairs

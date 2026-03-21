@@ -35,7 +35,7 @@ bool TileMap::passable(int x, int y) const {
         int fid = fixture_id(x, y);
         return fid >= 0 && fixtures_[fid].passable;
     }
-    if (t == Tile::Floor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
+    if (t == Tile::Floor || t == Tile::IndoorFloor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
         return true;
     // Overworld tiles: all passable except mountains and lakes
     if (t == Tile::OW_Mountains || t == Tile::OW_Lake) return false;
@@ -48,7 +48,7 @@ bool TileMap::opaque(int x, int y) const {
     // Fixtures are never opaque (they don't block line of sight)
     // Overworld tiles are never opaque
     if (t >= Tile::OW_Plains && t <= Tile::OW_Landing) return false;
-    return t == Tile::Wall || t == Tile::Empty;
+    return t == Tile::Wall || t == Tile::StructuralWall || t == Tile::Empty;
 }
 
 int TileMap::fixture_id(int x, int y) const {
@@ -135,7 +135,7 @@ void TileMap::load_glyph_overrides(std::vector<uint8_t> overrides) {
 void TileMap::find_open_spot(int& out_x, int& out_y) const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (get(x, y) == Tile::Floor) {
+            if (get(x, y) == Tile::Floor || get(x, y) == Tile::IndoorFloor) {
                 out_x = x;
                 out_y = y;
                 return;
@@ -157,7 +157,7 @@ bool TileMap::find_open_spot_near(int near_x, int near_y, int& out_x, int& out_y
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             if (region_id(x, y) != rid) continue;
-            if (get(x, y) != Tile::Floor) continue;
+            { Tile t_ = get(x, y); if (t_ != Tile::Floor && t_ != Tile::IndoorFloor) continue; }
 
             bool excluded = false;
             for (const auto& [ex, ey] : exclude) {
@@ -192,7 +192,7 @@ bool TileMap::find_open_spot_other_room(int avoid_x, int avoid_y, int& out_x, in
     std::vector<std::pair<int,int>> candidates;
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (get(x, y) != Tile::Floor) continue;
+            { Tile t_ = get(x, y); if (t_ != Tile::Floor && t_ != Tile::IndoorFloor) continue; }
             int rid = region_id(x, y);
             if (rid < 0 || rid == avoid_rid) continue;
             if (regions_[rid].type != RegionType::Room) continue;
@@ -249,7 +249,7 @@ bool TileMap::find_open_spot_in_region(int rid, int& out_x, int& out_y,
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             if (region_id(x, y) != rid) continue;
-            if (get(x, y) != Tile::Floor) continue;
+            { Tile t_ = get(x, y); if (t_ != Tile::Floor && t_ != Tile::IndoorFloor) continue; }
 
             bool excluded = false;
             for (const auto& [ex, ey] : exclude) {
@@ -284,6 +284,10 @@ FixtureData make_fixture(FixtureType type) {
     fd.last_used_tick = -1;
 
     switch (type) {
+        case FixtureType::Window:
+            fd.glyph = 'O'; fd.utf8_glyph = "\xe2\x97\xbb";   // ◻
+            fd.color = Color::Blue;
+            fd.passable = false; fd.interactable = false; break;
         case FixtureType::Table:
             fd.glyph = 'o'; fd.utf8_glyph = "\xc2\xa4";       // ¤
             fd.color = Color::DarkGray;

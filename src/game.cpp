@@ -1636,7 +1636,7 @@ void Game::try_interact(int dx, int dy) {
             log("Nothing useful here.");
             return;
         }
-        if (t == Tile::Wall) {
+        if (t == Tile::Wall || t == Tile::StructuralWall) {
             log("You run your hand along the cold bulkhead. Nothing of interest.");
         } else if (t == Tile::Empty) {
             log("You stare into the void. It stares back.");
@@ -3147,7 +3147,11 @@ void Game::render_map() {
                 Color c = bc.floor;
                 const char* utf8 = nullptr;
 
-                if (tile_at == Tile::Wall) {
+                if (tile_at == Tile::StructuralWall) {
+                    c = Color::White;
+                    utf8 = "\xe2\x96\x88";  // █
+                }
+                else if (tile_at == Tile::Wall) {
                     c = bc.wall;
                     utf8 = dungeon_wall_glyph(biome, mx, my);
                 }
@@ -3177,6 +3181,10 @@ void Game::render_map() {
                         g = '?'; c = Color::Red;
                     }
                 }
+                else if (tile_at == Tile::IndoorFloor) {
+                    c = static_cast<Color>(137);  // warm tan/brown — reads as plating
+                    utf8 = "\xe2\x96\xaa";        // ▪ (small filled square)
+                }
                 else if (tile_at == Tile::Floor) {
                     char sg = floor_scatter(mx, my, biome);
                     if (sg != '.') {
@@ -3193,8 +3201,12 @@ void Game::render_map() {
             } else {
                 // Remembered tiles: use UTF-8 glyphs too
                 const char* utf8 = nullptr;
-                if (tile_at == Tile::Wall)
+                if (tile_at == Tile::StructuralWall)
+                    utf8 = "\xe2\x96\x88";  // █
+                else if (tile_at == Tile::Wall)
                     utf8 = dungeon_wall_glyph(biome, mx, my);
+                else if (tile_at == Tile::IndoorFloor)
+                    utf8 = "\xe2\x96\xaa";   // ▪
                 else if (tile_at == Tile::Portal)
                     utf8 = dungeon_portal_glyph();
                 else if (tile_at == Tile::Water || tile_at == Tile::Ice)
