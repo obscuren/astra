@@ -43,6 +43,7 @@ set(ASTRA_SOURCES
     src/item.cpp
     src/item_defs.cpp
     src/shop.cpp
+    src/trade_window.cpp
     src/boot_sequence.cpp
 )
 

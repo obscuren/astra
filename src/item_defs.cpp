@@ -183,4 +183,41 @@ Item random_ranged_weapon(std::mt19937& rng) {
     return build_void_lance();                      //  3%
 }
 
+// ---------------------------------------------------------------------------
+// Merchant stock generators
+// ---------------------------------------------------------------------------
+
+static Item make_stack(Item item, int count) {
+    item.stack_count = count;
+    return item;
+}
+
+std::vector<Item> generate_merchant_stock(std::mt19937& rng) {
+    std::vector<Item> stock;
+    stock.push_back(make_stack(build_battery(), 3));
+    stock.push_back(make_stack(build_ration_pack(), 5));
+    stock.push_back(make_stack(build_combat_stim(), 2));
+    stock.push_back(random_ranged_weapon(rng));
+    return stock;
+}
+
+std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng) {
+    std::vector<Item> stock;
+    std::uniform_int_distribution<int> dist(2, 3);
+    int weapon_count = dist(rng);
+    for (int i = 0; i < weapon_count; ++i) {
+        stock.push_back(random_ranged_weapon(rng));
+    }
+    stock.push_back(make_stack(build_battery(), 5));
+    return stock;
+}
+
+std::vector<Item> generate_food_merchant_stock(std::mt19937& rng) {
+    (void)rng;
+    std::vector<Item> stock;
+    stock.push_back(make_stack(build_ration_pack(), 10));
+    stock.push_back(make_stack(build_combat_stim(), 3));
+    return stock;
+}
+
 } // namespace astra

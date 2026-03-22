@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/item_defs.h"
 
 namespace astra {
 
@@ -39,6 +40,7 @@ Npc build_food_merchant(Race race, std::mt19937& rng) {
 
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Kitchen",
+        generate_food_merchant_stock(rng),
     };
 
     return npc;
@@ -183,6 +185,7 @@ Npc build_arms_dealer(Race race, std::mt19937& rng) {
 
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Arsenal",
+        generate_arms_dealer_stock(rng),
     };
 
     return npc;

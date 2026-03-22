@@ -8,6 +8,7 @@
 #include "astra/save_file.h"
 #include "astra/star_chart.h"
 #include "astra/star_chart_viewer.h"
+#include "astra/trade_window.h"
 #include "astra/tile_props.h"
 #include "astra/time_of_day.h"
 #include "astra/map_properties.h"
@@ -164,6 +165,7 @@ private:
     VisibilityMap visibility_;
     NavigationData navigation_;
     StarChartViewer star_chart_viewer_;
+    TradeWindow trade_window_;
     int camera_x_ = 0;
     int camera_y_ = 0;
     int current_region_ = -1;

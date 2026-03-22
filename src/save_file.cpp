@@ -385,6 +385,8 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     }
     if (npc.interactions.shop) {
         w.write_string(npc.interactions.shop->shop_name);
+        w.write_u32(static_cast<uint32_t>(npc.interactions.shop->inventory.size()));
+        for (const auto& item : npc.interactions.shop->inventory) write_item(w, item);
     }
     if (npc.interactions.quest) {
         const auto& q = *npc.interactions.quest;
@@ -609,7 +611,7 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
     read_inventory(r, p.inventory);
 }
 
-static Npc read_npc(BinaryReader& r) {
+static Npc read_npc(BinaryReader& r, uint32_t version) {
     Npc npc;
     npc.x = r.read_i32();
     npc.y = r.read_i32();
@@ -642,6 +644,11 @@ static Npc read_npc(BinaryReader& r) {
     if (has_shop) {
         ShopTrait s;
         s.shop_name = r.read_string();
+        if (version >= 11) {
+            uint32_t count = r.read_u32();
+            s.inventory.resize(count);
+            for (uint32_t i = 0; i < count; ++i) s.inventory[i] = read_item(r);
+        }
         npc.interactions.shop = std::move(s);
     }
     if (has_quest) {
@@ -713,7 +720,7 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
     uint32_t npc_count = r.read_u32();
     ms.npcs.resize(npc_count);
     for (uint32_t i = 0; i < npc_count; ++i) {
-        ms.npcs[i] = read_npc(r);
+        ms.npcs[i] = read_npc(r, version);
     }
 
     // Ground items — may be absent in old saves (section guard handles it)

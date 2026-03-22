@@ -262,6 +262,18 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Trade window intercepts input when open
+    if (trade_window_.is_open()) {
+        trade_window_.handle_input(key);
+        if (!trade_window_.is_open()) {
+            if (trade_window_.has_message()) log(trade_window_.consume_message());
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
+        }
+        return;
+    }
+
     // Star chart viewer intercepts input when open
     if (star_chart_viewer_.is_open()) {
         star_chart_viewer_.handle_input(key);
@@ -2163,10 +2175,8 @@ void Game::advance_dialog(int selected) {
             break;
         }
         case InteractOption::Shop:
-            log("\"Have a look.\" [Shop not yet implemented]");
-            interacting_npc_ = nullptr;
-            dialog_tree_ = nullptr;
-            dialog_node_ = -1;
+            trade_window_.open(interacting_npc_, &player_, renderer_.get());
+            npc_dialog_.close();
             break;
 
         case InteractOption::Quest: {
@@ -3069,6 +3079,7 @@ void Game::render_play() {
     if (inspecting_item_) render_item_inspect();
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
+    trade_window_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
 }
 

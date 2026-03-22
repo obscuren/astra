@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/item_defs.h"
 
 namespace astra {
 
@@ -52,6 +53,7 @@ Npc build_merchant(Race race, std::mt19937& rng) {
     // --- Shop ---
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Supplies",
+        generate_merchant_stock(rng),
     };
 
     return npc;

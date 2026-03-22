@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/item.h"
+
 #include <optional>
 #include <string>
 #include <vector>
@@ -27,7 +29,7 @@ struct TalkTrait {
 // Trait: NPC has a shop
 struct ShopTrait {
     std::string shop_name;
-    // std::vector<ShopItem> inventory; // future
+    std::vector<Item> inventory;
 };
 
 // Trait: NPC gives quests
