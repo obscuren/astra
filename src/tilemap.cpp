@@ -284,9 +284,13 @@ FixtureData make_fixture(FixtureType type) {
     fd.last_used_tick = -1;
 
     switch (type) {
+        case FixtureType::Door:
+            fd.glyph = '+'; fd.utf8_glyph = nullptr;
+            fd.color = static_cast<Color>(137);  // warm brown
+            fd.passable = false; fd.interactable = true; break;
         case FixtureType::Window:
-            fd.glyph = 'O'; fd.utf8_glyph = "\xe2\x97\xbb";   // ◻
-            fd.color = Color::Blue;
+            fd.glyph = 'O'; fd.utf8_glyph = nullptr;
+            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Table:
             fd.glyph = 'o'; fd.utf8_glyph = "\xc2\xa4";       // ¤

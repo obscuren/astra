@@ -311,6 +311,10 @@ void Game::handle_play_input(int key) {
 
     switch (key) {
         case '\033': pause_menu_.open(); break;
+        case 'o':
+            awaiting_interact_ = true;
+            log("Open -- choose a direction.");
+            break;
         case 'e':
             if (on_overworld()) {
                 Tile t = map_.get(player_.x, player_.y);
@@ -1761,6 +1765,26 @@ void Game::interact_fixture(int fid) {
             dialog_node_ = -6; // sentinel: ship terminal
             break;
         }
+        case FixtureType::Door: {
+            if (f.locked) {
+                log("The door is locked.");
+                break;
+            }
+            if (f.open) {
+                f.open = false;
+                f.passable = false;
+                f.glyph = '+';
+                f.utf8_glyph = nullptr;
+                log("You close the door.");
+            } else {
+                f.open = true;
+                f.passable = true;
+                f.glyph = '/';
+                f.utf8_glyph = nullptr;
+                log("You open the door.");
+            }
+            break;
+        }
         default:
             log("Nothing happens.");
             break;
@@ -3148,8 +3172,25 @@ void Game::render_map() {
                 const char* utf8 = nullptr;
 
                 if (tile_at == Tile::StructuralWall) {
-                    c = Color::White;
-                    utf8 = "\xe2\x96\x88";  // █
+                    uint8_t mat = map_.glyph_override(mx, my);
+                    switch (mat) {
+                        case 1:  // Concrete
+                            c = static_cast<Color>(245);  // medium gray
+                            utf8 = "\xe2\x96\x93";        // ▓
+                            break;
+                        case 2:  // Wood
+                            c = static_cast<Color>(137);   // brown/tan
+                            utf8 = "\xe2\x96\x92";         // ▒
+                            break;
+                        case 3:  // Salvage
+                            c = static_cast<Color>(240);   // dark gray
+                            utf8 = "\xe2\x96\x91";         // ░
+                            break;
+                        default: // Metal (0)
+                            c = Color::White;
+                            utf8 = "\xe2\x96\x88";         // █
+                            break;
+                    }
                 }
                 else if (tile_at == Tile::Wall) {
                     c = bc.wall;
@@ -3201,8 +3242,15 @@ void Game::render_map() {
             } else {
                 // Remembered tiles: use UTF-8 glyphs too
                 const char* utf8 = nullptr;
-                if (tile_at == Tile::StructuralWall)
-                    utf8 = "\xe2\x96\x88";  // █
+                if (tile_at == Tile::StructuralWall) {
+                    uint8_t mat = map_.glyph_override(mx, my);
+                    switch (mat) {
+                        case 1:  utf8 = "\xe2\x96\x93"; break; // ▓
+                        case 2:  utf8 = "\xe2\x96\x92"; break; // ▒
+                        case 3:  utf8 = "\xe2\x96\x91"; break; // ░
+                        default: utf8 = "\xe2\x96\x88"; break; // █
+                    }
+                }
                 else if (tile_at == Tile::Wall)
                     utf8 = dungeon_wall_glyph(biome, mx, my);
                 else if (tile_at == Tile::IndoorFloor)

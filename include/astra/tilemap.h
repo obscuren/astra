@@ -406,6 +406,7 @@ enum class FixtureType : uint8_t {
     Viewport,       // '"'  — observatory window
 
     // Structural (impassable, no interaction)
+    Door,           // '+'  — closed door (interactable, toggles open/closed)
     Window,         // '◻'  — building window (blue)
 
     // Walkable (floor-like, no interaction)
@@ -432,6 +433,8 @@ struct FixtureData {
     bool interactable = false;
     int cooldown = 0;           // ticks until reusable (0 = no cooldown, -1 = one-time)
     int last_used_tick = -1;    // world_tick when last used (-1 = never)
+    bool locked = false;        // doors: requires key to open
+    bool open = false;          // doors: currently open
 };
 
 FixtureData make_fixture(FixtureType type);

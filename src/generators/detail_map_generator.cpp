@@ -345,10 +345,11 @@ struct ScatterStamp {
 };
 
 static void place_stamp(TileMap* map, int sx, int sy, ScatterStamp::Shape shape,
-                         FixtureData fd) {
+                         FixtureData fd, bool allow_indoor = false) {
     auto try_place = [&](int x, int y) {
         if (x < 1 || x >= map->width() - 1 || y < 1 || y >= map->height() - 1) return;
-        if (map->get(x, y) != Tile::Floor) return;
+        Tile t = map->get(x, y);
+        if (t != Tile::Floor && !(allow_indoor && t == Tile::IndoorFloor)) return;
         if (map->fixture_id(x, y) >= 0) return;
         map->add_fixture(x, y, fd);
     };
@@ -536,6 +537,113 @@ static void scatter_biome_features(TileMap* map, std::mt19937& rng, Biome biome)
     }
 }
 
+// --- Reusable settlement/civilization decoration pass ---
+// Scatters sci-fi props on IndoorFloor (paths/plazas) and adjacent Floor tiles.
+// Biome-aware: grassy biomes get plants, others get tech/salvage props.
+static void scatter_settlement_props(TileMap* map, std::mt19937& rng, Biome biome) {
+    int w = map->width();
+    int h = map->height();
+
+    // Collect candidate tiles (IndoorFloor paths/plazas and nearby outdoor Floor)
+    // We place props on these tiles only.
+
+    // --- Prop palette ---
+    // Universal sci-fi props (placed on IndoorFloor — paths/plazas)
+    std::vector<ScatterEntry> path_palette = {
+        {3, ScatterStamp::Single,   deco('T', "\xe2\x94\xb4", Color::Cyan, false)},        // antenna (┴) cyan
+        {2, ScatterStamp::Single,   deco('O', "\xc2\xb0", Color::Blue, false)},             // water well (°) blue
+        {2, ScatterStamp::Single,   deco('=', "\xe2\x95\x90", Color::DarkGray, false)},     // bench (═)
+        {1, ScatterStamp::Single,   deco('*', "\xe2\x9c\xb6", Color::Yellow, false)},       // lamp post (✶)
+        {1, ScatterStamp::Single,   deco('%', "\xe2\x9a\x99", Color::DarkGray, false)},     // gear/machinery (⚙)
+    };
+
+    // Biome-specific outdoor props (placed on Floor tiles near settlement)
+    std::vector<ScatterEntry> outdoor_palette;
+    switch (biome) {
+        case Biome::Grassland:
+        case Biome::Forest:
+        case Biome::Jungle:
+            outdoor_palette = {
+                {4, ScatterStamp::Single,   deco('"', nullptr, Color::Green, true)},             // shrub
+                {3, ScatterStamp::Cluster3, deco(',', nullptr, Color::Green, true)},             // grass patch
+                {2, ScatterStamp::Single,   deco('*', nullptr, Color::Yellow, true)},            // flower
+                {1, ScatterStamp::Single,   deco('o', "\xce\xa6", Color::Green, false)},         // potted plant (Φ)
+            };
+            break;
+        case Biome::Sandy:
+        case Biome::Volcanic:
+            outdoor_palette = {
+                {3, ScatterStamp::Single,   deco(',', nullptr, Color::DarkGray, true)},          // gravel
+                {2, ScatterStamp::Single,   deco('o', "\xc2\xb0", Color::DarkGray, false)},     // rock
+            };
+            break;
+        case Biome::Ice:
+            outdoor_palette = {
+                {3, ScatterStamp::Single,   deco('\'', nullptr, Color::Cyan, true)},             // ice crystal
+                {1, ScatterStamp::Single,   deco('*', nullptr, Color::White, true)},             // frost
+            };
+            break;
+        case Biome::Corroded:
+        case Biome::Crystal:
+            outdoor_palette = {
+                {3, ScatterStamp::Single,   deco(',', nullptr, static_cast<Color>(142), true)},  // scrap
+                {2, ScatterStamp::Single,   deco('%', nullptr, Color::DarkGray, false)},         // junk pile
+            };
+            break;
+        default:
+            outdoor_palette = {
+                {3, ScatterStamp::Single,   deco(',', nullptr, Color::DarkGray, true)},          // rubble
+            };
+            break;
+    }
+
+    // Scatter path props on IndoorFloor tiles
+    {
+        int total_w = 0;
+        for (const auto& e : path_palette) total_w += e.weight;
+        std::uniform_int_distribution<int> xd(2, w - 3);
+        std::uniform_int_distribution<int> yd(2, h - 3);
+        std::uniform_int_distribution<int> wd(0, total_w - 1);
+        int attempts = 30;
+        for (int i = 0; i < attempts; ++i) {
+            int x = xd(rng), y = yd(rng);
+            if (map->get(x, y) != Tile::IndoorFloor) continue;
+            if (map->fixture_id(x, y) >= 0) continue;
+            int roll = wd(rng);
+            int cum = 0;
+            const ScatterEntry* chosen = &path_palette[0];
+            for (const auto& e : path_palette) {
+                cum += e.weight;
+                if (roll < cum) { chosen = &e; break; }
+            }
+            place_stamp(map, x, y, chosen->shape, chosen->fixture, true);
+        }
+    }
+
+    // Scatter outdoor props on Floor tiles near buildings
+    if (!outdoor_palette.empty()) {
+        int total_w = 0;
+        for (const auto& e : outdoor_palette) total_w += e.weight;
+        std::uniform_int_distribution<int> xd(2, w - 3);
+        std::uniform_int_distribution<int> yd(2, h - 3);
+        std::uniform_int_distribution<int> wd(0, total_w - 1);
+        int attempts = 40;
+        for (int i = 0; i < attempts; ++i) {
+            int x = xd(rng), y = yd(rng);
+            if (map->get(x, y) != Tile::Floor) continue;
+            if (map->fixture_id(x, y) >= 0) continue;
+            int roll = wd(rng);
+            int cum = 0;
+            const ScatterEntry* chosen = &outdoor_palette[0];
+            for (const auto& e : outdoor_palette) {
+                cum += e.weight;
+                if (roll < cum) { chosen = &e; break; }
+            }
+            place_stamp(map, x, y, chosen->shape, chosen->fixture);
+        }
+    }
+}
+
 void DetailMapGenerator::place_features(std::mt19937& rng) {
     // Always scatter biome-specific decorations
     scatter_biome_features(map_, rng, props_->biome);
@@ -625,48 +733,145 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             // Plaza at center, buildings on shuffled cardinal sides,
             // 3-wide paths connecting everything, solid walls, sparse windows.
 
-            // Helper: draw a solid building with floor interior, a door, and
-            // at most 1 window per wall side (only on walls >= 6 tiles long).
+            // Building shape constants
+            // 0=rectangle, 1=L-shape, 2=T-shape, 3=two-room, 4=U-shape
+            constexpr int SHAPE_RECT = 0;
+            constexpr int SHAPE_L    = 1;
+            constexpr int SHAPE_T    = 2;
+            constexpr int SHAPE_DUAL = 3;
+            constexpr int SHAPE_U    = 4;
+
+            // Helper: draw a shaped building using a bitmap approach.
             // door_side: 0=north, 1=south, 2=west, 3=east
+            // material: 0=metal, 1=concrete, 2=wood, 3=salvage
+            // shape: building shape index
             auto draw_building = [&](int bx, int by, int bw, int bh, int door_side,
-                                     std::pair<int,int>& door_out) {
-                // Solid walls and floor interior
-                for (int y = by; y < by + bh; ++y)
-                    for (int x = bx; x < bx + bw; ++x)
-                        if (in_bounds(x, y)) {
-                            bool edge = (y == by || y == by + bh - 1 ||
-                                         x == bx || x == bx + bw - 1);
-                            map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
-                        }
-                // Door
-                int dx = 0, dy = 0;
-                switch (door_side) {
-                    case 0: dx = bx + bw / 2; dy = by;          break;
-                    case 1: dx = bx + bw / 2; dy = by + bh - 1; break;
-                    case 2: dx = bx;          dy = by + bh / 2; break;
-                    case 3: dx = bx + bw - 1; dy = by + bh / 2; break;
-                }
-                if (in_bounds(dx, dy)) map_->set(dx, dy, Tile::IndoorFloor);
-                door_out = {dx, dy};
-                // Windows: 1 per wall side (2 on long walls), skip door and corners
-                auto place_window = [&](int wx, int wy) {
-                    if (wx == dx && wy == dy) return;       // skip door
-                    if (!in_bounds(wx, wy)) return;
-                    map_->set(wx, wy, Tile::Fixture);
-                    map_->add_fixture(wx, wy, make_fixture(FixtureType::Window));
+                                     std::pair<int,int>& door_out, uint8_t material = 0,
+                                     int shape = SHAPE_RECT) {
+                // Clamp shape to rectangle if building is too small
+                if ((shape == SHAPE_L || shape == SHAPE_U) && (bw < 10 || bh < 6))
+                    shape = SHAPE_RECT;
+                if (shape == SHAPE_T && (bw < 12 || bh < 7))
+                    shape = SHAPE_RECT;
+                if (shape == SHAPE_DUAL && (bw < 14 || bh < 7))
+                    shape = SHAPE_RECT;
+
+                // Build bitmap: which local cells are part of the building
+                std::vector<bool> bmap(bw * bh, false);
+                auto bset = [&](int lx, int ly) {
+                    if (lx >= 0 && lx < bw && ly >= 0 && ly < bh)
+                        bmap[ly * bw + lx] = true;
                 };
-                // North wall
-                if (bw >= 6) place_window(bx + bw / 3, by);
-                if (bw >= 10) place_window(bx + 2 * bw / 3, by);
-                // South wall
-                if (bw >= 6) place_window(bx + bw / 3, by + bh - 1);
-                if (bw >= 10) place_window(bx + 2 * bw / 3, by + bh - 1);
-                // West wall
-                if (bh >= 6) place_window(bx, by + bh / 3);
-                if (bh >= 10) place_window(bx, by + 2 * bh / 3);
-                // East wall
-                if (bh >= 6) place_window(bx + bw - 1, by + bh / 3);
-                if (bh >= 10) place_window(bx + bw - 1, by + 2 * bh / 3);
+                auto bget = [&](int lx, int ly) -> bool {
+                    if (lx < 0 || lx >= bw || ly < 0 || ly >= bh) return false;
+                    return bmap[ly * bw + lx];
+                };
+                auto fill_rect = [&](int rx, int ry, int rw, int rh) {
+                    for (int y = ry; y < ry + rh; ++y)
+                        for (int x = rx; x < rx + rw; ++x)
+                            bset(x, y);
+                };
+
+                switch (shape) {
+                    case SHAPE_RECT:
+                        fill_rect(0, 0, bw, bh);
+                        break;
+                    case SHAPE_L:
+                        // Top-wide + bottom-left
+                        fill_rect(0, 0, bw, bh * 2 / 3 + 1);
+                        fill_rect(0, 0, bw / 2 + 1, bh);
+                        break;
+                    case SHAPE_T:
+                        // Top-wide + bottom-center stem
+                        fill_rect(0, 0, bw, bh / 2 + 1);
+                        fill_rect(bw / 3, 0, bw - 2 * (bw / 3), bh);
+                        break;
+                    case SHAPE_DUAL:
+                        // Left room + right room + connecting corridor
+                        { int room_w = bw / 3 + 1;
+                          int corr_h = std::max(3, bh / 3);
+                          int corr_y = bh / 2 - corr_h / 2;
+                          fill_rect(0, 0, room_w, bh);
+                          fill_rect(bw - room_w, 0, room_w, bh);
+                          fill_rect(room_w - 1, corr_y, bw - 2 * room_w + 2, corr_h);
+                        }
+                        break;
+                    case SHAPE_U:
+                        // Left wing + right wing + bottom connector
+                        { int wing_w = bw / 3 + 1;
+                          fill_rect(0, 0, wing_w, bh);
+                          fill_rect(bw - wing_w, 0, wing_w, bh);
+                          fill_rect(0, bh * 2 / 3, bw, bh - bh * 2 / 3);
+                        }
+                        break;
+                }
+
+                // Render: outer edge = wall, interior = floor
+                for (int ly = 0; ly < bh; ++ly) {
+                    for (int lx = 0; lx < bw; ++lx) {
+                        if (!bget(lx, ly)) continue;
+                        int px = bx + lx, py = by + ly;
+                        if (!in_bounds(px, py)) continue;
+                        bool outer = !bget(lx - 1, ly) || !bget(lx + 1, ly) ||
+                                     !bget(lx, ly - 1) || !bget(lx, ly + 1);
+                        map_->set(px, py, outer ? Tile::StructuralWall : Tile::IndoorFloor);
+                        if (outer)
+                            map_->set_glyph_override(px, py, material);
+                    }
+                }
+
+                // Door: find an outer wall tile on the requested side, near center
+                int dx = bx + bw / 2, dy = by + bh / 2;
+                switch (door_side) {
+                    case 0: // north: scan down from top at center x
+                        for (int ly = 0; ly < bh; ++ly)
+                            if (bget(bw / 2, ly)) { dy = by + ly; break; }
+                        dx = bx + bw / 2;
+                        break;
+                    case 1: // south: scan up from bottom at center x
+                        for (int ly = bh - 1; ly >= 0; --ly)
+                            if (bget(bw / 2, ly)) { dy = by + ly; break; }
+                        dx = bx + bw / 2;
+                        break;
+                    case 2: // west: scan right from left at center y
+                        for (int lx = 0; lx < bw; ++lx)
+                            if (bget(lx, bh / 2)) { dx = bx + lx; break; }
+                        dy = by + bh / 2;
+                        break;
+                    case 3: // east: scan left from right at center y
+                        for (int lx = bw - 1; lx >= 0; --lx)
+                            if (bget(lx, bh / 2)) { dx = bx + lx; break; }
+                        dy = by + bh / 2;
+                        break;
+                }
+                if (in_bounds(dx, dy)) {
+                    map_->set(dx, dy, Tile::Fixture);
+                    map_->add_fixture(dx, dy, make_fixture(FixtureType::Door));
+                }
+                door_out = {dx, dy};
+
+                // Windows: scan outer walls, place every ~4 tiles, skip door/corners
+                int win_count = 0;
+                for (int ly = 0; ly < bh; ++ly) {
+                    for (int lx = 0; lx < bw; ++lx) {
+                        if (!bget(lx, ly)) continue;
+                        bool outer = !bget(lx - 1, ly) || !bget(lx + 1, ly) ||
+                                     !bget(lx, ly - 1) || !bget(lx, ly + 1);
+                        if (!outer) continue;
+                        int px = bx + lx, py = by + ly;
+                        if (px == dx && py == dy) continue; // skip door
+                        // Skip corners (two or more adjacent sides missing)
+                        int missing = (!bget(lx-1,ly)?1:0) + (!bget(lx+1,ly)?1:0) +
+                                      (!bget(lx,ly-1)?1:0) + (!bget(lx,ly+1)?1:0);
+                        if (missing >= 2) continue;
+                        // Place a window every ~4 wall tiles
+                        win_count++;
+                        if (win_count % 4 == 2 && in_bounds(px, py)) {
+                            map_->set(px, py, Tile::Fixture);
+                            map_->add_fixture(px, py, make_fixture(FixtureType::Window));
+                        }
+                    }
+                }
             };
 
             // Helper: carve a 3-wide paved path (IndoorFloor) as a straight
@@ -734,24 +939,33 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             // PHASE 1: Compute all building positions (consume RNG state)
             // ============================================================
 
-            // Main hall
+            // Building materials: 0=metal, 1=concrete, 2=wood, 3=salvage
+            std::uniform_int_distribution<int> mat_dist(0, 3);
+            // Building shapes: randomly assigned (clamped to rect if too small)
+            std::uniform_int_distribution<int> shape_dist(SHAPE_RECT, SHAPE_U);
+
+            // Main hall (metal or concrete — sturdy, any shape)
             std::uniform_int_distribution<int> hall_w_dist(14, 18);
             std::uniform_int_distribution<int> hall_h_dist(7, 9);
             int hall_w = hall_w_dist(rng), hall_h = hall_h_dist(rng);
             auto [hall_x, hall_y, hall_door] = place_on_side(dirs[0], hall_w, hall_h);
+            uint8_t hall_mat = static_cast<uint8_t>(mat_dist(rng) % 2);
+            int hall_shape = shape_dist(rng);
 
-            // Market
+            // Market (any material, any shape)
             std::uniform_int_distribution<int> mkt_w_dist(10, 14);
             std::uniform_int_distribution<int> mkt_h_dist(6, 8);
             int mkt_w = mkt_w_dist(rng), mkt_h = mkt_h_dist(rng);
             auto [mkt_x, mkt_y, mkt_door] = place_on_side(dirs[1], mkt_w, mkt_h);
+            uint8_t mkt_mat = static_cast<uint8_t>(mat_dist(rng));
+            int mkt_shape = shape_dist(rng);
 
             // Market stalls count
             std::uniform_int_distribution<int> stall_count_dist(2, 3);
             int num_stalls = stall_count_dist(rng);
 
             // Dwellings
-            struct DwellInfo { int x, y, w, h, door_side, side; };
+            struct DwellInfo { int x, y, w, h, door_side, side; uint8_t mat; int shape; };
             std::vector<DwellInfo> dwellings;
             std::uniform_int_distribution<int> dwell_count_dist(2, 4);
             int num_dwellings = dwell_count_dist(rng);
@@ -763,7 +977,9 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 // Spread dwellings apart: offset along the wall with generous spacing
                 int perp_offset = (i / 2) * (dw + 4) - ((i > 1) ? (dw + 4) / 2 : 0);
                 auto [bx, by, ds] = place_on_side(side, dw, dh, perp_offset);
-                dwellings.push_back({bx, by, dw, dh, ds, side});
+                uint8_t dmat = static_cast<uint8_t>(mat_dist(rng));
+                int dshape = shape_dist(rng);
+                dwellings.push_back({bx, by, dw, dh, ds, side, dmat, dshape});
             }
 
             // Stools
@@ -873,16 +1089,19 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
 
             // Main hall
             std::pair<int,int> hall_door_pos;
-            draw_building(hall_x, hall_y, hall_w, hall_h, hall_door, hall_door_pos);
+            draw_building(hall_x, hall_y, hall_w, hall_h, hall_door, hall_door_pos,
+                          hall_mat, hall_shape);
 
             // Market
             std::pair<int,int> mkt_door_pos;
-            draw_building(mkt_x, mkt_y, mkt_w, mkt_h, mkt_door, mkt_door_pos);
+            draw_building(mkt_x, mkt_y, mkt_w, mkt_h, mkt_door, mkt_door_pos,
+                          mkt_mat, mkt_shape);
 
             // Dwellings
             for (auto& dw : dwellings) {
                 std::pair<int,int> ignore;
-                draw_building(dw.x, dw.y, dw.w, dw.h, dw.door_side, ignore);
+                draw_building(dw.x, dw.y, dw.w, dw.h, dw.door_side, ignore,
+                              dw.mat, dw.shape);
             }
 
             // ============================================================
@@ -957,6 +1176,11 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                     map_->add_fixture(dw.x + 2, dw.y + 1, make_fixture(FixtureType::Bunk));
                 }
             }
+
+            // ============================================================
+            // PHASE 5: Scatter settlement props (reusable decoration pass)
+            // ============================================================
+            scatter_settlement_props(map_, rng, props_->biome);
 
             break;
         }
