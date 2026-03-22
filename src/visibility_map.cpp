@@ -20,6 +20,13 @@ void VisibilityMap::reveal_all() {
     std::fill(cells_.begin(), cells_.end(), Visibility::Visible);
 }
 
+void VisibilityMap::explore_all() {
+    for (auto& c : cells_) {
+        if (c == Visibility::Unexplored)
+            c = Visibility::Explored;
+    }
+}
+
 void VisibilityMap::set_visible(int x, int y) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         cells_[y * width_ + x] = Visibility::Visible;

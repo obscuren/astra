@@ -21,6 +21,7 @@ public:
 
     void set_visible(int x, int y);
     void reveal_all();
+    void explore_all();
     Visibility get(int x, int y) const;
 
     int width() const { return width_; }

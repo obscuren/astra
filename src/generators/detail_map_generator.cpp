@@ -1790,14 +1790,264 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             break;
         }
         case Tile::OW_Landing: {
-            for (int dy = -2; dy <= 2; ++dy)
-                for (int dx = -3; dx <= 3; ++dx)
-                    if (in_bounds(cx + dx, cy + dy))
-                        map_->set(cx + dx, cy + dy, Tile::Floor);
-            if (in_bounds(cx, cy)) {
-                map_->set(cx, cy, Tile::Fixture);
-                map_->add_fixture(cx, cy, make_fixture(FixtureType::ShipTerminal));
+            // ============================================================
+            // Landing Pad with Embedded Starship
+            // ============================================================
+            // Ship rooms use Wall/Floor (matching starship_generator exactly).
+            // Pad surface uses IndoorFloor. No hull bounding box.
+
+            // Ship room definitions (same as starship_generator)
+            struct ShipRoom { int x, y, w, h; };
+            static constexpr ShipRoom ship_rooms[] = {
+                { 2,  6, 8,  6},   // Cockpit (0)
+                {12,  5, 12, 8},   // Command Center (1)
+                {26,  6, 10, 6},   // Mess Hall (2)
+                {38,  5, 10, 8},   // Quarters (3)
+            };
+            static constexpr int ship_room_count = 4;
+
+            // Offset: center the 50x20 ship grid on (cx, cy)
+            int ox = cx - 25;
+            int oy = cy - 10;
+
+            // ---- PHASE 1: Landing pad surface ----
+            int pad_x = cx - 26, pad_y = cy - 11;
+            int pad_w = 52, pad_h = 22;
+            for (int y = pad_y; y < pad_y + pad_h; ++y)
+                for (int x = pad_x; x < pad_x + pad_w; ++x)
+                    if (in_bounds(x, y))
+                        map_->set(x, y, Tile::IndoorFloor);
+
+            // Pad perimeter markings (StructuralWall, concrete)
+            for (int x = pad_x; x < pad_x + pad_w; ++x) {
+                if (in_bounds(x, pad_y)) {
+                    map_->set(x, pad_y, Tile::StructuralWall);
+                    map_->set_glyph_override(x, pad_y, 1);
+                }
+                if (in_bounds(x, pad_y + pad_h - 1)) {
+                    map_->set(x, pad_y + pad_h - 1, Tile::StructuralWall);
+                    map_->set_glyph_override(x, pad_y + pad_h - 1, 1);
+                }
             }
+            for (int y = pad_y; y < pad_y + pad_h; ++y) {
+                if (in_bounds(pad_x, y)) {
+                    map_->set(pad_x, y, Tile::StructuralWall);
+                    map_->set_glyph_override(pad_x, y, 1);
+                }
+                if (in_bounds(pad_x + pad_w - 1, y)) {
+                    map_->set(pad_x + pad_w - 1, y, Tile::StructuralWall);
+                    map_->set_glyph_override(pad_x + pad_w - 1, y, 1);
+                }
+            }
+
+            // 3-wide entry road south from pad + open pad perimeter for exit
+            for (int d = -1; d <= 1; ++d) {
+                if (in_bounds(cx + d, pad_y + pad_h - 1))
+                    map_->set(cx + d, pad_y + pad_h - 1, Tile::IndoorFloor);
+            }
+            for (int y = pad_y + pad_h; y < std::min(h - 1, pad_y + pad_h + 10); ++y)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(cx + d, y))
+                        map_->set(cx + d, y, Tile::IndoorFloor);
+
+            // ---- PHASE 2: Ship rooms (Wall/Floor, matching starship_generator) ----
+            struct RoomInfo { int x1, y1, x2, y2; };
+            RoomInfo room_rects[ship_room_count];
+
+            for (int i = 0; i < ship_room_count; ++i) {
+                const auto& sr = ship_rooms[i];
+                int rx1 = ox + sr.x;
+                int ry1 = oy + sr.y;
+                int rx2 = rx1 + sr.w - 1;
+                int ry2 = ry1 + sr.h - 1;
+                room_rects[i] = {rx1, ry1, rx2, ry2};
+
+                for (int y = ry1; y <= ry2; ++y) {
+                    for (int x = rx1; x <= rx2; ++x) {
+                        if (!in_bounds(x, y)) continue;
+                        bool edge = (y == ry1 || y == ry2 || x == rx1 || x == rx2);
+                        map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                        if (edge) map_->set_glyph_override(x, y, 0); // metal
+                    }
+                }
+            }
+
+            // ---- PHASE 3: Corridors connecting rooms ----
+            for (int i = 0; i < ship_room_count - 1; ++i) {
+                int corr_y = (room_rects[i].y1 + room_rects[i].y2) / 2;
+                int x1 = room_rects[i].x2;
+                int x2 = room_rects[i + 1].x1;
+                for (int x = x1; x <= x2; ++x) {
+                    if (in_bounds(x, corr_y))
+                        map_->set(x, corr_y, Tile::IndoorFloor);
+                    // Wall borders only on Empty tiles
+                    if (in_bounds(x, corr_y - 1) &&
+                        map_->get(x, corr_y - 1) == Tile::Empty) {
+                        map_->set(x, corr_y - 1, Tile::StructuralWall);
+                        map_->set_glyph_override(x, corr_y - 1, 0);
+                    }
+                    if (in_bounds(x, corr_y + 1) &&
+                        map_->get(x, corr_y + 1) == Tile::Empty) {
+                        map_->set(x, corr_y + 1, Tile::StructuralWall);
+                        map_->set_glyph_override(x, corr_y + 1, 0);
+                    }
+                }
+            }
+
+            // ---- PHASE 4: Airlock door on south wall of command center ----
+            {
+                auto& r = room_rects[1]; // Command Center
+                int airlock_x = (r.x1 + r.x2) / 2;
+                int airlock_y = r.y2; // south wall
+                if (in_bounds(airlock_x, airlock_y)) {
+                    map_->set(airlock_x, airlock_y, Tile::Fixture);
+                    map_->add_fixture(airlock_x, airlock_y, make_fixture(FixtureType::Door));
+                }
+            }
+
+            // ---- PHASE 5: Ship room fixtures ----
+            auto place_fix = [&](int fx, int fy, FixtureType type) {
+                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::IndoorFloor) {
+                    map_->set(fx, fy, Tile::Fixture);
+                    map_->add_fixture(fx, fy, make_fixture(type));
+                }
+            };
+
+            // Cockpit (room 0): Viewports along north wall, Consoles below
+            {
+                auto& r = room_rects[0];
+                for (int x = r.x1 + 1; x <= r.x2 - 1; ++x)
+                    place_fix(x, r.y1 + 1, FixtureType::Viewport);
+                for (int x = r.x1 + 1; x <= r.x2 - 1; x += 2)
+                    place_fix(x, r.y1 + 2, FixtureType::Console);
+            }
+
+            // Command Center (room 1): StarChart center, Consoles below
+            {
+                auto& r = room_rects[1];
+                int rcx = (r.x1 + 1 + r.x2 - 1) / 2;
+                int rcy = (r.y1 + 1 + r.y2 - 1) / 2;
+                place_fix(rcx, rcy, FixtureType::StarChart);
+                for (int x = rcx - 1; x <= rcx + 1; ++x)
+                    place_fix(x, rcy + 1, FixtureType::Console);
+            }
+
+            // Mess Hall (room 2): Table center, Stools, FoodTerminal
+            {
+                auto& r = room_rects[2];
+                int rcx = (r.x1 + 1 + r.x2 - 1) / 2;
+                int rcy = (r.y1 + 1 + r.y2 - 1) / 2;
+                place_fix(rcx, rcy, FixtureType::Table);
+                place_fix(rcx - 1, rcy, FixtureType::Stool);
+                place_fix(rcx + 1, rcy, FixtureType::Stool);
+                place_fix(rcx, r.y1 + 1, FixtureType::FoodTerminal);
+            }
+
+            // Quarters (room 3): Bunks along walls, RestPod at end
+            {
+                auto& r = room_rects[3];
+                for (int y = r.y1 + 1; y <= r.y2 - 1; y += 2) {
+                    place_fix(r.x1 + 1, y, FixtureType::Bunk);
+                    place_fix(r.x2 - 1, y, FixtureType::Bunk);
+                }
+                int rcx = (r.x1 + 1 + r.x2 - 1) / 2;
+                place_fix(rcx, r.y2 - 1, FixtureType::RestPod);
+            }
+
+            // ---- PHASE 6: Ship room regions ----
+            {
+                struct ShipRoomInfo {
+                    RoomFlavor flavor;
+                    const char* name;
+                    const char* enter_message;
+                };
+                static const ShipRoomInfo room_info[] = {
+                    {RoomFlavor::ShipCockpit, "Cockpit",
+                        "The cockpit. Stars drift beyond the viewport, navigation consoles glow softly."},
+                    {RoomFlavor::ShipCommandCenter, "Command Center",
+                        "The command center. A star chart terminal dominates the room."},
+                    {RoomFlavor::ShipMessHall, "Mess Hall",
+                        "The mess hall. A small table and food terminal — comforts of home."},
+                    {RoomFlavor::ShipQuarters, "Sleeping Quarters",
+                        "The sleeping quarters. Bunks line the walls. A rest pod hums at the far end."},
+                };
+
+                for (int i = 0; i < ship_room_count; ++i) {
+                    Region reg;
+                    reg.type = RegionType::Room;
+                    reg.lit = true;
+                    reg.flavor = room_info[i].flavor;
+                    reg.name = room_info[i].name;
+                    reg.enter_message = room_info[i].enter_message;
+                    reg.features = default_features(room_info[i].flavor);
+                    int rid = map_->add_region(reg);
+
+                    auto& r = room_rects[i];
+                    for (int y = r.y1; y <= r.y2; ++y)
+                        for (int x = r.x1; x <= r.x2; ++x)
+                            if (in_bounds(x, y))
+                                map_->set_region(x, y, rid);
+                }
+
+                // Corridor region
+                Region creg;
+                creg.type = RegionType::Corridor;
+                creg.lit = true;
+                creg.flavor = RoomFlavor::CorridorPlain;
+                creg.name = "Ship Corridor";
+                creg.enter_message = "A narrow corridor connecting the ship's compartments.";
+                int crid = map_->add_region(creg);
+
+                // Assign corridor tiles (Floor tiles not yet assigned to a room)
+                for (int i = 0; i < ship_room_count - 1; ++i) {
+                    int corr_y = (room_rects[i].y1 + room_rects[i].y2) / 2;
+                    int x1 = room_rects[i].x2;
+                    int x2 = room_rects[i + 1].x1;
+                    for (int x = x1; x <= x2; ++x) {
+                        for (int dy = -1; dy <= 1; ++dy) {
+                            int cy2 = corr_y + dy;
+                            if (in_bounds(x, cy2) && map_->region_id(x, cy2) < 0)
+                                map_->set_region(x, cy2, crid);
+                        }
+                    }
+                }
+            }
+
+            // ---- PHASE 7: Control tower building ----
+            {
+                auto place_fix_indoor = [&](int fx, int fy, FixtureType type) {
+                    if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::IndoorFloor) {
+                        map_->set(fx, fy, Tile::Fixture);
+                        map_->add_fixture(fx, fy, make_fixture(type));
+                    }
+                };
+
+                int tw_x = pad_x + 2, tw_y = pad_y + pad_h + 1;
+                int tw_w = 6, tw_h = 5;
+                for (int y = tw_y; y < tw_y + tw_h; ++y) {
+                    for (int x = tw_x; x < tw_x + tw_w; ++x) {
+                        if (!in_bounds(x, y)) continue;
+                        bool edge = (y == tw_y || y == tw_y + tw_h - 1 ||
+                                     x == tw_x || x == tw_x + tw_w - 1);
+                        map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                        if (edge) map_->set_glyph_override(x, y, 1);
+                    }
+                }
+                if (in_bounds(tw_x + tw_w / 2, tw_y)) {
+                    map_->set(tw_x + tw_w / 2, tw_y, Tile::Fixture);
+                    map_->add_fixture(tw_x + tw_w / 2, tw_y, make_fixture(FixtureType::Door));
+                }
+                place_fix_indoor(tw_x + 2, tw_y + 2, FixtureType::Console);
+                place_fix_indoor(tw_x + 3, tw_y + 2, FixtureType::Console);
+
+                // Fuel/supply area
+                int supply_x = pad_x + pad_w - 8;
+                int supply_y = pad_y + pad_h + 2;
+                place_fix_indoor(supply_x, supply_y, FixtureType::Crate);
+                place_fix_indoor(supply_x + 2, supply_y, FixtureType::Crate);
+                place_fix_indoor(supply_x + 4, supply_y, FixtureType::Rack);
+            }
+
             break;
         }
         default:
@@ -1819,7 +2069,8 @@ void DetailMapGenerator::assign_regions(std::mt19937& /*rng*/) {
     int h = map_->height();
     for (int y = 0; y < h; ++y)
         for (int x = 0; x < w; ++x)
-            map_->set_region(x, y, rid);
+            if (map_->region_id(x, y) < 0) // preserve ship room regions
+                map_->set_region(x, y, rid);
 }
 
 // --- Factory ---

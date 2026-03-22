@@ -319,12 +319,7 @@ void Game::handle_play_input(int key) {
             if (on_overworld()) {
                 Tile t = map_.get(player_.x, player_.y);
                 if (t == Tile::OW_Landing) {
-                    npc_dialog_ = Dialog("Landing Zone",
-                        "Your starship awaits.");
-                    npc_dialog_.add_option("Board ship");
-                    npc_dialog_.add_option("Cancel");
-                    npc_dialog_.open();
-                    dialog_node_ = -6; // sentinel: ship terminal
+                    enter_detail_map();
                 } else {
                     log("Nothing to interact with here.");
                 }
@@ -424,9 +419,7 @@ void Game::handle_play_input(int key) {
         case '>': {
             if (on_overworld()) {
                 Tile t = map_.get(player_.x, player_.y);
-                if (t == Tile::OW_Landing) {
-                    log("Your starship is parked here. Press 'e' to board.");
-                } else if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
+                if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
                     enter_detail_map();
@@ -453,9 +446,7 @@ void Game::handle_play_input(int key) {
             // Overworld: enter detail map for the tile underneath the player
             if (on_overworld()) {
                 Tile t = map_.get(player_.x, player_.y);
-                if (t == Tile::OW_Landing) {
-                    log("Your starship is parked here. Press 'e' to board.");
-                } else if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
+                if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
                     enter_detail_map();
@@ -964,12 +955,29 @@ void Game::enter_detail_map() {
         npcs_.clear();
         ground_items_.clear();
 
-        // Place player in center
-        player_.x = map_.width() / 2;
-        player_.y = map_.height() / 2;
-        // Ensure we're on a floor tile
-        if (!map_.passable(player_.x, player_.y)) {
-            map_.find_open_spot(player_.x, player_.y);
+        // Place player: spawn in cockpit for landing pad, center otherwise
+        if (props.detail_poi_type == Tile::OW_Landing) {
+            // Find the cockpit region (ShipCockpit flavor)
+            bool found_cockpit = false;
+            for (int i = 0; i < map_.region_count(); ++i) {
+                if (map_.region(i).flavor == RoomFlavor::ShipCockpit) {
+                    if (map_.find_open_spot_in_region(i, player_.x, player_.y, {})) {
+                        found_cockpit = true;
+                    }
+                    break;
+                }
+            }
+            if (!found_cockpit) {
+                player_.x = map_.width() / 2;
+                player_.y = map_.height() / 2;
+                if (!map_.passable(player_.x, player_.y))
+                    map_.find_open_spot(player_.x, player_.y);
+            }
+        } else {
+            player_.x = map_.width() / 2;
+            player_.y = map_.height() / 2;
+            if (!map_.passable(player_.x, player_.y))
+                map_.find_open_spot(player_.x, player_.y);
         }
 
         visibility_ = VisibilityMap(map_.width(), map_.height());
@@ -987,6 +995,7 @@ void Game::enter_detail_map() {
         case Tile::OW_Settlement:   msg = "You enter the settlement area."; break;
         case Tile::OW_Ruins:        msg = "Ancient ruins surround you."; break;
         case Tile::OW_CrashedShip:  msg = "Wreckage of a starship lies scattered."; break;
+        case Tile::OW_Landing:      msg = "You stand in your ship's cockpit. The landing pad stretches outside."; break;
         case Tile::OW_Outpost:      msg = "You approach the outpost."; break;
         case Tile::OW_Forest:       msg = "Dense forest surrounds you."; break;
         case Tile::OW_Desert:       msg = "Sand stretches in every direction."; break;
@@ -2106,6 +2115,12 @@ void Game::recompute_fov() {
     }
 
     compute_fov(map_, visibility_, player_.x, player_.y, player_.view_radius);
+
+    // Detail maps: shadowcast for lighting, but entire map stays revealed
+    if (on_detail_map() || map_.map_type() == MapType::DetailMap) {
+        visibility_.explore_all();
+        return;
+    }
 
     std::vector<bool> reveal(map_.region_count(), false);
     for (int y = 0; y < map_.height(); ++y) {
