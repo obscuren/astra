@@ -9,6 +9,7 @@
 #include "astra/star_chart.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/tile_props.h"
+#include "astra/time_of_day.h"
 #include "astra/map_properties.h"
 #include "astra/tilemap.h"
 #include "astra/ui.h"
@@ -42,9 +43,10 @@ enum class PanelTab : uint8_t {
     Inventory,
     Equipment,
     Ship,
+    Wait,
 };
 
-static constexpr int panel_tab_count = 4;
+static constexpr int panel_tab_count = 5;
 
 class Game {
 public:
@@ -166,6 +168,7 @@ private:
     int camera_y_ = 0;
     int current_region_ = -1;
     int world_tick_ = 0;
+    DayClock day_clock_;
 
     // Tabs
     int active_tab_ = 0;
@@ -178,6 +181,7 @@ private:
     int blink_phase_ = 0;
     Npc* target_npc_ = nullptr;
     int inventory_cursor_ = 0;
+    int wait_cursor_ = 0;
     bool inspecting_item_ = false;
     Item inspected_item_;
 

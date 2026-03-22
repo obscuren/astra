@@ -69,6 +69,7 @@ struct CelestialBody {
     bool explored = false;
     bool has_dungeon = false;
     int danger_level = 1;
+    int day_length = 200;  // ticks per local planetary day
 };
 
 // Display helpers

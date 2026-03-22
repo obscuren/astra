@@ -336,6 +336,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.energy);
     w.write_i32(p.kills);
     w.write_i32(p.regen_counter);
+    // v10: light_radius
+    w.write_i32(p.light_radius);
     write_equipment(w, p.equipment);
     write_inventory(w, p.inventory);
     w.end_section(pos);
@@ -538,6 +540,8 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
                 w.write_u8(body.explored ? 1 : 0);
                 w.write_u8(body.has_dungeon ? 1 : 0);
                 w.write_i32(body.danger_level);
+                // v10: day length
+                w.write_i32(body.day_length);
             }
         }
     }
@@ -554,6 +558,9 @@ static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     w.write_u8(data.surface_mode);
     w.write_i32(data.overworld_x);
     w.write_i32(data.overworld_y);
+    // v10: day clock
+    w.write_i32(data.local_tick);
+    w.write_i32(data.local_ticks_per_day);
     w.end_section(pos);
 }
 
@@ -575,7 +582,7 @@ static void read_dialog_nodes(BinaryReader& r, std::vector<DialogNode>& nodes) {
     }
 }
 
-static void read_player_section(BinaryReader& r, Player& p) {
+static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
     p.x = r.read_i32();
     p.y = r.read_i32();
     p.hp = r.read_i32();
@@ -595,7 +602,9 @@ static void read_player_section(BinaryReader& r, Player& p) {
     p.energy = r.read_i32();
     p.kills = r.read_i32();
     p.regen_counter = r.read_i32();
-    // Equipment & inventory — may be absent in old saves (section guard handles it)
+    if (version >= 10) {
+        p.light_radius = r.read_i32();
+    }
     read_equipment(r, p.equipment);
     read_inventory(r, p.inventory);
 }
@@ -807,6 +816,10 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
                     body.explored = r.read_u8() != 0;
                     body.has_dungeon = r.read_u8() != 0;
                     body.danger_level = r.read_i32();
+                    // v10: day length
+                    if (version >= 10) {
+                        body.day_length = r.read_i32();
+                    }
                 }
             }
         }
@@ -828,6 +841,11 @@ static void read_game_state_section(BinaryReader& r, SaveData& data) {
         data.surface_mode = on_ow ? 2 : 0; // 2=Overworld, 0=Dungeon
         data.overworld_x = r.read_i32();
         data.overworld_y = r.read_i32();
+    }
+    // v10: day clock
+    if (data.version >= 10) {
+        data.local_tick = r.read_i32();
+        data.local_ticks_per_day = r.read_i32();
     }
 }
 
@@ -927,7 +945,7 @@ bool read_save(const std::string& name, SaveData& data) {
         std::streampos section_start = in.tellg();
 
         if (std::memcmp(tag, "PLYR", 4) == 0) {
-            read_player_section(r, data.player);
+            read_player_section(r, data.player, data.version);
         } else if (std::memcmp(tag, "MPDT", 4) == 0) {
             MapState ms;
             read_map_section(r, ms, data.version);

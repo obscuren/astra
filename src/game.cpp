@@ -68,6 +68,7 @@ static const char* tab_names[] = {
     "Inventory",
     "Equipment",
     "Ship",
+    "Wait",
 };
 
 Game::Game(std::unique_ptr<Renderer> renderer)
@@ -349,6 +350,7 @@ void Game::handle_play_input(int key) {
         case '.':
             log("You wait...");
             advance_world(ActionCost::wait);
+            recompute_fov();
             break;
         case 't': begin_targeting(); break;
         case 's': shoot_target(); break;
@@ -377,6 +379,8 @@ void Game::handle_play_input(int key) {
                 if (count > 0 && inventory_cursor_ < count - 1) ++inventory_cursor_;
             } else if (tab == PanelTab::Equipment) {
                 if (inventory_cursor_ < equip_slot_count - 1) ++inventory_cursor_;
+            } else if (tab == PanelTab::Wait) {
+                if (wait_cursor_ < 5) ++wait_cursor_;
             }
             break;
         }
@@ -384,6 +388,8 @@ void Game::handle_play_input(int key) {
             auto tab = static_cast<PanelTab>(active_tab_);
             if (tab == PanelTab::Inventory || tab == PanelTab::Equipment) {
                 if (inventory_cursor_ > 0) --inventory_cursor_;
+            } else if (tab == PanelTab::Wait) {
+                if (wait_cursor_ > 0) --wait_cursor_;
             }
             break;
         }
@@ -442,9 +448,13 @@ void Game::handle_play_input(int key) {
             }
             break;
         }
-        case '\n': case '\r': {
+        case '\n': case '\r':
+        case '1': case '2': case '3': case '4': case '5': case '6': {
+            auto tab = static_cast<PanelTab>(active_tab_);
+            // Number keys only apply to Wait tab
+            if (key >= '1' && key <= '6' && tab != PanelTab::Wait) break;
             // Overworld: enter detail map for the tile underneath the player
-            if (on_overworld()) {
+            if (on_overworld() && (key == '\n' || key == '\r')) {
                 Tile t = map_.get(player_.x, player_.y);
                 if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
@@ -453,7 +463,63 @@ void Game::handle_play_input(int key) {
                 }
                 break;
             }
-            auto tab = static_cast<PanelTab>(active_tab_);
+            if (tab == PanelTab::Wait && (key == '\n' || key == '\r' || (key >= '1' && key <= '6'))) {
+                if (key >= '1' && key <= '6') wait_cursor_ = key - '1';
+                int old_hp = player_.hp;
+                int turns = 0;
+                bool interrupted = false;
+                auto do_wait = [&](int n) {
+                    for (int i = 0; i < n; ++i) {
+                        advance_world(ActionCost::wait);
+                        ++turns;
+                        if (player_.hp < old_hp) {
+                            interrupted = true;
+                            break;
+                        }
+                        old_hp = player_.hp;
+                    }
+                };
+                switch (wait_cursor_) {
+                    case 0: do_wait(1); break;
+                    case 1: do_wait(10); break;
+                    case 2: do_wait(50); break;
+                    case 3: do_wait(100); break;
+                    case 4: { // Wait until healed
+                        int limit = 1000;
+                        while (player_.hp < player_.max_hp && limit-- > 0) {
+                            if (player_.hunger == HungerState::Starving) {
+                                log("Too hungry to rest.");
+                                break;
+                            }
+                            advance_world(ActionCost::wait);
+                            ++turns;
+                            if (player_.hp < old_hp) { interrupted = true; break; }
+                            old_hp = player_.hp;
+                        }
+                        break;
+                    }
+                    case 5: { // Wait until morning (full daylight)
+                        if (day_clock_.phase() == TimePhase::Day) break;
+                        int limit = day_clock_.local_ticks_per_day + 10;
+                        while (day_clock_.phase() != TimePhase::Day && limit-- > 0) {
+                            advance_world(ActionCost::wait);
+                            ++turns;
+                            if (player_.hp < old_hp) { interrupted = true; break; }
+                            old_hp = player_.hp;
+                        }
+                        break;
+                    }
+                }
+                if (interrupted) {
+                    log("Your rest is interrupted!");
+                } else if (turns > 1) {
+                    log("You wait " + std::to_string(turns) + " turns.");
+                } else if (turns == 1) {
+                    log("You wait...");
+                }
+                recompute_fov();
+                break;
+            }
             if (tab == PanelTab::Inventory) {
                 int count = static_cast<int>(player_.inventory.items.size());
                 if (count > 0 && inventory_cursor_ < count) {
@@ -616,6 +682,8 @@ void Game::new_game() {
     surface_mode_ = SurfaceMode::Dungeon;
     overworld_x_ = 0;
     overworld_y_ = 0;
+    world_tick_ = 0;
+    day_clock_ = DayClock{};  // station day = 200 ticks
     location_cache_.clear();
     if (dev_mode_) {
         log("--- DEVELOPER MODE --- Saving disabled.");
@@ -1382,13 +1450,24 @@ void Game::travel_to_destination(const ChartAction& action) {
             navigation_.at_station = true;
             navigation_.current_body_index = -1;
             navigation_.current_moon_index = -1;
+            day_clock_.set_body_day_length(200); // station standard day
             break;
-        case ChartActionType::TravelToBody:
+        case ChartActionType::TravelToBody: {
             navigation_.on_ship = false;
             navigation_.at_station = false;
             navigation_.current_body_index = action.body_index;
             navigation_.current_moon_index = action.moon_index;
+            const auto& body = target_sys.bodies[action.body_index];
+            if (action.moon_index >= 0) {
+                unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
+                                   ^ (static_cast<unsigned>(action.body_index) * 6271u);
+                auto moon = generate_moon_body(body, action.moon_index, moon_seed);
+                day_clock_.set_body_day_length(moon.day_length);
+            } else {
+                day_clock_.set_body_day_length(body.day_length);
+            }
             break;
+        }
         default:
             break;
     }
@@ -2114,7 +2193,26 @@ void Game::recompute_fov() {
         return;
     }
 
-    compute_fov(map_, visibility_, player_.x, player_.y, player_.view_radius);
+    // Determine effective view radius based on context
+    int radius = player_.view_radius;
+    bool is_indoor = map_.map_type() == MapType::SpaceStation
+                  || map_.map_type() == MapType::DerelictStation
+                  || map_.map_type() == MapType::Starship;
+    bool is_dungeon = !on_overworld() && !on_detail_map()
+                      && map_.map_type() != MapType::DetailMap
+                      && !is_indoor;
+    if (is_indoor) {
+        // Stations and ships: always fully lit, use base view_radius
+    } else if (is_dungeon) {
+        // Underground: always use light_radius (no sunlight)
+        radius = player_.light_radius;
+    } else if (!on_overworld()) {
+        // Surface detail maps: time of day affects view range
+        int max_radius = std::max(map_.width(), map_.height());
+        radius = day_clock_.effective_view_radius(max_radius, player_.light_radius);
+    }
+
+    compute_fov(map_, visibility_, player_.x, player_.y, radius);
 
     // Detail maps: shadowcast for lighting, but entire map stays revealed
     if (on_detail_map() || map_.map_type() == MapType::DetailMap) {
@@ -2166,6 +2264,7 @@ void Game::advance_world(int cost) {
     remove_dead_npcs();
     check_player_death();
     ++world_tick_;
+    day_clock_.advance(1);
 
     // Water damage
     if (player_.hp > 0 && !player_.invulnerable &&
@@ -2781,6 +2880,8 @@ void Game::save_game() {
     data.surface_mode = static_cast<uint8_t>(surface_mode_);
     data.overworld_x = overworld_x_;
     data.overworld_y = overworld_y_;
+    data.local_tick = day_clock_.local_tick;
+    data.local_ticks_per_day = day_clock_.local_ticks_per_day;
 
     MapState ms;
     ms.map_id = 0;
@@ -2830,6 +2931,10 @@ bool Game::load_game(const std::string& filename) {
     surface_mode_ = static_cast<SurfaceMode>(data.surface_mode);
     overworld_x_ = data.overworld_x;
     overworld_y_ = data.overworld_y;
+
+    // Restore day clock
+    day_clock_.local_tick = data.local_tick;
+    day_clock_.local_ticks_per_day = data.local_ticks_per_day;
 
     // Reset interaction state
     awaiting_interact_ = false;
@@ -2983,13 +3088,19 @@ void Game::render_stats_bar() {
     lx = ctx.label_value(lx, 0, "", Color::DarkGray,
         std::to_string(player_.money) + "$", Color::Yellow);
 
+    // Build calendar string for width measurement: "C1 D3 [▓▓▓▒░░░░] ☀"
+    // Progress bar is 8 chars + brackets = 10, icon = 1
+    std::string cal = format_calendar(world_tick_);
+    cal += " [--------] "; // placeholder for width calc (8-char bar + brackets + space)
+    cal += phase_icon(day_clock_.phase());
+
     // Right side: stats, calendar, location — measure total width for right-alignment
     std::string right;
     right += " QN:";  right += std::to_string(player_.quickness);
     right += " :: MS:"; right += std::to_string(player_.move_speed);
     right += " :: AV:"; right += std::to_string(player_.attack_value);
     right += " :: DV:"; right += std::to_string(player_.defense_value);
-    right += " :: Cycle 1, Day 1";
+    right += " :: ";    right += cal;
     right += " :: ";    right += map_.location_name();
     right += " ";
 
@@ -3023,8 +3134,49 @@ void Game::render_stats_bar() {
     x = ctx.label_value(x, 0, "DV:", Color::DarkGray,
         std::to_string(player_.defense_value), Color::Blue);
 
+    // Calendar + day progress bar + phase icon
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    ctx.text(x, 0, "Cycle 1, Day 1", Color::DarkGray); x += 14;
+    {
+        std::string cal_text = format_calendar(world_tick_) + " ";
+        ctx.text(x, 0, cal_text, Color::DarkGray);
+        x += static_cast<int>(cal_text.size());
+
+        // Phase color
+        Color phase_col;
+        switch (day_clock_.phase()) {
+            case TimePhase::Dawn: phase_col = Color::Yellow; break;
+            case TimePhase::Day:  phase_col = Color::Yellow; break;
+            case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
+            case TimePhase::Night:phase_col = Color::Blue; break;
+        }
+
+        // Day progress bar: [▓▓▓▒░░░░]
+        constexpr int bar_len = 8;
+        float frac = day_clock_.day_fraction();
+        int filled = static_cast<int>(frac * bar_len);
+        if (filled > bar_len) filled = bar_len;
+
+        ctx.put(x, 0, '[', Color::DarkGray); ++x;
+        for (int i = 0; i < bar_len; ++i) {
+            if (i < filled) {
+                // ▓ filled
+                ctx.text(x, 0, "\xe2\x96\x93", phase_col);
+            } else if (i == filled) {
+                // ▒ current position
+                ctx.text(x, 0, "\xe2\x96\x92", phase_col);
+            } else {
+                // ░ empty
+                ctx.text(x, 0, "\xe2\x96\x91", Color::DarkGray);
+            }
+            ++x;
+        }
+        ctx.put(x, 0, ']', Color::DarkGray); ++x;
+
+        // Phase icon
+        ctx.text(x, 0, " ", Color::Default); ++x;
+        ctx.text(x, 0, phase_icon(day_clock_.phase()), phase_col);
+        x += 1;
+    }
 
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
     ctx.text(x, 0, map_.location_name(), Color::White);
@@ -3568,6 +3720,51 @@ void Game::render_side_panel() {
             ctx.text(1, 1, "Ship: Docked", Color::DarkGray);
             ctx.text(1, 2, "Hull: 100%", Color::DarkGray);
             break;
+        case PanelTab::Wait: {
+            // Time info header
+            int y = 0;
+            {
+                Color phase_col;
+                switch (day_clock_.phase()) {
+                    case TimePhase::Dawn: phase_col = Color::Yellow; break;
+                    case TimePhase::Day:  phase_col = Color::Yellow; break;
+                    case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
+                    case TimePhase::Night:phase_col = Color::Blue; break;
+                }
+                std::string time_info = std::string(phase_icon(day_clock_.phase()))
+                    + " " + phase_name(day_clock_.phase());
+                ctx.text(1, y, time_info, phase_col);
+                ++y;
+                ctx.text(1, y, format_calendar(world_tick_), Color::DarkGray);
+                y += 2;
+            }
+
+            // Wait options
+            static const char* wait_options[] = {
+                "Wait 1 turn",
+                "Wait 10 turns",
+                "Wait 50 turns",
+                "Wait 100 turns",
+                "Wait until healed",
+                "Wait until morning",
+            };
+            static constexpr int wait_option_count = 6;
+            for (int i = 0; i < wait_option_count && y < ctx.height() - 1; ++i) {
+                bool selected = (i == wait_cursor_);
+                std::string label = std::string("[") + std::to_string(i + 1) + "] " + wait_options[i];
+                if (i == 5 && day_clock_.phase() == TimePhase::Day) {
+                    // "Wait until morning" greyed out during day
+                    ctx.text(1, y, label, Color::DarkGray);
+                } else {
+                    if (selected) ctx.text(0, y, ">", Color::Yellow);
+                    ctx.text(1, y, label, selected ? Color::White : Color::Default);
+                }
+                ++y;
+            }
+            // Hints
+            ctx.text(1, ctx.height() - 1, "+/- [Enter]wait [1-6]quick", Color::DarkGray);
+            break;
+        }
     }
 }
 

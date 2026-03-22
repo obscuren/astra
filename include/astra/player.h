@@ -30,6 +30,7 @@ struct Player {
     int max_hp = 10;
     int depth = 1;
     int view_radius = 8;
+    int light_radius = 6;
 
     // Stats
     int temperature = 20;

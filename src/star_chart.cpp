@@ -1,4 +1,5 @@
 #include "astra/star_chart.h"
+#include "astra/time_of_day.h"
 
 #include <algorithm>
 #include <cmath>
@@ -374,6 +375,9 @@ void generate_system_bodies(StarSystem& sys) {
             if (body.moons > 0) {
                 body.moon_names = generate_moon_names(body.name, body.moons, rng);
             }
+
+            body.day_length = derive_day_length(
+                static_cast<int>(body.type), body.size, body.orbital_distance);
         }
 
         sys.bodies.push_back(std::move(body));

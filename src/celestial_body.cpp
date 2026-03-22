@@ -1,4 +1,5 @@
 #include "astra/celestial_body.h"
+#include "astra/time_of_day.h"
 
 namespace astra {
 
@@ -172,6 +173,7 @@ CelestialBody generate_moon_body(const CelestialBody& parent, int moon_index, un
         }
     }
 
+    moon.day_length = derive_moon_day_length(static_cast<int>(parent.type));
     return moon;
 }
 
