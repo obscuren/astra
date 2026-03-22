@@ -19,11 +19,12 @@ constexpr int ticks_per_global_day = 200;
 constexpr int days_per_cycle = 30;
 
 // Phase boundaries as percentage of day_length
-constexpr float dawn_start  = 0.05f;  //  5%
-constexpr float day_start   = 0.15f;  // 15%
-constexpr float dusk_start  = 0.65f;  // 65%
-constexpr float night_start = 0.85f;  // 85%
-// Night wraps: 85-100% + 0-5%
+// Dawn 10%, Day 40%, Dusk 15%, Night 35%
+constexpr float dawn_start  = 0.10f;  // 10%
+constexpr float day_start   = 0.20f;  // 20%
+constexpr float dusk_start  = 0.60f;  // 60%
+constexpr float night_start = 0.75f;  // 75%
+// Night wraps: 75-100% + 0-10%
 
 struct DayClock {
     int local_ticks_per_day = 200;
