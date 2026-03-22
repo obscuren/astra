@@ -1546,179 +1546,241 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
         }
         case Tile::OW_Outpost: {
             // --- Military/frontier outpost compound ---
+            // Makeshift perimeter wall (weathered), main building with door,
+            // storage shed, corner guard towers, optional outer watchtowers,
+            // paved courtyard paths, and proper IndoorFloor inside buildings.
             std::uniform_real_distribution<float> prob(0.0f, 1.0f);
 
-            // Defensive perimeter (~24x18)
-            int perim_x = cx - 12;
-            int perim_y = cy - 9;
-            int perim_w = 24;
-            int perim_h = 18;
+            // Wider defensive perimeter (~30x22)
+            int perim_x = cx - 15;
+            int perim_y = cy - 11;
+            int perim_w = 30;
+            int perim_h = 22;
 
-            // Outer wall ring with ~60% probability (weathered fortification)
+            // Building coordinates (declared early for path layout)
+            int mb_x = cx - 6, mb_y = cy - 4;
+            int mb_w = 12, mb_h = 9;
+            int shed_x = cx + 7, shed_y = cy - 5;
+            int shed_w = 7, shed_h = 5;
+
+            // Optional outer watchtowers (1-2, outside perimeter)
+            std::uniform_int_distribution<int> tower_count_dist(1, 2);
+            int num_outer_towers = tower_count_dist(rng);
+            struct OuterTower { int x, y; };
+            OuterTower outer_towers[2];
+            // Place outside the perimeter at random positions
+            std::uniform_int_distribution<int> tower_side_dist(0, 3);
+            for (int i = 0; i < num_outer_towers; ++i) {
+                int side = tower_side_dist(rng);
+                switch (side) {
+                    case 0: // north
+                        outer_towers[i] = {cx - 4 + i * 8, perim_y - 6};
+                        break;
+                    case 1: // south
+                        outer_towers[i] = {cx - 4 + i * 8, perim_y + perim_h + 2};
+                        break;
+                    case 2: // west
+                        outer_towers[i] = {perim_x - 6, cy - 3 + i * 6};
+                        break;
+                    case 3: // east
+                        outer_towers[i] = {perim_x + perim_w + 2, cy - 3 + i * 6};
+                        break;
+                }
+            }
+
+            // ============================================================
+            // PHASE 1: Courtyard floor and paths (drawn first)
+            // ============================================================
+
+            // Paved courtyard inside perimeter
+            for (int y = perim_y + 1; y < perim_y + perim_h - 1; ++y)
+                for (int x = perim_x + 1; x < perim_x + perim_w - 1; ++x)
+                    if (in_bounds(x, y))
+                        map_->set(x, y, Tile::IndoorFloor);
+
+            // 3-wide paths from gates extending outward
+            int road_len = 10;
+            // North road
+            for (int y = perim_y - 1; y >= std::max(1, perim_y - road_len); --y)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(cx + d, y))
+                        map_->set(cx + d, y, Tile::IndoorFloor);
+            // South road
+            for (int y = perim_y + perim_h; y < std::min(map_->height() - 1, perim_y + perim_h + road_len); ++y)
+                for (int d = -1; d <= 1; ++d)
+                    if (in_bounds(cx + d, y))
+                        map_->set(cx + d, y, Tile::IndoorFloor);
+
+            // Paths to outer watchtowers
+            for (int i = 0; i < num_outer_towers; ++i) {
+                auto& ot = outer_towers[i];
+                // L-shaped path from nearest gate
+                int gx = cx, gy = (ot.y < cy) ? perim_y : perim_y + perim_h - 1;
+                // Vertical segment
+                int lo_y = std::min(gy, ot.y + 2), hi_y = std::max(gy, ot.y + 2);
+                for (int y = lo_y; y <= hi_y; ++y)
+                    for (int d = -1; d <= 1; ++d)
+                        if (in_bounds(gx + d, y))
+                            map_->set(gx + d, y, Tile::IndoorFloor);
+                // Horizontal segment
+                int lo_x = std::min(gx, ot.x + 2), hi_x = std::max(gx, ot.x + 2);
+                for (int x = lo_x; x <= hi_x; ++x)
+                    for (int d = -1; d <= 1; ++d)
+                        if (in_bounds(x, ot.y + 2 + d))
+                            map_->set(x, ot.y + 2 + d, Tile::IndoorFloor);
+            }
+
+            // ============================================================
+            // PHASE 2: Perimeter wall (makeshift, ~70% coverage)
+            // ============================================================
+
             for (int x = perim_x; x < perim_x + perim_w; ++x) {
-                if (in_bounds(x, perim_y) && prob(rng) < 0.60f)
+                if (in_bounds(x, perim_y) && prob(rng) < 0.70f)
                     map_->set(x, perim_y, Tile::Wall);
-                if (in_bounds(x, perim_y + perim_h - 1) && prob(rng) < 0.60f)
+                if (in_bounds(x, perim_y + perim_h - 1) && prob(rng) < 0.70f)
                     map_->set(x, perim_y + perim_h - 1, Tile::Wall);
             }
             for (int y = perim_y; y < perim_y + perim_h; ++y) {
-                if (in_bounds(perim_x, y) && prob(rng) < 0.60f)
+                if (in_bounds(perim_x, y) && prob(rng) < 0.70f)
                     map_->set(perim_x, y, Tile::Wall);
-                if (in_bounds(perim_x + perim_w - 1, y) && prob(rng) < 0.60f)
+                if (in_bounds(perim_x + perim_w - 1, y) && prob(rng) < 0.70f)
                     map_->set(perim_x + perim_w - 1, y, Tile::Wall);
             }
 
-            // North and south gate gaps (clear 3-wide openings)
-            for (int dx = -1; dx <= 1; ++dx) {
+            // North and south gate gaps (5-wide for main entrance)
+            for (int dx = -2; dx <= 2; ++dx) {
                 int gx = cx + dx;
                 if (in_bounds(gx, perim_y))
-                    map_->set(gx, perim_y, Tile::Floor);
+                    map_->set(gx, perim_y, Tile::IndoorFloor);
                 if (in_bounds(gx, perim_y + perim_h - 1))
-                    map_->set(gx, perim_y + perim_h - 1, Tile::Floor);
+                    map_->set(gx, perim_y + perim_h - 1, Tile::IndoorFloor);
             }
 
-            // Guard towers at 4 corners (3x3 wall blocks with 1x1 interior floor)
-            int tower_offsets[][2] = {
-                {perim_x, perim_y},
-                {perim_x + perim_w - 3, perim_y},
-                {perim_x, perim_y + perim_h - 3},
+            // ============================================================
+            // PHASE 3: Buildings (solid walls stamp over courtyard)
+            // ============================================================
+
+            // Corner guard towers (4x4 StructuralWall blocks, metal)
+            int tower_positions[][2] = {
+                {perim_x - 1, perim_y - 1},
+                {perim_x + perim_w - 3, perim_y - 1},
+                {perim_x - 1, perim_y + perim_h - 3},
                 {perim_x + perim_w - 3, perim_y + perim_h - 3}
             };
-            for (const auto& off : tower_offsets) {
-                int tx = off[0], ty = off[1];
-                for (int y = ty; y < ty + 3; ++y)
-                    for (int x = tx; x < tx + 3; ++x)
-                        if (in_bounds(x, y))
-                            map_->set(x, y, Tile::Wall);
-                // Interior lookout
-                if (in_bounds(tx + 1, ty + 1))
-                    map_->set(tx + 1, ty + 1, Tile::Floor);
+            for (const auto& tp : tower_positions) {
+                int tx = tp[0], ty = tp[1];
+                for (int y = ty; y < ty + 4; ++y)
+                    for (int x = tx; x < tx + 4; ++x)
+                        if (in_bounds(x, y)) {
+                            bool edge = (y == ty || y == ty + 3 ||
+                                         x == tx || x == tx + 3);
+                            map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                            if (edge) map_->set_glyph_override(x, y, 0); // metal
+                        }
             }
 
-            // Building coordinates (declared early for path layout)
-            int mb_x = cx - 5, mb_y = cy - 4;
-            int mb_w = 10, mb_h = 8;
-            int shed_x = cx + 6, shed_y = cy - 6;
-            int shed_w = 6, shed_h = 4;
-
-            // Courtyard paths — clear wall-noise along walkways but leave
-            // natural terrain elsewhere so the biome shows through.
-            // Path from south gate to main building entrance
-            for (int x = cx - 1; x <= cx + 1; ++x)
-                for (int y = mb_y + mb_h; y <= perim_y + perim_h - 2; ++y)
-                    if (in_bounds(x, y))
-                        map_->set(x, y, Tile::Floor);
-            // Path from north gate to main building
-            for (int x = cx - 1; x <= cx + 1; ++x)
-                for (int y = perim_y + 1; y < mb_y; ++y)
-                    if (in_bounds(x, y))
-                        map_->set(x, y, Tile::Floor);
-            // Path from main building to storage shed
-            {
-                int path_y = mb_y + 1;
-                for (int x = mb_x + mb_w; x < shed_x; ++x)
-                    if (in_bounds(x, path_y))
-                        map_->set(x, path_y, Tile::Floor);
-            }
-
-            // Main building (10x8, centered)
+            // Main building (StructuralWall, salvage material — makeshift)
             for (int y = mb_y; y < mb_y + mb_h; ++y) {
                 for (int x = mb_x; x < mb_x + mb_w; ++x) {
                     if (!in_bounds(x, y)) continue;
                     bool edge = (y == mb_y || y == mb_y + mb_h - 1 ||
                                  x == mb_x || x == mb_x + mb_w - 1);
-                    if (edge) {
-                        if (prob(rng) < 0.85f)
-                            map_->set(x, y, Tile::Wall);
-                    } else {
-                        map_->set(x, y, Tile::Floor);
-                    }
+                    map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                    if (edge) map_->set_glyph_override(x, y, 3); // salvage
                 }
             }
-            // South doorway
-            if (in_bounds(cx, mb_y + mb_h - 1))
-                map_->set(cx, mb_y + mb_h - 1, Tile::Floor);
-            // Internal dividing wall (partial, splits east/west halves)
-            int div_x = cx;
+            // South door
+            if (in_bounds(cx, mb_y + mb_h - 1)) {
+                map_->set(cx, mb_y + mb_h - 1, Tile::Fixture);
+                map_->add_fixture(cx, mb_y + mb_h - 1, make_fixture(FixtureType::Door));
+            }
+            // Internal dividing wall (splits east/west halves)
             for (int y = mb_y + 1; y < mb_y + mb_h - 1; ++y) {
-                if (in_bounds(div_x, y) && y != cy) // gap at center for passage
-                    map_->set(div_x, y, Tile::Wall);
-            }
-
-            // Command room fixtures (west half)
-            {
-                int fx = cx - 3, fy = cy - 1;
-                if (in_bounds(fx, fy)) {
-                    map_->set(fx, fy, Tile::Fixture);
-                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Console));
+                if (in_bounds(cx, y) && y != cy) { // gap at center for passage
+                    map_->set(cx, y, Tile::StructuralWall);
+                    map_->set_glyph_override(cx, y, 3);
                 }
             }
-            // Portal in command room for underground access
-            {
-                int px = cx - 2, py = cy + 1;
-                if (in_bounds(px, py))
-                    map_->set(px, py, Tile::Portal);
+            // Windows on main building
+            if (in_bounds(mb_x, cy)) {
+                map_->set(mb_x, cy, Tile::Fixture);
+                map_->add_fixture(mb_x, cy, make_fixture(FixtureType::Window));
             }
-            // Barracks fixture (east half)
-            {
-                int fx = cx + 3, fy = cy - 1;
-                if (in_bounds(fx, fy)) {
-                    map_->set(fx, fy, Tile::Fixture);
-                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Bunk));
-                }
+            if (in_bounds(mb_x + mb_w - 1, cy)) {
+                map_->set(mb_x + mb_w - 1, cy, Tile::Fixture);
+                map_->add_fixture(mb_x + mb_w - 1, cy, make_fixture(FixtureType::Window));
             }
 
-            // Storage shed (6x4, northeast of main building)
+            // Storage shed (StructuralWall, wood material)
             for (int y = shed_y; y < shed_y + shed_h; ++y) {
                 for (int x = shed_x; x < shed_x + shed_w; ++x) {
                     if (!in_bounds(x, y)) continue;
                     bool edge = (y == shed_y || y == shed_y + shed_h - 1 ||
                                  x == shed_x || x == shed_x + shed_w - 1);
-                    if (edge) {
-                        if (prob(rng) < 0.75f)
-                            map_->set(x, y, Tile::Wall);
-                    } else {
-                        map_->set(x, y, Tile::Floor);
-                    }
+                    map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                    if (edge) map_->set_glyph_override(x, y, 2); // wood
                 }
             }
-            // Shed doorway on west wall (facing courtyard)
-            if (in_bounds(shed_x, shed_y + shed_h / 2))
-                map_->set(shed_x, shed_y + shed_h / 2, Tile::Floor);
-            // Shed fixtures: crates and rack
-            {
-                int fx = shed_x + 1, fy = shed_y + 1;
-                if (in_bounds(fx, fy)) {
-                    map_->set(fx, fy, Tile::Fixture);
-                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Crate));
-                }
-                fx = shed_x + 3; fy = shed_y + 1;
-                if (in_bounds(fx, fy)) {
-                    map_->set(fx, fy, Tile::Fixture);
-                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Crate));
-                }
-                fx = shed_x + 4; fy = shed_y + 2;
-                if (in_bounds(fx, fy)) {
-                    map_->set(fx, fy, Tile::Fixture);
-                    map_->add_fixture(fx, fy, make_fixture(FixtureType::Rack));
+            // Shed door on west wall
+            if (in_bounds(shed_x, shed_y + shed_h / 2)) {
+                map_->set(shed_x, shed_y + shed_h / 2, Tile::Fixture);
+                map_->add_fixture(shed_x, shed_y + shed_h / 2, make_fixture(FixtureType::Door));
+            }
+
+            // Outer watchtowers (5x5, concrete)
+            for (int i = 0; i < num_outer_towers; ++i) {
+                auto& ot = outer_towers[i];
+                for (int y = ot.y; y < ot.y + 5; ++y)
+                    for (int x = ot.x; x < ot.x + 5; ++x)
+                        if (in_bounds(x, y)) {
+                            bool edge = (y == ot.y || y == ot.y + 4 ||
+                                         x == ot.x || x == ot.x + 4);
+                            map_->set(x, y, edge ? Tile::StructuralWall : Tile::IndoorFloor);
+                            if (edge) map_->set_glyph_override(x, y, 1); // concrete
+                        }
+                // Door on side facing the compound
+                int door_x = ot.x + 2, door_y = ot.y + 4;
+                if (ot.y > cy) door_y = ot.y; // door on north if south of compound
+                if (in_bounds(door_x, door_y)) {
+                    map_->set(door_x, door_y, Tile::Fixture);
+                    map_->add_fixture(door_x, door_y, make_fixture(FixtureType::Door));
                 }
             }
 
-            // Courtyard debris (3-5 scattered decorations)
-            {
-                std::uniform_int_distribution<int> debris_count(3, 5);
-                std::uniform_int_distribution<int> dx_dist(perim_x + 3, perim_x + perim_w - 4);
-                std::uniform_int_distribution<int> dy_dist(perim_y + 3, perim_y + perim_h - 4);
-                int nd = debris_count(rng);
-                for (int i = 0; i < nd; ++i) {
-                    int dx = dx_dist(rng);
-                    int dy = dy_dist(rng);
-                    if (in_bounds(dx, dy) && map_->get(dx, dy) == Tile::Floor) {
-                        map_->set(dx, dy, Tile::Fixture);
-                        map_->add_fixture(dx, dy, make_fixture(FixtureType::Debris));
-                    }
-                }
+            // ============================================================
+            // PHASE 4: Fixtures
+            // ============================================================
+
+            // Command room fixtures (west half of main building)
+            if (in_bounds(cx - 3, cy - 1)) {
+                map_->set(cx - 3, cy - 1, Tile::Fixture);
+                map_->add_fixture(cx - 3, cy - 1, make_fixture(FixtureType::Console));
             }
+            // Portal in command room
+            if (in_bounds(cx - 2, cy + 1))
+                map_->set(cx - 2, cy + 1, Tile::Portal);
+            // Barracks fixture (east half)
+            if (in_bounds(cx + 3, cy - 1)) {
+                map_->set(cx + 3, cy - 1, Tile::Fixture);
+                map_->add_fixture(cx + 3, cy - 1, make_fixture(FixtureType::Bunk));
+            }
+            // Shed fixtures
+            if (in_bounds(shed_x + 1, shed_y + 1)) {
+                map_->set(shed_x + 1, shed_y + 1, Tile::Fixture);
+                map_->add_fixture(shed_x + 1, shed_y + 1, make_fixture(FixtureType::Crate));
+            }
+            if (in_bounds(shed_x + 3, shed_y + 1)) {
+                map_->set(shed_x + 3, shed_y + 1, Tile::Fixture);
+                map_->add_fixture(shed_x + 3, shed_y + 1, make_fixture(FixtureType::Crate));
+            }
+            if (in_bounds(shed_x + 5, shed_y + 2)) {
+                map_->set(shed_x + 5, shed_y + 2, Tile::Fixture);
+                map_->add_fixture(shed_x + 5, shed_y + 2, make_fixture(FixtureType::Rack));
+            }
+
+            // Settlement props pass (reusable)
+            scatter_settlement_props(map_, rng, props_->biome);
+
             break;
         }
         case Tile::OW_Landing: {
