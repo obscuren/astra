@@ -1385,9 +1385,9 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 for (int perp = -1; perp <= 1; ++perp) {
                     if (!in_bounds(gxp, gyp + perp)) continue;
                     if (perp == 0) {
-                        map_->set(gxp, gyp + perp, Tile::Floor);
+                        map_->set(gxp, gyp + perp, Tile::IndoorFloor); // scorched skid
                     } else if (prob(rng) < 0.40f) {
-                        map_->set(gxp, gyp + perp, Tile::Wall);
+                        map_->set(gxp, gyp + perp, Tile::Wall); // churned rubble
                     }
                 }
             }
@@ -1420,30 +1420,36 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                                  dx == -ship_half || dx == ship_half);
                     if (edge) {
                         // Hull wall with ~75% probability (breached plating)
-                        if (prob(rng) < 0.75f)
-                            map_->set(px, py, Tile::Wall);
-                        else
-                            map_->set(px, py, Tile::Floor);
+                        if (prob(rng) < 0.75f) {
+                            map_->set(px, py, Tile::StructuralWall);
+                            map_->set_glyph_override(px, py, 0); // metal
+                        } else {
+                            map_->set(px, py, Tile::IndoorFloor); // breach
+                        }
                     } else {
-                        map_->set(px, py, Tile::Floor);
+                        map_->set(px, py, Tile::IndoorFloor);
                     }
                 }
             }
 
-            // --- Interior bulkheads (partial walls separating rooms) ---
+            // --- Interior bulkheads (partial structural walls separating rooms) ---
             // Bulkhead 1: between engine bay and mid-section (at dx ~ -4)
             int bulk1_x = cx - 4;
             for (int dy = -(body_half_h - 1); dy <= (body_half_h - 1); ++dy) {
                 if (!in_bounds(bulk1_x, cy + dy)) continue;
-                if (std::abs(dy) != 0 && prob(rng) < 0.60f) // gap at center
-                    map_->set(bulk1_x, cy + dy, Tile::Wall);
+                if (std::abs(dy) != 0 && prob(rng) < 0.60f) { // gap at center
+                    map_->set(bulk1_x, cy + dy, Tile::StructuralWall);
+                    map_->set_glyph_override(bulk1_x, cy + dy, 0); // metal
+                }
             }
             // Bulkhead 2: between mid-section and cockpit (at dx ~ +4)
             int bulk2_x = cx + 4;
             for (int dy = -(body_half_h - 1); dy <= (body_half_h - 1); ++dy) {
                 if (!in_bounds(bulk2_x, cy + dy)) continue;
-                if (std::abs(dy) != 0 && prob(rng) < 0.60f)
-                    map_->set(bulk2_x, cy + dy, Tile::Wall);
+                if (std::abs(dy) != 0 && prob(rng) < 0.60f) {
+                    map_->set(bulk2_x, cy + dy, Tile::StructuralWall);
+                    map_->set_glyph_override(bulk2_x, cy + dy, 0);
+                }
             }
 
             // --- Breach points: 2-3 holes punched in hull ---
@@ -1462,7 +1468,7 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 int blen = breach_len_dist(rng);
                 for (int i = 0; i < blen; ++i) {
                     if (in_bounds(bx + i, by))
-                        map_->set(bx + i, by, Tile::Floor);
+                        map_->set(bx + i, by, Tile::IndoorFloor);
                 }
             }
 
@@ -1491,8 +1497,8 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             for (int i = 0; i < num_debris; ++i) {
                 int dx = cx + debris_x_dist(rng);
                 int dy = cy + debris_y_dist(rng);
-                if (in_bounds(dx, dy) &&
-                    map_->get(dx, dy) == Tile::Floor &&
+                Tile dt = in_bounds(dx, dy) ? map_->get(dx, dy) : Tile::Empty;
+                if ((dt == Tile::Floor || dt == Tile::IndoorFloor) &&
                     map_->fixture_id(dx, dy) < 0) {
                     map_->add_fixture(dx, dy,
                         deco(',', nullptr, Color::DarkGray, true));
@@ -1503,7 +1509,7 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             // Console in cockpit (front section, dx ~ +6)
             {
                 int fx = cx + 6, fy = cy;
-                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::Floor) {
+                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::IndoorFloor) {
                     map_->set(fx, fy, Tile::Fixture);
                     map_->add_fixture(fx, fy, make_fixture(FixtureType::Console));
                 }
@@ -1518,7 +1524,7 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 for (int i = 0; i < num_crates; ++i) {
                     int fx = cx + crate_x_dist(rng);
                     int fy = cy + crate_y_dist(rng);
-                    if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::Floor &&
+                    if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::IndoorFloor &&
                         map_->fixture_id(fx, fy) < 0) {
                         map_->set(fx, fy, Tile::Fixture);
                         map_->add_fixture(fx, fy, make_fixture(FixtureType::Crate));
@@ -1529,7 +1535,7 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             // Conduit in engine bay (rear section, dx ~ -7)
             {
                 int fx = cx - 7, fy = cy;
-                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::Floor) {
+                if (in_bounds(fx, fy) && map_->get(fx, fy) == Tile::IndoorFloor) {
                     map_->set(fx, fy, Tile::Fixture);
                     map_->add_fixture(fx, fy, make_fixture(FixtureType::Conduit));
                 }
