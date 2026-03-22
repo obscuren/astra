@@ -13,7 +13,7 @@ All 6 POI stamps in `detail_map_generator.cpp` `place_features()` are tiny (~10x
 - [x] **3. Outpost** — bare 5x5 box, needs rooms, crates, defensive perimeter
 - [x] **4. Cave Entrance** — 3x3 box, needs rocky outcrop, scattered boulders
 - [x] **5. Settlement** — decent but could use multiple buildings, paths, market area
-- [ ] **6. Landing Pad** — functional but plain, could use pad markings, perimeter lights
+- [x] **6. Landing Pad** — embedded starship with pad markings, perimeter, and fixtures
 
 ---
 
@@ -175,17 +175,34 @@ New generation algorithm:
 
 ---
 
-## Step 6: Landing Pad (TODO)
+## Step 6: Landing Pad (DONE)
 
 ### Problem
 - Flat 7x5 floor area with single fixture — plain
 
-### Planned Changes
-- Pad markings (wall tiles forming landing pad outline)
-- Perimeter lights (fixtures around edges)
-- Control tower (small walled structure nearby)
-- Fuel/supply area with crates
-- ShipTerminal fixture retained
+### Changes
+
+**A. Replaced the `OW_Landing` case in `place_features()`**
+New generation algorithm:
+
+1. **Landing pad surface (52x22)**: Large `IndoorFloor` rectangle centered on cx, cy. `StructuralWall` perimeter markings around edges (concrete glyph override).
+
+2. **Embedded starship (4 rooms)**: Ship rooms placed directly on the pad, matching `starship_generator` layout:
+   - Cockpit (8x6, front)
+   - Command Center (12x8, mid-front)
+   - Mess Hall (10x6, mid-rear)
+   - Quarters (10x8, rear)
+   Rooms use `StructuralWall` edges (metal glyph override) with `IndoorFloor` interiors.
+
+3. **Corridors**: Floor corridors connecting adjacent rooms with wall borders on empty tiles.
+
+4. **Airlock door**: `Door` fixture on south wall of Command Center — main entry/exit point.
+
+5. **Ship room fixtures**: Console in cockpit, Table in mess hall, Bunks in quarters, ShipTerminal in command center, Crates in quarters.
+
+6. **Entry road**: 3-wide `IndoorFloor` path extending south from pad perimeter with open gap in perimeter wall.
+
+7. **FOV**: Detail map uses full explore_all so the pad and ship are always visible.
 
 ---
 
