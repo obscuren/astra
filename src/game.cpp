@@ -625,6 +625,15 @@ void Game::dev_warp_stamp_test() {
     map_.find_open_spot(player_.x, player_.y);
     npcs_.clear();
     ground_items_.clear();
+
+    // Spawn NPCs for settlement/outpost stamp tests
+    std::mt19937 npc_rng(warp_seed ^ 0xC1A5u);
+    if (dev_warp_stamp_test_poi_ == Tile::OW_Settlement) {
+        spawn_settlement_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+    } else if (dev_warp_stamp_test_poi_ == Tile::OW_Outpost) {
+        spawn_outpost_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+    }
+
     visibility_ = VisibilityMap(map_.width(), map_.height());
     recompute_fov();
     compute_camera();
@@ -1046,6 +1055,14 @@ void Game::enter_detail_map() {
             player_.y = map_.height() / 2;
             if (!map_.passable(player_.x, player_.y))
                 map_.find_open_spot(player_.x, player_.y);
+        }
+
+        // Spawn NPCs in settlements and outposts (after player placement)
+        std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
+        if (props.detail_poi_type == Tile::OW_Settlement) {
+            spawn_settlement_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+        } else if (props.detail_poi_type == Tile::OW_Outpost) {
+            spawn_outpost_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
         }
 
         visibility_ = VisibilityMap(map_.width(), map_.height());

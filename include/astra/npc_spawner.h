@@ -12,4 +12,12 @@ namespace astra {
 void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                     int player_x, int player_y, std::mt19937& rng);
 
+// Spawn NPCs in settlement detail maps (near fixtures).
+void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
+                           int player_x, int player_y, std::mt19937& rng);
+
+// Spawn NPCs in outpost detail maps (near fixtures).
+void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
+                        int player_x, int player_y, std::mt19937& rng);
+
 } // namespace astra
