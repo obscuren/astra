@@ -49,6 +49,7 @@ struct Player {
 
     // Primary attributes
     PrimaryAttributes attributes;
+    int attribute_points = 0;
 
     // Base secondary stats
     int quickness = 100;

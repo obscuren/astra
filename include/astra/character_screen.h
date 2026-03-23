@@ -34,7 +34,7 @@ private:
     Player* player_ = nullptr;
     Renderer* renderer_ = nullptr;
     bool open_ = false;
-    CharTab active_tab_ = CharTab::Attributes;
+    CharTab active_tab_ = CharTab::Skills;
     int cursor_ = 0;
     int scroll_ = 0;
 
@@ -43,6 +43,12 @@ private:
     EquipFocus equip_focus_ = EquipFocus::PaperDoll;
     int equip_cursor_ = 0;
     int inv_cursor_ = 0;
+
+    // Attribute point allocation
+    int pending_points_[6] = {};
+    bool has_pending() const;
+    int total_pending() const;
+    void commit_pending();
 
     // Context menu (reusable PopupMenu)
     PopupMenu context_menu_;
@@ -66,7 +72,8 @@ private:
 
     void draw_stat_box(DrawContext& ctx, int x, int y,
                        const char* label, int value,
-                       bool selected, int modifier = -999);
+                       bool selected, int modifier = -999,
+                       int pending = 0, bool can_allocate = false);
     void draw_section_header(DrawContext& ctx, int y,
                              const char* title, int left_margin = 1);
 };

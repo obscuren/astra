@@ -686,6 +686,7 @@ void Game::new_game() {
         player_.player_class = PlayerClass::Marine;
         player_.attributes = {14, 12, 16, 10, 10, 8};
         player_.resistances = {5, 5, 5, 5};
+        player_.attribute_points = 10;
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
         player_.skills.push_back({1, "Combat Training", "Basic combat proficiency with all weapon types.", true, 1});

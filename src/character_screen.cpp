@@ -18,12 +18,36 @@ void CharacterScreen::open(Player* player, Renderer* renderer) {
     player_ = player;
     renderer_ = renderer;
     open_ = true;
-    active_tab_ = CharTab::Attributes;
     cursor_ = 0;
     scroll_ = 0;
-    equip_focus_ = EquipFocus::PaperDoll;
-    equip_cursor_ = 0;
-    inv_cursor_ = 0;
+    for (int i = 0; i < 6; ++i) pending_points_[i] = 0;
+}
+
+bool CharacterScreen::has_pending() const {
+    for (int i = 0; i < 6; ++i) if (pending_points_[i] > 0) return true;
+    return false;
+}
+
+int CharacterScreen::total_pending() const {
+    int t = 0;
+    for (int i = 0; i < 6; ++i) t += pending_points_[i];
+    return t;
+}
+
+void CharacterScreen::commit_pending() {
+    if (!has_pending()) return;
+    int spent = total_pending();
+    auto& a = player_->attributes;
+    int* attrs[] = {&a.strength, &a.agility, &a.toughness,
+                    &a.intelligence, &a.willpower, &a.luck};
+    for (int i = 0; i < 6; ++i) {
+        *attrs[i] += pending_points_[i];
+        pending_points_[i] = 0;
+    }
+    player_->attribute_points -= spent;
+    // Recalculate derived stats
+    player_->max_hp = player_->effective_max_hp();
+    if (player_->hp > player_->max_hp) player_->hp = player_->max_hp;
 }
 
 void CharacterScreen::close() { open_ = false; }
@@ -77,6 +101,21 @@ bool CharacterScreen::handle_input(int key) {
         int max_cursor = 13;
         if (key == KEY_UP && cursor_ > 0) --cursor_;
         if (key == KEY_DOWN && cursor_ < max_cursor) ++cursor_;
+
+        // +/- to allocate/deallocate points on primary attributes (cursor 0-5)
+        if (cursor_ < 6) {
+            int remaining = player_->attribute_points - total_pending();
+            if ((key == '+' || key == '=') && remaining > 0) {
+                pending_points_[cursor_]++;
+            }
+            if (key == '-' && pending_points_[cursor_] > 0) {
+                pending_points_[cursor_]--;
+            }
+            // Space commits pending points
+            if (key == ' ' && has_pending()) {
+                commit_pending();
+            }
+        }
     } else if (active_tab_ == CharTab::Equipment) {
         if (key == '\t') {
             equip_focus_ = (equip_focus_ == EquipFocus::PaperDoll)
@@ -303,7 +342,11 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
     Window win(renderer_, Rect{0, 0, screen_w, screen_h}, "Character");
-    win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate");
+    if (has_pending()) {
+        win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate  -/+ Adjust  SPACE Commit");
+    } else {
+        win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate");
+    }
     win.draw();
 
     DrawContext ctx = win.content();
@@ -399,7 +442,8 @@ void CharacterScreen::draw_tab_bar(DrawContext& ctx) {
 
 void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
                                      const char* label, int value,
-                                     bool selected, int modifier) {
+                                     bool selected, int modifier,
+                                     int pending, bool can_allocate) {
     // Box is 7 wide. Height: 3 (label + value) or 4 (+ modifier row)
     bool has_mod = (modifier != -999);
     int h = has_mod ? 4 : 3;
@@ -413,16 +457,16 @@ void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
     // Label row
     ctx.put(x, y + 1, BoxDraw::V, border_color);
     std::string lbl(label);
-    // Center the label in 5 chars
     int pad = static_cast<int>(5 - lbl.size()) / 2;
     ctx.text(x + 1 + pad, y + 1, lbl, selected ? Color::Yellow : Color::Cyan);
     ctx.put(x + 6, y + 1, BoxDraw::V, border_color);
 
-    // Value row
+    // Value row — green if has pending points
     ctx.put(x, y + 2, BoxDraw::V, border_color);
     std::string val = std::to_string(value);
     int vpad = static_cast<int>(5 - val.size()) / 2;
-    ctx.text(x + 1 + vpad, y + 2, val, Color::White);
+    Color val_color = (pending > 0) ? Color::Green : Color::White;
+    ctx.text(x + 1 + vpad, y + 2, val, val_color);
     ctx.put(x + 6, y + 2, BoxDraw::V, border_color);
 
     // Modifier row (primary attributes only)
@@ -445,22 +489,40 @@ void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
         ctx.put(x + 6, y + 3, BoxDraw::V, border_color);
     }
 
-    // Bottom border
+    // Bottom border — show -/+ hint when allocatable
     int bot = y + h;
     ctx.put(x, bot, BoxDraw::BL, border_color);
-    for (int i = 1; i < 6; ++i) ctx.put(x + i, bot, BoxDraw::H, border_color);
+    bool show_hint = (pending > 0) || (selected && can_allocate);
+    if (show_hint) {
+        ctx.put(x + 1, bot, BoxDraw::H, border_color);
+        ctx.put(x + 2, bot, '-', Color::Yellow);
+        ctx.put(x + 3, bot, '/', Color::DarkGray);
+        ctx.put(x + 4, bot, '+', Color::Yellow);
+        ctx.put(x + 5, bot, BoxDraw::H, border_color);
+    } else {
+        for (int i = 1; i < 6; ++i) ctx.put(x + i, bot, BoxDraw::H, border_color);
+    }
     ctx.put(x + 6, bot, BoxDraw::BR, border_color);
 }
 
 void CharacterScreen::draw_section_header(DrawContext& ctx, int y,
                                            const char* title, int left_margin) {
-    // ── TITLE ────────── (stops before the vertical divider)
+    // ──┤ TITLE ├──────── (stops before the vertical divider)
     int divider_x = ctx.width() / 2;
+    // Leading ──
     ctx.put(left_margin, y, BoxDraw::H, Color::DarkGray);
     ctx.put(left_margin + 1, y, BoxDraw::H, Color::DarkGray);
-    ctx.text(left_margin + 3, y, title, Color::White);
-    int after = left_margin + 3 + static_cast<int>(std::string(title).size()) + 1;
-    for (int x = after; x < divider_x; ++x) {
+    // ┤
+    ctx.put(left_margin + 2, y, BoxDraw::RT, Color::DarkGray);
+    // space + TITLE + space
+    ctx.put(left_margin + 3, y, ' ');
+    ctx.text(left_margin + 4, y, title, Color::White);
+    int after_title = left_margin + 4 + static_cast<int>(std::string(title).size());
+    ctx.put(after_title, y, ' ');
+    // ├
+    ctx.put(after_title + 1, y, BoxDraw::LT, Color::DarkGray);
+    // Trailing ──
+    for (int x = after_title + 2; x < divider_x; ++x) {
         ctx.put(x, y, BoxDraw::H, Color::DarkGray);
     }
 }
@@ -519,26 +581,47 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
 
 
 
-    // ── MAIN ATTRIBUTES ──
+    // ──┤ MAIN ATTRIBUTES ├────┤ Attribute Points: 0 ├──
     draw_section_header(ctx, y, "MAIN ATTRIBUTES");
+    {
+        // Draw second label right-aligned before divider
+        int divider_x = ctx.width() / 2;
+        int remaining = player_->attribute_points - total_pending();
+        std::string pts = std::to_string(remaining);
+        std::string label = " Attribute Points: ";
+        // Position: ──┤ label N ├──  ending at divider_x
+        int total_len = 2 + 1 + static_cast<int>(label.size()) + static_cast<int>(pts.size()) + 1 + 1; // ──┤labelN├─
+        int start_x = divider_x - total_len;
+        if (start_x > 0) {
+            ctx.put(start_x, y, BoxDraw::RT, Color::DarkGray);
+            ctx.text(start_x + 1, y, label, Color::White);
+            int num_x = start_x + 1 + static_cast<int>(label.size());
+            ctx.text(num_x, y, pts, Color::Green);
+            ctx.put(num_x + static_cast<int>(pts.size()), y, ' ');
+            ctx.put(num_x + static_cast<int>(pts.size()) + 1, y, BoxDraw::LT, Color::DarkGray);
+        }
+    }
     y += 2;
 
     // Primary attribute boxes: 2 rows of 3
     int box_x = 2;
     int box_spacing = 8; // 7 wide + 1 gap
     const auto& a = player_->attributes;
-    int primary_values[] = {a.strength, a.agility, a.toughness,
-                            a.intelligence, a.willpower, a.luck};
+    int primary_base[] = {a.strength, a.agility, a.toughness,
+                          a.intelligence, a.willpower, a.luck};
+    int remaining_pts = player_->attribute_points - total_pending();
 
     for (int i = 0; i < 6; ++i) {
         int row = i / 3;
         int col = i % 3;
         int bx = box_x + col * box_spacing;
         int by = y + row * 6; // 5 tall + 1 gap
-        int modifier = (primary_values[i] - 10) / 2;
+        int display_val = primary_base[i] + pending_points_[i];
+        int modifier = (display_val - 10) / 2;
         bool selected = (cursor_ == i);
-        draw_stat_box(ctx, bx, by, primary_labels[i], primary_values[i],
-                      selected, modifier);
+        draw_stat_box(ctx, bx, by, primary_labels[i], display_val,
+                      selected, modifier, pending_points_[i],
+                      remaining_pts > 0);
     }
 
     // Description text below primary boxes — "Name determines ..."

@@ -369,6 +369,7 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.attributes.intelligence);
     w.write_i32(p.attributes.willpower);
     w.write_i32(p.attributes.luck);
+    w.write_i32(p.attribute_points);
     w.write_i32(p.dodge_value);
     w.write_i32(p.resistances.acid);
     w.write_i32(p.resistances.electrical);
@@ -667,6 +668,7 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
         p.attributes.intelligence = r.read_i32();
         p.attributes.willpower = r.read_i32();
         p.attributes.luck = r.read_i32();
+        p.attribute_points = r.read_i32();
         p.dodge_value = r.read_i32();
         p.resistances.acid = r.read_i32();
         p.resistances.electrical = r.read_i32();
