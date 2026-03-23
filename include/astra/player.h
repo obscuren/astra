@@ -32,7 +32,7 @@ struct Player {
     // Identity
     std::string name = "Commander";
     Race race = Race::Human;
-    PlayerClass player_class = PlayerClass::Marine;
+    PlayerClass player_class = PlayerClass::DevCommander;
 
     // Position
     int x = 0;

@@ -382,6 +382,7 @@ void Game::handle_play_input(int key) {
                 npc_dialog_.add_option("Warp to Random Map");
                 npc_dialog_.add_option("POI Stamp Test...");
                 npc_dialog_.add_option("Character Stats...");
+                npc_dialog_.add_option("Level Up Character");
                 npc_dialog_.add_option("Cancel");
                 npc_dialog_.open();
                 dialog_node_ = -7; // sentinel: dev menu
@@ -683,17 +684,22 @@ void Game::new_game() {
         player_.invulnerable = true;
         player_.name = "Dev Commander";
         player_.race = Race::Human;
-        player_.player_class = PlayerClass::Marine;
-        player_.attributes = {14, 12, 16, 10, 10, 8};
-        player_.resistances = {5, 5, 5, 5};
+        player_.player_class = PlayerClass::DevCommander;
+
+        // Apply class template
+        const auto& tmpl = class_template(player_.player_class);
+        player_.attributes = tmpl.attributes;
+        player_.resistances = tmpl.resistances;
+        player_.max_hp += tmpl.bonus_hp;
+        player_.inventory.max_carry_weight += tmpl.bonus_carry_weight;
+        player_.learned_skills = tmpl.starting_skills;
+        player_.skill_points = tmpl.starting_sp;
+        player_.money += tmpl.starting_money;
         player_.attribute_points = 10;
+
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
-        player_.skill_points = 200;
-        player_.learned_skills.push_back(SkillId::Cat_ShortBlade);
-        player_.learned_skills.push_back(SkillId::ShortBladeExpertise);
-        player_.learned_skills.push_back(SkillId::Cat_Pistol);
-        player_.learned_skills.push_back(SkillId::SteadyHand);
+
         player_.reputation.push_back({"Stellari Conclave", 10});
         player_.reputation.push_back({"Kreth Mining Guild", 0});
         player_.reputation.push_back({"Xytomorph Hive", -50});
@@ -2082,6 +2088,10 @@ void Game::advance_dialog(int selected) {
             npc_dialog_.add_option("Back");
             npc_dialog_.open();
             dialog_node_ = -8; // sentinel: dev stats
+        } else if (selected == 3) {
+            // Force level up
+            player_.xp = player_.max_xp;
+            check_level_up();
         }
         return;
     }
@@ -2447,6 +2457,7 @@ void Game::attack_npc(Npc& npc) {
         if (xp > 0) {
             player_.xp += xp;
             log("You gain " + std::to_string(xp) + " XP.");
+            check_level_up();
         }
         int credits = npc.level * 2 + (npc.elite ? 5 : 0);
         if (credits > 0) {
@@ -2614,6 +2625,7 @@ void Game::shoot_target() {
         if (xp > 0) {
             player_.xp += xp;
             log("You gain " + std::to_string(xp) + " XP.");
+            check_level_up();
         }
         target_npc_ = nullptr;
     }
@@ -2795,6 +2807,29 @@ void Game::remove_dead_npcs() {
         std::remove_if(npcs_.begin(), npcs_.end(),
                         [](const Npc& n) { return !n.alive(); }),
         npcs_.end());
+}
+
+// --- Level-up rewards (easy to balance) ---
+static constexpr int attr_points_per_level = 2;
+static constexpr int skill_points_per_level = 50;
+static constexpr float xp_scale_factor = 1.5f;
+
+void Game::check_level_up() {
+    while (player_.xp >= player_.max_xp) {
+        player_.xp -= player_.max_xp;
+        player_.level++;
+        player_.max_xp = static_cast<int>(player_.max_xp * xp_scale_factor);
+        player_.attribute_points += attr_points_per_level;
+        player_.skill_points += skill_points_per_level;
+
+        // Heal to full on level up
+        player_.max_hp = player_.effective_max_hp();
+        player_.hp = player_.max_hp;
+
+        log("LEVEL UP! You are now level " + std::to_string(player_.level) + ".");
+        log("  +" + std::to_string(attr_points_per_level) + " attribute points, +"
+            + std::to_string(skill_points_per_level) + " SP.");
+    }
 }
 
 void Game::check_player_death() {

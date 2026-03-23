@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/skill_defs.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -7,11 +9,8 @@
 namespace astra {
 
 enum class PlayerClass : uint8_t {
-    Smuggler,   // AGI/LUC focus, stealth and trade bonuses
-    Engineer,   // INT/TOU focus, tinkering and repair
-    Marine,     // STR/TOU focus, combat and armor
-    Navigator,  // INT/WIL focus, star chart and piloting
-    Scavenger,  // AGI/INT focus, loot and exploration
+    DevCommander, // developer mode only — all-rounder for testing
+    // Gameplay classes will be added here later
 };
 
 const char* class_name(PlayerClass c);
@@ -36,5 +35,20 @@ struct FactionStanding {
     std::string faction_name;
     int reputation = 0;
 };
+
+// Class template — defines starting stats for each PlayerClass
+struct ClassTemplate {
+    PlayerClass player_class;
+    const char* description;
+    PrimaryAttributes attributes;
+    Resistances resistances;
+    int bonus_hp = 0;            // added to base max_hp
+    int bonus_carry_weight = 0;  // added to base max_carry_weight
+    std::vector<SkillId> starting_skills;  // pre-learned skills (including category unlocks)
+    int starting_sp = 0;         // bonus starting skill points
+    int starting_money = 0;      // starting credits
+};
+
+const ClassTemplate& class_template(PlayerClass c);
 
 } // namespace astra

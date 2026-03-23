@@ -100,6 +100,7 @@ private:
     void reload_weapon();
     void remove_dead_npcs();
     void check_player_death();
+    void check_level_up();
     void open_npc_dialog(Npc& npc);
     void advance_dialog(int selected);
     void interact_fixture(int fixture_id);
