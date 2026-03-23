@@ -136,65 +136,68 @@ bool CharacterScreen::handle_input(int key) {
             return true;
         }
     } else if (active_tab_ == CharTab::Skills) {
-        // Build flattened visible list to determine max cursor
         if (skill_cat_expanded_.size() != skill_catalog().size()) {
             skill_cat_expanded_.assign(skill_catalog().size(), true);
         }
-        int visible_count = 0;
-        for (size_t ci = 0; ci < skill_catalog().size(); ++ci) {
-            visible_count++; // category header
-            if (skill_cat_expanded_[ci]) {
-                visible_count += static_cast<int>(skill_catalog()[ci].skills.size());
-            }
-        }
-        int max_c = visible_count - 1;
+
+        auto has_skill = [&](SkillId id) {
+            for (auto sid : player_->learned_skills)
+                if (sid == id) return true;
+            return false;
+        };
+
+        auto vis = build_skill_vis();
+
+        int max_c = static_cast<int>(vis.size()) - 1;
         if (key == KEY_UP && skill_cursor_ > 0) --skill_cursor_;
         if (key == KEY_DOWN && skill_cursor_ < max_c) ++skill_cursor_;
-        if (key == ' ') {
-            // Determine what's at skill_cursor_
-            int idx = 0;
-            for (size_t ci = 0; ci < skill_catalog().size(); ++ci) {
-                if (idx == skill_cursor_) {
-                    // Toggle category expand/collapse
-                    skill_cat_expanded_[ci] = !skill_cat_expanded_[ci];
-                    break;
-                }
-                idx++;
-                if (skill_cat_expanded_[ci]) {
-                    for (size_t si = 0; si < skill_catalog()[ci].skills.size(); ++si) {
-                        if (idx == skill_cursor_) {
-                            // Try to learn this skill
-                            const auto& sk = skill_catalog()[ci].skills[si];
-                            // Check if already learned
-                            bool already = false;
-                            for (auto sid : player_->learned_skills) {
-                                if (sid == sk.id) { already = true; break; }
-                            }
-                            if (!already && player_->skill_points >= sk.sp_cost) {
-                                // Check attribute req
-                                bool meets_req = true;
-                                if (sk.attribute_req > 0 && sk.attribute_name) {
-                                    const auto& a = player_->attributes;
-                                    std::string attr(sk.attribute_name);
-                                    int val = 0;
-                                    if (attr == "Agility") val = a.agility;
-                                    else if (attr == "Strength") val = a.strength;
-                                    else if (attr == "Toughness") val = a.toughness;
-                                    else if (attr == "Intelligence") val = a.intelligence;
-                                    else if (attr == "Willpower") val = a.willpower;
-                                    else if (attr == "Luck") val = a.luck;
-                                    if (val < sk.attribute_req) meets_req = false;
-                                }
-                                if (meets_req) {
-                                    player_->skill_points -= sk.sp_cost;
-                                    player_->learned_skills.push_back(sk.id);
-                                    context_message_ = "Learned " + sk.name + "!";
-                                    context_msg_timer_ = 3;
-                                }
-                            }
-                            break;
+        if (skill_cursor_ > max_c) skill_cursor_ = max_c;
+
+        if (skill_cursor_ >= 0 && skill_cursor_ < static_cast<int>(vis.size())) {
+            const auto& v = vis[skill_cursor_];
+
+            // Space: toggle expand/collapse (categories only)
+            if (key == ' ' && v.is_cat) {
+                skill_cat_expanded_[v.ci] = !skill_cat_expanded_[v.ci];
+            }
+
+            // l: learn (category unlock or skill)
+            if (key == 'l') {
+                if (v.is_cat) {
+                    const auto& cat = skill_catalog()[v.ci];
+                    if (!has_skill(cat.unlock_id) && player_->skill_points >= cat.sp_cost) {
+                        player_->skill_points -= cat.sp_cost;
+                        player_->learned_skills.push_back(cat.unlock_id);
+                        skill_cat_expanded_[v.ci] = true;
+                        context_message_ = "Unlocked " + cat.name + "!";
+                        context_msg_timer_ = 3;
+                    }
+                } else {
+                    const auto& cat = skill_catalog()[v.ci];
+                    const auto& sk = cat.skills[v.si];
+                    if (!has_skill(cat.unlock_id)) {} // locked category
+                    else if (has_skill(sk.id)) {} // already learned
+                    else if (player_->skill_points < sk.sp_cost) {} // can't afford
+                    else {
+                        bool meets_req = true;
+                        if (sk.attribute_req > 0 && sk.attribute_name) {
+                            const auto& a = player_->attributes;
+                            std::string attr(sk.attribute_name);
+                            int val = 0;
+                            if (attr == "Agility") val = a.agility;
+                            else if (attr == "Strength") val = a.strength;
+                            else if (attr == "Toughness") val = a.toughness;
+                            else if (attr == "Intelligence") val = a.intelligence;
+                            else if (attr == "Willpower") val = a.willpower;
+                            else if (attr == "Luck") val = a.luck;
+                            if (val < sk.attribute_req) meets_req = false;
                         }
-                        idx++;
+                        if (meets_req) {
+                            player_->skill_points -= sk.sp_cost;
+                            player_->learned_skills.push_back(sk.id);
+                            context_message_ = "Learned " + sk.name + "!";
+                            context_msg_timer_ = 3;
+                        }
                     }
                 }
             }
@@ -401,7 +404,9 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
     Window win(renderer_, Rect{0, 0, screen_w, screen_h}, "Character");
-    if (has_pending()) {
+    if (active_tab_ == CharTab::Skills) {
+        win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate  SPACE Expand  [l] Learn");
+    } else if (has_pending()) {
         win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate  -/+ Adjust  SPACE Commit");
     } else {
         win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate");
@@ -771,6 +776,19 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
 // Skills tab
 // ─────────────────────────────────────────────────────────────────
 
+std::vector<CharacterScreen::SkillVisItem> CharacterScreen::build_skill_vis() const {
+    std::vector<SkillVisItem> vis;
+    const auto& catalog = skill_catalog();
+    for (int ci = 0; ci < static_cast<int>(catalog.size()); ++ci) {
+        vis.push_back({true, ci, -1});
+        if (ci < static_cast<int>(skill_cat_expanded_.size()) && skill_cat_expanded_[ci]) {
+            for (int si = 0; si < static_cast<int>(catalog[ci].skills.size()); ++si)
+                vis.push_back({false, ci, si});
+        }
+    }
+    return vis;
+}
+
 void CharacterScreen::draw_skills(DrawContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
@@ -781,37 +799,60 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
         skill_cat_expanded_.assign(catalog.size(), true);
     }
 
-    // Section header with skill points
+    // Header bar: ──┤ STR:14 AGI:12 ... ├───┤ Skill Points: 200 ├──
     {
         int divider_x = half;
-        draw_section_header(ctx, 0, "SKILLS");
-        // Right-aligned skill points label
+        // Fill entire line with ─
+        for (int x = 0; x < divider_x; ++x)
+            ctx.put(x, 0, BoxDraw::H, Color::DarkGray);
+
+        // Left label: attribute overview
+        const auto& a = player_->attributes;
+        const char* labels[] = {"STR", "AGI", "TOU", "INT", "WIL", "LUC"};
+        int vals[] = {a.strength, a.agility, a.toughness,
+                      a.intelligence, a.willpower, a.luck};
+        std::string attr_str;
+        for (int i = 0; i < 6; ++i) {
+            if (i > 0) attr_str += " ";
+            attr_str += labels[i];
+            attr_str += ":";
+            attr_str += std::to_string(vals[i]);
+        }
+
+        int lx = 1;
+        ctx.put(lx, 0, BoxDraw::H, Color::DarkGray);
+        ctx.put(lx + 1, 0, BoxDraw::RT, Color::DarkGray);
+        ctx.put(lx + 2, 0, ' ');
+        // Draw attribute overview with labels in DarkGray, values in White
+        int ax = lx + 3;
+        for (int i = 0; i < 6; ++i) {
+            if (i > 0) { ctx.put(ax, 0, ' '); ax++; }
+            std::string lbl = std::string(labels[i]) + ":";
+            ctx.text(ax, 0, lbl, Color::DarkGray);
+            ax += static_cast<int>(lbl.size());
+            std::string val = std::to_string(vals[i]);
+            ctx.text(ax, 0, val, Color::White);
+            ax += static_cast<int>(val.size());
+        }
+        ctx.put(ax, 0, ' ');
+        ctx.put(ax + 1, 0, BoxDraw::LT, Color::DarkGray);
+
+        // Right label: skill points
         std::string pts = std::to_string(player_->skill_points);
-        std::string label = " Skill Points: ";
-        int total_len = 1 + static_cast<int>(label.size()) + static_cast<int>(pts.size()) + 2;
-        int start_x = divider_x - total_len;
-        if (start_x > 0) {
-            ctx.put(start_x, 0, BoxDraw::RT, Color::DarkGray);
-            ctx.text(start_x + 1, 0, label, Color::White);
-            int num_x = start_x + 1 + static_cast<int>(label.size());
+        std::string sp_label = " Skill Points: ";
+        int sp_len = 1 + static_cast<int>(sp_label.size()) + static_cast<int>(pts.size()) + 2;
+        int sp_x = divider_x - sp_len;
+        if (sp_x > ax + 2) {
+            ctx.put(sp_x, 0, BoxDraw::RT, Color::DarkGray);
+            ctx.text(sp_x + 1, 0, sp_label, Color::White);
+            int num_x = sp_x + 1 + static_cast<int>(sp_label.size());
             ctx.text(num_x, 0, pts, Color::Green);
             ctx.put(num_x + static_cast<int>(pts.size()), 0, ' ');
             ctx.put(num_x + static_cast<int>(pts.size()) + 1, 0, BoxDraw::LT, Color::DarkGray);
         }
     }
 
-    // Build flattened visible list for rendering
-    // Each entry: is_category, category_index, skill_index
-    struct VisEntry { bool is_cat; int ci; int si; };
-    std::vector<VisEntry> visible;
-    for (int ci = 0; ci < static_cast<int>(catalog.size()); ++ci) {
-        visible.push_back({true, ci, -1});
-        if (skill_cat_expanded_[ci]) {
-            for (int si = 0; si < static_cast<int>(catalog[ci].skills.size()); ++si) {
-                visible.push_back({false, ci, si});
-            }
-        }
-    }
+    auto visible = build_skill_vis();
 
     // Clamp cursor
     if (skill_cursor_ >= static_cast<int>(visible.size()))
@@ -822,6 +863,7 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
     int y = 2;
     int list_h = ctx.height() - 2;
     const SkillDef* selected_skill = nullptr;
+    int selected_cat_idx = -1; // category index if a category row is selected
 
     for (int i = 0; i < static_cast<int>(visible.size()); ++i) {
         if (y - 2 >= list_h) break;
@@ -829,11 +871,50 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
         bool selected = (skill_cursor_ == i);
 
         if (ve.is_cat) {
-            // Category header
-            std::string toggle = skill_cat_expanded_[ve.ci] ? "[-]" : "[+]";
-            if (selected) ctx.put(1, y, '>', Color::Yellow);
-            ctx.text(3, y, toggle, Color::DarkGray);
-            ctx.text(7, y, catalog[ve.ci].name, selected ? Color::White : Color::Cyan);
+            const auto& cat = catalog[ve.ci];
+            bool unlocked = false;
+            for (auto sid : player_->learned_skills)
+                if (sid == cat.unlock_id) { unlocked = true; break; }
+
+            // Category header: ──┤ [+] Name ├──────── cost
+            if (selected) {
+                ctx.put(0, y, '>', Color::Yellow);
+                selected_cat_idx = ve.ci;
+            }
+
+            // Build: ──┤ [+/-] Name ├────
+            int lx = 1;
+            ctx.put(lx, y, BoxDraw::H, Color::DarkGray);
+            ctx.put(lx + 1, y, BoxDraw::RT, Color::DarkGray);
+            lx += 2;
+
+            std::string toggle = unlocked
+                ? (skill_cat_expanded_[ve.ci] ? " [-] " : " [+] ")
+                : " [+] ";
+            ctx.text(lx, y, toggle, Color::White);
+            lx += static_cast<int>(toggle.size());
+
+            Color name_color = unlocked ? Color::Green : Color::DarkGray;
+            if (selected) name_color = Color::White;
+            ctx.text(lx, y, cat.name, name_color);
+            lx += static_cast<int>(cat.name.size());
+
+            ctx.put(lx, y, ' ');
+            ctx.put(lx + 1, y, BoxDraw::LT, Color::DarkGray);
+            int trail_start = lx + 2;
+
+            // Cost right-aligned (only for locked categories)
+            int cost_end = half - 1;
+            if (!unlocked) {
+                std::string cost = std::to_string(cat.sp_cost) + " SP";
+                int cx_pos = cost_end - static_cast<int>(cost.size());
+                ctx.text(cx_pos, y, cost, Color::Yellow);
+                cost_end = cx_pos - 1;
+            }
+
+            // Fill ── between ├ and cost/divider
+            for (int fx = trail_start; fx <= cost_end; ++fx)
+                ctx.put(fx, y, BoxDraw::H, Color::DarkGray);
         } else {
             // Skill entry
             const auto& sk = catalog[ve.ci].skills[ve.si];
@@ -894,7 +975,42 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
     int rx = half + 2;
     int rw = w - half - 3;
 
-    if (selected_skill) {
+    // Helper: word-wrap text
+    auto wrap_text = [&](int start_y, const std::string& text, Color color) {
+        int dy = start_y;
+        int line_x = 0;
+        for (size_t i = 0; i < text.size(); ++i) {
+            if (text[i] == ' ' && line_x >= rw) {
+                dy++;
+                line_x = 0;
+                continue;
+            }
+            ctx.put(rx + line_x, dy, text[i], color);
+            line_x++;
+            if (line_x >= rw) {
+                dy++;
+                line_x = 0;
+            }
+        }
+        return dy;
+    };
+
+    if (selected_cat_idx >= 0 && !selected_skill) {
+        // Category detail
+        const auto& cat = catalog[selected_cat_idx];
+        bool unlocked = false;
+        for (auto sid : player_->learned_skills)
+            if (sid == cat.unlock_id) { unlocked = true; break; }
+
+        ctx.text(rx, 2, cat.name, Color::White);
+        ctx.text(rx, 3, unlocked ? "[Learned]" : "[Unlearned]",
+                 unlocked ? Color::Green : Color::Red);
+
+        std::string cost_str = ":: " + std::to_string(cat.sp_cost) + " SP ::";
+        ctx.text(rx, 5, cost_str, Color::Yellow);
+
+        wrap_text(7, cat.description, Color::DarkGray);
+    } else if (selected_skill) {
         const auto& sk = *selected_skill;
         bool learned = false;
         for (auto sid : player_->learned_skills) {
@@ -905,32 +1021,21 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
         ctx.text(rx, 3, sk.passive ? "[Passive]" : "[Active]", Color::Cyan);
         ctx.text(rx, 4, "Cost: " + std::to_string(sk.sp_cost) + " SP", Color::Yellow);
 
+        int dy = 5;
         if (sk.attribute_req > 0 && sk.attribute_name) {
             std::string req = "Requires: " + std::to_string(sk.attribute_req)
                             + " " + sk.attribute_name;
-            ctx.text(rx, 5, req, Color::DarkGray);
+            ctx.text(rx, dy, req, Color::DarkGray);
+            dy++;
         }
+        dy++;
 
         if (learned) {
-            ctx.text(rx, 7, "LEARNED", Color::Green);
+            ctx.text(rx, dy, "LEARNED", Color::Green);
+            dy += 2;
         }
 
-        // Description with word wrap
-        int dy = learned ? 9 : 7;
-        int line_x = 0;
-        for (size_t i = 0; i < sk.description.size(); ++i) {
-            if (sk.description[i] == ' ' && line_x >= rw) {
-                dy++;
-                line_x = 0;
-                continue;
-            }
-            ctx.put(rx + line_x, dy, sk.description[i], Color::DarkGray);
-            line_x++;
-            if (line_x >= rw) {
-                dy++;
-                line_x = 0;
-            }
-        }
+        wrap_text(dy, sk.description, Color::DarkGray);
     }
 }
 

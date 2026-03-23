@@ -7,6 +7,16 @@
 namespace astra {
 
 enum class SkillId : uint32_t {
+    // Category unlocks (1-99)
+    Cat_Acrobatics = 1,
+    Cat_ShortBlade = 2,
+    Cat_LongBlade = 3,
+    Cat_Pistol = 4,
+    Cat_Rifle = 5,
+    Cat_Tinkering = 6,
+    Cat_Endurance = 7,
+    Cat_Persuasion = 8,
+
     // Acrobatics
     Swiftness = 100,
     Tumble = 101,
@@ -44,7 +54,10 @@ struct SkillDef {
 };
 
 struct SkillCategory {
+    SkillId unlock_id;            // purchasing this unlocks the category
     std::string name;
+    std::string description;
+    int sp_cost = 50;             // cost to unlock the category
     std::vector<SkillDef> skills;
 };
 

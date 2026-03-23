@@ -49,6 +49,9 @@ private:
     int skill_cursor_ = 0;  // index into flattened visible list
     int skill_scroll_ = 0;
 
+    struct SkillVisItem { bool is_cat; int ci; int si; };
+    std::vector<SkillVisItem> build_skill_vis() const;
+
     // Attribute point allocation
     int pending_points_[6] = {};
     bool has_pending() const;

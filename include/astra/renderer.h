@@ -62,6 +62,10 @@ public:
 
     virtual void draw_char(int x, int y, char ch) = 0;
     virtual void draw_char(int x, int y, char ch, Color fg) = 0;
+    virtual void draw_char(int x, int y, char ch, Color fg, Color bg) {
+        draw_char(x, y, ch, fg); // default: ignore bg
+        (void)bg;
+    }
     virtual void draw_glyph(int x, int y, const char* utf8, Color fg) = 0;
     virtual void draw_string(int x, int y, const std::string& text) = 0;
 

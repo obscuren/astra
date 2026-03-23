@@ -51,8 +51,10 @@ public:
     // Core — all coords local to bounds, clipped
     void put(int x, int y, char ch);
     void put(int x, int y, char ch, Color fg);
+    void put(int x, int y, char ch, Color fg, Color bg);
     void put(int x, int y, const char* utf8, Color fg);
     void text(int x, int y, std::string_view s, Color fg = Color::Default);
+    void text(int x, int y, std::string_view s, Color fg, Color bg);
 
     // Lines
     void hline(int y, char ch = '-');

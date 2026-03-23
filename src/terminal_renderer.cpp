@@ -151,7 +151,8 @@ void TerminalRenderer::present() {
 
     out_buf_ += "\033[H"; // cursor home
 
-    Color prev_color = Color::Default;
+    Color prev_fg = Color::Default;
+    Color prev_bg = Color::Default;
 
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
@@ -160,9 +161,21 @@ void TerminalRenderer::present() {
             // Skip continuation cells — the wide glyph to the left covers this
             if (cell.continuation) continue;
 
-            if (cell.fg != prev_color) {
+            if (cell.fg != prev_fg) {
                 append_color(out_buf_, cell.fg);
-                prev_color = cell.fg;
+                prev_fg = cell.fg;
+            }
+
+            if (cell.bg != prev_bg) {
+                if (cell.bg == Color::Default) {
+                    out_buf_ += "\033[49m";
+                } else {
+                    char seq[16];
+                    int len = std::snprintf(seq, sizeof(seq), "\033[48;5;%dm",
+                                            static_cast<uint8_t>(cell.bg));
+                    out_buf_.append(seq, len);
+                }
+                prev_bg = cell.bg;
             }
 
             out_buf_ += cell.ch;
@@ -173,7 +186,7 @@ void TerminalRenderer::present() {
     }
 
     // Reset color at end
-    if (prev_color != Color::Default) {
+    if (prev_fg != Color::Default || prev_bg != Color::Default) {
         out_buf_ += "\033[0m";
     }
 
@@ -186,6 +199,10 @@ void TerminalRenderer::draw_char(int x, int y, char ch) {
 }
 
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
+    draw_char(x, y, ch, fg, Color::Default);
+}
+
+void TerminalRenderer::draw_char(int x, int y, char ch, Color fg, Color bg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
         // If this cell was wide, clear its continuation cell
@@ -198,6 +215,7 @@ void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
         cell.ch[0] = ch;
         cell.ch[1] = '\0';
         cell.fg = fg;
+        cell.bg = bg;
         cell.wide = false;
         cell.continuation = false;
     }

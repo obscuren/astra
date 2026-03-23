@@ -690,7 +690,9 @@ void Game::new_game() {
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
         player_.skill_points = 200;
+        player_.learned_skills.push_back(SkillId::Cat_ShortBlade);
         player_.learned_skills.push_back(SkillId::ShortBladeExpertise);
+        player_.learned_skills.push_back(SkillId::Cat_Pistol);
         player_.learned_skills.push_back(SkillId::SteadyHand);
         player_.reputation.push_back({"Stellari Conclave", 10});
         player_.reputation.push_back({"Kreth Mining Guild", 0});

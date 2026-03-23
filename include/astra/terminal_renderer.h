@@ -19,6 +19,7 @@ public:
 
     void draw_char(int x, int y, char ch) override;
     void draw_char(int x, int y, char ch, Color fg) override;
+    void draw_char(int x, int y, char ch, Color fg, Color bg) override;
     void draw_glyph(int x, int y, const char* utf8, Color fg) override;
     void draw_string(int x, int y, const std::string& text) override;
 
@@ -36,6 +37,7 @@ private:
     struct Cell {
         char ch[5] = {' ', '\0', '\0', '\0', '\0'};
         Color fg = Color::Default;
+        Color bg = Color::Default;
         bool wide = false;       // this cell contains a double-width glyph
         bool continuation = false; // this cell is covered by the wide glyph to its left
     };

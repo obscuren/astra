@@ -4,7 +4,8 @@ namespace astra {
 
 const std::vector<SkillCategory>& skill_catalog() {
     static const std::vector<SkillCategory> catalog = {
-        {"Acrobatics", {
+        {SkillId::Cat_Acrobatics, "Acrobatics",
+         "Mastery of agile movement and evasion. Improves dodge and mobility in combat.", 50, {
             {SkillId::Swiftness, "Swiftness",
              "You get +5 bonus to DV when attacked with missile weapons.",
              true, 50, 0, nullptr},
@@ -12,7 +13,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Dodge away when hit, reducing damage and repositioning.",
              false, 100, 17, "Agility"},
         }},
-        {"Short Blade", {
+        {SkillId::Cat_ShortBlade, "Short Blade",
+         "Proficiency with knives, daggers, and other short-edged weapons. Fast and precise.", 50, {
             {SkillId::ShortBladeExpertise, "Short Blade Expertise",
              "You get +1 hit with short blades. The action cost of attacking "
              "with a short blade in your primary hand is reduced by 25%.",
@@ -21,7 +23,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Immediately jab with your off-hand short blade for a quick strike.",
              false, 100, 15, "Agility"},
         }},
-        {"Long Blade", {
+        {SkillId::Cat_LongBlade, "Long Blade",
+         "Expertise with swords and long-edged weapons. Powerful strikes and parrying.", 75, {
             {SkillId::LongBladeExpertise, "Long Blade Expertise",
              "You get +1 hit with long blades. Increased parry chance when "
              "wielding a long blade.",
@@ -30,7 +33,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Strike all adjacent enemies in an arc with your long blade.",
              false, 150, 19, "Strength"},
         }},
-        {"Pistol", {
+        {SkillId::Cat_Pistol, "Pistol",
+         "Training with sidearms and handguns. Quick draws and accurate fire at close range.", 50, {
             {SkillId::SteadyHand, "Steady Hand",
              "Your accuracy with pistols is improved by +1. Reduced sway "
              "when firing at range.",
@@ -39,7 +43,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Draw and fire your pistol in a single action at reduced cost.",
              false, 100, 15, "Agility"},
         }},
-        {"Rifle", {
+        {SkillId::Cat_Rifle, "Rifle",
+         "Mastery of long-range firearms. Increased accuracy and effective range.", 75, {
             {SkillId::Marksman, "Marksman",
              "Your effective range with rifles is increased by +2. Better "
              "accuracy at long range.",
@@ -49,7 +54,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "movement and accuracy.",
              false, 150, 17, "Willpower"},
         }},
-        {"Tinkering", {
+        {SkillId::Cat_Tinkering, "Tinkering",
+         "The art of repairing, modifying, and disassembling technology and equipment.", 100, {
             {SkillId::BasicRepair, "Basic Repair",
              "You can repair damaged equipment using scrap materials. "
              "Restores durability over time.",
@@ -59,7 +65,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "yields better salvage.",
              false, 100, 17, "Intelligence"},
         }},
-        {"Endurance", {
+        {SkillId::Cat_Endurance, "Endurance",
+         "Physical resilience and mental fortitude. Shrug off damage and resist effects.", 50, {
             {SkillId::ThickSkin, "Thick Skin",
              "Your natural armor value is increased by +1. You shrug off "
              "minor wounds more easily.",
@@ -69,7 +76,8 @@ const std::vector<SkillCategory>& skill_catalog() {
              "checks against psionic effects.",
              true, 100, 17, "Willpower"},
         }},
-        {"Persuasion", {
+        {SkillId::Cat_Persuasion, "Persuasion",
+         "Social manipulation and negotiation. Better prices and the power to intimidate.", 100, {
             {SkillId::Haggle, "Haggle",
              "Merchants offer better prices. Buy values reduced by 10%, "
              "sell values increased by 10%.",
