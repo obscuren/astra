@@ -689,8 +689,9 @@ void Game::new_game() {
         player_.attribute_points = 10;
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
-        player_.skills.push_back({1, "Combat Training", "Basic combat proficiency with all weapon types.", true, 1});
-        player_.skills.push_back({2, "Navigation", "Improved star chart range and route planning.", true, 1});
+        player_.skill_points = 200;
+        player_.learned_skills.push_back(SkillId::ShortBladeExpertise);
+        player_.learned_skills.push_back(SkillId::SteadyHand);
         player_.reputation.push_back({"Stellari Conclave", 10});
         player_.reputation.push_back({"Kreth Mining Guild", 0});
         player_.reputation.push_back({"Xytomorph Hive", -50});

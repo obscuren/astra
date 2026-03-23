@@ -375,13 +375,10 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.resistances.electrical);
     w.write_i32(p.resistances.cold);
     w.write_i32(p.resistances.heat);
-    w.write_u32(static_cast<uint32_t>(p.skills.size()));
-    for (const auto& sk : p.skills) {
-        w.write_u32(sk.id);
-        w.write_string(sk.name);
-        w.write_string(sk.description);
-        w.write_u8(sk.passive ? 1 : 0);
-        w.write_i32(sk.level);
+    w.write_i32(p.skill_points);
+    w.write_u32(static_cast<uint32_t>(p.learned_skills.size()));
+    for (const auto& sid : p.learned_skills) {
+        w.write_u32(static_cast<uint32_t>(sid));
     }
     w.write_u32(static_cast<uint32_t>(p.reputation.size()));
     for (const auto& f : p.reputation) {
@@ -674,14 +671,11 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
         p.resistances.electrical = r.read_i32();
         p.resistances.cold = r.read_i32();
         p.resistances.heat = r.read_i32();
+        p.skill_points = r.read_i32();
         uint32_t skill_count = r.read_u32();
-        p.skills.resize(skill_count);
+        p.learned_skills.resize(skill_count);
         for (uint32_t i = 0; i < skill_count; ++i) {
-            p.skills[i].id = r.read_u32();
-            p.skills[i].name = r.read_string();
-            p.skills[i].description = r.read_string();
-            p.skills[i].passive = (r.read_u8() != 0);
-            p.skills[i].level = r.read_i32();
+            p.learned_skills[i] = static_cast<SkillId>(r.read_u32());
         }
         uint32_t rep_count = r.read_u32();
         p.reputation.resize(rep_count);

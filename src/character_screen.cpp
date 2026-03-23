@@ -1,6 +1,7 @@
 #include "astra/character_screen.h"
 #include "astra/character.h"
 #include "astra/race.h"
+#include "astra/skill_defs.h"
 
 #include <algorithm>
 #include <string>
@@ -135,10 +136,68 @@ bool CharacterScreen::handle_input(int key) {
             return true;
         }
     } else if (active_tab_ == CharTab::Skills) {
-        int count = static_cast<int>(player_->skills.size());
-        if (count > 0) {
-            if (key == KEY_UP && cursor_ > 0) --cursor_;
-            if (key == KEY_DOWN && cursor_ < count - 1) ++cursor_;
+        // Build flattened visible list to determine max cursor
+        if (skill_cat_expanded_.size() != skill_catalog().size()) {
+            skill_cat_expanded_.assign(skill_catalog().size(), true);
+        }
+        int visible_count = 0;
+        for (size_t ci = 0; ci < skill_catalog().size(); ++ci) {
+            visible_count++; // category header
+            if (skill_cat_expanded_[ci]) {
+                visible_count += static_cast<int>(skill_catalog()[ci].skills.size());
+            }
+        }
+        int max_c = visible_count - 1;
+        if (key == KEY_UP && skill_cursor_ > 0) --skill_cursor_;
+        if (key == KEY_DOWN && skill_cursor_ < max_c) ++skill_cursor_;
+        if (key == ' ') {
+            // Determine what's at skill_cursor_
+            int idx = 0;
+            for (size_t ci = 0; ci < skill_catalog().size(); ++ci) {
+                if (idx == skill_cursor_) {
+                    // Toggle category expand/collapse
+                    skill_cat_expanded_[ci] = !skill_cat_expanded_[ci];
+                    break;
+                }
+                idx++;
+                if (skill_cat_expanded_[ci]) {
+                    for (size_t si = 0; si < skill_catalog()[ci].skills.size(); ++si) {
+                        if (idx == skill_cursor_) {
+                            // Try to learn this skill
+                            const auto& sk = skill_catalog()[ci].skills[si];
+                            // Check if already learned
+                            bool already = false;
+                            for (auto sid : player_->learned_skills) {
+                                if (sid == sk.id) { already = true; break; }
+                            }
+                            if (!already && player_->skill_points >= sk.sp_cost) {
+                                // Check attribute req
+                                bool meets_req = true;
+                                if (sk.attribute_req > 0 && sk.attribute_name) {
+                                    const auto& a = player_->attributes;
+                                    std::string attr(sk.attribute_name);
+                                    int val = 0;
+                                    if (attr == "Agility") val = a.agility;
+                                    else if (attr == "Strength") val = a.strength;
+                                    else if (attr == "Toughness") val = a.toughness;
+                                    else if (attr == "Intelligence") val = a.intelligence;
+                                    else if (attr == "Willpower") val = a.willpower;
+                                    else if (attr == "Luck") val = a.luck;
+                                    if (val < sk.attribute_req) meets_req = false;
+                                }
+                                if (meets_req) {
+                                    player_->skill_points -= sk.sp_cost;
+                                    player_->learned_skills.push_back(sk.id);
+                                    context_message_ = "Learned " + sk.name + "!";
+                                    context_msg_timer_ = 3;
+                                }
+                            }
+                            break;
+                        }
+                        idx++;
+                    }
+                }
+            }
         }
     } else if (active_tab_ == CharTab::Reputation) {
         int count = static_cast<int>(player_->reputation.size());
@@ -715,40 +774,163 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
 void CharacterScreen::draw_skills(DrawContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
+    const auto& catalog = skill_catalog();
 
-
-
-    ctx.text(2, 1, "Skill Points: 0", Color::DarkGray);
-
-    if (player_->skills.empty()) {
-        ctx.text(2, 3, "No skills learned.", Color::DarkGray);
-        return;
+    // Initialize expand state if needed
+    if (skill_cat_expanded_.size() != catalog.size()) {
+        skill_cat_expanded_.assign(catalog.size(), true);
     }
 
-    int y = 3;
-    for (int i = 0; i < static_cast<int>(player_->skills.size()); ++i) {
-        if (y >= ctx.height() - 1) break;
-        const auto& sk = player_->skills[i];
-        bool selected = (cursor_ == i);
+    // Section header with skill points
+    {
+        int divider_x = half;
+        draw_section_header(ctx, 0, "SKILLS");
+        // Right-aligned skill points label
+        std::string pts = std::to_string(player_->skill_points);
+        std::string label = " Skill Points: ";
+        int total_len = 1 + static_cast<int>(label.size()) + static_cast<int>(pts.size()) + 2;
+        int start_x = divider_x - total_len;
+        if (start_x > 0) {
+            ctx.put(start_x, 0, BoxDraw::RT, Color::DarkGray);
+            ctx.text(start_x + 1, 0, label, Color::White);
+            int num_x = start_x + 1 + static_cast<int>(label.size());
+            ctx.text(num_x, 0, pts, Color::Green);
+            ctx.put(num_x + static_cast<int>(pts.size()), 0, ' ');
+            ctx.put(num_x + static_cast<int>(pts.size()) + 1, 0, BoxDraw::LT, Color::DarkGray);
+        }
+    }
 
-        if (selected) ctx.put(1, y, '>', Color::Yellow);
-        ctx.text(3, y, sk.name, selected ? Color::White : Color::Default);
+    // Build flattened visible list for rendering
+    // Each entry: is_category, category_index, skill_index
+    struct VisEntry { bool is_cat; int ci; int si; };
+    std::vector<VisEntry> visible;
+    for (int ci = 0; ci < static_cast<int>(catalog.size()); ++ci) {
+        visible.push_back({true, ci, -1});
+        if (skill_cat_expanded_[ci]) {
+            for (int si = 0; si < static_cast<int>(catalog[ci].skills.size()); ++si) {
+                visible.push_back({false, ci, si});
+            }
+        }
+    }
 
-        std::string lvl = "Lv " + std::to_string(sk.level);
-        int lx = half - 2 - static_cast<int>(lvl.size());
-        ctx.text(lx, y, lvl, Color::DarkGray);
+    // Clamp cursor
+    if (skill_cursor_ >= static_cast<int>(visible.size()))
+        skill_cursor_ = static_cast<int>(visible.size()) - 1;
+    if (skill_cursor_ < 0) skill_cursor_ = 0;
+
+    // Draw list on left side
+    int y = 2;
+    int list_h = ctx.height() - 2;
+    const SkillDef* selected_skill = nullptr;
+
+    for (int i = 0; i < static_cast<int>(visible.size()); ++i) {
+        if (y - 2 >= list_h) break;
+        const auto& ve = visible[i];
+        bool selected = (skill_cursor_ == i);
+
+        if (ve.is_cat) {
+            // Category header
+            std::string toggle = skill_cat_expanded_[ve.ci] ? "[-]" : "[+]";
+            if (selected) ctx.put(1, y, '>', Color::Yellow);
+            ctx.text(3, y, toggle, Color::DarkGray);
+            ctx.text(7, y, catalog[ve.ci].name, selected ? Color::White : Color::Cyan);
+        } else {
+            // Skill entry
+            const auto& sk = catalog[ve.ci].skills[ve.si];
+            bool learned = false;
+            for (auto sid : player_->learned_skills) {
+                if (sid == sk.id) { learned = true; break; }
+            }
+
+            if (selected) {
+                ctx.put(3, y, '>', Color::Yellow);
+                selected_skill = &sk;
+            }
+
+            // Learned marker
+            if (learned) {
+                ctx.put(5, y, '*', Color::Green);
+            }
+
+            // Check if affordable/meets requirements
+            bool can_afford = player_->skill_points >= sk.sp_cost;
+            bool meets_req = true;
+            if (sk.attribute_req > 0 && sk.attribute_name) {
+                const auto& a = player_->attributes;
+                std::string attr(sk.attribute_name);
+                int val = 0;
+                if (attr == "Agility") val = a.agility;
+                else if (attr == "Strength") val = a.strength;
+                else if (attr == "Toughness") val = a.toughness;
+                else if (attr == "Intelligence") val = a.intelligence;
+                else if (attr == "Willpower") val = a.willpower;
+                else if (attr == "Luck") val = a.luck;
+                if (val < sk.attribute_req) meets_req = false;
+            }
+
+            Color name_color;
+            if (learned) name_color = Color::Green;
+            else if (selected) name_color = Color::White;
+            else if (!can_afford || !meets_req) name_color = Color::DarkGray;
+            else name_color = Color::Default;
+
+            ctx.text(7, y, sk.name, name_color);
+
+            // SP cost right-aligned
+            std::string cost = std::to_string(sk.sp_cost) + " SP";
+            int cx = half - 2 - static_cast<int>(cost.size());
+            if (sk.attribute_req > 0 && sk.attribute_name) {
+                std::string req = std::to_string(sk.attribute_req)
+                                + std::string(sk.attribute_name).substr(0, 3);
+                ctx.text(cx - static_cast<int>(req.size()) - 1, y, req,
+                         meets_req ? Color::DarkGray : Color::Red);
+            }
+            ctx.text(cx, y, cost, learned ? Color::DarkGray : (can_afford ? Color::Yellow : Color::Red));
+        }
         y++;
     }
 
     // Detail panel on right
-    if (cursor_ < static_cast<int>(player_->skills.size())) {
-        const auto& sk = player_->skills[cursor_];
-        int rx = half + 2;
-        ctx.text(rx, 1, sk.name, Color::White);
-        ctx.text(rx, 2, sk.passive ? "[Passive]" : "[Active]", Color::Cyan);
-        ctx.text(rx, 3, "Level " + std::to_string(sk.level), Color::DarkGray);
-        // Description
-        ctx.text(rx, 5, sk.description, Color::DarkGray);
+    int rx = half + 2;
+    int rw = w - half - 3;
+
+    if (selected_skill) {
+        const auto& sk = *selected_skill;
+        bool learned = false;
+        for (auto sid : player_->learned_skills) {
+            if (sid == sk.id) { learned = true; break; }
+        }
+
+        ctx.text(rx, 2, sk.name, Color::White);
+        ctx.text(rx, 3, sk.passive ? "[Passive]" : "[Active]", Color::Cyan);
+        ctx.text(rx, 4, "Cost: " + std::to_string(sk.sp_cost) + " SP", Color::Yellow);
+
+        if (sk.attribute_req > 0 && sk.attribute_name) {
+            std::string req = "Requires: " + std::to_string(sk.attribute_req)
+                            + " " + sk.attribute_name;
+            ctx.text(rx, 5, req, Color::DarkGray);
+        }
+
+        if (learned) {
+            ctx.text(rx, 7, "LEARNED", Color::Green);
+        }
+
+        // Description with word wrap
+        int dy = learned ? 9 : 7;
+        int line_x = 0;
+        for (size_t i = 0; i < sk.description.size(); ++i) {
+            if (sk.description[i] == ' ' && line_x >= rw) {
+                dy++;
+                line_x = 0;
+                continue;
+            }
+            ctx.put(rx + line_x, dy, sk.description[i], Color::DarkGray);
+            line_x++;
+            if (line_x >= rw) {
+                dy++;
+                line_x = 0;
+            }
+        }
     }
 }
 

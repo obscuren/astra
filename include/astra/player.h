@@ -3,6 +3,7 @@
 #include "astra/character.h"
 #include "astra/item.h"
 #include "astra/race.h"
+#include "astra/skill_defs.h"
 
 #include <cstdint>
 #include <string>
@@ -75,7 +76,8 @@ struct Player {
     Inventory inventory;
 
     // Skills
-    std::vector<Skill> skills;
+    int skill_points = 0;
+    std::vector<SkillId> learned_skills;
 
     // Reputation
     std::vector<FactionStanding> reputation;

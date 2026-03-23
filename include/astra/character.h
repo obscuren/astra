@@ -32,14 +32,6 @@ struct Resistances {
     int heat = 0;       // HR
 };
 
-struct Skill {
-    uint32_t id = 0;
-    std::string name;
-    std::string description;
-    bool passive = true;
-    int level = 0;
-};
-
 struct FactionStanding {
     std::string faction_name;
     int reputation = 0;

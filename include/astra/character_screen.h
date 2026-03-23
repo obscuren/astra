@@ -44,6 +44,11 @@ private:
     int equip_cursor_ = 0;
     int inv_cursor_ = 0;
 
+    // Skills tab
+    std::vector<bool> skill_cat_expanded_;
+    int skill_cursor_ = 0;  // index into flattened visible list
+    int skill_scroll_ = 0;
+
     // Attribute point allocation
     int pending_points_[6] = {};
     bool has_pending() const;
