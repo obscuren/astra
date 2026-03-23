@@ -476,4 +476,131 @@ void Dialog::draw(Renderer* renderer, int screen_w, int screen_h) {
     }
 }
 
+// --- PopupMenu ---
+
+void PopupMenu::add_option(char key, std::string_view label) {
+    options_.push_back({key, std::string(label)});
+}
+
+void PopupMenu::set_title(std::string_view title) { title_ = title; }
+void PopupMenu::set_max_width_frac(float frac) { max_width_frac_ = frac; }
+
+void PopupMenu::open() { open_ = true; selection_ = 0; }
+void PopupMenu::close() { open_ = false; options_.clear(); title_.clear(); }
+bool PopupMenu::is_open() const { return open_; }
+
+char PopupMenu::selected_key() const {
+    if (selection_ >= 0 && selection_ < static_cast<int>(options_.size()))
+        return options_[selection_].key;
+    return 0;
+}
+
+MenuResult PopupMenu::handle_input(int key) {
+    if (!open_) return MenuResult::None;
+
+    if (key == 27) { // ESC
+        close();
+        return MenuResult::Closed;
+    }
+
+    int count = static_cast<int>(options_.size());
+
+    if (key == KEY_UP && selection_ > 0) { --selection_; return MenuResult::None; }
+    if (key == KEY_DOWN && selection_ < count - 1) { ++selection_; return MenuResult::None; }
+
+    // Enter/space confirms selection
+    if (key == '\n' || key == '\r' || key == ' ') {
+        open_ = false;
+        return MenuResult::Selected;
+    }
+
+    // Hotkey press
+    for (int i = 0; i < count; ++i) {
+        if (key == options_[i].key) {
+            selection_ = i;
+            open_ = false;
+            return MenuResult::Selected;
+        }
+    }
+
+    return MenuResult::None;
+}
+
+void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
+    if (!open_ || options_.empty()) return;
+
+    // Calculate content width from options
+    int content_w = 0;
+    for (const auto& opt : options_) {
+        // "  > [X] label  " = 4 (cursor+pad) + 4 ([X] ) + label + 2 (pad)
+        int entry_w = 10 + static_cast<int>(opt.label.size());
+        if (entry_w > content_w) content_w = entry_w;
+    }
+    if (!title_.empty()) {
+        int tw = 4 + static_cast<int>(title_.size()); // padding around title
+        if (tw > content_w) content_w = tw;
+    }
+
+    // Apply max width constraint
+    int max_w = static_cast<int>(screen_w * max_width_frac_);
+    if (max_w < 20) max_w = 20;
+    int win_w = std::min(content_w + 2, max_w); // +2 for borders
+
+    // Height: title area (3 if title, 0 if not) + options + footer (3) + borders (2)
+    bool has_title = !title_.empty();
+    int win_h = static_cast<int>(options_.size()) + (has_title ? 3 : 0) + 5;
+
+    // Center on screen
+    int mx = (screen_w - win_w) / 2;
+    int my = (screen_h - win_h) / 2;
+
+    Window win(renderer, Rect{mx, my, win_w, win_h}, "");
+    win.set_footer("[Esc] Cancel");
+    win.draw();
+
+    DrawContext ctx = win.content();
+
+    int y = 0;
+
+    // Title row if present
+    if (has_title) {
+        ctx.text_center(y, title_, Color::White);
+        y++;
+        // Separator
+        for (int x = 0; x < ctx.width(); ++x)
+            ctx.put(x, y, BoxDraw::H, Color::DarkGray);
+        y++;
+    }
+
+    // Options
+    for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
+        const auto& opt = options_[i];
+        bool selected = (selection_ == i);
+        int ox = 2;
+
+        // > cursor
+        if (selected) ctx.put(ox - 1, y, '>', Color::Yellow);
+
+        // [X] — brackets white, key yellow
+        ctx.put(ox, y, '[', Color::White);
+        ctx.put(ox + 1, y, opt.key, Color::Yellow);
+        ctx.put(ox + 2, y, ']', Color::White);
+        ox += 4;
+
+        // Label with hotkey character highlighted yellow
+        bool highlighted = false;
+        for (int ci = 0; ci < static_cast<int>(opt.label.size()); ++ci) {
+            char ch = opt.label[ci];
+            if (!highlighted && (ch == opt.key || ch == (opt.key - 32) || ch == (opt.key + 32))) {
+                ctx.put(ox + ci, y, ch, Color::Yellow);
+                highlighted = true;
+            } else {
+                ctx.put(ox + ci, y, ch, selected ? Color::White : Color::DarkGray);
+            }
+        }
+
+        y++;
+    }
+}
+
 } // namespace astra

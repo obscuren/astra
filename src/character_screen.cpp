@@ -62,8 +62,11 @@ bool CharacterScreen::handle_input(int key) {
     }
 
     // Context menu intercepts input when open
-    if (context_open_) {
-        handle_context_key(key);
+    if (context_menu_.is_open()) {
+        MenuResult mr = context_menu_.handle_input(key);
+        if (mr == MenuResult::Selected) {
+            execute_context_action(context_menu_.selected_key());
+        }
         return true;
     }
 
@@ -114,65 +117,32 @@ bool CharacterScreen::handle_input(int key) {
 // ─────────────────────────────────────────────────────────────────
 
 void CharacterScreen::open_context_menu() {
-    context_options_.clear();
-    context_selection_ = 0;
+    context_menu_.close(); // reset
 
     if (equip_focus_ == EquipFocus::PaperDoll) {
         auto slot = static_cast<EquipSlot>(equip_cursor_);
         const auto& item = player_->equipment.slot_ref(slot);
         if (!item) return;
-        context_options_.push_back({'l', "look"});
-        context_options_.push_back({'r', "remove"});
+        context_menu_.add_option('l', "look");
+        context_menu_.add_option('r', "remove");
         if (item->ranged) {
-            context_options_.push_back({'u', "unload"});
+            context_menu_.add_option('u', "unload");
         }
     } else {
         if (player_->inventory.items.empty()) return;
         if (inv_cursor_ < 0 || inv_cursor_ >= static_cast<int>(player_->inventory.items.size())) return;
         const auto& item = player_->inventory.items[inv_cursor_];
-        context_options_.push_back({'l', "look"});
+        context_menu_.add_option('l', "look");
         if (item.type == ItemType::Equipment && item.slot) {
-            context_options_.push_back({'e', "equip"});
+            context_menu_.add_option('e', "equip");
         }
         if (item.ranged) {
-            context_options_.push_back({'r', "reload"});
-            context_options_.push_back({'u', "unload"});
+            context_menu_.add_option('r', "reload");
+            context_menu_.add_option('u', "unload");
         }
     }
 
-    if (!context_options_.empty()) {
-        context_open_ = true;
-    }
-}
-
-void CharacterScreen::handle_context_key(int key) {
-    if (key == 27) {
-        context_open_ = false;
-        return;
-    }
-
-    int count = static_cast<int>(context_options_.size());
-
-    // Arrow navigation
-    if (key == KEY_UP && context_selection_ > 0) { --context_selection_; return; }
-    if (key == KEY_DOWN && context_selection_ < count - 1) { ++context_selection_; return; }
-
-    // Enter/space selects current
-    if (key == '\n' || key == '\r' || key == ' ') {
-        char k = context_options_[context_selection_].key;
-        context_open_ = false;
-        execute_context_action(k);
-        return;
-    }
-
-    // Hotkey press
-    for (const auto& opt : context_options_) {
-        if (key == opt.key) {
-            context_open_ = false;
-            execute_context_action(opt.key);
-            return;
-        }
-    }
+    context_menu_.open();
 }
 
 void CharacterScreen::execute_context_action(char key) {
@@ -239,62 +209,6 @@ void CharacterScreen::execute_context_action(char key) {
     }
 }
 
-void CharacterScreen::draw_context_menu(DrawContext& ctx) {
-    if (!context_open_ || context_options_.empty()) return;
-
-    // Calculate menu size
-    int menu_w = 0;
-    for (const auto& opt : context_options_) {
-        int entry_w = 4 + static_cast<int>(opt.label.size());
-        if (entry_w > menu_w) menu_w = entry_w;
-    }
-    menu_w += 6; // padding + cursor
-
-    int option_count = static_cast<int>(context_options_.size());
-    // Window: title ornament(3) + options + footer(3)
-    int win_h = option_count + 6;
-    int win_w = menu_w + 2;
-
-    // Center the window
-    int mx = (ctx.width() - win_w) / 2;
-    int my = (ctx.height() - win_h) / 2;
-
-    Window win(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h}, "");
-    win.set_footer("[Esc] Cancel");
-    win.draw();
-
-    DrawContext mc = win.content();
-
-    for (int i = 0; i < option_count; ++i) {
-        const auto& opt = context_options_[i];
-        bool selected = (context_selection_ == i);
-        int oy = i;
-        int ox = 2;
-
-        // > cursor for selected
-        if (selected) {
-            ctx.put(mx + 1, my + 3 + i, '>', Color::Yellow);
-        }
-
-        // [X] — bracket white, key yellow
-        mc.put(ox, oy, '[', Color::White);
-        mc.put(ox + 1, oy, opt.key, Color::Yellow);
-        mc.put(ox + 2, oy, ']', Color::White);
-        ox += 4;
-
-        // Label with hotkey char highlighted yellow
-        bool highlighted = false;
-        for (int ci = 0; ci < static_cast<int>(opt.label.size()); ++ci) {
-            char ch = opt.label[ci];
-            if (!highlighted && (ch == opt.key || ch == (opt.key - 32) || ch == (opt.key + 32))) {
-                mc.put(ox + ci, oy, ch, Color::Yellow);
-                highlighted = true;
-            } else {
-                mc.put(ox + ci, oy, ch, selected ? Color::White : Color::DarkGray);
-            }
-        }
-    }
-}
 
 void CharacterScreen::draw_look_overlay(DrawContext& ctx) {
     if (!look_open_ || !look_item_) return;
@@ -425,7 +339,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     }
 
     // Context menu overlay (equipment tab)
-    draw_context_menu(content);
+    context_menu_.draw(renderer_, screen_w, screen_h);
 
     // Look overlay
     draw_look_overlay(content);

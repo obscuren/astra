@@ -4,7 +4,6 @@
 #include "astra/ui.h"
 
 #include <string>
-#include <vector>
 
 namespace astra {
 
@@ -45,11 +44,8 @@ private:
     int equip_cursor_ = 0;
     int inv_cursor_ = 0;
 
-    // Context menu
-    bool context_open_ = false;
-    int context_selection_ = 0;
-    struct ContextOption { char key; std::string label; };
-    std::vector<ContextOption> context_options_;
+    // Context menu (reusable PopupMenu)
+    PopupMenu context_menu_;
     std::string context_message_;
     int context_msg_timer_ = 0;
 
@@ -58,9 +54,7 @@ private:
     const Item* look_item_ = nullptr;
 
     void open_context_menu();
-    void handle_context_key(int key);
     void execute_context_action(char key);
-    void draw_context_menu(DrawContext& ctx);
     void draw_look_overlay(DrawContext& ctx);
 
     void draw_tab_bar(DrawContext& ctx);

@@ -163,4 +163,46 @@ private:
     bool open_ = false;
 };
 
+// A reusable popup menu with the game's art style:
+//   ╡═║"║═╞ ornament at top, title separator, options with
+//   [X] hotkey labels, arrow-key navigation, [Esc] Cancel footer.
+//   Content-sized with configurable max width fraction.
+struct MenuOption {
+    char key = 0;           // hotkey character
+    std::string label;      // display text (hotkey char highlighted in yellow)
+};
+
+enum class MenuResult {
+    None,
+    Closed,     // ESC pressed
+    Selected,   // option chosen (check selected() / selected_key())
+};
+
+class PopupMenu {
+public:
+    PopupMenu() = default;
+
+    // Add an option: key is the hotkey, label is the display text
+    void add_option(char key, std::string_view label);
+    void set_title(std::string_view title);
+    void set_max_width_frac(float frac); // 0.0–1.0, default 0.25
+
+    void open();
+    void close();
+    bool is_open() const;
+
+    MenuResult handle_input(int key);
+    void draw(Renderer* renderer, int screen_w, int screen_h);
+
+    int selected() const { return selection_; }
+    char selected_key() const;
+
+private:
+    std::string title_;
+    std::vector<MenuOption> options_;
+    int selection_ = 0;
+    bool open_ = false;
+    float max_width_frac_ = 0.25f;
+};
+
 } // namespace astra
