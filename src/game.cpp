@@ -72,13 +72,7 @@ static const char* tab_names[] = {
 };
 
 Game::Game(std::unique_ptr<Renderer> renderer)
-    : renderer_(std::move(renderer)),
-      pause_menu_("Menu") {
-    pause_menu_.add_option("Return to Game");
-    pause_menu_.add_option("Save Game");
-    pause_menu_.add_option("Load Game");
-    pause_menu_.add_option("Options");
-    pause_menu_.add_option("Save and Quit");
+    : renderer_(std::move(renderer)) {
 }
 
 void Game::run() {
@@ -229,34 +223,27 @@ void Game::handle_menu_input(int key) {
 void Game::handle_play_input(int key) {
     // Pause menu intercepts all input when open
     if (pause_menu_.is_open()) {
-        // Esc toggles the pause menu closed
-        if (key == '\033') {
-            pause_menu_.close();
-            return;
-        }
-        DialogResult result = pause_menu_.handle_input(key);
-        if (result == DialogResult::Selected) {
-            switch (pause_menu_.selected()) {
-                case 0: break; // Return to Game — just closes
-                case 1:
-                    if (dev_mode_) { log("Saving disabled in dev mode."); }
-                    else { save_game(); log("Game saved."); }
-                    break;
-                case 2: {
-                    save_slots_ = list_saves();
-                    save_slots_.erase(
-                        std::remove_if(save_slots_.begin(), save_slots_.end(),
-                                       [](const SaveSlot& s) { return s.dead; }),
-                        save_slots_.end());
-                    load_selection_ = 0;
-                    state_ = GameState::LoadMenu;
-                    break;
-                }
-                case 3: log("Options not yet implemented."); break;
-                case 4:
-                    if (!dev_mode_) save_game();
-                    running_ = false;
-                    break; // Save and Quit (skip save in dev mode)
+        MenuResult result = pause_menu_.handle_input(key);
+        if (result == MenuResult::Selected) {
+            char k = pause_menu_.selected_key();
+            if (k == 'r') { /* Return to Game — just closes */ }
+            else if (k == 's') {
+                if (dev_mode_) { log("Saving disabled in dev mode."); }
+                else { save_game(); log("Game saved."); }
+            }
+            else if (k == 'l') {
+                save_slots_ = list_saves();
+                save_slots_.erase(
+                    std::remove_if(save_slots_.begin(), save_slots_.end(),
+                                   [](const SaveSlot& s) { return s.dead; }),
+                    save_slots_.end());
+                load_selection_ = 0;
+                state_ = GameState::LoadMenu;
+            }
+            else if (k == 'o') { log("Options not yet implemented."); }
+            else if (k == 'q') {
+                if (!dev_mode_) save_game();
+                running_ = false;
             }
         }
         return;
@@ -329,7 +316,16 @@ void Game::handle_play_input(int key) {
     }
 
     switch (key) {
-        case '\033': pause_menu_.open(); break;
+        case '\033':
+            pause_menu_.close();
+            pause_menu_.set_title("Menu");
+            pause_menu_.add_option('r', "return to game");
+            pause_menu_.add_option('s', "save game");
+            pause_menu_.add_option('l', "load game");
+            pause_menu_.add_option('o', "options");
+            pause_menu_.add_option('q', "quit");
+            pause_menu_.open();
+            break;
         case 'o':
             awaiting_interact_ = true;
             log("Open -- choose a direction.");

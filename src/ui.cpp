@@ -484,9 +484,10 @@ void PopupMenu::add_option(char key, std::string_view label) {
 
 void PopupMenu::set_title(std::string_view title) { title_ = title; }
 void PopupMenu::set_max_width_frac(float frac) { max_width_frac_ = frac; }
+void PopupMenu::set_footer(std::string_view footer) { footer_ = footer; }
 
 void PopupMenu::open() { open_ = true; selection_ = 0; }
-void PopupMenu::close() { open_ = false; options_.clear(); title_.clear(); }
+void PopupMenu::close() { open_ = false; options_.clear(); title_.clear(); footer_.clear(); }
 bool PopupMenu::is_open() const { return open_; }
 
 char PopupMenu::selected_key() const {
@@ -505,8 +506,8 @@ MenuResult PopupMenu::handle_input(int key) {
 
     int count = static_cast<int>(options_.size());
 
-    if (key == KEY_UP && selection_ > 0) { --selection_; return MenuResult::None; }
-    if (key == KEY_DOWN && selection_ < count - 1) { ++selection_; return MenuResult::None; }
+    if (key == KEY_UP) { selection_ = (selection_ - 1 + count) % count; return MenuResult::None; }
+    if (key == KEY_DOWN) { selection_ = (selection_ + 1) % count; return MenuResult::None; }
 
     // Enter/space confirms selection
     if (key == '\n' || key == '\r' || key == ' ') {
@@ -532,62 +533,121 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
     // Calculate content width from options
     int content_w = 0;
     for (const auto& opt : options_) {
-        // "  > [X] label  " = 4 (cursor+pad) + 4 ([X] ) + label + 2 (pad)
-        int entry_w = 10 + static_cast<int>(opt.label.size());
+        // "    >  [X] label    " = 7 (indent+cursor) + 4 ([X] ) + label + 4 (pad)
+        int entry_w = 15 + static_cast<int>(opt.label.size());
         if (entry_w > content_w) content_w = entry_w;
     }
-    if (!title_.empty()) {
-        int tw = 4 + static_cast<int>(title_.size()); // padding around title
+    bool has_title = !title_.empty();
+    if (has_title) {
+        int tw = 6 + static_cast<int>(title_.size()); // [Title] + padding
         if (tw > content_w) content_w = tw;
+    }
+    // Footer width
+    if (!footer_.empty()) {
+        int fw = 4 + static_cast<int>(footer_.size());
+        if (fw > content_w) content_w = fw;
     }
 
     // Apply max width constraint
     int max_w = static_cast<int>(screen_w * max_width_frac_);
-    if (max_w < 20) max_w = 20;
+    if (max_w < 24) max_w = 24;
     int win_w = std::min(content_w + 2, max_w); // +2 for borders
 
-    // Height: title area (3 if title, 0 if not) + options + footer (3) + borders (2)
-    bool has_title = !title_.empty();
-    int win_h = static_cast<int>(options_.size()) + (has_title ? 3 : 0) + 5;
+    // Layout (rows):
+    //  -2: "."         antenna dot
+    //  -1: -"-         antenna stem
+    //   0: ┌──╡═║"║═╞──┐   top border with ornament
+    //   1: │            │   blank
+    //   2: ├──[Title]──┤   title separator (if title)
+    //   3: │            │   blank (if title)
+    //   4+: options with blank lines between (option_count * 2 - 1)
+    //    : │            │   blank
+    //    : ├────────────┤   footer separator
+    //    : │  footer     │   footer text
+    //    : └────────────┘   bottom border
+    int option_count = static_cast<int>(options_.size());
+    int option_rows = option_count * 2 - 1; // options with blank lines between
+    int title_rows = has_title ? 2 : 0;     // separator + blank
+    int win_h = 1 + 1 + title_rows + option_rows + 1 + 1 + 1 + 1;
+    // top_border(1) + blank(1) + title(2?) + options_with_gaps + blank(1) + footer_sep(1) + footer(1) + bottom(1)
+    int total_h = win_h + 2; // +2 for antenna rows above
 
-    // Center on screen
     int mx = (screen_w - win_w) / 2;
-    int my = (screen_h - win_h) / 2;
+    int my = (screen_h - total_h) / 2;
 
-    Window win(renderer, Rect{mx, my, win_w, win_h}, "");
-    win.set_footer("[Esc] Cancel");
-    win.draw();
+    // The antenna sits above the window
+    DrawContext full(renderer, Rect{mx, my, win_w, total_h});
 
-    DrawContext ctx = win.content();
+    // --- Antenna: . and -"- above the top border ---
+    int center = win_w / 2;
+    full.put(center, 0, '.', Color::DarkGray);
+    full.put(center - 1, 1, '-', Color::DarkGray);
+    full.put(center,     1, '"', Color::Cyan);
+    full.put(center + 1, 1, '-', Color::DarkGray);
 
-    int y = 0;
+    // Window area starts at row 2
+    DrawContext ctx(renderer, Rect{mx, my + 2, win_w, win_h});
+    ctx.fill(' ');
 
-    // Title row if present
-    if (has_title) {
-        ctx.text_center(y, title_, Color::White);
-        y++;
-        // Separator
-        for (int x = 0; x < ctx.width(); ++x)
-            ctx.put(x, y, BoxDraw::H, Color::DarkGray);
-        y++;
+    // --- Top border with embedded ornament ---
+    // ┌───╡═║"║═╞───┐
+    ctx.put(0, 0, BoxDraw::TL, Color::DarkGray);
+    ctx.put(win_w - 1, 0, BoxDraw::TR, Color::DarkGray);
+    for (int x = 1; x < win_w - 1; ++x)
+        ctx.put(x, 0, BoxDraw::H, Color::DarkGray);
+
+    // Ornament: ┤─│"│─├ centered (single-line chars to avoid double-width)
+    int orn_start = center - 3;
+    ctx.put(orn_start,     0, BoxDraw::RT, Color::DarkGray);
+    ctx.put(orn_start + 1, 0, BoxDraw::H,  Color::DarkGray);
+    ctx.put(orn_start + 2, 0, BoxDraw::V,  Color::Cyan);
+    ctx.put(orn_start + 3, 0, '"',         Color::Cyan);
+    ctx.put(orn_start + 4, 0, BoxDraw::V,  Color::Cyan);
+    ctx.put(orn_start + 5, 0, BoxDraw::H,  Color::DarkGray);
+    ctx.put(orn_start + 6, 0, BoxDraw::LT, Color::DarkGray);
+
+    // --- Side borders ---
+    for (int y = 1; y < win_h - 1; ++y) {
+        ctx.put(0, y, BoxDraw::V, Color::DarkGray);
+        ctx.put(win_w - 1, y, BoxDraw::V, Color::DarkGray);
     }
 
-    // Options
-    for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
+    // --- Bottom border ---
+    ctx.put(0, win_h - 1, BoxDraw::BL, Color::DarkGray);
+    ctx.put(win_w - 1, win_h - 1, BoxDraw::BR, Color::DarkGray);
+    for (int x = 1; x < win_w - 1; ++x)
+        ctx.put(x, win_h - 1, BoxDraw::H, Color::DarkGray);
+
+    int y = 2; // row 0=top border, row 1=blank
+
+    // --- Title separator: ├──[Title]──┤ ---
+    if (has_title) {
+        ctx.put(0, y, BoxDraw::LT, Color::DarkGray);
+        ctx.put(win_w - 1, y, BoxDraw::RT, Color::DarkGray);
+        for (int x = 1; x < win_w - 1; ++x)
+            ctx.put(x, y, BoxDraw::H, Color::DarkGray);
+        // Center [Title] in the separator
+        std::string bracketed = "[" + title_ + "]";
+        int tx = (win_w - static_cast<int>(bracketed.size())) / 2;
+        ctx.put(tx, y, '[', Color::DarkGray);
+        ctx.text(tx + 1, y, title_, Color::White);
+        ctx.put(tx + 1 + static_cast<int>(title_.size()), y, ']', Color::DarkGray);
+        y += 2; // title row + blank
+    }
+
+    // --- Options with blank lines between ---
+    for (int i = 0; i < option_count; ++i) {
         const auto& opt = options_[i];
         bool selected = (selection_ == i);
-        int ox = 2;
+        int ox = 5;
 
-        // > cursor
-        if (selected) ctx.put(ox - 1, y, '>', Color::Yellow);
+        if (selected) ctx.put(ox - 2, y, '>', Color::Yellow);
 
-        // [X] — brackets white, key yellow
         ctx.put(ox, y, '[', Color::White);
         ctx.put(ox + 1, y, opt.key, Color::Yellow);
         ctx.put(ox + 2, y, ']', Color::White);
         ox += 4;
 
-        // Label with hotkey character highlighted yellow
         bool highlighted = false;
         for (int ci = 0; ci < static_cast<int>(opt.label.size()); ++ci) {
             char ch = opt.label[ci];
@@ -598,9 +658,20 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
                 ctx.put(ox + ci, y, ch, selected ? Color::White : Color::DarkGray);
             }
         }
-
-        y++;
+        y += 2; // option + blank line
     }
+
+    // --- Footer separator: ├────────────┤ ---
+    int footer_sep_y = win_h - 3;
+    ctx.put(0, footer_sep_y, BoxDraw::LT, Color::DarkGray);
+    ctx.put(win_w - 1, footer_sep_y, BoxDraw::RT, Color::DarkGray);
+    for (int x = 1; x < win_w - 1; ++x)
+        ctx.put(x, footer_sep_y, BoxDraw::H, Color::DarkGray);
+
+    // --- Footer text ---
+    std::string footer = footer_.empty() ? "[Esc] Cancel" : footer_;
+    int fx = (win_w - static_cast<int>(footer.size())) / 2;
+    ctx.text(fx, win_h - 2, footer, Color::DarkGray);
 }
 
 } // namespace astra

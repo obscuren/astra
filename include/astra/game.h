@@ -191,7 +191,7 @@ private:
 
     // Dialogs / interaction state
     Dialog npc_dialog_{""};
-    Dialog pause_menu_;
+    PopupMenu pause_menu_;
     Npc* interacting_npc_ = nullptr;
     const std::vector<DialogNode>* dialog_tree_ = nullptr; // active tree (talk or quest)
     int dialog_node_ = -1;
