@@ -603,7 +603,7 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
     }
     y += 2;
 
-    // Primary attribute boxes: 2 rows of 3
+    // Primary attribute boxes: single row of 6
     int box_x = 2;
     int box_spacing = 8; // 7 wide + 1 gap
     const auto& a = player_->attributes;
@@ -612,10 +612,8 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
     int remaining_pts = player_->attribute_points - total_pending();
 
     for (int i = 0; i < 6; ++i) {
-        int row = i / 3;
-        int col = i % 3;
-        int bx = box_x + col * box_spacing;
-        int by = y + row * 6; // 5 tall + 1 gap
+        int bx = box_x + i * box_spacing;
+        int by = y;
         int display_val = primary_base[i] + pending_points_[i];
         int modifier = (display_val - 10) / 2;
         bool selected = (cursor_ == i);
@@ -626,7 +624,7 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
 
     // Description text below primary boxes — "Name determines ..."
     // Shared description renderer: attribute name in Yellow, rest in DarkGray
-    int desc_y = y + 12 + 1;
+    int desc_y = y + 6 + 1;
     auto draw_desc = [&](int dy, const char* attr_name, const char* desc_text) {
         int dx = 2;
         // Draw attribute name in yellow
