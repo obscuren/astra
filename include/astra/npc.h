@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/interaction.h"
+#include "astra/race.h"
 #include "astra/renderer.h"
 
 #include <cstdint>
@@ -13,15 +14,6 @@ enum class Disposition : uint8_t {
     Friendly,
     Neutral,
     Hostile,
-};
-
-enum class Race : uint8_t {
-    Human,
-    Veldrani,   // tall, blue-skinned traders and diplomats
-    Kreth,      // stocky, mineral-skinned engineers
-    Sylphari,   // wispy, luminescent wanderers
-    Xytomorph,  // hostile chitinous predators
-    Stellari,   // luminous stellar engineers, ancient and enigmatic
 };
 
 struct Npc {

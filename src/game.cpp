@@ -274,6 +274,12 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Character screen intercepts input when open
+    if (character_screen_.is_open()) {
+        character_screen_.handle_input(key);
+        return;
+    }
+
     // Star chart viewer intercepts input when open
     if (star_chart_viewer_.is_open()) {
         star_chart_viewer_.handle_input(key);
@@ -368,6 +374,7 @@ void Game::handle_play_input(int key) {
         case 's': shoot_target(); break;
         case 'r': reload_weapon(); break;
         case 'g': pickup_ground_item(); break;
+        case 'c': character_screen_.open(&player_, renderer_.get()); break;
         case 'm':
             if (dev_mode_) {
                 star_chart_viewer_.open();
@@ -676,7 +683,21 @@ void Game::new_game() {
 
     player_ = Player{};
     player_.money = 10;
-    if (dev_mode_) player_.invulnerable = true;
+    if (dev_mode_) {
+        player_.invulnerable = true;
+        player_.name = "Dev Commander";
+        player_.race = Race::Human;
+        player_.player_class = PlayerClass::Marine;
+        player_.attributes = {14, 12, 16, 10, 10, 8};
+        player_.resistances = {5, 5, 5, 5};
+        player_.max_hp = player_.effective_max_hp();
+        player_.hp = player_.max_hp;
+        player_.skills.push_back({1, "Combat Training", "Basic combat proficiency with all weapon types.", true, 1});
+        player_.skills.push_back({2, "Navigation", "Improved star chart range and route planning.", true, 1});
+        player_.reputation.push_back({"Stellari Conclave", 10});
+        player_.reputation.push_back({"Kreth Mining Guild", 0});
+        player_.reputation.push_back({"Xytomorph Hive", -50});
+    }
     // Always start in the Docking Bay (region 0)
     if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
         map_.find_open_spot(player_.x, player_.y);
@@ -715,7 +736,7 @@ void Game::new_game() {
 
     // Starter gear: random ranged weapon + battery
     Item weapon = random_ranged_weapon(rng_);
-    player_.equipment.ranged_weapon = weapon;
+    player_.equipment.missile = weapon;
     log("You are armed with a " + weapon.name + ".");
 
     Item battery = build_battery();
@@ -2512,7 +2533,7 @@ void Game::handle_targeting_input(int key) {
 
 void Game::shoot_target() {
     // Check weapon equipped
-    auto& weapon = player_.equipment.ranged_weapon;
+    auto& weapon = player_.equipment.missile;
     if (!weapon || !weapon->ranged) {
         log("No ranged weapon equipped.");
         return;
@@ -2601,7 +2622,7 @@ void Game::shoot_target() {
 }
 
 void Game::reload_weapon() {
-    auto& weapon = player_.equipment.ranged_weapon;
+    auto& weapon = player_.equipment.missile;
     if (!weapon || !weapon->ranged) {
         log("No ranged weapon equipped.");
         return;
@@ -2686,7 +2707,7 @@ void Game::use_item(int index) {
             break;
         }
         case ItemType::Battery: {
-            auto& eq = player_.equipment.ranged_weapon;
+            auto& eq = player_.equipment.missile;
             if (!eq || !eq->ranged) {
                 log("No ranged weapon equipped to recharge.");
                 return;
@@ -3080,6 +3101,7 @@ void Game::render_play() {
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
+    character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
 }
 
@@ -3504,7 +3526,7 @@ void Game::render_map() {
 
         // Determine weapon range for coloring
         int weapon_range = 0;
-        const auto& rw = player_.equipment.ranged_weapon;
+        const auto& rw = player_.equipment.missile;
         if (rw && rw->ranged) weapon_range = rw->ranged->max_range;
 
         int lx = x0, ly = y0;
@@ -3696,14 +3718,17 @@ void Game::render_side_panel() {
                 ++y;
                 ++slot_idx;
             };
+            draw_slot("Face:    ", eq.face);
             draw_slot("Head:    ", eq.head);
-            draw_slot("Chest:   ", eq.chest);
-            draw_slot("Legs:    ", eq.legs);
+            draw_slot("Body:    ", eq.body);
+            draw_slot("L.Arm:   ", eq.left_arm);
+            draw_slot("R.Arm:   ", eq.right_arm);
+            draw_slot("L.Hand:  ", eq.left_hand);
+            draw_slot("R.Hand:  ", eq.right_hand);
+            draw_slot("Back:    ", eq.back);
             draw_slot("Feet:    ", eq.feet);
-            draw_slot("Hands:   ", eq.hands);
-            draw_slot("Melee:   ", eq.melee_weapon);
-            draw_slot("Ranged:  ", eq.ranged_weapon);
-            draw_slot("Special: ", eq.special_slot);
+            draw_slot("Thrown:  ", eq.thrown);
+            draw_slot("Missile: ", eq.missile);
 
             // Stat bonuses summary
             y++;
@@ -3936,7 +3961,7 @@ void Game::render_effects_bar() {
     }
 
     // Ranged weapon hints (right-aligned)
-    const auto& rw = player_.equipment.ranged_weapon;
+    const auto& rw = player_.equipment.missile;
     if (rw && rw->ranged) {
         const auto& rd = *rw->ranged;
         std::string keys = "[t]arget [s]hoot [r]eload ";

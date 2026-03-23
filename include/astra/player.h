@@ -1,8 +1,12 @@
 #pragma once
 
+#include "astra/character.h"
 #include "astra/item.h"
+#include "astra/race.h"
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace astra {
 
@@ -24,22 +28,39 @@ inline const char* hunger_name(HungerState h) {
 }
 
 struct Player {
+    // Identity
+    std::string name = "Commander";
+    Race race = Race::Human;
+    PlayerClass player_class = PlayerClass::Marine;
+
+    // Position
     int x = 0;
     int y = 0;
-    int hp = 10;
-    int max_hp = 10;
     int depth = 1;
     int view_radius = 8;
     int light_radius = 6;
 
-    // Stats
+    // Vitals
+    int hp = 10;
+    int max_hp = 10;
     int temperature = 20;
     HungerState hunger = HungerState::Satiated;
     int money = 0;
+
+    // Primary attributes
+    PrimaryAttributes attributes;
+
+    // Base secondary stats
     int quickness = 100;
     int move_speed = 100;
     int attack_value = 1;
     int defense_value = 5;
+    int dodge_value = 3;
+
+    // Resistances
+    Resistances resistances;
+
+    // Progression
     int level = 1;
     int xp = 0;
     int max_xp = 100;
@@ -52,11 +73,27 @@ struct Player {
     Equipment equipment;
     Inventory inventory;
 
+    // Skills
+    std::vector<Skill> skills;
+
+    // Reputation
+    std::vector<FactionStanding> reputation;
+
+    // Derived stats — attribute modifier is (attr - 10) / 2 for primary effects
     int effective_attack() const {
-        return attack_value + equipment.total_modifiers().attack;
+        return attack_value + (attributes.strength - 10) / 2
+               + equipment.total_modifiers().attack;
     }
     int effective_defense() const {
-        return defense_value + equipment.total_modifiers().defense;
+        return defense_value + (attributes.toughness - 10) / 3
+               + equipment.total_modifiers().defense;
+    }
+    int effective_dodge() const {
+        return dodge_value + (attributes.agility - 10) / 3;
+    }
+    int effective_max_hp() const {
+        return max_hp + (attributes.toughness - 10) * 2
+               + equipment.total_modifiers().max_hp;
     }
 };
 

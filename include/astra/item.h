@@ -21,17 +21,22 @@ enum class ItemType : uint8_t {
 };
 
 enum class EquipSlot : uint8_t {
+    Face,
     Head,
-    Chest,
-    Legs,
+    Body,
+    LeftArm,
+    RightArm,
+    LeftHand,
+    RightHand,
+    Back,
     Feet,
-    Hands,
-    MeleeWeapon,
-    RangedWeapon,
-    SpecialSlot,
+    Thrown,
+    Missile,
 };
 
-static constexpr int equip_slot_count = 8;
+static constexpr int equip_slot_count = 11;
+
+const char* equip_slot_name(EquipSlot slot);
 
 enum class Rarity : uint8_t {
     Common,
@@ -107,14 +112,17 @@ struct GroundItem {
 };
 
 struct Equipment {
+    std::optional<Item> face;
     std::optional<Item> head;
-    std::optional<Item> chest;
-    std::optional<Item> legs;
+    std::optional<Item> body;
+    std::optional<Item> left_arm;
+    std::optional<Item> right_arm;
+    std::optional<Item> left_hand;
+    std::optional<Item> right_hand;
+    std::optional<Item> back;
     std::optional<Item> feet;
-    std::optional<Item> hands;
-    std::optional<Item> melee_weapon;
-    std::optional<Item> ranged_weapon;
-    std::optional<Item> special_slot;
+    std::optional<Item> thrown;
+    std::optional<Item> missile;
 
     std::optional<Item>& slot_ref(EquipSlot slot);
     const std::optional<Item>& slot_ref(EquipSlot slot) const;

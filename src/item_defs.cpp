@@ -12,7 +12,7 @@ Item build_plasma_pistol() {
     it.name = "Plasma Pistol";
     it.description = "Standard-issue sidearm. Fires superheated plasma bolts.";
     it.type = ItemType::Equipment;
-    it.slot = EquipSlot::RangedWeapon;
+    it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Common;
     it.glyph = ')';
     it.color = Color::Cyan;
@@ -32,7 +32,7 @@ Item build_ion_blaster() {
     it.name = "Ion Blaster";
     it.description = "Disrupts electronics and shields with ionized bursts.";
     it.type = ItemType::Equipment;
-    it.slot = EquipSlot::RangedWeapon;
+    it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Uncommon;
     it.glyph = ')';
     it.color = Color::Green;
@@ -52,7 +52,7 @@ Item build_pulse_rifle() {
     it.name = "Pulse Rifle";
     it.description = "Military-grade rifle with rapid energy pulses.";
     it.type = ItemType::Equipment;
-    it.slot = EquipSlot::RangedWeapon;
+    it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Rare;
     it.glyph = ')';
     it.color = Color::Blue;
@@ -73,7 +73,7 @@ Item build_arc_caster() {
     it.name = "Arc Caster";
     it.description = "Channels electricity in a devastating arc. Unstable.";
     it.type = ItemType::Equipment;
-    it.slot = EquipSlot::RangedWeapon;
+    it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Epic;
     it.glyph = ')';
     it.color = Color::Magenta;
@@ -94,7 +94,7 @@ Item build_void_lance() {
     it.name = "Void Lance";
     it.description = "Fires a beam of compressed dark energy. Extremely rare.";
     it.type = ItemType::Equipment;
-    it.slot = EquipSlot::RangedWeapon;
+    it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Legendary;
     it.glyph = ')';
     it.color = static_cast<Color>(208); // xterm orange

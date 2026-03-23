@@ -42,8 +42,10 @@ set(ASTRA_SOURCES
     src/star_chart_viewer.cpp
     src/item.cpp
     src/item_defs.cpp
+    src/character.cpp
     src/shop.cpp
     src/trade_window.cpp
+    src/character_screen.cpp
     src/boot_sequence.cpp
 )
 

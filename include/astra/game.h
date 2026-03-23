@@ -7,6 +7,7 @@
 #include "astra/renderer.h"
 #include "astra/save_file.h"
 #include "astra/star_chart.h"
+#include "astra/character_screen.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/trade_window.h"
 #include "astra/tile_props.h"
@@ -166,6 +167,7 @@ private:
     NavigationData navigation_;
     StarChartViewer star_chart_viewer_;
     TradeWindow trade_window_;
+    CharacterScreen character_screen_;
     int camera_x_ = 0;
     int camera_y_ = 0;
     int current_region_ = -1;

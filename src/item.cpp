@@ -2,30 +2,53 @@
 
 namespace astra {
 
+const char* equip_slot_name(EquipSlot slot) {
+    switch (slot) {
+        case EquipSlot::Face:      return "Face";
+        case EquipSlot::Head:      return "Head";
+        case EquipSlot::Body:      return "Body";
+        case EquipSlot::LeftArm:   return "L.Arm";
+        case EquipSlot::RightArm:  return "R.Arm";
+        case EquipSlot::LeftHand:  return "L.Hand";
+        case EquipSlot::RightHand: return "R.Hand";
+        case EquipSlot::Back:      return "Back";
+        case EquipSlot::Feet:      return "Feet";
+        case EquipSlot::Thrown:    return "Thrown";
+        case EquipSlot::Missile:   return "Missile";
+    }
+    return "?";
+}
+
 std::optional<Item>& Equipment::slot_ref(EquipSlot slot) {
     switch (slot) {
-        case EquipSlot::Head:         return head;
-        case EquipSlot::Chest:        return chest;
-        case EquipSlot::Legs:         return legs;
-        case EquipSlot::Feet:         return feet;
-        case EquipSlot::Hands:        return hands;
-        case EquipSlot::MeleeWeapon:  return melee_weapon;
-        case EquipSlot::RangedWeapon: return ranged_weapon;
-        case EquipSlot::SpecialSlot:  return special_slot;
+        case EquipSlot::Face:      return face;
+        case EquipSlot::Head:      return head;
+        case EquipSlot::Body:      return body;
+        case EquipSlot::LeftArm:   return left_arm;
+        case EquipSlot::RightArm:  return right_arm;
+        case EquipSlot::LeftHand:  return left_hand;
+        case EquipSlot::RightHand: return right_hand;
+        case EquipSlot::Back:      return back;
+        case EquipSlot::Feet:      return feet;
+        case EquipSlot::Thrown:    return thrown;
+        case EquipSlot::Missile:   return missile;
     }
     return head; // unreachable
 }
 
 const std::optional<Item>& Equipment::slot_ref(EquipSlot slot) const {
     switch (slot) {
-        case EquipSlot::Head:         return head;
-        case EquipSlot::Chest:        return chest;
-        case EquipSlot::Legs:         return legs;
-        case EquipSlot::Feet:         return feet;
-        case EquipSlot::Hands:        return hands;
-        case EquipSlot::MeleeWeapon:  return melee_weapon;
-        case EquipSlot::RangedWeapon: return ranged_weapon;
-        case EquipSlot::SpecialSlot:  return special_slot;
+        case EquipSlot::Face:      return face;
+        case EquipSlot::Head:      return head;
+        case EquipSlot::Body:      return body;
+        case EquipSlot::LeftArm:   return left_arm;
+        case EquipSlot::RightArm:  return right_arm;
+        case EquipSlot::LeftHand:  return left_hand;
+        case EquipSlot::RightHand: return right_hand;
+        case EquipSlot::Back:      return back;
+        case EquipSlot::Feet:      return feet;
+        case EquipSlot::Thrown:    return thrown;
+        case EquipSlot::Missile:   return missile;
     }
     return head; // unreachable
 }
@@ -33,8 +56,9 @@ const std::optional<Item>& Equipment::slot_ref(EquipSlot slot) const {
 StatModifiers Equipment::total_modifiers() const {
     StatModifiers total;
     const std::optional<Item>* slots[] = {
-        &head, &chest, &legs, &feet,
-        &hands, &melee_weapon, &ranged_weapon, &special_slot
+        &face, &head, &body, &left_arm, &right_arm,
+        &left_hand, &right_hand, &back, &feet,
+        &thrown, &missile,
     };
     for (const auto* s : slots) {
         if (*s) {

@@ -4,6 +4,18 @@
 
 namespace astra {
 
+const char* race_name(Race r) {
+    switch (r) {
+        case Race::Human:     return "Human";
+        case Race::Veldrani:  return "Veldrani";
+        case Race::Kreth:     return "Kreth";
+        case Race::Sylphari:  return "Sylphari";
+        case Race::Xytomorph: return "Xytomorph";
+        case Race::Stellari:  return "Stellari";
+    }
+    return "Unknown";
+}
+
 // --- Name tables per race ---
 
 static constexpr std::array human_first = {

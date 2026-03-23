@@ -277,25 +277,44 @@ static std::optional<Item> read_optional_item(BinaryReader& r) {
 }
 
 static void write_equipment(BinaryWriter& w, const Equipment& eq) {
+    // v12: write all 11 slots
+    write_optional_item(w, eq.face);
     write_optional_item(w, eq.head);
-    write_optional_item(w, eq.chest);
-    write_optional_item(w, eq.legs);
+    write_optional_item(w, eq.body);
+    write_optional_item(w, eq.left_arm);
+    write_optional_item(w, eq.right_arm);
+    write_optional_item(w, eq.left_hand);
+    write_optional_item(w, eq.right_hand);
+    write_optional_item(w, eq.back);
     write_optional_item(w, eq.feet);
-    write_optional_item(w, eq.hands);
-    write_optional_item(w, eq.melee_weapon);
-    write_optional_item(w, eq.ranged_weapon);
-    write_optional_item(w, eq.special_slot);
+    write_optional_item(w, eq.thrown);
+    write_optional_item(w, eq.missile);
 }
 
-static void read_equipment(BinaryReader& r, Equipment& eq) {
-    eq.head = read_optional_item(r);
-    eq.chest = read_optional_item(r);
-    eq.legs = read_optional_item(r);
-    eq.feet = read_optional_item(r);
-    eq.hands = read_optional_item(r);
-    eq.melee_weapon = read_optional_item(r);
-    eq.ranged_weapon = read_optional_item(r);
-    eq.special_slot = read_optional_item(r);
+static void read_equipment(BinaryReader& r, Equipment& eq, uint32_t version) {
+    if (version >= 12) {
+        eq.face = read_optional_item(r);
+        eq.head = read_optional_item(r);
+        eq.body = read_optional_item(r);
+        eq.left_arm = read_optional_item(r);
+        eq.right_arm = read_optional_item(r);
+        eq.left_hand = read_optional_item(r);
+        eq.right_hand = read_optional_item(r);
+        eq.back = read_optional_item(r);
+        eq.feet = read_optional_item(r);
+        eq.thrown = read_optional_item(r);
+        eq.missile = read_optional_item(r);
+    } else {
+        // Old 8-slot format: map to new slots
+        eq.head = read_optional_item(r);      // was Head
+        eq.body = read_optional_item(r);       // was Chest → Body
+        (void)read_optional_item(r);           // was Legs → discard
+        eq.feet = read_optional_item(r);       // was Feet
+        eq.left_hand = read_optional_item(r);  // was Hands → L.Hand
+        eq.right_hand = read_optional_item(r); // was MeleeWeapon → R.Hand
+        eq.missile = read_optional_item(r);    // was RangedWeapon → Missile
+        (void)read_optional_item(r);           // was SpecialSlot → discard
+    }
 }
 
 static void write_inventory(BinaryWriter& w, const Inventory& inv) {
@@ -340,6 +359,34 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.light_radius);
     write_equipment(w, p.equipment);
     write_inventory(w, p.inventory);
+    // v12: character identity, attributes, skills, reputation
+    w.write_string(p.name);
+    w.write_u8(static_cast<uint8_t>(p.race));
+    w.write_u8(static_cast<uint8_t>(p.player_class));
+    w.write_i32(p.attributes.strength);
+    w.write_i32(p.attributes.agility);
+    w.write_i32(p.attributes.toughness);
+    w.write_i32(p.attributes.intelligence);
+    w.write_i32(p.attributes.willpower);
+    w.write_i32(p.attributes.luck);
+    w.write_i32(p.dodge_value);
+    w.write_i32(p.resistances.acid);
+    w.write_i32(p.resistances.electrical);
+    w.write_i32(p.resistances.cold);
+    w.write_i32(p.resistances.heat);
+    w.write_u32(static_cast<uint32_t>(p.skills.size()));
+    for (const auto& sk : p.skills) {
+        w.write_u32(sk.id);
+        w.write_string(sk.name);
+        w.write_string(sk.description);
+        w.write_u8(sk.passive ? 1 : 0);
+        w.write_i32(sk.level);
+    }
+    w.write_u32(static_cast<uint32_t>(p.reputation.size()));
+    for (const auto& f : p.reputation) {
+        w.write_string(f.faction_name);
+        w.write_i32(f.reputation);
+    }
     w.end_section(pos);
 }
 
@@ -607,8 +654,40 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
     if (version >= 10) {
         p.light_radius = r.read_i32();
     }
-    read_equipment(r, p.equipment);
+    read_equipment(r, p.equipment, version);
     read_inventory(r, p.inventory);
+    // v12: character identity, attributes, skills, reputation
+    if (version >= 12) {
+        p.name = r.read_string();
+        p.race = static_cast<Race>(r.read_u8());
+        p.player_class = static_cast<PlayerClass>(r.read_u8());
+        p.attributes.strength = r.read_i32();
+        p.attributes.agility = r.read_i32();
+        p.attributes.toughness = r.read_i32();
+        p.attributes.intelligence = r.read_i32();
+        p.attributes.willpower = r.read_i32();
+        p.attributes.luck = r.read_i32();
+        p.dodge_value = r.read_i32();
+        p.resistances.acid = r.read_i32();
+        p.resistances.electrical = r.read_i32();
+        p.resistances.cold = r.read_i32();
+        p.resistances.heat = r.read_i32();
+        uint32_t skill_count = r.read_u32();
+        p.skills.resize(skill_count);
+        for (uint32_t i = 0; i < skill_count; ++i) {
+            p.skills[i].id = r.read_u32();
+            p.skills[i].name = r.read_string();
+            p.skills[i].description = r.read_string();
+            p.skills[i].passive = (r.read_u8() != 0);
+            p.skills[i].level = r.read_i32();
+        }
+        uint32_t rep_count = r.read_u32();
+        p.reputation.resize(rep_count);
+        for (uint32_t i = 0; i < rep_count; ++i) {
+            p.reputation[i].faction_name = r.read_string();
+            p.reputation[i].reputation = r.read_i32();
+        }
+    }
 }
 
 static Npc read_npc(BinaryReader& r, uint32_t version) {
