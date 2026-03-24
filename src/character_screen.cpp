@@ -599,7 +599,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
                        || active_tab_ == CharTab::Skills
                        || active_tab_ == CharTab::Equipment
                        || (active_tab_ == CharTab::Tinkering && player_has_skill(*player_, SkillId::Cat_Tinkering))
-                       || active_tab_ == CharTab::Journal);
+                       || (active_tab_ == CharTab::Journal && !player_->journal.empty()));
     if (needs_divider) {
         int divider_x = content.width() / 2;
         int last = content.height() - 1;

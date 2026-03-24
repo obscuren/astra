@@ -142,6 +142,7 @@ private:
     std::unique_ptr<Renderer> renderer_;
     GameState state_ = GameState::MainMenu;
     bool running_ = false;
+    bool show_welcome_ = false;
 
     // Menu
     int menu_selection_ = 0;

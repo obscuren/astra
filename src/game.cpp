@@ -223,6 +223,12 @@ void Game::handle_menu_input(int key) {
 }
 
 void Game::handle_play_input(int key) {
+    // Welcome screen — any key dismisses
+    if (show_welcome_) {
+        show_welcome_ = false;
+        return;
+    }
+
     // Pause menu intercepts all input when open
     if (pause_menu_.is_open()) {
         MenuResult result = pause_menu_.handle_input(key);
@@ -740,6 +746,7 @@ void Game::new_game() {
     }
     log("Welcome aboard, commander. Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
+    show_welcome_ = true;
     check_region_change();
 
     // Starter gear
@@ -3210,6 +3217,62 @@ void Game::render_play() {
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
+
+    // Welcome screen overlay
+    if (show_welcome_) {
+        int ww = 60;
+        int wh = 28;
+        if (ww > screen_w_ - 8) ww = screen_w_ - 8;
+        if (wh > screen_h_ - 6) wh = screen_h_ - 6;
+        int wx = (screen_w_ - ww) / 2;
+        int wy = (screen_h_ - wh) / 2;
+
+        Panel welcome(renderer_.get(), Rect{wx, wy, ww, wh}, "A S T R A");
+        welcome.set_footer("[any key] Continue");
+        welcome.draw();
+
+        DrawContext wctx = welcome.content();
+        int y = 1;
+
+        wctx.text_center(y, "Welcome, " + player_.name + ".", Color::White);
+        y += 2;
+        wctx.text_center(y, "Your journey to the center of the galaxy begins.", Color::DarkGray);
+        y++;
+        wctx.text_center(y, "The supermassive black hole Sagittarius A* awaits.", Color::DarkGray);
+        y++;
+        wctx.text_center(y, "But first, you must survive.", Color::DarkGray);
+        y += 2;
+
+        wctx.text_center(y, "You are docked at The Heavens Above,", Color::Cyan);
+        y++;
+        wctx.text_center(y, "a space station orbiting Jupiter.", Color::Cyan);
+        y += 3;
+
+        // Key bindings
+        int kx = 6;
+        wctx.text(kx, y, "CONTROLS", Color::White);
+        y += 2;
+        wctx.text(kx, y, "Arrow keys / hjkl", Color::Yellow);
+        wctx.text(kx + 22, y, "Move", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "o", Color::Yellow);
+        wctx.text(kx + 22, y, "Interact / open doors", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "c", Color::Yellow);
+        wctx.text(kx + 22, y, "Character screen", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "g", Color::Yellow);
+        wctx.text(kx + 22, y, "Pick up item", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "t / s", Color::Yellow);
+        wctx.text(kx + 22, y, "Target / shoot", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "> / <", Color::Yellow);
+        wctx.text(kx + 22, y, "Enter / exit", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "ESC", Color::Yellow);
+        wctx.text(kx + 22, y, "Pause menu", Color::DarkGray);
+    }
 }
 
 void Game::render_stats_bar() {
