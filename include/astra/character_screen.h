@@ -3,6 +3,7 @@
 #include "astra/player.h"
 #include "astra/ui.h"
 
+#include <random>
 #include <string>
 
 namespace astra {
@@ -33,6 +34,7 @@ public:
 private:
     Player* player_ = nullptr;
     Renderer* renderer_ = nullptr;
+    std::mt19937 rng_{std::random_device{}()};
     bool open_ = false;
     CharTab active_tab_ = CharTab::Skills;
     int cursor_ = 0;
@@ -66,6 +68,15 @@ private:
     // Look overlay
     bool look_open_ = false;
     const Item* look_item_ = nullptr;
+
+    // Tinkering tab
+    enum class TinkerFocus { Workbench, Slots, Materials };
+    TinkerFocus tinker_focus_ = TinkerFocus::Workbench;
+    int tinker_slot_cursor_ = 0;     // which enhancement slot (0-2)
+    Item* workbench_item_ = nullptr; // pointer into player inventory or equipment
+    int workbench_inv_idx_ = -1;     // index in player inventory, or -1 if from equipment
+
+    void draw_tinkering(DrawContext& ctx);
 
     void open_context_menu();
     void execute_context_action(char key);

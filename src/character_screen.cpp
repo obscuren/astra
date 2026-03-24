@@ -2,6 +2,7 @@
 #include "astra/character.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
+#include "astra/tinkering.h"
 
 #include <algorithm>
 #include <string>
@@ -102,7 +103,47 @@ bool CharacterScreen::handle_input(int key) {
     if (context_menu_.is_open()) {
         MenuResult mr = context_menu_.handle_input(key);
         if (mr == MenuResult::Selected) {
-            execute_context_action(context_menu_.selected_key());
+            if (active_tab_ == CharTab::Tinkering) {
+                // Tinkering item/material picker result
+                int sel = context_menu_.selected();
+                if (tinker_focus_ == TinkerFocus::Workbench && !workbench_item_) {
+                    // Find the sel-th equippable/repairable item in inventory
+                    int count = 0;
+                    for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+                        const auto& it = player_->inventory.items[i];
+                        if (it.slot.has_value() || it.max_durability > 0) {
+                            if (count == sel) {
+                                workbench_inv_idx_ = i;
+                                workbench_item_ = &player_->inventory.items[i];
+                                // Init enhancement slots if needed
+                                if (workbench_item_->enhancement_slots == 0 && workbench_item_->slot.has_value())
+                                    init_enhancement_slots(*workbench_item_);
+                                context_message_ = "Placed " + workbench_item_->name + " on workbench.";
+                                context_msg_timer_ = 2;
+                                break;
+                            }
+                            count++;
+                        }
+                    }
+                } else if (tinker_focus_ == TinkerFocus::Slots && workbench_item_) {
+                    // Find the sel-th crafting material (non Nano-Fiber)
+                    int count = 0;
+                    for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+                        const auto& it = player_->inventory.items[i];
+                        if (it.type == ItemType::CraftingMaterial && it.id != 7001) {
+                            if (count == sel) {
+                                auto result = enhance_item(*workbench_item_, tinker_slot_cursor_, it.id, *player_);
+                                context_message_ = result.message;
+                                context_msg_timer_ = 3;
+                                break;
+                            }
+                            count++;
+                        }
+                    }
+                }
+            } else {
+                execute_context_action(context_menu_.selected_key());
+            }
         }
         return true;
     }
@@ -208,6 +249,100 @@ bool CharacterScreen::handle_input(int key) {
                             context_msg_timer_ = 3;
                         }
                     }
+                }
+            }
+        }
+    } else if (active_tab_ == CharTab::Tinkering) {
+        // Navigation between workbench, slots, materials
+        if (key == KEY_UP) {
+            if (tinker_focus_ == TinkerFocus::Materials) tinker_focus_ = TinkerFocus::Slots;
+            else if (tinker_focus_ == TinkerFocus::Slots) tinker_focus_ = TinkerFocus::Workbench;
+        }
+        if (key == KEY_DOWN) {
+            if (tinker_focus_ == TinkerFocus::Workbench) tinker_focus_ = TinkerFocus::Slots;
+            else if (tinker_focus_ == TinkerFocus::Slots) tinker_focus_ = TinkerFocus::Materials;
+        }
+        if (tinker_focus_ == TinkerFocus::Slots) {
+            if (key == KEY_LEFT && tinker_slot_cursor_ > 0) --tinker_slot_cursor_;
+            if (key == KEY_RIGHT && tinker_slot_cursor_ < 2) ++tinker_slot_cursor_;
+        }
+
+        // Space: place/remove item on workbench, or slot material
+        if (key == ' ') {
+            if (tinker_focus_ == TinkerFocus::Workbench) {
+                if (workbench_item_) {
+                    // Remove item from workbench
+                    workbench_item_ = nullptr;
+                    workbench_inv_idx_ = -1;
+                    context_message_ = "Item removed from workbench.";
+                    context_msg_timer_ = 2;
+                } else {
+                    // Open item picker
+                    context_menu_.close();
+                    context_menu_.set_title("Place Item");
+                    for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+                        const auto& it = player_->inventory.items[i];
+                        if (it.slot.has_value() || it.max_durability > 0) {
+                            char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
+                            context_menu_.add_option(key_ch, it.name);
+                        }
+                    }
+                    if (context_menu_.is_open()) {} // already has options
+                    context_menu_.open();
+                }
+            } else if (tinker_focus_ == TinkerFocus::Slots && workbench_item_) {
+                int si = tinker_slot_cursor_;
+                if (si < workbench_item_->enhancement_slots) {
+                    // Ensure vector is sized
+                    while (static_cast<int>(workbench_item_->enhancements.size()) <= si)
+                        workbench_item_->enhancements.push_back({});
+                    if (!workbench_item_->enhancements[si].filled) {
+                        // Open material picker
+                        context_menu_.close();
+                        context_menu_.set_title("Select Material");
+                        for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+                            const auto& it = player_->inventory.items[i];
+                            if (it.type == ItemType::CraftingMaterial && it.id != 7001) {
+                                char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
+                                context_menu_.add_option(key_ch, it.name);
+                            }
+                        }
+                        context_menu_.open();
+                    }
+                }
+            }
+        }
+
+        // Action hotkeys
+        if (workbench_item_) {
+            if (key == 'r') {
+                auto result = repair_item(*workbench_item_, *player_);
+                context_message_ = result.message;
+                context_msg_timer_ = 3;
+            }
+            if (key == 'a') {
+                auto result = analyze_item(*workbench_item_, *player_, rng_);
+                context_message_ = result.message;
+                context_msg_timer_ = 4;
+                if (!result.success) {
+                    // Item destroyed — remove from inventory
+                    if (workbench_inv_idx_ >= 0 && workbench_inv_idx_ < static_cast<int>(player_->inventory.items.size())) {
+                        player_->inventory.items.erase(player_->inventory.items.begin() + workbench_inv_idx_);
+                    }
+                    workbench_item_ = nullptr;
+                    workbench_inv_idx_ = -1;
+                }
+            }
+            if (key == 's') {
+                auto result = salvage_item(*workbench_item_, *player_, rng_);
+                context_message_ = result.message;
+                context_msg_timer_ = 3;
+                if (result.success) {
+                    if (workbench_inv_idx_ >= 0 && workbench_inv_idx_ < static_cast<int>(player_->inventory.items.size())) {
+                        player_->inventory.items.erase(player_->inventory.items.begin() + workbench_inv_idx_);
+                    }
+                    workbench_item_ = nullptr;
+                    workbench_inv_idx_ = -1;
                 }
             }
         }
@@ -347,7 +482,9 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     int win_w = screen_w - pad_x * 2;
     int win_h = screen_h - pad_y * 2;
     Panel panel(renderer_, Rect{pad_x, pad_y, win_w, win_h});
-    if (active_tab_ == CharTab::Skills) {
+    if (active_tab_ == CharTab::Tinkering) {
+        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Place/Slot  [r] Repair  [a] Analyze  [s] Salvage");
+    } else if (active_tab_ == CharTab::Skills) {
         panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn");
     } else if (has_pending()) {
         panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit");
@@ -371,7 +508,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         case CharTab::Skills:     draw_skills(full); break;
         case CharTab::Equipment:  draw_equipment(content); break;
         case CharTab::Reputation: draw_reputation(content); break;
-        case CharTab::Tinkering:  draw_stub(content, "Tinkering bench not available."); break;
+        case CharTab::Tinkering:  draw_tinkering(full); break;
         case CharTab::Journal:    draw_stub(content, "No entries found."); break;
         case CharTab::Quests:     draw_stub(content, "No active quests."); break;
         case CharTab::Ship:       draw_stub(content, "Ship systems not available."); break;
@@ -380,7 +517,8 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     // Draw vertical divider only for tabs that use a split layout
     bool needs_divider = (active_tab_ == CharTab::Attributes
                        || active_tab_ == CharTab::Skills
-                       || active_tab_ == CharTab::Equipment);
+                       || active_tab_ == CharTab::Equipment
+                       || active_tab_ == CharTab::Tinkering);
     if (needs_divider) {
         int divider_x = content.width() / 2;
         int last = content.height() - 1;
@@ -1156,6 +1294,213 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 // ─────────────────────────────────────────────────────────────────
 // Reputation tab
 // ─────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────
+// Tinkering tab
+// ─────────────────────────────────────────────────────────────────
+
+void CharacterScreen::draw_tinkering(DrawContext& ctx) {
+    int w = ctx.width();
+    int half = w / 2;
+
+    // Section header
+    draw_section_header(ctx, 0, "WORKBENCH");
+
+    // Workbench box (centered in left half, 28 wide × 3 tall)
+    int wb_w = 28;
+    int wb_x = (half - wb_w) / 2;
+    int wb_y = 2;
+    bool wb_sel = (tinker_focus_ == TinkerFocus::Workbench);
+    Color wb_border = wb_sel ? Color::Yellow : Color::DarkGray;
+
+    // Draw workbench box
+    ctx.put(wb_x, wb_y, BoxDraw::TL, wb_border);
+    for (int i = 1; i < wb_w - 1; ++i) ctx.put(wb_x + i, wb_y, BoxDraw::H, wb_border);
+    ctx.put(wb_x + wb_w - 1, wb_y, BoxDraw::TR, wb_border);
+
+    ctx.put(wb_x, wb_y + 1, BoxDraw::V, wb_border);
+    ctx.put(wb_x + wb_w - 1, wb_y + 1, BoxDraw::V, wb_border);
+
+    ctx.put(wb_x, wb_y + 2, BoxDraw::BL, wb_border);
+    for (int i = 1; i < wb_w - 1; ++i) ctx.put(wb_x + i, wb_y + 2, BoxDraw::H, wb_border);
+    ctx.put(wb_x + wb_w - 1, wb_y + 2, BoxDraw::BR, wb_border);
+
+    // Workbench content
+    if (workbench_item_) {
+        int cx = wb_x + wb_w / 2;
+        ctx.put(cx - 1, wb_y + 1, workbench_item_->glyph, rarity_color(workbench_item_->rarity));
+        std::string name = workbench_item_->name;
+        if (static_cast<int>(name.size()) > wb_w - 4) name = name.substr(0, wb_w - 4);
+        int nx = wb_x + (wb_w - static_cast<int>(name.size())) / 2;
+        ctx.text(nx, wb_y + 1, name, Color::White);
+    } else {
+        ctx.text(wb_x + 4, wb_y + 1, "Place item here [Space]", Color::DarkGray);
+    }
+
+    // Connector line from workbench to slots
+    int conn_x = wb_x + wb_w / 2;
+    ctx.put(conn_x, wb_y + 3, BoxDraw::V, Color::DarkGray);
+    ctx.put(conn_x, wb_y + 4, BoxDraw::V, Color::DarkGray);
+
+    // Enhancement slots (3 boxes, 9 wide × 3 tall each)
+    int slot_w = 9;
+    int slot_gap = 2;
+    int slots_total_w = slot_w * 3 + slot_gap * 2;
+    int slot_start_x = (half - slots_total_w) / 2;
+    int slot_y = wb_y + 5;
+
+    // Horizontal connector from center line to slots
+    ctx.put(conn_x, slot_y - 1, BoxDraw::BT, Color::DarkGray);
+    for (int x = slot_start_x + slot_w / 2; x <= slot_start_x + slots_total_w - slot_w / 2; ++x) {
+        if (x != conn_x)
+            ctx.put(x, slot_y - 1, BoxDraw::H, Color::DarkGray);
+    }
+
+    int max_slots = workbench_item_ ? workbench_item_->enhancement_slots : 0;
+
+    for (int si = 0; si < 3; ++si) {
+        int sx = slot_start_x + si * (slot_w + slot_gap);
+        int sy = slot_y;
+        bool locked = (si >= max_slots);
+        bool selected = (tinker_focus_ == TinkerFocus::Slots && tinker_slot_cursor_ == si);
+        Color border = selected ? Color::Yellow : Color::DarkGray;
+
+        // Vertical connector down from horizontal line
+        ctx.put(sx + slot_w / 2, slot_y - 1, BoxDraw::TT, Color::DarkGray);
+
+        // Box
+        ctx.put(sx, sy, BoxDraw::TL, border);
+        for (int i = 1; i < slot_w - 1; ++i) ctx.put(sx + i, sy, BoxDraw::H, border);
+        ctx.put(sx + slot_w - 1, sy, BoxDraw::TR, border);
+
+        ctx.put(sx, sy + 1, BoxDraw::V, border);
+        ctx.put(sx + slot_w - 1, sy + 1, BoxDraw::V, border);
+
+        ctx.put(sx, sy + 2, BoxDraw::BL, border);
+        for (int i = 1; i < slot_w - 1; ++i) ctx.put(sx + i, sy + 2, BoxDraw::H, border);
+        ctx.put(sx + slot_w - 1, sy + 2, BoxDraw::BR, border);
+
+        // Slot label
+        std::string label = "SLOT " + std::to_string(si + 1);
+        int lx = sx + (slot_w - static_cast<int>(label.size())) / 2;
+        ctx.text(lx, sy + 3, label, selected ? Color::Yellow : Color::DarkGray);
+
+        // Content
+        if (locked) {
+            ctx.text(sx + 2, sy + 1, "locked", Color::DarkGray);
+        } else if (workbench_item_ && si < static_cast<int>(workbench_item_->enhancements.size())
+                   && workbench_item_->enhancements[si].filled) {
+            const auto& enh = workbench_item_->enhancements[si];
+            std::string bonus;
+            if (enh.bonus.attack) bonus = "+" + std::to_string(enh.bonus.attack) + "ATK";
+            else if (enh.bonus.defense) bonus = "+" + std::to_string(enh.bonus.defense) + "DEF";
+            else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
+            ctx.text(sx + 1, sy + 1, bonus, Color::Green);
+        } else {
+            ctx.text(sx + 2, sy + 1, "empty", Color::DarkGray);
+        }
+    }
+
+    // Materials section
+    int mat_y = slot_y + 5;
+    draw_section_header(ctx, mat_y, "MATERIALS");
+    mat_y += 2;
+    int mx = 3;
+    for (const auto& item : player_->inventory.items) {
+        if (item.type == ItemType::CraftingMaterial) {
+            std::string label = item.name + " x" + std::to_string(item.stack_count);
+            ctx.put(mx, mat_y, '+', item.color);
+            ctx.text(mx + 2, mat_y, label, Color::DarkGray);
+            mat_y++;
+        }
+    }
+    if (mat_y == slot_y + 7) {
+        ctx.text(3, mat_y, "No crafting materials.", Color::DarkGray);
+    }
+
+    // Right panel — item detail + actions
+    int rx = half + 3;
+    int ry = 1;
+
+    if (workbench_item_) {
+        const auto& item = *workbench_item_;
+        ctx.text(rx, ry, item.name, rarity_color(item.rarity));
+        ry++;
+        ctx.text(rx, ry, rarity_name(item.rarity), rarity_color(item.rarity));
+        ry += 2;
+
+        // Stats
+        if (item.modifiers.attack)
+            ctx.text(rx, ry++, "ATK: +" + std::to_string(item.modifiers.attack), Color::Red);
+        if (item.modifiers.defense)
+            ctx.text(rx, ry++, "DEF: +" + std::to_string(item.modifiers.defense), Color::Blue);
+
+        // Durability bar
+        if (item.max_durability > 0) {
+            ry++;
+            ctx.text(rx, ry, "Durabl: ", Color::DarkGray);
+            int bar_w = std::min(14, (w - half) - 14);
+            if (bar_w > 0) {
+                Color dur_color = (item.durability * 3 > item.max_durability) ? Color::Green : Color::Red;
+                ctx.bar(rx + 8, ry, bar_w, item.durability, item.max_durability, dur_color);
+            }
+            std::string dur = std::to_string(item.durability) + "/" + std::to_string(item.max_durability);
+            ctx.text(rx + 8 + bar_w + 1, ry, dur, Color::Green);
+            ry++;
+        }
+
+        // Enhancement slot details
+        ry++;
+        draw_section_header(ctx, ry, "ENHANCEMENTS");
+        // Note: this draws on the full ctx which spans full width, so it works
+        ry += 2;
+        for (int si = 0; si < 3; ++si) {
+            bool locked = (si >= item.enhancement_slots);
+            std::string slot_label = "[" + std::to_string(si + 1) + "] ";
+            ctx.text(rx, ry, slot_label, Color::White);
+            if (locked) {
+                ctx.text(rx + 4, ry, "locked", Color::DarkGray);
+            } else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled) {
+                ctx.text(rx + 4, ry, item.enhancements[si].material_name, Color::Green);
+            } else {
+                ctx.text(rx + 4, ry, "empty", Color::DarkGray);
+            }
+            ry++;
+        }
+
+        // Actions
+        ry += 2;
+        draw_section_header(ctx, ry, "ACTIONS");
+        ry += 2;
+
+        bool has_repair = player_has_skill(*player_, SkillId::BasicRepair);
+        bool has_analyze = player_has_skill(*player_, SkillId::Cat_Tinkering);
+        bool has_salvage = player_has_skill(*player_, SkillId::Disassemble);
+
+        int cost = repair_cost(item);
+        std::string repair_label = "[r] Repair";
+        if (cost > 0) repair_label += "  (" + std::to_string(cost) + " Nano-Fiber)";
+        ctx.text(rx, ry++, repair_label, has_repair ? Color::White : Color::DarkGray);
+
+        ctx.text(rx, ry++, "[a] Analyze", has_analyze ? Color::White : Color::DarkGray);
+        ctx.text(rx, ry++, "[s] Salvage", has_salvage ? Color::White : Color::DarkGray);
+    } else {
+        ctx.text(rx, 4, "Place an item on the", Color::DarkGray);
+        ctx.text(rx, 5, "workbench to begin.", Color::DarkGray);
+    }
+
+    // Learned blueprints section (bottom right)
+    if (!player_->learned_blueprints.empty()) {
+        int bp_y = ctx.height() - 2 - static_cast<int>(player_->learned_blueprints.size());
+        if (bp_y > ry + 2) {
+            draw_section_header(ctx, bp_y - 2, "BLUEPRINTS");
+            for (const auto& bp : player_->learned_blueprints) {
+                ctx.text(rx, bp_y, bp.name, Color::Cyan);
+                bp_y++;
+            }
+        }
+    }
+}
 
 void CharacterScreen::draw_reputation(DrawContext& ctx) {
     if (player_->reputation.empty()) {

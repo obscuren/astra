@@ -4,6 +4,7 @@
 #include "astra/item.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
+#include "astra/tinkering.h"
 
 #include <cstdint>
 #include <string>
@@ -81,6 +82,9 @@ struct Player {
 
     // Reputation
     std::vector<FactionStanding> reputation;
+
+    // Tinkering
+    std::vector<BlueprintSignature> learned_blueprints;
 
     // Derived stats — attribute modifier is (attr - 10) / 2 for primary effects
     int effective_attack() const {

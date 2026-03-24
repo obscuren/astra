@@ -232,6 +232,19 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_i32(item.ranged->current_charge);
         w.write_i32(item.ranged->max_range);
     }
+    // Enhancement slots
+    w.write_i32(item.enhancement_slots);
+    w.write_u32(static_cast<uint32_t>(item.enhancements.size()));
+    for (const auto& enh : item.enhancements) {
+        w.write_u8(enh.filled ? 1 : 0);
+        w.write_u32(enh.material_id);
+        w.write_string(enh.material_name);
+        w.write_i32(enh.bonus.attack);
+        w.write_i32(enh.bonus.defense);
+        w.write_i32(enh.bonus.max_hp);
+        w.write_i32(enh.bonus.view_radius);
+        w.write_i32(enh.bonus.quickness);
+    }
 }
 
 static Item read_item(BinaryReader& r) {
@@ -264,6 +277,20 @@ static Item read_item(BinaryReader& r) {
         rd.current_charge = r.read_i32();
         rd.max_range = r.read_i32();
         item.ranged = rd;
+    }
+    // Enhancement slots
+    item.enhancement_slots = r.read_i32();
+    uint32_t enh_count = r.read_u32();
+    item.enhancements.resize(enh_count);
+    for (uint32_t i = 0; i < enh_count; ++i) {
+        item.enhancements[i].filled = r.read_u8() != 0;
+        item.enhancements[i].material_id = r.read_u32();
+        item.enhancements[i].material_name = r.read_string();
+        item.enhancements[i].bonus.attack = r.read_i32();
+        item.enhancements[i].bonus.defense = r.read_i32();
+        item.enhancements[i].bonus.max_hp = r.read_i32();
+        item.enhancements[i].bonus.view_radius = r.read_i32();
+        item.enhancements[i].bonus.quickness = r.read_i32();
     }
     return item;
 }
@@ -386,6 +413,13 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     for (const auto& f : p.reputation) {
         w.write_string(f.faction_name);
         w.write_i32(f.reputation);
+    }
+    // Blueprints
+    w.write_u32(static_cast<uint32_t>(p.learned_blueprints.size()));
+    for (const auto& bp : p.learned_blueprints) {
+        w.write_u32(bp.source_item_id);
+        w.write_string(bp.name);
+        w.write_string(bp.description);
     }
     w.end_section(pos);
 }
@@ -684,6 +718,14 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
         for (uint32_t i = 0; i < rep_count; ++i) {
             p.reputation[i].faction_name = r.read_string();
             p.reputation[i].reputation = r.read_i32();
+        }
+        // Blueprints
+        uint32_t bp_count = r.read_u32();
+        p.learned_blueprints.resize(bp_count);
+        for (uint32_t i = 0; i < bp_count; ++i) {
+            p.learned_blueprints[i].source_item_id = r.read_u32();
+            p.learned_blueprints[i].name = r.read_string();
+            p.learned_blueprints[i].description = r.read_string();
         }
     }
 }

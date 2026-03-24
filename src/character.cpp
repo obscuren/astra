@@ -18,7 +18,8 @@ static const ClassTemplate s_dev_commander = {
     5, 20,                      // +5 HP, +20 carry
     {SkillId::Cat_ShortBlade, SkillId::ShortBladeExpertise,
      SkillId::Cat_Pistol, SkillId::SteadyHand,
-     SkillId::Cat_Endurance, SkillId::ThickSkin},
+     SkillId::Cat_Endurance, SkillId::ThickSkin,
+     SkillId::Cat_Tinkering, SkillId::BasicRepair, SkillId::Disassemble},
     200, 50,                    // 200 SP, 50 credits
 };
 

@@ -89,6 +89,13 @@ struct StatModifiers {
     int quickness = 0;
 };
 
+struct EnhancementSlot {
+    bool filled = false;
+    uint32_t material_id = 0;
+    std::string material_name;
+    StatModifiers bonus;
+};
+
 struct RangedData {
     int charge_capacity = 0;
     int charge_per_shot = 1;
@@ -117,6 +124,8 @@ struct Item {
     int max_durability = 0;
     bool usable = false;
     std::optional<RangedData> ranged;
+    int enhancement_slots = 0;
+    std::vector<EnhancementSlot> enhancements;
 };
 
 struct GroundItem {
