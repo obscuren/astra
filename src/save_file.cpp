@@ -421,6 +421,16 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_string(bp.name);
         w.write_string(bp.description);
     }
+    // Journal
+    w.write_u32(static_cast<uint32_t>(p.journal.size()));
+    for (const auto& je : p.journal) {
+        w.write_u8(static_cast<uint8_t>(je.category));
+        w.write_string(je.title);
+        w.write_string(je.technical);
+        w.write_string(je.personal);
+        w.write_string(je.timestamp);
+        w.write_i32(je.world_tick);
+    }
     w.end_section(pos);
 }
 
@@ -726,6 +736,17 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
             p.learned_blueprints[i].source_item_id = r.read_u32();
             p.learned_blueprints[i].name = r.read_string();
             p.learned_blueprints[i].description = r.read_string();
+        }
+        // Journal
+        uint32_t journal_count = r.read_u32();
+        p.journal.resize(journal_count);
+        for (uint32_t i = 0; i < journal_count; ++i) {
+            p.journal[i].category = static_cast<JournalCategory>(r.read_u8());
+            p.journal[i].title = r.read_string();
+            p.journal[i].technical = r.read_string();
+            p.journal[i].personal = r.read_string();
+            p.journal[i].timestamp = r.read_string();
+            p.journal[i].world_tick = r.read_i32();
         }
     }
 }

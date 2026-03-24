@@ -80,6 +80,9 @@ private:
     int workbench_inv_idx_ = -1;     // index in player inventory, or -1 if from equipment
 
     void draw_tinkering(DrawContext& ctx);
+    void draw_journal(DrawContext& ctx);
+    int journal_cursor_ = 0;
+    int journal_scroll_ = 0;
 
     void open_context_menu();
     void execute_context_action(char key);

@@ -2,6 +2,7 @@
 #include "astra/character.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
+#include "astra/journal.h"
 #include "astra/tinkering.h"
 
 #include <algorithm>
@@ -355,9 +356,18 @@ bool CharacterScreen::handle_input(int key) {
                 context_msg_timer_ = 3;
             }
             if (key == 'a') {
+                size_t bp_count_before = player_->learned_blueprints.size();
+                std::string item_name = workbench_item_->name;
                 auto result = analyze_item(*workbench_item_, *player_, rng_);
                 context_message_ = result.message;
                 context_msg_timer_ = 4;
+                // If a new blueprint was learned, create journal entry
+                if (player_->learned_blueprints.size() > bp_count_before) {
+                    const auto& bp = player_->learned_blueprints.back();
+                    // TODO: get world_tick and phase from game — for now use 0
+                    player_->journal.push_back(make_blueprint_journal_entry(
+                        bp.name, bp.description, item_name, 0, "Unknown"));
+                }
                 if (!result.success) {
                     // Item destroyed — remove from inventory
                     if (workbench_inv_idx_ >= 0 && workbench_inv_idx_ < static_cast<int>(player_->inventory.items.size())) {
@@ -379,6 +389,12 @@ bool CharacterScreen::handle_input(int key) {
                     workbench_inv_idx_ = -1;
                 }
             }
+        }
+    } else if (active_tab_ == CharTab::Journal) {
+        int count = static_cast<int>(player_->journal.size());
+        if (count > 0) {
+            if (key == KEY_UP && journal_cursor_ > 0) --journal_cursor_;
+            if (key == KEY_DOWN && journal_cursor_ < count - 1) ++journal_cursor_;
         }
     } else if (active_tab_ == CharTab::Reputation) {
         int count = static_cast<int>(player_->reputation.size());
@@ -543,7 +559,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         case CharTab::Equipment:  draw_equipment(content); break;
         case CharTab::Reputation: draw_reputation(content); break;
         case CharTab::Tinkering:  draw_tinkering(full); break;
-        case CharTab::Journal:    draw_stub(content, "No entries found."); break;
+        case CharTab::Journal:    draw_journal(content); break;
         case CharTab::Quests:     draw_stub(content, "No active quests."); break;
         case CharTab::Ship:       draw_stub(content, "Ship systems not available."); break;
     }
@@ -552,7 +568,8 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     bool needs_divider = (active_tab_ == CharTab::Attributes
                        || active_tab_ == CharTab::Skills
                        || active_tab_ == CharTab::Equipment
-                       || active_tab_ == CharTab::Tinkering);
+                       || active_tab_ == CharTab::Tinkering
+                       || active_tab_ == CharTab::Journal);
     if (needs_divider) {
         int divider_x = content.width() / 2;
         int last = content.height() - 1;
@@ -1606,6 +1623,131 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             for (const auto& bp : player_->learned_blueprints) {
                 ctx.text(rx, bp_y, bp.name, Color::Cyan);
                 bp_y++;
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Journal tab
+// ─────────────────────────────────────────────────────────────────
+
+void CharacterScreen::draw_journal(DrawContext& ctx) {
+    int w = ctx.width();
+    int half = w / 2;
+
+    if (player_->journal.empty()) {
+        ctx.text_center(ctx.height() / 2, "No entries yet.", Color::DarkGray);
+        return;
+    }
+
+    // Clamp cursor
+    int count = static_cast<int>(player_->journal.size());
+    if (journal_cursor_ >= count) journal_cursor_ = count - 1;
+    if (journal_cursor_ < 0) journal_cursor_ = 0;
+
+    // Left panel: entry list (newest first)
+    int y = 1;
+    for (int i = count - 1; i >= 0; --i) {
+        if (y >= ctx.height() - 1) break;
+        const auto& entry = player_->journal[i];
+        bool selected = (journal_cursor_ == i);
+
+        if (selected) ctx.put(0, y, '>', Color::Yellow);
+
+        // Category icon
+        Color cat_color;
+        char cat_icon;
+        switch (entry.category) {
+            case JournalCategory::Blueprint:  cat_icon = '+'; cat_color = Color::Cyan; break;
+            case JournalCategory::Discovery:  cat_icon = '*'; cat_color = Color::Green; break;
+            case JournalCategory::Encounter:  cat_icon = '!'; cat_color = Color::Red; break;
+            case JournalCategory::Event:      cat_icon = '.'; cat_color = Color::White; break;
+        }
+        ctx.put(2, y, cat_icon, cat_color);
+
+        // Title (truncated to fit left half)
+        std::string title = entry.title;
+        int max_title = half - 5;
+        if (static_cast<int>(title.size()) > max_title)
+            title = title.substr(0, max_title);
+        ctx.text(4, y, title, selected ? Color::White : Color::DarkGray);
+
+        y++;
+
+        // Timestamp below title
+        if (y < ctx.height() - 1) {
+            ctx.text(4, y, entry.timestamp, Color::DarkGray);
+            y += 2; // extra gap between entries
+        }
+    }
+
+    // Right panel: selected entry detail
+    if (journal_cursor_ >= 0 && journal_cursor_ < count) {
+        const auto& entry = player_->journal[journal_cursor_];
+        int rx = half + 3;
+        int rw = w - half - 4;
+        int ry = 1;
+
+        // Timestamp
+        ctx.text(rx, ry, entry.timestamp, Color::DarkGray);
+        ry += 2;
+
+        // Title
+        ctx.text(rx, ry, entry.title, Color::White);
+        ry += 2;
+
+        // Technical section
+        if (!entry.technical.empty()) {
+            // Word-wrap the technical text
+            int line_x = 0;
+            for (size_t i = 0; i < entry.technical.size() && ry < ctx.height() - 2; ++i) {
+                if (entry.technical[i] == '\n') {
+                    ry++;
+                    line_x = 0;
+                    continue;
+                }
+                if (entry.technical[i] == ' ' && line_x >= rw) {
+                    ry++;
+                    line_x = 0;
+                    continue;
+                }
+                ctx.put(rx + line_x, ry, entry.technical[i], Color::Cyan);
+                line_x++;
+                if (line_x >= rw) {
+                    ry++;
+                    line_x = 0;
+                }
+            }
+            ry += 2;
+        }
+
+        // Separator
+        if (ry < ctx.height() - 4) {
+            ctx.text(rx, ry, "--- Commander's Notes ---", Color::DarkGray);
+            ry += 2;
+        }
+
+        // Personal notes
+        if (!entry.personal.empty() && ry < ctx.height() - 2) {
+            int line_x = 0;
+            for (size_t i = 0; i < entry.personal.size() && ry < ctx.height() - 1; ++i) {
+                if (entry.personal[i] == '\n') {
+                    ry++;
+                    line_x = 0;
+                    continue;
+                }
+                if (entry.personal[i] == ' ' && line_x >= rw) {
+                    ry++;
+                    line_x = 0;
+                    continue;
+                }
+                ctx.put(rx + line_x, ry, entry.personal[i], Color::Default);
+                line_x++;
+                if (line_x >= rw) {
+                    ry++;
+                    line_x = 0;
+                }
             }
         }
     }

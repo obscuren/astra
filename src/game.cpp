@@ -3,6 +3,7 @@
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
+#include "astra/journal.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
 #include "astra/overworld_stamps.h"
@@ -776,6 +777,14 @@ void Game::new_game() {
         player_.learned_blueprints.push_back({1101, "Blade Housing", "Structural frame for edged weapons."});
         player_.learned_blueprints.push_back({3001, "Plating Alloy", "Composite metal alloy for defensive plating."});
         player_.learned_blueprints.push_back({4001, "Optic Module", "Enhanced optical sensor array."});
+
+        // Journal entries for the pre-learned blueprints
+        player_.journal.push_back(make_blueprint_journal_entry(
+            "Plasma Emitter", "A superheated plasma projection system.",
+            "Plasma Pistol", 0, "Dawn"));
+        player_.journal.push_back(make_blueprint_journal_entry(
+            "Blade Housing", "Structural frame for edged weapons.",
+            "Combat Knife", 0, "Dawn"));
 
         log("Full loadout equipped.");
     }

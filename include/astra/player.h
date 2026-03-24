@@ -2,6 +2,7 @@
 
 #include "astra/character.h"
 #include "astra/item.h"
+#include "astra/journal.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
 #include "astra/tinkering.h"
@@ -85,6 +86,9 @@ struct Player {
 
     // Tinkering
     std::vector<BlueprintSignature> learned_blueprints;
+
+    // Journal
+    std::vector<JournalEntry> journal;
 
     // Derived stats — attribute modifier is (attr - 10) / 2 for primary effects
     int effective_attack() const {
