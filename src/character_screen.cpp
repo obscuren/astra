@@ -22,6 +22,18 @@ void CharacterScreen::open(Player* player, Renderer* renderer) {
     cursor_ = 0;
     scroll_ = 0;
     for (int i = 0; i < 6; ++i) pending_points_[i] = 0;
+
+    // Initialize skill category expand state: only learned categories start expanded
+    const auto& catalog = skill_catalog();
+    skill_cat_expanded_.assign(catalog.size(), false);
+    for (size_t ci = 0; ci < catalog.size(); ++ci) {
+        for (auto sid : player_->learned_skills) {
+            if (sid == catalog[ci].unlock_id) {
+                skill_cat_expanded_[ci] = true;
+                break;
+            }
+        }
+    }
 }
 
 bool CharacterScreen::has_pending() const {
@@ -136,9 +148,6 @@ bool CharacterScreen::handle_input(int key) {
             return true;
         }
     } else if (active_tab_ == CharTab::Skills) {
-        if (skill_cat_expanded_.size() != skill_catalog().size()) {
-            skill_cat_expanded_.assign(skill_catalog().size(), true);
-        }
 
         auto has_skill = [&](SkillId id) {
             for (auto sid : player_->learned_skills)
@@ -316,104 +325,38 @@ void CharacterScreen::draw_look_overlay(DrawContext& ctx) {
 
     const auto& item = *look_item_;
 
-    // Sized window centered on screen
-    int win_w = 50;
-    int win_h = 20;
+    int win_w = 44;
+    int win_h = 18;
     int mx = (ctx.width() - win_w) / 2;
     int my = (ctx.height() - win_h) / 2;
 
-    Window win(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h}, "");
-    win.set_footer("[Space] Continue");
+    Window win(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h}, item.name);
+    win.set_footer("[any key] Close");
     win.draw();
 
     DrawContext lc = win.content();
-    int y = 0;
-
-    // Item glyph centered
-    lc.put(lc.width() / 2, y, item.glyph, rarity_color(item.rarity));
-    y += 2;
-
-    // Item name + summary line
-    std::string summary = item.name;
-    if (item.ranged) {
-        summary += "  ATK+" + std::to_string(item.modifiers.attack)
-                 + "  Charge:" + std::to_string(item.ranged->current_charge)
-                 + "/" + std::to_string(item.ranged->charge_capacity)
-                 + "  Range:" + std::to_string(item.ranged->max_range);
-    } else if (item.modifiers.attack) {
-        summary += "  ATK+" + std::to_string(item.modifiers.attack);
-    }
-    if (item.modifiers.defense) {
-        summary += "  DEF+" + std::to_string(item.modifiers.defense);
-    }
-    lc.text_center(y, summary, Color::White);
-    y += 2;
-
-    // Description
-    if (!item.description.empty()) {
-        // Simple word wrap
-        int max_w = lc.width() - 2;
-        int dx = 1;
-        int line_x = 0;
-        for (size_t i = 0; i < item.description.size(); ++i) {
-            if (item.description[i] == ' ' && line_x >= max_w) {
-                y++;
-                line_x = 0;
-                continue;
-            }
-            lc.put(dx + line_x, y, item.description[i], Color::DarkGray);
-            line_x++;
-            if (line_x >= max_w) {
-                y++;
-                line_x = 0;
-            }
-        }
-        y += 2;
-    }
-
-    // Stats
-    if (item.slot) {
-        lc.text(1, y, "Slot:", Color::White);
-        lc.text(7, y, equip_slot_name(*item.slot), Color::Cyan);
-        y++;
-    }
-    lc.text(1, y, "Rarity:", Color::White);
-    lc.text(9, y, rarity_name(item.rarity), rarity_color(item.rarity));
-    y++;
-
-    if (item.max_durability > 0) {
-        std::string dur = std::to_string(item.durability) + "/" + std::to_string(item.max_durability);
-        lc.text(1, y, "Durability:", Color::White);
-        lc.text(13, y, dur, Color::Cyan);
-        y++;
-    }
-
-    std::string wt = std::to_string(item.weight) + " lbs.";
-    lc.text(1, y, "Weight:", Color::White);
-    lc.text(9, y, wt, Color::DarkGray);
-    y++;
-
-    if (item.buy_value > 0) {
-        std::string val = std::to_string(item.buy_value) + "$";
-        lc.text(1, y, "Value:", Color::White);
-        lc.text(8, y, val, Color::Yellow);
-    }
+    draw_item_info(lc, item);
 }
 
 void CharacterScreen::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
-    Window win(renderer_, Rect{0, 0, screen_w, screen_h}, "Character");
+    // Inset from screen edges
+    int pad_x = 2;
+    int pad_y = 2;
+    int win_w = screen_w - pad_x * 2;
+    int win_h = screen_h - pad_y * 2;
+    Panel panel(renderer_, Rect{pad_x, pad_y, win_w, win_h});
     if (active_tab_ == CharTab::Skills) {
-        win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate  SPACE Expand  [l] Learn");
+        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn");
     } else if (has_pending()) {
-        win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate  -/+ Adjust  SPACE Commit");
+        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit");
     } else {
-        win.set_footer("ESC Close  \xe2\x86\x91\xe2\x86\x93 Navigate");
+        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate");
     }
-    win.draw();
+    panel.draw();
 
-    DrawContext ctx = win.content();
+    DrawContext ctx = panel.content();
 
     draw_tab_bar(ctx);
 
@@ -794,10 +737,7 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
     int half = w / 2;
     const auto& catalog = skill_catalog();
 
-    // Initialize expand state if needed
-    if (skill_cat_expanded_.size() != catalog.size()) {
-        skill_cat_expanded_.assign(catalog.size(), true);
-    }
+
 
     // Header bar: ──┤ STR:14 AGI:12 ... ├───┤ Skill Points: 200 ├──
     {
@@ -888,9 +828,7 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
             ctx.put(lx + 1, y, BoxDraw::RT, Color::DarkGray);
             lx += 2;
 
-            std::string toggle = unlocked
-                ? (skill_cat_expanded_[ve.ci] ? " [-] " : " [+] ")
-                : " [+] ";
+            std::string toggle = skill_cat_expanded_[ve.ci] ? " [-] " : " [+] ";
             ctx.text(lx, y, toggle, Color::White);
             lx += static_cast<int>(toggle.size());
 

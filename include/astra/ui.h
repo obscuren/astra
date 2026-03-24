@@ -27,6 +27,13 @@ namespace BoxDraw {
     constexpr const char* DV    = "\xe2\x95\x91";  // ║  double vertical
     constexpr const char* DL    = "\xe2\x95\x9e";  // ╞  single-vert + double-horiz left
     constexpr const char* DR    = "\xe2\x95\xa1";  // ╡  single-vert + double-horiz right
+
+    // Block elements
+    constexpr const char* UPPER_HALF = "\xe2\x96\x80"; // ▀ upper half block
+    constexpr const char* LOWER_HALF = "\xe2\x96\x84"; // ▄ lower half block
+    constexpr const char* LEFT_HALF  = "\xe2\x96\x8c"; // ▌ left half block
+    constexpr const char* RIGHT_HALF = "\xe2\x96\x90"; // ▐ right half block
+    constexpr const char* FULL       = "\xe2\x96\x88"; // █ full block
 }
 
 struct Rect {
@@ -164,6 +171,34 @@ private:
     int selection_ = 0;
     bool open_ = false;
 };
+
+// Panel — a window style using half-block borders:
+//   ▐▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▌
+//   ▐ Title (centered)     ▌
+//   ▐──────────────────────▌
+//   ▐ content              ▌
+//   ▐──────────────────────▌
+//   ▐ footer               ▌
+//   ▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌
+class Panel {
+public:
+    Panel(Renderer* renderer, Rect bounds, std::string_view title = "");
+
+    void set_footer(std::string_view text);
+    void draw();
+    DrawContext content() const;
+    const Rect& bounds() const;
+
+private:
+    Renderer* renderer_;
+    Rect bounds_;
+    std::string title_;
+    std::string footer_;
+};
+
+// Draw item inspection content into a DrawContext (no window frame — caller provides that).
+struct Item; // forward declare
+void draw_item_info(DrawContext& ctx, const Item& item);
 
 // A reusable popup menu with the game's art style:
 //   ╡═║"║═╞ ornament at top, title separator, options with
