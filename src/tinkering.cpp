@@ -1,5 +1,6 @@
 #include "astra/tinkering.h"
 #include "astra/item_defs.h"
+#include "astra/item_gen.h"
 #include "astra/player.h"
 
 #include <algorithm>
@@ -285,6 +286,162 @@ TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng) {
     }
 
     return {true, "Salvaged " + item.name + ". Received " + std::to_string(yield) + " materials."};
+}
+
+// ---------------------------------------------------------------------------
+// Synthesizer
+// ---------------------------------------------------------------------------
+
+// Material IDs: 7001=Nano-Fiber, 7002=Power Core, 7003=Circuit Board, 7004=Alloy Ingot
+const std::vector<SynthesisRecipe>& synthesis_recipes() {
+    static const std::vector<SynthesisRecipe> recipes = {
+        {"Plasma Emitter", "Blade Housing", "Plasma Edge",
+         "A blade wreathed in plasma energy. Burns on contact.",
+         ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
+         {8, 0, 0, 0, 0}, 60, {0, 2, 0, 1}},
+
+        {"Plating Alloy", "Thruster Core", "Thruster Plate",
+         "Armored plating with integrated micro-thrusters for agile combat.",
+         ItemType::Armor, EquipSlot::Body, ']',
+         {0, 4, 0, 0, 3}, 80, {0, 1, 0, 2}},
+
+        {"Optic Module", "Power Conduit", "Targeting Array",
+         "Advanced optics fused with a power feed. Enhances aim and awareness.",
+         ItemType::Accessory, EquipSlot::Face, '&',
+         {2, 0, 0, 3, 0}, 0, {0, 1, 2, 0}},
+
+        {"Edge Material", "Grip Assembly", "Dual-Edge",
+         "A twin-bladed weapon with perfect balance. Strikes twice as fast.",
+         ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
+         {6, 0, 0, 0, 2}, 50, {1, 0, 0, 1}},
+
+        {"Padding Weave", "Storage Frame", "Reinforced Pack",
+         "A heavily padded cargo pack. Protects both you and your gear.",
+         ItemType::Accessory, EquipSlot::Back, '\\',
+         {0, 2, 3, 0, 0}, 0, {2, 0, 0, 1}},
+
+        {"Power Conduit", "Thruster Core", "Overcharged Engine",
+         "A hyperspace engine component running at dangerous output levels.",
+         ItemType::ShipComponent, EquipSlot::Back, '#',
+         {0, 0, 0, 0, 5}, 0, {0, 3, 0, 0}},
+
+        {"Plating Alloy", "Joint Mechanism", "Articulated Armor",
+         "Segmented armor that moves with you. Full protection, zero penalty.",
+         ItemType::Armor, EquipSlot::Body, ']',
+         {0, 5, 0, 0, 1}, 100, {0, 0, 1, 2}},
+
+        {"Plasma Emitter", "Optic Module", "Guided Blaster",
+         "A plasma weapon with auto-tracking optics. Rarely misses.",
+         ItemType::RangedWeapon, EquipSlot::Missile, ')',
+         {6, 0, 0, 1, 0}, 50, {0, 2, 1, 0}},
+
+        {"Blade Housing", "Joint Mechanism", "Combat Gauntlet",
+         "An armored fist with embedded blades. Strike and defend as one.",
+         ItemType::Armor, EquipSlot::LeftHand, '}',
+         {3, 2, 0, 0, 0}, 70, {1, 0, 0, 1}},
+
+        {"Edge Material", "Plating Alloy", "Armored Blade",
+         "A thick, heavy blade reinforced with armor plating. Hits like a wall.",
+         ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
+         {5, 3, 0, 0, 0}, 90, {0, 0, 0, 2}},
+    };
+    return recipes;
+}
+
+const SynthesisRecipe* find_recipe(const std::string& bp1, const std::string& bp2) {
+    for (const auto& r : synthesis_recipes()) {
+        if ((bp1 == r.blueprint_1 && bp2 == r.blueprint_2) ||
+            (bp1 == r.blueprint_2 && bp2 == r.blueprint_1))
+            return &r;
+    }
+    return nullptr;
+}
+
+static const uint32_t s_material_ids[4] = {7001, 7002, 7003, 7004};
+static const char* s_material_names[4] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
+
+TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
+                              Player& player, std::mt19937& rng) {
+    if (!player_has_skill(player, SkillId::Cat_Tinkering))
+        return {false, "Requires Tinkering skill unlocked."};
+
+    const auto* recipe = find_recipe(bp1, bp2);
+    if (!recipe)
+        return {false, "No known recipe for this combination."};
+
+    // Check material costs
+    for (int m = 0; m < 4; ++m) {
+        if (recipe->material_cost[m] <= 0) continue;
+        int have = 0;
+        for (const auto& it : player.inventory.items) {
+            if (it.id == s_material_ids[m]) have = it.stack_count;
+        }
+        if (have < recipe->material_cost[m])
+            return {false, "Need " + std::to_string(recipe->material_cost[m]) + " " +
+                    s_material_names[m] + " (have " + std::to_string(have) + ")."};
+    }
+
+    // Consume materials
+    for (int m = 0; m < 4; ++m) {
+        int needed = recipe->material_cost[m];
+        if (needed <= 0) continue;
+        for (auto it = player.inventory.items.begin(); it != player.inventory.items.end(); ) {
+            if (it->id == s_material_ids[m]) {
+                if (it->stack_count > needed) {
+                    it->stack_count -= needed;
+                    needed = 0;
+                } else {
+                    needed -= it->stack_count;
+                    it = player.inventory.items.erase(it);
+                    continue;
+                }
+            }
+            ++it;
+            if (needed <= 0) break;
+        }
+    }
+
+    // Create result item
+    Item item;
+    item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
+    item.name = recipe->result_name;
+    item.description = recipe->result_desc;
+    item.type = recipe->result_type;
+    if (recipe->result_slot != EquipSlot::Back || recipe->result_type != ItemType::ShipComponent)
+        item.slot = recipe->result_slot;
+    else
+        item.slot = std::nullopt; // ship components have no equip slot
+    item.glyph = recipe->result_glyph;
+    item.modifiers = recipe->base_modifiers;
+    item.max_durability = recipe->base_durability;
+    item.durability = recipe->base_durability;
+    item.weight = 3;
+
+    // Scale by player level
+    scale_item_to_level(item, player.level);
+
+    // Roll rarity influenced by Luck
+    int luck_bonus = std::max(0, (player.attributes.luck - 10)) * 2;
+    std::uniform_int_distribution<int> dist(0, 99);
+    int roll = dist(rng) + luck_bonus;
+    if (roll >= 99) item.rarity = Rarity::Legendary;
+    else if (roll >= 95) item.rarity = Rarity::Epic;
+    else if (roll >= 80) item.rarity = Rarity::Rare;
+    else if (roll >= 50) item.rarity = Rarity::Uncommon;
+    else item.rarity = Rarity::Common;
+
+    item.color = rarity_color(item.rarity);
+    init_enhancement_slots(item);
+
+    // Set buy/sell based on rarity
+    int rarity_mult = 1 + static_cast<int>(item.rarity);
+    item.buy_value = 100 * rarity_mult;
+    item.sell_value = item.buy_value / 3;
+
+    std::string result_name = item.name;
+    player.inventory.items.push_back(std::move(item));
+
+    return {true, "Synthesized: " + result_name + "!"};
 }
 
 } // namespace astra

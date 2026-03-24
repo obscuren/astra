@@ -125,6 +125,12 @@ bool CharacterScreen::handle_input(int key) {
                             count++;
                         }
                     }
+                } else if (tinker_focus_ == TinkerFocus::Synthesizer) {
+                    // Blueprint picker result
+                    if (sel >= 0 && sel < static_cast<int>(player_->learned_blueprints.size())) {
+                        if (synth_bp_cursor_ == 0) synth_bp1_ = sel;
+                        else synth_bp2_ = sel;
+                    }
                 } else if (tinker_focus_ == TinkerFocus::Slots && workbench_item_) {
                     // Find the sel-th crafting material (non Nano-Fiber)
                     int count = 0;
@@ -255,12 +261,14 @@ bool CharacterScreen::handle_input(int key) {
     } else if (active_tab_ == CharTab::Tinkering) {
         // Navigation between workbench, slots, materials
         if (key == KEY_UP) {
-            if (tinker_focus_ == TinkerFocus::Materials) tinker_focus_ = TinkerFocus::Slots;
+            if (tinker_focus_ == TinkerFocus::Materials) tinker_focus_ = TinkerFocus::Synthesizer;
+            else if (tinker_focus_ == TinkerFocus::Synthesizer) tinker_focus_ = TinkerFocus::Slots;
             else if (tinker_focus_ == TinkerFocus::Slots) tinker_focus_ = TinkerFocus::Workbench;
         }
         if (key == KEY_DOWN) {
             if (tinker_focus_ == TinkerFocus::Workbench) tinker_focus_ = TinkerFocus::Slots;
-            else if (tinker_focus_ == TinkerFocus::Slots) tinker_focus_ = TinkerFocus::Materials;
+            else if (tinker_focus_ == TinkerFocus::Slots) tinker_focus_ = TinkerFocus::Synthesizer;
+            else if (tinker_focus_ == TinkerFocus::Synthesizer) tinker_focus_ = TinkerFocus::Materials;
         }
         if (tinker_focus_ == TinkerFocus::Slots) {
             if (key == KEY_LEFT && tinker_slot_cursor_ > 0) --tinker_slot_cursor_;
@@ -309,6 +317,32 @@ bool CharacterScreen::handle_input(int key) {
                         }
                         context_menu_.open();
                     }
+                }
+            }
+        }
+
+        // Synthesizer input
+        if (tinker_focus_ == TinkerFocus::Synthesizer) {
+            if (key == KEY_LEFT) synth_bp_cursor_ = 0;
+            if (key == KEY_RIGHT) synth_bp_cursor_ = 1;
+            if (key == ' ' && !player_->learned_blueprints.empty()) {
+                context_menu_.close();
+                context_menu_.set_title("Select Blueprint");
+                for (int i = 0; i < static_cast<int>(player_->learned_blueprints.size()); ++i) {
+                    char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
+                    context_menu_.add_option(key_ch, player_->learned_blueprints[i].name);
+                }
+                context_menu_.open();
+            }
+            if (key == 'y' && synth_bp1_ >= 0 && synth_bp2_ >= 0) {
+                const auto& bp1 = player_->learned_blueprints[synth_bp1_].name;
+                const auto& bp2 = player_->learned_blueprints[synth_bp2_].name;
+                auto result = synthesize_item(bp1, bp2, *player_, rng_);
+                context_message_ = result.message;
+                context_msg_timer_ = 4;
+                if (result.success) {
+                    synth_bp1_ = -1;
+                    synth_bp2_ = -1;
                 }
             }
         }
@@ -483,7 +517,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     int win_h = screen_h - pad_y * 2;
     Panel panel(renderer_, Rect{pad_x, pad_y, win_w, win_h});
     if (active_tab_ == CharTab::Tinkering) {
-        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Place/Slot  [r] Repair  [a] Analyze  [s] Salvage");
+        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [y] Synthesize");
     } else if (active_tab_ == CharTab::Skills) {
         panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn");
     } else if (has_pending()) {
@@ -1327,12 +1361,11 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
     // Workbench content
     if (workbench_item_) {
-        int cx = wb_x + wb_w / 2;
-        ctx.put(cx - 1, wb_y + 1, workbench_item_->glyph, rarity_color(workbench_item_->rarity));
-        std::string name = workbench_item_->name;
-        if (static_cast<int>(name.size()) > wb_w - 4) name = name.substr(0, wb_w - 4);
-        int nx = wb_x + (wb_w - static_cast<int>(name.size())) / 2;
-        ctx.text(nx, wb_y + 1, name, Color::White);
+        std::string display = std::string(1, workbench_item_->glyph) + " " + workbench_item_->name;
+        if (static_cast<int>(display.size()) > wb_w - 4) display = display.substr(0, wb_w - 4);
+        int nx = wb_x + (wb_w - static_cast<int>(display.size())) / 2;
+        ctx.put(nx, wb_y + 1, workbench_item_->glyph, rarity_color(workbench_item_->rarity));
+        ctx.text(nx + 2, wb_y + 1, workbench_item_->name, rarity_color(workbench_item_->rarity));
     } else {
         ctx.text(wb_x + 4, wb_y + 1, "Place item here [Space]", Color::DarkGray);
     }
@@ -1401,8 +1434,83 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         }
     }
 
+    // Synthesizer section
+    int synth_y = slot_y + 5;
+    draw_section_header(ctx, synth_y, "SYNTHESIZER");
+    synth_y += 2;
+
+    if (player_->learned_blueprints.size() >= 2) {
+        // Two blueprint boxes side by side
+        int bp_w = 16;
+        int bp_gap = 3;
+        int bp_total = bp_w * 2 + bp_gap;
+        int bp_start = (half - bp_total) / 2;
+
+        for (int bi = 0; bi < 2; ++bi) {
+            int bx = bp_start + bi * (bp_w + bp_gap);
+            int by = synth_y;
+            bool selected = (tinker_focus_ == TinkerFocus::Synthesizer && synth_bp_cursor_ == bi);
+            Color border = selected ? Color::Yellow : Color::DarkGray;
+
+            ctx.put(bx, by, BoxDraw::TL, border);
+            for (int i = 1; i < bp_w - 1; ++i) ctx.put(bx + i, by, BoxDraw::H, border);
+            ctx.put(bx + bp_w - 1, by, BoxDraw::TR, border);
+
+            ctx.put(bx, by + 1, BoxDraw::V, border);
+            ctx.put(bx + bp_w - 1, by + 1, BoxDraw::V, border);
+
+            ctx.put(bx, by + 2, BoxDraw::BL, border);
+            for (int i = 1; i < bp_w - 1; ++i) ctx.put(bx + i, by + 2, BoxDraw::H, border);
+            ctx.put(bx + bp_w - 1, by + 2, BoxDraw::BR, border);
+
+            int bp_idx = (bi == 0) ? synth_bp1_ : synth_bp2_;
+            if (bp_idx >= 0 && bp_idx < static_cast<int>(player_->learned_blueprints.size())) {
+                std::string name = player_->learned_blueprints[bp_idx].name;
+                if (static_cast<int>(name.size()) > bp_w - 2) name = name.substr(0, bp_w - 2);
+                int nx = bx + (bp_w - static_cast<int>(name.size())) / 2;
+                ctx.text(nx, by + 1, name, Color::Cyan);
+            } else {
+                ctx.text(bx + 2, by + 1, "[Space]", Color::DarkGray);
+            }
+        }
+
+        // "+" between boxes
+        ctx.put(bp_start + bp_w + bp_gap / 2, synth_y + 1, '+', Color::White);
+
+        // Recipe preview
+        synth_y += 4;
+        if (synth_bp1_ >= 0 && synth_bp2_ >= 0) {
+            const auto& bp1 = player_->learned_blueprints[synth_bp1_].name;
+            const auto& bp2 = player_->learned_blueprints[synth_bp2_].name;
+            const auto* recipe = find_recipe(bp1, bp2);
+            if (recipe) {
+                ctx.text(3, synth_y, "Result: ", Color::DarkGray);
+                ctx.text(11, synth_y, recipe->result_name, Color::Green);
+                synth_y++;
+
+                // Show cost
+                std::string cost;
+                for (int m = 0; m < 4; ++m) {
+                    if (recipe->material_cost[m] <= 0) continue;
+                    if (!cost.empty()) cost += ", ";
+                    const char* names[] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
+                    cost += std::to_string(recipe->material_cost[m]) + "x " + names[m];
+                }
+                ctx.text(3, synth_y, "Cost: " + cost, Color::DarkGray);
+                synth_y++;
+                ctx.text(3, synth_y, "[y] Synthesize", Color::Yellow);
+            } else {
+                ctx.text(3, synth_y, "No known recipe.", Color::DarkGray);
+            }
+        }
+        synth_y += 2;
+    } else {
+        ctx.text(3, synth_y, "Learn 2+ blueprints to synthesize.", Color::DarkGray);
+        synth_y += 2;
+    }
+
     // Materials section
-    int mat_y = slot_y + 5;
+    int mat_y = synth_y;
     draw_section_header(ctx, mat_y, "MATERIALS");
     mat_y += 2;
     int mx = 3;
@@ -1450,9 +1558,6 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         }
 
         // Enhancement slot details
-        ry++;
-        draw_section_header(ctx, ry, "ENHANCEMENTS");
-        // Note: this draws on the full ctx which spans full width, so it works
         ry += 2;
         for (int si = 0; si < 3; ++si) {
             bool locked = (si >= item.enhancement_slots);
@@ -1470,7 +1575,7 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
         // Actions
         ry += 2;
-        draw_section_header(ctx, ry, "ACTIONS");
+        ctx.text(rx, ry, "ACTIONS", Color::White);
         ry += 2;
 
         bool has_repair = player_has_skill(*player_, SkillId::BasicRepair);
@@ -1485,15 +1590,19 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         ctx.text(rx, ry++, "[a] Analyze", has_analyze ? Color::White : Color::DarkGray);
         ctx.text(rx, ry++, "[s] Salvage", has_salvage ? Color::White : Color::DarkGray);
     } else {
-        ctx.text(rx, 4, "Place an item on the", Color::DarkGray);
-        ctx.text(rx, 5, "workbench to begin.", Color::DarkGray);
+        ctx.text(rx, 3, "Place an item on the", Color::DarkGray);
+        ctx.text(rx, 4, "workbench to begin.", Color::DarkGray);
+        ctx.text(rx, 6, "1. Select workbench", Color::DarkGray);
+        ctx.text(rx, 7, "2. Press [Space] to place", Color::DarkGray);
+        ctx.text(rx, 8, "3. Use [r] [a] [s] actions", Color::DarkGray);
+        ctx.text(rx, 9, "4. Select slots to enhance", Color::DarkGray);
     }
 
     // Learned blueprints section (bottom right)
     if (!player_->learned_blueprints.empty()) {
         int bp_y = ctx.height() - 2 - static_cast<int>(player_->learned_blueprints.size());
         if (bp_y > ry + 2) {
-            draw_section_header(ctx, bp_y - 2, "BLUEPRINTS");
+            ctx.text(rx, bp_y - 2, "BLUEPRINTS", Color::White);
             for (const auto& bp : player_->learned_blueprints) {
                 ctx.text(rx, bp_y, bp.name, Color::Cyan);
                 bp_y++;

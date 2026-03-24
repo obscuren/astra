@@ -70,9 +70,12 @@ private:
     const Item* look_item_ = nullptr;
 
     // Tinkering tab
-    enum class TinkerFocus { Workbench, Slots, Materials };
+    enum class TinkerFocus { Workbench, Slots, Synthesizer, Materials };
     TinkerFocus tinker_focus_ = TinkerFocus::Workbench;
     int tinker_slot_cursor_ = 0;     // which enhancement slot (0-2)
+    int synth_bp_cursor_ = 0;        // 0 = left blueprint box, 1 = right
+    int synth_bp1_ = -1;             // index into player's learned_blueprints
+    int synth_bp2_ = -1;
     Item* workbench_item_ = nullptr; // pointer into player inventory or equipment
     int workbench_inv_idx_ = -1;     // index in player inventory, or -1 if from equipment
 

@@ -62,4 +62,24 @@ bool player_has_skill(const Player& player, SkillId id);
 // Initialize enhancement_slots based on rarity (call on item creation)
 void init_enhancement_slots(Item& item);
 
+// --- Synthesizer ---
+
+struct SynthesisRecipe {
+    const char* blueprint_1;
+    const char* blueprint_2;
+    const char* result_name;
+    const char* result_desc;
+    ItemType result_type;
+    EquipSlot result_slot;
+    char result_glyph;
+    StatModifiers base_modifiers;
+    int base_durability;
+    int material_cost[4]; // [0]=Nano-Fiber, [1]=Power Core, [2]=Circuit Board, [3]=Alloy Ingot
+};
+
+const std::vector<SynthesisRecipe>& synthesis_recipes();
+const SynthesisRecipe* find_recipe(const std::string& bp1, const std::string& bp2);
+TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
+                              Player& player, std::mt19937& rng);
+
 } // namespace astra
