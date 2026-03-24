@@ -763,11 +763,19 @@ void Game::new_game() {
         player_.inventory.items.push_back(stack(build_battery(), 5));
         player_.inventory.items.push_back(stack(build_ration_pack(), 10));
         player_.inventory.items.push_back(stack(build_combat_stim(), 3));
-        player_.inventory.items.push_back(stack(build_nano_fiber(), 3));
-        player_.inventory.items.push_back(stack(build_power_core(), 2));
+        player_.inventory.items.push_back(stack(build_nano_fiber(), 10));
+        player_.inventory.items.push_back(stack(build_power_core(), 10));
+        player_.inventory.items.push_back(stack(build_circuit_board(), 10));
+        player_.inventory.items.push_back(stack(build_alloy_ingot(), 10));
         player_.inventory.items.push_back(build_combat_knife());
         player_.inventory.items.push_back(build_plasma_pistol());
         player_.inventory.items.push_back(stack(build_emp_grenade(), 2));
+
+        // Pre-learn some blueprints for Synthesizer testing
+        player_.learned_blueprints.push_back({1001, "Plasma Emitter", "A superheated plasma projection system."});
+        player_.learned_blueprints.push_back({1101, "Blade Housing", "Structural frame for edged weapons."});
+        player_.learned_blueprints.push_back({3001, "Plating Alloy", "Composite metal alloy for defensive plating."});
+        player_.learned_blueprints.push_back({4001, "Optic Module", "Enhanced optical sensor array."});
 
         log("Full loadout equipped.");
     }
