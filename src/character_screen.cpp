@@ -1421,7 +1421,11 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         ctx.put(nx, wb_y + 1, workbench_item_->glyph, rarity_color(workbench_item_->rarity));
         ctx.text(nx + 2, wb_y + 1, workbench_item_->name, rarity_color(workbench_item_->rarity));
     } else {
-        ctx.text(wb_x + 4, wb_y + 1, "Place item here [Space]", Color::DarkGray);
+    {
+        std::string empty_msg = "Empty, no item";
+        int emx = wb_x + (wb_w - static_cast<int>(empty_msg.size())) / 2;
+        ctx.text(emx, wb_y + 1, empty_msg, Color::DarkGray);
+    }
     }
 
     // Connector line from workbench to slots
@@ -1430,18 +1434,28 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
     ctx.put(conn_x, wb_y + 4, BoxDraw::V, Color::DarkGray);
 
     // Enhancement slots (3 boxes, 9 wide × 3 tall each)
-    int slot_w = 9;
+    int slot_w = 11;
     int slot_gap = 2;
-    int slots_total_w = slot_w * 3 + slot_gap * 2;
-    int slot_start_x = (half - slots_total_w) / 2;
+    // Center slots on the workbench center (conn_x is mid of slot 2)
+    int slot_start_x = conn_x - (slot_w + slot_gap) - slot_w / 2;
     int slot_y = wb_y + 5;
 
-    // Horizontal connector from center line to slots
-    ctx.put(conn_x, slot_y - 1, BoxDraw::BT, Color::DarkGray);
-    for (int x = slot_start_x + slot_w / 2; x <= slot_start_x + slots_total_w - slot_w / 2; ++x) {
-        if (x != conn_x)
-            ctx.put(x, slot_y - 1, BoxDraw::H, Color::DarkGray);
-    }
+    // Connector lines from workbench to slots:
+    //   │ (vertical from workbench)
+    //   ┌────┬────┐ (horizontal with corners at ends, T at center)
+    //   │    │    │ (vertical into each slot)
+    int slot1_cx = slot_start_x + slot_w / 2;
+    int slot3_cx = slot_start_x + 2 * (slot_w + slot_gap) + slot_w / 2;
+    int hy = slot_y - 1; // horizontal line row
+
+    // Horizontal line
+    for (int x = slot1_cx; x <= slot3_cx; ++x)
+        ctx.put(x, hy, BoxDraw::H, Color::DarkGray);
+
+    // Junctions: corners at ends, T at center where vertical comes from above
+    ctx.put(slot1_cx, hy, BoxDraw::TL, Color::DarkGray);   // ┌ left end
+    ctx.put(conn_x,   hy, BoxDraw::CROSS, Color::DarkGray); // ┼ center (vertical crosses horizontal)
+    ctx.put(slot3_cx, hy, BoxDraw::TR, Color::DarkGray);   // ┐ right end
 
     int max_slots = workbench_item_ ? workbench_item_->enhancement_slots : 0;
 
@@ -1451,9 +1465,6 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         bool locked = (si >= max_slots);
         bool selected = (tinker_focus_ == TinkerFocus::Slots && tinker_slot_cursor_ == si);
         Color border = selected ? Color::Yellow : Color::DarkGray;
-
-        // Vertical connector down from horizontal line
-        ctx.put(sx + slot_w / 2, slot_y - 1, BoxDraw::TT, Color::DarkGray);
 
         // Box
         ctx.put(sx, sy, BoxDraw::TL, border);
@@ -1474,7 +1485,10 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
         // Content
         if (locked) {
-            ctx.text(sx + 2, sy + 1, "locked", Color::DarkGray);
+        {
+            int lpad = (slot_w - 2 - 6) / 2; // center "locked" (6 chars) in inner width
+            ctx.text(sx + 1 + lpad, sy + 1, "locked", Color::DarkGray);
+        }
         } else if (workbench_item_ && si < static_cast<int>(workbench_item_->enhancements.size())
                    && workbench_item_->enhancements[si].filled) {
             const auto& enh = workbench_item_->enhancements[si];
@@ -1483,9 +1497,15 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             else if (enh.bonus.defense) bonus = "+" + std::to_string(enh.bonus.defense) + "DEF";
             else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
             Color enh_color = enh.committed ? Color::Green : Color::Yellow;
-            ctx.text(sx + 1, sy + 1, bonus, enh_color);
+        {
+            int bpad = (slot_w - 2 - static_cast<int>(bonus.size())) / 2;
+            ctx.text(sx + 1 + bpad, sy + 1, bonus, enh_color);
+        }
         } else {
-            ctx.text(sx + 2, sy + 1, "empty", Color::DarkGray);
+        {
+            int epad = (slot_w - 2 - 5) / 2; // center "empty" (5 chars)
+            ctx.text(sx + 1 + epad, sy + 1, "empty", Color::DarkGray);
+        }
         }
     }
 
@@ -1529,7 +1549,11 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
                 int nx = bx + (bp_w - static_cast<int>(name.size())) / 2;
                 ctx.text(nx, by + 1, name, Color::Cyan);
             } else {
-                ctx.text(bx + 2, by + 1, "[Space]", Color::DarkGray);
+            {
+                std::string placeholder = (bi == 0) ? "Blueprint 1" : "Blueprint 2";
+                int px = bx + (bp_w - static_cast<int>(placeholder.size())) / 2;
+                ctx.text(px, by + 1, placeholder, Color::DarkGray);
+            }
             }
         }
 
