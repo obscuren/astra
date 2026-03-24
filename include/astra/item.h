@@ -10,7 +10,7 @@
 namespace astra {
 
 enum class ItemType : uint8_t {
-    Equipment,
+    Equipment = 0,  // legacy — kept for save compat
     Trash,
     Credits,
     Food,
@@ -18,7 +18,20 @@ enum class ItemType : uint8_t {
     Battery,
     Light,
     Special,
+    // V2 item types
+    MeleeWeapon,
+    RangedWeapon,
+    Armor,
+    Shield,
+    Accessory,
+    Grenade,
+    Junk,
+    CraftingMaterial,
+    ShipComponent,
+    QuestItem,
 };
+
+const char* item_type_name(ItemType t);
 
 enum class EquipSlot : uint8_t {
     Face,
@@ -98,6 +111,7 @@ struct Item {
     int buy_value = 0;
     int sell_value = 0;
     StatModifiers modifiers;
+    int item_level = 1;
     int level_requirement = 0;
     int durability = 0;
     int max_durability = 0;

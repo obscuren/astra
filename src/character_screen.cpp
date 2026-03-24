@@ -243,7 +243,7 @@ void CharacterScreen::open_context_menu() {
         if (inv_cursor_ < 0 || inv_cursor_ >= static_cast<int>(player_->inventory.items.size())) return;
         const auto& item = player_->inventory.items[inv_cursor_];
         context_menu_.add_option('l', "look");
-        if (item.type == ItemType::Equipment && item.slot) {
+        if (item.slot.has_value()) {
             context_menu_.add_option('e', "equip");
         }
         if (item.ranged) {
@@ -360,13 +360,15 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
 
     draw_tab_bar(ctx);
 
-    // Content area below tab bar with horizontal padding
+    // Full-width area below tab bar (for section headers that span full width)
+    DrawContext full = ctx.sub(Rect{0, 2, ctx.width(), ctx.height() - 2});
+    // Padded content area for tab content
     int pad = 3;
     DrawContext content = ctx.sub(Rect{pad, 2, ctx.width() - pad * 2, ctx.height() - 2});
 
     switch (active_tab_) {
         case CharTab::Attributes: draw_attributes(content); break;
-        case CharTab::Skills:     draw_skills(content); break;
+        case CharTab::Skills:     draw_skills(full); break;
         case CharTab::Equipment:  draw_equipment(content); break;
         case CharTab::Reputation: draw_reputation(content); break;
         case CharTab::Tinkering:  draw_stub(content, "Tinkering bench not available."); break;

@@ -2,6 +2,30 @@
 
 namespace astra {
 
+const char* item_type_name(ItemType t) {
+    switch (t) {
+        case ItemType::Equipment:        return "Equipment";
+        case ItemType::Trash:            return "Trash";
+        case ItemType::Credits:          return "Credits";
+        case ItemType::Food:             return "Food";
+        case ItemType::Stim:             return "Stims";
+        case ItemType::Battery:          return "Batteries";
+        case ItemType::Light:            return "Light Sources";
+        case ItemType::Special:          return "Special";
+        case ItemType::MeleeWeapon:      return "Melee Weapons";
+        case ItemType::RangedWeapon:     return "Ranged Weapons";
+        case ItemType::Armor:            return "Armor";
+        case ItemType::Shield:           return "Shields";
+        case ItemType::Accessory:        return "Accessories";
+        case ItemType::Grenade:          return "Grenades";
+        case ItemType::Junk:             return "Junk";
+        case ItemType::CraftingMaterial: return "Crafting Materials";
+        case ItemType::ShipComponent:    return "Ship Components";
+        case ItemType::QuestItem:        return "Quest Items";
+    }
+    return "Unknown";
+}
+
 const char* equip_slot_name(EquipSlot slot) {
     switch (slot) {
         case EquipSlot::Face:      return "Face";

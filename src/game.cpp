@@ -540,7 +540,7 @@ void Game::handle_play_input(int key) {
                 int count = static_cast<int>(player_.inventory.items.size());
                 if (count > 0 && inventory_cursor_ < count) {
                     const auto& item = player_.inventory.items[inventory_cursor_];
-                    if (item.type == ItemType::Equipment && item.slot) {
+                    if (item.slot.has_value()) {
                         equip_item(inventory_cursor_);
                     } else if (item.usable) {
                         use_item(inventory_cursor_);
@@ -2753,7 +2753,7 @@ void Game::equip_item(int index) {
     if (index < 0 || index >= static_cast<int>(items.size())) return;
 
     auto& item = items[index];
-    if (item.type != ItemType::Equipment || !item.slot) {
+    if (!item.slot.has_value()) {
         log("Can't equip " + item.name + ".");
         return;
     }
@@ -3720,7 +3720,7 @@ void Game::render_side_panel() {
             if (!inv.items.empty() && inventory_cursor_ < static_cast<int>(inv.items.size())) {
                 const auto& sel = inv.items[inventory_cursor_];
                 std::string hints = "+/- ";
-                if (sel.type == ItemType::Equipment && sel.slot)
+                if (sel.slot.has_value())
                     hints += "[Enter]equip ";
                 else if (sel.usable)
                     hints += "[Enter]use ";

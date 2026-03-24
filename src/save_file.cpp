@@ -220,6 +220,7 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_i32(item.buy_value);
     w.write_i32(item.sell_value);
     write_stat_modifiers(w, item.modifiers);
+    w.write_i32(item.item_level);
     w.write_i32(item.level_requirement);
     w.write_i32(item.durability);
     w.write_i32(item.max_durability);
@@ -250,6 +251,7 @@ static Item read_item(BinaryReader& r) {
     item.buy_value = r.read_i32();
     item.sell_value = r.read_i32();
     item.modifiers = read_stat_modifiers(r);
+    item.item_level = r.read_i32();
     item.level_requirement = r.read_i32();
     item.durability = r.read_i32();
     item.max_durability = r.read_i32();
