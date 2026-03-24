@@ -272,23 +272,14 @@ void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& item
         ctx.put(x, i, item.glyph, rarity_color(item.rarity));
         x += 2;
 
-        // Name
-        std::string name = item.name;
-        if (item.stackable && item.stack_count > 1) {
-            name += " x" + std::to_string(item.stack_count);
-        }
-        Color name_color = selected ? Color::White : rarity_color(item.rarity);
-        int max_name_len = w - x - 6; // leave room for price
-        if (static_cast<int>(name.size()) > max_name_len && max_name_len > 0) {
-            name = name.substr(0, max_name_len);
-        }
-        ctx.text(x, i, name, name_color);
+        // Name (rarity color) + stack count (white)
+        draw_item_name(ctx, x, i, item, selected);
 
         // Price right-aligned
         int price = show_buy_price ? item.buy_value : item.sell_value;
         std::string price_str = std::to_string(price) + "$";
         int px = w - static_cast<int>(price_str.size()) - 1;
-        if (px > x + static_cast<int>(name.size())) {
+        if (px > x + static_cast<int>(item.name.size()) + 2) {
             ctx.text(px, i, price_str, Color::Yellow);
         }
     }

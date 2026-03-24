@@ -2287,7 +2287,7 @@ void Game::recompute_fov() {
     }
 
     // Determine effective view radius based on context
-    int radius = player_.view_radius;
+    int radius = player_.view_radius + player_.equipment.total_modifiers().view_radius;
     bool is_indoor = map_.map_type() == MapType::SpaceStation
                   || map_.map_type() == MapType::DerelictStation
                   || map_.map_type() == MapType::Starship;
@@ -2411,7 +2411,9 @@ void Game::process_npc_turn(Npc& npc) {
 
         // Adjacent — attack
         if (dist <= 1) {
-            int damage = npc.attack_damage();
+            int raw_damage = npc.attack_damage();
+            int defense = player_.effective_defense();
+            int damage = raw_damage - defense;
             if (damage < 1) damage = 1;
             if (player_.invulnerable) {
                 log(npc.display_name() + " strikes you but deals no damage.");
@@ -2479,7 +2481,7 @@ void Game::attack_npc(Npc& npc) {
         log("Your attack has no effect on " + npc.display_name() + ".");
         return;
     }
-    int damage = player_.attack_value;
+    int damage = player_.effective_attack();
     if (damage < 1) damage = 1;
     npc.hp -= damage;
     if (npc.hp < 0) npc.hp = 0;
@@ -2649,8 +2651,8 @@ void Game::shoot_target() {
         return;
     }
 
-    // Damage = weapon attack modifier + player base attack
-    int damage = player_.attack_value + weapon->modifiers.attack;
+    // Damage = effective attack (includes STR modifier + all equipment)
+    int damage = player_.effective_attack();
     if (damage < 1) damage = 1;
     target_npc_->hp -= damage;
     if (target_npc_->hp < 0) target_npc_->hp = 0;
@@ -3228,10 +3230,11 @@ void Game::render_stats_bar() {
 
     // Right side: stats, calendar, location — measure total width for right-alignment
     std::string right;
-    right += " QN:";  right += std::to_string(player_.quickness);
+    int eff_qn = player_.quickness + player_.equipment.total_modifiers().quickness;
+    right += " QN:";  right += std::to_string(eff_qn);
     right += " :: MS:"; right += std::to_string(player_.move_speed);
-    right += " :: AV:"; right += std::to_string(player_.attack_value);
-    right += " :: DV:"; right += std::to_string(player_.defense_value);
+    right += " :: AV:"; right += std::to_string(player_.effective_attack());
+    right += " :: DV:"; right += std::to_string(player_.effective_dodge());
     right += " :: ";    right += cal;
     right += " :: ";    right += map_.location_name();
     right += " ";
@@ -3252,7 +3255,7 @@ void Game::render_stats_bar() {
     // Render right side with per-segment colors
     int x = rx;
     x = ctx.label_value(x, 0, "QN:", Color::DarkGray,
-        std::to_string(player_.quickness), Color::White);
+        std::to_string(player_.quickness + player_.equipment.total_modifiers().quickness), Color::White);
 
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
     x = ctx.label_value(x, 0, "MS:", Color::DarkGray,
@@ -3260,11 +3263,11 @@ void Game::render_stats_bar() {
 
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
     x = ctx.label_value(x, 0, "AV:", Color::DarkGray,
-        std::to_string(player_.attack_value), Color::Blue);
+        std::to_string(player_.effective_attack()), Color::Blue);
 
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
     x = ctx.label_value(x, 0, "DV:", Color::DarkGray,
-        std::to_string(player_.defense_value), Color::Blue);
+        std::to_string(player_.effective_dodge()), Color::Blue);
 
     // Calendar + day progress bar + phase icon
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
@@ -3747,11 +3750,8 @@ void Game::render_side_panel() {
                     bool selected = (idx == inventory_cursor_);
                     if (selected) ctx.text(0, y, ">", Color::Yellow);
                     ctx.put(1, y, item.glyph, item.color);
-                    std::string label = " " + item.name;
-                    if (item.stackable && item.stack_count > 1)
-                        label += " x" + std::to_string(item.stack_count);
-                    Color fg = selected ? Color::White : rarity_color(item.rarity);
-                    ctx.text(2, y, label, fg);
+                    ctx.put(2, y, ' ');
+                    draw_item_name(ctx, 3, y, item, selected);
                     ++y;
                 }
                 // Weight summary

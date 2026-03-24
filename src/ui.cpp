@@ -492,6 +492,21 @@ void Dialog::draw(Renderer* renderer, int screen_w, int screen_h) {
     }
 }
 
+// --- Item name rendering ---
+
+int draw_item_name(DrawContext& ctx, int x, int y, const Item& item, bool selected) {
+    Color name_color = selected ? Color::White : rarity_color(item.rarity);
+    ctx.text(x, y, item.name, name_color);
+    x += static_cast<int>(item.name.size());
+
+    if (item.stackable && item.stack_count > 1) {
+        std::string stack = " x" + std::to_string(item.stack_count);
+        ctx.text(x, y, stack, Color::White);
+        x += static_cast<int>(stack.size());
+    }
+    return x;
+}
+
 // --- Panel ---
 
 Panel::Panel(Renderer* renderer, Rect bounds, std::string_view title)

@@ -176,7 +176,7 @@ Item build_combat_knife() {
     it.id = 1101; it.name = "Combat Knife"; it.type = ItemType::MeleeWeapon;
     it.description = "A short, serrated blade. Fast and deadly at close range.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
-    it.glyph = '('; it.color = Color::White; it.weight = 2;
+    it.glyph = '/'; it.color = Color::White; it.weight = 2;
     it.buy_value = 60; it.sell_value = 20; it.modifiers.attack = 2;
     it.max_durability = 60; it.durability = 60;
     return it;
@@ -187,7 +187,7 @@ Item build_vibro_blade() {
     it.id = 1102; it.name = "Vibro Blade"; it.type = ItemType::MeleeWeapon;
     it.description = "A high-frequency vibrating blade that cuts through armor.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Uncommon;
-    it.glyph = '('; it.color = Color::Green; it.weight = 3;
+    it.glyph = '/'; it.color = Color::Green; it.weight = 3;
     it.buy_value = 180; it.sell_value = 60; it.modifiers.attack = 4;
     it.max_durability = 50; it.durability = 50;
     return it;
@@ -198,7 +198,7 @@ Item build_plasma_saber() {
     it.id = 1103; it.name = "Plasma Saber"; it.type = ItemType::MeleeWeapon;
     it.description = "A long blade wreathed in superheated plasma. Devastating.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Rare;
-    it.glyph = '('; it.color = Color::Blue; it.weight = 4;
+    it.glyph = '/'; it.color = Color::Blue; it.weight = 4;
     it.buy_value = 400; it.sell_value = 135; it.modifiers.attack = 7;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -209,7 +209,7 @@ Item build_stun_baton() {
     it.id = 1104; it.name = "Stun Baton"; it.type = ItemType::MeleeWeapon;
     it.description = "An electrified baton. Slow but stuns on hit.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
-    it.glyph = '('; it.color = Color::Yellow; it.weight = 3;
+    it.glyph = '/'; it.color = Color::Yellow; it.weight = 3;
     it.buy_value = 80; it.sell_value = 25; it.modifiers.attack = 1;
     it.modifiers.quickness = 5; it.max_durability = 70; it.durability = 70;
     return it;
@@ -220,7 +220,7 @@ Item build_ancient_mono_edge() {
     it.id = 1105; it.name = "Ancient Mono-Edge"; it.type = ItemType::MeleeWeapon;
     it.description = "A relic blade from a lost civilization. Its molecular edge never dulls.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Epic;
-    it.glyph = '('; it.color = Color::Magenta; it.weight = 2;
+    it.glyph = '/'; it.color = Color::Magenta; it.weight = 2;
     it.buy_value = 1200; it.sell_value = 400; it.modifiers.attack = 10;
     it.max_durability = 200; it.durability = 200;
     return it;
@@ -268,7 +268,7 @@ Item build_flight_helmet() {
     it.id = 3004; it.name = "Flight Helmet"; it.type = ItemType::Armor;
     it.description = "Lightweight helmet with a tinted visor.";
     it.slot = EquipSlot::Head; it.rarity = Rarity::Common;
-    it.glyph = '['; it.color = Color::White; it.weight = 2;
+    it.glyph = '^'; it.color = Color::White; it.weight = 2;
     it.buy_value = 50; it.sell_value = 15; it.modifiers.defense = 1;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -279,7 +279,7 @@ Item build_tactical_helmet() {
     it.id = 3005; it.name = "Tactical Helmet"; it.type = ItemType::Armor;
     it.description = "Ballistic-rated helmet with HUD overlay.";
     it.slot = EquipSlot::Head; it.rarity = Rarity::Uncommon;
-    it.glyph = '['; it.color = Color::Green; it.weight = 3;
+    it.glyph = '^'; it.color = Color::Green; it.weight = 3;
     it.buy_value = 150; it.sell_value = 50; it.modifiers.defense = 2;
     it.modifiers.view_radius = 1; it.max_durability = 60; it.durability = 60;
     return it;
@@ -290,7 +290,7 @@ Item build_combat_boots() {
     it.id = 3006; it.name = "Combat Boots"; it.type = ItemType::Armor;
     it.description = "Sturdy boots with reinforced soles.";
     it.slot = EquipSlot::Feet; it.rarity = Rarity::Common;
-    it.glyph = '['; it.color = Color::White; it.weight = 3;
+    it.glyph = '_'; it.color = Color::White; it.weight = 3;
     it.buy_value = 60; it.sell_value = 20; it.modifiers.defense = 1;
     it.max_durability = 50; it.durability = 50;
     return it;
@@ -301,7 +301,7 @@ Item build_mag_lock_boots() {
     it.id = 3007; it.name = "Mag-Lock Boots"; it.type = ItemType::Armor;
     it.description = "Magnetic boots for zero-G traversal. Surprisingly agile.";
     it.slot = EquipSlot::Feet; it.rarity = Rarity::Uncommon;
-    it.glyph = '['; it.color = Color::Green; it.weight = 4;
+    it.glyph = '_'; it.color = Color::Green; it.weight = 4;
     it.buy_value = 120; it.sell_value = 40; it.modifiers.defense = 1;
     it.modifiers.quickness = 3; it.max_durability = 60; it.durability = 60;
     return it;
@@ -312,7 +312,7 @@ Item build_arm_guard() {
     it.id = 3008; it.name = "Arm Guard"; it.type = ItemType::Armor;
     it.description = "Lightweight forearm protector.";
     it.slot = EquipSlot::LeftArm; it.rarity = Rarity::Common;
-    it.glyph = '['; it.color = Color::White; it.weight = 2;
+    it.glyph = '}'; it.color = Color::White; it.weight = 2;
     it.buy_value = 40; it.sell_value = 12; it.modifiers.defense = 1;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -323,7 +323,7 @@ Item build_riot_shield() {
     it.id = 3009; it.name = "Riot Shield"; it.type = ItemType::Shield;
     it.description = "Heavy ballistic shield. Blocks incoming fire at the cost of speed.";
     it.slot = EquipSlot::LeftHand; it.rarity = Rarity::Uncommon;
-    it.glyph = ')'; it.color = Color::Green; it.weight = 6;
+    it.glyph = '0'; it.color = Color::Green; it.weight = 6;
     it.buy_value = 200; it.sell_value = 65; it.modifiers.defense = 3;
     it.modifiers.quickness = -5; it.max_durability = 100; it.durability = 100;
     return it;
@@ -338,7 +338,7 @@ Item build_recon_visor() {
     it.id = 4001; it.name = "Recon Visor"; it.type = ItemType::Accessory;
     it.description = "Enhanced optics with thermal overlay. Extends vision range.";
     it.slot = EquipSlot::Face; it.rarity = Rarity::Uncommon;
-    it.glyph = '"'; it.color = Color::Green; it.weight = 1;
+    it.glyph = '&'; it.color = Color::Green; it.weight = 1;
     it.buy_value = 200; it.sell_value = 65; it.modifiers.view_radius = 2;
     return it;
 }
@@ -348,7 +348,7 @@ Item build_night_goggles() {
     it.id = 4002; it.name = "Night Goggles"; it.type = ItemType::Accessory;
     it.description = "Amplifies ambient light. Useful in dark environments.";
     it.slot = EquipSlot::Face; it.rarity = Rarity::Common;
-    it.glyph = '"'; it.color = Color::White; it.weight = 1;
+    it.glyph = '&'; it.color = Color::White; it.weight = 1;
     it.buy_value = 80; it.sell_value = 25; it.modifiers.view_radius = 1;
     return it;
 }
@@ -358,7 +358,7 @@ Item build_jetpack() {
     it.id = 4003; it.name = "Jetpack"; it.type = ItemType::Accessory;
     it.description = "Compact thruster pack. Greatly increases movement speed.";
     it.slot = EquipSlot::Back; it.rarity = Rarity::Rare;
-    it.glyph = '{'; it.color = Color::Blue; it.weight = 5;
+    it.glyph = '\\'; it.color = Color::Blue; it.weight = 5;
     it.buy_value = 500; it.sell_value = 170; it.modifiers.quickness = 5;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -369,7 +369,7 @@ Item build_cargo_pack() {
     it.id = 4004; it.name = "Cargo Pack"; it.type = ItemType::Accessory;
     it.description = "A reinforced backpack. Increases carrying capacity.";
     it.slot = EquipSlot::Back; it.rarity = Rarity::Common;
-    it.glyph = '{'; it.color = Color::White; it.weight = 2;
+    it.glyph = '\\'; it.color = Color::White; it.weight = 2;
     it.buy_value = 60; it.sell_value = 20;
     return it;
 }

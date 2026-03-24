@@ -1143,14 +1143,7 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
         if (selected) ctx.put(rx - 1, ry, '>', Color::Yellow);
 
         ctx.put(rx, ry, item.glyph, rarity_color(item.rarity));
-
-        std::string name = item.name;
-        if (item.stackable && item.stack_count > 1) {
-            name += " x" + std::to_string(item.stack_count);
-        }
-        int max_name = rw - 6;
-        if (static_cast<int>(name.size()) > max_name) name = name.substr(0, max_name);
-        ctx.text(rx + 2, ry, name, selected ? Color::White : rarity_color(item.rarity));
+        draw_item_name(ctx, rx + 2, ry, item, selected);
 
         std::string price = std::to_string(item.sell_value) + "$";
         int px = half + rw - static_cast<int>(price.size());

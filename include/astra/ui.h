@@ -200,6 +200,10 @@ private:
 struct Item; // forward declare
 void draw_item_info(DrawContext& ctx, const Item& item);
 
+// Draw an item name: name in rarity color (or white if selected), stack count in white.
+// Returns the x position after the last character drawn.
+int draw_item_name(DrawContext& ctx, int x, int y, const Item& item, bool selected = false);
+
 // A reusable popup menu with the game's art style:
 //   ╡═║"║═╞ ornament at top, title separator, options with
 //   [X] hotkey labels, arrow-key navigation, [Esc] Cancel footer.
