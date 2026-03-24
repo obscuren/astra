@@ -91,6 +91,7 @@ struct StatModifiers {
 
 struct EnhancementSlot {
     bool filled = false;
+    bool committed = false;   // true after assemble, false while staged
     uint32_t material_id = 0;
     std::string material_name;
     StatModifiers bonus;

@@ -70,13 +70,24 @@ void CharacterScreen::close() { open_ = false; }
 bool CharacterScreen::handle_input(int key) {
     if (!open_) return false;
 
-    if (key == 27) { // ESC
+    // ESC: close overlays first, then the screen itself
+    if (key == 27) {
+        if (look_open_) {
+            look_open_ = false;
+            look_item_ = nullptr;
+            return true;
+        }
+        if (context_menu_.is_open()) {
+            context_menu_.close();
+            return true;
+        }
         close();
         return true;
     }
 
-    // Tab switching with q/e
-    if (key == 'q') {
+    // Tab switching with q/e — skip when current tab uses these keys
+    bool tab_switch_blocked = false;
+    if (key == 'q' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
         t = (t - 1 + char_tab_count) % char_tab_count;
         active_tab_ = static_cast<CharTab>(t);
@@ -84,7 +95,7 @@ bool CharacterScreen::handle_input(int key) {
         scroll_ = 0;
         return true;
     }
-    if (key == 'e') {
+    if (key == 'e' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
         t = (t + 1) % char_tab_count;
         active_tab_ = static_cast<CharTab>(t);
@@ -335,7 +346,8 @@ bool CharacterScreen::handle_input(int key) {
                 }
                 context_menu_.open();
             }
-            if (key == 'y' && synth_bp1_ >= 0 && synth_bp2_ >= 0) {
+            if (key == 'y' && synth_bp1_ >= 0 && synth_bp2_ >= 0 &&
+                player_has_skill(*player_, SkillId::Synthesize)) {
                 const auto& bp1 = player_->learned_blueprints[synth_bp1_].name;
                 const auto& bp2 = player_->learned_blueprints[synth_bp2_].name;
                 auto result = synthesize_item(bp1, bp2, *player_, rng_);
@@ -388,6 +400,23 @@ bool CharacterScreen::handle_input(int key) {
                     workbench_item_ = nullptr;
                     workbench_inv_idx_ = -1;
                 }
+            }
+            if (key == 'f') {
+                // Assemble (finalize) — commit pending enhancements
+                auto result = commit_enhancements(*workbench_item_);
+                context_message_ = result.message;
+                context_msg_timer_ = 3;
+                if (result.success) {
+                    // Clear workbench after successful assembly
+                    workbench_item_ = nullptr;
+                    workbench_inv_idx_ = -1;
+                }
+            }
+            if (key == 'x' && tinker_focus_ == TinkerFocus::Slots) {
+                // Clear slot — undo pending enhancement
+                auto result = clear_enhancement_slot(*workbench_item_, tinker_slot_cursor_, *player_);
+                context_message_ = result.message;
+                context_msg_timer_ = 3;
             }
         }
     } else if (active_tab_ == CharTab::Journal) {
@@ -534,7 +563,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     int win_h = screen_h - pad_y * 2;
     Panel panel(renderer_, Rect{pad_x, pad_y, win_w, win_h});
     if (active_tab_ == CharTab::Tinkering) {
-        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [y] Synthesize");
+        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth");
     } else if (active_tab_ == CharTab::Skills) {
         panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn");
     } else if (has_pending()) {
@@ -569,7 +598,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     bool needs_divider = (active_tab_ == CharTab::Attributes
                        || active_tab_ == CharTab::Skills
                        || active_tab_ == CharTab::Equipment
-                       || active_tab_ == CharTab::Tinkering
+                       || (active_tab_ == CharTab::Tinkering && player_has_skill(*player_, SkillId::Cat_Tinkering))
                        || active_tab_ == CharTab::Journal);
     if (needs_divider) {
         int divider_x = content.width() / 2;
@@ -1352,6 +1381,13 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 // ─────────────────────────────────────────────────────────────────
 
 void CharacterScreen::draw_tinkering(DrawContext& ctx) {
+    // Gate: require Tinkering category unlocked
+    if (!player_has_skill(*player_, SkillId::Cat_Tinkering)) {
+        ctx.text_center(ctx.height() / 2 - 1, "Tinkering workbench unavailable.", Color::DarkGray);
+        ctx.text_center(ctx.height() / 2 + 1, "Learn the Tinkering skill to use this station.", Color::DarkGray);
+        return;
+    }
+
     int w = ctx.width();
     int half = w / 2;
 
@@ -1446,7 +1482,8 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             if (enh.bonus.attack) bonus = "+" + std::to_string(enh.bonus.attack) + "ATK";
             else if (enh.bonus.defense) bonus = "+" + std::to_string(enh.bonus.defense) + "DEF";
             else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
-            ctx.text(sx + 1, sy + 1, bonus, Color::Green);
+            Color enh_color = enh.committed ? Color::Green : Color::Yellow;
+            ctx.text(sx + 1, sy + 1, bonus, enh_color);
         } else {
             ctx.text(sx + 2, sy + 1, "empty", Color::DarkGray);
         }
@@ -1457,7 +1494,11 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
     draw_section_header(ctx, synth_y, "SYNTHESIZER");
     synth_y += 2;
 
-    if (player_->learned_blueprints.size() >= 2) {
+    bool has_synthesize = player_has_skill(*player_, SkillId::Synthesize);
+    if (!has_synthesize) {
+        ctx.text(3, synth_y, "Requires Synthesize skill to use.", Color::DarkGray);
+        synth_y += 2;
+    } else if (player_->learned_blueprints.size() >= 2) {
         // Two blueprint boxes side by side
         int bp_w = 16;
         int bp_gap = 3;
@@ -1598,7 +1639,12 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
                 ctx.text(rx, ry, slot_label, Color::White);
                 if (locked) ctx.text(rx + 4, ry, "locked", Color::DarkGray);
                 else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled)
-                    ctx.text(rx + 4, ry, item.enhancements[si].material_name, Color::Green);
+                {
+                    const auto& enh = item.enhancements[si];
+                    std::string label = enh.material_name;
+                    if (!enh.committed) label += " (pending)";
+                    ctx.text(rx + 4, ry, label, enh.committed ? Color::Green : Color::Yellow);
+                }
                 else ctx.text(rx + 4, ry, "empty", Color::DarkGray);
                 ry++;
             }
@@ -1617,6 +1663,10 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             ctx.text(rx, ry++, repair_label, has_repair ? Color::White : Color::DarkGray);
             ctx.text(rx, ry++, "[a] Analyze", has_analyze ? Color::White : Color::DarkGray);
             ctx.text(rx, ry++, "[s] Salvage", has_salvage ? Color::White : Color::DarkGray);
+
+            bool pending = has_pending_enhancements(item);
+            ctx.text(rx, ry++, "[f] Assemble", pending ? Color::Yellow : Color::DarkGray);
+            ctx.text(rx, ry++, "[x] Clear slot", Color::DarkGray);
         }
     } else {
         ctx.text(rx, 3, "Place an item on the", Color::DarkGray);

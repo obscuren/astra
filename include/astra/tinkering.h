@@ -47,8 +47,17 @@ struct TinkerResult {
 int repair_cost(const Item& item);  // Nano-Fiber needed
 TinkerResult repair_item(Item& item, Player& player);
 
-// Enhance: slot a crafting material into an enhancement slot
+// Enhance: slot a crafting material into an enhancement slot (staged, not applied)
 TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Player& player);
+
+// Commit: apply all staged enhancements permanently
+TinkerResult commit_enhancements(Item& item);
+
+// Clear a staged enhancement slot, return material to inventory
+TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player);
+
+// Check if item has any uncommitted (staged) enhancements
+bool has_pending_enhancements(const Item& item);
 
 // Analyze: learn a blueprint from an item (may destroy it)
 TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng);

@@ -19,7 +19,7 @@ static const ClassTemplate s_dev_commander = {
     {SkillId::Cat_ShortBlade, SkillId::ShortBladeExpertise,
      SkillId::Cat_Pistol, SkillId::SteadyHand,
      SkillId::Cat_Endurance, SkillId::ThickSkin,
-     SkillId::Cat_Tinkering, SkillId::BasicRepair, SkillId::Disassemble},
+     SkillId::Cat_Tinkering, SkillId::BasicRepair, SkillId::Disassemble, SkillId::Synthesize},
     200, 50,                    // 200 SP, 50 credits
 };
 

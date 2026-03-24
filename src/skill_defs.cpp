@@ -64,6 +64,10 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Break down items into component parts. Higher intelligence "
              "yields better salvage.",
              false, 100, 17, "Intelligence"},
+            {SkillId::Synthesize, "Synthesize",
+             "Combine learned blueprints and crafting materials to create "
+             "entirely new items. Requires advanced molecular understanding.",
+             false, 150, 19, "Intelligence"},
         }},
         {SkillId::Cat_Endurance, "Endurance",
          "Physical resilience and mental fortitude. Shrug off damage and resist effects.", 50, {

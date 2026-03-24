@@ -35,6 +35,7 @@ enum class SkillId : uint32_t {
     // Tinkering
     BasicRepair = 600,
     Disassemble = 601,
+    Synthesize = 602,
     // Endurance
     ThickSkin = 700,
     IronWill = 701,

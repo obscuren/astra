@@ -237,6 +237,7 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u32(static_cast<uint32_t>(item.enhancements.size()));
     for (const auto& enh : item.enhancements) {
         w.write_u8(enh.filled ? 1 : 0);
+        w.write_u8(enh.committed ? 1 : 0);
         w.write_u32(enh.material_id);
         w.write_string(enh.material_name);
         w.write_i32(enh.bonus.attack);
@@ -284,6 +285,7 @@ static Item read_item(BinaryReader& r) {
     item.enhancements.resize(enh_count);
     for (uint32_t i = 0; i < enh_count; ++i) {
         item.enhancements[i].filled = r.read_u8() != 0;
+        item.enhancements[i].committed = r.read_u8() != 0;
         item.enhancements[i].material_id = r.read_u32();
         item.enhancements[i].material_name = r.read_string();
         item.enhancements[i].bonus.attack = r.read_i32();

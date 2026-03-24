@@ -682,6 +682,31 @@ void draw_item_info(DrawContext& ctx, const Item& item) {
         info += "  Buy:" + std::to_string(item.buy_value);
         info += "  Sell:" + std::to_string(item.sell_value);
         ctx.text(0, y, info, Color::DarkGray);
+        y++;
+    }
+
+    // Enhancements
+    if (!item.enhancements.empty()) {
+        y++;
+        ctx.text(0, y, "Enhancements:", Color::White);
+        y++;
+        for (int si = 0; si < static_cast<int>(item.enhancements.size()); ++si) {
+            if (y >= ctx.height()) break;
+            const auto& enh = item.enhancements[si];
+            if (enh.filled) {
+                std::string line = " [" + std::to_string(si + 1) + "] " + enh.material_name;
+                std::string bonus;
+                if (enh.bonus.attack) bonus += " ATK+" + std::to_string(enh.bonus.attack);
+                if (enh.bonus.defense) bonus += " DEF+" + std::to_string(enh.bonus.defense);
+                if (enh.bonus.view_radius) bonus += " VIS+" + std::to_string(enh.bonus.view_radius);
+                if (enh.bonus.quickness) bonus += " QCK+" + std::to_string(enh.bonus.quickness);
+                ctx.text(0, y, line, Color::Green);
+                if (!bonus.empty()) ctx.text(static_cast<int>(line.size()), y, bonus, Color::Cyan);
+            } else {
+                ctx.text(0, y, " [" + std::to_string(si + 1) + "] empty", Color::DarkGray);
+            }
+            y++;
+        }
     }
 }
 

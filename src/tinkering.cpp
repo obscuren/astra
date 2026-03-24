@@ -171,21 +171,79 @@ TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Play
         player.inventory.items.erase(player.inventory.items.begin() + mat_idx);
     }
 
-    // Apply enhancement
+    // Stage enhancement (pending — not applied until commit)
     auto& slot = item.enhancements[slot_index];
     slot.filled = true;
     slot.material_id = material_id;
     slot.material_name = effect->name;
     slot.bonus = effect->bonus;
 
-    // Apply bonus to item modifiers
-    item.modifiers.attack += effect->bonus.attack;
-    item.modifiers.defense += effect->bonus.defense;
-    item.modifiers.max_hp += effect->bonus.max_hp;
-    item.modifiers.view_radius += effect->bonus.view_radius;
-    item.modifiers.quickness += effect->bonus.quickness;
+    return {true, "Slotted " + std::string(effect->name) + ". [f] Assemble to apply."};
+}
 
-    return {true, "Enhanced with " + std::string(effect->name) + "!"};
+TinkerResult commit_enhancements(Item& item) {
+    int applied = 0;
+    for (auto& slot : item.enhancements) {
+        if (slot.filled && !slot.committed) {
+            // Apply bonus permanently
+            item.modifiers.attack += slot.bonus.attack;
+            item.modifiers.defense += slot.bonus.defense;
+            item.modifiers.max_hp += slot.bonus.max_hp;
+            item.modifiers.view_radius += slot.bonus.view_radius;
+            item.modifiers.quickness += slot.bonus.quickness;
+            slot.committed = true;
+            applied++;
+        }
+    }
+    if (applied == 0)
+        return {false, "Nothing to assemble."};
+    return {true, "Assembled! " + std::to_string(applied) + " enhancement(s) applied to " + item.name + "."};
+}
+
+TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) {
+    if (slot_index < 0 || slot_index >= static_cast<int>(item.enhancements.size()))
+        return {false, "Invalid slot."};
+
+    auto& slot = item.enhancements[slot_index];
+    if (!slot.filled)
+        return {false, "Slot is empty."};
+    if (slot.committed)
+        return {false, "Cannot remove committed enhancements."};
+
+    // Return material to inventory
+    const MaterialEffect* effect = get_material_effect(slot.material_id);
+    if (effect) {
+        bool merged = false;
+        for (auto& inv_item : player.inventory.items) {
+            if (inv_item.id == slot.material_id) {
+                inv_item.stack_count++;
+                merged = true;
+                break;
+            }
+        }
+        if (!merged) {
+            // Rebuild the material item
+            Item mat;
+            mat.id = slot.material_id;
+            mat.name = slot.material_name;
+            mat.type = ItemType::CraftingMaterial;
+            mat.stackable = true;
+            mat.stack_count = 1;
+            mat.glyph = '+';
+            mat.weight = 1;
+            player.inventory.items.push_back(std::move(mat));
+        }
+    }
+
+    std::string name = slot.material_name;
+    slot = {}; // reset slot
+    return {true, "Removed " + name + " from slot."};
+}
+
+bool has_pending_enhancements(const Item& item) {
+    for (const auto& slot : item.enhancements)
+        if (slot.filled && !slot.committed) return true;
+    return false;
 }
 
 // ---------------------------------------------------------------------------
