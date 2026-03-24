@@ -393,8 +393,9 @@ bool CharacterScreen::handle_input(int key) {
     } else if (active_tab_ == CharTab::Journal) {
         int count = static_cast<int>(player_->journal.size());
         if (count > 0) {
-            if (key == KEY_UP && journal_cursor_ > 0) --journal_cursor_;
-            if (key == KEY_DOWN && journal_cursor_ < count - 1) ++journal_cursor_;
+            // List is rendered newest-first, so Up = higher index, Down = lower index
+            if (key == KEY_UP) journal_cursor_ = (journal_cursor_ + 1) % count;
+            if (key == KEY_DOWN) journal_cursor_ = (journal_cursor_ - 1 + count) % count;
         }
     } else if (active_tab_ == CharTab::Reputation) {
         int count = static_cast<int>(player_->reputation.size());
@@ -1543,8 +1544,24 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         ctx.text(3, mat_y, "No crafting materials.", Color::DarkGray);
     }
 
-    // Right panel — item detail + actions
+    // Right panel — split into upper (detail/actions) and lower (catalog)
     int rx = half + 3;
+    int rw_avail = w - half - 4;
+
+    // Calculate catalog height (fixed at bottom)
+    int catalog_lines = 0;
+    for (const auto& bp : player_->learned_blueprints) {
+        catalog_lines++; // blueprint name
+        for (const auto& recipe : synthesis_recipes()) {
+            if (bp.name == recipe.blueprint_1 || bp.name == recipe.blueprint_2)
+                catalog_lines++;
+        }
+        catalog_lines++; // gap
+    }
+    int catalog_h = std::min(catalog_lines + 3, ctx.height() / 2); // cap at half height
+    int split_y = ctx.height() - catalog_h;
+
+    // --- Upper pane: detail + actions ---
     int ry = 1;
 
     if (workbench_item_) {
@@ -1554,17 +1571,15 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         ctx.text(rx, ry, rarity_name(item.rarity), rarity_color(item.rarity));
         ry += 2;
 
-        // Stats
         if (item.modifiers.attack)
             ctx.text(rx, ry++, "ATK: +" + std::to_string(item.modifiers.attack), Color::Red);
         if (item.modifiers.defense)
             ctx.text(rx, ry++, "DEF: +" + std::to_string(item.modifiers.defense), Color::Blue);
 
-        // Durability bar
         if (item.max_durability > 0) {
             ry++;
             ctx.text(rx, ry, "Durabl: ", Color::DarkGray);
-            int bar_w = std::min(14, (w - half) - 14);
+            int bar_w = std::min(14, rw_avail - 14);
             if (bar_w > 0) {
                 Color dur_color = (item.durability * 3 > item.max_durability) ? Color::Green : Color::Red;
                 ctx.bar(rx + 8, ry, bar_w, item.durability, item.max_durability, dur_color);
@@ -1575,37 +1590,34 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         }
 
         // Enhancement slot details
-        ry += 2;
-        for (int si = 0; si < 3; ++si) {
-            bool locked = (si >= item.enhancement_slots);
-            std::string slot_label = "[" + std::to_string(si + 1) + "] ";
-            ctx.text(rx, ry, slot_label, Color::White);
-            if (locked) {
-                ctx.text(rx + 4, ry, "locked", Color::DarkGray);
-            } else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled) {
-                ctx.text(rx + 4, ry, item.enhancements[si].material_name, Color::Green);
-            } else {
-                ctx.text(rx + 4, ry, "empty", Color::DarkGray);
-            }
+        if (ry + 5 < split_y) {
             ry++;
+            for (int si = 0; si < 3; ++si) {
+                bool locked = (si >= item.enhancement_slots);
+                std::string slot_label = "[" + std::to_string(si + 1) + "] ";
+                ctx.text(rx, ry, slot_label, Color::White);
+                if (locked) ctx.text(rx + 4, ry, "locked", Color::DarkGray);
+                else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled)
+                    ctx.text(rx + 4, ry, item.enhancements[si].material_name, Color::Green);
+                else ctx.text(rx + 4, ry, "empty", Color::DarkGray);
+                ry++;
+            }
         }
 
         // Actions
-        ry += 2;
-        ctx.text(rx, ry, "ACTIONS", Color::White);
-        ry += 2;
+        if (ry + 5 < split_y) {
+            ry += 2;
+            bool has_repair = player_has_skill(*player_, SkillId::BasicRepair);
+            bool has_analyze = player_has_skill(*player_, SkillId::Cat_Tinkering);
+            bool has_salvage = player_has_skill(*player_, SkillId::Disassemble);
 
-        bool has_repair = player_has_skill(*player_, SkillId::BasicRepair);
-        bool has_analyze = player_has_skill(*player_, SkillId::Cat_Tinkering);
-        bool has_salvage = player_has_skill(*player_, SkillId::Disassemble);
-
-        int cost = repair_cost(item);
-        std::string repair_label = "[r] Repair";
-        if (cost > 0) repair_label += "  (" + std::to_string(cost) + " Nano-Fiber)";
-        ctx.text(rx, ry++, repair_label, has_repair ? Color::White : Color::DarkGray);
-
-        ctx.text(rx, ry++, "[a] Analyze", has_analyze ? Color::White : Color::DarkGray);
-        ctx.text(rx, ry++, "[s] Salvage", has_salvage ? Color::White : Color::DarkGray);
+            int cost = repair_cost(item);
+            std::string repair_label = "[r] Repair";
+            if (cost > 0) repair_label += "  (" + std::to_string(cost) + " Nano-Fiber)";
+            ctx.text(rx, ry++, repair_label, has_repair ? Color::White : Color::DarkGray);
+            ctx.text(rx, ry++, "[a] Analyze", has_analyze ? Color::White : Color::DarkGray);
+            ctx.text(rx, ry++, "[s] Salvage", has_salvage ? Color::White : Color::DarkGray);
+        }
     } else {
         ctx.text(rx, 3, "Place an item on the", Color::DarkGray);
         ctx.text(rx, 4, "workbench to begin.", Color::DarkGray);
@@ -1615,15 +1627,39 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         ctx.text(rx, 9, "4. Select slots to enhance", Color::DarkGray);
     }
 
-    // Learned blueprints section (bottom right)
-    if (!player_->learned_blueprints.empty()) {
-        int bp_y = ctx.height() - 2 - static_cast<int>(player_->learned_blueprints.size());
-        if (bp_y > ry + 2) {
-            ctx.text(rx, bp_y - 2, "BLUEPRINTS", Color::White);
-            for (const auto& bp : player_->learned_blueprints) {
-                ctx.text(rx, bp_y, bp.name, Color::Cyan);
-                bp_y++;
+    // --- Horizontal separator ---
+    for (int sx = half + 1; sx < w; ++sx)
+        ctx.put(sx, split_y, BoxDraw::H, Color::DarkGray);
+
+    // --- Lower pane: Blueprint Catalog (always visible) ---
+    int cy = split_y + 1;
+    ctx.text(rx, cy, "BLUEPRINT CATALOG", Color::White);
+    cy += 2;
+
+    if (player_->learned_blueprints.empty()) {
+        ctx.text(rx, cy, "No blueprints learned.", Color::DarkGray);
+    } else {
+        for (const auto& bp : player_->learned_blueprints) {
+            if (cy >= ctx.height() - 1) break;
+            ctx.put(rx, cy, '+', Color::Cyan);
+            ctx.text(rx + 2, cy, bp.name, Color::Cyan);
+            cy++;
+
+            for (const auto& recipe : synthesis_recipes()) {
+                if (cy >= ctx.height() - 1) break;
+                if (bp.name == recipe.blueprint_1 || bp.name == recipe.blueprint_2) {
+                    const char* other = (bp.name == recipe.blueprint_1)
+                        ? recipe.blueprint_2 : recipe.blueprint_1;
+                    bool has_other = false;
+                    for (const auto& obp : player_->learned_blueprints)
+                        if (obp.name == other) { has_other = true; break; }
+
+                    std::string line = "  + " + std::string(other) + " = " + recipe.result_name;
+                    ctx.text(rx, cy, line, has_other ? Color::Green : Color::DarkGray);
+                    cy++;
+                }
             }
+            cy++;
         }
     }
 }

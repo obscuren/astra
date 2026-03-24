@@ -778,13 +778,19 @@ void Game::new_game() {
         player_.learned_blueprints.push_back({3001, "Plating Alloy", "Composite metal alloy for defensive plating."});
         player_.learned_blueprints.push_back({4001, "Optic Module", "Enhanced optical sensor array."});
 
-        // Journal entries for the pre-learned blueprints
+        // Journal entries for all pre-learned blueprints
         player_.journal.push_back(make_blueprint_journal_entry(
             "Plasma Emitter", "A superheated plasma projection system.",
             "Plasma Pistol", 0, "Dawn"));
         player_.journal.push_back(make_blueprint_journal_entry(
             "Blade Housing", "Structural frame for edged weapons.",
             "Combat Knife", 0, "Dawn"));
+        player_.journal.push_back(make_blueprint_journal_entry(
+            "Plating Alloy", "Composite metal alloy for defensive plating.",
+            "Padded Vest", 0, "Dawn"));
+        player_.journal.push_back(make_blueprint_journal_entry(
+            "Optic Module", "Enhanced optical sensor array.",
+            "Recon Visor", 0, "Dawn"));
 
         log("Full loadout equipped.");
     }
