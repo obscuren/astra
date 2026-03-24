@@ -360,8 +360,9 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
 
     draw_tab_bar(ctx);
 
-    // Content area below tab bar (row 0 = tab bar, row 1 = separator)
-    DrawContext content = ctx.sub(Rect{0, 2, ctx.width(), ctx.height() - 2});
+    // Content area below tab bar with horizontal padding
+    int pad = 3;
+    DrawContext content = ctx.sub(Rect{pad, 2, ctx.width() - pad * 2, ctx.height() - 2});
 
     switch (active_tab_) {
         case CharTab::Attributes: draw_attributes(content); break;

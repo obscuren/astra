@@ -473,22 +473,23 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
 
     std::string title = std::string("Star Chart [") + zoom_name + "]";
 
-    // Full-screen window
-    Window win(renderer_, Rect{0, 0, screen_w, screen_h}, title);
+    // Panel with inset
+    int pad_x = 2, pad_y = 2;
+    Panel win(renderer_, Rect{pad_x, pad_y, screen_w - pad_x * 2, screen_h - pad_y * 2}, title);
 
     // Footer hints
     switch (zoom_) {
         case ChartZoom::Galaxy:
-            win.set_footer("[Arrows] Pan  [+] Zoom in  [H] Home  [Esc] Close");
+            win.set_footer("[Arrows] Pan  [+] Zoom in  [H] Home  [ESC] Close");
             break;
         case ChartZoom::Region:
-            win.set_footer("[Arrows] Pan  [Tab] Select  [s] Scan  [+] Zoom in  [-] Zoom out  [H] Home  [Esc] Back");
+            win.set_footer("[Arrows] Pan  [Tab] Select  [s] Scan  [+] Zoom in  [-] Zoom out  [H] Home  [ESC] Back");
             break;
         case ChartZoom::Local:
-            win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [w] Warp  [+] View system  [-] Zoom out  [H] Home  [Esc] Back");
+            win.set_footer("[Arrows] Select  [Tab] Cycle  [s] Scan  [w] Warp  [+] View  [-] Zoom out  [H] Home  [ESC] Back");
             break;
         case ChartZoom::System:
-            win.set_footer("[Left/Right] Select body  [Up/Down] Sub-items  [t] Travel  [-] Back  [Esc] Back");
+            win.set_footer("[Left/Right] Select  [Up/Down] Sub  [t] Travel  [-] Back  [ESC] Back");
             break;
     }
 
