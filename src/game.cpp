@@ -741,9 +741,43 @@ void Game::new_game() {
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
     check_region_change();
 
-    // Starter gear: random ranged weapon + battery
+    // Starter gear
+    if (dev_mode_) {
+        // Dev Commander gets a full loadout
+        player_.equipment.head = build_tactical_helmet();
+        player_.equipment.body = build_composite_armor();
+        player_.equipment.feet = build_mag_lock_boots();
+        player_.equipment.left_arm = build_arm_guard();
+        auto right_arm = build_arm_guard();
+        right_arm.slot = EquipSlot::RightArm;
+        player_.equipment.right_arm = right_arm;
+        player_.equipment.right_hand = build_vibro_blade();
+        player_.equipment.missile = build_ion_blaster();
+        player_.equipment.face = build_recon_visor();
+        player_.equipment.back = build_jetpack();
+        player_.equipment.thrown = build_frag_grenade();
+        player_.equipment.thrown->stack_count = 5;
+
+        // Inventory: consumables + crafting mats + extras
+        auto stack = [](Item it, int n) { it.stack_count = n; return it; };
+        player_.inventory.items.push_back(stack(build_battery(), 5));
+        player_.inventory.items.push_back(stack(build_ration_pack(), 10));
+        player_.inventory.items.push_back(stack(build_combat_stim(), 3));
+        player_.inventory.items.push_back(stack(build_nano_fiber(), 3));
+        player_.inventory.items.push_back(stack(build_power_core(), 2));
+        player_.inventory.items.push_back(build_combat_knife());
+        player_.inventory.items.push_back(build_plasma_pistol());
+        player_.inventory.items.push_back(stack(build_emp_grenade(), 2));
+
+        log("Full loadout equipped.");
+    }
+
     Item weapon = random_ranged_weapon(rng_);
-    player_.equipment.missile = weapon;
+    if (!player_.equipment.missile) {
+        player_.equipment.missile = weapon;
+    } else {
+        player_.inventory.items.push_back(weapon);
+    }
     log("You are armed with a " + weapon.name + ".");
 
     Item battery = build_battery();
