@@ -277,7 +277,7 @@ void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& item
         if (item.stackable && item.stack_count > 1) {
             name += " x" + std::to_string(item.stack_count);
         }
-        Color name_color = selected ? Color::White : Color::Default;
+        Color name_color = selected ? Color::White : rarity_color(item.rarity);
         int max_name_len = w - x - 6; // leave room for price
         if (static_cast<int>(name.size()) > max_name_len && max_name_len > 0) {
             name = name.substr(0, max_name_len);

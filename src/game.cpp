@@ -2,6 +2,7 @@
 #include "astra/boot_sequence.h"
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
+#include "astra/item_gen.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
 #include "astra/overworld_stamps.h"
@@ -2464,6 +2465,12 @@ void Game::attack_npc(Npc& npc) {
             player_.money += credits;
             log("You salvage " + std::to_string(credits) + "$.");
         }
+        // Loot drop (50% chance)
+        if (std::uniform_int_distribution<int>(0, 1)(rng_) == 0) {
+            Item loot = generate_loot_drop(rng_, npc.level);
+            log("Dropped: " + loot.name);
+            ground_items_.push_back({npc.x, npc.y, std::move(loot)});
+        }
     }
 }
 
@@ -2626,6 +2633,12 @@ void Game::shoot_target() {
             player_.xp += xp;
             log("You gain " + std::to_string(xp) + " XP.");
             check_level_up();
+        }
+        // Loot drop (50% chance)
+        if (std::uniform_int_distribution<int>(0, 1)(rng_) == 0) {
+            Item loot = generate_loot_drop(rng_, target_npc_->level);
+            log("Dropped: " + loot.name);
+            ground_items_.push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
         target_npc_ = nullptr;
     }
