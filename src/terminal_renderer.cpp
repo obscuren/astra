@@ -54,10 +54,10 @@ static void restore_terminal() {
     }
 }
 
-static void signal_handler(int sig) {
-    restore_terminal();
-    signal(sig, SIG_DFL);
-    raise(sig);
+static volatile sig_atomic_t s_quit_requested = 0;
+
+static void signal_handler(int) {
+    s_quit_requested = 1;
 }
 
 static void sigwinch_handler(int) {
@@ -101,15 +101,21 @@ void TerminalRenderer::init() {
 
     s_raw_mode = 1;
     std::atexit(restore_terminal);
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
-    // Use sigaction without SA_RESTART so SIGWINCH interrupts blocking reads,
-    // allowing the game loop to detect resize and redraw immediately.
-    struct sigaction sa{};
-    sa.sa_handler = sigwinch_handler;
-    sa.sa_flags = 0; // no SA_RESTART
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGWINCH, &sa, nullptr);
+
+    // Use sigaction without SA_RESTART for all signals so they
+    // interrupt blocking read() calls immediately.
+    struct sigaction sa_quit{};
+    sa_quit.sa_handler = signal_handler;
+    sa_quit.sa_flags = 0; // no SA_RESTART — interrupts read()
+    sigemptyset(&sa_quit.sa_mask);
+    sigaction(SIGINT, &sa_quit, nullptr);
+    sigaction(SIGTERM, &sa_quit, nullptr);
+
+    struct sigaction sa_winch{};
+    sa_winch.sa_handler = sigwinch_handler;
+    sa_winch.sa_flags = 0;
+    sigemptyset(&sa_winch.sa_mask);
+    sigaction(SIGWINCH, &sa_winch, nullptr);
 
     // Query terminal size
     struct winsize ws;
@@ -128,9 +134,12 @@ void TerminalRenderer::init() {
 
 void TerminalRenderer::shutdown() {
     restore_terminal();
-    signal(SIGINT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGWINCH, SIG_DFL);
+    struct sigaction sa{};
+    sa.sa_handler = SIG_DFL;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, nullptr);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGWINCH, &sa, nullptr);
 }
 
 void TerminalRenderer::rebuild_buffer() {
@@ -261,6 +270,14 @@ void TerminalRenderer::draw_string(int x, int y, const std::string& text) {
     }
 }
 
+bool TerminalRenderer::consume_quit_request() {
+    if (s_quit_requested) {
+        s_quit_requested = 0;
+        return true;
+    }
+    return false;
+}
+
 int TerminalRenderer::get_width() const { return width_; }
 int TerminalRenderer::get_height() const { return height_; }
 
@@ -321,9 +338,13 @@ int TerminalRenderer::wait_input() {
     tcsetattr(STDIN_FILENO, TCSANOW, &blocking);
 
     char ch;
-    if (read(STDIN_FILENO, &ch, 1) != 1) {
+    while (true) {
+        ssize_t n = read(STDIN_FILENO, &ch, 1);
+        if (n == 1) break;
+        // Interrupted by signal (SIGWINCH, SIGINT, etc.)
         check_resize();
-        return -1;
+        if (s_quit_requested) return -1; // break out so game loop can handle it
+        // Otherwise retry (SIGWINCH resize case)
     }
 
     // Switch to non-blocking for escape sequence reads

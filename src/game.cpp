@@ -99,9 +99,21 @@ void Game::run() {
     render();
 
     while (running_) {
-        int key = (targeting_ || looking_) ? renderer_->wait_input_timeout(300)
-                                          : renderer_->wait_input();
-        if (key == -1) {
+        int key = (targeting_ || looking_ || quit_confirm_.is_open())
+                      ? renderer_->wait_input_timeout(300)
+                      : renderer_->wait_input();
+
+        // Check for Ctrl+C quit request (signal fires during read, returning -1)
+        if (renderer_->consume_quit_request()) {
+            if (!quit_confirm_.is_open()) {
+                quit_confirm_.close();
+                quit_confirm_.set_title("Quit without saving?");
+                quit_confirm_.add_option('y', "Yes, quit");
+                quit_confirm_.add_option('n', "No, keep playing");
+                quit_confirm_.open();
+            }
+            // Skip normal input handling — fall through to render
+        } else if (key == -1) {
             // Timeout — toggle blink phase for reticule
             ++blink_phase_;
             ++look_blink_;
@@ -169,8 +181,32 @@ void Game::compute_layout() {
 
 void Game::handle_input(int key) {
     switch (state_) {
-        case GameState::MainMenu:  handle_menu_input(key);     break;
-        case GameState::Playing:   handle_play_input(key);     break;
+        case GameState::MainMenu:
+            // Quit confirm intercepts on menu too
+            if (quit_confirm_.is_open()) {
+                auto qr = quit_confirm_.handle_input(key);
+                if (qr == MenuResult::Selected && quit_confirm_.selected_key() == 'y') {
+                    running_ = false;
+                } else if (qr == MenuResult::Selected || qr == MenuResult::Closed) {
+                    quit_confirm_.close();
+                }
+                break;
+            }
+            handle_menu_input(key);
+            break;
+        case GameState::Playing:
+            // Quit confirm takes priority
+            if (quit_confirm_.is_open()) {
+                auto qr = quit_confirm_.handle_input(key);
+                if (qr == MenuResult::Selected && quit_confirm_.selected_key() == 'y') {
+                    running_ = false;
+                } else if (qr == MenuResult::Selected || qr == MenuResult::Closed) {
+                    quit_confirm_.close();
+                }
+                break;
+            }
+            handle_play_input(key);
+            break;
         case GameState::GameOver:  handle_gameover_input(key);  break;
         case GameState::LoadMenu:  handle_load_input(key);     break;
         case GameState::HallOfFame: handle_hall_input(key);    break;
@@ -3803,6 +3839,9 @@ void Game::render_menu() {
             ctx.text_center(menu_y + i, label, Color::DarkGray);
         }
     }
+
+    // Quit confirm overlay on menu
+    quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
 }
 
 void Game::render_play() {
@@ -3830,6 +3869,7 @@ void Game::render_play() {
     render_look_popup();
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
+    quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);

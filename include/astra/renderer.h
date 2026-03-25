@@ -77,6 +77,9 @@ public:
         return false;
     }
 
+    // Returns true if the user requested quit (e.g. Ctrl+C), and clears the flag.
+    virtual bool consume_quit_request() { return false; }
+
     virtual int get_width() const = 0;
     virtual int get_height() const = 0;
 

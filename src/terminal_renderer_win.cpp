@@ -13,6 +13,16 @@
 
 namespace astra {
 
+static volatile long s_quit_requested = 0;
+
+static BOOL WINAPI console_ctrl_handler(DWORD event) {
+    if (event == CTRL_C_EVENT || event == CTRL_BREAK_EVENT) {
+        s_quit_requested = 1;
+        return TRUE; // handled — don't kill process
+    }
+    return FALSE;
+}
+
 // Decode a UTF-8 sequence to a Unicode codepoint and return its terminal width.
 static int utf8_cell_width(const char* utf8) {
     if (!utf8 || !utf8[0]) return 1;
@@ -102,6 +112,7 @@ void TerminalRenderer::init() {
     SetConsoleMode(impl_->h_in, in_mode);
 
     impl_->raw_mode = true;
+    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
 
     // Query console size
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -128,8 +139,16 @@ void TerminalRenderer::shutdown() {
     // Restore original console modes
     SetConsoleMode(impl_->h_in, impl_->orig_in_mode);
     SetConsoleMode(impl_->h_out, impl_->orig_out_mode);
+    SetConsoleCtrlHandler(console_ctrl_handler, FALSE);
 
     impl_->raw_mode = false;
+}
+
+bool TerminalRenderer::consume_quit_request() {
+    if (InterlockedExchange(&s_quit_requested, 0)) {
+        return true;
+    }
+    return false;
 }
 
 void TerminalRenderer::rebuild_buffer() {

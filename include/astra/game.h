@@ -215,6 +215,7 @@ private:
     PopupMenu npc_dialog_;
     std::string npc_dialog_body_;
     PopupMenu pause_menu_;
+    PopupMenu quit_confirm_;
     Npc* interacting_npc_ = nullptr;
     const std::vector<DialogNode>* dialog_tree_ = nullptr; // active tree (talk or quest)
     int dialog_node_ = -1;

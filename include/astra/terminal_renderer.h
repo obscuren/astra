@@ -23,6 +23,7 @@ public:
     void draw_glyph(int x, int y, const char* utf8, Color fg) override;
     void draw_string(int x, int y, const std::string& text) override;
 
+    bool consume_quit_request() override;
     int get_width() const override;
     int get_height() const override;
     bool read_cell(int x, int y, char* glyph_out, Color& fg_out) const override;
