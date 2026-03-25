@@ -367,6 +367,13 @@ int TerminalRenderer::wait_input() {
                 case 'C': return KEY_RIGHT;
                 case 'D': return KEY_LEFT;
                 case 'Z': return KEY_SHIFT_TAB;
+                case '5': case '6': {
+                    char tilde;
+                    if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                        return seq[1] == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
+                    }
+                    break;
+                }
             }
         }
         return '\033';
@@ -409,6 +416,13 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
                 case 'C': return KEY_RIGHT;
                 case 'D': return KEY_LEFT;
                 case 'Z': return KEY_SHIFT_TAB;
+                case '5': case '6': {
+                    char tilde;
+                    if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                        return seq[1] == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
+                    }
+                    break;
+                }
             }
         }
         return '\033';

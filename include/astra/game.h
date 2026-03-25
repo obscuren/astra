@@ -147,6 +147,13 @@ private:
     void dev_warp_random();
     void dev_warp_stamp_test();
 
+    // Dev console
+    void toggle_console();
+    void handle_console_input(int key);
+    void execute_console_command(const std::string& cmd);
+    void console_log(const std::string& msg);
+    void render_console();
+
     // Helpers
     void log(const std::string& msg);
     Color hp_color() const;
@@ -169,6 +176,16 @@ private:
     // Dev mode
     bool dev_mode_ = false;
     Tile dev_warp_stamp_test_poi_ = Tile::Empty;
+
+    // Dev console
+    bool console_open_ = false;
+    std::string console_input_;
+    std::deque<std::string> console_output_;
+    static constexpr size_t max_console_lines_ = 50;
+    int console_scroll_ = 0;
+    std::deque<std::string> console_history_;
+    int console_history_idx_ = -1; // -1 = not browsing history
+    static constexpr size_t max_console_history_ = 50;
 
     // Gameplay
     unsigned seed_ = 0;
