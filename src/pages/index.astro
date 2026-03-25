@@ -510,7 +510,7 @@ section {
 /* ── Races section ── */
 .races-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1rem;
 }
 
@@ -560,6 +560,56 @@ section {
 .race-card .race-glyph.kreth { color: var(--amber); }
 .race-card .race-glyph.sylphari { color: var(--green); }
 .race-card .race-glyph.xytomorph { color: var(--red); }
+.race-card .race-glyph.stellari { color: #ffd54f; }
+
+/* ── Classes grid ── */
+.classes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.class-card {
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  background: var(--deep);
+  transition: border-color 0.3s;
+}
+
+.class-card:hover {
+  border-color: var(--dim);
+}
+
+.class-glyph {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+  color: var(--cyan);
+}
+
+.class-name {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+}
+
+.class-trait {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+.class-desc {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text);
+}
 
 /* ── Tech specs ── */
 .specs-grid {
@@ -826,8 +876,8 @@ footer {
       </div>
       <div class="feature-card reveal" data-index="02">
         <span class="feature-glyph">@</span>
-        <div class="feature-name">Recursive Shadowcasting</div>
-        <div class="feature-desc">Dynamic field-of-view reveals the environment with realistic line-of-sight. What lurks in the darkness stays hidden until you find it.</div>
+        <div class="feature-name">Character Creation</div>
+        <div class="feature-desc">Choose from six races and five classes. Allocate attributes, name your character, and review your build before setting out into the void.</div>
       </div>
       <div class="feature-card reveal" data-index="03">
         <span class="feature-glyph">*</span>
@@ -835,19 +885,71 @@ footer {
         <div class="feature-desc">Travel between star systems through black holes. Upgrade engines and navigation computers to reach more distant sectors.</div>
       </div>
       <div class="feature-card reveal" data-index="04">
+        <span class="feature-glyph">&#x2692;</span>
+        <div class="feature-name">Tinkering & Crafting</div>
+        <div class="feature-desc">Repair, disassemble, analyze, and enhance equipment at the workbench. Learn blueprints and synthesize entirely new items from salvaged materials.</div>
+      </div>
+      <div class="feature-card reveal" data-index="05">
         <span class="feature-glyph">+</span>
         <div class="feature-name">Trading & Barter</div>
         <div class="feature-desc">Visit space stations to buy, sell, and barter with galactic merchants. Resources are scarce. Every transaction matters.</div>
       </div>
-      <div class="feature-card reveal" data-index="05">
+      <div class="feature-card reveal" data-index="06">
+        <span class="feature-glyph">&#x2191;</span>
+        <div class="feature-name">Skill Progression</div>
+        <div class="feature-desc">Unlock eight skill categories &mdash; from blade mastery to persuasion. Spend skill points on passive bonuses and powerful active abilities.</div>
+      </div>
+      <div class="feature-card reveal" data-index="07">
         <span class="feature-glyph">X</span>
         <div class="feature-name">Ranged Combat</div>
         <div class="feature-desc">Engage hostile Xytomorphs and unknown threats with ranged weapons. Turn-based tactics demand every move counts.</div>
       </div>
-      <div class="feature-card reveal" data-index="06">
+      <div class="feature-card reveal" data-index="08">
         <span class="feature-glyph">&#x2620;</span>
         <div class="feature-name">Permadeath</div>
         <div class="feature-desc">Death is permanent. Every decision carries weight. Reach Sgr A* and be reborn &mdash; or be forgotten in the void.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Classes -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag">CLASS</span>
+      <h2 class="section-title">Classes</h2>
+    </div>
+    <div class="classes-grid">
+      <div class="class-card reveal">
+        <span class="class-glyph">V</span>
+        <div class="class-name">Voidwalker</div>
+        <div class="class-trait">Melee Tank</div>
+        <div class="class-desc">Heavy armor and blade mastery make the Voidwalker a frontline juggernaut. High strength and toughness.</div>
+      </div>
+      <div class="class-card reveal">
+        <span class="class-glyph">G</span>
+        <div class="class-name">Gunslinger</div>
+        <div class="class-trait">Ranged Agility</div>
+        <div class="class-desc">Lightning reflexes and quick-draw pistols. Acrobatic evasion keeps enemies at a distance.</div>
+      </div>
+      <div class="class-card reveal">
+        <span class="class-glyph">T</span>
+        <div class="class-name">Technomancer</div>
+        <div class="class-trait">Tinkering &amp; Intel</div>
+        <div class="class-desc">Bends technology to their will. Weak in combat but unmatched at the workbench. High intelligence.</div>
+      </div>
+      <div class="class-card reveal">
+        <span class="class-glyph">O</span>
+        <div class="class-name">Operative</div>
+        <div class="class-trait">Stealth &amp; Social</div>
+        <div class="class-desc">Short blades in the dark, silver tongue in the light. Balanced fighter with social advantages.</div>
+      </div>
+      <div class="class-card reveal">
+        <span class="class-glyph">M</span>
+        <div class="class-name">Marauder</div>
+        <div class="class-trait">Survivalist</div>
+        <div class="class-desc">Forged in the void. Shrugs off damage and relies on instinct and sheer toughness to outlast anything.</div>
       </div>
     </div>
   </section>
@@ -890,6 +992,12 @@ footer {
         <div class="race-name">Xytomorph</div>
         <div class="race-trait">Chitinous Predators</div>
         <div class="race-desc">Hostile. Relentless. Skrix, Gnash, Thrax &mdash; you don't trade with them. You survive them.</div>
+      </div>
+      <div class="race-card reveal">
+        <span class="race-glyph stellari">&#x2736;</span>
+        <div class="race-name">Stellari</div>
+        <div class="race-trait">Stellar Engineers</div>
+        <div class="race-desc">Luminous and ancient. Brilliant minds in frail bodies. They shaped the stars before memory began.</div>
       </div>
     </div>
   </section>
