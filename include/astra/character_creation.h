@@ -35,6 +35,7 @@ struct RaceTemplate {
 
 const RaceTemplate& race_template(Race r);
 const std::vector<RaceTemplate>& all_race_templates();
+const std::vector<RaceTemplate>& playable_race_templates();
 
 struct CreationResult {
     Race race = Race::Human;

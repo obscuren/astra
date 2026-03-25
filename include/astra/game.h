@@ -88,6 +88,10 @@ private:
     void exit_to_overworld();
     void try_move(int dx, int dy);
     void try_interact(int dx, int dy);
+    void use_action();
+    void use_at(int tx, int ty);
+    int count_adjacent_interactables() const;
+    bool is_interactable(int tx, int ty) const;
     void advance_world(int cost);
     void process_npc_turn(Npc& npc);
     void attack_npc(Npc& npc);
@@ -195,7 +199,8 @@ private:
     Item inspected_item_;
 
     // Dialogs / interaction state
-    Dialog npc_dialog_{""};
+    PopupMenu npc_dialog_;
+    std::string npc_dialog_body_;
     PopupMenu pause_menu_;
     Npc* interacting_npc_ = nullptr;
     const std::vector<DialogNode>* dialog_tree_ = nullptr; // active tree (talk or quest)

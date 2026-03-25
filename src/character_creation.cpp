@@ -54,6 +54,17 @@ const std::vector<RaceTemplate>& all_race_templates() {
     return s_race_templates;
 }
 
+const std::vector<RaceTemplate>& playable_race_templates() {
+    static const std::vector<RaceTemplate> playable = [] {
+        std::vector<RaceTemplate> v;
+        for (const auto& rt : s_race_templates) {
+            if (rt.race != Race::Xytomorph) v.push_back(rt);
+        }
+        return v;
+    }();
+    return playable;
+}
+
 // ── Attribute helpers ───────────────────────────────────────────────
 
 static const char* attr_names[6] = {"STR", "AGI", "TOU", "INT", "WIL", "LUC"};
@@ -96,7 +107,7 @@ CreationResult CharacterCreation::consume_result() {
 bool CharacterCreation::handle_input(int key) {
     if (!open_) return false;
 
-    const auto& races = all_race_templates();
+    const auto& races = playable_race_templates();
     const auto& classes = gameplay_classes();
 
     switch (step_) {
@@ -512,7 +523,7 @@ void CharacterCreation::draw_type_step(DrawContext& ctx) {
 }
 
 void CharacterCreation::draw_race_step(DrawContext& ctx) {
-    const auto& races = all_race_templates();
+    const auto& races = playable_race_templates();
     int count = static_cast<int>(races.size());
     int card_w = 14;
     int card_h = 7;

@@ -310,10 +310,29 @@ void Game::handle_play_input(int key) {
 
     // NPC dialog intercepts input when open
     if (npc_dialog_.is_open()) {
-        DialogResult result = npc_dialog_.handle_input(key);
-        if (result == DialogResult::Selected) {
+        // Tab = trade shortcut
+        if (key == '\t') {
+            if (interacting_npc_ && interacting_npc_->interactions.shop) {
+                npc_dialog_.close();
+                trade_window_.open(interacting_npc_, &player_, renderer_.get());
+            } else {
+                log("They have nothing to sell.");
+            }
+            return;
+        }
+        // [l] Look — show NPC description
+        if (key == 'l' && interacting_npc_) {
+            if (!npc_dialog_body_.empty()) {
+                log(interacting_npc_->display_name() + ": " + npc_dialog_body_);
+            } else {
+                log("You look at " + interacting_npc_->display_name() + ".");
+            }
+            return;
+        }
+        MenuResult result = npc_dialog_.handle_input(key);
+        if (result == MenuResult::Selected) {
             advance_dialog(npc_dialog_.selected());
-        } else if (result == DialogResult::Closed) {
+        } else if (result == MenuResult::Closed) {
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -1;
@@ -333,14 +352,14 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Awaiting interact direction (e + direction)
+    // Awaiting interact direction (space + direction)
     if (awaiting_interact_) {
         awaiting_interact_ = false;
         switch (key) {
-            case 'k': case KEY_UP:    try_interact( 0, -1); return;
-            case 'j': case KEY_DOWN:  try_interact( 0,  1); return;
-            case 'h': case KEY_LEFT:  try_interact(-1,  0); return;
-            case 'l': case KEY_RIGHT: try_interact( 1,  0); return;
+            case 'k': case KEY_UP:    use_at(player_.x,     player_.y - 1); return;
+            case 'j': case KEY_DOWN:  use_at(player_.x,     player_.y + 1); return;
+            case 'h': case KEY_LEFT:  use_at(player_.x - 1, player_.y);     return;
+            case 'l': case KEY_RIGHT: use_at(player_.x + 1, player_.y);     return;
             default:
                 log("Cancelled.");
                 return;
@@ -358,11 +377,7 @@ void Game::handle_play_input(int key) {
             pause_menu_.add_option('q', "quit");
             pause_menu_.open();
             break;
-        case 'o':
-            awaiting_interact_ = true;
-            log("Open -- choose a direction.");
-            break;
-        case 'e':
+        case ' ':
             if (on_overworld()) {
                 Tile t = map_.get(player_.x, player_.y);
                 if (t == Tile::OW_Landing) {
@@ -372,8 +387,7 @@ void Game::handle_play_input(int key) {
                 }
                 break;
             }
-            awaiting_interact_ = true;
-            log("Interact -- choose a direction.");
+            use_action();
             break;
         case 8: // Ctrl+H
             panel_visible_ = !panel_visible_;
@@ -410,12 +424,13 @@ void Game::handle_play_input(int key) {
             break;
         case '?':
             if (dev_mode_) {
-                npc_dialog_ = Dialog("[DEV] Developer Menu");
-                npc_dialog_.add_option("Warp to Random Map");
-                npc_dialog_.add_option("POI Stamp Test...");
-                npc_dialog_.add_option("Character Stats...");
-                npc_dialog_.add_option("Level Up Character");
-                npc_dialog_.add_option("Cancel");
+                npc_dialog_.close();
+                npc_dialog_.set_title("[DEV] Developer Menu");
+                npc_dialog_.add_option('1', "Warp to Random Map");
+                npc_dialog_.add_option('2', "POI Stamp Test...");
+                npc_dialog_.add_option('3', "Character Stats...");
+                npc_dialog_.add_option('4', "Level Up Character");
+                npc_dialog_.add_option('c', "Cancel");
                 npc_dialog_.open();
                 dialog_node_ = -7; // sentinel: dev menu
             }
@@ -1996,6 +2011,94 @@ void Game::try_interact(int dx, int dy) {
     advance_world(ActionCost::interact);
 }
 
+bool Game::is_interactable(int tx, int ty) const {
+    // Check for NPC
+    for (const auto& npc : npcs_) {
+        if (npc.x == tx && npc.y == ty && npc.disposition != Disposition::Hostile) return true;
+    }
+    // Check for interactable fixture (including doors)
+    Tile t = map_.get(tx, ty);
+    if (t == Tile::Fixture) {
+        int fid = map_.fixture_id(tx, ty);
+        if (fid >= 0 && map_.fixture(fid).interactable) return true;
+    }
+    // Check for ground items at player's own tile
+    if (tx == player_.x && ty == player_.y) {
+        for (const auto& gi : ground_items_) {
+            if (gi.x == tx && gi.y == ty) return true;
+        }
+        // Stairs/portals under player
+        if (t == Tile::Portal) return true;
+    }
+    return false;
+}
+
+int Game::count_adjacent_interactables() const {
+    static const int dx[] = {0, -1, 1, 0, 0};
+    static const int dy[] = {0, 0, 0, -1, 1};
+    int count = 0;
+    for (int i = 0; i < 5; ++i) {
+        if (is_interactable(player_.x + dx[i], player_.y + dy[i])) ++count;
+    }
+    return count;
+}
+
+void Game::use_action() {
+    // Scan all 4 adjacent tiles + player tile for interactables
+    struct Target { int x, y; };
+    std::vector<Target> targets;
+
+    static const int dx[] = {0, -1, 1, 0, 0};
+    static const int dy[] = {0, 0, 0, -1, 1};
+    for (int i = 0; i < 5; ++i) {
+        int tx = player_.x + dx[i];
+        int ty = player_.y + dy[i];
+        if (is_interactable(tx, ty)) targets.push_back({tx, ty});
+    }
+
+    if (targets.empty()) {
+        log("Nothing to interact with nearby.");
+        return;
+    }
+
+    if (targets.size() == 1) {
+        use_at(targets[0].x, targets[0].y);
+        return;
+    }
+
+    // Multiple targets — prompt for direction
+    awaiting_interact_ = true;
+    log("Use -- choose a direction.");
+}
+
+void Game::use_at(int tx, int ty) {
+    // Ground items at player position
+    if (tx == player_.x && ty == player_.y) {
+        // Check for ground items first
+        for (size_t i = 0; i < ground_items_.size(); ++i) {
+            if (ground_items_[i].x == tx && ground_items_[i].y == ty) {
+                pickup_ground_item();
+                return;
+            }
+        }
+        // Portal / stairs
+        Tile t = map_.get(tx, ty);
+        if (t == Tile::Portal) {
+            if (on_detail_map()) {
+                enter_dungeon_from_detail();
+            } else if (surface_mode_ == SurfaceMode::Dungeon) {
+                exit_dungeon_to_detail();
+            }
+            return;
+        }
+    }
+
+    // Adjacent tile — delegate to try_interact logic
+    int dx = tx - player_.x;
+    int dy = ty - player_.y;
+    try_interact(dx, dy);
+}
+
 void Game::interact_fixture(int fid) {
     auto& f = map_.fixture_mut(fid);
 
@@ -2021,7 +2124,11 @@ void Game::interact_fixture(int fid) {
         }
         case FixtureType::FoodTerminal: {
             auto menu = food_terminal_menu();
-            npc_dialog_ = Dialog("Food Terminal", "What'll it be?");
+            npc_dialog_.close();
+            npc_dialog_.set_title("Food Terminal");
+            npc_dialog_body_ = "What'll it be?";
+            log("Food Terminal: What'll it be?");
+            char fkey = '1';
             for (const auto& entry : menu) {
                 std::string label = entry.label + " (" +
                     std::to_string(entry.cost) + "$";
@@ -2033,9 +2140,10 @@ void Game::interact_fixture(int fid) {
                     label += ", +" + std::to_string(entry.heal) + " HP";
                 }
                 label += ")";
-                npc_dialog_.add_option(label);
+                npc_dialog_.add_option(fkey++, label);
             }
-            npc_dialog_.add_option("Leave");
+            npc_dialog_.add_option('q', "Leave");
+            npc_dialog_.set_max_width_frac(0.4f);
             npc_dialog_.open();
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
@@ -2063,12 +2171,14 @@ void Game::interact_fixture(int fid) {
             break;
         }
         case FixtureType::SupplyLocker: {
-            npc_dialog_ = Dialog("Supply Locker",
-                "Stash (" + std::to_string(stash_.size()) + "/" +
-                std::to_string(max_stash_size_) + ")");
-            npc_dialog_.add_option("Store an item");
-            npc_dialog_.add_option("Retrieve an item");
-            npc_dialog_.add_option("Close");
+            npc_dialog_.close();
+            npc_dialog_.set_title("Supply Locker");
+            npc_dialog_body_ = "Stash (" + std::to_string(stash_.size()) + "/" +
+                std::to_string(max_stash_size_) + ")";
+            log(npc_dialog_body_);
+            npc_dialog_.add_option('s', "Store an item");
+            npc_dialog_.add_option('r', "Retrieve an item");
+            npc_dialog_.add_option('c', "Close");
             npc_dialog_.open();
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
@@ -2085,10 +2195,12 @@ void Game::interact_fixture(int fid) {
             break;
         }
         case FixtureType::ShipTerminal: {
-            npc_dialog_ = Dialog("Shipping Terminal",
-                "Your starship is docked and ready.");
-            npc_dialog_.add_option("Board ship");
-            npc_dialog_.add_option("Cancel");
+            npc_dialog_.close();
+            npc_dialog_.set_title("Shipping Terminal");
+            npc_dialog_body_ = "Your starship is docked and ready.";
+            log(npc_dialog_body_);
+            npc_dialog_.add_option('b', "Board ship");
+            npc_dialog_.add_option('c', "Cancel");
             npc_dialog_.open();
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
@@ -2128,30 +2240,31 @@ void Game::open_npc_dialog(Npc& npc) {
     interact_options_.clear();
 
     const auto& data = npc.interactions;
-    std::string greeting;
-    if (data.talk) {
-        greeting = "\"" + data.talk->greeting + "\"";
+    npc_dialog_.close();
+    npc_dialog_.set_title(npc.display_name());
+    npc_dialog_body_ = data.talk ? data.talk->greeting : "";
+    if (!npc_dialog_body_.empty()) {
+        log(npc.display_name() + ": \"" + npc_dialog_body_ + "\"");
     }
 
-    npc_dialog_ = Dialog(npc.display_name(), greeting);
-    int hotkey = '1';
-
+    char hotkey = '1';
     if (data.talk && !data.talk->nodes.empty()) {
-        npc_dialog_.add_option("Talk.", hotkey++);
+        npc_dialog_.add_option(hotkey++, "Talk");
         interact_options_.push_back(InteractOption::Talk);
     }
     if (data.shop) {
-        npc_dialog_.add_option("Show me your wares.", hotkey++);
+        npc_dialog_.add_option(hotkey++, "Trade");
         interact_options_.push_back(InteractOption::Shop);
     }
     if (data.quest) {
-        npc_dialog_.add_option(data.quest->quest_intro, hotkey++);
+        npc_dialog_.add_option(hotkey++, data.quest->quest_intro);
         interact_options_.push_back(InteractOption::Quest);
     }
-
-    npc_dialog_.add_option("Farewell.", hotkey);
+    npc_dialog_.add_option('f', "Farewell");
     interact_options_.push_back(InteractOption::Farewell);
 
+    npc_dialog_.set_footer("[Space] Select  [Tab] Trade  [l] Look  [Esc] Close");
+    npc_dialog_.set_max_width_frac(0.35f);
     npc_dialog_.open();
 }
 
@@ -2184,13 +2297,17 @@ void Game::advance_dialog(int selected) {
                 dialog_node_ = -1;
                 return;
             }
-            npc_dialog_ = Dialog("Store Item",
-                "Select item to store (" + std::to_string(stash_.size()) +
+            npc_dialog_.close();
+            npc_dialog_.set_title("Store Item");
+            log("Select item to store (" + std::to_string(stash_.size()) +
                 "/" + std::to_string(max_stash_size_) + "):");
+            { char sk = '1';
             for (const auto& item : player_.inventory.items) {
-                npc_dialog_.add_option(item.name);
-            }
-            npc_dialog_.add_option("Cancel");
+                npc_dialog_.add_option(sk++, item.name);
+                if (sk > '9') sk = 'a';
+            } }
+            npc_dialog_.add_option('c', "Cancel");
+            npc_dialog_.set_max_width_frac(0.35f);
             npc_dialog_.open();
             dialog_node_ = -4; // sentinel: store mode
         } else if (selected == 1) {
@@ -2200,13 +2317,17 @@ void Game::advance_dialog(int selected) {
                 dialog_node_ = -1;
                 return;
             }
-            npc_dialog_ = Dialog("Retrieve Item",
-                "Select item to retrieve (" + std::to_string(stash_.size()) +
+            npc_dialog_.close();
+            npc_dialog_.set_title("Retrieve Item");
+            log("Select item to retrieve (" + std::to_string(stash_.size()) +
                 "/" + std::to_string(max_stash_size_) + "):");
+            { char rk = '1';
             for (const auto& item : stash_) {
-                npc_dialog_.add_option(item.name);
-            }
-            npc_dialog_.add_option("Cancel");
+                npc_dialog_.add_option(rk++, item.name);
+                if (rk > '9') rk = 'a';
+            } }
+            npc_dialog_.add_option('c', "Cancel");
+            npc_dialog_.set_max_width_frac(0.35f);
             npc_dialog_.open();
             dialog_node_ = -5; // sentinel: retrieve mode
         } else {
@@ -2256,22 +2377,24 @@ void Game::advance_dialog(int selected) {
             dev_warp_random();
         } else if (selected == 1) {
             // POI Stamp Test submenu
-            npc_dialog_ = Dialog("[DEV] POI Stamp Test");
-            npc_dialog_.add_option("Ruins");
-            npc_dialog_.add_option("Crashed Ship");
-            npc_dialog_.add_option("Outpost");
-            npc_dialog_.add_option("Cave Entrance");
-            npc_dialog_.add_option("Settlement");
-            npc_dialog_.add_option("Landing Pad");
-            npc_dialog_.add_option("Back");
+            npc_dialog_.close();
+            npc_dialog_.set_title("[DEV] POI Stamp Test");
+            npc_dialog_.add_option('1', "Ruins");
+            npc_dialog_.add_option('2', "Crashed Ship");
+            npc_dialog_.add_option('3', "Outpost");
+            npc_dialog_.add_option('4', "Cave Entrance");
+            npc_dialog_.add_option('5', "Settlement");
+            npc_dialog_.add_option('6', "Landing Pad");
+            npc_dialog_.add_option('b', "Back");
             npc_dialog_.open();
             dialog_node_ = -9; // sentinel: stamp test menu
         } else if (selected == 2) {
             // Open character stats submenu
-            npc_dialog_ = Dialog("[DEV] Character Stats");
-            npc_dialog_.add_option(std::string("Invulnerability: ") +
+            npc_dialog_.close();
+            npc_dialog_.set_title("[DEV] Character Stats");
+            npc_dialog_.add_option('i', std::string("Invulnerability: ") +
                                    (player_.invulnerable ? "ON" : "OFF"));
-            npc_dialog_.add_option("Back");
+            npc_dialog_.add_option('b', "Back");
             npc_dialog_.open();
             dialog_node_ = -8; // sentinel: dev stats
         } else if (selected == 3) {
@@ -2289,10 +2412,11 @@ void Game::advance_dialog(int selected) {
             log(std::string("[DEV] Invulnerability: ") +
                 (player_.invulnerable ? "ON" : "OFF"));
             // Re-open the menu with updated label
-            npc_dialog_ = Dialog("[DEV] Character Stats");
-            npc_dialog_.add_option(std::string("Invulnerability: ") +
+            npc_dialog_.close();
+            npc_dialog_.set_title("[DEV] Character Stats");
+            npc_dialog_.add_option('i', std::string("Invulnerability: ") +
                                    (player_.invulnerable ? "ON" : "OFF"));
-            npc_dialog_.add_option("Back");
+            npc_dialog_.add_option('b', "Back");
             npc_dialog_.open();
             dialog_node_ = -8;
         } else {
@@ -2361,12 +2485,16 @@ void Game::advance_dialog(int selected) {
         // Advance to next node
         dialog_node_ = next;
         const auto& next_node = (*dialog_tree_)[dialog_node_];
-        npc_dialog_ = Dialog(interacting_npc_->display_name(),
-                             "\"" + next_node.text + "\"");
-        int hotkey = '1';
+        npc_dialog_.close();
+        npc_dialog_.set_title(interacting_npc_->display_name());
+        npc_dialog_body_ = next_node.text;
+        log(interacting_npc_->display_name() + ": \"" + next_node.text + "\"");
+        { char hk = '1';
         for (const auto& choice : next_node.choices) {
-            npc_dialog_.add_option(choice.label, hotkey++);
-        }
+            npc_dialog_.add_option(hk++, choice.label);
+        } }
+        npc_dialog_.set_footer("[Space] Select  [Esc] Close");
+        npc_dialog_.set_max_width_frac(0.35f);
         npc_dialog_.open();
         return;
     }
@@ -2382,12 +2510,16 @@ void Game::advance_dialog(int selected) {
             dialog_tree_ = &interacting_npc_->interactions.talk->nodes;
             dialog_node_ = 0;
             const auto& node = (*dialog_tree_)[0];
-            npc_dialog_ = Dialog(interacting_npc_->display_name(),
-                                 "\"" + node.text + "\"");
-            int hotkey = '1';
+            npc_dialog_.close();
+            npc_dialog_.set_title(interacting_npc_->display_name());
+            npc_dialog_body_ = node.text;
+            log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
+            { char hk = '1';
             for (const auto& choice : node.choices) {
-                npc_dialog_.add_option(choice.label, hotkey++);
-            }
+                npc_dialog_.add_option(hk++, choice.label);
+            } }
+            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
+            npc_dialog_.set_max_width_frac(0.35f);
             npc_dialog_.open();
             break;
         }
@@ -2400,12 +2532,16 @@ void Game::advance_dialog(int selected) {
             dialog_tree_ = &interacting_npc_->interactions.quest->nodes;
             dialog_node_ = 0;
             const auto& node = (*dialog_tree_)[0];
-            npc_dialog_ = Dialog(interacting_npc_->display_name(),
-                                 "\"" + node.text + "\"");
-            int hotkey = '1';
+            npc_dialog_.close();
+            npc_dialog_.set_title(interacting_npc_->display_name());
+            npc_dialog_body_ = node.text;
+            log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
+            { char hk = '1';
             for (const auto& choice : node.choices) {
-                npc_dialog_.add_option(choice.label, hotkey++);
-            }
+                npc_dialog_.add_option(hk++, choice.label);
+            } }
+            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
+            npc_dialog_.set_max_width_frac(0.35f);
             npc_dialog_.open();
             break;
         }
