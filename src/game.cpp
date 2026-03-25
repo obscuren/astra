@@ -42,18 +42,32 @@ static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
 
-static const char* title_art[] = {
-    R"(        .            *                .          |  )",
-    R"(   *         .              .                .  -o- )",
-    R"(        _        _                   *           |  )",
-    R"(  .    / \   ___| |_ _ __ __ _           .         )",
-    R"(      / _ \ / __| __| '__/ _` |   .                )",
-    R"( *   / ___ \\__ \ |_| | | (_| |        *           )",
-    R"(    /_/   \_\___/\__|_|  \__,_|  .                 )",
-    R"(         .          *       .          .            )",
-    R"(   .            .                 *                 )",
+// Block-letter ASTRA logo using █ (U+2588 full block)
+#define B "\xe2\x96\x88"  // █
+static const char* title_letter_A[] = {
+    "    " B B B "    ", "   " B B " " B B "   ", "  " B B "   " B B "  ",
+    " " B B "     " B B " ", " " B B B B B B B B B " ", " " B B "     " B B " ", " " B B "     " B B " ",
 };
-static constexpr int title_art_lines = 9;
+static const char* title_letter_S[] = {
+    "  " B B B B B B B "  ", " " B B "     " B B " ", " " B B "        ",
+    "  " B B B B B B B "  ", "        " B B " ", " " B B "     " B B " ", "  " B B B B B B B "  ",
+};
+static const char* title_letter_T[] = {
+    " " B B B B B B B B B " ", "    " B B B "    ", "    " B B B "    ",
+    "    " B B B "    ", "    " B B B "    ", "    " B B B "    ", "    " B B B "    ",
+};
+static const char* title_letter_R[] = {
+    " " B B B B B B B B "  ", " " B B "     " B B " ", " " B B "     " B B " ",
+    " " B B B B B B B B "  ", " " B B "   " B B "   ", " " B B "    " B B "  ", " " B B "     " B B " ",
+};
+#undef B
+static const char* const* title_letters[] = {
+    title_letter_A, title_letter_S, title_letter_T, title_letter_R, title_letter_A,
+};
+static constexpr int title_letter_count = 5;
+static constexpr int title_letter_height = 7;
+static constexpr int title_letter_width = 11;
+static constexpr int title_letter_gap = 2;
 
 static const char* menu_items[] = {
 #ifdef ASTRA_DEV_MODE
@@ -163,6 +177,16 @@ void Game::handle_input(int key) {
 }
 
 void Game::handle_menu_input(int key) {
+    // Character creation overlay takes priority
+    if (character_creation_.is_open()) {
+        character_creation_.handle_input(key);
+        if (character_creation_.is_complete()) {
+            auto cr = character_creation_.consume_result();
+            new_game(cr);
+        }
+        return;
+    }
+
     switch (key) {
         case 'w': case 'k': case KEY_UP:
             menu_selection_ = (menu_selection_ - 1 + menu_item_count_) % menu_item_count_;
@@ -185,7 +209,7 @@ void Game::handle_menu_input(int key) {
 #endif
             if (menu_selection_ == off + 0) {
                 dev_mode_ = false;
-                new_game();
+                character_creation_.open(renderer_.get());
             } else if (menu_selection_ == off + 1) {
                 save_slots_ = list_saves();
                 // Filter to alive saves only
@@ -223,9 +247,9 @@ void Game::handle_menu_input(int key) {
 }
 
 void Game::handle_play_input(int key) {
-    // Welcome screen — any key dismisses
+    // Welcome screen — space dismisses
     if (show_welcome_) {
-        show_welcome_ = false;
+        if (key == ' ') show_welcome_ = false;
         return;
     }
 
@@ -802,6 +826,103 @@ void Game::new_game() {
         log("Full loadout equipped.");
     }
 
+    Item weapon = random_ranged_weapon(rng_);
+    if (!player_.equipment.missile) {
+        player_.equipment.missile = weapon;
+    } else {
+        player_.inventory.items.push_back(weapon);
+    }
+    log("You are armed with a " + weapon.name + ".");
+
+    Item battery = build_battery();
+    battery.stack_count = 3;
+    player_.inventory.items.push_back(battery);
+
+    // Generate the galaxy
+    navigation_ = generate_galaxy(seed_);
+    navigation_.at_station = true;
+    navigation_.current_body_index = -1;
+    star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
+
+    state_ = GameState::Playing;
+}
+
+void Game::new_game(const CreationResult& cr) {
+    compute_layout();
+
+    // Boot sequence
+    BootSequence boot(renderer_.get());
+    boot.play();
+
+    seed_ = static_cast<unsigned>(std::time(nullptr));
+    rng_.seed(seed_);
+
+    auto props = default_properties(MapType::SpaceStation);
+    props.height = 80;
+    map_ = TileMap(props.width, props.height, MapType::SpaceStation);
+    auto gen = create_hub_generator();
+    gen->generate(map_, props, seed_);
+    map_.set_location_name("The Heavens Above");
+
+    player_ = Player{};
+    player_.name = cr.name;
+    player_.race = cr.race;
+    player_.player_class = cr.player_class;
+    player_.attributes = cr.attributes;
+    player_.resistances = cr.resistances;
+    player_.money = 10;
+
+    // Apply class template for non-attribute bonuses
+    const auto& tmpl = class_template(cr.player_class);
+    player_.max_hp += tmpl.bonus_hp;
+    player_.inventory.max_carry_weight += tmpl.bonus_carry_weight;
+    player_.learned_skills = tmpl.starting_skills;
+    player_.skill_points = tmpl.starting_sp;
+    player_.money += tmpl.starting_money;
+
+    player_.max_hp = player_.effective_max_hp();
+    player_.hp = player_.max_hp;
+
+    // Starting reputation
+    player_.reputation.push_back({"Stellari Conclave", 0});
+    player_.reputation.push_back({"Kreth Mining Guild", 0});
+    player_.reputation.push_back({"Xytomorph Hive", 0});
+
+    // Spawn
+    if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
+        map_.find_open_spot(player_.x, player_.y);
+    }
+
+    npcs_.clear();
+    ground_items_.clear();
+    std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
+    spawn_hub_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+
+    visibility_ = VisibilityMap(map_.width(), map_.height());
+    recompute_fov();
+    compute_camera();
+
+    messages_.clear();
+    awaiting_interact_ = false;
+    targeting_ = false;
+    target_npc_ = nullptr;
+    inventory_cursor_ = 0;
+    inspecting_item_ = false;
+    current_region_ = -1;
+    active_tab_ = 0;
+    surface_mode_ = SurfaceMode::Dungeon;
+    overworld_x_ = 0;
+    overworld_y_ = 0;
+    world_tick_ = 0;
+    day_clock_ = DayClock{};
+    location_cache_.clear();
+
+    log("Welcome aboard, " + cr.name + ". Your journey to Sgr A* begins.");
+    log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
+    show_welcome_ = true;
+    check_region_change();
+
+    // Starter gear: random ranged weapon + batteries
     Item weapon = random_ranged_weapon(rng_);
     if (!player_.equipment.missile) {
         player_.equipment.missile = weapon;
@@ -3149,6 +3270,12 @@ static char star_at(int x, int y) {
 }
 
 void Game::render_menu() {
+    // Character creation overlay
+    if (character_creation_.is_open()) {
+        character_creation_.draw(screen_w_, screen_h_);
+        return;
+    }
+
     DrawContext ctx(renderer_.get(), screen_rect_);
 
     // Starfield backdrop
@@ -3164,13 +3291,21 @@ void Game::render_menu() {
         }
     }
 
-    int art_start_y = screen_h_ / 2 - title_art_lines - 2;
+    // Block-letter ASTRA logo
+    int logo_w = title_letter_count * title_letter_width
+               + (title_letter_count - 1) * title_letter_gap;
+    int logo_x = (screen_w_ - logo_w) / 2;
+    int art_start_y = screen_h_ / 2 - title_letter_height - 2;
 
-    for (int i = 0; i < title_art_lines; ++i) {
-        ctx.text_center(art_start_y + i, title_art[i], Color::White);
+    for (int row = 0; row < title_letter_height; ++row) {
+        int lx = logo_x;
+        for (int li = 0; li < title_letter_count; ++li) {
+            ctx.text(lx, art_start_y + row, title_letters[li][row], Color::White);
+            lx += title_letter_width + title_letter_gap;
+        }
     }
 
-    int menu_y = art_start_y + title_art_lines + 2;
+    int menu_y = art_start_y + title_letter_height + 2;
     for (int i = 0; i < menu_item_count_; ++i) {
         if (i == menu_selection_) {
             // ·::|  Label  |::·
@@ -3228,7 +3363,7 @@ void Game::render_play() {
         int wy = (screen_h_ - wh) / 2;
 
         Panel welcome(renderer_.get(), Rect{wx, wy, ww, wh}, "A S T R A");
-        welcome.set_footer("[any key] Continue");
+        welcome.set_footer("[Space] Continue");
         welcome.draw();
 
         DrawContext wctx = welcome.content();

@@ -10,7 +10,11 @@ namespace astra {
 
 enum class PlayerClass : uint8_t {
     DevCommander, // developer mode only — all-rounder for testing
-    // Gameplay classes will be added here later
+    Voidwalker,   // melee tank — heavy armor, blade mastery
+    Gunslinger,   // ranged agility — quick-draw pistols
+    Technomancer, // tinkering/intel — engineer and hacker
+    Operative,    // stealth/social — short blades and persuasion
+    Marauder,     // survivalist — high toughness, luck-driven crits
 };
 
 const char* class_name(PlayerClass c);
@@ -50,5 +54,8 @@ struct ClassTemplate {
 };
 
 const ClassTemplate& class_template(PlayerClass c);
+
+// All gameplay classes (excludes DevCommander)
+const std::vector<PlayerClass>& gameplay_classes();
 
 } // namespace astra

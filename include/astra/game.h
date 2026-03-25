@@ -7,6 +7,7 @@
 #include "astra/renderer.h"
 #include "astra/save_file.h"
 #include "astra/star_chart.h"
+#include "astra/character_creation.h"
 #include "astra/character_screen.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/trade_window.h"
@@ -70,6 +71,7 @@ private:
     // Logic
     void update();
     void new_game();
+    void new_game(const CreationResult& cr);
     void travel_to_destination(const ChartAction& action);
     void save_current_location();
     void restore_location(const LocationKey& key);
@@ -170,6 +172,7 @@ private:
     StarChartViewer star_chart_viewer_;
     TradeWindow trade_window_;
     CharacterScreen character_screen_;
+    CharacterCreation character_creation_;
     int camera_x_ = 0;
     int camera_y_ = 0;
     int current_region_ = -1;
