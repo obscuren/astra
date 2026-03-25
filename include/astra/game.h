@@ -98,6 +98,14 @@ private:
     void begin_targeting();
     void handle_targeting_input(int key);
     void shoot_target();
+    void begin_look();
+    void begin_look_at(int mx, int my);
+    void handle_look_input(int key);
+    void render_look_popup();
+    std::string look_tile_name(int mx, int my) const;
+    std::string look_tile_desc(int mx, int my) const;
+    char look_tile_glyph(int mx, int my) const;
+    Color look_tile_color(int mx, int my) const;
     void pickup_ground_item();
     void drop_item(int index);
     void use_item(int index);
@@ -189,6 +197,9 @@ private:
 
     // Input modes
     bool awaiting_interact_ = false;
+    bool looking_ = false;
+    int look_x_ = 0, look_y_ = 0;
+    int look_blink_ = 0;
     bool targeting_ = false;
     int target_x_ = 0, target_y_ = 0;
     int blink_phase_ = 0;

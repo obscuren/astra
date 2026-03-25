@@ -99,11 +99,12 @@ void Game::run() {
     render();
 
     while (running_) {
-        int key = targeting_ ? renderer_->wait_input_timeout(300)
-                             : renderer_->wait_input();
+        int key = (targeting_ || looking_) ? renderer_->wait_input_timeout(300)
+                                          : renderer_->wait_input();
         if (key == -1) {
             // Timeout — toggle blink phase for reticule
             ++blink_phase_;
+            ++look_blink_;
         } else {
             handle_input(key);
         }
@@ -320,13 +321,13 @@ void Game::handle_play_input(int key) {
             }
             return;
         }
-        // [l] Look — show NPC description
+        // [l] Look — enter look mode focused on NPC
         if (key == 'l' && interacting_npc_) {
-            if (!npc_dialog_body_.empty()) {
-                log(interacting_npc_->display_name() + ": " + npc_dialog_body_);
-            } else {
-                log("You look at " + interacting_npc_->display_name() + ".");
-            }
+            npc_dialog_.close();
+            begin_look_at(interacting_npc_->x, interacting_npc_->y);
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -1;
             return;
         }
         MenuResult result = npc_dialog_.handle_input(key);
@@ -343,6 +344,12 @@ void Game::handle_play_input(int key) {
     // Item inspect overlay — any key closes
     if (inspecting_item_) {
         inspecting_item_ = false;
+        return;
+    }
+
+    // Look mode intercept
+    if (looking_) {
+        handle_look_input(key);
         return;
     }
 
@@ -412,6 +419,7 @@ void Game::handle_play_input(int key) {
             advance_world(ActionCost::wait);
             recompute_fov();
             break;
+        case 'l': begin_look(); break;
         case 't': begin_targeting(); break;
         case 's': shoot_target(); break;
         case 'r': reload_weapon(); break;
@@ -615,7 +623,7 @@ void Game::handle_play_input(int key) {
         case 'k': case KEY_UP:    try_move( 0, -1); break;
         case 'j': case KEY_DOWN:  try_move( 0,  1); break;
         case 'h': case KEY_LEFT:  try_move(-1,  0); break;
-        case 'l': case KEY_RIGHT: try_move( 1,  0); break;
+        case KEY_RIGHT:           try_move( 1,  0); break;
     }
 }
 
@@ -769,6 +777,7 @@ void Game::new_game() {
     messages_.clear();
     awaiting_interact_ = false;
     targeting_ = false;
+    looking_ = false;
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
@@ -920,6 +929,7 @@ void Game::new_game(const CreationResult& cr) {
     messages_.clear();
     awaiting_interact_ = false;
     targeting_ = false;
+    looking_ = false;
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
@@ -3003,6 +3013,327 @@ void Game::reload_weapon() {
     log("No energy cells to reload.");
 }
 
+// ── Look mode ───────────────────────────────────────────────────────
+
+void Game::begin_look() {
+    looking_ = true;
+    look_x_ = player_.x;
+    look_y_ = player_.y;
+    look_blink_ = 0;
+    log("Look mode. Move cursor to examine. [Esc] to exit.");
+}
+
+void Game::begin_look_at(int mx, int my) {
+    looking_ = true;
+    look_x_ = mx;
+    look_y_ = my;
+    look_blink_ = 0;
+}
+
+void Game::handle_look_input(int key) {
+    switch (key) {
+        case 'k': case KEY_UP:    look_y_--; break;
+        case 'j': case KEY_DOWN:  look_y_++; break;
+        case 'h': case KEY_LEFT:  look_x_--; break;
+        case 'l': case KEY_RIGHT: look_x_++; break;
+        case 27: // Escape
+            looking_ = false;
+            return;
+        default:
+            return;
+    }
+    // Clamp to map bounds
+    if (look_x_ < 0) look_x_ = 0;
+    if (look_y_ < 0) look_y_ = 0;
+    if (look_x_ >= map_.width()) look_x_ = map_.width() - 1;
+    if (look_y_ >= map_.height()) look_y_ = map_.height() - 1;
+}
+
+static const char* fixture_type_name(FixtureType type) {
+    switch (type) {
+        case FixtureType::Table:         return "Table";
+        case FixtureType::Console:       return "Console";
+        case FixtureType::Crate:         return "Crate";
+        case FixtureType::Bunk:          return "Bunk";
+        case FixtureType::Rack:          return "Rack";
+        case FixtureType::Conduit:       return "Conduit";
+        case FixtureType::ShuttleClamp:  return "Shuttle Clamp";
+        case FixtureType::Shelf:         return "Shelf";
+        case FixtureType::Viewport:      return "Viewport";
+        case FixtureType::Door:          return "Door";
+        case FixtureType::Window:        return "Window";
+        case FixtureType::Stool:         return "Stool";
+        case FixtureType::Debris:        return "Debris";
+        case FixtureType::HealPod:       return "Healing Pod";
+        case FixtureType::FoodTerminal:  return "Food Terminal";
+        case FixtureType::WeaponDisplay: return "Weapon Display";
+        case FixtureType::RepairBench:   return "Repair Bench";
+        case FixtureType::SupplyLocker:  return "Supply Locker";
+        case FixtureType::StarChart:     return "Star Chart";
+        case FixtureType::RestPod:       return "Rest Pod";
+        case FixtureType::ShipTerminal:  return "Ship Terminal";
+    }
+    return "Unknown";
+}
+
+static const char* fixture_type_desc(FixtureType type) {
+    switch (type) {
+        case FixtureType::Table:         return "A sturdy surface bolted to the deck.";
+        case FixtureType::Console:       return "A terminal display scrolls with data.";
+        case FixtureType::Crate:         return "A sealed cargo crate. Heavy and immovable.";
+        case FixtureType::Bunk:          return "A narrow sleeping rack with a thin mattress.";
+        case FixtureType::Rack:          return "A wall-mounted storage rack.";
+        case FixtureType::Conduit:       return "Exposed piping hums with energy.";
+        case FixtureType::ShuttleClamp:  return "Magnetic clamps securing a docked vessel.";
+        case FixtureType::Shelf:         return "Metal shelving lined with containers.";
+        case FixtureType::Viewport:      return "A reinforced window looking out into space.";
+        case FixtureType::Door:          return "A reinforced bulkhead door.";
+        case FixtureType::Window:        return "A transparent panel set into the wall.";
+        case FixtureType::Stool:         return "A simple seat bolted to the floor.";
+        case FixtureType::Debris:        return "Scattered wreckage and broken components.";
+        case FixtureType::HealPod:       return "A medical pod that restores health using nanite technology.";
+        case FixtureType::FoodTerminal:  return "An automated food dispensary serving synth-grub and rations.";
+        case FixtureType::WeaponDisplay: return "Weapons gleam behind reinforced glass.";
+        case FixtureType::RepairBench:   return "A workbench with tools for equipment maintenance.";
+        case FixtureType::SupplyLocker:  return "A secure locker for storing personal equipment.";
+        case FixtureType::StarChart:     return "A holographic star chart projector.";
+        case FixtureType::RestPod:       return "A padded pod for deep restorative sleep.";
+        case FixtureType::ShipTerminal:  return "A terminal for boarding your docked starship.";
+    }
+    return "";
+}
+
+std::string Game::look_tile_name(int mx, int my) const {
+    // NPC
+    for (const auto& npc : npcs_) {
+        if (npc.x == mx && npc.y == my) return npc.display_name();
+    }
+    // Player
+    if (mx == player_.x && my == player_.y) return player_.name;
+    // Ground item
+    for (const auto& gi : ground_items_) {
+        if (gi.x == mx && gi.y == my) return gi.item.name;
+    }
+    // Fixture
+    Tile t = map_.get(mx, my);
+    if (t == Tile::Fixture) {
+        int fid = map_.fixture_id(mx, my);
+        if (fid >= 0) return fixture_type_name(map_.fixture(fid).type);
+    }
+    // Overworld tiles
+    switch (t) {
+        case Tile::OW_Plains:       return "Plains";
+        case Tile::OW_Mountains:    return "Mountains";
+        case Tile::OW_Crater:       return "Crater";
+        case Tile::OW_IceField:     return "Ice Field";
+        case Tile::OW_LavaFlow:     return "Lava Flow";
+        case Tile::OW_Desert:       return "Desert";
+        case Tile::OW_Fungal:       return "Fungal Growth";
+        case Tile::OW_Forest:       return "Dense Forest";
+        case Tile::OW_River:        return "River";
+        case Tile::OW_Lake:         return "Lake";
+        case Tile::OW_Swamp:        return "Swamp";
+        case Tile::OW_CaveEntrance: return "Cave Entrance";
+        case Tile::OW_Ruins:        return "Ruins";
+        case Tile::OW_Settlement:   return "Settlement";
+        case Tile::OW_CrashedShip:  return "Crashed Ship";
+        case Tile::OW_Outpost:      return "Outpost";
+        case Tile::OW_Landing:      return "Landing Pad";
+        case Tile::Wall: case Tile::StructuralWall: return "Wall";
+        case Tile::Floor:           return "";
+        case Tile::IndoorFloor:     return "";
+        case Tile::Portal:          return "Stairs";
+        case Tile::Water:           return "Water";
+        case Tile::Ice:             return "Ice";
+        case Tile::Empty:           return "Void";
+        default: return "";
+    }
+}
+
+std::string Game::look_tile_desc(int mx, int my) const {
+    // NPC
+    for (const auto& npc : npcs_) {
+        if (npc.x == mx && npc.y == my) {
+            std::string desc = std::string(race_name(npc.race));
+            if (!npc.role.empty()) desc += " " + npc.role;
+            desc += ".";
+            if (npc.interactions.talk) {
+                desc += " \"" + npc.interactions.talk->greeting + "\"";
+            }
+            return desc;
+        }
+    }
+    // Player
+    if (mx == player_.x && my == player_.y) {
+        return std::string(race_name(player_.race)) + " " +
+               class_name(player_.player_class) + ". Level " +
+               std::to_string(player_.level) + ".";
+    }
+    // Ground item
+    for (const auto& gi : ground_items_) {
+        if (gi.x == mx && gi.y == my) return gi.item.description;
+    }
+    // Fixture
+    Tile t = map_.get(mx, my);
+    if (t == Tile::Fixture) {
+        int fid = map_.fixture_id(mx, my);
+        if (fid >= 0) return fixture_type_desc(map_.fixture(fid).type);
+    }
+    // Overworld tiles
+    switch (t) {
+        case Tile::OW_Plains:       return "Open terrain stretches to the horizon.";
+        case Tile::OW_Mountains:    return "Towering peaks of jagged rock pierce the atmosphere.";
+        case Tile::OW_Crater:       return "A massive impact crater scarring the surface.";
+        case Tile::OW_IceField:     return "A frozen expanse of crystalline ice.";
+        case Tile::OW_LavaFlow:     return "Molten rock glows beneath a cracked surface.";
+        case Tile::OW_Desert:       return "Barren dunes of fine dust stretch endlessly.";
+        case Tile::OW_Fungal:       return "Strange luminescent fungi carpet the ground.";
+        case Tile::OW_Forest:       return "Dense alien vegetation blocks the view.";
+        case Tile::OW_River:        return "A rushing current of liquid cuts through the terrain.";
+        case Tile::OW_Lake:         return "A vast body of liquid shimmers under the sky.";
+        case Tile::OW_Swamp:        return "Murky pools and twisted growth make footing treacherous.";
+        case Tile::OW_CaveEntrance: return "A dark opening leads underground. Press > to enter.";
+        case Tile::OW_Ruins:        return "Crumbling remains of an ancient structure.";
+        case Tile::OW_Settlement:   return "A small settlement. Signs of habitation are visible.";
+        case Tile::OW_CrashedShip:  return "The twisted wreckage of a downed vessel.";
+        case Tile::OW_Outpost:      return "A fortified outpost overlooks the terrain.";
+        case Tile::OW_Landing:      return "A flat landing pad. Your ship is docked here.";
+        case Tile::Wall: case Tile::StructuralWall:
+            return "Solid construction blocks the way.";
+        case Tile::Floor: case Tile::IndoorFloor:
+            return "Smooth plating covers the deck.";
+        case Tile::Portal:          return "Passage leading to another level.";
+        case Tile::Water:           return "Murky liquid pools on the ground.";
+        case Tile::Ice:             return "A slick frozen surface.";
+        case Tile::Empty:           return "The void between the stars.";
+        default: return "";
+    }
+}
+
+char Game::look_tile_glyph(int mx, int my) const {
+    // NPC
+    for (const auto& npc : npcs_) {
+        if (npc.x == mx && npc.y == my) return npc.glyph;
+    }
+    // Player
+    if (mx == player_.x && my == player_.y) return '@';
+    // Ground item
+    for (const auto& gi : ground_items_) {
+        if (gi.x == mx && gi.y == my) return gi.item.glyph;
+    }
+    // Tile/fixture
+    Tile t = map_.get(mx, my);
+    if (t == Tile::Fixture) {
+        int fid = map_.fixture_id(mx, my);
+        if (fid >= 0) return map_.fixture(fid).glyph;
+    }
+    return tile_glyph(t);
+}
+
+Color Game::look_tile_color(int mx, int my) const {
+    for (const auto& npc : npcs_) {
+        if (npc.x == mx && npc.y == my) return npc.color;
+    }
+    if (mx == player_.x && my == player_.y) return Color::Yellow;
+    for (const auto& gi : ground_items_) {
+        if (gi.x == mx && gi.y == my) return gi.item.color;
+    }
+    Tile t = map_.get(mx, my);
+    if (t == Tile::Fixture) {
+        int fid = map_.fixture_id(mx, my);
+        if (fid >= 0) return map_.fixture(fid).color;
+    }
+    return Color::White;
+}
+
+void Game::render_look_popup() {
+    if (!looking_) return;
+
+    Visibility v = visibility_.get(look_x_, look_y_);
+    if (v == Visibility::Unexplored) return;
+
+    std::string name = look_tile_name(look_x_, look_y_);
+    if (name.empty()) return;
+
+    std::string desc = look_tile_desc(look_x_, look_y_);
+    char glyph = look_tile_glyph(look_x_, look_y_);
+    Color glyph_color = look_tile_color(look_x_, look_y_);
+
+    // Word-wrap description to fit popup width
+    int popup_w = std::max(36, std::min(static_cast<int>(name.size()) + 12, screen_w_ / 2));
+    int inner_w = popup_w - 4; // padding
+
+    std::vector<std::string> desc_lines;
+    if (!desc.empty()) {
+        std::string line;
+        for (size_t i = 0; i < desc.size(); ++i) {
+            if (desc[i] == ' ' && static_cast<int>(line.size()) >= inner_w) {
+                desc_lines.push_back(line);
+                line.clear();
+            } else {
+                line += desc[i];
+                if (static_cast<int>(line.size()) >= inner_w + 5) {
+                    desc_lines.push_back(line);
+                    line.clear();
+                }
+            }
+        }
+        if (!line.empty()) desc_lines.push_back(line);
+    }
+
+    // Popup height: top(1) + glyph_row(1) + name_row(1) + sep(1) + desc_lines + bottom(1)
+    int popup_h = 4 + static_cast<int>(desc_lines.size()) + (desc_lines.empty() ? 0 : 1);
+
+    // Center popup on screen
+    int px = (screen_w_ - popup_w) / 2;
+    int py = (screen_h_ - popup_h) / 2;
+
+    // Draw Panel-style popup
+    Rect bounds{px, py, popup_w, popup_h};
+    DrawContext ctx(renderer_.get(), bounds);
+    ctx.fill(' ');
+
+    Color border = Color::White;
+    // Top: ▐▀▀▀▌
+    ctx.put(0, 0, BoxDraw::RIGHT_HALF, border);
+    for (int x = 1; x < popup_w - 1; ++x)
+        ctx.put(x, 0, BoxDraw::UPPER_HALF, border);
+    ctx.put(popup_w - 1, 0, BoxDraw::LEFT_HALF, border);
+    // Sides
+    for (int y = 1; y < popup_h - 1; ++y) {
+        ctx.put(0, y, BoxDraw::RIGHT_HALF, border);
+        ctx.put(popup_w - 1, y, BoxDraw::LEFT_HALF, border);
+    }
+    // Bottom: ▐▄▄▄▌
+    ctx.put(0, popup_h - 1, BoxDraw::RIGHT_HALF, border);
+    for (int x = 1; x < popup_w - 1; ++x)
+        ctx.put(x, popup_h - 1, BoxDraw::LOWER_HALF, border);
+    ctx.put(popup_w - 1, popup_h - 1, BoxDraw::LEFT_HALF, border);
+
+    // Glyph centered
+    int row = 1;
+    ctx.put(popup_w / 2, row, glyph, glyph_color);
+    row++;
+
+    // Name centered
+    int name_x = (popup_w - static_cast<int>(name.size())) / 2;
+    ctx.text(name_x, row, name, Color::White);
+    row++;
+
+    // Separator
+    if (!desc_lines.empty()) {
+        for (int x = 1; x < popup_w - 1; ++x)
+            ctx.put(x, row, BoxDraw::H, Color::DarkGray);
+        row++;
+
+        // Description lines
+        for (const auto& dl : desc_lines) {
+            ctx.text(2, row, dl, Color::DarkGray);
+            row++;
+        }
+    }
+}
+
 void Game::pickup_ground_item() {
     for (auto it = ground_items_.begin(); it != ground_items_.end(); ++it) {
         if (it->x == player_.x && it->y == player_.y) {
@@ -3483,6 +3814,7 @@ void Game::render_play() {
 
     // Overlay windows
     if (inspecting_item_) render_item_inspect();
+    render_look_popup();
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
@@ -3523,17 +3855,17 @@ void Game::render_play() {
         int kx = 6;
         wctx.text(kx, y, "CONTROLS", Color::White);
         y += 2;
-        wctx.text(kx, y, "Arrow keys / hjkl", Color::Yellow);
+        wctx.text(kx, y, "Arrow keys", Color::Yellow);
         wctx.text(kx + 22, y, "Move", Color::DarkGray);
         y++;
-        wctx.text(kx, y, "o", Color::Yellow);
-        wctx.text(kx + 22, y, "Interact / open doors", Color::DarkGray);
+        wctx.text(kx, y, "Space", Color::Yellow);
+        wctx.text(kx + 22, y, "Use / interact", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "l", Color::Yellow);
+        wctx.text(kx + 22, y, "Look / examine", Color::DarkGray);
         y++;
         wctx.text(kx, y, "c", Color::Yellow);
         wctx.text(kx + 22, y, "Character screen", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "g", Color::Yellow);
-        wctx.text(kx + 22, y, "Pick up item", Color::DarkGray);
         y++;
         wctx.text(kx, y, "t / s", Color::Yellow);
         wctx.text(kx + 22, y, "Target / shoot", Color::DarkGray);
@@ -4003,6 +4335,17 @@ void Game::render_map() {
                 ctx.put(rx, ry, '+', ret_color);
             }
             // else: let the underlying NPC/item glyph show through
+        }
+    }
+
+    // Draw look mode cursor
+    if (looking_) {
+        int lsx = look_x_ - camera_x_;
+        int lsy = look_y_ - camera_y_;
+        if (lsx >= 0 && lsx < map_rect_.w && lsy >= 0 && lsy < map_rect_.h) {
+            if (look_blink_ % 2 == 0) {
+                ctx.put(lsx, lsy, 'X', Color::Yellow);
+            }
         }
     }
 }
