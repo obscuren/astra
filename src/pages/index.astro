@@ -147,6 +147,7 @@ body::after {
 
 /* ── Hero ── */
 .hero {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -241,6 +242,34 @@ body::after {
 .hero-actions.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.hero-release {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  margin-top: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.8s ease 1.8s;
+}
+
+.hero-release.visible {
+  opacity: 1;
+}
+
+.hero-release a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.hero-release a:hover {
+  color: var(--white);
+}
+
+.hero-release .release-error {
+  color: var(--dim);
 }
 
 .btn {
@@ -754,6 +783,7 @@ footer {
       <a href="https://github.com/obscuren/astra/releases" class="btn">Download</a>
       <a href="https://github.com/obscuren/astra" class="btn secondary">Source Code</a>
     </div>
+    <div class="hero-release" id="heroRelease"></div>
     <div class="scroll-indicator" id="scrollIndicator">Descend</div>
   </section>
 
@@ -1114,9 +1144,25 @@ footer {
 
 // ── Hero reveal ──
 function revealHero() {
-  const ids = ['heroAscii', 'heroTitle', 'heroSubtitle', 'heroTagline', 'heroActions', 'scrollIndicator'];
+  const ids = ['heroAscii', 'heroTitle', 'heroSubtitle', 'heroTagline', 'heroActions', 'heroRelease', 'scrollIndicator'];
   ids.forEach(id => document.getElementById(id).classList.add('visible'));
 }
+
+// ── Fetch latest release ──
+(() => {
+  const el = document.getElementById('heroRelease');
+  fetch('https://api.github.com/repos/obscuren/astra/releases/latest')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(data => {
+      const version = data.tag_name || '';
+      const name = data.name || version;
+      const url = data.html_url || 'https://github.com/obscuren/astra/releases';
+      el.innerHTML = `<a href="${url}">${version}</a> &mdash; ${name.replace(version, '').replace(/^\s*[—–-]\s*/, '')}`;
+    })
+    .catch(() => {
+      el.innerHTML = '<span class="release-error">Unable to fetch latest release.</span>';
+    });
+})();
 
 // ── Scroll reveal ──
 (() => {
