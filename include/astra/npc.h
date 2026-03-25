@@ -36,6 +36,10 @@ struct Npc {
     int base_damage = 0;
     InteractionData interactions;
 
+    // When displaced by player swap, NPC tries to return here next tick
+    int return_x = -1;
+    int return_y = -1;
+
     bool alive() const { return hp > 0; }
     int xp_reward() const { return base_xp * level * (elite ? 3 : 1); }
     int attack_damage() const { return base_damage * level + (elite ? 1 : 0); }

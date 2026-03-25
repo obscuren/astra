@@ -1923,7 +1923,16 @@ void Game::try_move(int dx, int dy) {
                 advance_world(ActionCost::move);
                 return;
             }
-            log("You see " + npc.display_name() + ".");
+            // Swap positions with friendly/neutral NPC
+            npc.return_x = npc.x;
+            npc.return_y = npc.y;
+            npc.x = player_.x;
+            npc.y = player_.y;
+            player_.x = nx;
+            player_.y = ny;
+            recompute_fov();
+            compute_camera();
+            advance_world(ActionCost::move);
             return;
         }
     }
@@ -2700,6 +2709,22 @@ void Game::advance_world(int cost) {
 
 void Game::process_npc_turn(Npc& npc) {
     if (!npc.alive()) return;
+
+    // Displaced NPCs try to return to their original position
+    if (npc.return_x >= 0 && npc.return_y >= 0) {
+        int rx = npc.return_x, ry = npc.return_y;
+        npc.return_x = -1;
+        npc.return_y = -1;
+        // Only move back if the spot is free
+        if (map_.passable(rx, ry) &&
+            !(player_.x == rx && player_.y == ry) &&
+            !tile_occupied(rx, ry)) {
+            npc.x = rx;
+            npc.y = ry;
+        }
+        return;
+    }
+
     if (npc.disposition == Disposition::Friendly || npc.quickness == 0)
         return;
 
