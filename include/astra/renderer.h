@@ -69,6 +69,14 @@ public:
     virtual void draw_glyph(int x, int y, const char* utf8, Color fg) = 0;
     virtual void draw_string(int x, int y, const std::string& text) = 0;
 
+    // Read back the glyph and color at a screen position.
+    // glyph_out is filled with the UTF-8 string (up to 4 bytes + null).
+    // Returns false if position is out of bounds.
+    virtual bool read_cell(int x, int y, char* glyph_out, Color& fg_out) const {
+        (void)x; (void)y; (void)glyph_out; (void)fg_out;
+        return false;
+    }
+
     virtual int get_width() const = 0;
     virtual int get_height() const = 0;
 

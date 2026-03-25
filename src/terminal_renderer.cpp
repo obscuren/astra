@@ -264,6 +264,15 @@ void TerminalRenderer::draw_string(int x, int y, const std::string& text) {
 int TerminalRenderer::get_width() const { return width_; }
 int TerminalRenderer::get_height() const { return height_; }
 
+bool TerminalRenderer::read_cell(int x, int y, char* glyph_out, Color& fg_out) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return false;
+    const auto& cell = buffer_[y][x];
+    if (cell.continuation) return false;
+    for (int i = 0; i < 5; ++i) glyph_out[i] = cell.ch[i];
+    fg_out = cell.fg;
+    return true;
+}
+
 void TerminalRenderer::check_resize() {
     if (!s_resized) return;
     s_resized = 0;

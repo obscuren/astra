@@ -3235,40 +3235,13 @@ std::string Game::look_tile_desc(int mx, int my) const {
     }
 }
 
-char Game::look_tile_glyph(int mx, int my) const {
-    // NPC
-    for (const auto& npc : npcs_) {
-        if (npc.x == mx && npc.y == my) return npc.glyph;
-    }
-    // Player
-    if (mx == player_.x && my == player_.y) return '@';
-    // Ground item
-    for (const auto& gi : ground_items_) {
-        if (gi.x == mx && gi.y == my) return gi.item.glyph;
-    }
-    // Tile/fixture
-    Tile t = map_.get(mx, my);
-    if (t == Tile::Fixture) {
-        int fid = map_.fixture_id(mx, my);
-        if (fid >= 0) return map_.fixture(fid).glyph;
-    }
-    return tile_glyph(t);
+std::string Game::look_tile_glyph(int, int) const {
+    // Use cached glyph read before the cursor was drawn
+    return std::string(look_cell_glyph_);
 }
 
-Color Game::look_tile_color(int mx, int my) const {
-    for (const auto& npc : npcs_) {
-        if (npc.x == mx && npc.y == my) return npc.color;
-    }
-    if (mx == player_.x && my == player_.y) return Color::Yellow;
-    for (const auto& gi : ground_items_) {
-        if (gi.x == mx && gi.y == my) return gi.item.color;
-    }
-    Tile t = map_.get(mx, my);
-    if (t == Tile::Fixture) {
-        int fid = map_.fixture_id(mx, my);
-        if (fid >= 0) return map_.fixture(fid).color;
-    }
-    return Color::White;
+Color Game::look_tile_color(int, int) const {
+    return look_cell_color_;
 }
 
 void Game::render_look_popup() {
@@ -3281,7 +3254,7 @@ void Game::render_look_popup() {
     if (name.empty()) return;
 
     std::string desc = look_tile_desc(look_x_, look_y_);
-    char glyph = look_tile_glyph(look_x_, look_y_);
+    std::string glyph = look_tile_glyph(look_x_, look_y_);
     Color glyph_color = look_tile_color(look_x_, look_y_);
 
     // Word-wrap description to fit popup width
@@ -3337,7 +3310,7 @@ void Game::render_look_popup() {
 
     // Glyph centered
     int row = 1;
-    ctx.put(popup_w / 2, row, glyph, glyph_color);
+    ctx.put(popup_w / 2, row, glyph.c_str(), glyph_color);
     row++;
 
     // Name centered
@@ -4363,11 +4336,16 @@ void Game::render_map() {
         }
     }
 
-    // Draw look mode cursor
+    // Draw look mode cursor — read cell BEFORE overwriting with reticule
     if (looking_) {
         int lsx = look_x_ - camera_x_;
         int lsy = look_y_ - camera_y_;
         if (lsx >= 0 && lsx < map_rect_.w && lsy >= 0 && lsy < map_rect_.h) {
+            // Cache the actual glyph/color at this position
+            int screen_x = map_rect_.x + lsx;
+            int screen_y = map_rect_.y + lsy;
+            renderer_->read_cell(screen_x, screen_y, look_cell_glyph_, look_cell_color_);
+
             if (look_blink_ % 2 == 0) {
                 ctx.put(lsx, lsy, 'X', Color::Yellow);
             }

@@ -25,6 +25,7 @@ public:
 
     int get_width() const override;
     int get_height() const override;
+    bool read_cell(int x, int y, char* glyph_out, Color& fg_out) const override;
 
     int poll_input() override;
     int wait_input() override;
