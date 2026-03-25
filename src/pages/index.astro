@@ -559,7 +559,6 @@ section {
 .race-card .race-glyph.veldrani { color: #7c4dff; }
 .race-card .race-glyph.kreth { color: var(--amber); }
 .race-card .race-glyph.sylphari { color: var(--green); }
-.race-card .race-glyph.xytomorph { color: var(--red); }
 .race-card .race-glyph.stellari { color: #ffd54f; }
 
 /* ── Classes grid ── */
@@ -760,55 +759,6 @@ footer {
 
   <hr class="section-divider">
 
-  <!-- Install -->
-  <section>
-    <div class="section-header">
-      <span class="section-tag">SYS</span>
-      <h2 class="section-title">Quick Start</h2>
-    </div>
-    <div class="terminal reveal">
-      <div class="terminal-header">
-        <span class="terminal-dot r"></span>
-        <span class="terminal-dot y"></span>
-        <span class="terminal-dot g"></span>
-        <span class="terminal-path">~/astra</span>
-      </div>
-      <pre><span class="comment"># Clone and build</span>
-<span class="prompt">$</span> git clone https://github.com/obscuren/astra.git
-<span class="prompt">$</span> cd astra && mkdir build && cd build
-<span class="prompt">$</span> cmake <span class="flag">-DCMAKE_BUILD_TYPE=Release</span> ..
-<span class="prompt">$</span> make <span class="flag">-j$(nproc)</span>
-
-<span class="comment"># Launch</span>
-<span class="prompt">$</span> ./astra <span class="flag">--term</span>
-<span class="output">
-:: Welcome aboard, commander.
-:: Your journey to Sgr A* begins.
-:: You are docked at The Heavens Above,
-   the space station orbiting Jupiter.</span></pre>
-    </div>
-    <div class="specs-grid reveal">
-      <div class="spec">
-        <div class="spec-value cyan">C++20</div>
-        <div class="spec-label">Language</div>
-      </div>
-      <div class="spec">
-        <div class="spec-value amber">0</div>
-        <div class="spec-label">Dependencies</div>
-      </div>
-      <div class="spec">
-        <div class="spec-value green">POSIX</div>
-        <div class="spec-label">Terminal</div>
-      </div>
-      <div class="spec">
-        <div class="spec-value">SDL3</div>
-        <div class="spec-label">Optional GUI</div>
-      </div>
-    </div>
-  </section>
-
-  <hr class="section-divider">
-
   <!-- Lore -->
   <section>
     <div class="section-header">
@@ -988,16 +938,59 @@ footer {
         <div class="race-desc">Wispy and ethereal. Aelith, Lumyn, Whisp &mdash; they drift between stars like living light.</div>
       </div>
       <div class="race-card reveal">
-        <span class="race-glyph xytomorph">X</span>
-        <div class="race-name">Xytomorph</div>
-        <div class="race-trait">Chitinous Predators</div>
-        <div class="race-desc">Hostile. Relentless. Skrix, Gnash, Thrax &mdash; you don't trade with them. You survive them.</div>
-      </div>
-      <div class="race-card reveal">
         <span class="race-glyph stellari">&#x2736;</span>
         <div class="race-name">Stellari</div>
         <div class="race-trait">Stellar Engineers</div>
         <div class="race-desc">Luminous and ancient. Brilliant minds in frail bodies. They shaped the stars before memory began.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Install -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag">SYS</span>
+      <h2 class="section-title">Quick Start</h2>
+    </div>
+    <div class="terminal reveal">
+      <div class="terminal-header">
+        <span class="terminal-dot r"></span>
+        <span class="terminal-dot y"></span>
+        <span class="terminal-dot g"></span>
+        <span class="terminal-path">~/astra</span>
+      </div>
+      <pre><span class="comment"># Clone and build</span>
+<span class="prompt">$</span> git clone https://github.com/obscuren/astra.git
+<span class="prompt">$</span> cd astra && mkdir build && cd build
+<span class="prompt">$</span> cmake <span class="flag">-DCMAKE_BUILD_TYPE=Release</span> ..
+<span class="prompt">$</span> make <span class="flag">-j$(nproc)</span>
+
+<span class="comment"># Launch</span>
+<span class="prompt">$</span> ./astra <span class="flag">--term</span>
+<span class="output">
+:: Welcome aboard, commander.
+:: Your journey to Sgr A* begins.
+:: You are docked at The Heavens Above,
+   the space station orbiting Jupiter.</span></pre>
+    </div>
+    <div class="specs-grid reveal">
+      <div class="spec">
+        <div class="spec-value cyan">C++20</div>
+        <div class="spec-label">Language</div>
+      </div>
+      <div class="spec">
+        <div class="spec-value amber">0</div>
+        <div class="spec-label">Dependencies</div>
+      </div>
+      <div class="spec">
+        <div class="spec-value green">POSIX</div>
+        <div class="spec-label">Terminal</div>
+      </div>
+      <div class="spec">
+        <div class="spec-value">SDL3</div>
+        <div class="spec-label">Optional GUI</div>
       </div>
     </div>
   </section>
