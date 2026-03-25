@@ -22,6 +22,18 @@ A sci-fi roguelike set in the far future. Travel across star systems, explore as
 
 ## How to Play
 
+### Character Creation
+
+When starting a new game you are guided through a multi-step character creation wizard:
+
+1. **Character Type** — choose Presets (guided flow), or Random (fully randomized)
+2. **Race** — pick from six races: Human, Veldrani, Kreth, Sylphari, Xytomorph, Stellari — each with unique attribute modifiers and resistances
+3. **Class** — choose your playstyle: Voidwalker (melee tank), Gunslinger (ranged agility), Technomancer (tinkering/intel), Operative (stealth/social), or Marauder (survivalist)
+4. **Attributes** — distribute 10 points across Strength, Agility, Toughness, Intelligence, Willpower, and Luck
+5. **Name** — name your character or generate a random one
+6. **Location** — choose your starting location
+7. **Summary** — review your build and begin the journey
+
 All journeys begin aboard **The Heavens Above**, a space station orbiting Jupiter. Trade with merchants, talk to NPCs, equip gear, and board your starship to set out across the galaxy.
 
 ### Controls
@@ -33,6 +45,7 @@ All journeys begin aboard **The Heavens Above**, a space station orbiting Jupite
 | `e` | Equip / use item |
 | `d` | Drop item |
 | `g` | Pick up item |
+| `c` | Character screen |
 | `i` | Inventory tab |
 | `t` | Target enemy |
 | `s` | Shoot (ranged weapon) |
@@ -61,26 +74,59 @@ Interact with merchant NPCs and select "Show me your wares" to open a fullscreen
 
 ### Combat & Gear
 
-Fight hostile creatures in dungeons with melee and ranged weapons. Equip armor, helmets, shields, and accessories. Level up to improve your stats — health, attack, defense, quickness, and move speed.
+Fight hostile creatures in dungeons with melee and ranged weapons. Equip armor, helmets, shields, and accessories. Items come in multiple rarities — Common, Uncommon, Rare, Epic, Legendary — with random affixes that add stat bonuses. Level up to earn attribute points and skill points for character progression.
+
+### Skills
+
+Spend skill points to unlock eight skill categories: Acrobatics, Short Blade, Long Blade, Pistol, Rifle, Tinkering, Endurance, and Persuasion. Each category contains passive bonuses and active abilities gated by attribute requirements.
+
+### Tinkering
+
+The tinkering workbench (accessible from the character screen) lets you work with equipment and materials:
+
+- **Repair** — restore durability on damaged gear using scrap
+- **Disassemble** — break down items into crafting materials (Nano-Fiber, Power Core, Circuit Board, Alloy Ingot)
+- **Analyze** — study items to learn their blueprints, recorded in your journal
+- **Enhance** — slot crafting materials into equipment enhancement slots for permanent stat boosts
+- **Synthesize** — combine two learned blueprints with materials to craft entirely new items
+
+### Character Screen
+
+Press `c` to open the character screen with tabs for Skills, Attributes, Equipment, Tinkering, Journal, Quests, Reputation, and Ship. Allocate attribute points, manage equipment, review learned blueprints, and track faction standings.
+
+### Journal
+
+Blueprint discoveries, encounters, and events are logged in a journal. Each entry records what was learned, where, and when — useful for tracking which blueprints you've unlocked for synthesis.
 
 ## Features
 
+- Multi-step character creation with race, class, and attribute selection
+- Five playable classes with unique skills and stat profiles
+- Six alien races with attribute modifiers and elemental resistances
+- Eight skill categories with passive and active abilities
+- Tinkering system: repair, disassemble, analyze, enhance, and synthesize items
+- Blueprint learning and item synthesis from crafting materials
+- Item enhancement slots with material-based stat boosts
+- Item affix system with rarity tiers (Common through Legendary)
+- Journal system tracking blueprints, discoveries, and events
+- Faction reputation tracking
+- Character screen with 8 tabs (Skills, Attributes, Equipment, Tinkering, Journal, Quests, Reputation, Ship)
 - Procedurally generated galaxy with hundreds of star systems
 - Noise-based overworld terrain with biomes, rivers, lakes, and mountains
 - Detail maps with settlements, outposts, ruins, and landing pads
 - Multi-level dungeon crawling with rooms, corridors, and locked doors
-- Day/night cycle with dawn, day, dusk, and night phases
+- Day/night cycle with dawn, day, dusk, and night phases affecting visibility
 - NPCs with branching dialog trees, shops, and quests
-- Multiple alien races — Veldrani, Kreth, Sylphari, Xytomorph, Stellari
 - Fullscreen trade window for buying and selling with merchants
-- Full inventory and equipment system with item rarities
+- Full inventory and equipment system
 - Ranged and melee combat with targeting
+- Four elemental resistances: acid, electrical, cold, heat
 - Hunger system affecting health regeneration
 - Starship interiors and navigation
 - Star chart viewer with galaxy, region, local, and system zoom levels
 - Hyperspace travel between star systems
 - Space stations with docking and trading
-- Save and load system
+- Save and load with hall of fame for fallen characters
 - Turn-based world simulation
 
 ## Build
