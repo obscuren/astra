@@ -221,6 +221,10 @@ int DrawContext::label_value(int x, int y,
 int DrawContext::bar(int x, int y, int bar_width, int value, int max_value,
                      Color fill_color, Color empty_color,
                      char fill_ch, char empty_ch) {
+    (void)fill_ch; (void)empty_ch;
+    static const char* FILL  = "\xe2\x96\xb0"; // ▰
+    static const char* EMPTY = "\xe2\x96\xb1"; // ▱
+
     int filled = (max_value > 0) ? (value * bar_width / max_value) : 0;
     if (filled < 0) filled = 0;
     if (filled > bar_width) filled = bar_width;
@@ -228,9 +232,9 @@ int DrawContext::bar(int x, int y, int bar_width, int value, int max_value,
     put(x, y, '[');
     for (int i = 0; i < bar_width; ++i) {
         if (i < filled) {
-            put(x + 1 + i, y, fill_ch, fill_color);
+            put(x + 1 + i, y, FILL, fill_color);
         } else {
-            put(x + 1 + i, y, empty_ch, empty_color);
+            put(x + 1 + i, y, EMPTY, empty_color);
         }
     }
     put(x + 1 + bar_width, y, ']');
