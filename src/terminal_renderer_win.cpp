@@ -184,6 +184,11 @@ void TerminalRenderer::draw_char(int x, int y, char ch) {
     draw_char(x, y, ch, Color::Default);
 }
 
+void TerminalRenderer::draw_char(int x, int y, char ch, Color fg, Color bg) {
+    draw_char(x, y, ch, fg);
+    (void)bg; // bg not supported on Windows terminal yet
+}
+
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
