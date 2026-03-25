@@ -51,6 +51,7 @@ set(ASTRA_SOURCES
     src/trade_window.cpp
     src/character_screen.cpp
     src/character_creation.cpp
+    src/effect.cpp
     src/boot_sequence.cpp
 )
 

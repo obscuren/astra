@@ -736,7 +736,7 @@ void Game::new_game() {
     player_ = Player{};
     player_.money = 10;
     if (dev_mode_) {
-        player_.invulnerable = true;
+        add_effect(player_.effects, make_invulnerable());
         player_.name = "Dev Commander";
         player_.race = Race::Human;
         player_.player_class = PlayerClass::DevCommander;
@@ -2412,7 +2412,7 @@ void Game::advance_dialog(int selected) {
             npc_dialog_.close();
             npc_dialog_.set_title("[DEV] Character Stats");
             npc_dialog_.add_option('i', std::string("Invulnerability: ") +
-                                   (player_.invulnerable ? "ON" : "OFF"));
+                                   (has_effect(player_.effects, EffectId::Invulnerable) ? "ON" : "OFF"));
             npc_dialog_.add_option('b', "Back");
             npc_dialog_.open();
             dialog_node_ = -8; // sentinel: dev stats
@@ -2427,14 +2427,17 @@ void Game::advance_dialog(int selected) {
     // Dev menu — character stats
     if (dialog_node_ == -8) {
         if (selected == 0) {
-            player_.invulnerable = !player_.invulnerable;
-            log(std::string("[DEV] Invulnerability: ") +
-                (player_.invulnerable ? "ON" : "OFF"));
+            if (has_effect(player_.effects, EffectId::Invulnerable))
+                remove_effect(player_.effects, EffectId::Invulnerable);
+            else
+                add_effect(player_.effects, make_invulnerable());
+            bool inv = has_effect(player_.effects, EffectId::Invulnerable);
+            log(std::string("[DEV] Invulnerability: ") + (inv ? "ON" : "OFF"));
             // Re-open the menu with updated label
             npc_dialog_.close();
             npc_dialog_.set_title("[DEV] Character Stats");
             npc_dialog_.add_option('i', std::string("Invulnerability: ") +
-                                   (player_.invulnerable ? "ON" : "OFF"));
+                                   (inv ? "ON" : "OFF"));
             npc_dialog_.add_option('b', "Back");
             npc_dialog_.open();
             dialog_node_ = -8;
@@ -2665,10 +2668,20 @@ void Game::advance_world(int cost) {
     ++world_tick_;
     day_clock_.advance(1);
 
+    // Tick and expire effects
+    tick_effects(player_.effects, player_.hp, player_.effective_max_hp());
+    expire_effects(player_.effects);
+    for (auto& npc : npcs_) {
+        if (npc.alive()) {
+            tick_effects(npc.effects, npc.hp, npc.max_hp);
+            expire_effects(npc.effects);
+        }
+    }
+
     // Water damage
-    if (player_.hp > 0 && !player_.invulnerable &&
-        map_.get(player_.x, player_.y) == Tile::Water) {
-        player_.hp -= 1;
+    if (player_.hp > 0 && map_.get(player_.x, player_.y) == Tile::Water) {
+        int water_dmg = apply_damage_effects(player_.effects, 1);
+        player_.hp -= water_dmg;
         if (player_.hp < 0) player_.hp = 0;
         switch (map_.biome()) {
             case Biome::Fungal:
@@ -2737,7 +2750,8 @@ void Game::process_npc_turn(Npc& npc) {
             int defense = player_.effective_defense();
             int damage = raw_damage - defense;
             if (damage < 1) damage = 1;
-            if (player_.invulnerable) {
+            damage = apply_damage_effects(player_.effects, damage);
+            if (damage <= 0) {
                 log(npc.display_name() + " strikes you but deals no damage.");
                 return;
             }
@@ -2799,12 +2813,13 @@ bool Game::tile_occupied(int x, int y) const {
 }
 
 void Game::attack_npc(Npc& npc) {
-    if (npc.invulnerable) {
+    int damage = player_.effective_attack();
+    if (damage < 1) damage = 1;
+    damage = apply_damage_effects(npc.effects, damage);
+    if (damage <= 0) {
         log("Your attack has no effect on " + npc.display_name() + ".");
         return;
     }
-    int damage = player_.effective_attack();
-    if (damage < 1) damage = 1;
     npc.hp -= damage;
     if (npc.hp < 0) npc.hp = 0;
     log("You strike " + npc.display_name() + " for " +
@@ -2967,15 +2982,15 @@ void Game::shoot_target() {
     // Consume charge
     rd.current_charge -= rd.charge_per_shot;
 
-    if (target_npc_->invulnerable) {
+    // Damage = effective attack (includes STR modifier + all equipment)
+    int damage = player_.effective_attack();
+    if (damage < 1) damage = 1;
+    damage = apply_damage_effects(target_npc_->effects, damage);
+    if (damage <= 0) {
         log("Your shot has no effect on " + target_npc_->display_name() + ".");
         advance_world(ActionCost::shoot);
         return;
     }
-
-    // Damage = effective attack (includes STR modifier + all equipment)
-    int damage = player_.effective_attack();
-    if (damage < 1) damage = 1;
     target_npc_->hp -= damage;
     if (target_npc_->hp < 0) target_npc_->hp = 0;
     log("You shoot " + target_npc_->display_name() + " for " +
@@ -3884,10 +3899,6 @@ void Game::render_stats_bar() {
     if (dev_mode_) {
         ctx.text(lx, 0, "[DEV]", Color::Red);
         lx += 6;
-        if (player_.invulnerable) {
-            ctx.text(lx, 0, "[INV]", Color::Green);
-            lx += 6;
-        }
     }
 
     // Left side: level :: temp :: hunger :: money
@@ -4626,8 +4637,21 @@ void Game::render_effects_bar() {
     DrawContext ctx(renderer_.get(), effects_rect_);
     int x = 1;
     ctx.text(x, 0, "EFFECTS:", Color::DarkGray);
-    x += 8;
-    ctx.text(x, 0, " [none]", Color::DarkGray);
+    x += 9;
+    bool any_effect = false;
+    for (const auto& e : player_.effects) {
+        if (!e.show_in_bar) continue;
+        any_effect = true;
+        std::string label = e.name;
+        if (e.remaining > 0) {
+            label += "(" + std::to_string(e.remaining) + ")";
+        }
+        ctx.text(x, 0, label, e.color);
+        x += static_cast<int>(label.size()) + 1;
+    }
+    if (!any_effect) {
+        ctx.text(x, 0, "[none]", Color::DarkGray);
+    }
 
     int mid = ctx.width() / 3;
     ctx.text(mid, 0, "TARGET:", Color::DarkGray);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/character.h"
+#include "astra/effect.h"
 #include "astra/item.h"
 #include "astra/journal.h"
 #include "astra/race.h"
@@ -71,7 +72,9 @@ struct Player {
     int energy = 0;
     int kills = 0;
     int regen_counter = 0;
-    bool invulnerable = false;
+
+    // Effects
+    EffectList effects;
 
     // Equipment & inventory
     Equipment equipment;
@@ -90,21 +93,24 @@ struct Player {
     // Journal
     std::vector<JournalEntry> journal;
 
-    // Derived stats — attribute modifier is (attr - 10) / 2 for primary effects
+    // Derived stats — attribute modifier + equipment + active effects
     int effective_attack() const {
-        return attack_value + (attributes.strength - 10) / 2
-               + equipment.total_modifiers().attack;
+        auto eq = equipment.total_modifiers();
+        auto ef = effect_modifiers(effects);
+        return attack_value + (attributes.strength - 10) / 2 + eq.attack + ef.attack;
     }
     int effective_defense() const {
-        return defense_value + (attributes.toughness - 10) / 3
-               + equipment.total_modifiers().defense;
+        auto eq = equipment.total_modifiers();
+        auto ef = effect_modifiers(effects);
+        return defense_value + (attributes.toughness - 10) / 3 + eq.defense + ef.defense;
     }
     int effective_dodge() const {
-        return dodge_value + (attributes.agility - 10) / 3;
+        return dodge_value + (attributes.agility - 10) / 3 + effect_dodge_mod(effects);
     }
     int effective_max_hp() const {
-        return max_hp + (attributes.toughness - 10) * 2
-               + equipment.total_modifiers().max_hp;
+        auto eq = equipment.total_modifiers();
+        auto ef = effect_modifiers(effects);
+        return max_hp + (attributes.toughness - 10) * 2 + eq.max_hp + ef.max_hp;
     }
 };
 

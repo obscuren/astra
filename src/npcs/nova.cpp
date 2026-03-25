@@ -12,7 +12,7 @@ Npc build_nova() {
     npc.hp = 100;
     npc.max_hp = 100;
     npc.disposition = Disposition::Friendly;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
 
     // --- Talk: cheeky, warm, knows things ---

@@ -12,7 +12,7 @@ Npc build_food_merchant(Race race, std::mt19937& rng) {
     npc.hp = 12;
     npc.max_hp = 12;
     npc.disposition = Disposition::Friendly;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -55,7 +55,7 @@ Npc build_medic(Race race, std::mt19937& rng) {
     npc.hp = 10;
     npc.max_hp = 10;
     npc.disposition = Disposition::Friendly;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -97,7 +97,7 @@ Npc build_commander(Race race, std::mt19937& rng) {
     npc.hp = 25;
     npc.max_hp = 25;
     npc.disposition = Disposition::Friendly;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -154,7 +154,7 @@ Npc build_arms_dealer(Race race, std::mt19937& rng) {
     npc.hp = 20;
     npc.max_hp = 20;
     npc.disposition = Disposition::Neutral;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -200,7 +200,7 @@ Npc build_astronomer(Race race, std::mt19937& rng) {
     npc.hp = 8;
     npc.max_hp = 8;
     npc.disposition = Disposition::Friendly;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -242,7 +242,7 @@ Npc build_engineer(Race race, std::mt19937& rng) {
     npc.hp = 15;
     npc.max_hp = 15;
     npc.disposition = Disposition::Friendly;
-    npc.invulnerable = true;
+    add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 

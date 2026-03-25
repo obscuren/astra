@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/effect.h"
 #include "astra/interaction.h"
 #include "astra/race.h"
 #include "astra/renderer.h"
@@ -27,7 +28,7 @@ struct Npc {
     int hp = 1;
     int max_hp = 1;
     Disposition disposition = Disposition::Neutral;
-    bool invulnerable = false;
+    EffectList effects;
     int quickness = 100;
     int energy = 0;
     int level = 1;
