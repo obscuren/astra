@@ -746,8 +746,8 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
             // material: 0=metal, 1=concrete, 2=wood, 3=salvage
             // shape: building shape index
             auto draw_building = [&](int bx, int by, int bw, int bh, int door_side,
-                                     std::pair<int,int>& door_out, uint8_t material = 0,
-                                     int shape = SHAPE_RECT) {
+                                     std::pair<int,int>& door_out, uint8_t material,
+                                     int shape) {
                 // Clamp shape to rectangle if building is too small
                 if ((shape == SHAPE_L || shape == SHAPE_U) && (bw < 10 || bh < 6))
                     shape = SHAPE_RECT;
