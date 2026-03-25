@@ -756,21 +756,6 @@ footer {
 
   <!-- Hero -->
   <section class="hero">
-    <div class="hero-ascii" id="heroAscii">
-         .                    *           .        +
-                  +                             .            .
-     *       .          .    *    .                      *
-          .       *                 +        .
-   .          +          *              .          .     +
-        *          .            .                *
-              .         *    +         .    *
-     +              .              *            .       *
-          *    .          .    .         +          .
-    .              *                .         *
-         .    +          *    .         .            +
-  *          .       .              *       .    *
-        .         *          +    .              .
-</div>
     <h1 class="hero-title" id="heroTitle">ASTRA</h1>
     <p class="hero-subtitle" id="heroSubtitle">A Sci-Fi Roguelike</p>
     <p class="hero-tagline" id="heroTagline">
@@ -1144,7 +1129,7 @@ footer {
 
 // ── Hero reveal ──
 function revealHero() {
-  const ids = ['heroAscii', 'heroTitle', 'heroSubtitle', 'heroTagline', 'heroActions', 'heroRelease', 'scrollIndicator'];
+  const ids = ['heroTitle', 'heroSubtitle', 'heroTagline', 'heroActions', 'heroRelease', 'scrollIndicator'];
   ids.forEach(id => document.getElementById(id).classList.add('visible'));
 }
 
