@@ -12,6 +12,7 @@
 #include "astra/dev_console.h"
 #include "astra/help_screen.h"
 #include "astra/input_manager.h"
+#include "astra/world_manager.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/trade_window.h"
 #include "astra/tile_props.h"
@@ -190,7 +191,7 @@ private:
     std::vector<GroundItem> ground_items_;
     std::vector<Item> stash_;
     static constexpr int max_stash_size_ = 20;
-    TileMap map_;
+    WorldManager world_;
     VisibilityMap visibility_;
     NavigationData navigation_;
     StarChartViewer star_chart_viewer_;

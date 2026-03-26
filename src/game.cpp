@@ -405,7 +405,7 @@ void Game::handle_play_input(int key) {
 
     // Look mode intercept
     if (input_.looking()) {
-        input_.handle_look_input(key, map_.width(), map_.height());
+        input_.handle_look_input(key, world_.map().width(), world_.map().height());
         return;
     }
 
@@ -443,7 +443,7 @@ void Game::handle_play_input(int key) {
             break;
         case ' ':
             if (on_overworld()) {
-                Tile t = map_.get(player_.x, player_.y);
+                Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::OW_Landing) {
                     enter_detail_map();
                 } else {
@@ -543,7 +543,7 @@ void Game::handle_play_input(int key) {
         }
         case '>': {
             if (on_overworld()) {
-                Tile t = map_.get(player_.x, player_.y);
+                Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
@@ -551,7 +551,7 @@ void Game::handle_play_input(int key) {
                 }
             } else if (on_detail_map()) {
                 // Check for Portal tile to enter dungeon
-                Tile t = map_.get(player_.x, player_.y);
+                Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::Portal) {
                     enter_dungeon_from_detail();
                 }
@@ -574,7 +574,7 @@ void Game::handle_play_input(int key) {
             if (key >= '1' && key <= '6' && tab != PanelTab::Wait) break;
             // Overworld: enter detail map for the tile underneath the player
             if (on_overworld() && (key == '\n' || key == '\r')) {
-                Tile t = map_.get(player_.x, player_.y);
+                Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
@@ -709,15 +709,15 @@ void Game::dev_warp_random() {
 
     auto props = default_properties(m.type);
     props.biome = m.biome;
-    map_ = TileMap(props.width, props.height, m.type);
+    world_.map() = TileMap(props.width, props.height, m.type);
     auto gen = create_generator(m.type);
-    gen->generate(map_, props, warp_seed);
-    map_.set_location_name(m.name);
+    gen->generate(world_.map(), props, warp_seed);
+    world_.map().set_location_name(m.name);
 
-    map_.find_open_spot(player_.x, player_.y);
+    world_.map().find_open_spot(player_.x, player_.y);
     npcs_.clear();
     ground_items_.clear();
-    visibility_ = VisibilityMap(map_.width(), map_.height());
+    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
     current_region_ = -1;
@@ -736,24 +736,24 @@ void Game::dev_warp_stamp_test() {
     props.detail_has_poi = true;
     props.detail_poi_type = dev_warp_stamp_test_poi_;
 
-    map_ = TileMap(props.width, props.height, MapType::DetailMap);
+    world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
     auto gen = create_generator(MapType::DetailMap);
-    gen->generate(map_, props, warp_seed);
-    map_.set_location_name("[DEV] Stamp Test");
+    gen->generate(world_.map(), props, warp_seed);
+    world_.map().set_location_name("[DEV] Stamp Test");
 
-    map_.find_open_spot(player_.x, player_.y);
+    world_.map().find_open_spot(player_.x, player_.y);
     npcs_.clear();
     ground_items_.clear();
 
     // Spawn NPCs for settlement/outpost stamp tests
     std::mt19937 npc_rng(warp_seed ^ 0xC1A5u);
     if (dev_warp_stamp_test_poi_ == Tile::OW_Settlement) {
-        spawn_settlement_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+        spawn_settlement_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
     } else if (dev_warp_stamp_test_poi_ == Tile::OW_Outpost) {
-        spawn_outpost_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+        spawn_outpost_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
     }
 
-    visibility_ = VisibilityMap(map_.width(), map_.height());
+    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
     current_region_ = -1;
@@ -801,10 +801,10 @@ void Game::new_game() {
 
     auto props = default_properties(MapType::SpaceStation);
     props.height = 80; // hub needs extra vertical space for 3-row grid
-    map_ = TileMap(props.width, props.height, MapType::SpaceStation);
+    world_.map() = TileMap(props.width, props.height, MapType::SpaceStation);
     auto gen = create_hub_generator();
-    gen->generate(map_, props, seed_);
-    map_.set_location_name("The Heavens Above");
+    gen->generate(world_.map(), props, seed_);
+    world_.map().set_location_name("The Heavens Above");
 
     player_ = Player{};
     player_.money = 10;
@@ -833,17 +833,17 @@ void Game::new_game() {
         player_.reputation.push_back({"Xytomorph Hive", -50});
     }
     // Always start in the Docking Bay (region 0)
-    if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
-        map_.find_open_spot(player_.x, player_.y);
+    if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+        world_.map().find_open_spot(player_.x, player_.y);
     }
 
     // Spawn NPCs in rooms based on room flavor
     npcs_.clear();
     ground_items_.clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+    spawn_hub_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
 
-    visibility_ = VisibilityMap(map_.width(), map_.height());
+    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
 
@@ -956,10 +956,10 @@ void Game::new_game(const CreationResult& cr) {
 
     auto props = default_properties(MapType::SpaceStation);
     props.height = 80;
-    map_ = TileMap(props.width, props.height, MapType::SpaceStation);
+    world_.map() = TileMap(props.width, props.height, MapType::SpaceStation);
     auto gen = create_hub_generator();
-    gen->generate(map_, props, seed_);
-    map_.set_location_name("The Heavens Above");
+    gen->generate(world_.map(), props, seed_);
+    world_.map().set_location_name("The Heavens Above");
 
     player_ = Player{};
     player_.name = cr.name;
@@ -986,16 +986,16 @@ void Game::new_game(const CreationResult& cr) {
     player_.reputation.push_back({"Xytomorph Hive", 0});
 
     // Spawn
-    if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
-        map_.find_open_spot(player_.x, player_.y);
+    if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+        world_.map().find_open_spot(player_.x, player_.y);
     }
 
     npcs_.clear();
     ground_items_.clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+    spawn_hub_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
 
-    visibility_ = VisibilityMap(map_.width(), map_.height());
+    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
 
@@ -1060,7 +1060,7 @@ void Game::save_current_location() {
                navigation_.current_moon_index, false, overworld_x_, overworld_y_, 1};
     }
     LocationState& state = location_cache_[key];
-    state.map = std::move(map_);
+    state.map = std::move(world_.map());
     state.visibility = std::move(visibility_);
     state.npcs = std::move(npcs_);
     state.ground_items = std::move(ground_items_);
@@ -1072,7 +1072,7 @@ void Game::restore_location(const LocationKey& key) {
     auto it = location_cache_.find(key);
     if (it == location_cache_.end()) return;
     LocationState& state = it->second;
-    map_ = std::move(state.map);
+    world_.map() = std::move(state.map);
     visibility_ = std::move(state.visibility);
     npcs_ = std::move(state.npcs);
     ground_items_ = std::move(state.ground_items);
@@ -1087,8 +1087,8 @@ void Game::restore_location(const LocationKey& key) {
         for (const auto& npc : npcs_) {
             exclude.push_back({npc.x, npc.y});
         }
-        if (!map_.find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
-            map_.find_open_spot(player_.x, player_.y);
+        if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
+            world_.map().find_open_spot(player_.x, player_.y);
         }
     }
 
@@ -1106,19 +1106,19 @@ void Game::enter_ship() {
         // Generate the ship for the first time
         unsigned ship_seed = seed_ ^ 0x5B1Bu;
         auto props = default_properties(MapType::Starship);
-        map_ = TileMap(props.width, props.height, MapType::Starship);
+        world_.map() = TileMap(props.width, props.height, MapType::Starship);
         auto gen = create_starship_generator();
-        gen->generate(map_, props, ship_seed);
-        map_.set_location_name("Your Starship");
+        gen->generate(world_.map(), props, ship_seed);
+        world_.map().set_location_name("Your Starship");
 
         npcs_.clear();
         ground_items_.clear();
         // Spawn in region 0 (cockpit)
-        if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
-            map_.find_open_spot(player_.x, player_.y);
+        if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+            world_.map().find_open_spot(player_.x, player_.y);
         }
 
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     visibility_.reveal_all();
@@ -1129,13 +1129,13 @@ void Game::enter_ship() {
 }
 
 void Game::enter_overworld_tile() {
-    Tile tile = map_.get(player_.x, player_.y);
+    Tile tile = world_.map().get(player_.x, player_.y);
     overworld_x_ = player_.x;
     overworld_y_ = player_.y;
 
     // Determine detail map type + biome from overworld tile
     MapType detail_type = MapType::Rocky;
-    Biome detail_biome = detail_biome_for_terrain(tile, map_.biome());
+    Biome detail_biome = detail_biome_for_terrain(tile, world_.map().biome());
 
     const char* enter_msg = "You explore the area.";
 
@@ -1202,7 +1202,7 @@ void Game::enter_overworld_tile() {
     }
 
     // Remember the body name for the detail map
-    std::string body_name = map_.location_name();
+    std::string body_name = world_.map().location_name();
 
     // Detail map LocationKey uses overworld coords (depth=1 for legacy dungeon entry)
     LocationKey detail_key = {navigation_.current_system_id,
@@ -1227,7 +1227,7 @@ void Game::enter_overworld_tile() {
 
         auto props = default_properties(detail_type);
         props.biome = detail_biome;
-        map_ = TileMap(props.width, props.height, detail_type);
+        world_.map() = TileMap(props.width, props.height, detail_type);
 
         // Smaller maps for minor POIs
         if (tile == Tile::OW_CrashedShip || tile == Tile::OW_Outpost) {
@@ -1236,19 +1236,19 @@ void Game::enter_overworld_tile() {
         }
 
         auto gen = create_generator(detail_type);
-        gen->generate(map_, props, detail_seed);
-        map_.set_location_name(body_name);
+        gen->generate(world_.map(), props, detail_seed);
+        world_.map().set_location_name(body_name);
 
         npcs_.clear();
         ground_items_.clear();
-        map_.find_open_spot(player_.x, player_.y);
+        world_.map().find_open_spot(player_.x, player_.y);
 
         // Spawn NPCs
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+        debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
 
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1292,7 +1292,7 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
 
     const TileMap* ow_map = nullptr;
     if (on_overworld()) {
-        ow_map = &map_;
+        ow_map = &world_.map();
     } else {
         auto it = location_cache_.find(ow_key);
         if (it != location_cache_.end())
@@ -1326,7 +1326,7 @@ void Game::enter_detail_map() {
     overworld_y_ = player_.y;
 
     auto props = build_detail_props(overworld_x_, overworld_y_);
-    std::string body_name = map_.location_name();
+    std::string body_name = world_.map().location_name();
 
     LocationKey detail_key = {navigation_.current_system_id,
                               navigation_.current_body_index,
@@ -1346,11 +1346,11 @@ void Game::enter_detail_map() {
             ^ (static_cast<unsigned>(overworld_x_) * 1013u)
             ^ (static_cast<unsigned>(overworld_y_) * 2039u);
 
-        map_ = TileMap(props.width, props.height, MapType::DetailMap);
+        world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
-        gen->generate(map_, props, detail_seed);
-        map_.set_biome(props.biome);
-        map_.set_location_name(body_name);
+        gen->generate(world_.map(), props, detail_seed);
+        world_.map().set_biome(props.biome);
+        world_.map().set_location_name(body_name);
 
         npcs_.clear();
         ground_items_.clear();
@@ -1359,36 +1359,36 @@ void Game::enter_detail_map() {
         if (props.detail_poi_type == Tile::OW_Landing) {
             // Find the cockpit region (ShipCockpit flavor)
             bool found_cockpit = false;
-            for (int i = 0; i < map_.region_count(); ++i) {
-                if (map_.region(i).flavor == RoomFlavor::ShipCockpit) {
-                    if (map_.find_open_spot_in_region(i, player_.x, player_.y, {})) {
+            for (int i = 0; i < world_.map().region_count(); ++i) {
+                if (world_.map().region(i).flavor == RoomFlavor::ShipCockpit) {
+                    if (world_.map().find_open_spot_in_region(i, player_.x, player_.y, {})) {
                         found_cockpit = true;
                     }
                     break;
                 }
             }
             if (!found_cockpit) {
-                player_.x = map_.width() / 2;
-                player_.y = map_.height() / 2;
-                if (!map_.passable(player_.x, player_.y))
-                    map_.find_open_spot(player_.x, player_.y);
+                player_.x = world_.map().width() / 2;
+                player_.y = world_.map().height() / 2;
+                if (!world_.map().passable(player_.x, player_.y))
+                    world_.map().find_open_spot(player_.x, player_.y);
             }
         } else {
-            player_.x = map_.width() / 2;
-            player_.y = map_.height() / 2;
-            if (!map_.passable(player_.x, player_.y))
-                map_.find_open_spot(player_.x, player_.y);
+            player_.x = world_.map().width() / 2;
+            player_.y = world_.map().height() / 2;
+            if (!world_.map().passable(player_.x, player_.y))
+                world_.map().find_open_spot(player_.x, player_.y);
         }
 
         // Spawn NPCs in settlements and outposts (after player placement)
         std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
         if (props.detail_poi_type == Tile::OW_Settlement) {
-            spawn_settlement_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+            spawn_settlement_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
         } else if (props.detail_poi_type == Tile::OW_Outpost) {
-            spawn_outpost_npcs(map_, npcs_, player_.x, player_.y, npc_rng);
+            spawn_outpost_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
         }
 
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1450,7 +1450,7 @@ void Game::enter_dungeon_from_detail() {
                           false, -1, -1, 0};
 
     Tile ow_tile = Tile::OW_CaveEntrance;
-    Biome ow_biome = map_.biome();
+    Biome ow_biome = world_.map().biome();
     auto it = location_cache_.find(ow_key);
     if (it != location_cache_.end()) {
         ow_tile = it->second.map.get(overworld_x_, overworld_y_);
@@ -1493,7 +1493,7 @@ void Game::enter_dungeon_from_detail() {
             break;
     }
 
-    std::string body_name = map_.location_name();
+    std::string body_name = world_.map().location_name();
 
     LocationKey dungeon_key = {navigation_.current_system_id,
                                navigation_.current_body_index,
@@ -1515,20 +1515,20 @@ void Game::enter_dungeon_from_detail() {
 
         auto props = default_properties(detail_type);
         props.biome = detail_biome;
-        map_ = TileMap(props.width, props.height, detail_type);
+        world_.map() = TileMap(props.width, props.height, detail_type);
         auto gen = create_generator(detail_type);
-        gen->generate(map_, props, detail_seed);
-        map_.set_location_name(body_name);
+        gen->generate(world_.map(), props, detail_seed);
+        world_.map().set_location_name(body_name);
 
         npcs_.clear();
         ground_items_.clear();
-        map_.find_open_spot(player_.x, player_.y);
+        world_.map().find_open_spot(player_.x, player_.y);
 
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+        debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
 
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1562,15 +1562,15 @@ void Game::exit_dungeon_to_detail() {
             ^ (static_cast<unsigned>(overworld_x_) * 1013u)
             ^ (static_cast<unsigned>(overworld_y_) * 2039u);
 
-        map_ = TileMap(props.width, props.height, MapType::DetailMap);
+        world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
-        gen->generate(map_, props, detail_seed);
-        map_.set_biome(props.biome);
+        gen->generate(world_.map(), props, detail_seed);
+        world_.map().set_biome(props.biome);
 
         npcs_.clear();
         ground_items_.clear();
-        map_.find_open_spot(player_.x, player_.y);
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        world_.map().find_open_spot(player_.x, player_.y);
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1636,28 +1636,28 @@ void Game::transition_detail_edge(int dx, int dy) {
             ^ (static_cast<unsigned>(new_ow_x) * 1013u)
             ^ (static_cast<unsigned>(new_ow_y) * 2039u);
 
-        map_ = TileMap(props.width, props.height, MapType::DetailMap);
+        world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
-        gen->generate(map_, props, detail_seed);
-        map_.set_biome(props.biome);
+        gen->generate(world_.map(), props, detail_seed);
+        world_.map().set_biome(props.biome);
 
         npcs_.clear();
         ground_items_.clear();
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     // Place player at opposite edge
-    if (dx == -1) player_.x = map_.width() - 2;
+    if (dx == -1) player_.x = world_.map().width() - 2;
     else if (dx == 1) player_.x = 1;
-    else player_.x = map_.width() / 2;
+    else player_.x = world_.map().width() / 2;
 
-    if (dy == -1) player_.y = map_.height() - 2;
+    if (dy == -1) player_.y = world_.map().height() - 2;
     else if (dy == 1) player_.y = 1;
-    else player_.y = map_.height() / 2;
+    else player_.y = world_.map().height() / 2;
 
     // Ensure we're on a passable tile
-    if (!map_.passable(player_.x, player_.y)) {
-        map_.find_open_spot(player_.x, player_.y);
+    if (!world_.map().passable(player_.x, player_.y)) {
+        world_.map().find_open_spot(player_.x, player_.y);
     }
 
     // Also update player position on cached overworld
@@ -1705,16 +1705,16 @@ void Game::travel_to_destination(const ChartAction& action) {
                 // Generate ship for the first time
                 unsigned ship_seed = seed_ ^ 0x5B1Bu;
                 auto props = default_properties(MapType::Starship);
-                map_ = TileMap(props.width, props.height, MapType::Starship);
+                world_.map() = TileMap(props.width, props.height, MapType::Starship);
                 auto gen = create_starship_generator();
-                gen->generate(map_, props, ship_seed);
-                map_.set_location_name("Your Starship");
+                gen->generate(world_.map(), props, ship_seed);
+                world_.map().set_location_name("Your Starship");
                 npcs_.clear();
                 ground_items_.clear();
-                if (!map_.find_open_spot_in_region(0, player_.x, player_.y, {})) {
-                    map_.find_open_spot(player_.x, player_.y);
+                if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+                    world_.map().find_open_spot(player_.x, player_.y);
                 }
-                visibility_ = VisibilityMap(map_.width(), map_.height());
+                visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
             }
 
             visibility_.reveal_all();
@@ -1845,20 +1845,20 @@ void Game::travel_to_destination(const ChartAction& action) {
                              ^ (static_cast<unsigned>(action.body_index) * 6271u)
                              ^ (static_cast<unsigned>(action.moon_index + 1) * 3571u);
 
-            map_ = TileMap(props.width, props.height, MapType::Overworld);
+            world_.map() = TileMap(props.width, props.height, MapType::Overworld);
             auto gen = create_generator(MapType::Overworld);
-            gen->generate(map_, props, ow_seed);
-            map_.set_biome(dest_biome);
-            map_.set_location_name(location_name);
+            gen->generate(world_.map(), props, ow_seed);
+            world_.map().set_biome(dest_biome);
+            world_.map().set_location_name(location_name);
 
             npcs_.clear();
             ground_items_.clear();
 
             // Find landing tile for player spawn
             bool found_landing = false;
-            for (int y = 0; y < map_.height() && !found_landing; ++y) {
-                for (int x = 0; x < map_.width() && !found_landing; ++x) {
-                    if (map_.get(x, y) == Tile::OW_Landing) {
+            for (int y = 0; y < world_.map().height() && !found_landing; ++y) {
+                for (int x = 0; x < world_.map().width() && !found_landing; ++x) {
+                    if (world_.map().get(x, y) == Tile::OW_Landing) {
                         player_.x = x;
                         player_.y = y;
                         found_landing = true;
@@ -1866,11 +1866,11 @@ void Game::travel_to_destination(const ChartAction& action) {
                 }
             }
             if (!found_landing) {
-                player_.x = map_.width() / 2;
-                player_.y = map_.height() / 2;
+                player_.x = world_.map().width() / 2;
+                player_.y = world_.map().height() / 2;
             }
 
-            visibility_ = VisibilityMap(map_.width(), map_.height());
+            visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
         }
 
         surface_mode_ = SurfaceMode::Overworld;
@@ -1892,27 +1892,27 @@ void Game::travel_to_destination(const ChartAction& action) {
         unsigned travel_seed = rng_();
         auto props = default_properties(dest_type);
         props.biome = dest_biome;
-        map_ = TileMap(props.width, props.height, dest_type);
+        world_.map() = TileMap(props.width, props.height, dest_type);
         auto gen = create_generator(dest_type);
-        gen->generate(map_, props, travel_seed);
-        map_.set_location_name(location_name);
+        gen->generate(world_.map(), props, travel_seed);
+        world_.map().set_location_name(location_name);
 
         npcs_.clear();
         ground_items_.clear();
-        map_.find_open_spot(player_.x, player_.y);
+        world_.map().find_open_spot(player_.x, player_.y);
 
         std::mt19937 npc_rng(travel_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(map_, npcs_, player_.x, player_.y, occupied, npc_rng);
+        debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
 
-        visibility_ = VisibilityMap(map_.width(), map_.height());
+        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     // Place ShipTerminal at stations so the player can re-board
     {
         bool has_terminal = false;
-        for (int i = 0; i < map_.fixture_count(); ++i) {
-            if (map_.fixture(i).type == FixtureType::ShipTerminal) {
+        for (int i = 0; i < world_.map().fixture_count(); ++i) {
+            if (world_.map().fixture(i).type == FixtureType::ShipTerminal) {
                 has_terminal = true;
                 break;
             }
@@ -1923,8 +1923,8 @@ void Game::travel_to_destination(const ChartAction& action) {
                 occupied.push_back({npc.x, npc.y});
             }
             int tx, ty;
-            if (map_.find_open_spot_near(player_.x, player_.y, tx, ty, occupied, &rng_)) {
-                map_.add_fixture(tx, ty, make_fixture(FixtureType::ShipTerminal));
+            if (world_.map().find_open_spot_near(player_.x, player_.y, tx, ty, occupied, &rng_)) {
+                world_.map().add_fixture(tx, ty, make_fixture(FixtureType::ShipTerminal));
             }
         }
     }
@@ -1943,9 +1943,9 @@ void Game::try_move(int dx, int dy) {
 
     // Detail map: edge transitions
     if (on_detail_map()) {
-        if (nx < 0 || nx >= map_.width() || ny < 0 || ny >= map_.height()) {
-            int ddx = (nx < 0) ? -1 : (nx >= map_.width()) ? 1 : 0;
-            int ddy = (ny < 0) ? -1 : (ny >= map_.height()) ? 1 : 0;
+        if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) {
+            int ddx = (nx < 0) ? -1 : (nx >= world_.map().width()) ? 1 : 0;
+            int ddy = (ny < 0) ? -1 : (ny >= world_.map().height()) ? 1 : 0;
             transition_detail_edge(ddx, ddy);
             return;
         }
@@ -1954,16 +1954,16 @@ void Game::try_move(int dx, int dy) {
 
     // Overworld: simplified movement
     if (on_overworld()) {
-        if (nx < 0 || nx >= map_.width() || ny < 0 || ny >= map_.height()) return;
-        if (!map_.passable(nx, ny)) {
+        if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) return;
+        if (!world_.map().passable(nx, ny)) {
             log("Impassable terrain.");
             return;
         }
-        Tile prev_tile = map_.get(player_.x, player_.y);
+        Tile prev_tile = world_.map().get(player_.x, player_.y);
         player_.x = nx;
         player_.y = ny;
         // Walk-over messages for POI tiles (suppress when moving within same tile type)
-        Tile stepped = map_.get(nx, ny);
+        Tile stepped = world_.map().get(nx, ny);
         if (stepped != prev_tile) {
             switch (stepped) {
                 case Tile::OW_Settlement:   log("A settlement. Press > to enter."); break;
@@ -1980,8 +1980,8 @@ void Game::try_move(int dx, int dy) {
         return;
     }
 
-    if (!map_.passable(nx, ny)) {
-        auto msg = random_bump_message(map_.get(nx, ny), map_.map_type(), rng_);
+    if (!world_.map().passable(nx, ny)) {
+        auto msg = random_bump_message(world_.map().get(nx, ny), world_.map().map_type(), rng_);
         if (!msg.empty()) {
             log(std::string(msg));
         }
@@ -2014,7 +2014,7 @@ void Game::try_move(int dx, int dy) {
     player_.y = ny;
 
     // Portal tile: return to detail map / overworld if in a dungeon on a body
-    if (map_.get(nx, ny) == Tile::Portal &&
+    if (world_.map().get(nx, ny) == Tile::Portal &&
         surface_mode_ == SurfaceMode::Dungeon && !navigation_.at_station && !navigation_.on_ship) {
         exit_dungeon_to_detail();
         return;
@@ -2027,11 +2027,11 @@ void Game::try_move(int dx, int dy) {
 }
 
 void Game::check_region_change() {
-    int rid = map_.region_id(player_.x, player_.y);
+    int rid = world_.map().region_id(player_.x, player_.y);
     if (rid == current_region_ || rid < 0) return;
 
     current_region_ = rid;
-    const auto& reg = map_.region(rid);
+    const auto& reg = world_.map().region(rid);
     if (!reg.enter_message.empty()) {
         log(reg.enter_message);
     }
@@ -2065,10 +2065,10 @@ void Game::try_interact(int dx, int dy) {
     }
 
     if (!target) {
-        Tile t = map_.get(tx, ty);
+        Tile t = world_.map().get(tx, ty);
         if (t == Tile::Fixture) {
-            int fid = map_.fixture_id(tx, ty);
-            if (fid >= 0 && map_.fixture(fid).interactable) {
+            int fid = world_.map().fixture_id(tx, ty);
+            if (fid >= 0 && world_.map().fixture(fid).interactable) {
                 interact_fixture(fid);
                 advance_world(ActionCost::interact);
                 return;
@@ -2109,10 +2109,10 @@ bool Game::is_interactable(int tx, int ty) const {
         if (npc.x == tx && npc.y == ty && npc.disposition != Disposition::Hostile) return true;
     }
     // Check for interactable fixture (including doors)
-    Tile t = map_.get(tx, ty);
+    Tile t = world_.map().get(tx, ty);
     if (t == Tile::Fixture) {
-        int fid = map_.fixture_id(tx, ty);
-        if (fid >= 0 && map_.fixture(fid).interactable) return true;
+        int fid = world_.map().fixture_id(tx, ty);
+        if (fid >= 0 && world_.map().fixture(fid).interactable) return true;
     }
     // Check for ground items at player's own tile
     if (tx == player_.x && ty == player_.y) {
@@ -2174,7 +2174,7 @@ void Game::use_at(int tx, int ty) {
             }
         }
         // Portal / stairs
-        Tile t = map_.get(tx, ty);
+        Tile t = world_.map().get(tx, ty);
         if (t == Tile::Portal) {
             if (on_detail_map()) {
                 enter_dungeon_from_detail();
@@ -2192,7 +2192,7 @@ void Game::use_at(int tx, int ty) {
 }
 
 void Game::interact_fixture(int fid) {
-    auto& f = map_.fixture_mut(fid);
+    auto& f = world_.map().fixture_mut(fid);
 
     switch (f.type) {
         case FixtureType::HealPod: {
@@ -2656,8 +2656,8 @@ void Game::compute_camera() {
 
     if (camera_x_ < 0) camera_x_ = 0;
     if (camera_y_ < 0) camera_y_ = 0;
-    if (camera_x_ + map_rect_.w > map_.width()) camera_x_ = map_.width() - map_rect_.w;
-    if (camera_y_ + map_rect_.h > map_.height()) camera_y_ = map_.height() - map_rect_.h;
+    if (camera_x_ + map_rect_.w > world_.map().width()) camera_x_ = world_.map().width() - map_rect_.w;
+    if (camera_y_ + map_rect_.h > world_.map().height()) camera_y_ = world_.map().height() - map_rect_.h;
     if (camera_x_ < 0) camera_x_ = 0;
     if (camera_y_ < 0) camera_y_ = 0;
 }
@@ -2670,11 +2670,11 @@ void Game::recompute_fov() {
 
     // Determine effective view radius based on context
     int radius = player_.view_radius + player_.equipment.total_modifiers().view_radius;
-    bool is_indoor = map_.map_type() == MapType::SpaceStation
-                  || map_.map_type() == MapType::DerelictStation
-                  || map_.map_type() == MapType::Starship;
+    bool is_indoor = world_.map().map_type() == MapType::SpaceStation
+                  || world_.map().map_type() == MapType::DerelictStation
+                  || world_.map().map_type() == MapType::Starship;
     bool is_dungeon = !on_overworld() && !on_detail_map()
-                      && map_.map_type() != MapType::DetailMap
+                      && world_.map().map_type() != MapType::DetailMap
                       && !is_indoor;
     if (is_indoor) {
         // Stations and ships: always fully lit, use base view_radius
@@ -2683,33 +2683,33 @@ void Game::recompute_fov() {
         radius = player_.light_radius;
     } else if (!on_overworld()) {
         // Surface detail maps: time of day affects view range
-        int max_radius = std::max(map_.width(), map_.height());
+        int max_radius = std::max(world_.map().width(), world_.map().height());
         radius = day_clock_.effective_view_radius(max_radius, player_.light_radius);
     }
 
-    compute_fov(map_, visibility_, player_.x, player_.y, radius);
+    compute_fov(world_.map(), visibility_, player_.x, player_.y, radius);
 
     // Detail maps: shadowcast for lighting, but entire map stays revealed
-    if (on_detail_map() || map_.map_type() == MapType::DetailMap) {
+    if (on_detail_map() || world_.map().map_type() == MapType::DetailMap) {
         visibility_.explore_all();
         return;
     }
 
-    std::vector<bool> reveal(map_.region_count(), false);
-    for (int y = 0; y < map_.height(); ++y) {
-        for (int x = 0; x < map_.width(); ++x) {
+    std::vector<bool> reveal(world_.map().region_count(), false);
+    for (int y = 0; y < world_.map().height(); ++y) {
+        for (int x = 0; x < world_.map().width(); ++x) {
             if (visibility_.get(x, y) == Visibility::Visible) {
-                int rid = map_.region_id(x, y);
-                if (rid >= 0 && map_.region(rid).lit) {
+                int rid = world_.map().region_id(x, y);
+                if (rid >= 0 && world_.map().region(rid).lit) {
                     reveal[rid] = true;
                 }
             }
         }
     }
 
-    for (int y = 0; y < map_.height(); ++y) {
-        for (int x = 0; x < map_.width(); ++x) {
-            int rid = map_.region_id(x, y);
+    for (int y = 0; y < world_.map().height(); ++y) {
+        for (int x = 0; x < world_.map().width(); ++x) {
+            int rid = world_.map().region_id(x, y);
             if (rid >= 0 && reveal[rid]) {
                 visibility_.set_visible(x, y);
             }
@@ -2752,11 +2752,11 @@ void Game::advance_world(int cost) {
     }
 
     // Water damage
-    if (player_.hp > 0 && map_.get(player_.x, player_.y) == Tile::Water) {
+    if (player_.hp > 0 && world_.map().get(player_.x, player_.y) == Tile::Water) {
         int water_dmg = apply_damage_effects(player_.effects, 1);
         player_.hp -= water_dmg;
         if (player_.hp < 0) player_.hp = 0;
-        switch (map_.biome()) {
+        switch (world_.map().biome()) {
             case Biome::Fungal:
                 log("Spores sting as you wade through the pool. (-1 HP)");
                 break;
@@ -2802,7 +2802,7 @@ void Game::process_npc_turn(Npc& npc) {
         npc.return_x = -1;
         npc.return_y = -1;
         // Only move back if the spot is free
-        if (map_.passable(rx, ry) &&
+        if (world_.map().passable(rx, ry) &&
             !(player_.x == rx && player_.y == ry) &&
             !tile_occupied(rx, ry)) {
             npc.x = rx;
@@ -2851,7 +2851,7 @@ void Game::process_npc_turn(Npc& npc) {
                 if (cx == 0 && cy == 0) continue;
                 int nx = npc.x + cx;
                 int ny = npc.y + cy;
-                if (map_.passable(nx, ny) && !tile_occupied(nx, ny)) {
+                if (world_.map().passable(nx, ny) && !tile_occupied(nx, ny)) {
                     npc.x = nx;
                     npc.y = ny;
                     return;
@@ -2869,7 +2869,7 @@ void Game::process_npc_turn(Npc& npc) {
     for (auto [dx, dy] : dirs) {
         int nx = npc.x + dx;
         int ny = npc.y + dy;
-        if (map_.passable(nx, ny) && !tile_occupied(nx, ny)) {
+        if (world_.map().passable(nx, ny) && !tile_occupied(nx, ny)) {
             npc.x = nx;
             npc.y = ny;
             return;
@@ -2954,8 +2954,8 @@ void Game::handle_targeting_input(int key) {
         for (int i = 1; i <= 20; ++i) {
             int nx = target_x_ + dx * i;
             int ny = target_y_ + dy * i;
-            if (nx < 0 || nx >= map_.width() || ny < 0 || ny >= map_.height()) return;
-            if (map_.passable(nx, ny) && visibility_.get(nx, ny) == Visibility::Visible) {
+            if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) return;
+            if (world_.map().passable(nx, ny) && visibility_.get(nx, ny) == Visibility::Visible) {
                 target_x_ = nx;
                 target_y_ = ny;
                 return;
@@ -3194,10 +3194,10 @@ std::string Game::look_tile_name(int mx, int my) const {
         if (gi.x == mx && gi.y == my) return gi.item.name;
     }
     // Fixture
-    Tile t = map_.get(mx, my);
+    Tile t = world_.map().get(mx, my);
     if (t == Tile::Fixture) {
-        int fid = map_.fixture_id(mx, my);
-        if (fid >= 0) return fixture_type_name(map_.fixture(fid).type);
+        int fid = world_.map().fixture_id(mx, my);
+        if (fid >= 0) return fixture_type_name(world_.map().fixture(fid).type);
     }
     // Overworld tiles
     switch (t) {
@@ -3253,10 +3253,10 @@ std::string Game::look_tile_desc(int mx, int my) const {
         if (gi.x == mx && gi.y == my) return gi.item.description;
     }
     // Fixture
-    Tile t = map_.get(mx, my);
+    Tile t = world_.map().get(mx, my);
     if (t == Tile::Fixture) {
-        int fid = map_.fixture_id(mx, my);
-        if (fid >= 0) return fixture_type_desc(map_.fixture(fid).type);
+        int fid = world_.map().fixture_id(mx, my);
+        if (fid >= 0) return fixture_type_desc(world_.map().fixture(fid).type);
     }
     // Overworld tiles
     switch (t) {
@@ -3560,7 +3560,7 @@ void Game::check_player_death() {
 
         MapState ms;
         ms.map_id = 0;
-        ms.tilemap = map_;
+        ms.tilemap = world_.map();
         ms.visibility = visibility_;
         ms.npcs = npcs_;
         data.maps.push_back(std::move(ms));
@@ -3678,7 +3678,7 @@ void Game::save_game() {
 
     MapState ms;
     ms.map_id = 0;
-    ms.tilemap = map_;
+    ms.tilemap = world_.map();
     ms.visibility = visibility_;
     ms.npcs = npcs_;
     ms.ground_items = ground_items_;
@@ -3707,7 +3707,7 @@ bool Game::load_game(const std::string& filename) {
 
     // Restore first map
     const auto& ms = data.maps[0];
-    map_ = ms.tilemap;
+    world_.map() = ms.tilemap;
     visibility_ = ms.visibility;
     npcs_ = ms.npcs;
     ground_items_ = ms.ground_items;
@@ -3970,7 +3970,7 @@ void Game::render_stats_bar() {
     right += " :: AV:"; right += std::to_string(player_.effective_attack());
     right += " :: DV:"; right += std::to_string(player_.effective_dodge());
     right += " :: ";    right += cal;
-    right += " :: ";    right += map_.location_name();
+    right += " :: ";    right += world_.map().location_name();
     right += " ";
 
     int rx = ctx.width() - static_cast<int>(right.size());
@@ -4048,7 +4048,7 @@ void Game::render_stats_bar() {
     }
 
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    ctx.text(x, 0, map_.location_name(), Color::White);
+    ctx.text(x, 0, world_.map().location_name(), Color::White);
 }
 
 void Game::render_bars() {
@@ -4175,7 +4175,7 @@ void Game::render_map() {
             int my = camera_y_ + sy;
 
             // Starfield backdrop — space stations only
-            if (map_.biome() == Biome::Station && map_.get(mx, my) == Tile::Empty) {
+            if (world_.map().biome() == Biome::Station && world_.map().get(mx, my) == Tile::Empty) {
                 char star = star_at(mx, my);
                 if (star) {
                     Color c = (star == '*' || star == '+') ? Color::White : Color::Cyan;
@@ -4187,28 +4187,28 @@ void Game::render_map() {
             Visibility v = visibility_.get(mx, my);
             if (v == Visibility::Unexplored) continue;
 
-            Tile tile_at = map_.get(mx, my);
+            Tile tile_at = world_.map().get(mx, my);
             char g = tile_glyph(tile_at);
             if (g == ' ' && tile_at != Tile::Fixture) continue;
 
             // Overworld: no FOV dimming, use overworld colors + UTF-8 glyphs
-            if (map_.map_type() == MapType::Overworld) {
-                Color c = overworld_tile_color(tile_at, map_.biome());
-                uint8_t gov = map_.glyph_override(mx, my);
+            if (world_.map().map_type() == MapType::Overworld) {
+                Color c = overworld_tile_color(tile_at, world_.map().biome());
+                uint8_t gov = world_.map().glyph_override(mx, my);
                 const char* og = (gov != 0) ? stamp_glyph(gov) : nullptr;
                 if (!og) og = overworld_glyph(tile_at, mx, my);
                 ctx.put(sx, sy, og, c);
                 continue;
             }
 
-            auto bc = biome_colors(map_.biome());
-            Biome biome = map_.biome();
+            auto bc = biome_colors(world_.map().biome());
+            Biome biome = world_.map().biome();
             if (v == Visibility::Visible) {
                 Color c = bc.floor;
                 const char* utf8 = nullptr;
 
                 if (tile_at == Tile::StructuralWall) {
-                    uint8_t mat = map_.glyph_override(mx, my);
+                    uint8_t mat = world_.map().glyph_override(mx, my);
                     switch (mat) {
                         case 1:  // Concrete
                             c = static_cast<Color>(245);  // medium gray
@@ -4245,9 +4245,9 @@ void Game::render_map() {
                     utf8 = dungeon_water_glyph(biome, mx, my);
                 }
                 else if (tile_at == Tile::Fixture) {
-                    int fid = map_.fixture_id(mx, my);
-                    if (fid >= 0 && fid < map_.fixture_count()) {
-                        const auto& f = map_.fixture(fid);
+                    int fid = world_.map().fixture_id(mx, my);
+                    if (fid >= 0 && fid < world_.map().fixture_count()) {
+                        const auto& f = world_.map().fixture(fid);
                         if (f.utf8_glyph) {
                             utf8 = f.utf8_glyph;
                         } else {
@@ -4279,7 +4279,7 @@ void Game::render_map() {
                 // Remembered tiles: use UTF-8 glyphs too
                 const char* utf8 = nullptr;
                 if (tile_at == Tile::StructuralWall) {
-                    uint8_t mat = map_.glyph_override(mx, my);
+                    uint8_t mat = world_.map().glyph_override(mx, my);
                     switch (mat) {
                         case 1:  utf8 = "\xe2\x96\x93"; break; // ▓
                         case 2:  utf8 = "\xe2\x96\x92"; break; // ▒
@@ -4296,9 +4296,9 @@ void Game::render_map() {
                 else if (tile_at == Tile::Water || tile_at == Tile::Ice)
                     utf8 = dungeon_water_glyph(biome, mx, my);
                 else if (tile_at == Tile::Fixture) {
-                    int fid = map_.fixture_id(mx, my);
-                    if (fid >= 0 && fid < map_.fixture_count()) {
-                        const auto& f = map_.fixture(fid);
+                    int fid = world_.map().fixture_id(mx, my);
+                    if (fid >= 0 && fid < world_.map().fixture_count()) {
+                        const auto& f = world_.map().fixture(fid);
                         if (f.utf8_glyph) {
                             utf8 = f.utf8_glyph;
                         } else {
