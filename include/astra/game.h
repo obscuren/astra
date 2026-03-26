@@ -57,10 +57,15 @@ class Game {
 public:
     explicit Game(std::unique_ptr<Renderer> renderer);
 
-    // Called by InputManager for console command execution
-    void execute_console_command(const std::string& cmd);
-
     void run();
+
+    // Public accessors for DevConsole commands
+    Player& player() { return player_; }
+    std::vector<Npc>& npcs() { return npcs_; }
+    void dev_command_warp_random();
+    void dev_command_warp_stamp(Tile poi);
+    void dev_command_level_up();
+    void dev_command_kill_hostiles();
 
 private:
     using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int>;

@@ -21,6 +21,7 @@ public:
 
     // Returns true if input was consumed
     bool handle_input(int key, Game& game);
+    void execute_command(const std::string& cmd, Game& game);
     void draw(Renderer* renderer, int screen_w, int screen_h);
 
 private:
