@@ -1,4 +1,5 @@
 #include "astra/trade_window.h"
+#include "astra/effect.h"
 
 #include <algorithm>
 
@@ -79,7 +80,9 @@ void TradeWindow::buy_selected() {
     if (merchant_cursor_ < 0 || merchant_cursor_ >= static_cast<int>(inv.size())) return;
 
     auto& item = inv[merchant_cursor_];
-    int cost = item.buy_value;
+    int mod = effect_buy_price_pct(player_->effects);
+    int cost = item.buy_value + (item.buy_value * mod / 100);
+    if (cost < 1) cost = 1;
 
     if (player_->money < cost) {
         status_msg_ = "Not enough credits. (Need " + std::to_string(cost) + "$)";
@@ -134,7 +137,9 @@ void TradeWindow::sell_selected() {
     if (player_cursor_ < 0 || player_cursor_ >= static_cast<int>(inv.size())) return;
 
     auto& item = inv[player_cursor_];
-    int price = item.sell_value;
+    int mod = effect_sell_price_pct(player_->effects);
+    int price = item.sell_value + (item.sell_value * mod / 100);
+    if (price < 0) price = 0;
 
     player_->money += price;
 
@@ -275,8 +280,12 @@ void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& item
         // Name (rarity color) + stack count (white)
         draw_item_name(ctx, x, i, item, selected);
 
-        // Price right-aligned
-        int price = show_buy_price ? item.buy_value : item.sell_value;
+        // Price right-aligned (with Haggle modifier)
+        int base_price = show_buy_price ? item.buy_value : item.sell_value;
+        int pct = show_buy_price ? effect_buy_price_pct(player_->effects)
+                                 : effect_sell_price_pct(player_->effects);
+        int price = base_price + (base_price * pct / 100);
+        if (price < (show_buy_price ? 1 : 0)) price = show_buy_price ? 1 : 0;
         std::string price_str = std::to_string(price) + "$";
         int px = w - static_cast<int>(price_str.size()) - 1;
         if (px > x + static_cast<int>(item.name.size()) + 2) {

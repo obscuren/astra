@@ -492,6 +492,7 @@ void Game::new_game() {
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
 
+    apply_passive_skill_effects();
     state_ = GameState::Playing;
 }
 
@@ -590,6 +591,7 @@ void Game::new_game(const CreationResult& cr) {
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
 
+    apply_passive_skill_effects();
     state_ = GameState::Playing;
 }
 
@@ -631,10 +633,19 @@ void Game::reset_interaction_state() {
 }
 
 void Game::post_load() {
+    // Apply passive skill effects
+    apply_passive_skill_effects();
     compute_layout();
     recompute_fov();
     compute_camera();
     state_ = GameState::Playing;
+}
+
+void Game::apply_passive_skill_effects() {
+    if (player_has_skill(player_, SkillId::Haggle) &&
+        !has_effect(player_.effects, EffectId::Haggle)) {
+        add_effect(player_.effects, make_haggle());
+    }
 }
 
 } // namespace astra

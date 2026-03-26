@@ -76,6 +76,18 @@ int effect_dodge_mod(const EffectList& effects) {
     return total;
 }
 
+int effect_buy_price_pct(const EffectList& effects) {
+    int total = 0;
+    for (const auto& e : effects) total += e.buy_price_pct;
+    return total;
+}
+
+int effect_sell_price_pct(const EffectList& effects) {
+    int total = 0;
+    for (const auto& e : effects) total += e.sell_price_pct;
+    return total;
+}
+
 int apply_damage_effects(const EffectList& effects, int raw_damage) {
     int damage = raw_damage;
     for (const auto& e : effects) {
@@ -168,6 +180,19 @@ Effect make_defense_boost(int duration, int amount) {
     e.remaining = duration;
     e.show_in_bar = false;
     e.modifiers.defense = amount;
+    return e;
+}
+
+Effect make_haggle() {
+    Effect e;
+    e.id = EffectId::Haggle;
+    e.name = "Haggle";
+    e.color = Color::Yellow;
+    e.duration = -1;
+    e.remaining = -1;
+    e.show_in_bar = false;
+    e.buy_price_pct = -10;
+    e.sell_price_pct = 10;
     return e;
 }
 

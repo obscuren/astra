@@ -1,5 +1,6 @@
 #include "astra/character_screen.h"
 #include "astra/character.h"
+#include "astra/effect.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
 #include "astra/journal.h"
@@ -263,6 +264,9 @@ bool CharacterScreen::handle_input(int key) {
                         if (meets_req) {
                             player_->skill_points -= sk.sp_cost;
                             player_->learned_skills.push_back(sk.id);
+                            if (sk.id == SkillId::Haggle) {
+                                add_effect(player_->effects, make_haggle());
+                            }
                             context_message_ = "Learned " + sk.name + "!";
                             context_msg_timer_ = 3;
                         }

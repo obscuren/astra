@@ -85,7 +85,8 @@ public:
     CombatSystem& combat() { return combat_; }
     void rebuild_star_chart_viewer();
     void reset_interaction_state();
-    void post_load(); // compute_layout + recompute_fov + compute_camera + set Playing
+    void post_load();
+    void apply_passive_skill_effects();
 
     // Dev commands
     void dev_command_warp_random();

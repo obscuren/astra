@@ -19,6 +19,7 @@ enum class EffectId : uint32_t {
     DefenseBoost = 7,
     Slow         = 8,
     Haste        = 9,
+    Haggle       = 10,
 };
 
 struct Effect {
@@ -44,6 +45,10 @@ struct Effect {
     // multiplier: 100 = normal, 0 = immune, 50 = half, 200 = double
     int damage_multiplier = 100;
     int damage_flat_mod = 0;    // added after multiplier (positive = more damage taken)
+
+    // Trade price modifiers (percentage: -10 = 10% cheaper buy, +10 = 10% better sell)
+    int buy_price_pct = 0;
+    int sell_price_pct = 0;
 };
 
 using EffectList = std::vector<Effect>;
@@ -61,6 +66,8 @@ void expire_effects(EffectList& effects);
 // Aggregation
 StatModifiers effect_modifiers(const EffectList& effects);
 int effect_dodge_mod(const EffectList& effects);
+int effect_buy_price_pct(const EffectList& effects);
+int effect_sell_price_pct(const EffectList& effects);
 
 // Damage pipeline — pass raw damage through all active effects.
 // Returns modified damage (clamped to >= 0).
@@ -74,5 +81,6 @@ Effect make_regen(int duration, int heal_per_tick);
 Effect make_dodge_boost(int duration, int amount);
 Effect make_attack_boost(int duration, int amount);
 Effect make_defense_boost(int duration, int amount);
+Effect make_haggle();
 
 } // namespace astra
