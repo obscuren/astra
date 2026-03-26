@@ -10,13 +10,13 @@
 - [ ] **Dodge/miss chance** — roll against effective_dodge(), miss = no damage
 - [ ] **Critical hits** — roll against LUC stat, crit = 2x damage
 - [ ] **Status effects from combat** — weapons/skills apply burn, poison, slow on hit
-- [ ] **Weapon class system** — add WeaponClass enum to Item (ShortBlade, LongBlade, Pistol, Rifle), tag existing weapons
+- [x] **Weapon class system** — WeaponClass enum, all 10 weapons tagged
 
 ### Weapon Expertise (requires weapon classes)
-- [ ] **ShortBladeExpertise** — +1 hit, -25% action cost with short blades
-- [ ] **LongBladeExpertise** — +1 hit, parry chance with long blades
-- [ ] **SteadyHand** — +1 pistol accuracy
-- [ ] **Marksman** — +2 rifle range
+- [x] **ShortBladeExpertise** — +1 damage with short blades
+- [x] **LongBladeExpertise** — +1 damage with long blades
+- [x] **SteadyHand** — +1 damage with pistols
+- [x] **Marksman** — +1 damage, +2 range with rifles
 
 ### Active Abilities (requires ability bar UI)
 - [ ] **Jab** — extra attack at 50% damage, 3 turn cooldown
