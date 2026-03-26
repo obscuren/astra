@@ -716,7 +716,7 @@ void Game::dev_warp_random() {
 
     world_.map().find_open_spot(player_.x, player_.y);
     world_.npcs().clear();
-    ground_items_.clear();
+    world_.ground_items().clear();
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
@@ -743,7 +743,7 @@ void Game::dev_warp_stamp_test() {
 
     world_.map().find_open_spot(player_.x, player_.y);
     world_.npcs().clear();
-    ground_items_.clear();
+    world_.ground_items().clear();
 
     // Spawn NPCs for settlement/outpost stamp tests
     std::mt19937 npc_rng(warp_seed ^ 0xC1A5u);
@@ -839,7 +839,7 @@ void Game::new_game() {
 
     // Spawn NPCs in rooms based on room flavor
     world_.npcs().clear();
-    ground_items_.clear();
+    world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
 
@@ -991,7 +991,7 @@ void Game::new_game(const CreationResult& cr) {
     }
 
     world_.npcs().clear();
-    ground_items_.clear();
+    world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
 
@@ -1063,7 +1063,7 @@ void Game::save_current_location() {
     state.map = std::move(world_.map());
     state.visibility = std::move(world_.visibility());
     state.npcs = std::move(world_.npcs());
-    state.ground_items = std::move(ground_items_);
+    state.ground_items = std::move(world_.ground_items());
     state.player_x = player_.x;
     state.player_y = player_.y;
 }
@@ -1075,7 +1075,7 @@ void Game::restore_location(const LocationKey& key) {
     world_.map() = std::move(state.map);
     world_.visibility() = std::move(state.visibility);
     world_.npcs() = std::move(state.npcs);
-    ground_items_ = std::move(state.ground_items);
+    world_.ground_items() = std::move(state.ground_items);
 
     if (key == ship_key_) {
         // Restore cached position on the ship
@@ -1112,7 +1112,7 @@ void Game::enter_ship() {
         world_.map().set_location_name("Your Starship");
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
         // Spawn in region 0 (cockpit)
         if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
             world_.map().find_open_spot(player_.x, player_.y);
@@ -1240,7 +1240,7 @@ void Game::enter_overworld_tile() {
         world_.map().set_location_name(body_name);
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
         world_.map().find_open_spot(player_.x, player_.y);
 
         // Spawn NPCs
@@ -1353,7 +1353,7 @@ void Game::enter_detail_map() {
         world_.map().set_location_name(body_name);
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
 
         // Place player: spawn in cockpit for landing pad, center otherwise
         if (props.detail_poi_type == Tile::OW_Landing) {
@@ -1521,7 +1521,7 @@ void Game::enter_dungeon_from_detail() {
         world_.map().set_location_name(body_name);
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
         world_.map().find_open_spot(player_.x, player_.y);
 
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
@@ -1568,7 +1568,7 @@ void Game::exit_dungeon_to_detail() {
         world_.map().set_biome(props.biome);
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
         world_.map().find_open_spot(player_.x, player_.y);
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
@@ -1642,7 +1642,7 @@ void Game::transition_detail_edge(int dx, int dy) {
         world_.map().set_biome(props.biome);
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
@@ -1710,7 +1710,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 gen->generate(world_.map(), props, ship_seed);
                 world_.map().set_location_name("Your Starship");
                 world_.npcs().clear();
-                ground_items_.clear();
+                world_.ground_items().clear();
                 if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
                     world_.map().find_open_spot(player_.x, player_.y);
                 }
@@ -1852,7 +1852,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.map().set_location_name(location_name);
 
             world_.npcs().clear();
-            ground_items_.clear();
+            world_.ground_items().clear();
 
             // Find landing tile for player spawn
             bool found_landing = false;
@@ -1898,7 +1898,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         world_.map().set_location_name(location_name);
 
         world_.npcs().clear();
-        ground_items_.clear();
+        world_.ground_items().clear();
         world_.map().find_open_spot(player_.x, player_.y);
 
         std::mt19937 npc_rng(travel_seed ^ 0xD3ADu);
@@ -2116,7 +2116,7 @@ bool Game::is_interactable(int tx, int ty) const {
     }
     // Check for ground items at player's own tile
     if (tx == player_.x && ty == player_.y) {
-        for (const auto& gi : ground_items_) {
+        for (const auto& gi : world_.ground_items()) {
             if (gi.x == tx && gi.y == ty) return true;
         }
         // Stairs/portals under player
@@ -2167,8 +2167,8 @@ void Game::use_at(int tx, int ty) {
     // Ground items at player position
     if (tx == player_.x && ty == player_.y) {
         // Check for ground items first
-        for (size_t i = 0; i < ground_items_.size(); ++i) {
-            if (ground_items_[i].x == tx && ground_items_[i].y == ty) {
+        for (size_t i = 0; i < world_.ground_items().size(); ++i) {
+            if (world_.ground_items()[i].x == tx && world_.ground_items()[i].y == ty) {
                 pickup_ground_item();
                 return;
             }
@@ -2915,7 +2915,7 @@ void Game::attack_npc(Npc& npc) {
         if (std::uniform_int_distribution<int>(0, 1)(rng_) == 0) {
             Item loot = generate_loot_drop(rng_, npc.level);
             log("Dropped: " + loot.name);
-            ground_items_.push_back({npc.x, npc.y, std::move(loot)});
+            world_.ground_items().push_back({npc.x, npc.y, std::move(loot)});
         }
     }
 }
@@ -3084,7 +3084,7 @@ void Game::shoot_target() {
         if (std::uniform_int_distribution<int>(0, 1)(rng_) == 0) {
             Item loot = generate_loot_drop(rng_, target_npc_->level);
             log("Dropped: " + loot.name);
-            ground_items_.push_back({target_npc_->x, target_npc_->y, std::move(loot)});
+            world_.ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
         target_npc_ = nullptr;
     }
@@ -3190,7 +3190,7 @@ std::string Game::look_tile_name(int mx, int my) const {
     // Player
     if (mx == player_.x && my == player_.y) return player_.name;
     // Ground item
-    for (const auto& gi : ground_items_) {
+    for (const auto& gi : world_.ground_items()) {
         if (gi.x == mx && gi.y == my) return gi.item.name;
     }
     // Fixture
@@ -3249,7 +3249,7 @@ std::string Game::look_tile_desc(int mx, int my) const {
                std::to_string(player_.level) + ".";
     }
     // Ground item
-    for (const auto& gi : ground_items_) {
+    for (const auto& gi : world_.ground_items()) {
         if (gi.x == mx && gi.y == my) return gi.item.description;
     }
     // Fixture
@@ -3378,7 +3378,7 @@ void Game::render_look_popup() {
 }
 
 void Game::pickup_ground_item() {
-    for (auto it = ground_items_.begin(); it != ground_items_.end(); ++it) {
+    for (auto it = world_.ground_items().begin(); it != world_.ground_items().end(); ++it) {
         if (it->x == player_.x && it->y == player_.y) {
             if (!player_.inventory.can_add(it->item)) {
                 log("Too heavy to pick up " + it->item.name + ".");
@@ -3386,7 +3386,7 @@ void Game::pickup_ground_item() {
             }
             log("You pick up " + it->item.name + ".");
             player_.inventory.items.push_back(std::move(it->item));
-            ground_items_.erase(it);
+            world_.ground_items().erase(it);
             advance_world(ActionCost::move);
             return;
         }
@@ -3402,7 +3402,7 @@ void Game::drop_item(int index) {
     items.erase(items.begin() + index);
 
     log("You drop " + item.name + ".");
-    ground_items_.push_back({player_.x, player_.y, std::move(item)});
+    world_.ground_items().push_back({player_.x, player_.y, std::move(item)});
 }
 
 void Game::use_item(int index) {
@@ -3681,7 +3681,7 @@ void Game::save_game() {
     ms.tilemap = world_.map();
     ms.visibility = world_.visibility();
     ms.npcs = world_.npcs();
-    ms.ground_items = ground_items_;
+    ms.ground_items = world_.ground_items();
     data.maps.push_back(std::move(ms));
 
     write_save("save_" + std::to_string(seed_), data);
@@ -3710,7 +3710,7 @@ bool Game::load_game(const std::string& filename) {
     world_.map() = ms.tilemap;
     world_.visibility() = ms.visibility;
     world_.npcs() = ms.npcs;
-    ground_items_ = ms.ground_items;
+    world_.ground_items() = ms.ground_items;
 
     // Restore navigation data (or bootstrap for old saves)
     if (!data.navigation.systems.empty()) {
@@ -4316,7 +4316,7 @@ void Game::render_map() {
     }
 
     // Draw visible ground items
-    for (const auto& gi : ground_items_) {
+    for (const auto& gi : world_.ground_items()) {
         if (world_.visibility().get(gi.x, gi.y) == Visibility::Visible) {
             ctx.put(gi.x - camera_x_, gi.y - camera_y_,
                     gi.item.glyph, gi.item.color);
