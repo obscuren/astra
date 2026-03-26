@@ -18,7 +18,6 @@
 
 namespace astra {
 
-static int sign(int v) { return (v > 0) - (v < 0); }
 
 // Map overworld terrain to detail/dungeon biome, falling back to planet biome for POIs
 static Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
@@ -38,9 +37,6 @@ static Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
     }
 }
 
-static int chebyshev_dist(int x1, int y1, int x2, int y2) {
-    return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
-}
 
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -54,7 +50,7 @@ void Game::run() {
     render();
 
     while (running_) {
-        int key = (targeting_ || input_.looking() || quit_confirm_.is_open())
+        int key = (combat_.targeting() || input_.looking() || quit_confirm_.is_open())
                       ? renderer_->wait_input_timeout(300)
                       : renderer_->wait_input();
 
@@ -70,7 +66,7 @@ void Game::run() {
             // Skip normal input handling — fall through to render
         } else if (key == -1) {
             // Timeout — toggle blink phase for reticule
-            ++blink_phase_;
+            combat_.tick_blink();
             input_.tick_look_blink();
         } else {
             handle_input(key);
@@ -347,7 +343,7 @@ void Game::dev_command_warp_stamp(Tile poi) {
 
 void Game::dev_command_level_up() {
     player_.xp = player_.max_xp;
-    check_level_up();
+    combat_.check_level_up(*this);
 }
 
 void Game::dev_command_kill_hostiles() {
@@ -356,7 +352,7 @@ void Game::dev_command_kill_hostiles() {
             npc.hp = 0;
         }
     }
-    remove_dead_npcs();
+    combat_.remove_dead_npcs(*this);
 }
 
 void Game::new_game() {
@@ -421,9 +417,9 @@ void Game::new_game() {
 
     messages_.clear();
     awaiting_interact_ = false;
-    targeting_ = false;
+    combat_.reset();
     input_.cancel_look();
-    target_npc_ = nullptr;
+    ;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
     world_.current_region() = -1;
@@ -573,9 +569,9 @@ void Game::new_game(const CreationResult& cr) {
 
     messages_.clear();
     awaiting_interact_ = false;
-    targeting_ = false;
+    combat_.reset();
     input_.cancel_look();
-    target_npc_ = nullptr;
+    ;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
     world_.current_region() = -1;
@@ -1564,7 +1560,7 @@ void Game::try_move(int dx, int dy) {
     for (auto& npc : world_.npcs()) {
         if (npc.alive() && npc.x == nx && npc.y == ny) {
             if (npc.disposition == Disposition::Hostile) {
-                attack_npc(npc);
+                combat_.attack_npc(npc, *this);
                 advance_world(ActionCost::move);
                 return;
             }
@@ -1845,13 +1841,13 @@ void Game::advance_world(int cost) {
         for (auto& npc : world_.npcs()) {
             while (npc.energy >= energy_threshold) {
                 npc.energy -= energy_threshold;
-                process_npc_turn(npc);
+                combat_.process_npc_turn(npc, *this);
                 acted = true;
             }
         }
     }
 
-    remove_dead_npcs();
+    combat_.remove_dead_npcs(*this);
     check_player_death();
     ++world_.world_tick();
     world_.day_clock().advance(1);
@@ -1908,87 +1904,11 @@ void Game::advance_world(int cost) {
     }
 }
 
-void Game::process_npc_turn(Npc& npc) {
-    if (!npc.alive()) return;
 
-    // Displaced NPCs try to return to their original position
-    if (npc.return_x >= 0 && npc.return_y >= 0) {
-        int rx = npc.return_x, ry = npc.return_y;
-        npc.return_x = -1;
-        npc.return_y = -1;
-        // Only move back if the spot is free
-        if (world_.map().passable(rx, ry) &&
-            !(player_.x == rx && player_.y == ry) &&
-            !tile_occupied(rx, ry)) {
-            npc.x = rx;
-            npc.y = ry;
-        }
-        return;
-    }
-
-    if (npc.disposition == Disposition::Friendly || npc.quickness == 0)
-        return;
-
-    if (npc.disposition == Disposition::Hostile) {
-        int dist = chebyshev_dist(npc.x, npc.y, player_.x, player_.y);
-
-        // Adjacent — attack
-        if (dist <= 1) {
-            int raw_damage = npc.attack_damage();
-            int defense = player_.effective_defense();
-            int damage = raw_damage - defense;
-            if (damage < 1) damage = 1;
-            damage = apply_damage_effects(player_.effects, damage);
-            if (damage <= 0) {
-                log(npc.display_name() + " strikes you but deals no damage.");
-                return;
-            }
-            player_.hp -= damage;
-            if (player_.hp < 0) player_.hp = 0;
-            log(npc.display_name() + " strikes you for " +
-                std::to_string(damage) + " damage!");
-            if (player_.hp <= 0) {
-                death_message_ = "Slain by " + npc.display_name();
-            }
-            return;
-        }
-
-        // Within detection range — chase
-        if (dist <= 8) {
-            int dx = sign(player_.x - npc.x);
-            int dy = sign(player_.y - npc.y);
-
-            // Try diagonal, then each cardinal fallback
-            struct { int x, y; } candidates[] = {
-                {dx, dy}, {dx, 0}, {0, dy}
-            };
-            for (auto [cx, cy] : candidates) {
-                if (cx == 0 && cy == 0) continue;
-                int nx = npc.x + cx;
-                int ny = npc.y + cy;
-                if (world_.map().passable(nx, ny) && !tile_occupied(nx, ny)) {
-                    npc.x = nx;
-                    npc.y = ny;
-                    return;
-                }
-            }
-            return; // all blocked, skip turn
-        }
-
-        // Fall through to wander
-    }
-
-    // Wander: try random cardinal directions
-    std::array<std::pair<int,int>, 4> dirs = {{{0,-1},{0,1},{-1,0},{1,0}}};
-    std::shuffle(dirs.begin(), dirs.end(), world_.rng());
-    for (auto [dx, dy] : dirs) {
-        int nx = npc.x + dx;
-        int ny = npc.y + dy;
-        if (world_.map().passable(nx, ny) && !tile_occupied(nx, ny)) {
-            npc.x = nx;
-            npc.y = ny;
-            return;
-        }
+void Game::log(const std::string& msg) {
+    messages_.push_back(":: " + msg);
+    if (messages_.size() > max_messages_) {
+        messages_.pop_front();
     }
 }
 
@@ -1998,275 +1918,6 @@ bool Game::tile_occupied(int x, int y) const {
         if (npc.alive() && npc.x == x && npc.y == y) return true;
     }
     return false;
-}
-
-void Game::attack_npc(Npc& npc) {
-    int damage = player_.effective_attack();
-    if (damage < 1) damage = 1;
-    damage = apply_damage_effects(npc.effects, damage);
-    if (damage <= 0) {
-        log("Your attack has no effect on " + npc.display_name() + ".");
-        return;
-    }
-    npc.hp -= damage;
-    if (npc.hp < 0) npc.hp = 0;
-    log("You strike " + npc.display_name() + " for " +
-        std::to_string(damage) + " damage!");
-    if (!npc.alive()) {
-        log(npc.display_name() + " is destroyed!");
-        player_.kills++;
-        int xp = npc.xp_reward();
-        if (xp > 0) {
-            player_.xp += xp;
-            log("You gain " + std::to_string(xp) + " XP.");
-            check_level_up();
-        }
-        int credits = npc.level * 2 + (npc.elite ? 5 : 0);
-        if (credits > 0) {
-            player_.money += credits;
-            log("You salvage " + std::to_string(credits) + "$.");
-        }
-        // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(world_.rng()) == 0) {
-            Item loot = generate_loot_drop(world_.rng(), npc.level);
-            log("Dropped: " + loot.name);
-            world_.ground_items().push_back({npc.x, npc.y, std::move(loot)});
-        }
-    }
-}
-
-void Game::begin_targeting() {
-    targeting_ = true;
-    blink_phase_ = 0;
-
-    // Find nearest visible hostile NPC
-    Npc* nearest = nullptr;
-    int best_dist = 9999;
-    for (auto& npc : world_.npcs()) {
-        if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
-        if (world_.visibility().get(npc.x, npc.y) != Visibility::Visible) continue;
-        int d = chebyshev_dist(player_.x, player_.y, npc.x, npc.y);
-        if (d < best_dist) {
-            best_dist = d;
-            nearest = &npc;
-        }
-    }
-
-    if (nearest) {
-        target_x_ = nearest->x;
-        target_y_ = nearest->y;
-    } else {
-        target_x_ = player_.x;
-        target_y_ = player_.y;
-    }
-
-    log("Targeting mode. Move cursor, [Enter] confirm, [Esc] cancel.");
-}
-
-void Game::handle_targeting_input(int key) {
-    auto try_move_cursor = [&](int dx, int dy) {
-        // Scan up to 20 tiles in direction to skip walls/unexplored gaps
-        for (int i = 1; i <= 20; ++i) {
-            int nx = target_x_ + dx * i;
-            int ny = target_y_ + dy * i;
-            if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) return;
-            if (world_.map().passable(nx, ny) && world_.visibility().get(nx, ny) == Visibility::Visible) {
-                target_x_ = nx;
-                target_y_ = ny;
-                return;
-            }
-        }
-    };
-    switch (key) {
-        case 'k': case KEY_UP:    try_move_cursor( 0, -1); break;
-        case 'j': case KEY_DOWN:  try_move_cursor( 0,  1); break;
-        case 'h': case KEY_LEFT:  try_move_cursor(-1,  0); break;
-        case 'l': case KEY_RIGHT: try_move_cursor( 1,  0); break;
-        case '\n': case '\r': {
-            // Check for alive NPC at cursor
-            Npc* found = nullptr;
-            for (auto& npc : world_.npcs()) {
-                if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
-                    found = &npc;
-                    break;
-                }
-            }
-            if (found) {
-                target_npc_ = found;
-                targeting_ = false;
-                log("Targeted: " + found->display_name());
-            } else {
-                log("No target there.");
-            }
-            break;
-        }
-        case '\033': // Escape
-            targeting_ = false;
-            target_npc_ = nullptr;
-            log("Targeting cancelled.");
-            break;
-        default:
-            break;
-    }
-}
-
-void Game::shoot_target() {
-    // Check weapon equipped
-    auto& weapon = player_.equipment.missile;
-    if (!weapon || !weapon->ranged) {
-        log("No ranged weapon equipped.");
-        return;
-    }
-
-    if (!target_npc_ || !target_npc_->alive()) {
-        target_npc_ = nullptr;
-        log("No target selected. Press [t] to target.");
-        return;
-    }
-
-    if (world_.visibility().get(target_npc_->x, target_npc_->y) != Visibility::Visible) {
-        log("Target not visible.");
-        return;
-    }
-
-    // Check range
-    auto& rd = *weapon->ranged;
-    int dist = chebyshev_dist(player_.x, player_.y, target_npc_->x, target_npc_->y);
-    if (dist > rd.max_range) {
-        log("Target out of range (" + std::to_string(dist) + "/" +
-            std::to_string(rd.max_range) + ").");
-        return;
-    }
-
-    // Check charge — auto-reload if empty
-    if (rd.current_charge < rd.charge_per_shot) {
-        // Try auto-reload from inventory
-        bool reloaded = false;
-        for (int i = 0; i < static_cast<int>(player_.inventory.items.size()); ++i) {
-            if (player_.inventory.items[i].type == ItemType::Battery) {
-                int added = std::min(5, rd.charge_capacity - rd.current_charge);
-                rd.current_charge += added;
-                log("Auto-reload: +" + std::to_string(added) + " charge.");
-                auto& cell = player_.inventory.items[i];
-                if (cell.stackable && cell.stack_count > 1) {
-                    --cell.stack_count;
-                } else {
-                    player_.inventory.items.erase(player_.inventory.items.begin() + i);
-                }
-                reloaded = true;
-                break;
-            }
-        }
-        if (!reloaded) {
-            log("Weapon empty. No energy cells to reload.");
-            return;
-        }
-        if (rd.current_charge < rd.charge_per_shot) {
-            log("Not enough charge to fire.");
-            return;
-        }
-    }
-
-    // Consume charge
-    rd.current_charge -= rd.charge_per_shot;
-
-    // Damage = effective attack (includes STR modifier + all equipment)
-    int damage = player_.effective_attack();
-    if (damage < 1) damage = 1;
-    damage = apply_damage_effects(target_npc_->effects, damage);
-    if (damage <= 0) {
-        log("Your shot has no effect on " + target_npc_->display_name() + ".");
-        advance_world(ActionCost::shoot);
-        return;
-    }
-    target_npc_->hp -= damage;
-    if (target_npc_->hp < 0) target_npc_->hp = 0;
-    log("You shoot " + target_npc_->display_name() + " for " +
-        std::to_string(damage) + " damage. [" +
-        std::to_string(rd.current_charge) + "/" +
-        std::to_string(rd.charge_capacity) + "]");
-
-    if (!target_npc_->alive()) {
-        log(target_npc_->display_name() + " is destroyed!");
-        player_.kills++;
-        int xp = target_npc_->xp_reward();
-        if (xp > 0) {
-            player_.xp += xp;
-            log("You gain " + std::to_string(xp) + " XP.");
-            check_level_up();
-        }
-        // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(world_.rng()) == 0) {
-            Item loot = generate_loot_drop(world_.rng(), target_npc_->level);
-            log("Dropped: " + loot.name);
-            world_.ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
-        }
-        target_npc_ = nullptr;
-    }
-
-    advance_world(ActionCost::shoot);
-}
-
-void Game::reload_weapon() {
-    auto& weapon = player_.equipment.missile;
-    if (!weapon || !weapon->ranged) {
-        log("No ranged weapon equipped.");
-        return;
-    }
-
-    auto& rd = *weapon->ranged;
-    if (rd.current_charge >= rd.charge_capacity) {
-        log(weapon->name + " is fully charged.");
-        return;
-    }
-
-    for (int i = 0; i < static_cast<int>(player_.inventory.items.size()); ++i) {
-        if (player_.inventory.items[i].type == ItemType::Battery) {
-            int added = std::min(5, rd.charge_capacity - rd.current_charge);
-            rd.current_charge += added;
-            log("Reloaded " + weapon->name + ". (+" + std::to_string(added) +
-                " charge, " + std::to_string(rd.current_charge) + "/" +
-                std::to_string(rd.charge_capacity) + ")");
-            auto& cell = player_.inventory.items[i];
-            if (cell.stackable && cell.stack_count > 1) {
-                --cell.stack_count;
-            } else {
-                player_.inventory.items.erase(player_.inventory.items.begin() + i);
-            }
-            advance_world(ActionCost::wait);
-            return;
-        }
-    }
-
-    log("No energy cells to reload.");
-}
-
-
-
-// --- Helpers ---
-
-Color Game::hp_color() const {
-    int pct = (player_.max_hp > 0) ? (100 * player_.hp / player_.max_hp) : 0;
-    if (pct < 30) return Color::Red;
-    if (pct < 80) return Color::Yellow;
-    return Color::Green;
-}
-
-Color Game::hunger_color() const {
-    switch (player_.hunger) {
-        case HungerState::Satiated: return Color::Green;
-        case HungerState::Normal:   return Color::Default;
-        case HungerState::Hungry:   return Color::Yellow;
-        case HungerState::Starving: return Color::Red;
-    }
-    return Color::Default;
-}
-
-void Game::log(const std::string& msg) {
-    messages_.push_back(":: " + msg);
-    if (messages_.size() > max_messages_) {
-        messages_.pop_front();
-    }
 }
 
 void Game::check_player_death() {
@@ -2282,8 +1933,8 @@ void Game::rebuild_star_chart_viewer() {
 
 void Game::reset_interaction_state() {
     awaiting_interact_ = false;
-    targeting_ = false;
-    target_npc_ = nullptr;
+    combat_.reset();
+    ;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
     dialog_.close();

@@ -102,8 +102,8 @@ void Game::handle_play_input(int key) {
     }
 
     // Targeting mode intercept
-    if (targeting_) {
-        handle_targeting_input(key);
+    if (combat_.targeting()) {
+        combat_.handle_targeting_input(key, *this);
         return;
     }
 
@@ -172,9 +172,9 @@ void Game::handle_play_input(int key) {
             input_.begin_look(player_.x, player_.y);
             log("Look mode. Move cursor to examine. [Esc] to exit.");
             break;
-        case 't': begin_targeting(); break;
-        case 's': shoot_target(); break;
-        case 'r': reload_weapon(); break;
+        case 't': combat_.begin_targeting(*this); break;
+        case 's': combat_.shoot_target(*this); break;
+        case 'r': combat_.reload_weapon(*this); break;
         case 'g': pickup_ground_item(); break;
         case 'c': character_screen_.open(&player_, renderer_.get()); break;
         case '?': help_screen_.open(); break;

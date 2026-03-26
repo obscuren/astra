@@ -4,6 +4,23 @@
 
 namespace astra {
 
+Color Game::hp_color() const {
+    int pct = (player_.max_hp > 0) ? (100 * player_.hp / player_.max_hp) : 0;
+    if (pct < 30) return Color::Red;
+    if (pct < 80) return Color::Yellow;
+    return Color::Green;
+}
+
+Color Game::hunger_color() const {
+    switch (player_.hunger) {
+        case HungerState::Satiated: return Color::Green;
+        case HungerState::Normal:   return Color::Default;
+        case HungerState::Hungry:   return Color::Yellow;
+        case HungerState::Starving: return Color::Red;
+    }
+    return Color::Default;
+}
+
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
@@ -426,43 +443,6 @@ void Game::unequip_slot(int index) {
     player_.inventory.items.push_back(std::move(item));
 }
 
-void Game::remove_dead_npcs() {
-    // Nullify target_npc_ if it died
-    if (target_npc_ && !target_npc_->alive()) {
-        target_npc_ = nullptr;
-    }
-    // Close dialog if interacting NPC died
-    if (dialog_.interacting_npc() && !dialog_.interacting_npc()->alive()) {
-        dialog_.close();
-    }
-    world_.npcs().erase(
-        std::remove_if(world_.npcs().begin(), world_.npcs().end(),
-                        [](const Npc& n) { return !n.alive(); }),
-        world_.npcs().end());
-}
-
-// --- Level-up rewards (easy to balance) ---
-static constexpr int attr_points_per_level = 2;
-static constexpr int skill_points_per_level = 50;
-static constexpr float xp_scale_factor = 1.5f;
-
-void Game::check_level_up() {
-    while (player_.xp >= player_.max_xp) {
-        player_.xp -= player_.max_xp;
-        player_.level++;
-        player_.max_xp = static_cast<int>(player_.max_xp * xp_scale_factor);
-        player_.attribute_points += attr_points_per_level;
-        player_.skill_points += skill_points_per_level;
-
-        // Heal to full on level up
-        player_.max_hp = player_.effective_max_hp();
-        player_.hp = player_.max_hp;
-
-        log("LEVEL UP! You are now level " + std::to_string(player_.level) + ".");
-        log("  +" + std::to_string(attr_points_per_level) + " attribute points, +"
-            + std::to_string(skill_points_per_level) + " SP.");
-    }
-}
 
 
 void Game::handle_gameover_input(int key) {
@@ -1139,10 +1119,10 @@ void Game::render_map() {
     ctx.put(player_.x - camera_x_, player_.y - camera_y_, '@', Color::Yellow);
 
     // Draw targeting line and reticule
-    if (targeting_) {
+    if (combat_.targeting()) {
         // Bresenham line from player to reticule
         int x0 = player_.x, y0 = player_.y;
-        int x1 = target_x_, y1 = target_y_;
+        int x1 = combat_.target_x(), y1 = combat_.target_y();
         int dx = std::abs(x1 - x0), dy = std::abs(y1 - y0);
         int sx = (x0 < x1) ? 1 : -1;
         int sy = (y0 < y1) ? 1 : -1;
@@ -1169,17 +1149,17 @@ void Game::render_map() {
         }
 
         // Reticule: blink only when over something interesting (NPC, item, etc.)
-        int rx = target_x_ - camera_x_, ry = target_y_ - camera_y_;
+        int rx = combat_.target_x() - camera_x_, ry = combat_.target_y() - camera_y_;
         if (rx >= 0 && rx < map_rect_.w && ry >= 0 && ry < map_rect_.h) {
             bool has_entity = false;
             for (const auto& npc : world_.npcs()) {
-                if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
+                if (npc.alive() && npc.x == combat_.target_x() && npc.y == combat_.target_y()) {
                     has_entity = true;
                     break;
                 }
             }
-            if (!has_entity || blink_phase_ % 2 == 0) {
-                int target_dist = chebyshev_dist(player_.x, player_.y, target_x_, target_y_);
+            if (!has_entity || combat_.blink_phase() % 2 == 0) {
+                int target_dist = chebyshev_dist(player_.x, player_.y, combat_.target_x(), combat_.target_y());
                 Color ret_color = (weapon_range > 0 && target_dist <= weapon_range)
                     ? Color::Green : Color::Red;
                 ctx.put(rx, ry, '+', ret_color);
@@ -1501,12 +1481,12 @@ void Game::render_effects_bar() {
 
     int mid = ctx.width() / 3;
     ctx.text(mid, 0, "TARGET:", Color::DarkGray);
-    if (target_npc_ && target_npc_->alive()) {
-        std::string info = " " + target_npc_->display_name() +
-            " (" + std::to_string(target_npc_->hp) + "/" +
-            std::to_string(target_npc_->max_hp) + ")";
+    if (combat_.target_npc() && combat_.target_npc()->alive()) {
+        std::string info = " " + combat_.target_npc()->display_name() +
+            " (" + std::to_string(combat_.target_npc()->hp) + "/" +
+            std::to_string(combat_.target_npc()->max_hp) + ")";
         Color tc = Color::DarkGray;
-        switch (target_npc_->disposition) {
+        switch (combat_.target_npc()->disposition) {
             case Disposition::Hostile:  tc = Color::Red; break;
             case Disposition::Neutral:  tc = Color::Yellow; break;
             case Disposition::Friendly: tc = Color::Green; break;

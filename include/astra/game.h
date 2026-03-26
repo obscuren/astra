@@ -9,6 +9,7 @@
 #include "astra/star_chart.h"
 #include "astra/character_creation.h"
 #include "astra/character_screen.h"
+#include "astra/combat_system.h"
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
 #include "astra/help_screen.h"
@@ -78,7 +79,10 @@ public:
     bool panel_visible() const { return panel_visible_; }
     void set_panel_visible(bool v) { panel_visible_ = v; }
     std::deque<std::string>& messages() { return messages_; }
+    bool tile_occupied(int x, int y) const;
     void set_dev_mode(bool v) { dev_mode_ = v; }
+    DialogManager& dialog() { return dialog_; }
+    CombatSystem& combat() { return combat_; }
     void rebuild_star_chart_viewer();
     void reset_interaction_state();
     void post_load(); // compute_layout + recompute_fov + compute_camera + set Playing
@@ -176,7 +180,6 @@ private:
     // Helpers
     Color hp_color() const;
     Color hunger_color() const;
-    bool tile_occupied(int x, int y) const;
 
     std::unique_ptr<Renderer> renderer_;
     GameState state_ = GameState::MainMenu;
@@ -206,6 +209,7 @@ private:
     TradeWindow trade_window_;
     CharacterScreen character_screen_;
     CharacterCreation character_creation_;
+    CombatSystem combat_;
     int camera_x_ = 0;
     int camera_y_ = 0;
 

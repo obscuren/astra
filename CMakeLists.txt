@@ -55,6 +55,7 @@ set(ASTRA_SOURCES
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp
+    src/game_combat.cpp
     src/game_input.cpp
     src/game_rendering.cpp
     src/save_system.cpp
