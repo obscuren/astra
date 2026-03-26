@@ -7,6 +7,7 @@
 #include "astra/visibility_map.h"
 
 #include <cstdint>
+#include <random>
 
 namespace astra {
 
@@ -53,6 +54,10 @@ public:
     int& current_region() { return current_region_; }
     int current_region() const { return current_region_; }
 
+    unsigned& seed() { return seed_; }
+    unsigned seed() const { return seed_; }
+    std::mt19937& rng() { return rng_; }
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
@@ -65,6 +70,8 @@ private:
     int world_tick_ = 0;
     DayClock day_clock_;
     int current_region_ = -1;
+    unsigned seed_ = 0;
+    std::mt19937 rng_;
 };
 
 } // namespace astra

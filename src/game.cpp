@@ -804,14 +804,14 @@ void Game::new_game() {
         boot.play();
     }
 
-    seed_ = static_cast<unsigned>(std::time(nullptr));
-    rng_.seed(seed_);
+    world_.seed() = static_cast<unsigned>(std::time(nullptr));
+    world_.rng().seed(world_.seed());
 
     auto props = default_properties(MapType::SpaceStation);
     props.height = 80; // hub needs extra vertical space for 3-row grid
     world_.map() = TileMap(props.width, props.height, MapType::SpaceStation);
     auto gen = create_hub_generator();
-    gen->generate(world_.map(), props, seed_);
+    gen->generate(world_.map(), props, world_.seed());
     world_.map().set_location_name("The Heavens Above");
 
     player_ = Player{};
@@ -931,7 +931,7 @@ void Game::new_game() {
         log("Full loadout equipped.");
     }
 
-    Item weapon = random_ranged_weapon(rng_);
+    Item weapon = random_ranged_weapon(world_.rng());
     if (!player_.equipment.missile) {
         player_.equipment.missile = weapon;
     } else {
@@ -944,7 +944,7 @@ void Game::new_game() {
     player_.inventory.items.push_back(battery);
 
     // Generate the galaxy
-    navigation_ = generate_galaxy(seed_);
+    navigation_ = generate_galaxy(world_.seed());
     navigation_.at_station = true;
     navigation_.current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
@@ -959,14 +959,14 @@ void Game::new_game(const CreationResult& cr) {
     BootSequence boot(renderer_.get());
     boot.play();
 
-    seed_ = static_cast<unsigned>(std::time(nullptr));
-    rng_.seed(seed_);
+    world_.seed() = static_cast<unsigned>(std::time(nullptr));
+    world_.rng().seed(world_.seed());
 
     auto props = default_properties(MapType::SpaceStation);
     props.height = 80;
     world_.map() = TileMap(props.width, props.height, MapType::SpaceStation);
     auto gen = create_hub_generator();
-    gen->generate(world_.map(), props, seed_);
+    gen->generate(world_.map(), props, world_.seed());
     world_.map().set_location_name("The Heavens Above");
 
     player_ = Player{};
@@ -1029,7 +1029,7 @@ void Game::new_game(const CreationResult& cr) {
     check_region_change();
 
     // Starter gear: random ranged weapon + batteries
-    Item weapon = random_ranged_weapon(rng_);
+    Item weapon = random_ranged_weapon(world_.rng());
     if (!player_.equipment.missile) {
         player_.equipment.missile = weapon;
     } else {
@@ -1042,7 +1042,7 @@ void Game::new_game(const CreationResult& cr) {
     player_.inventory.items.push_back(battery);
 
     // Generate the galaxy
-    navigation_ = generate_galaxy(seed_);
+    navigation_ = generate_galaxy(world_.seed());
     navigation_.at_station = true;
     navigation_.current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
@@ -1112,7 +1112,7 @@ void Game::enter_ship() {
         restore_location(ship_key_);
     } else {
         // Generate the ship for the first time
-        unsigned ship_seed = seed_ ^ 0x5B1Bu;
+        unsigned ship_seed = world_.seed() ^ 0x5B1Bu;
         auto props = default_properties(MapType::Starship);
         world_.map() = TileMap(props.width, props.height, MapType::Starship);
         auto gen = create_starship_generator();
@@ -1226,7 +1226,7 @@ void Game::enter_overworld_tile() {
         restore_location(detail_key);
     } else {
         // Generate detail map
-        unsigned detail_seed = seed_
+        unsigned detail_seed = world_.seed()
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
@@ -1347,7 +1347,7 @@ void Game::enter_detail_map() {
     if (location_cache_.count(detail_key)) {
         restore_location(detail_key);
     } else {
-        unsigned detail_seed = seed_
+        unsigned detail_seed = world_.seed()
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
@@ -1513,7 +1513,7 @@ void Game::enter_dungeon_from_detail() {
     if (location_cache_.count(dungeon_key)) {
         restore_location(dungeon_key);
     } else {
-        unsigned detail_seed = seed_
+        unsigned detail_seed = world_.seed()
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
@@ -1563,7 +1563,7 @@ void Game::exit_dungeon_to_detail() {
     } else {
         // Detail map was never cached — generate it
         auto props = build_detail_props(world_.overworld_x(), world_.overworld_y());
-        unsigned detail_seed = seed_
+        unsigned detail_seed = world_.seed()
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
@@ -1637,7 +1637,7 @@ void Game::transition_detail_edge(int dx, int dy) {
     if (location_cache_.count(new_detail_key)) {
         restore_location(new_detail_key);
     } else {
-        unsigned detail_seed = seed_
+        unsigned detail_seed = world_.seed()
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
@@ -1711,7 +1711,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 restore_location(ship_key_);
             } else {
                 // Generate ship for the first time
-                unsigned ship_seed = seed_ ^ 0x5B1Bu;
+                unsigned ship_seed = world_.seed() ^ 0x5B1Bu;
                 auto props = default_properties(MapType::Starship);
                 world_.map() = TileMap(props.width, props.height, MapType::Starship);
                 auto gen = create_starship_generator();
@@ -1767,12 +1767,12 @@ void Game::travel_to_destination(const ChartAction& action) {
             }
 
             // Determine biome from body or moon properties
-            unsigned biome_seed = seed_ ^ (target_sys.id * 997u)
+            unsigned biome_seed = world_.seed() ^ (target_sys.id * 997u)
                                 ^ (static_cast<unsigned>(action.body_index) * 6271u);
 
             if (action.moon_index >= 0) {
                 // Generate independent moon body
-                unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
+                unsigned moon_seed = world_.seed() ^ (target_sys.id * 7919u)
                                    ^ (static_cast<unsigned>(action.body_index) * 6271u);
                 auto moon = generate_moon_body(body, action.moon_index, moon_seed);
                 biome_seed ^= (static_cast<unsigned>(action.moon_index) * 4219u);
@@ -1807,7 +1807,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             navigation_.current_moon_index = action.moon_index;
             const auto& body = target_sys.bodies[action.body_index];
             if (action.moon_index >= 0) {
-                unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
+                unsigned moon_seed = world_.seed() ^ (target_sys.id * 7919u)
                                    ^ (static_cast<unsigned>(action.body_index) * 6271u);
                 auto moon = generate_moon_body(body, action.moon_index, moon_seed);
                 world_.day_clock().set_body_day_length(moon.day_length);
@@ -1833,7 +1833,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             props.biome = dest_biome;
 
             if (action.moon_index >= 0) {
-                unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
+                unsigned moon_seed = world_.seed() ^ (target_sys.id * 7919u)
                                    ^ (static_cast<unsigned>(action.body_index) * 6271u);
                 auto moon = generate_moon_body(body, action.moon_index, moon_seed);
                 props.body_type = moon.type;
@@ -1849,7 +1849,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 props.body_danger_level = body.danger_level;
             }
 
-            unsigned ow_seed = seed_ ^ (target_sys.id * 7919u)
+            unsigned ow_seed = world_.seed() ^ (target_sys.id * 7919u)
                              ^ (static_cast<unsigned>(action.body_index) * 6271u)
                              ^ (static_cast<unsigned>(action.moon_index + 1) * 3571u);
 
@@ -1897,7 +1897,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         restore_location(dest_key);
     } else {
         // Generate fresh map
-        unsigned travel_seed = rng_();
+        unsigned travel_seed = world_.rng()();
         auto props = default_properties(dest_type);
         props.biome = dest_biome;
         world_.map() = TileMap(props.width, props.height, dest_type);
@@ -1931,7 +1931,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 occupied.push_back({npc.x, npc.y});
             }
             int tx, ty;
-            if (world_.map().find_open_spot_near(player_.x, player_.y, tx, ty, occupied, &rng_)) {
+            if (world_.map().find_open_spot_near(player_.x, player_.y, tx, ty, occupied, &world_.rng())) {
                 world_.map().add_fixture(tx, ty, make_fixture(FixtureType::ShipTerminal));
             }
         }
@@ -1989,7 +1989,7 @@ void Game::try_move(int dx, int dy) {
     }
 
     if (!world_.map().passable(nx, ny)) {
-        auto msg = random_bump_message(world_.map().get(nx, ny), world_.map().map_type(), rng_);
+        auto msg = random_bump_message(world_.map().get(nx, ny), world_.map().map_type(), world_.rng());
         if (!msg.empty()) {
             log(std::string(msg));
         }
@@ -2873,7 +2873,7 @@ void Game::process_npc_turn(Npc& npc) {
 
     // Wander: try random cardinal directions
     std::array<std::pair<int,int>, 4> dirs = {{{0,-1},{0,1},{-1,0},{1,0}}};
-    std::shuffle(dirs.begin(), dirs.end(), rng_);
+    std::shuffle(dirs.begin(), dirs.end(), world_.rng());
     for (auto [dx, dy] : dirs) {
         int nx = npc.x + dx;
         int ny = npc.y + dy;
@@ -2920,8 +2920,8 @@ void Game::attack_npc(Npc& npc) {
             log("You salvage " + std::to_string(credits) + "$.");
         }
         // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(rng_) == 0) {
-            Item loot = generate_loot_drop(rng_, npc.level);
+        if (std::uniform_int_distribution<int>(0, 1)(world_.rng()) == 0) {
+            Item loot = generate_loot_drop(world_.rng(), npc.level);
             log("Dropped: " + loot.name);
             world_.ground_items().push_back({npc.x, npc.y, std::move(loot)});
         }
@@ -3089,8 +3089,8 @@ void Game::shoot_target() {
             check_level_up();
         }
         // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(rng_) == 0) {
-            Item loot = generate_loot_drop(rng_, target_npc_->level);
+        if (std::uniform_int_distribution<int>(0, 1)(world_.rng()) == 0) {
+            Item loot = generate_loot_drop(world_.rng(), target_npc_->level);
             log("Dropped: " + loot.name);
             world_.ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
@@ -3555,7 +3555,7 @@ void Game::check_player_death() {
         // Permadeath: save with dead flag
         SaveData data;
         data.version = 1;
-        data.seed = seed_;
+        data.seed = world_.seed();
         data.world_tick = world_.world_tick();
         data.dead = true;
         data.player = player_;
@@ -3573,7 +3573,7 @@ void Game::check_player_death() {
         ms.npcs = world_.npcs();
         data.maps.push_back(std::move(ms));
 
-        write_save("save_" + std::to_string(seed_), data);
+        write_save("save_" + std::to_string(world_.seed()), data);
         state_ = GameState::GameOver;
     }
 }
@@ -3666,7 +3666,7 @@ void Game::handle_hall_input(int key) {
 void Game::save_game() {
     SaveData data;
     data.version = 1;
-    data.seed = seed_;
+    data.seed = world_.seed();
     data.world_tick = world_.world_tick();
     data.dead = false;
     data.player = player_;
@@ -3692,7 +3692,7 @@ void Game::save_game() {
     ms.ground_items = world_.ground_items();
     data.maps.push_back(std::move(ms));
 
-    write_save("save_" + std::to_string(seed_), data);
+    write_save("save_" + std::to_string(world_.seed()), data);
 }
 
 bool Game::load_game(const std::string& filename) {
@@ -3702,8 +3702,8 @@ bool Game::load_game(const std::string& filename) {
     if (data.maps.empty()) return false;
 
     dev_mode_ = false;
-    seed_ = data.seed;
-    rng_.seed(seed_);
+    world_.seed() = data.seed;
+    world_.rng().seed(world_.seed());
     world_.world_tick() = data.world_tick;
     player_ = data.player;
     death_message_ = data.death_message;
@@ -3724,7 +3724,7 @@ bool Game::load_game(const std::string& filename) {
     if (!data.navigation.systems.empty()) {
         navigation_ = data.navigation;
     } else {
-        navigation_ = generate_galaxy(seed_);
+        navigation_ = generate_galaxy(world_.seed());
     }
     star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
 

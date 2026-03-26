@@ -180,8 +180,6 @@ private:
     HelpScreen help_screen_;
 
     // Gameplay
-    unsigned seed_ = 0;
-    std::mt19937 rng_;
     Player player_;
     WorldManager world_;
     NavigationData navigation_;
