@@ -717,6 +717,14 @@ void Game::dev_warp_random() {
     world_.map().find_open_spot(player_.x, player_.y);
     world_.npcs().clear();
     world_.ground_items().clear();
+
+    // Spawn enemies in dungeon-type maps
+    if (m.type != MapType::SpaceStation && m.type != MapType::Starship) {
+        std::mt19937 npc_rng(warp_seed ^ 0xD3ADu);
+        std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+    }
+
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
