@@ -2,6 +2,7 @@
 
 #include "astra/item.h"
 #include "astra/npc.h"
+#include "astra/star_chart.h"
 #include "astra/tilemap.h"
 #include "astra/time_of_day.h"
 #include "astra/visibility_map.h"
@@ -58,6 +59,9 @@ public:
     unsigned seed() const { return seed_; }
     std::mt19937& rng() { return rng_; }
 
+    NavigationData& navigation() { return navigation_; }
+    const NavigationData& navigation() const { return navigation_; }
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
@@ -72,6 +76,7 @@ private:
     int current_region_ = -1;
     unsigned seed_ = 0;
     std::mt19937 rng_;
+    NavigationData navigation_;
 };
 
 } // namespace astra

@@ -182,7 +182,6 @@ private:
     // Gameplay
     Player player_;
     WorldManager world_;
-    NavigationData navigation_;
     StarChartViewer star_chart_viewer_;
     TradeWindow trade_window_;
     CharacterScreen character_screen_;

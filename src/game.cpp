@@ -562,7 +562,7 @@ void Game::handle_play_input(int key) {
             if (world_.on_detail_map()) {
                 exit_detail_to_overworld();
             } else if (world_.surface_mode() == SurfaceMode::Dungeon &&
-                       !navigation_.at_station && !navigation_.on_ship) {
+                       !world_.navigation().at_station && !world_.navigation().on_ship) {
                 exit_dungeon_to_detail();
             }
             break;
@@ -944,10 +944,10 @@ void Game::new_game() {
     player_.inventory.items.push_back(battery);
 
     // Generate the galaxy
-    navigation_ = generate_galaxy(world_.seed());
-    navigation_.at_station = true;
-    navigation_.current_body_index = -1;
-    star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
+    world_.navigation() = generate_galaxy(world_.seed());
+    world_.navigation().at_station = true;
+    world_.navigation().current_body_index = -1;
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
 
     state_ = GameState::Playing;
 }
@@ -1042,30 +1042,30 @@ void Game::new_game(const CreationResult& cr) {
     player_.inventory.items.push_back(battery);
 
     // Generate the galaxy
-    navigation_ = generate_galaxy(world_.seed());
-    navigation_.at_station = true;
-    navigation_.current_body_index = -1;
-    star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
+    world_.navigation() = generate_galaxy(world_.seed());
+    world_.navigation().at_station = true;
+    world_.navigation().current_body_index = -1;
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
 
     state_ = GameState::Playing;
 }
 
 void Game::save_current_location() {
     LocationKey key;
-    if (navigation_.on_ship) {
+    if (world_.navigation().on_ship) {
         key = ship_key_;
-    } else if (navigation_.at_station) {
-        key = {navigation_.current_system_id, -1, -1, true, -1, -1, 0};
+    } else if (world_.navigation().at_station) {
+        key = {world_.navigation().current_system_id, -1, -1, true, -1, -1, 0};
     } else if (world_.on_overworld()) {
-        key = {navigation_.current_system_id, navigation_.current_body_index,
-               navigation_.current_moon_index, false, -1, -1, 0};
+        key = {world_.navigation().current_system_id, world_.navigation().current_body_index,
+               world_.navigation().current_moon_index, false, -1, -1, 0};
     } else if (world_.on_detail_map()) {
-        key = {navigation_.current_system_id, navigation_.current_body_index,
-               navigation_.current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 0};
+        key = {world_.navigation().current_system_id, world_.navigation().current_body_index,
+               world_.navigation().current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 0};
     } else {
         // Dungeon (depth=1)
-        key = {navigation_.current_system_id, navigation_.current_body_index,
-               navigation_.current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 1};
+        key = {world_.navigation().current_system_id, world_.navigation().current_body_index,
+               world_.navigation().current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 1};
     }
     LocationState& state = location_cache_[key];
     state.map = std::move(world_.map());
@@ -1105,7 +1105,7 @@ void Game::restore_location(const LocationKey& key) {
 
 void Game::enter_ship() {
     save_current_location();
-    navigation_.on_ship = true;
+    world_.navigation().on_ship = true;
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
     if (location_cache_.count(ship_key_)) {
@@ -1213,9 +1213,9 @@ void Game::enter_overworld_tile() {
     std::string body_name = world_.map().location_name();
 
     // Detail map LocationKey uses overworld coords (depth=1 for legacy dungeon entry)
-    LocationKey detail_key = {navigation_.current_system_id,
-                              navigation_.current_body_index,
-                              navigation_.current_moon_index,
+    LocationKey detail_key = {world_.navigation().current_system_id,
+                              world_.navigation().current_body_index,
+                              world_.navigation().current_moon_index,
                               false, world_.overworld_x(), world_.overworld_y(), 1};
 
     // Save overworld before entering detail
@@ -1227,9 +1227,9 @@ void Game::enter_overworld_tile() {
     } else {
         // Generate detail map
         unsigned detail_seed = world_.seed()
-            ^ (navigation_.current_system_id * 7919u)
-            ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
-            ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
+            ^ (world_.navigation().current_system_id * 7919u)
+            ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
+            ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
             ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
@@ -1271,9 +1271,9 @@ void Game::exit_to_overworld() {
     save_current_location();
 
     // Restore overworld
-    LocationKey ow_key = {navigation_.current_system_id,
-                          navigation_.current_body_index,
-                          navigation_.current_moon_index,
+    LocationKey ow_key = {world_.navigation().current_system_id,
+                          world_.navigation().current_body_index,
+                          world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
     if (location_cache_.count(ow_key)) {
@@ -1293,9 +1293,9 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     auto props = default_properties(MapType::DetailMap);
 
     // Read overworld from cache
-    LocationKey ow_key = {navigation_.current_system_id,
-                          navigation_.current_body_index,
-                          navigation_.current_moon_index,
+    LocationKey ow_key = {world_.navigation().current_system_id,
+                          world_.navigation().current_body_index,
+                          world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
     const TileMap* ow_map = nullptr;
@@ -1336,9 +1336,9 @@ void Game::enter_detail_map() {
     auto props = build_detail_props(world_.overworld_x(), world_.overworld_y());
     std::string body_name = world_.map().location_name();
 
-    LocationKey detail_key = {navigation_.current_system_id,
-                              navigation_.current_body_index,
-                              navigation_.current_moon_index,
+    LocationKey detail_key = {world_.navigation().current_system_id,
+                              world_.navigation().current_body_index,
+                              world_.navigation().current_moon_index,
                               false, world_.overworld_x(), world_.overworld_y(), 0};
 
     save_current_location();
@@ -1348,9 +1348,9 @@ void Game::enter_detail_map() {
         restore_location(detail_key);
     } else {
         unsigned detail_seed = world_.seed()
-            ^ (navigation_.current_system_id * 7919u)
-            ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
-            ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
+            ^ (world_.navigation().current_system_id * 7919u)
+            ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
+            ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
             ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
@@ -1429,9 +1429,9 @@ void Game::enter_detail_map() {
 void Game::exit_detail_to_overworld() {
     save_current_location();
 
-    LocationKey ow_key = {navigation_.current_system_id,
-                          navigation_.current_body_index,
-                          navigation_.current_moon_index,
+    LocationKey ow_key = {world_.navigation().current_system_id,
+                          world_.navigation().current_body_index,
+                          world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
     if (location_cache_.count(ow_key)) {
@@ -1452,9 +1452,9 @@ void Game::enter_dungeon_from_detail() {
     save_current_location();
 
     // Determine dungeon type from overworld tile
-    LocationKey ow_key = {navigation_.current_system_id,
-                          navigation_.current_body_index,
-                          navigation_.current_moon_index,
+    LocationKey ow_key = {world_.navigation().current_system_id,
+                          world_.navigation().current_body_index,
+                          world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
     Tile ow_tile = Tile::OW_CaveEntrance;
@@ -1503,9 +1503,9 @@ void Game::enter_dungeon_from_detail() {
 
     std::string body_name = world_.map().location_name();
 
-    LocationKey dungeon_key = {navigation_.current_system_id,
-                               navigation_.current_body_index,
-                               navigation_.current_moon_index,
+    LocationKey dungeon_key = {world_.navigation().current_system_id,
+                               world_.navigation().current_body_index,
+                               world_.navigation().current_moon_index,
                                false, world_.overworld_x(), world_.overworld_y(), 1};
 
     world_.set_surface_mode(SurfaceMode::Dungeon);
@@ -1514,9 +1514,9 @@ void Game::enter_dungeon_from_detail() {
         restore_location(dungeon_key);
     } else {
         unsigned detail_seed = world_.seed()
-            ^ (navigation_.current_system_id * 7919u)
-            ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
-            ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
+            ^ (world_.navigation().current_system_id * 7919u)
+            ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
+            ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
             ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u)
             ^ 0xDE3Du;
@@ -1551,9 +1551,9 @@ void Game::exit_dungeon_to_detail() {
     save_current_location();
 
     // Restore detail map (depth=0)
-    LocationKey detail_key = {navigation_.current_system_id,
-                              navigation_.current_body_index,
-                              navigation_.current_moon_index,
+    LocationKey detail_key = {world_.navigation().current_system_id,
+                              world_.navigation().current_body_index,
+                              world_.navigation().current_moon_index,
                               false, world_.overworld_x(), world_.overworld_y(), 0};
 
     world_.set_surface_mode(SurfaceMode::DetailMap);
@@ -1564,9 +1564,9 @@ void Game::exit_dungeon_to_detail() {
         // Detail map was never cached — generate it
         auto props = build_detail_props(world_.overworld_x(), world_.overworld_y());
         unsigned detail_seed = world_.seed()
-            ^ (navigation_.current_system_id * 7919u)
-            ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
-            ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
+            ^ (world_.navigation().current_system_id * 7919u)
+            ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
+            ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
             ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
@@ -1590,9 +1590,9 @@ void Game::exit_dungeon_to_detail() {
 
 void Game::transition_detail_edge(int dx, int dy) {
     // Find the overworld map from cache
-    LocationKey ow_key = {navigation_.current_system_id,
-                          navigation_.current_body_index,
-                          navigation_.current_moon_index,
+    LocationKey ow_key = {world_.navigation().current_system_id,
+                          world_.navigation().current_body_index,
+                          world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
     auto ow_it = location_cache_.find(ow_key);
@@ -1629,18 +1629,18 @@ void Game::transition_detail_edge(int dx, int dy) {
     // Generate or restore the new detail map
     auto props = build_detail_props(new_ow_x, new_ow_y);
 
-    LocationKey new_detail_key = {navigation_.current_system_id,
-                                  navigation_.current_body_index,
-                                  navigation_.current_moon_index,
+    LocationKey new_detail_key = {world_.navigation().current_system_id,
+                                  world_.navigation().current_body_index,
+                                  world_.navigation().current_moon_index,
                                   false, new_ow_x, new_ow_y, 0};
 
     if (location_cache_.count(new_detail_key)) {
         restore_location(new_detail_key);
     } else {
         unsigned detail_seed = world_.seed()
-            ^ (navigation_.current_system_id * 7919u)
-            ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
-            ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
+            ^ (world_.navigation().current_system_id * 7919u)
+            ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
+            ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(new_ow_x) * 1013u)
             ^ (static_cast<unsigned>(new_ow_y) * 2039u);
 
@@ -1684,10 +1684,10 @@ void Game::transition_detail_edge(int dx, int dy) {
 
 void Game::travel_to_destination(const ChartAction& action) {
     if (action.system_index < 0 ||
-        action.system_index >= static_cast<int>(navigation_.systems.size()))
+        action.system_index >= static_cast<int>(world_.navigation().systems.size()))
         return;
 
-    auto& target_sys = navigation_.systems[action.system_index];
+    auto& target_sys = world_.navigation().systems[action.system_index];
     generate_system_bodies(target_sys);
 
     // Determine destination key and metadata
@@ -1700,12 +1700,12 @@ void Game::travel_to_destination(const ChartAction& action) {
         case ChartActionType::WarpToSystem: {
             // Warp puts you on your ship in the new system
             save_current_location();
-            navigation_.current_system_id = target_sys.id;
-            discover_nearby(navigation_, target_sys.id, 20.0f);
-            navigation_.on_ship = true;
-            navigation_.at_station = false;
-            navigation_.current_body_index = -1;
-            navigation_.current_moon_index = -1;
+            world_.navigation().current_system_id = target_sys.id;
+            discover_nearby(world_.navigation(), target_sys.id, 20.0f);
+            world_.navigation().on_ship = true;
+            world_.navigation().at_station = false;
+            world_.navigation().current_body_index = -1;
+            world_.navigation().current_moon_index = -1;
 
             if (location_cache_.count(ship_key_)) {
                 restore_location(ship_key_);
@@ -1794,17 +1794,17 @@ void Game::travel_to_destination(const ChartAction& action) {
     // Update navigation state
     switch (action.type) {
         case ChartActionType::TravelToStation:
-            navigation_.on_ship = false;
-            navigation_.at_station = true;
-            navigation_.current_body_index = -1;
-            navigation_.current_moon_index = -1;
+            world_.navigation().on_ship = false;
+            world_.navigation().at_station = true;
+            world_.navigation().current_body_index = -1;
+            world_.navigation().current_moon_index = -1;
             world_.day_clock().set_body_day_length(200); // station standard day
             break;
         case ChartActionType::TravelToBody: {
-            navigation_.on_ship = false;
-            navigation_.at_station = false;
-            navigation_.current_body_index = action.body_index;
-            navigation_.current_moon_index = action.moon_index;
+            world_.navigation().on_ship = false;
+            world_.navigation().at_station = false;
+            world_.navigation().current_body_index = action.body_index;
+            world_.navigation().current_moon_index = action.moon_index;
             const auto& body = target_sys.bodies[action.body_index];
             if (action.moon_index >= 0) {
                 unsigned moon_seed = world_.seed() ^ (target_sys.id * 7919u)
@@ -2023,7 +2023,7 @@ void Game::try_move(int dx, int dy) {
 
     // Portal tile: return to detail map / overworld if in a dungeon on a body
     if (world_.map().get(nx, ny) == Tile::Portal &&
-        world_.surface_mode() == SurfaceMode::Dungeon && !navigation_.at_station && !navigation_.on_ship) {
+        world_.surface_mode() == SurfaceMode::Dungeon && !world_.navigation().at_station && !world_.navigation().on_ship) {
         exit_dungeon_to_detail();
         return;
     }
@@ -2671,7 +2671,7 @@ void Game::compute_camera() {
 }
 
 void Game::recompute_fov() {
-    if (navigation_.on_ship) {
+    if (world_.navigation().on_ship) {
         world_.visibility().reveal_all();
         return;
     }
@@ -3677,7 +3677,7 @@ void Game::save_game() {
     data.messages = messages_;
     data.death_message = death_message_;
     data.stash = world_.stash();
-    data.navigation = navigation_;
+    data.navigation = world_.navigation();
     data.surface_mode = static_cast<uint8_t>(world_.surface_mode());
     data.overworld_x = world_.overworld_x();
     data.overworld_y = world_.overworld_y();
@@ -3722,11 +3722,11 @@ bool Game::load_game(const std::string& filename) {
 
     // Restore navigation data (or bootstrap for old saves)
     if (!data.navigation.systems.empty()) {
-        navigation_ = data.navigation;
+        world_.navigation() = data.navigation;
     } else {
-        navigation_ = generate_galaxy(world_.seed());
+        world_.navigation() = generate_galaxy(world_.seed());
     }
-    star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
 
     // Restore overworld state
     world_.set_surface_mode(static_cast<SurfaceMode>(data.surface_mode));
