@@ -1,0 +1,1748 @@
+#include "astra/game.h"
+#include "astra/overworld_stamps.h"
+#include "astra/tile_props.h"
+
+namespace astra {
+
+static int chebyshev_dist(int x1, int y1, int x2, int y2) {
+    return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
+}
+
+// Block-letter ASTRA logo using █ (U+2588 full block)
+#define B "\xe2\x96\x88"  // █
+static const char* title_letter_A[] = {
+    "    " B B B "    ", "   " B B " " B B "   ", "  " B B "   " B B "  ",
+    " " B B "     " B B " ", " " B B B B B B B B B " ", " " B B "     " B B " ", " " B B "     " B B " ",
+};
+static const char* title_letter_S[] = {
+    "  " B B B B B B B "  ", " " B B "     " B B " ", " " B B "        ",
+    "  " B B B B B B B "  ", "        " B B " ", " " B B "     " B B " ", "  " B B B B B B B "  ",
+};
+static const char* title_letter_T[] = {
+    " " B B B B B B B B B " ", "    " B B B "    ", "    " B B B "    ",
+    "    " B B B "    ", "    " B B B "    ", "    " B B B "    ", "    " B B B "    ",
+};
+static const char* title_letter_R[] = {
+    " " B B B B B B B B "  ", " " B B "     " B B " ", " " B B "     " B B " ",
+    " " B B B B B B B B "  ", " " B B "   " B B "   ", " " B B "    " B B "  ", " " B B "     " B B " ",
+};
+#undef B
+static const char* const* title_letters[] = {
+    title_letter_A, title_letter_S, title_letter_T, title_letter_R, title_letter_A,
+};
+static constexpr int title_letter_count = 5;
+static constexpr int title_letter_height = 7;
+static constexpr int title_letter_width = 11;
+static constexpr int title_letter_gap = 2;
+
+static const char* menu_items[] = {
+#ifdef ASTRA_DEV_MODE
+    "Developer Mode (new character)",
+#endif
+    "New Game",
+    "Load Game",
+    "Hall of Fame",
+    "Quit",
+};
+
+static const char* tab_names[] = {
+    "Messages",
+    "Inventory",
+    "Equipment",
+    "Ship",
+    "Wait",
+};
+
+static const char* fixture_type_name(FixtureType type) {
+    switch (type) {
+        case FixtureType::Table:         return "Table";
+        case FixtureType::Console:       return "Console";
+        case FixtureType::Crate:         return "Crate";
+        case FixtureType::Bunk:          return "Bunk";
+        case FixtureType::Rack:          return "Rack";
+        case FixtureType::Conduit:       return "Conduit";
+        case FixtureType::ShuttleClamp:  return "Shuttle Clamp";
+        case FixtureType::Shelf:         return "Shelf";
+        case FixtureType::Viewport:      return "Viewport";
+        case FixtureType::Door:          return "Door";
+        case FixtureType::Window:        return "Window";
+        case FixtureType::Stool:         return "Stool";
+        case FixtureType::Debris:        return "Debris";
+        case FixtureType::HealPod:       return "Healing Pod";
+        case FixtureType::FoodTerminal:  return "Food Terminal";
+        case FixtureType::WeaponDisplay: return "Weapon Display";
+        case FixtureType::RepairBench:   return "Repair Bench";
+        case FixtureType::SupplyLocker:  return "Supply Locker";
+        case FixtureType::StarChart:     return "Star Chart";
+        case FixtureType::RestPod:       return "Rest Pod";
+        case FixtureType::ShipTerminal:  return "Ship Terminal";
+    }
+    return "Unknown";
+}
+
+static const char* fixture_type_desc(FixtureType type) {
+    switch (type) {
+        case FixtureType::Table:         return "A sturdy surface bolted to the deck.";
+        case FixtureType::Console:       return "A terminal display scrolls with data.";
+        case FixtureType::Crate:         return "A sealed cargo crate. Heavy and immovable.";
+        case FixtureType::Bunk:          return "A narrow sleeping rack with a thin mattress.";
+        case FixtureType::Rack:          return "A wall-mounted storage rack.";
+        case FixtureType::Conduit:       return "Exposed piping hums with energy.";
+        case FixtureType::ShuttleClamp:  return "Magnetic clamps securing a docked vessel.";
+        case FixtureType::Shelf:         return "Metal shelving lined with containers.";
+        case FixtureType::Viewport:      return "A reinforced window looking out into space.";
+        case FixtureType::Door:          return "A reinforced bulkhead door.";
+        case FixtureType::Window:        return "A transparent panel set into the wall.";
+        case FixtureType::Stool:         return "A simple seat bolted to the floor.";
+        case FixtureType::Debris:        return "Scattered wreckage and broken components.";
+        case FixtureType::HealPod:       return "A medical pod that restores health using nanite technology.";
+        case FixtureType::FoodTerminal:  return "An automated food dispensary serving synth-grub and rations.";
+        case FixtureType::WeaponDisplay: return "Weapons gleam behind reinforced glass.";
+        case FixtureType::RepairBench:   return "A workbench with tools for equipment maintenance.";
+        case FixtureType::SupplyLocker:  return "A secure locker for storing personal equipment.";
+        case FixtureType::StarChart:     return "A holographic star chart projector.";
+        case FixtureType::RestPod:       return "A padded pod for deep restorative sleep.";
+        case FixtureType::ShipTerminal:  return "A terminal for boarding your docked starship.";
+    }
+    return "";
+}
+
+std::string Game::look_tile_name(int mx, int my) const {
+    // NPC
+    for (const auto& npc : world_.npcs()) {
+        if (npc.x == mx && npc.y == my) return npc.display_name();
+    }
+    // Player
+    if (mx == player_.x && my == player_.y) return player_.name;
+    // Ground item
+    for (const auto& gi : world_.ground_items()) {
+        if (gi.x == mx && gi.y == my) return gi.item.name;
+    }
+    // Fixture
+    Tile t = world_.map().get(mx, my);
+    if (t == Tile::Fixture) {
+        int fid = world_.map().fixture_id(mx, my);
+        if (fid >= 0) return fixture_type_name(world_.map().fixture(fid).type);
+    }
+    // Overworld tiles
+    switch (t) {
+        case Tile::OW_Plains:       return "Plains";
+        case Tile::OW_Mountains:    return "Mountains";
+        case Tile::OW_Crater:       return "Crater";
+        case Tile::OW_IceField:     return "Ice Field";
+        case Tile::OW_LavaFlow:     return "Lava Flow";
+        case Tile::OW_Desert:       return "Desert";
+        case Tile::OW_Fungal:       return "Fungal Growth";
+        case Tile::OW_Forest:       return "Dense Forest";
+        case Tile::OW_River:        return "River";
+        case Tile::OW_Lake:         return "Lake";
+        case Tile::OW_Swamp:        return "Swamp";
+        case Tile::OW_CaveEntrance: return "Cave Entrance";
+        case Tile::OW_Ruins:        return "Ruins";
+        case Tile::OW_Settlement:   return "Settlement";
+        case Tile::OW_CrashedShip:  return "Crashed Ship";
+        case Tile::OW_Outpost:      return "Outpost";
+        case Tile::OW_Landing:      return "Landing Pad";
+        case Tile::Wall: case Tile::StructuralWall: return "Wall";
+        case Tile::Floor:           return "";
+        case Tile::IndoorFloor:     return "";
+        case Tile::Portal:          return "Stairs";
+        case Tile::Water:           return "Water";
+        case Tile::Ice:             return "Ice";
+        case Tile::Empty:           return "Void";
+        default: return "";
+    }
+}
+
+std::string Game::look_tile_desc(int mx, int my) const {
+    // NPC
+    for (const auto& npc : world_.npcs()) {
+        if (npc.x == mx && npc.y == my) {
+            std::string desc = std::string(race_name(npc.race));
+            if (!npc.role.empty()) desc += " " + npc.role;
+            desc += ".";
+            if (npc.interactions.talk) {
+                desc += " \"" + npc.interactions.talk->greeting + "\"";
+            }
+            return desc;
+        }
+    }
+    // Player
+    if (mx == player_.x && my == player_.y) {
+        return std::string(race_name(player_.race)) + " " +
+               class_name(player_.player_class) + ". Level " +
+               std::to_string(player_.level) + ".";
+    }
+    // Ground item
+    for (const auto& gi : world_.ground_items()) {
+        if (gi.x == mx && gi.y == my) return gi.item.description;
+    }
+    // Fixture
+    Tile t = world_.map().get(mx, my);
+    if (t == Tile::Fixture) {
+        int fid = world_.map().fixture_id(mx, my);
+        if (fid >= 0) return fixture_type_desc(world_.map().fixture(fid).type);
+    }
+    // Overworld tiles
+    switch (t) {
+        case Tile::OW_Plains:       return "Open terrain stretches to the horizon.";
+        case Tile::OW_Mountains:    return "Towering peaks of jagged rock pierce the atmosphere.";
+        case Tile::OW_Crater:       return "A massive impact crater scarring the surface.";
+        case Tile::OW_IceField:     return "A frozen expanse of crystalline ice.";
+        case Tile::OW_LavaFlow:     return "Molten rock glows beneath a cracked surface.";
+        case Tile::OW_Desert:       return "Barren dunes of fine dust stretch endlessly.";
+        case Tile::OW_Fungal:       return "Strange luminescent fungi carpet the ground.";
+        case Tile::OW_Forest:       return "Dense alien vegetation blocks the view.";
+        case Tile::OW_River:        return "A rushing current of liquid cuts through the terrain.";
+        case Tile::OW_Lake:         return "A vast body of liquid shimmers under the sky.";
+        case Tile::OW_Swamp:        return "Murky pools and twisted growth make footing treacherous.";
+        case Tile::OW_CaveEntrance: return "A dark opening leads underground. Press > to enter.";
+        case Tile::OW_Ruins:        return "Crumbling remains of an ancient structure.";
+        case Tile::OW_Settlement:   return "A small settlement. Signs of habitation are visible.";
+        case Tile::OW_CrashedShip:  return "The twisted wreckage of a downed vessel.";
+        case Tile::OW_Outpost:      return "A fortified outpost overlooks the terrain.";
+        case Tile::OW_Landing:      return "A flat landing pad. Your ship is docked here.";
+        case Tile::Wall: case Tile::StructuralWall:
+            return "Solid construction blocks the way.";
+        case Tile::Floor: case Tile::IndoorFloor:
+            return "Smooth plating covers the deck.";
+        case Tile::Portal:          return "Passage leading to another level.";
+        case Tile::Water:           return "Murky liquid pools on the ground.";
+        case Tile::Ice:             return "A slick frozen surface.";
+        case Tile::Empty:           return "The void between the stars.";
+        default: return "";
+    }
+}
+
+void Game::render_look_popup() {
+    if (!input_.looking()) return;
+
+    Visibility v = world_.visibility().get(input_.look_x(), input_.look_y());
+    if (v == Visibility::Unexplored) return;
+
+    std::string name = look_tile_name(input_.look_x(), input_.look_y());
+    if (name.empty()) return;
+
+    std::string desc = look_tile_desc(input_.look_x(), input_.look_y());
+    std::string glyph = std::string(input_.cached_glyph()); // cached from render_map (input_.look_x(), input_.look_y());
+    Color glyph_color = input_.cached_color(); // cached from render_map (input_.look_x(), input_.look_y());
+
+    // Word-wrap description to fit popup width
+    int popup_w = std::max(36, std::min(static_cast<int>(name.size()) + 12, screen_w_ / 2));
+    int inner_w = popup_w - 4; // padding
+
+    std::vector<std::string> desc_lines;
+    if (!desc.empty()) {
+        std::string line;
+        for (size_t i = 0; i < desc.size(); ++i) {
+            if (desc[i] == ' ' && static_cast<int>(line.size()) >= inner_w) {
+                desc_lines.push_back(line);
+                line.clear();
+            } else {
+                line += desc[i];
+                if (static_cast<int>(line.size()) >= inner_w + 5) {
+                    desc_lines.push_back(line);
+                    line.clear();
+                }
+            }
+        }
+        if (!line.empty()) desc_lines.push_back(line);
+    }
+
+    // Popup height: top(1) + glyph_row(1) + name_row(1) + sep(1) + desc_lines + bottom(1)
+    int popup_h = 4 + static_cast<int>(desc_lines.size()) + (desc_lines.empty() ? 0 : 1);
+
+    // Center popup on screen
+    int px = (screen_w_ - popup_w) / 2;
+    int py = (screen_h_ - popup_h) / 2;
+
+    // Draw Panel-style popup
+    Rect bounds{px, py, popup_w, popup_h};
+    DrawContext ctx(renderer_.get(), bounds);
+    ctx.fill(' ');
+
+    Color border = Color::White;
+    // Top: ▐▀▀▀▌
+    ctx.put(0, 0, BoxDraw::RIGHT_HALF, border);
+    for (int x = 1; x < popup_w - 1; ++x)
+        ctx.put(x, 0, BoxDraw::UPPER_HALF, border);
+    ctx.put(popup_w - 1, 0, BoxDraw::LEFT_HALF, border);
+    // Sides
+    for (int y = 1; y < popup_h - 1; ++y) {
+        ctx.put(0, y, BoxDraw::RIGHT_HALF, border);
+        ctx.put(popup_w - 1, y, BoxDraw::LEFT_HALF, border);
+    }
+    // Bottom: ▐▄▄▄▌
+    ctx.put(0, popup_h - 1, BoxDraw::RIGHT_HALF, border);
+    for (int x = 1; x < popup_w - 1; ++x)
+        ctx.put(x, popup_h - 1, BoxDraw::LOWER_HALF, border);
+    ctx.put(popup_w - 1, popup_h - 1, BoxDraw::LEFT_HALF, border);
+
+    // Glyph centered
+    int row = 1;
+    ctx.put(popup_w / 2, row, glyph.c_str(), glyph_color);
+    row++;
+
+    // Name centered
+    int name_x = (popup_w - static_cast<int>(name.size())) / 2;
+    ctx.text(name_x, row, name, Color::White);
+    row++;
+
+    // Separator
+    if (!desc_lines.empty()) {
+        for (int x = 1; x < popup_w - 1; ++x)
+            ctx.put(x, row, BoxDraw::H, Color::DarkGray);
+        row++;
+
+        // Description lines
+        for (const auto& dl : desc_lines) {
+            ctx.text(2, row, dl, Color::DarkGray);
+            row++;
+        }
+    }
+}
+
+void Game::pickup_ground_item() {
+    for (auto it = world_.ground_items().begin(); it != world_.ground_items().end(); ++it) {
+        if (it->x == player_.x && it->y == player_.y) {
+            if (!player_.inventory.can_add(it->item)) {
+                log("Too heavy to pick up " + it->item.name + ".");
+                return;
+            }
+            log("You pick up " + it->item.name + ".");
+            player_.inventory.items.push_back(std::move(it->item));
+            world_.ground_items().erase(it);
+            advance_world(ActionCost::move);
+            return;
+        }
+    }
+    log("Nothing here to pick up.");
+}
+
+void Game::drop_item(int index) {
+    auto& items = player_.inventory.items;
+    if (index < 0 || index >= static_cast<int>(items.size())) return;
+
+    Item item = std::move(items[index]);
+    items.erase(items.begin() + index);
+
+    log("You drop " + item.name + ".");
+    world_.ground_items().push_back({player_.x, player_.y, std::move(item)});
+}
+
+void Game::use_item(int index) {
+    auto& items = player_.inventory.items;
+    if (index < 0 || index >= static_cast<int>(items.size())) return;
+
+    auto& item = items[index];
+    switch (item.type) {
+        case ItemType::Food: {
+            int heal = item.buy_value * 5; // scale heal with item value
+            if (heal < 5) heal = 5;
+            player_.hp = std::min(player_.hp + heal, player_.max_hp);
+            if (player_.hunger > HungerState::Satiated)
+                player_.hunger = static_cast<HungerState>(
+                    static_cast<uint8_t>(player_.hunger) - 1);
+            log("You eat the " + item.name + ". (+" +
+                std::to_string(heal) + " HP)");
+            break;
+        }
+        case ItemType::Stim: {
+            int heal = 5;
+            player_.hp = std::min(player_.hp + heal, player_.max_hp);
+            log("You inject the " + item.name + ". (+5 HP)");
+            break;
+        }
+        case ItemType::Battery: {
+            auto& eq = player_.equipment.missile;
+            if (!eq || !eq->ranged) {
+                log("No ranged weapon equipped to recharge.");
+                return;
+            }
+            auto& rd = *eq->ranged;
+            if (rd.current_charge >= rd.charge_capacity) {
+                log("Weapon is already fully charged.");
+                return;
+            }
+            int added = std::min(5, rd.charge_capacity - rd.current_charge);
+            rd.current_charge += added;
+            log("You recharge " + eq->name + ". (+" + std::to_string(added) + " charge)");
+            break;
+        }
+        default:
+            log("You can't use " + item.name + ".");
+            return;
+    }
+
+    // Consume the item
+    if (item.stackable && item.stack_count > 1) {
+        --item.stack_count;
+    } else {
+        items.erase(items.begin() + index);
+    }
+    advance_world(ActionCost::wait);
+}
+
+void Game::equip_item(int index) {
+    auto& items = player_.inventory.items;
+    if (index < 0 || index >= static_cast<int>(items.size())) return;
+
+    auto& item = items[index];
+    if (!item.slot.has_value()) {
+        log("Can't equip " + item.name + ".");
+        return;
+    }
+
+    auto& slot = player_.equipment.slot_ref(*item.slot);
+    Item to_equip = std::move(item);
+    items.erase(items.begin() + index);
+
+    if (slot) {
+        // Swap: old equipped item goes to inventory
+        items.push_back(std::move(*slot));
+        log("You unequip " + items.back().name + ".");
+    }
+    log("You equip " + to_equip.name + ".");
+    slot = std::move(to_equip);
+}
+
+void Game::unequip_slot(int index) {
+    auto slot = static_cast<EquipSlot>(index);
+    auto& opt = player_.equipment.slot_ref(slot);
+    if (!opt) {
+        log("Nothing equipped in that slot.");
+        return;
+    }
+
+    Item item = std::move(*opt);
+    opt.reset();
+
+    if (!player_.inventory.can_add(item)) {
+        log("Inventory too heavy. " + item.name + " stays equipped.");
+        opt = std::move(item);
+        return;
+    }
+    log("You unequip " + item.name + ".");
+    player_.inventory.items.push_back(std::move(item));
+}
+
+void Game::remove_dead_npcs() {
+    // Nullify target_npc_ if it died
+    if (target_npc_ && !target_npc_->alive()) {
+        target_npc_ = nullptr;
+    }
+    // Close dialog if interacting NPC died
+    if (dialog_.interacting_npc() && !dialog_.interacting_npc()->alive()) {
+        dialog_.close();
+    }
+    world_.npcs().erase(
+        std::remove_if(world_.npcs().begin(), world_.npcs().end(),
+                        [](const Npc& n) { return !n.alive(); }),
+        world_.npcs().end());
+}
+
+// --- Level-up rewards (easy to balance) ---
+static constexpr int attr_points_per_level = 2;
+static constexpr int skill_points_per_level = 50;
+static constexpr float xp_scale_factor = 1.5f;
+
+void Game::check_level_up() {
+    while (player_.xp >= player_.max_xp) {
+        player_.xp -= player_.max_xp;
+        player_.level++;
+        player_.max_xp = static_cast<int>(player_.max_xp * xp_scale_factor);
+        player_.attribute_points += attr_points_per_level;
+        player_.skill_points += skill_points_per_level;
+
+        // Heal to full on level up
+        player_.max_hp = player_.effective_max_hp();
+        player_.hp = player_.max_hp;
+
+        log("LEVEL UP! You are now level " + std::to_string(player_.level) + ".");
+        log("  +" + std::to_string(attr_points_per_level) + " attribute points, +"
+            + std::to_string(skill_points_per_level) + " SP.");
+    }
+}
+
+void Game::check_player_death() {
+    if (player_.hp <= 0) {
+        // Permadeath: save with dead flag
+        SaveData data;
+        // version uses SaveData default (12)
+        data.seed = world_.seed();
+        data.world_tick = world_.world_tick();
+        data.dead = true;
+        data.player = player_;
+        data.current_map_id = 0;
+        data.current_region = world_.current_region();
+        data.active_tab = active_tab_;
+        data.panel_visible = panel_visible_;
+        data.messages = messages_;
+        data.death_message = death_message_;
+
+        MapState ms;
+        ms.map_id = 0;
+        ms.tilemap = world_.map();
+        ms.visibility = world_.visibility();
+        ms.npcs = world_.npcs();
+        data.maps.push_back(std::move(ms));
+
+        write_save("save_" + std::to_string(world_.seed()), data);
+        state_ = GameState::GameOver;
+    }
+}
+
+void Game::handle_gameover_input(int key) {
+    switch (key) {
+        case '\n': case '\r':
+            state_ = GameState::MainMenu;
+            menu_selection_ = 0;
+            break;
+        case 'q': case 'Q':
+            running_ = false;
+            break;
+    }
+}
+
+void Game::handle_load_input(int key) {
+    switch (key) {
+        case '\033':
+            state_ = prev_state_;
+            if (state_ == GameState::MainMenu) menu_selection_ = 0;
+            break;
+        case 'w': case 'k': case KEY_UP:
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ - 1 + static_cast<int>(save_slots_.size()))
+                                  % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case 's': case 'j': case KEY_DOWN:
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ + 1) % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case '\n': case '\r':
+            if (!save_slots_.empty() &&
+                load_selection_ >= 0 &&
+                load_selection_ < static_cast<int>(save_slots_.size())) {
+                if (load_game(save_slots_[load_selection_].filename)) {
+                    log("Game loaded.");
+                }
+            }
+            break;
+    }
+}
+
+void Game::handle_hall_input(int key) {
+    switch (key) {
+        case '\033':
+            state_ = GameState::MainMenu;
+            menu_selection_ = 0;
+            confirm_delete_ = false;
+            break;
+        case 'w': case 'k': case KEY_UP:
+            confirm_delete_ = false;
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ - 1 + static_cast<int>(save_slots_.size()))
+                                  % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case 's': case 'j': case KEY_DOWN:
+            confirm_delete_ = false;
+            if (!save_slots_.empty()) {
+                load_selection_ = (load_selection_ + 1) % static_cast<int>(save_slots_.size());
+            }
+            break;
+        case 'd': case 'D':
+            if (!save_slots_.empty()) {
+                confirm_delete_ = !confirm_delete_;
+            }
+            break;
+        case 'y': case 'Y':
+            if (confirm_delete_ && !save_slots_.empty() &&
+                load_selection_ >= 0 &&
+                load_selection_ < static_cast<int>(save_slots_.size())) {
+                delete_save(save_slots_[load_selection_].filename);
+                save_slots_.erase(save_slots_.begin() + load_selection_);
+                if (load_selection_ >= static_cast<int>(save_slots_.size())) {
+                    load_selection_ = static_cast<int>(save_slots_.size()) - 1;
+                }
+                if (load_selection_ < 0) load_selection_ = 0;
+                confirm_delete_ = false;
+            }
+            break;
+        case 'n': case 'N':
+            confirm_delete_ = false;
+            break;
+    }
+}
+
+void Game::save_game() {
+    SaveData data;
+    // version uses SaveData default (12)
+    data.seed = world_.seed();
+    data.world_tick = world_.world_tick();
+    data.dead = false;
+    data.player = player_;
+    data.current_map_id = 0;
+    data.current_region = world_.current_region();
+    data.active_tab = active_tab_;
+    data.panel_visible = panel_visible_;
+    data.messages = messages_;
+    data.death_message = death_message_;
+    data.stash = world_.stash();
+    data.navigation = world_.navigation();
+    data.surface_mode = static_cast<uint8_t>(world_.surface_mode());
+    data.overworld_x = world_.overworld_x();
+    data.overworld_y = world_.overworld_y();
+    data.local_tick = world_.day_clock().local_tick;
+    data.local_ticks_per_day = world_.day_clock().local_ticks_per_day;
+
+    MapState ms;
+    ms.map_id = 0;
+    ms.tilemap = world_.map();
+    ms.visibility = world_.visibility();
+    ms.npcs = world_.npcs();
+    ms.ground_items = world_.ground_items();
+    data.maps.push_back(std::move(ms));
+
+    write_save("save_" + std::to_string(world_.seed()), data);
+}
+
+bool Game::load_game(const std::string& filename) {
+    SaveData data;
+    if (!read_save(filename, data)) return false;
+    if (data.dead) return false;
+    if (data.maps.empty()) return false;
+
+    dev_mode_ = false;
+    world_.seed() = data.seed;
+    world_.rng().seed(world_.seed());
+    world_.world_tick() = data.world_tick;
+    player_ = data.player;
+    death_message_ = data.death_message;
+    world_.current_region() = data.current_region;
+    active_tab_ = data.active_tab;
+    panel_visible_ = data.panel_visible;
+    messages_ = data.messages;
+    world_.stash() = data.stash;
+
+    // Restore first map
+    const auto& ms = data.maps[0];
+    world_.map() = ms.tilemap;
+    world_.visibility() = ms.visibility;
+    world_.npcs() = ms.npcs;
+    world_.ground_items() = ms.ground_items;
+
+    // Restore navigation data (or bootstrap for old saves)
+    if (!data.navigation.systems.empty()) {
+        world_.navigation() = data.navigation;
+    } else {
+        world_.navigation() = generate_galaxy(world_.seed());
+    }
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
+
+    // Restore overworld state
+    world_.set_surface_mode(static_cast<SurfaceMode>(data.surface_mode));
+    world_.overworld_x() = data.overworld_x;
+    world_.overworld_y() = data.overworld_y;
+
+    // Restore day clock
+    world_.day_clock().local_tick = data.local_tick;
+    world_.day_clock().local_ticks_per_day = data.local_ticks_per_day;
+
+    // Reset interaction state
+    awaiting_interact_ = false;
+    targeting_ = false;
+    target_npc_ = nullptr;
+    inventory_cursor_ = 0;
+    inspecting_item_ = false;
+    dialog_.close();
+    pause_menu_.close();
+
+    compute_layout();
+    recompute_fov();
+    compute_camera();
+    state_ = GameState::Playing;
+    return true;
+}
+
+void Game::update() {
+    // Tick-based — world updates happen in response to player actions.
+}
+
+// --- Rendering ---
+
+void Game::render() {
+    renderer_->clear();
+
+    switch (state_) {
+        case GameState::MainMenu:   render_menu();          break;
+        case GameState::Playing:    render_play();          break;
+        case GameState::GameOver:   render_gameover();      break;
+        case GameState::LoadMenu:   render_load_menu();     break;
+        case GameState::HallOfFame: render_hall_of_fame();  break;
+    }
+
+    renderer_->present();
+}
+
+// Deterministic star at any world coordinate
+static char star_at(int x, int y) {
+    // Hash the coordinate to get a deterministic pseudo-random value
+    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    if ((h % 100) >= 3) return '\0'; // ~3% chance of a star
+    unsigned st = (h >> 8) % 10;
+    if (st < 6) return '.';
+    if (st < 9) return '*';
+    return '+';
+}
+
+void Game::render_menu() {
+    // Character creation overlay
+    if (character_creation_.is_open()) {
+        character_creation_.draw(screen_w_, screen_h_);
+        return;
+    }
+
+    DrawContext ctx(renderer_.get(), screen_rect_);
+
+    // Starfield backdrop
+    for (int sy = 0; sy < screen_h_; ++sy) {
+        for (int sx = 0; sx < screen_w_; ++sx) {
+            char star = star_at(sx, sy);
+            if (star) {
+                Color c = (star == '+') ? Color::Yellow
+                        : (star == '*') ? Color::White
+                                        : Color::Cyan;
+                ctx.put(sx, sy, star, c);
+            }
+        }
+    }
+
+    // Block-letter ASTRA logo
+    int logo_w = title_letter_count * title_letter_width
+               + (title_letter_count - 1) * title_letter_gap;
+    int logo_x = (screen_w_ - logo_w) / 2;
+    int art_start_y = screen_h_ / 2 - title_letter_height - 2;
+
+    for (int row = 0; row < title_letter_height; ++row) {
+        int lx = logo_x;
+        for (int li = 0; li < title_letter_count; ++li) {
+            ctx.text(lx, art_start_y + row, title_letters[li][row], Color::White);
+            lx += title_letter_width + title_letter_gap;
+        }
+    }
+
+    int menu_y = art_start_y + title_letter_height + 2;
+    for (int i = 0; i < menu_item_count_; ++i) {
+        if (i == menu_selection_) {
+            // ·::|  Label  |::·
+            std::string item = menu_items[i];
+            std::string padded = "  " + item + "  ";
+            std::string full = ".::|" + padded + "|::.";
+            int x = (screen_w_ - static_cast<int>(full.size())) / 2;
+            ctx.text(x, menu_y + i, ".::", Color::Red);
+            ctx.put(x + 3, menu_y + i, BoxDraw::V, Color::Cyan);
+            ctx.text(x + 4, menu_y + i, padded, Color::Yellow);
+            ctx.put(x + 4 + static_cast<int>(padded.size()), menu_y + i, BoxDraw::V, Color::Cyan);
+            ctx.text(x + 5 + static_cast<int>(padded.size()), menu_y + i, "::.", Color::Red);
+        } else {
+            std::string label = "     " + std::string(menu_items[i]) + "     ";
+            ctx.text_center(menu_y + i, label, Color::DarkGray);
+        }
+    }
+
+    // Quit confirm overlay on menu
+    quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
+}
+
+void Game::render_play() {
+    render_stats_bar();
+    render_bars();
+
+    render_tabs();
+
+    DrawContext sep_ctx(renderer_.get(), separator_rect_);
+    sep_ctx.vline(0, BoxDraw::V, Color::DarkGray);
+
+    render_map();
+
+    if (panel_visible_) {
+        render_side_panel();
+    }
+    DrawContext bottom_sep(renderer_.get(), bottom_sep_rect_);
+    bottom_sep.hline(0, BoxDraw::H, Color::DarkGray);
+
+    render_effects_bar();
+    render_abilities_bar();
+
+    // Overlay windows
+    if (inspecting_item_) render_item_inspect();
+    render_look_popup();
+    dialog_.draw(renderer_.get(), screen_w_, screen_h_);
+    pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
+    quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
+    console_.draw(renderer_.get(), screen_w_, screen_h_);
+    help_screen_.draw(renderer_.get(), screen_w_, screen_h_);
+    trade_window_.draw(screen_w_, screen_h_);
+    character_screen_.draw(screen_w_, screen_h_);
+    star_chart_viewer_.draw(screen_w_, screen_h_);
+
+    // Welcome screen overlay
+    if (show_welcome_) {
+        int ww = 60;
+        int wh = 28;
+        if (ww > screen_w_ - 8) ww = screen_w_ - 8;
+        if (wh > screen_h_ - 6) wh = screen_h_ - 6;
+        int wx = (screen_w_ - ww) / 2;
+        int wy = (screen_h_ - wh) / 2;
+
+        Panel welcome(renderer_.get(), Rect{wx, wy, ww, wh}, "A S T R A");
+        welcome.set_footer("[Space] Continue");
+        welcome.draw();
+
+        DrawContext wctx = welcome.content();
+        int y = 1;
+
+        wctx.text_center(y, "Welcome, " + player_.name + ".", Color::White);
+        y += 2;
+        wctx.text_center(y, "Your journey to the center of the galaxy begins.", Color::DarkGray);
+        y++;
+        wctx.text_center(y, "The supermassive black hole Sagittarius A* awaits.", Color::DarkGray);
+        y++;
+        wctx.text_center(y, "But first, you must survive.", Color::DarkGray);
+        y += 2;
+
+        wctx.text_center(y, "You are docked at The Heavens Above,", Color::Cyan);
+        y++;
+        wctx.text_center(y, "a space station orbiting Jupiter.", Color::Cyan);
+        y += 3;
+
+        // Key bindings
+        int kx = 6;
+        wctx.text(kx, y, "CONTROLS", Color::White);
+        y += 2;
+        wctx.text(kx, y, "Arrow keys", Color::Yellow);
+        wctx.text(kx + 22, y, "Move", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "Space", Color::Yellow);
+        wctx.text(kx + 22, y, "Use / interact", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "l", Color::Yellow);
+        wctx.text(kx + 22, y, "Look / examine", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "c", Color::Yellow);
+        wctx.text(kx + 22, y, "Character screen", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "t / s", Color::Yellow);
+        wctx.text(kx + 22, y, "Target / shoot", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "> / <", Color::Yellow);
+        wctx.text(kx + 22, y, "Enter / exit", Color::DarkGray);
+        y++;
+        wctx.text(kx, y, "ESC", Color::Yellow);
+        wctx.text(kx + 22, y, "Pause menu", Color::DarkGray);
+    }
+}
+
+void Game::render_stats_bar() {
+    DrawContext ctx(renderer_.get(), stats_bar_rect_);
+
+    // Dev mode indicator
+    int lx = 1;
+    if (dev_mode_) {
+        ctx.text(lx, 0, "[DEV]", Color::Red);
+        lx += 6;
+    }
+
+    // Left side: level :: temp :: hunger :: money
+    lx = ctx.label_value(lx, 0, "LVL:", Color::DarkGray,
+        std::to_string(player_.level), Color::White);
+
+    ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
+    lx = ctx.label_value(lx, 0, "T:", Color::DarkGray,
+        std::to_string(player_.temperature) + "~", Color::White);
+
+    const char* hname = hunger_name(player_.hunger);
+    if (hname[0] != '\0') {
+        ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
+        ctx.text(lx, 0, hname, hunger_color());
+        lx += static_cast<int>(std::string_view(hname).size());
+    }
+
+    ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
+    lx = ctx.label_value(lx, 0, "", Color::DarkGray,
+        std::to_string(player_.money) + "$", Color::Yellow);
+
+    // Build calendar string for width measurement: "C1 D3 [▓▓▓▒░░░░] ☀"
+    // Progress bar is 8 chars + brackets = 10, icon = 1
+    std::string cal = format_calendar(world_.world_tick());
+    cal += " [--------] "; // placeholder for width calc (8-char bar + brackets + space)
+    cal += phase_icon(world_.day_clock().phase());
+
+    // Right side: stats, calendar, location — measure total width for right-alignment
+    std::string right;
+    int eff_qn = player_.quickness + player_.equipment.total_modifiers().quickness;
+    right += " QN:";  right += std::to_string(eff_qn);
+    right += " :: MS:"; right += std::to_string(player_.move_speed);
+    right += " :: AV:"; right += std::to_string(player_.effective_attack());
+    right += " :: DV:"; right += std::to_string(player_.effective_dodge());
+    right += " :: ";    right += cal;
+    right += " :: ";    right += world_.map().location_name();
+    right += " ";
+
+    int rx = ctx.width() - static_cast<int>(right.size());
+    if (rx < lx + 2) rx = lx + 2;
+
+    // Fill gap between left items and right items with repeating <<>>
+    {
+        const char pattern[] = "<<>>";
+        int gap_start = lx + 1;
+        int gap_end = rx - 1;
+        for (int i = gap_start; i < gap_end; ++i) {
+            ctx.put(i, 0, pattern[(i - gap_start) % 4], Color::Cyan);
+        }
+    }
+
+    // Render right side with per-segment colors
+    int x = rx;
+    x = ctx.label_value(x, 0, "QN:", Color::DarkGray,
+        std::to_string(player_.quickness + player_.equipment.total_modifiers().quickness), Color::White);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    x = ctx.label_value(x, 0, "MS:", Color::DarkGray,
+        std::to_string(player_.move_speed), Color::White);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    x = ctx.label_value(x, 0, "AV:", Color::DarkGray,
+        std::to_string(player_.effective_attack()), Color::Blue);
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    x = ctx.label_value(x, 0, "DV:", Color::DarkGray,
+        std::to_string(player_.effective_dodge()), Color::Blue);
+
+    // Calendar + day progress bar + phase icon
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    {
+        std::string cal_text = format_calendar(world_.world_tick()) + " ";
+        ctx.text(x, 0, cal_text, Color::DarkGray);
+        x += static_cast<int>(cal_text.size());
+
+        // Phase color
+        Color phase_col;
+        switch (world_.day_clock().phase()) {
+            case TimePhase::Dawn: phase_col = Color::Yellow; break;
+            case TimePhase::Day:  phase_col = Color::Yellow; break;
+            case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
+            case TimePhase::Night:phase_col = Color::Blue; break;
+        }
+
+        // Day progress bar: [▓▓▓▒░░░░]
+        constexpr int bar_len = 8;
+        float frac = world_.day_clock().day_fraction();
+        int filled = static_cast<int>(frac * bar_len);
+        if (filled > bar_len) filled = bar_len;
+
+        ctx.put(x, 0, '[', Color::DarkGray); ++x;
+        for (int i = 0; i < bar_len; ++i) {
+            if (i < filled) {
+                // ▓ filled
+                ctx.text(x, 0, "\xe2\x96\x93", phase_col);
+            } else if (i == filled) {
+                // ▒ current position
+                ctx.text(x, 0, "\xe2\x96\x92", phase_col);
+            } else {
+                // ░ empty
+                ctx.text(x, 0, "\xe2\x96\x91", Color::DarkGray);
+            }
+            ++x;
+        }
+        ctx.put(x, 0, ']', Color::DarkGray); ++x;
+
+        // Phase icon
+        ctx.text(x, 0, " ", Color::Default); ++x;
+        ctx.text(x, 0, phase_icon(world_.day_clock().phase()), phase_col);
+        x += 1;
+    }
+
+    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
+    ctx.text(x, 0, world_.map().location_name(), Color::White);
+}
+
+void Game::render_bars() {
+    // Format value strings and find max width for alignment
+    std::string hp_val = std::to_string(player_.hp) + "/" + std::to_string(player_.max_hp);
+    std::string xp_val = std::to_string(player_.xp) + "/" + std::to_string(player_.max_xp);
+    int val_w = static_cast<int>(std::max(hp_val.size(), xp_val.size()));
+
+    // Right-justify values by padding with spaces
+    while (static_cast<int>(hp_val.size()) < val_w) hp_val = " " + hp_val;
+    while (static_cast<int>(xp_val.size()) < val_w) xp_val = " " + xp_val;
+
+    // "HP: " and "XP: " are both 4 chars — labels already align
+    // bar_start = 1 (margin) + 4 (label) + val_w + 1 (space)
+    int bar_start = 1 + 4 + val_w + 1;
+
+    // HP bar
+    {
+        DrawContext ctx(renderer_.get(), hp_bar_rect_);
+        ctx.text(1, 0, "HP:", Color::DarkGray);
+        ctx.text(4, 0, hp_val, hp_color());
+        int bar_w = ctx.width() - bar_start - 2;
+        if (bar_w > 0) {
+            ctx.bar(bar_start, 0, bar_w, player_.hp, player_.max_hp, hp_color());
+        }
+    }
+
+    // XP bar
+    {
+        DrawContext ctx(renderer_.get(), xp_bar_rect_);
+        ctx.text(1, 0, "XP:", Color::DarkGray);
+        ctx.text(4, 0, xp_val, Color::Cyan);
+        int bar_w = ctx.width() - bar_start - 2;
+        if (bar_w > 0) {
+            ctx.bar(bar_start, 0, bar_w, player_.xp, player_.max_xp, Color::Cyan);
+        }
+    }
+}
+
+void Game::render_tabs() {
+    DrawContext ctx(renderer_.get(), tabs_rect_);
+    int x = 1;
+
+    for (int i = 0; i < panel_tab_count; ++i) {
+        bool active = (i == active_tab_);
+        std::string label = std::string("[") + tab_names[i] + "]";
+        Color fg = active ? Color::Yellow : Color::DarkGray;
+        ctx.text(x, 0, label, fg);
+        x += static_cast<int>(label.size()) + 1;
+    }
+
+    // Horizontal separator below tabs (row 2 on right side)
+    DrawContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
+    sep.hline(0, BoxDraw::H, Color::DarkGray);
+}
+
+// Floor scatter: biome-specific alternate glyphs for visual texture.
+// Returns the base '.' if no scatter, or an alternate glyph.
+// Uses a position hash so the result is stable across frames.
+static char floor_scatter(int x, int y, Biome biome) {
+    if (biome == Biome::Station) return '.';
+
+    // Simple spatial hash
+    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    int roll = static_cast<int>(h % 100);
+
+    struct ScatterSet { int threshold; const char* glyphs; int count; };
+    ScatterSet s;
+    switch (biome) {
+        case Biome::Rocky:    s = {15, ",:`",  3}; break;
+        case Biome::Volcanic: s = {20, ",';" , 3}; break;
+        case Biome::Ice:      s = {12, "'`,",  3}; break;
+        case Biome::Sandy:    s = {20, ",`:",  3}; break;
+        case Biome::Aquatic:  s = {10, ",:",   2}; break;
+        case Biome::Fungal:   s = {18, "\",'", 3}; break;
+        case Biome::Crystal:  s = {15, "*'`",  3}; break;
+        case Biome::Corroded: s = {20, ",:;",  3}; break;
+        case Biome::Forest:   s = {18, "\",'", 3}; break;
+        case Biome::Grassland:s = {15, ",`.",  3}; break;
+        case Biome::Jungle:   s = {22, "\",'", 3}; break;
+        default: return '.';
+    }
+    if (roll >= s.threshold) return '.';
+    return s.glyphs[h / 100 % s.count];
+}
+
+static Color overworld_tile_color(Tile tile, Biome biome) {
+    switch (tile) {
+        case Tile::OW_Plains:
+            switch (biome) {
+                case Biome::Ice:      return Color::White;
+                case Biome::Rocky:    return Color::DarkGray;
+                case Biome::Sandy:    return Color::Yellow;
+                default:              return Color::Green;
+            }
+        case Tile::OW_Mountains:   return Color::White;
+        case Tile::OW_Crater:      return Color::DarkGray;
+        case Tile::OW_IceField:    return Color::Cyan;
+        case Tile::OW_LavaFlow:    return Color::Red;
+        case Tile::OW_Desert:      return Color::Yellow;
+        case Tile::OW_Fungal:      return Color::Green;
+        case Tile::OW_Forest:      return Color::Green;
+        case Tile::OW_River:       return Color::Blue;
+        case Tile::OW_Lake:        return Color::Cyan;
+        case Tile::OW_Swamp:       return static_cast<Color>(58);
+        case Tile::OW_CaveEntrance:return Color::Magenta;
+        case Tile::OW_Ruins:       return Color::BrightMagenta;
+        case Tile::OW_Settlement:  return Color::Yellow;
+        case Tile::OW_CrashedShip: return Color::Cyan;
+        case Tile::OW_Outpost:     return Color::Green;
+        case Tile::OW_Landing:     return static_cast<Color>(14); // bright cyan
+        default:                   return Color::White;
+    }
+}
+
+void Game::render_map() {
+    DrawContext ctx(renderer_.get(), map_rect_);
+
+    for (int sy = 0; sy < map_rect_.h; ++sy) {
+        for (int sx = 0; sx < map_rect_.w; ++sx) {
+            int mx = camera_x_ + sx;
+            int my = camera_y_ + sy;
+
+            // Starfield backdrop — space stations only
+            if (world_.map().biome() == Biome::Station && world_.map().get(mx, my) == Tile::Empty) {
+                char star = star_at(mx, my);
+                if (star) {
+                    Color c = (star == '*' || star == '+') ? Color::White : Color::Cyan;
+                    ctx.put(sx, sy, star, c);
+                }
+            }
+
+            // Tiles respect FOV
+            Visibility v = world_.visibility().get(mx, my);
+            if (v == Visibility::Unexplored) continue;
+
+            Tile tile_at = world_.map().get(mx, my);
+            char g = tile_glyph(tile_at);
+            if (g == ' ' && tile_at != Tile::Fixture) continue;
+
+            // Overworld: no FOV dimming, use overworld colors + UTF-8 glyphs
+            if (world_.map().map_type() == MapType::Overworld) {
+                Color c = overworld_tile_color(tile_at, world_.map().biome());
+                uint8_t gov = world_.map().glyph_override(mx, my);
+                const char* og = (gov != 0) ? stamp_glyph(gov) : nullptr;
+                if (!og) og = overworld_glyph(tile_at, mx, my);
+                ctx.put(sx, sy, og, c);
+                continue;
+            }
+
+            auto bc = biome_colors(world_.map().biome());
+            Biome biome = world_.map().biome();
+            if (v == Visibility::Visible) {
+                Color c = bc.floor;
+                const char* utf8 = nullptr;
+
+                if (tile_at == Tile::StructuralWall) {
+                    uint8_t mat = world_.map().glyph_override(mx, my);
+                    switch (mat) {
+                        case 1:  // Concrete
+                            c = static_cast<Color>(245);  // medium gray
+                            utf8 = "\xe2\x96\x93";        // ▓
+                            break;
+                        case 2:  // Wood
+                            c = static_cast<Color>(137);   // brown/tan
+                            utf8 = "\xe2\x96\x92";         // ▒
+                            break;
+                        case 3:  // Salvage
+                            c = static_cast<Color>(240);   // dark gray
+                            utf8 = "\xe2\x96\x91";         // ░
+                            break;
+                        default: // Metal (0)
+                            c = Color::White;
+                            utf8 = "\xe2\x96\x88";         // █
+                            break;
+                    }
+                }
+                else if (tile_at == Tile::Wall) {
+                    c = bc.wall;
+                    utf8 = dungeon_wall_glyph(biome, mx, my);
+                }
+                else if (tile_at == Tile::Portal) {
+                    c = Color::Magenta;
+                    utf8 = dungeon_portal_glyph();
+                }
+                else if (tile_at == Tile::Water) {
+                    c = bc.water;
+                    utf8 = dungeon_water_glyph(biome, mx, my);
+                }
+                else if (tile_at == Tile::Ice) {
+                    c = static_cast<Color>(39);
+                    utf8 = dungeon_water_glyph(biome, mx, my);
+                }
+                else if (tile_at == Tile::Fixture) {
+                    int fid = world_.map().fixture_id(mx, my);
+                    if (fid >= 0 && fid < world_.map().fixture_count()) {
+                        const auto& f = world_.map().fixture(fid);
+                        if (f.utf8_glyph) {
+                            utf8 = f.utf8_glyph;
+                        } else {
+                            g = f.glyph;
+                        }
+                        c = f.color;
+                    } else {
+                        g = '?'; c = Color::Red;
+                    }
+                }
+                else if (tile_at == Tile::IndoorFloor) {
+                    c = static_cast<Color>(137);  // warm tan/brown — reads as plating
+                    utf8 = "\xe2\x96\xaa";        // ▪ (small filled square)
+                }
+                else if (tile_at == Tile::Floor) {
+                    char sg = floor_scatter(mx, my, biome);
+                    if (sg != '.') {
+                        g = sg;
+                        c = bc.remembered; // dimmer shade for scatter
+                    }
+                }
+
+                if (utf8) {
+                    ctx.put(sx, sy, utf8, c);
+                } else {
+                    ctx.put(sx, sy, g, c);
+                }
+            } else {
+                // Remembered tiles: use UTF-8 glyphs too
+                const char* utf8 = nullptr;
+                if (tile_at == Tile::StructuralWall) {
+                    uint8_t mat = world_.map().glyph_override(mx, my);
+                    switch (mat) {
+                        case 1:  utf8 = "\xe2\x96\x93"; break; // ▓
+                        case 2:  utf8 = "\xe2\x96\x92"; break; // ▒
+                        case 3:  utf8 = "\xe2\x96\x91"; break; // ░
+                        default: utf8 = "\xe2\x96\x88"; break; // █
+                    }
+                }
+                else if (tile_at == Tile::Wall)
+                    utf8 = dungeon_wall_glyph(biome, mx, my);
+                else if (tile_at == Tile::IndoorFloor)
+                    utf8 = "\xe2\x96\xaa";   // ▪
+                else if (tile_at == Tile::Portal)
+                    utf8 = dungeon_portal_glyph();
+                else if (tile_at == Tile::Water || tile_at == Tile::Ice)
+                    utf8 = dungeon_water_glyph(biome, mx, my);
+                else if (tile_at == Tile::Fixture) {
+                    int fid = world_.map().fixture_id(mx, my);
+                    if (fid >= 0 && fid < world_.map().fixture_count()) {
+                        const auto& f = world_.map().fixture(fid);
+                        if (f.utf8_glyph) {
+                            utf8 = f.utf8_glyph;
+                        } else {
+                            g = f.glyph;
+                        }
+                    }
+                }
+
+                if (utf8)
+                    ctx.put(sx, sy, utf8, bc.remembered);
+                else
+                    ctx.put(sx, sy, g, bc.remembered);
+            }
+        }
+    }
+
+    // Draw visible ground items
+    for (const auto& gi : world_.ground_items()) {
+        if (world_.visibility().get(gi.x, gi.y) == Visibility::Visible) {
+            ctx.put(gi.x - camera_x_, gi.y - camera_y_,
+                    gi.item.glyph, gi.item.color);
+        }
+    }
+
+    // Draw visible NPCs
+    for (const auto& npc : world_.npcs()) {
+        if (npc.alive() && world_.visibility().get(npc.x, npc.y) == Visibility::Visible) {
+            ctx.put(npc.x - camera_x_, npc.y - camera_y_, npc.glyph, npc.color);
+        }
+    }
+
+    // Draw player relative to camera
+    ctx.put(player_.x - camera_x_, player_.y - camera_y_, '@', Color::Yellow);
+
+    // Draw targeting line and reticule
+    if (targeting_) {
+        // Bresenham line from player to reticule
+        int x0 = player_.x, y0 = player_.y;
+        int x1 = target_x_, y1 = target_y_;
+        int dx = std::abs(x1 - x0), dy = std::abs(y1 - y0);
+        int sx = (x0 < x1) ? 1 : -1;
+        int sy = (y0 < y1) ? 1 : -1;
+        int err = dx - dy;
+
+        // Determine weapon range for coloring
+        int weapon_range = 0;
+        const auto& rw = player_.equipment.missile;
+        if (rw && rw->ranged) weapon_range = rw->ranged->max_range;
+
+        int lx = x0, ly = y0;
+        while (lx != x1 || ly != y1) {
+            int e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; lx += sx; }
+            if (e2 <  dx) { err += dx; ly += sy; }
+            if (lx == x1 && ly == y1) break; // don't draw on reticule pos
+            int scx = lx - camera_x_, scy = ly - camera_y_;
+            if (scx >= 0 && scx < map_rect_.w && scy >= 0 && scy < map_rect_.h) {
+                int tile_dist = chebyshev_dist(x0, y0, lx, ly);
+                Color line_color = (weapon_range > 0 && tile_dist <= weapon_range)
+                    ? Color::Green : Color::Red;
+                ctx.put(scx, scy, '*', line_color);
+            }
+        }
+
+        // Reticule: blink only when over something interesting (NPC, item, etc.)
+        int rx = target_x_ - camera_x_, ry = target_y_ - camera_y_;
+        if (rx >= 0 && rx < map_rect_.w && ry >= 0 && ry < map_rect_.h) {
+            bool has_entity = false;
+            for (const auto& npc : world_.npcs()) {
+                if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
+                    has_entity = true;
+                    break;
+                }
+            }
+            if (!has_entity || blink_phase_ % 2 == 0) {
+                int target_dist = chebyshev_dist(player_.x, player_.y, target_x_, target_y_);
+                Color ret_color = (weapon_range > 0 && target_dist <= weapon_range)
+                    ? Color::Green : Color::Red;
+                ctx.put(rx, ry, '+', ret_color);
+            }
+            // else: let the underlying NPC/item glyph show through
+        }
+    }
+
+    // Draw look mode cursor — read cell BEFORE overwriting with reticule
+    if (input_.looking()) {
+        int lsx = input_.look_x() - camera_x_;
+        int lsy = input_.look_y() - camera_y_;
+        if (lsx >= 0 && lsx < map_rect_.w && lsy >= 0 && lsy < map_rect_.h) {
+            // Cache the actual glyph/color at this position
+            int screen_x = map_rect_.x + lsx;
+            int screen_y = map_rect_.y + lsy;
+            {
+                char buf[5] = {};
+                Color fg = Color::White;
+                renderer_->read_cell(screen_x, screen_y, buf, fg);
+                input_.cache_look_cell(buf, fg);
+            }
+
+            if (input_.look_blink() % 2 == 0) {
+                ctx.put(lsx, lsy, 'X', Color::Yellow);
+            }
+        }
+    }
+}
+
+void Game::render_side_panel() {
+    DrawContext ctx(renderer_.get(), side_panel_rect_);
+
+    switch (static_cast<PanelTab>(active_tab_)) {
+        case PanelTab::Messages: {
+            int max_w = ctx.width();
+            int visible = ctx.height();
+            if (max_w <= 0 || visible <= 0) break;
+
+            // Word-wrap all messages into display lines
+            // Continuation lines are indented to align past the ":: " prefix
+            static constexpr int indent = 3; // matches ":: " prefix
+            // Count visible (non-marker) characters in a string
+            auto visible_len = [](std::string_view s) {
+                int len = 0;
+                for (size_t i = 0; i < s.size(); ++i) {
+                    if (s[i] == COLOR_BEGIN) { ++i; continue; } // skip color byte
+                    if (s[i] == COLOR_END) continue;
+                    ++len;
+                }
+                return len;
+            };
+
+            struct WrappedLine {
+                std::string_view text;
+                int x; // 0 for first line, indent for continuations
+            };
+            std::vector<WrappedLine> lines;
+
+            for (const auto& msg : messages_) {
+                std::string_view remaining = msg;
+                bool first = true;
+                while (!remaining.empty()) {
+                    int line_w = first ? max_w : max_w - indent;
+                    if (line_w <= 0) line_w = 1;
+                    int x = first ? 0 : indent;
+                    first = false;
+
+                    if (visible_len(remaining) <= line_w) {
+                        lines.push_back({remaining, x});
+                        break;
+                    }
+                    // Find cut point at line_w visible chars
+                    int vis = 0;
+                    int cut = 0;
+                    int last_space = 0;
+                    for (size_t i = 0; i < remaining.size() && vis < line_w; ++i) {
+                        if (remaining[i] == COLOR_BEGIN) { ++i; continue; }
+                        if (remaining[i] == COLOR_END) continue;
+                        if (remaining[i] == ' ') last_space = static_cast<int>(i);
+                        ++vis;
+                        cut = static_cast<int>(i) + 1;
+                    }
+                    if (last_space > 0) cut = last_space;
+                    if (cut == 0) cut = static_cast<int>(remaining.size());
+                    lines.push_back({remaining.substr(0, cut), x});
+                    remaining = remaining.substr(cut);
+                    if (!remaining.empty() && remaining[0] == ' ')
+                        remaining = remaining.substr(1);
+                }
+            }
+
+            // Auto-scroll: show the last 'visible' lines
+            int total = static_cast<int>(lines.size());
+            int start = (total > visible) ? total - visible : 0;
+            int y = 0;
+            for (int i = start; i < total && y < visible; ++i, ++y) {
+                // Render with inline color markers
+                int px = lines[i].x;
+                Color cur = Color::Default;
+                for (size_t ci = 0; ci < lines[i].text.size(); ++ci) {
+                    char ch = lines[i].text[ci];
+                    if (ch == COLOR_BEGIN && ci + 1 < lines[i].text.size()) {
+                        cur = static_cast<Color>(
+                            static_cast<uint8_t>(lines[i].text[ci + 1]));
+                        ++ci;
+                        continue;
+                    }
+                    if (ch == COLOR_END) {
+                        cur = Color::Default;
+                        continue;
+                    }
+                    ctx.put(px, y, ch, cur);
+                    ++px;
+                }
+            }
+            break;
+        }
+        case PanelTab::Inventory: {
+            const auto& inv = player_.inventory;
+            if (inv.items.empty()) {
+                ctx.text(1, 1, "Inventory is empty.", Color::DarkGray);
+            } else {
+                int y = 0;
+                for (int idx = 0; idx < static_cast<int>(inv.items.size()); ++idx) {
+                    if (y >= ctx.height() - 2) break; // reserve space for weight + hints
+                    const auto& item = inv.items[idx];
+                    bool selected = (idx == inventory_cursor_);
+                    if (selected) ctx.text(0, y, ">", Color::Yellow);
+                    ctx.put(1, y, item.glyph, item.color);
+                    ctx.put(2, y, ' ');
+                    draw_item_name(ctx, 3, y, item, selected);
+                    ++y;
+                }
+                // Weight summary
+                int wy = ctx.height() - 2;
+                if (wy > static_cast<int>(inv.items.size())) {
+                    std::string wt = "Weight: " + std::to_string(inv.total_weight())
+                                   + "/" + std::to_string(inv.max_carry_weight);
+                    ctx.text(1, wy, wt, Color::DarkGray);
+                }
+            }
+            // Key hints at bottom — context-sensitive
+            int hy = ctx.height() - 1;
+            if (!inv.items.empty() && inventory_cursor_ < static_cast<int>(inv.items.size())) {
+                const auto& sel = inv.items[inventory_cursor_];
+                std::string hints = "+/- ";
+                if (sel.slot.has_value())
+                    hints += "[Enter]equip ";
+                else if (sel.usable)
+                    hints += "[Enter]use ";
+                hints += "[i]nfo [d]rop";
+                ctx.text(1, hy, hints, Color::DarkGray);
+            } else {
+                ctx.text(1, hy, "+/- navigate", Color::DarkGray);
+            }
+            break;
+        }
+        case PanelTab::Equipment: {
+            const auto& eq = player_.equipment;
+            int y = 0;
+            int slot_idx = 0;
+            auto draw_slot = [&](const char* label, const std::optional<Item>& slot) {
+                if (y >= ctx.height() - 2) return;
+                bool selected = (slot_idx == inventory_cursor_);
+                if (selected) {
+                    ctx.text(0, y, ">", Color::Yellow);
+                }
+                ctx.text(1, y, label, Color::DarkGray);
+                int lx = 1 + static_cast<int>(std::string_view(label).size());
+                if (slot) {
+                    ctx.put(lx, y, slot->glyph, slot->color);
+                    Color fg = selected ? Color::White : rarity_color(slot->rarity);
+                    ctx.text(lx + 1, y, " " + slot->name, fg);
+                } else {
+                    ctx.text(lx, y, "---", Color::DarkGray);
+                }
+                ++y;
+                ++slot_idx;
+            };
+            draw_slot("Face:    ", eq.face);
+            draw_slot("Head:    ", eq.head);
+            draw_slot("Body:    ", eq.body);
+            draw_slot("L.Arm:   ", eq.left_arm);
+            draw_slot("R.Arm:   ", eq.right_arm);
+            draw_slot("L.Hand:  ", eq.left_hand);
+            draw_slot("R.Hand:  ", eq.right_hand);
+            draw_slot("Back:    ", eq.back);
+            draw_slot("Feet:    ", eq.feet);
+            draw_slot("Thrown:  ", eq.thrown);
+            draw_slot("Missile: ", eq.missile);
+
+            // Stat bonuses summary
+            y++;
+            if (y < ctx.height() - 1) {
+                auto mods = eq.total_modifiers();
+                ctx.text(1, y, "Bonuses:", Color::DarkGray);
+                ++y;
+                if (mods.attack && y < ctx.height() - 1) {
+                    ctx.text(2, y, "ATK +" + std::to_string(mods.attack), Color::Red);
+                    ++y;
+                }
+                if (mods.defense && y < ctx.height() - 1) {
+                    ctx.text(2, y, "DEF +" + std::to_string(mods.defense), Color::Blue);
+                    ++y;
+                }
+                if (mods.max_hp && y < ctx.height() - 1) {
+                    ctx.text(2, y, "HP  +" + std::to_string(mods.max_hp), Color::Green);
+                    ++y;
+                }
+                if (mods.view_radius && y < ctx.height() - 1) {
+                    ctx.text(2, y, "VIS +" + std::to_string(mods.view_radius), Color::Cyan);
+                    ++y;
+                }
+                if (mods.quickness && y < ctx.height() - 1) {
+                    std::string sign = mods.quickness > 0 ? "+" : "";
+                    ctx.text(2, y, "QCK " + sign + std::to_string(mods.quickness), Color::Yellow);
+                    ++y;
+                }
+            }
+            // Key hints at bottom
+            int hy = ctx.height() - 1;
+            auto sel_slot = static_cast<EquipSlot>(inventory_cursor_);
+            const auto& sel_opt = eq.slot_ref(sel_slot);
+            if (sel_opt) {
+                ctx.text(1, hy, "+/- [Enter]unequip [i]nfo", Color::DarkGray);
+            } else {
+                ctx.text(1, hy, "+/- navigate", Color::DarkGray);
+            }
+            break;
+        }
+        case PanelTab::Ship:
+            ctx.text(1, 1, "Ship: Docked", Color::DarkGray);
+            ctx.text(1, 2, "Hull: 100%", Color::DarkGray);
+            break;
+        case PanelTab::Wait: {
+            // Time info header
+            int y = 0;
+            {
+                Color phase_col;
+                switch (world_.day_clock().phase()) {
+                    case TimePhase::Dawn: phase_col = Color::Yellow; break;
+                    case TimePhase::Day:  phase_col = Color::Yellow; break;
+                    case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
+                    case TimePhase::Night:phase_col = Color::Blue; break;
+                }
+                std::string time_info = std::string(phase_icon(world_.day_clock().phase()))
+                    + " " + phase_name(world_.day_clock().phase());
+                ctx.text(1, y, time_info, phase_col);
+                ++y;
+                ctx.text(1, y, format_calendar(world_.world_tick()), Color::DarkGray);
+                y += 2;
+            }
+
+            // Wait options
+            static const char* wait_options[] = {
+                "Wait 1 turn",
+                "Wait 10 turns",
+                "Wait 50 turns",
+                "Wait 100 turns",
+                "Wait until healed",
+                "Wait until morning",
+            };
+            static constexpr int wait_option_count = 6;
+            for (int i = 0; i < wait_option_count && y < ctx.height() - 1; ++i) {
+                bool selected = (i == wait_cursor_);
+                std::string label = std::string("[") + std::to_string(i + 1) + "] " + wait_options[i];
+                if (i == 5 && world_.day_clock().phase() == TimePhase::Day) {
+                    // "Wait until morning" greyed out during day
+                    ctx.text(1, y, label, Color::DarkGray);
+                } else {
+                    if (selected) ctx.text(0, y, ">", Color::Yellow);
+                    ctx.text(1, y, label, selected ? Color::White : Color::Default);
+                }
+                ++y;
+            }
+            // Hints
+            ctx.text(1, ctx.height() - 1, "+/- [Enter]wait [1-6]quick", Color::DarkGray);
+            break;
+        }
+    }
+}
+
+void Game::render_item_inspect() {
+    const auto& item = inspected_item_;
+
+    int win_w = 44;
+    int win_h = 18;
+    if (win_w > screen_w_ - 4) win_w = screen_w_ - 4;
+    if (win_h > screen_h_ - 4) win_h = screen_h_ - 4;
+
+    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, item.name);
+    win.set_footer("[any key] Close");
+    win.draw();
+
+    DrawContext ctx = win.content();
+    draw_item_info(ctx, item);
+}
+
+void Game::render_effects_bar() {
+    DrawContext ctx(renderer_.get(), effects_rect_);
+    int x = 1;
+    ctx.text(x, 0, "EFFECTS:", Color::DarkGray);
+    x += 9;
+    bool any_effect = false;
+    for (const auto& e : player_.effects) {
+        if (!e.show_in_bar) continue;
+        any_effect = true;
+        std::string label = e.name;
+        if (e.remaining > 0) {
+            label += "(" + std::to_string(e.remaining) + ")";
+        }
+        ctx.text(x, 0, label, e.color);
+        x += static_cast<int>(label.size()) + 1;
+    }
+    if (!any_effect) {
+        ctx.text(x, 0, "[none]", Color::DarkGray);
+    }
+
+    int mid = ctx.width() / 3;
+    ctx.text(mid, 0, "TARGET:", Color::DarkGray);
+    if (target_npc_ && target_npc_->alive()) {
+        std::string info = " " + target_npc_->display_name() +
+            " (" + std::to_string(target_npc_->hp) + "/" +
+            std::to_string(target_npc_->max_hp) + ")";
+        Color tc = Color::DarkGray;
+        switch (target_npc_->disposition) {
+            case Disposition::Hostile:  tc = Color::Red; break;
+            case Disposition::Neutral:  tc = Color::Yellow; break;
+            case Disposition::Friendly: tc = Color::Green; break;
+        }
+        ctx.text(mid + 7, 0, info, tc);
+    } else {
+        ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
+    }
+
+    // Ranged weapon hints (right-aligned)
+    const auto& rw = player_.equipment.missile;
+    if (rw && rw->ranged) {
+        const auto& rd = *rw->ranged;
+        std::string keys = "[t]arget [s]hoot [r]eload ";
+        std::string charge = std::to_string(rd.current_charge) + "/" +
+                             std::to_string(rd.charge_capacity);
+        std::string full = keys + charge;
+        int ix = ctx.width() - static_cast<int>(full.size()) - 1;
+        Color charge_color = (rd.current_charge >= rd.charge_per_shot)
+            ? Color::Cyan : Color::Red;
+        ctx.text(ix, 0, keys, Color::DarkGray);
+        ctx.text(ix + static_cast<int>(keys.size()), 0, charge, charge_color);
+    }
+}
+
+void Game::render_abilities_bar() {
+    DrawContext ctx(renderer_.get(), abilities_rect_);
+    ctx.text(1, 0, "ABILITIES:", Color::DarkGray);
+    ctx.text(12, 0, "[reserved]", Color::DarkGray);
+}
+
+void Game::render_gameover() {
+    DrawContext ctx(renderer_.get(), screen_rect_);
+
+    int cy = screen_h_ / 2 - 4;
+    ctx.text_center(cy,     "YOU HAVE DIED", Color::Red);
+    cy += 2;
+    if (!death_message_.empty()) {
+        ctx.text_center(cy, death_message_);
+        cy += 2;
+    }
+    ctx.text_center(cy,     "Survived " + std::to_string(world_.world_tick()) + " ticks");
+    ctx.text_center(cy + 1, "Reached level " + std::to_string(player_.level));
+    cy += 3;
+    ctx.text_center(cy,     "[Enter] Main Menu    [Q] Quit", Color::DarkGray);
+}
+
+void Game::render_load_menu() {
+    int win_w = std::min(screen_w_ - 4, 60);
+    int win_h = std::min(screen_h_ - 4, static_cast<int>(save_slots_.size()) + 6);
+    if (win_h < 8) win_h = 8;
+
+    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, "Load Game");
+    win.set_footer("[Enter] Load  [Esc] Back");
+    win.draw();
+    DrawContext ctx = win.content();
+
+    if (save_slots_.empty()) {
+        ctx.text_center(ctx.height() / 2, "No saved games found.", Color::DarkGray);
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(save_slots_.size()); ++i) {
+        if (i >= ctx.height()) break;
+        const auto& slot = save_slots_[i];
+        bool selected = (i == load_selection_);
+
+        std::string line;
+        if (selected) line += "> "; else line += "  ";
+        line += slot.location;
+        line += "  LVL:" + std::to_string(slot.player_level);
+        line += "  T:" + std::to_string(slot.world_tick);
+
+        Color fg = selected ? Color::Yellow : Color::Default;
+        ctx.text(0, i, line, fg);
+    }
+}
+
+void Game::render_hall_of_fame() {
+    int win_w = std::min(screen_w_ - 4, 70);
+    int win_h = std::min(screen_h_ - 4, static_cast<int>(save_slots_.size()) + 6);
+    if (win_h < 8) win_h = 8;
+
+    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, "Hall of Fame");
+    if (confirm_delete_) {
+        win.set_footer("Delete this entry? [Y] Yes  [N] No", Color::Red);
+    } else {
+        win.set_footer("[D] Delete  [Esc] Back");
+    }
+    win.draw();
+    DrawContext ctx = win.content();
+
+    if (save_slots_.empty()) {
+        ctx.text_center(ctx.height() / 2, "No fallen heroes yet.", Color::DarkGray);
+        return;
+    }
+
+    for (int i = 0; i < static_cast<int>(save_slots_.size()); ++i) {
+        if (i >= ctx.height()) break;
+        const auto& slot = save_slots_[i];
+        bool selected = (i == load_selection_);
+
+        std::string line;
+        if (selected) line += "> "; else line += "  ";
+
+        if (!slot.death_message.empty()) {
+            line += slot.death_message;
+        } else {
+            line += "Unknown cause";
+        }
+        line += "  LVL:" + std::to_string(slot.player_level);
+        line += "  T:" + std::to_string(slot.world_tick);
+        line += "  XP:" + std::to_string(slot.xp);
+        line += "  $" + std::to_string(slot.money);
+        line += "  K:" + std::to_string(slot.kills);
+
+        Color fg = selected ? Color::Yellow : Color::DarkGray;
+        ctx.text(0, i, line, fg);
+    }
+}
+
+
+} // namespace astra
