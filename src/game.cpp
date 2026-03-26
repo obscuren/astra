@@ -3554,7 +3554,7 @@ void Game::check_player_death() {
     if (player_.hp <= 0) {
         // Permadeath: save with dead flag
         SaveData data;
-        data.version = 1;
+        // version uses SaveData default (12)
         data.seed = world_.seed();
         data.world_tick = world_.world_tick();
         data.dead = true;
@@ -3665,7 +3665,7 @@ void Game::handle_hall_input(int key) {
 
 void Game::save_game() {
     SaveData data;
-    data.version = 1;
+    // version uses SaveData default (12)
     data.seed = world_.seed();
     data.world_tick = world_.world_tick();
     data.dead = false;
@@ -3749,6 +3749,7 @@ bool Game::load_game(const std::string& filename) {
     pause_menu_.close();
 
     compute_layout();
+    recompute_fov();
     compute_camera();
     state_ = GameState::Playing;
     return true;
