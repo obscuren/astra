@@ -717,7 +717,7 @@ void Game::dev_warp_random() {
     world_.map().find_open_spot(player_.x, player_.y);
     npcs_.clear();
     ground_items_.clear();
-    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+    world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
     current_region_ = -1;
@@ -753,7 +753,7 @@ void Game::dev_warp_stamp_test() {
         spawn_outpost_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
     }
 
-    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+    world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
     current_region_ = -1;
@@ -843,7 +843,7 @@ void Game::new_game() {
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     spawn_hub_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
 
-    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+    world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
 
@@ -995,7 +995,7 @@ void Game::new_game(const CreationResult& cr) {
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     spawn_hub_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
 
-    visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+    world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
 
@@ -1061,7 +1061,7 @@ void Game::save_current_location() {
     }
     LocationState& state = location_cache_[key];
     state.map = std::move(world_.map());
-    state.visibility = std::move(visibility_);
+    state.visibility = std::move(world_.visibility());
     state.npcs = std::move(npcs_);
     state.ground_items = std::move(ground_items_);
     state.player_x = player_.x;
@@ -1073,7 +1073,7 @@ void Game::restore_location(const LocationKey& key) {
     if (it == location_cache_.end()) return;
     LocationState& state = it->second;
     world_.map() = std::move(state.map);
-    visibility_ = std::move(state.visibility);
+    world_.visibility() = std::move(state.visibility);
     npcs_ = std::move(state.npcs);
     ground_items_ = std::move(state.ground_items);
 
@@ -1118,10 +1118,10 @@ void Game::enter_ship() {
             world_.map().find_open_spot(player_.x, player_.y);
         }
 
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    visibility_.reveal_all();
+    world_.visibility().reveal_all();
     current_region_ = -1;
     compute_camera();
     check_region_change();
@@ -1248,7 +1248,7 @@ void Game::enter_overworld_tile() {
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
         debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
 
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1275,7 +1275,7 @@ void Game::exit_to_overworld() {
     player_.x = overworld_x_;
     player_.y = overworld_y_;
     surface_mode_ = SurfaceMode::Overworld;
-    visibility_.reveal_all();
+    world_.visibility().reveal_all();
     current_region_ = -1;
     compute_camera();
     log("You return to the surface.");
@@ -1388,7 +1388,7 @@ void Game::enter_detail_map() {
             spawn_outpost_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
         }
 
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1433,7 +1433,7 @@ void Game::exit_detail_to_overworld() {
     player_.x = overworld_x_;
     player_.y = overworld_y_;
     surface_mode_ = SurfaceMode::Overworld;
-    visibility_.reveal_all();
+    world_.visibility().reveal_all();
     current_region_ = -1;
     compute_camera();
     log("You return to the surface view.");
@@ -1528,7 +1528,7 @@ void Game::enter_dungeon_from_detail() {
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
         debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
 
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1570,7 +1570,7 @@ void Game::exit_dungeon_to_detail() {
         npcs_.clear();
         ground_items_.clear();
         world_.map().find_open_spot(player_.x, player_.y);
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     current_region_ = -1;
@@ -1643,7 +1643,7 @@ void Game::transition_detail_edge(int dx, int dy) {
 
         npcs_.clear();
         ground_items_.clear();
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     // Place player at opposite edge
@@ -1714,10 +1714,10 @@ void Game::travel_to_destination(const ChartAction& action) {
                 if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
                     world_.map().find_open_spot(player_.x, player_.y);
                 }
-                visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+                world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
             }
 
-            visibility_.reveal_all();
+            world_.visibility().reveal_all();
             current_region_ = -1;
             recompute_fov();
             compute_camera();
@@ -1870,13 +1870,13 @@ void Game::travel_to_destination(const ChartAction& action) {
                 player_.y = world_.map().height() / 2;
             }
 
-            visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+            world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
         }
 
         surface_mode_ = SurfaceMode::Overworld;
         overworld_x_ = 0;
         overworld_y_ = 0;
-        visibility_.reveal_all();
+        world_.visibility().reveal_all();
         current_region_ = -1;
         compute_camera();
         log("You land on " + colored(location_name, Color::Cyan)
@@ -1905,7 +1905,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
         debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
 
-        visibility_ = VisibilityMap(world_.map().width(), world_.map().height());
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
     // Place ShipTerminal at stations so the player can re-board
@@ -2664,7 +2664,7 @@ void Game::compute_camera() {
 
 void Game::recompute_fov() {
     if (navigation_.on_ship) {
-        visibility_.reveal_all();
+        world_.visibility().reveal_all();
         return;
     }
 
@@ -2687,18 +2687,18 @@ void Game::recompute_fov() {
         radius = day_clock_.effective_view_radius(max_radius, player_.light_radius);
     }
 
-    compute_fov(world_.map(), visibility_, player_.x, player_.y, radius);
+    compute_fov(world_.map(), world_.visibility(), player_.x, player_.y, radius);
 
     // Detail maps: shadowcast for lighting, but entire map stays revealed
     if (on_detail_map() || world_.map().map_type() == MapType::DetailMap) {
-        visibility_.explore_all();
+        world_.visibility().explore_all();
         return;
     }
 
     std::vector<bool> reveal(world_.map().region_count(), false);
     for (int y = 0; y < world_.map().height(); ++y) {
         for (int x = 0; x < world_.map().width(); ++x) {
-            if (visibility_.get(x, y) == Visibility::Visible) {
+            if (world_.visibility().get(x, y) == Visibility::Visible) {
                 int rid = world_.map().region_id(x, y);
                 if (rid >= 0 && world_.map().region(rid).lit) {
                     reveal[rid] = true;
@@ -2711,7 +2711,7 @@ void Game::recompute_fov() {
         for (int x = 0; x < world_.map().width(); ++x) {
             int rid = world_.map().region_id(x, y);
             if (rid >= 0 && reveal[rid]) {
-                visibility_.set_visible(x, y);
+                world_.visibility().set_visible(x, y);
             }
         }
     }
@@ -2929,7 +2929,7 @@ void Game::begin_targeting() {
     int best_dist = 9999;
     for (auto& npc : npcs_) {
         if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
-        if (visibility_.get(npc.x, npc.y) != Visibility::Visible) continue;
+        if (world_.visibility().get(npc.x, npc.y) != Visibility::Visible) continue;
         int d = chebyshev_dist(player_.x, player_.y, npc.x, npc.y);
         if (d < best_dist) {
             best_dist = d;
@@ -2955,7 +2955,7 @@ void Game::handle_targeting_input(int key) {
             int nx = target_x_ + dx * i;
             int ny = target_y_ + dy * i;
             if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) return;
-            if (world_.map().passable(nx, ny) && visibility_.get(nx, ny) == Visibility::Visible) {
+            if (world_.map().passable(nx, ny) && world_.visibility().get(nx, ny) == Visibility::Visible) {
                 target_x_ = nx;
                 target_y_ = ny;
                 return;
@@ -3009,7 +3009,7 @@ void Game::shoot_target() {
         return;
     }
 
-    if (visibility_.get(target_npc_->x, target_npc_->y) != Visibility::Visible) {
+    if (world_.visibility().get(target_npc_->x, target_npc_->y) != Visibility::Visible) {
         log("Target not visible.");
         return;
     }
@@ -3292,7 +3292,7 @@ std::string Game::look_tile_desc(int mx, int my) const {
 void Game::render_look_popup() {
     if (!input_.looking()) return;
 
-    Visibility v = visibility_.get(input_.look_x(), input_.look_y());
+    Visibility v = world_.visibility().get(input_.look_x(), input_.look_y());
     if (v == Visibility::Unexplored) return;
 
     std::string name = look_tile_name(input_.look_x(), input_.look_y());
@@ -3561,7 +3561,7 @@ void Game::check_player_death() {
         MapState ms;
         ms.map_id = 0;
         ms.tilemap = world_.map();
-        ms.visibility = visibility_;
+        ms.visibility = world_.visibility();
         ms.npcs = npcs_;
         data.maps.push_back(std::move(ms));
 
@@ -3679,7 +3679,7 @@ void Game::save_game() {
     MapState ms;
     ms.map_id = 0;
     ms.tilemap = world_.map();
-    ms.visibility = visibility_;
+    ms.visibility = world_.visibility();
     ms.npcs = npcs_;
     ms.ground_items = ground_items_;
     data.maps.push_back(std::move(ms));
@@ -3708,7 +3708,7 @@ bool Game::load_game(const std::string& filename) {
     // Restore first map
     const auto& ms = data.maps[0];
     world_.map() = ms.tilemap;
-    visibility_ = ms.visibility;
+    world_.visibility() = ms.visibility;
     npcs_ = ms.npcs;
     ground_items_ = ms.ground_items;
 
@@ -4184,7 +4184,7 @@ void Game::render_map() {
             }
 
             // Tiles respect FOV
-            Visibility v = visibility_.get(mx, my);
+            Visibility v = world_.visibility().get(mx, my);
             if (v == Visibility::Unexplored) continue;
 
             Tile tile_at = world_.map().get(mx, my);
@@ -4317,7 +4317,7 @@ void Game::render_map() {
 
     // Draw visible ground items
     for (const auto& gi : ground_items_) {
-        if (visibility_.get(gi.x, gi.y) == Visibility::Visible) {
+        if (world_.visibility().get(gi.x, gi.y) == Visibility::Visible) {
             ctx.put(gi.x - camera_x_, gi.y - camera_y_,
                     gi.item.glyph, gi.item.color);
         }
@@ -4325,7 +4325,7 @@ void Game::render_map() {
 
     // Draw visible NPCs
     for (const auto& npc : npcs_) {
-        if (npc.alive() && visibility_.get(npc.x, npc.y) == Visibility::Visible) {
+        if (npc.alive() && world_.visibility().get(npc.x, npc.y) == Visibility::Visible) {
             ctx.put(npc.x - camera_x_, npc.y - camera_y_, npc.glyph, npc.color);
         }
     }

@@ -192,7 +192,6 @@ private:
     std::vector<Item> stash_;
     static constexpr int max_stash_size_ = 20;
     WorldManager world_;
-    VisibilityMap visibility_;
     NavigationData navigation_;
     StarChartViewer star_chart_viewer_;
     TradeWindow trade_window_;
