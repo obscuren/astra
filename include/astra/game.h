@@ -9,6 +9,7 @@
 #include "astra/star_chart.h"
 #include "astra/character_creation.h"
 #include "astra/character_screen.h"
+#include "astra/dev_console.h"
 #include "astra/input_manager.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/trade_window.h"
@@ -175,7 +176,7 @@ private:
     bool dev_mode_ = false;
     Tile dev_warp_stamp_test_poi_ = Tile::Empty;
 
-    // Dev console state moved to input_
+    DevConsole console_;
 
     // Help screen
     bool help_open_ = false;

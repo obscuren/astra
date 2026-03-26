@@ -291,13 +291,13 @@ void Game::handle_play_input(int key) {
     }
 
     // Dev console intercept
-    if (input_.console_open()) {
-        input_.handle_console_input(key, *this);
+    if (console_.is_open()) {
+        console_.handle_input(key, *this);
         return;
     }
     // Backtick opens console in dev mode
     if (key == '`' && dev_mode_) {
-        input_.toggle_console();
+        console_.toggle();
         return;
     }
 
@@ -781,34 +781,34 @@ void Game::execute_console_command(const std::string& cmd) {
     const auto& verb = args[0];
 
     if (verb == "help") {
-        input_.console_log("Commands:");
-        input_.console_log("  warp random        - warp to random map");
-        input_.console_log("  warp stamp <type>  - POI stamp test (ruins, ship, outpost, cave, settlement, landing)");
-        input_.console_log("  give hp <n>        - set HP");
-        input_.console_log("  give xp <n>        - set XP");
-        input_.console_log("  give money <n>     - set credits");
-        input_.console_log("  give sp <n>        - set skill points");
-        input_.console_log("  give ap <n>        - set attribute points");
-        input_.console_log("  set invuln         - toggle invulnerability");
-        input_.console_log("  set level <n>      - set player level");
-        input_.console_log("  effect burn <dur>  - apply burn effect");
-        input_.console_log("  effect regen <dur> - apply regen effect");
-        input_.console_log("  effect clear       - remove all effects");
-        input_.console_log("  kill all           - kill all hostile NPCs");
-        input_.console_log("  heal               - full heal");
-        input_.console_log("  clear              - clear console");
+        console_.log("Commands:");
+        console_.log("  warp random        - warp to random map");
+        console_.log("  warp stamp <type>  - POI stamp test (ruins, ship, outpost, cave, settlement, landing)");
+        console_.log("  give hp <n>        - set HP");
+        console_.log("  give xp <n>        - set XP");
+        console_.log("  give money <n>     - set credits");
+        console_.log("  give sp <n>        - set skill points");
+        console_.log("  give ap <n>        - set attribute points");
+        console_.log("  set invuln         - toggle invulnerability");
+        console_.log("  set level <n>      - set player level");
+        console_.log("  effect burn <dur>  - apply burn effect");
+        console_.log("  effect regen <dur> - apply regen effect");
+        console_.log("  effect clear       - remove all effects");
+        console_.log("  kill all           - kill all hostile NPCs");
+        console_.log("  heal               - full heal");
+        console_.log("  clear              - clear console");
     }
     else if (verb == "clear") {
-        input_.clear_console();
+        console_.clear();
     }
     else if (verb == "heal") {
         player_.hp = player_.effective_max_hp();
-        input_.console_log("HP restored to " + std::to_string(player_.hp));
+        console_.log("HP restored to " + std::to_string(player_.hp));
     }
     else if (verb == "warp" && args.size() >= 2) {
         if (args[1] == "random") {
             dev_warp_random();
-            input_.console_log("Warped to random map.");
+            console_.log("Warped to random map.");
         } else if (args[1] == "stamp" && args.size() >= 3) {
             static const std::pair<const char*, Tile> stamps[] = {
                 {"ruins", Tile::OW_Ruins}, {"ship", Tile::OW_CrashedShip},
@@ -820,85 +820,85 @@ void Game::execute_console_command(const std::string& cmd) {
                 if (args[2] == name) {
                     dev_warp_stamp_test_poi_ = tile;
                     dev_warp_stamp_test();
-                    input_.console_log("Warped to " + std::string(name) + " stamp.");
+                    console_.log("Warped to " + std::string(name) + " stamp.");
                     found = true;
                     break;
                 }
             }
-            if (!found) input_.console_log("Unknown stamp: " + args[2]);
+            if (!found) console_.log("Unknown stamp: " + args[2]);
         } else {
-            input_.console_log("Usage: warp random | warp stamp <type>");
+            console_.log("Usage: warp random | warp stamp <type>");
         }
     }
     else if (verb == "give" && args.size() >= 3) {
         int val = 0;
         try { val = std::stoi(args[2]); } catch (...) {
-            input_.console_log("Invalid number: " + args[2]);
+            console_.log("Invalid number: " + args[2]);
             return;
         }
         if (args[1] == "hp") {
             player_.hp = val;
             if (player_.hp > player_.effective_max_hp()) player_.hp = player_.effective_max_hp();
-            input_.console_log("HP set to " + std::to_string(player_.hp));
+            console_.log("HP set to " + std::to_string(player_.hp));
         } else if (args[1] == "xp") {
             player_.xp = val;
-            input_.console_log("XP set to " + std::to_string(player_.xp));
+            console_.log("XP set to " + std::to_string(player_.xp));
             check_level_up();
         } else if (args[1] == "money") {
             player_.money = val;
-            input_.console_log("Credits set to " + std::to_string(player_.money));
+            console_.log("Credits set to " + std::to_string(player_.money));
         } else if (args[1] == "sp") {
             player_.skill_points = val;
-            input_.console_log("SP set to " + std::to_string(player_.skill_points));
+            console_.log("SP set to " + std::to_string(player_.skill_points));
         } else if (args[1] == "ap") {
             player_.attribute_points = val;
-            input_.console_log("AP set to " + std::to_string(player_.attribute_points));
+            console_.log("AP set to " + std::to_string(player_.attribute_points));
         } else {
-            input_.console_log("Unknown: give " + args[1]);
+            console_.log("Unknown: give " + args[1]);
         }
     }
     else if (verb == "set" && args.size() >= 2) {
         if (args[1] == "invuln") {
             if (has_effect(player_.effects, EffectId::Invulnerable)) {
                 remove_effect(player_.effects, EffectId::Invulnerable);
-                input_.console_log("Invulnerability OFF");
+                console_.log("Invulnerability OFF");
             } else {
                 add_effect(player_.effects, make_invulnerable());
-                input_.console_log("Invulnerability ON");
+                console_.log("Invulnerability ON");
             }
         } else if (args[1] == "level" && args.size() >= 3) {
             int lvl = 0;
             try { lvl = std::stoi(args[2]); } catch (...) {
-                input_.console_log("Invalid number: " + args[2]);
+                console_.log("Invalid number: " + args[2]);
                 return;
             }
             while (player_.level < lvl) {
                 player_.xp = player_.max_xp;
                 check_level_up();
             }
-            input_.console_log("Level set to " + std::to_string(player_.level));
+            console_.log("Level set to " + std::to_string(player_.level));
         } else {
-            input_.console_log("Unknown: set " + args[1]);
+            console_.log("Unknown: set " + args[1]);
         }
     }
     else if (verb == "effect" && args.size() >= 2) {
         if (args[1] == "clear") {
             player_.effects.clear();
-            input_.console_log("All effects cleared.");
+            console_.log("All effects cleared.");
         } else if (args[1] == "burn") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
             add_effect(player_.effects, make_burn(dur, 1));
-            input_.console_log("Burn applied for " + std::to_string(dur) + " ticks.");
+            console_.log("Burn applied for " + std::to_string(dur) + " ticks.");
         } else if (args[1] == "regen") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
             add_effect(player_.effects, make_regen(dur, 1));
-            input_.console_log("Regen applied for " + std::to_string(dur) + " ticks.");
+            console_.log("Regen applied for " + std::to_string(dur) + " ticks.");
         } else if (args[1] == "poison") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
             add_effect(player_.effects, make_poison(dur, 1));
-            input_.console_log("Poison applied for " + std::to_string(dur) + " ticks.");
+            console_.log("Poison applied for " + std::to_string(dur) + " ticks.");
         } else {
-            input_.console_log("Unknown effect: " + args[1]);
+            console_.log("Unknown effect: " + args[1]);
         }
     }
     else if (verb == "kill" && args.size() >= 2 && args[1] == "all") {
@@ -910,10 +910,10 @@ void Game::execute_console_command(const std::string& cmd) {
             }
         }
         remove_dead_npcs();
-        input_.console_log("Killed " + std::to_string(count) + " hostile NPCs.");
+        console_.log("Killed " + std::to_string(count) + " hostile NPCs.");
     }
     else {
-        input_.console_log("Unknown command: " + verb + ". Type 'help' for commands.");
+        console_.log("Unknown command: " + verb + ". Type 'help' for commands.");
     }
 }
 
@@ -3995,7 +3995,7 @@ void Game::render_play() {
     npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
     quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
-    input_.render_console(renderer_.get(), screen_w_, screen_h_);
+    console_.draw(renderer_.get(), screen_w_, screen_h_);
     render_help();
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);

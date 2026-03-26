@@ -54,6 +54,7 @@ set(ASTRA_SOURCES
     src/effect.cpp
     src/game_help.cpp
     src/input_manager.cpp
+    src/dev_console.cpp
     src/boot_sequence.cpp
 )
 
