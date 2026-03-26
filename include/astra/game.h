@@ -12,6 +12,7 @@
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
 #include "astra/help_screen.h"
+#include "astra/save_system.h"
 #include "astra/input_manager.h"
 #include "astra/world_manager.h"
 #include "astra/star_chart_viewer.h"
@@ -68,6 +69,19 @@ public:
     void log(const std::string& msg);
     void enter_ship();
     void advance_world(int cost);
+
+    // Save system accessors
+    const std::string& death_message() const { return death_message_; }
+    void set_death_message(const std::string& msg) { death_message_ = msg; }
+    int active_tab() const { return active_tab_; }
+    void set_active_tab(int t) { active_tab_ = t; }
+    bool panel_visible() const { return panel_visible_; }
+    void set_panel_visible(bool v) { panel_visible_ = v; }
+    std::deque<std::string>& messages() { return messages_; }
+    void set_dev_mode(bool v) { dev_mode_ = v; }
+    void rebuild_star_chart_viewer();
+    void reset_interaction_state();
+    void post_load(); // compute_layout + recompute_fov + compute_camera + set Playing
 
     // Dev commands
     void dev_command_warp_random();
@@ -194,6 +208,8 @@ private:
     CharacterCreation character_creation_;
     int camera_x_ = 0;
     int camera_y_ = 0;
+
+    SaveSystem save_system_;
 
     // Tabs
     int active_tab_ = 0;

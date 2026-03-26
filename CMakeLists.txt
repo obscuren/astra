@@ -57,6 +57,7 @@ set(ASTRA_SOURCES
     src/dialog_manager.cpp
     src/game_input.cpp
     src/game_rendering.cpp
+    src/save_system.cpp
     src/dev_console.cpp
     src/boot_sequence.cpp
 )

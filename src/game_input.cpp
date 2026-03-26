@@ -37,7 +37,7 @@ void Game::handle_play_input(int key) {
             }
             else if (k == 's') {
                 if (dev_mode_) { log("Saving disabled in dev mode."); }
-                else { save_game(); log("Game saved."); }
+                else { save_system_.save(*this); log("Game saved."); }
             }
             else if (k == 'l') {
                 save_slots_ = list_saves();
@@ -51,7 +51,7 @@ void Game::handle_play_input(int key) {
             }
             else if (k == 'o') { log("Options not yet implemented."); }
             else if (k == 'q') {
-                if (!dev_mode_) save_game();
+                if (!dev_mode_) save_system_.save(*this);
                 running_ = false;
             }
         }

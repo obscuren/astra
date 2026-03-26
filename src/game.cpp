@@ -2269,4 +2269,32 @@ void Game::log(const std::string& msg) {
     }
 }
 
+void Game::check_player_death() {
+    if (player_.hp <= 0) {
+        save_system_.save_death(*this);
+        state_ = GameState::GameOver;
+    }
+}
+
+void Game::rebuild_star_chart_viewer() {
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
+}
+
+void Game::reset_interaction_state() {
+    awaiting_interact_ = false;
+    targeting_ = false;
+    target_npc_ = nullptr;
+    inventory_cursor_ = 0;
+    inspecting_item_ = false;
+    dialog_.close();
+    pause_menu_.close();
+}
+
+void Game::post_load() {
+    compute_layout();
+    recompute_fov();
+    compute_camera();
+    state_ = GameState::Playing;
+}
+
 } // namespace astra

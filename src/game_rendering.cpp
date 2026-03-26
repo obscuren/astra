@@ -464,33 +464,6 @@ void Game::check_level_up() {
     }
 }
 
-void Game::check_player_death() {
-    if (player_.hp <= 0) {
-        // Permadeath: save with dead flag
-        SaveData data;
-        // version uses SaveData default (12)
-        data.seed = world_.seed();
-        data.world_tick = world_.world_tick();
-        data.dead = true;
-        data.player = player_;
-        data.current_map_id = 0;
-        data.current_region = world_.current_region();
-        data.active_tab = active_tab_;
-        data.panel_visible = panel_visible_;
-        data.messages = messages_;
-        data.death_message = death_message_;
-
-        MapState ms;
-        ms.map_id = 0;
-        ms.tilemap = world_.map();
-        ms.visibility = world_.visibility();
-        ms.npcs = world_.npcs();
-        data.maps.push_back(std::move(ms));
-
-        write_save("save_" + std::to_string(world_.seed()), data);
-        state_ = GameState::GameOver;
-    }
-}
 
 void Game::handle_gameover_input(int key) {
     switch (key) {
@@ -525,7 +498,7 @@ void Game::handle_load_input(int key) {
             if (!save_slots_.empty() &&
                 load_selection_ >= 0 &&
                 load_selection_ < static_cast<int>(save_slots_.size())) {
-                if (load_game(save_slots_[load_selection_].filename)) {
+                if (save_system_.load(save_slots_[load_selection_].filename, *this)) {
                     log("Game loaded.");
                 }
             }
@@ -577,95 +550,6 @@ void Game::handle_hall_input(int key) {
     }
 }
 
-void Game::save_game() {
-    SaveData data;
-    // version uses SaveData default (12)
-    data.seed = world_.seed();
-    data.world_tick = world_.world_tick();
-    data.dead = false;
-    data.player = player_;
-    data.current_map_id = 0;
-    data.current_region = world_.current_region();
-    data.active_tab = active_tab_;
-    data.panel_visible = panel_visible_;
-    data.messages = messages_;
-    data.death_message = death_message_;
-    data.stash = world_.stash();
-    data.navigation = world_.navigation();
-    data.surface_mode = static_cast<uint8_t>(world_.surface_mode());
-    data.overworld_x = world_.overworld_x();
-    data.overworld_y = world_.overworld_y();
-    data.local_tick = world_.day_clock().local_tick;
-    data.local_ticks_per_day = world_.day_clock().local_ticks_per_day;
-
-    MapState ms;
-    ms.map_id = 0;
-    ms.tilemap = world_.map();
-    ms.visibility = world_.visibility();
-    ms.npcs = world_.npcs();
-    ms.ground_items = world_.ground_items();
-    data.maps.push_back(std::move(ms));
-
-    write_save("save_" + std::to_string(world_.seed()), data);
-}
-
-bool Game::load_game(const std::string& filename) {
-    SaveData data;
-    if (!read_save(filename, data)) return false;
-    if (data.dead) return false;
-    if (data.maps.empty()) return false;
-
-    dev_mode_ = false;
-    world_.seed() = data.seed;
-    world_.rng().seed(world_.seed());
-    world_.world_tick() = data.world_tick;
-    player_ = data.player;
-    death_message_ = data.death_message;
-    world_.current_region() = data.current_region;
-    active_tab_ = data.active_tab;
-    panel_visible_ = data.panel_visible;
-    messages_ = data.messages;
-    world_.stash() = data.stash;
-
-    // Restore first map
-    const auto& ms = data.maps[0];
-    world_.map() = ms.tilemap;
-    world_.visibility() = ms.visibility;
-    world_.npcs() = ms.npcs;
-    world_.ground_items() = ms.ground_items;
-
-    // Restore navigation data (or bootstrap for old saves)
-    if (!data.navigation.systems.empty()) {
-        world_.navigation() = data.navigation;
-    } else {
-        world_.navigation() = generate_galaxy(world_.seed());
-    }
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
-
-    // Restore overworld state
-    world_.set_surface_mode(static_cast<SurfaceMode>(data.surface_mode));
-    world_.overworld_x() = data.overworld_x;
-    world_.overworld_y() = data.overworld_y;
-
-    // Restore day clock
-    world_.day_clock().local_tick = data.local_tick;
-    world_.day_clock().local_ticks_per_day = data.local_ticks_per_day;
-
-    // Reset interaction state
-    awaiting_interact_ = false;
-    targeting_ = false;
-    target_npc_ = nullptr;
-    inventory_cursor_ = 0;
-    inspecting_item_ = false;
-    dialog_.close();
-    pause_menu_.close();
-
-    compute_layout();
-    recompute_fov();
-    compute_camera();
-    state_ = GameState::Playing;
-    return true;
-}
 
 void Game::update() {
     // Tick-based — world updates happen in response to player actions.
