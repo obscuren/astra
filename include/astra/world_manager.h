@@ -3,6 +3,7 @@
 #include "astra/item.h"
 #include "astra/npc.h"
 #include "astra/tilemap.h"
+#include "astra/time_of_day.h"
 #include "astra/visibility_map.h"
 
 #include <cstdint>
@@ -43,6 +44,15 @@ public:
     int& overworld_x() { return overworld_x_; }
     int& overworld_y() { return overworld_y_; }
 
+    int& world_tick() { return world_tick_; }
+    int world_tick() const { return world_tick_; }
+
+    DayClock& day_clock() { return day_clock_; }
+    const DayClock& day_clock() const { return day_clock_; }
+
+    int& current_region() { return current_region_; }
+    int current_region() const { return current_region_; }
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
@@ -52,6 +62,9 @@ private:
     SurfaceMode surface_mode_ = SurfaceMode::Dungeon;
     int overworld_x_ = 0;
     int overworld_y_ = 0;
+    int world_tick_ = 0;
+    DayClock day_clock_;
+    int current_region_ = -1;
 };
 
 } // namespace astra

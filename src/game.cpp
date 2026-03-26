@@ -618,9 +618,9 @@ void Game::handle_play_input(int key) {
                         break;
                     }
                     case 5: { // Wait until morning (full daylight)
-                        if (day_clock_.phase() == TimePhase::Day) break;
-                        int limit = day_clock_.local_ticks_per_day + 10;
-                        while (day_clock_.phase() != TimePhase::Day && limit-- > 0) {
+                        if (world_.day_clock().phase() == TimePhase::Day) break;
+                        int limit = world_.day_clock().local_ticks_per_day + 10;
+                        while (world_.day_clock().phase() != TimePhase::Day && limit-- > 0) {
                             advance_world(ActionCost::wait);
                             ++turns;
                             if (player_.hp < old_hp) { interrupted = true; break; }
@@ -728,7 +728,7 @@ void Game::dev_warp_random() {
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
-    current_region_ = -1;
+    world_.current_region() = -1;
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
     log(std::string("[DEV] Warped to: ") + m.name);
@@ -764,7 +764,7 @@ void Game::dev_warp_stamp_test() {
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
     compute_camera();
-    current_region_ = -1;
+    world_.current_region() = -1;
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
     check_region_change();
@@ -862,13 +862,13 @@ void Game::new_game() {
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
-    current_region_ = -1;
+    world_.current_region() = -1;
     active_tab_ = 0; // Start on Messages tab
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.overworld_x() = 0;
     world_.overworld_y() = 0;
-    world_tick_ = 0;
-    day_clock_ = DayClock{};  // station day = 200 ticks
+    world_.world_tick() = 0;
+    world_.day_clock() = DayClock{};  // station day = 200 ticks
     location_cache_.clear();
     if (dev_mode_) {
         log("--- DEVELOPER MODE --- Saving disabled.");
@@ -1014,13 +1014,13 @@ void Game::new_game(const CreationResult& cr) {
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
-    current_region_ = -1;
+    world_.current_region() = -1;
     active_tab_ = 0;
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.overworld_x() = 0;
     world_.overworld_y() = 0;
-    world_tick_ = 0;
-    day_clock_ = DayClock{};
+    world_.world_tick() = 0;
+    world_.day_clock() = DayClock{};
     location_cache_.clear();
 
     log("Welcome aboard, " + cr.name + ". Your journey to Sgr A* begins.");
@@ -1130,7 +1130,7 @@ void Game::enter_ship() {
     }
 
     world_.visibility().reveal_all();
-    current_region_ = -1;
+    world_.current_region() = -1;
     compute_camera();
     check_region_change();
     log("You board your starship.");
@@ -1259,7 +1259,7 @@ void Game::enter_overworld_tile() {
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    current_region_ = -1;
+    world_.current_region() = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -1284,7 +1284,7 @@ void Game::exit_to_overworld() {
     player_.y = world_.overworld_y();
     world_.set_surface_mode(SurfaceMode::Overworld);
     world_.visibility().reveal_all();
-    current_region_ = -1;
+    world_.current_region() = -1;
     compute_camera();
     log("You return to the surface.");
 }
@@ -1399,7 +1399,7 @@ void Game::enter_detail_map() {
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    current_region_ = -1;
+    world_.current_region() = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -1442,7 +1442,7 @@ void Game::exit_detail_to_overworld() {
     player_.y = world_.overworld_y();
     world_.set_surface_mode(SurfaceMode::Overworld);
     world_.visibility().reveal_all();
-    current_region_ = -1;
+    world_.current_region() = -1;
     compute_camera();
     log("You return to the surface view.");
 }
@@ -1539,7 +1539,7 @@ void Game::enter_dungeon_from_detail() {
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    current_region_ = -1;
+    world_.current_region() = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -1581,7 +1581,7 @@ void Game::exit_dungeon_to_detail() {
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    current_region_ = -1;
+    world_.current_region() = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -1675,7 +1675,7 @@ void Game::transition_detail_edge(int dx, int dy) {
         ow_it->second.player_y = new_ow_y;
     }
 
-    current_region_ = -1;
+    world_.current_region() = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -1726,7 +1726,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             }
 
             world_.visibility().reveal_all();
-            current_region_ = -1;
+            world_.current_region() = -1;
             recompute_fov();
             compute_camera();
             check_region_change();
@@ -1798,7 +1798,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             navigation_.at_station = true;
             navigation_.current_body_index = -1;
             navigation_.current_moon_index = -1;
-            day_clock_.set_body_day_length(200); // station standard day
+            world_.day_clock().set_body_day_length(200); // station standard day
             break;
         case ChartActionType::TravelToBody: {
             navigation_.on_ship = false;
@@ -1810,9 +1810,9 @@ void Game::travel_to_destination(const ChartAction& action) {
                 unsigned moon_seed = seed_ ^ (target_sys.id * 7919u)
                                    ^ (static_cast<unsigned>(action.body_index) * 6271u);
                 auto moon = generate_moon_body(body, action.moon_index, moon_seed);
-                day_clock_.set_body_day_length(moon.day_length);
+                world_.day_clock().set_body_day_length(moon.day_length);
             } else {
-                day_clock_.set_body_day_length(body.day_length);
+                world_.day_clock().set_body_day_length(body.day_length);
             }
             break;
         }
@@ -1885,7 +1885,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         world_.overworld_x() = 0;
         world_.overworld_y() = 0;
         world_.visibility().reveal_all();
-        current_region_ = -1;
+        world_.current_region() = -1;
         compute_camera();
         log("You land on " + colored(location_name, Color::Cyan)
             + ". The surface stretches before you.");
@@ -1938,7 +1938,7 @@ void Game::travel_to_destination(const ChartAction& action) {
     }
 
     world_.set_surface_mode(SurfaceMode::Dungeon);
-    current_region_ = -1;
+    world_.current_region() = -1;
     recompute_fov();
     compute_camera();
     check_region_change();
@@ -2036,9 +2036,9 @@ void Game::try_move(int dx, int dy) {
 
 void Game::check_region_change() {
     int rid = world_.map().region_id(player_.x, player_.y);
-    if (rid == current_region_ || rid < 0) return;
+    if (rid == world_.current_region() || rid < 0) return;
 
-    current_region_ = rid;
+    world_.current_region() = rid;
     const auto& reg = world_.map().region(rid);
     if (!reg.enter_message.empty()) {
         log(reg.enter_message);
@@ -2205,7 +2205,7 @@ void Game::interact_fixture(int fid) {
     switch (f.type) {
         case FixtureType::HealPod: {
             if (f.last_used_tick >= 0 && f.cooldown > 0) {
-                int elapsed = world_tick_ - f.last_used_tick;
+                int elapsed = world_.world_tick() - f.last_used_tick;
                 if (elapsed < f.cooldown) {
                     int remaining = f.cooldown - elapsed;
                     log("The healing pod is recharging (" +
@@ -2218,7 +2218,7 @@ void Game::interact_fixture(int fid) {
                 return;
             }
             player_.hp = player_.max_hp;
-            f.last_used_tick = world_tick_;
+            f.last_used_tick = world_.world_tick();
             log("Nanites flood the pod. Your wounds close and vitals normalize. Fully healed.");
             break;
         }
@@ -2252,7 +2252,7 @@ void Game::interact_fixture(int fid) {
         }
         case FixtureType::RestPod: {
             if (f.last_used_tick >= 0 && f.cooldown > 0) {
-                int elapsed = world_tick_ - f.last_used_tick;
+                int elapsed = world_.world_tick() - f.last_used_tick;
                 if (elapsed < f.cooldown) {
                     int remaining = f.cooldown - elapsed;
                     log("The rest pod needs to reset (" +
@@ -2261,7 +2261,7 @@ void Game::interact_fixture(int fid) {
                 }
             }
             player_.hp = player_.max_hp;
-            f.last_used_tick = world_tick_;
+            f.last_used_tick = world_.world_tick();
             advance_world(20);
             log("You climb into the rest pod and sleep deeply. Fully restored.");
             break;
@@ -2692,7 +2692,7 @@ void Game::recompute_fov() {
     } else if (!world_.on_overworld()) {
         // Surface detail maps: time of day affects view range
         int max_radius = std::max(world_.map().width(), world_.map().height());
-        radius = day_clock_.effective_view_radius(max_radius, player_.light_radius);
+        radius = world_.day_clock().effective_view_radius(max_radius, player_.light_radius);
     }
 
     compute_fov(world_.map(), world_.visibility(), player_.x, player_.y, radius);
@@ -2746,8 +2746,8 @@ void Game::advance_world(int cost) {
 
     remove_dead_npcs();
     check_player_death();
-    ++world_tick_;
-    day_clock_.advance(1);
+    ++world_.world_tick();
+    world_.day_clock().advance(1);
 
     // Tick and expire effects
     tick_effects(player_.effects, player_.hp, player_.effective_max_hp());
@@ -3556,11 +3556,11 @@ void Game::check_player_death() {
         SaveData data;
         data.version = 1;
         data.seed = seed_;
-        data.world_tick = world_tick_;
+        data.world_tick = world_.world_tick();
         data.dead = true;
         data.player = player_;
         data.current_map_id = 0;
-        data.current_region = current_region_;
+        data.current_region = world_.current_region();
         data.active_tab = active_tab_;
         data.panel_visible = panel_visible_;
         data.messages = messages_;
@@ -3667,11 +3667,11 @@ void Game::save_game() {
     SaveData data;
     data.version = 1;
     data.seed = seed_;
-    data.world_tick = world_tick_;
+    data.world_tick = world_.world_tick();
     data.dead = false;
     data.player = player_;
     data.current_map_id = 0;
-    data.current_region = current_region_;
+    data.current_region = world_.current_region();
     data.active_tab = active_tab_;
     data.panel_visible = panel_visible_;
     data.messages = messages_;
@@ -3681,8 +3681,8 @@ void Game::save_game() {
     data.surface_mode = static_cast<uint8_t>(world_.surface_mode());
     data.overworld_x = world_.overworld_x();
     data.overworld_y = world_.overworld_y();
-    data.local_tick = day_clock_.local_tick;
-    data.local_ticks_per_day = day_clock_.local_ticks_per_day;
+    data.local_tick = world_.day_clock().local_tick;
+    data.local_ticks_per_day = world_.day_clock().local_ticks_per_day;
 
     MapState ms;
     ms.map_id = 0;
@@ -3704,10 +3704,10 @@ bool Game::load_game(const std::string& filename) {
     dev_mode_ = false;
     seed_ = data.seed;
     rng_.seed(seed_);
-    world_tick_ = data.world_tick;
+    world_.world_tick() = data.world_tick;
     player_ = data.player;
     death_message_ = data.death_message;
-    current_region_ = data.current_region;
+    world_.current_region() = data.current_region;
     active_tab_ = data.active_tab;
     panel_visible_ = data.panel_visible;
     messages_ = data.messages;
@@ -3734,8 +3734,8 @@ bool Game::load_game(const std::string& filename) {
     world_.overworld_y() = data.overworld_y;
 
     // Restore day clock
-    day_clock_.local_tick = data.local_tick;
-    day_clock_.local_ticks_per_day = data.local_ticks_per_day;
+    world_.day_clock().local_tick = data.local_tick;
+    world_.day_clock().local_ticks_per_day = data.local_ticks_per_day;
 
     // Reset interaction state
     awaiting_interact_ = false;
@@ -3966,9 +3966,9 @@ void Game::render_stats_bar() {
 
     // Build calendar string for width measurement: "C1 D3 [▓▓▓▒░░░░] ☀"
     // Progress bar is 8 chars + brackets = 10, icon = 1
-    std::string cal = format_calendar(world_tick_);
+    std::string cal = format_calendar(world_.world_tick());
     cal += " [--------] "; // placeholder for width calc (8-char bar + brackets + space)
-    cal += phase_icon(day_clock_.phase());
+    cal += phase_icon(world_.day_clock().phase());
 
     // Right side: stats, calendar, location — measure total width for right-alignment
     std::string right;
@@ -4014,13 +4014,13 @@ void Game::render_stats_bar() {
     // Calendar + day progress bar + phase icon
     ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
     {
-        std::string cal_text = format_calendar(world_tick_) + " ";
+        std::string cal_text = format_calendar(world_.world_tick()) + " ";
         ctx.text(x, 0, cal_text, Color::DarkGray);
         x += static_cast<int>(cal_text.size());
 
         // Phase color
         Color phase_col;
-        switch (day_clock_.phase()) {
+        switch (world_.day_clock().phase()) {
             case TimePhase::Dawn: phase_col = Color::Yellow; break;
             case TimePhase::Day:  phase_col = Color::Yellow; break;
             case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
@@ -4029,7 +4029,7 @@ void Game::render_stats_bar() {
 
         // Day progress bar: [▓▓▓▒░░░░]
         constexpr int bar_len = 8;
-        float frac = day_clock_.day_fraction();
+        float frac = world_.day_clock().day_fraction();
         int filled = static_cast<int>(frac * bar_len);
         if (filled > bar_len) filled = bar_len;
 
@@ -4051,7 +4051,7 @@ void Game::render_stats_bar() {
 
         // Phase icon
         ctx.text(x, 0, " ", Color::Default); ++x;
-        ctx.text(x, 0, phase_icon(day_clock_.phase()), phase_col);
+        ctx.text(x, 0, phase_icon(world_.day_clock().phase()), phase_col);
         x += 1;
     }
 
@@ -4623,17 +4623,17 @@ void Game::render_side_panel() {
             int y = 0;
             {
                 Color phase_col;
-                switch (day_clock_.phase()) {
+                switch (world_.day_clock().phase()) {
                     case TimePhase::Dawn: phase_col = Color::Yellow; break;
                     case TimePhase::Day:  phase_col = Color::Yellow; break;
                     case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
                     case TimePhase::Night:phase_col = Color::Blue; break;
                 }
-                std::string time_info = std::string(phase_icon(day_clock_.phase()))
-                    + " " + phase_name(day_clock_.phase());
+                std::string time_info = std::string(phase_icon(world_.day_clock().phase()))
+                    + " " + phase_name(world_.day_clock().phase());
                 ctx.text(1, y, time_info, phase_col);
                 ++y;
-                ctx.text(1, y, format_calendar(world_tick_), Color::DarkGray);
+                ctx.text(1, y, format_calendar(world_.world_tick()), Color::DarkGray);
                 y += 2;
             }
 
@@ -4650,7 +4650,7 @@ void Game::render_side_panel() {
             for (int i = 0; i < wait_option_count && y < ctx.height() - 1; ++i) {
                 bool selected = (i == wait_cursor_);
                 std::string label = std::string("[") + std::to_string(i + 1) + "] " + wait_options[i];
-                if (i == 5 && day_clock_.phase() == TimePhase::Day) {
+                if (i == 5 && world_.day_clock().phase() == TimePhase::Day) {
                     // "Wait until morning" greyed out during day
                     ctx.text(1, y, label, Color::DarkGray);
                 } else {
@@ -4751,7 +4751,7 @@ void Game::render_gameover() {
         ctx.text_center(cy, death_message_);
         cy += 2;
     }
-    ctx.text_center(cy,     "Survived " + std::to_string(world_tick_) + " ticks");
+    ctx.text_center(cy,     "Survived " + std::to_string(world_.world_tick()) + " ticks");
     ctx.text_center(cy + 1, "Reached level " + std::to_string(player_.level));
     cy += 3;
     ctx.text_center(cy,     "[Enter] Main Menu    [Q] Quit", Color::DarkGray);

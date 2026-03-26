@@ -191,9 +191,6 @@ private:
     CharacterCreation character_creation_;
     int camera_x_ = 0;
     int camera_y_ = 0;
-    int current_region_ = -1;
-    int world_tick_ = 0;
-    DayClock day_clock_;
 
     // Tabs
     int active_tab_ = 0;
