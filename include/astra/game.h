@@ -66,7 +66,7 @@ public:
     void dev_command_kill_hostiles();
 
 private:
-    using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int>;
+    // LocationKey moved to world_manager.h
 
     // Input
     void handle_input(int key);
@@ -253,19 +253,7 @@ private:
     //   overworld:  {system_id, body_index, moon_index, false, -1, -1, 0}
     //   detail map: {system_id, body_index, moon_index, false, ow_x, ow_y, 0}
     //   dungeon:    {system_id, body_index, moon_index, false, ow_x, ow_y, 1}
-    struct LocationState {
-        TileMap map;
-        VisibilityMap visibility;
-        std::vector<Npc> npcs;
-        std::vector<GroundItem> ground_items;
-        int player_x = 0;
-        int player_y = 0;
-    };
-    static inline const LocationKey ship_key_ = {0, -2, -1, false, -1, -1, 0};
-    std::map<LocationKey, LocationState> location_cache_;
-
-    // Surface mode
-    // surface_mode_, overworld_x/y moved to world_
+    // LocationState, location_cache_, ship_key_ moved to world_
 };
 
 } // namespace astra

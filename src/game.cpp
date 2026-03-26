@@ -869,7 +869,7 @@ void Game::new_game() {
     world_.overworld_y() = 0;
     world_.world_tick() = 0;
     world_.day_clock() = DayClock{};  // station day = 200 ticks
-    location_cache_.clear();
+    world_.location_cache().clear();
     if (dev_mode_) {
         log("--- DEVELOPER MODE --- Saving disabled.");
     }
@@ -1021,7 +1021,7 @@ void Game::new_game(const CreationResult& cr) {
     world_.overworld_y() = 0;
     world_.world_tick() = 0;
     world_.day_clock() = DayClock{};
-    location_cache_.clear();
+    world_.location_cache().clear();
 
     log("Welcome aboard, " + cr.name + ". Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
@@ -1053,7 +1053,7 @@ void Game::new_game(const CreationResult& cr) {
 void Game::save_current_location() {
     LocationKey key;
     if (world_.navigation().on_ship) {
-        key = ship_key_;
+        key = WorldManager::ship_key;
     } else if (world_.navigation().at_station) {
         key = {world_.navigation().current_system_id, -1, -1, true, -1, -1, 0};
     } else if (world_.on_overworld()) {
@@ -1067,7 +1067,7 @@ void Game::save_current_location() {
         key = {world_.navigation().current_system_id, world_.navigation().current_body_index,
                world_.navigation().current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 1};
     }
-    LocationState& state = location_cache_[key];
+    LocationState& state = world_.location_cache()[key];
     state.map = std::move(world_.map());
     state.visibility = std::move(world_.visibility());
     state.npcs = std::move(world_.npcs());
@@ -1077,15 +1077,15 @@ void Game::save_current_location() {
 }
 
 void Game::restore_location(const LocationKey& key) {
-    auto it = location_cache_.find(key);
-    if (it == location_cache_.end()) return;
+    auto it = world_.location_cache().find(key);
+    if (it == world_.location_cache().end()) return;
     LocationState& state = it->second;
     world_.map() = std::move(state.map);
     world_.visibility() = std::move(state.visibility);
     world_.npcs() = std::move(state.npcs);
     world_.ground_items() = std::move(state.ground_items);
 
-    if (key == ship_key_) {
+    if (key == WorldManager::ship_key) {
         // Restore cached position on the ship
         player_.x = state.player_x;
         player_.y = state.player_y;
@@ -1100,7 +1100,7 @@ void Game::restore_location(const LocationKey& key) {
         }
     }
 
-    location_cache_.erase(it);
+    world_.location_cache().erase(it);
 }
 
 void Game::enter_ship() {
@@ -1108,8 +1108,8 @@ void Game::enter_ship() {
     world_.navigation().on_ship = true;
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
-    if (location_cache_.count(ship_key_)) {
-        restore_location(ship_key_);
+    if (world_.location_cache().count(WorldManager::ship_key)) {
+        restore_location(WorldManager::ship_key);
     } else {
         // Generate the ship for the first time
         unsigned ship_seed = world_.seed() ^ 0x5B1Bu;
@@ -1222,7 +1222,7 @@ void Game::enter_overworld_tile() {
     save_current_location();
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
-    if (location_cache_.count(detail_key)) {
+    if (world_.location_cache().count(detail_key)) {
         restore_location(detail_key);
     } else {
         // Generate detail map
@@ -1276,7 +1276,7 @@ void Game::exit_to_overworld() {
                           world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
-    if (location_cache_.count(ow_key)) {
+    if (world_.location_cache().count(ow_key)) {
         restore_location(ow_key);
     }
 
@@ -1302,8 +1302,8 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     if (world_.on_overworld()) {
         ow_map = &world_.map();
     } else {
-        auto it = location_cache_.find(ow_key);
-        if (it != location_cache_.end())
+        auto it = world_.location_cache().find(ow_key);
+        if (it != world_.location_cache().end())
             ow_map = &it->second.map;
     }
     if (!ow_map) return props;
@@ -1344,7 +1344,7 @@ void Game::enter_detail_map() {
     save_current_location();
     world_.set_surface_mode(SurfaceMode::DetailMap);
 
-    if (location_cache_.count(detail_key)) {
+    if (world_.location_cache().count(detail_key)) {
         restore_location(detail_key);
     } else {
         unsigned detail_seed = world_.seed()
@@ -1434,7 +1434,7 @@ void Game::exit_detail_to_overworld() {
                           world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
-    if (location_cache_.count(ow_key)) {
+    if (world_.location_cache().count(ow_key)) {
         restore_location(ow_key);
     }
 
@@ -1459,8 +1459,8 @@ void Game::enter_dungeon_from_detail() {
 
     Tile ow_tile = Tile::OW_CaveEntrance;
     Biome ow_biome = world_.map().biome();
-    auto it = location_cache_.find(ow_key);
-    if (it != location_cache_.end()) {
+    auto it = world_.location_cache().find(ow_key);
+    if (it != world_.location_cache().end()) {
         ow_tile = it->second.map.get(world_.overworld_x(), world_.overworld_y());
         ow_biome = it->second.map.biome();
     }
@@ -1510,7 +1510,7 @@ void Game::enter_dungeon_from_detail() {
 
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
-    if (location_cache_.count(dungeon_key)) {
+    if (world_.location_cache().count(dungeon_key)) {
         restore_location(dungeon_key);
     } else {
         unsigned detail_seed = world_.seed()
@@ -1558,7 +1558,7 @@ void Game::exit_dungeon_to_detail() {
 
     world_.set_surface_mode(SurfaceMode::DetailMap);
 
-    if (location_cache_.count(detail_key)) {
+    if (world_.location_cache().count(detail_key)) {
         restore_location(detail_key);
     } else {
         // Detail map was never cached — generate it
@@ -1595,8 +1595,8 @@ void Game::transition_detail_edge(int dx, int dy) {
                           world_.navigation().current_moon_index,
                           false, -1, -1, 0};
 
-    auto ow_it = location_cache_.find(ow_key);
-    if (ow_it == location_cache_.end()) {
+    auto ow_it = world_.location_cache().find(ow_key);
+    if (ow_it == world_.location_cache().end()) {
         log("You can't go that way.");
         return;
     }
@@ -1634,7 +1634,7 @@ void Game::transition_detail_edge(int dx, int dy) {
                                   world_.navigation().current_moon_index,
                                   false, new_ow_x, new_ow_y, 0};
 
-    if (location_cache_.count(new_detail_key)) {
+    if (world_.location_cache().count(new_detail_key)) {
         restore_location(new_detail_key);
     } else {
         unsigned detail_seed = world_.seed()
@@ -1669,8 +1669,8 @@ void Game::transition_detail_edge(int dx, int dy) {
     }
 
     // Also update player position on cached overworld
-    ow_it = location_cache_.find(ow_key);
-    if (ow_it != location_cache_.end()) {
+    ow_it = world_.location_cache().find(ow_key);
+    if (ow_it != world_.location_cache().end()) {
         ow_it->second.player_x = new_ow_x;
         ow_it->second.player_y = new_ow_y;
     }
@@ -1707,8 +1707,8 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.navigation().current_body_index = -1;
             world_.navigation().current_moon_index = -1;
 
-            if (location_cache_.count(ship_key_)) {
-                restore_location(ship_key_);
+            if (world_.location_cache().count(WorldManager::ship_key)) {
+                restore_location(WorldManager::ship_key);
             } else {
                 // Generate ship for the first time
                 unsigned ship_seed = world_.seed() ^ 0x5B1Bu;
@@ -1825,7 +1825,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         const auto& body = target_sys.bodies[action.body_index];
 
         // Check cache for overworld
-        if (location_cache_.count(dest_key)) {
+        if (world_.location_cache().count(dest_key)) {
             restore_location(dest_key);
         } else {
             // Generate overworld from body or moon properties
@@ -1893,7 +1893,7 @@ void Game::travel_to_destination(const ChartAction& action) {
     }
 
     // Station destinations
-    if (location_cache_.count(dest_key)) {
+    if (world_.location_cache().count(dest_key)) {
         restore_location(dest_key);
     } else {
         // Generate fresh map

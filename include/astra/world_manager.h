@@ -8,9 +8,22 @@
 #include "astra/visibility_map.h"
 
 #include <cstdint>
+#include <map>
 #include <random>
+#include <tuple>
 
 namespace astra {
+
+using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int>;
+
+struct LocationState {
+    TileMap map;
+    VisibilityMap visibility;
+    std::vector<Npc> npcs;
+    std::vector<GroundItem> ground_items;
+    int player_x = 0;
+    int player_y = 0;
+};
 
 enum class SurfaceMode : uint8_t {
     Dungeon,
@@ -62,6 +75,10 @@ public:
     NavigationData& navigation() { return navigation_; }
     const NavigationData& navigation() const { return navigation_; }
 
+    std::map<LocationKey, LocationState>& location_cache() { return location_cache_; }
+    const std::map<LocationKey, LocationState>& location_cache() const { return location_cache_; }
+    static inline const LocationKey ship_key = {0, -2, -1, false, -1, -1, 0};
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
@@ -77,6 +94,7 @@ private:
     unsigned seed_ = 0;
     std::mt19937 rng_;
     NavigationData navigation_;
+    std::map<LocationKey, LocationState> location_cache_;
 };
 
 } // namespace astra
