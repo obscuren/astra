@@ -1,10 +1,16 @@
 #pragma once
 
 #include "astra/renderer.h"
+#include "astra/ui.h"
 
 #include <cstring>
+#include <deque>
+#include <string>
+#include <vector>
 
 namespace astra {
+
+class Game; // forward declare for console command execution
 
 class InputManager {
 public:
@@ -29,12 +35,30 @@ public:
         look_cell_color_ = fg;
     }
 
+    // ── Dev console ──────────────────────────────────────────────
+    bool console_open() const { return console_open_; }
+    void toggle_console();
+    void handle_console_input(int key, Game& game);
+    void console_log(const std::string& msg);
+    void clear_console() { console_output_.clear(); }
+    void render_console(Renderer* renderer, int screen_w, int screen_h);
+
 private:
     bool looking_ = false;
     int look_x_ = 0, look_y_ = 0;
     int look_blink_ = 0;
     char look_cell_glyph_[5] = {};
     Color look_cell_color_ = Color::White;
+
+    // Console
+    bool console_open_ = false;
+    std::string console_input_;
+    std::deque<std::string> console_output_;
+    static constexpr size_t max_console_lines_ = 50;
+    int console_scroll_ = 0;
+    std::deque<std::string> console_history_;
+    int console_history_idx_ = -1;
+    static constexpr size_t max_console_history_ = 50;
 };
 
 } // namespace astra

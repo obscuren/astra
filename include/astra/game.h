@@ -56,6 +56,9 @@ class Game {
 public:
     explicit Game(std::unique_ptr<Renderer> renderer);
 
+    // Called by InputManager for console command execution
+    void execute_console_command(const std::string& cmd);
+
     void run();
 
 private:
@@ -143,12 +146,7 @@ private:
     void dev_warp_random();
     void dev_warp_stamp_test();
 
-    // Dev console
-    void toggle_console();
-    void handle_console_input(int key);
-    void execute_console_command(const std::string& cmd);
-    void console_log(const std::string& msg);
-    void render_console();
+    // Dev console command execution (public — called by InputManager)
 
     // Help screen
     void handle_help_input(int key);
@@ -177,15 +175,7 @@ private:
     bool dev_mode_ = false;
     Tile dev_warp_stamp_test_poi_ = Tile::Empty;
 
-    // Dev console
-    bool console_open_ = false;
-    std::string console_input_;
-    std::deque<std::string> console_output_;
-    static constexpr size_t max_console_lines_ = 50;
-    int console_scroll_ = 0;
-    std::deque<std::string> console_history_;
-    int console_history_idx_ = -1; // -1 = not browsing history
-    static constexpr size_t max_console_history_ = 50;
+    // Dev console state moved to input_
 
     // Help screen
     bool help_open_ = false;
