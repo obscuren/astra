@@ -58,6 +58,7 @@ set(ASTRA_SOURCES
     src/game_combat.cpp
     src/game_input.cpp
     src/game_interaction.cpp
+    src/game_world.cpp
     src/game_rendering.cpp
     src/save_system.cpp
     src/dev_console.cpp
