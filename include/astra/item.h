@@ -33,6 +33,14 @@ enum class ItemType : uint8_t {
 
 const char* item_type_name(ItemType t);
 
+enum class WeaponClass : uint8_t {
+    None,
+    ShortBlade,
+    LongBlade,
+    Pistol,
+    Rifle,
+};
+
 enum class EquipSlot : uint8_t {
     Face,
     Head,
@@ -109,6 +117,7 @@ struct Item {
     std::string name;
     std::string description;
     ItemType type = ItemType::Trash;
+    WeaponClass weapon_class = WeaponClass::None;
     std::optional<EquipSlot> slot;
     Rarity rarity = Rarity::Common;
     char glyph = '?';

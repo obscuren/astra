@@ -12,6 +12,7 @@ Item build_plasma_pistol() {
     it.name = "Plasma Pistol";
     it.description = "Standard-issue sidearm. Fires superheated plasma bolts.";
     it.type = ItemType::RangedWeapon;
+    it.weapon_class = WeaponClass::Pistol;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Common;
     it.glyph = ')';
@@ -32,6 +33,7 @@ Item build_ion_blaster() {
     it.name = "Ion Blaster";
     it.description = "Disrupts electronics and shields with ionized bursts.";
     it.type = ItemType::RangedWeapon;
+    it.weapon_class = WeaponClass::Pistol;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Uncommon;
     it.glyph = ')';
@@ -52,6 +54,7 @@ Item build_pulse_rifle() {
     it.name = "Pulse Rifle";
     it.description = "Military-grade rifle with rapid energy pulses.";
     it.type = ItemType::RangedWeapon;
+    it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Rare;
     it.glyph = ')';
@@ -73,6 +76,7 @@ Item build_arc_caster() {
     it.name = "Arc Caster";
     it.description = "Channels electricity in a devastating arc. Unstable.";
     it.type = ItemType::RangedWeapon;
+    it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Epic;
     it.glyph = ')';
@@ -94,6 +98,7 @@ Item build_void_lance() {
     it.name = "Void Lance";
     it.description = "Fires a beam of compressed dark energy. Extremely rare.";
     it.type = ItemType::RangedWeapon;
+    it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Legendary;
     it.glyph = ')';
@@ -173,7 +178,7 @@ Item build_combat_stim() {
 
 Item build_combat_knife() {
     Item it;
-    it.id = 1101; it.name = "Combat Knife"; it.type = ItemType::MeleeWeapon;
+    it.id = 1101; it.name = "Combat Knife"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
     it.description = "A short, serrated blade. Fast and deadly at close range.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
     it.glyph = '/'; it.color = Color::White; it.weight = 2;
@@ -184,7 +189,7 @@ Item build_combat_knife() {
 
 Item build_vibro_blade() {
     Item it;
-    it.id = 1102; it.name = "Vibro Blade"; it.type = ItemType::MeleeWeapon;
+    it.id = 1102; it.name = "Vibro Blade"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
     it.description = "A high-frequency vibrating blade that cuts through armor.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Uncommon;
     it.glyph = '/'; it.color = Color::Green; it.weight = 3;
@@ -195,7 +200,7 @@ Item build_vibro_blade() {
 
 Item build_plasma_saber() {
     Item it;
-    it.id = 1103; it.name = "Plasma Saber"; it.type = ItemType::MeleeWeapon;
+    it.id = 1103; it.name = "Plasma Saber"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A long blade wreathed in superheated plasma. Devastating.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Rare;
     it.glyph = '/'; it.color = Color::Blue; it.weight = 4;
@@ -206,7 +211,7 @@ Item build_plasma_saber() {
 
 Item build_stun_baton() {
     Item it;
-    it.id = 1104; it.name = "Stun Baton"; it.type = ItemType::MeleeWeapon;
+    it.id = 1104; it.name = "Stun Baton"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "An electrified baton. Slow but stuns on hit.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
     it.glyph = '/'; it.color = Color::Yellow; it.weight = 3;
@@ -217,7 +222,7 @@ Item build_stun_baton() {
 
 Item build_ancient_mono_edge() {
     Item it;
-    it.id = 1105; it.name = "Ancient Mono-Edge"; it.type = ItemType::MeleeWeapon;
+    it.id = 1105; it.name = "Ancient Mono-Edge"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A relic blade from a lost civilization. Its molecular edge never dulls.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Epic;
     it.glyph = '/'; it.color = Color::Magenta; it.weight = 2;

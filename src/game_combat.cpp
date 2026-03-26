@@ -96,6 +96,16 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
 void CombatSystem::attack_npc(Npc& npc, Game& game) {
     int damage = game.player().effective_attack();
+    // Weapon expertise bonus
+    const auto& weapon = game.player().equipment.right_hand;
+    if (weapon) {
+        if (weapon->weapon_class == WeaponClass::ShortBlade
+            && player_has_skill(game.player(), SkillId::ShortBladeExpertise))
+            damage += 1;
+        if (weapon->weapon_class == WeaponClass::LongBlade
+            && player_has_skill(game.player(), SkillId::LongBladeExpertise))
+            damage += 1;
+    }
     if (damage < 1) damage = 1;
     damage = apply_damage_effects(npc.effects, damage);
     if (damage <= 0) {
@@ -226,9 +236,13 @@ void CombatSystem::shoot_target(Game& game) {
     // Check range
     auto& rd = *weapon->ranged;
     int dist = chebyshev_dist(game.player().x, game.player().y, target_npc_->x, target_npc_->y);
-    if (dist > rd.max_range) {
+    int effective_range = rd.max_range;
+    if (weapon->weapon_class == WeaponClass::Rifle
+        && player_has_skill(game.player(), SkillId::Marksman))
+        effective_range += 2;
+    if (dist > effective_range) {
         game.log("Target out of range (" + std::to_string(dist) + "/" +
-            std::to_string(rd.max_range) + ").");
+            std::to_string(effective_range) + ").");
         return;
     }
 
@@ -266,6 +280,16 @@ void CombatSystem::shoot_target(Game& game) {
 
     // Damage = effective attack (includes STR modifier + all equipment)
     int damage = game.player().effective_attack();
+    // Ranged weapon expertise bonus
+    const auto& rw2 = game.player().equipment.missile;
+    if (rw2) {
+        if (rw2->weapon_class == WeaponClass::Pistol
+            && player_has_skill(game.player(), SkillId::SteadyHand))
+            damage += 1;
+        if (rw2->weapon_class == WeaponClass::Rifle
+            && player_has_skill(game.player(), SkillId::Marksman))
+            damage += 1;
+    }
     if (damage < 1) damage = 1;
     damage = apply_damage_effects(target_npc_->effects, damage);
     if (damage <= 0) {
