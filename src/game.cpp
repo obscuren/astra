@@ -345,9 +345,7 @@ void Game::handle_play_input(int key) {
         trade_window_.handle_input(key);
         if (!trade_window_.is_open()) {
             if (trade_window_.has_message()) log(trade_window_.consume_message());
-            interacting_npc_ = nullptr;
-            dialog_tree_ = nullptr;
-            dialog_node_ = -1;
+            dialog_.close();
         }
         return;
     }
@@ -368,34 +366,8 @@ void Game::handle_play_input(int key) {
     }
 
     // NPC dialog intercepts input when open
-    if (npc_dialog_.is_open()) {
-        // Tab = trade shortcut
-        if (key == '\t') {
-            if (interacting_npc_ && interacting_npc_->interactions.shop) {
-                npc_dialog_.close();
-                trade_window_.open(interacting_npc_, &player_, renderer_.get());
-            } else {
-                log("They have nothing to sell.");
-            }
-            return;
-        }
-        // [l] Look — enter look mode focused on NPC
-        if (key == 'l' && interacting_npc_) {
-            npc_dialog_.close();
-            input_.begin_look_at(interacting_npc_->x, interacting_npc_->y);
-            interacting_npc_ = nullptr;
-            dialog_tree_ = nullptr;
-            dialog_node_ = -1;
-            return;
-        }
-        MenuResult result = npc_dialog_.handle_input(key);
-        if (result == MenuResult::Selected) {
-            advance_dialog(npc_dialog_.selected());
-        } else if (result == MenuResult::Closed) {
-            interacting_npc_ = nullptr;
-            dialog_tree_ = nullptr;
-            dialog_node_ = -1;
-        }
+    if (dialog_.is_open()) {
+        dialog_.handle_input(key, *this);
         return;
     }
 
@@ -2079,7 +2051,7 @@ void Game::try_interact(int dx, int dy) {
         if (t == Tile::Fixture) {
             int fid = world_.map().fixture_id(tx, ty);
             if (fid >= 0 && world_.map().fixture(fid).interactable) {
-                interact_fixture(fid);
+                dialog_.interact_fixture(fid, *this);
                 advance_world(ActionCost::interact);
                 return;
             }
@@ -2109,7 +2081,7 @@ void Game::try_interact(int dx, int dy) {
     }
 
     log("You approach " + target->display_name() + ".");
-    open_npc_dialog(*target);
+    dialog_.open_npc_dialog(*target, *this);
     advance_world(ActionCost::interact);
 }
 
@@ -3059,12 +3031,9 @@ void Game::remove_dead_npcs() {
     if (target_npc_ && !target_npc_->alive()) {
         target_npc_ = nullptr;
     }
-    // Nullify interacting_npc_ if it died
-    if (interacting_npc_ && !interacting_npc_->alive()) {
-        npc_dialog_.close();
-        interacting_npc_ = nullptr;
-        dialog_tree_ = nullptr;
-        dialog_node_ = -1;
+    // Close dialog if interacting NPC died
+    if (dialog_.interacting_npc() && !dialog_.interacting_npc()->alive()) {
+        dialog_.close();
     }
     world_.npcs().erase(
         std::remove_if(world_.npcs().begin(), world_.npcs().end(),
@@ -3288,9 +3257,7 @@ bool Game::load_game(const std::string& filename) {
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
-    interacting_npc_ = nullptr;
-    dialog_tree_ = nullptr;
-    dialog_node_ = -1;
+    dialog_.close();
     pause_menu_.close();
 
     compute_layout();
@@ -3415,7 +3382,7 @@ void Game::render_play() {
     // Overlay windows
     if (inspecting_item_) render_item_inspect();
     render_look_popup();
-    npc_dialog_.draw(renderer_.get(), screen_w_, screen_h_);
+    dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
     quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
     console_.draw(renderer_.get(), screen_w_, screen_h_);

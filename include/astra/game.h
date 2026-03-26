@@ -10,6 +10,7 @@
 #include "astra/character_creation.h"
 #include "astra/character_screen.h"
 #include "astra/dev_console.h"
+#include "astra/dialog_manager.h"
 #include "astra/help_screen.h"
 #include "astra/input_manager.h"
 #include "astra/world_manager.h"
@@ -57,9 +58,18 @@ public:
 
     void run();
 
-    // Public accessors for DevConsole commands
+    // Public accessors for subsystems (DevConsole, DialogManager, etc.)
     Player& player() { return player_; }
     std::vector<Npc>& npcs() { return world_.npcs(); }
+    WorldManager& world() { return world_; }
+    Renderer* renderer() { return renderer_.get(); }
+    TradeWindow& trade_window() { return trade_window_; }
+    StarChartViewer& star_chart_viewer() { return star_chart_viewer_; }
+    void log(const std::string& msg);
+    void enter_ship();
+    void advance_world(int cost);
+
+    // Dev commands
     void dev_command_warp_random();
     void dev_command_warp_stamp(Tile poi);
     void dev_command_level_up();
@@ -83,7 +93,6 @@ private:
     void travel_to_destination(const ChartAction& action);
     void save_current_location();
     void restore_location(const LocationKey& key);
-    void enter_ship();
     void enter_detail_map();
     void exit_detail_to_overworld();
     void enter_dungeon_from_detail();
@@ -100,7 +109,6 @@ private:
     void use_at(int tx, int ty);
     int count_adjacent_interactables() const;
     bool is_interactable(int tx, int ty) const;
-    void advance_world(int cost);
     void process_npc_turn(Npc& npc);
     void attack_npc(Npc& npc);
     void begin_targeting();
@@ -118,9 +126,7 @@ private:
     void remove_dead_npcs();
     void check_player_death();
     void check_level_up();
-    void open_npc_dialog(Npc& npc);
-    void advance_dialog(int selected);
-    void interact_fixture(int fixture_id);
+    // Dialog methods (now in DialogManager, but Game still has some callers)
     void recompute_fov();
     void check_region_change();
     void save_game();
@@ -154,7 +160,6 @@ private:
 
 
     // Helpers
-    void log(const std::string& msg);
     Color hp_color() const;
     Color hunger_color() const;
     bool tile_occupied(int x, int y) const;
@@ -208,18 +213,10 @@ private:
     bool inspecting_item_ = false;
     Item inspected_item_;
 
-    // Dialogs / interaction state
-    PopupMenu npc_dialog_;
-    std::string npc_dialog_body_;
+    // Dialogs
+    DialogManager dialog_;
     PopupMenu pause_menu_;
     PopupMenu quit_confirm_;
-    Npc* interacting_npc_ = nullptr;
-    const std::vector<DialogNode>* dialog_tree_ = nullptr; // active tree (talk or quest)
-    int dialog_node_ = -1;
-
-    // Tracks which top-level options map to which trait action
-    enum class InteractOption : uint8_t { Talk, Shop, Quest, Farewell };
-    std::vector<InteractOption> interact_options_;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;
