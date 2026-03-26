@@ -3,7 +3,7 @@
 ## Combat & Skills
 
 ### Quick Wins
-- [ ] **Haggle** — 10% better buy/sell prices when skill learned (trade_window.cpp)
+- [x] **Haggle** — 10% better buy/sell prices via permanent passive effect
 - [ ] **ThickSkin** — +1 natural armor in effective_defense() (player.h)
 
 ### Combat Mechanics
