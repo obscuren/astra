@@ -1,3 +1,4 @@
+#include "astra/ability.h"
 #include "astra/game.h"
 
 namespace astra {
@@ -262,8 +263,12 @@ void Game::handle_play_input(int key) {
         case '\n': case '\r':
         case '1': case '2': case '3': case '4': case '5': case '6': {
             auto tab = static_cast<PanelTab>(active_tab_);
-            // Number keys only apply to Wait tab
-            if (key >= '1' && key <= '6' && tab != PanelTab::Wait) break;
+            // Number keys 1-5: abilities (unless on Wait tab)
+            if (key >= '1' && key <= '5' && tab != PanelTab::Wait) {
+                use_ability(key - '1', *this);
+                break;
+            }
+            if (key == '6' && tab != PanelTab::Wait) break;
             // Overworld: enter detail map for the tile underneath the player
             if (world_.on_overworld() && (key == '\n' || key == '\r')) {
                 Tile t = world_.map().get(player_.x, player_.y);

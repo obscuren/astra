@@ -21,6 +21,12 @@ enum class EffectId : uint32_t {
     Haste        = 9,
     Haggle       = 10,
     ThickSkin    = 11,
+    // Ability cooldowns (100+)
+    CooldownJab         = 100,
+    CooldownCleave      = 101,
+    CooldownQuickdraw   = 102,
+    CooldownIntimidate  = 103,
+    CooldownSuppressing = 104,
 };
 
 struct Effect {

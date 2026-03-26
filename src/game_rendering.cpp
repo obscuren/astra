@@ -1,3 +1,4 @@
+#include "astra/ability.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
 #include "astra/overworld_stamps.h"
@@ -1213,7 +1214,28 @@ void Game::render_effects_bar() {
 void Game::render_abilities_bar() {
     DrawContext ctx(renderer_.get(), abilities_rect_);
     ctx.text(1, 0, "ABILITIES:", Color::DarkGray);
-    ctx.text(12, 0, "[reserved]", Color::DarkGray);
+
+    auto bar = get_ability_bar(player_);
+    int x = 12;
+    for (int i = 0; i < 5; ++i) {
+        if (i < static_cast<int>(bar.size())) {
+            const auto* ab = find_ability(bar[i]);
+            if (!ab) continue;
+            bool on_cd = has_effect(player_.effects, ab->cooldown_effect);
+            const auto* cd_eff = find_effect(player_.effects, ab->cooldown_effect);
+            Color c = on_cd ? Color::DarkGray : Color::Yellow;
+
+            std::string label = "[" + std::to_string(i + 1) + "] " + ab->name;
+            if (on_cd && cd_eff && cd_eff->remaining > 0) {
+                label += "(" + std::to_string(cd_eff->remaining) + ")";
+            }
+            ctx.text(x, 0, label, c);
+            x += static_cast<int>(label.size()) + 2;
+        }
+    }
+    if (bar.empty()) {
+        ctx.text(x, 0, "[none]", Color::DarkGray);
+    }
 }
 
 void Game::render_gameover() {
