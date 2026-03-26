@@ -63,7 +63,7 @@ public:
 
     // Public accessors for DevConsole commands
     Player& player() { return player_; }
-    std::vector<Npc>& npcs() { return npcs_; }
+    std::vector<Npc>& npcs() { return world_.npcs(); }
     void dev_command_warp_random();
     void dev_command_warp_stamp(Tile poi);
     void dev_command_level_up();
@@ -187,7 +187,6 @@ private:
     unsigned seed_ = 0;
     std::mt19937 rng_;
     Player player_;
-    std::vector<Npc> npcs_;
     std::vector<GroundItem> ground_items_;
     std::vector<Item> stash_;
     static constexpr int max_stash_size_ = 20;

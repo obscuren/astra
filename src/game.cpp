@@ -715,7 +715,7 @@ void Game::dev_warp_random() {
     world_.map().set_location_name(m.name);
 
     world_.map().find_open_spot(player_.x, player_.y);
-    npcs_.clear();
+    world_.npcs().clear();
     ground_items_.clear();
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -742,15 +742,15 @@ void Game::dev_warp_stamp_test() {
     world_.map().set_location_name("[DEV] Stamp Test");
 
     world_.map().find_open_spot(player_.x, player_.y);
-    npcs_.clear();
+    world_.npcs().clear();
     ground_items_.clear();
 
     // Spawn NPCs for settlement/outpost stamp tests
     std::mt19937 npc_rng(warp_seed ^ 0xC1A5u);
     if (dev_warp_stamp_test_poi_ == Tile::OW_Settlement) {
-        spawn_settlement_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
+        spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
     } else if (dev_warp_stamp_test_poi_ == Tile::OW_Outpost) {
-        spawn_outpost_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
+        spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
     }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -779,7 +779,7 @@ void Game::dev_command_level_up() {
 }
 
 void Game::dev_command_kill_hostiles() {
-    for (auto& npc : npcs_) {
+    for (auto& npc : world_.npcs()) {
         if (npc.alive() && npc.disposition == Disposition::Hostile) {
             npc.hp = 0;
         }
@@ -838,10 +838,10 @@ void Game::new_game() {
     }
 
     // Spawn NPCs in rooms based on room flavor
-    npcs_.clear();
+    world_.npcs().clear();
     ground_items_.clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -990,10 +990,10 @@ void Game::new_game(const CreationResult& cr) {
         world_.map().find_open_spot(player_.x, player_.y);
     }
 
-    npcs_.clear();
+    world_.npcs().clear();
     ground_items_.clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -1062,7 +1062,7 @@ void Game::save_current_location() {
     LocationState& state = location_cache_[key];
     state.map = std::move(world_.map());
     state.visibility = std::move(world_.visibility());
-    state.npcs = std::move(npcs_);
+    state.npcs = std::move(world_.npcs());
     state.ground_items = std::move(ground_items_);
     state.player_x = player_.x;
     state.player_y = player_.y;
@@ -1074,7 +1074,7 @@ void Game::restore_location(const LocationKey& key) {
     LocationState& state = it->second;
     world_.map() = std::move(state.map);
     world_.visibility() = std::move(state.visibility);
-    npcs_ = std::move(state.npcs);
+    world_.npcs() = std::move(state.npcs);
     ground_items_ = std::move(state.ground_items);
 
     if (key == ship_key_) {
@@ -1084,7 +1084,7 @@ void Game::restore_location(const LocationKey& key) {
     } else {
         // Spawn at the map's starting area (docking bay / entrance), not cached position
         std::vector<std::pair<int,int>> exclude;
-        for (const auto& npc : npcs_) {
+        for (const auto& npc : world_.npcs()) {
             exclude.push_back({npc.x, npc.y});
         }
         if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
@@ -1111,7 +1111,7 @@ void Game::enter_ship() {
         gen->generate(world_.map(), props, ship_seed);
         world_.map().set_location_name("Your Starship");
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
         // Spawn in region 0 (cockpit)
         if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
@@ -1239,14 +1239,14 @@ void Game::enter_overworld_tile() {
         gen->generate(world_.map(), props, detail_seed);
         world_.map().set_location_name(body_name);
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
         world_.map().find_open_spot(player_.x, player_.y);
 
         // Spawn NPCs
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
+        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
@@ -1352,7 +1352,7 @@ void Game::enter_detail_map() {
         world_.map().set_biome(props.biome);
         world_.map().set_location_name(body_name);
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
 
         // Place player: spawn in cockpit for landing pad, center otherwise
@@ -1383,9 +1383,9 @@ void Game::enter_detail_map() {
         // Spawn NPCs in settlements and outposts (after player placement)
         std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
         if (props.detail_poi_type == Tile::OW_Settlement) {
-            spawn_settlement_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
+            spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
         } else if (props.detail_poi_type == Tile::OW_Outpost) {
-            spawn_outpost_npcs(world_.map(), npcs_, player_.x, player_.y, npc_rng);
+            spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
         }
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -1520,13 +1520,13 @@ void Game::enter_dungeon_from_detail() {
         gen->generate(world_.map(), props, detail_seed);
         world_.map().set_location_name(body_name);
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
         world_.map().find_open_spot(player_.x, player_.y);
 
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
+        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
@@ -1567,7 +1567,7 @@ void Game::exit_dungeon_to_detail() {
         gen->generate(world_.map(), props, detail_seed);
         world_.map().set_biome(props.biome);
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
         world_.map().find_open_spot(player_.x, player_.y);
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -1641,7 +1641,7 @@ void Game::transition_detail_edge(int dx, int dy) {
         gen->generate(world_.map(), props, detail_seed);
         world_.map().set_biome(props.biome);
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
@@ -1709,7 +1709,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 auto gen = create_starship_generator();
                 gen->generate(world_.map(), props, ship_seed);
                 world_.map().set_location_name("Your Starship");
-                npcs_.clear();
+                world_.npcs().clear();
                 ground_items_.clear();
                 if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
                     world_.map().find_open_spot(player_.x, player_.y);
@@ -1851,7 +1851,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.map().set_biome(dest_biome);
             world_.map().set_location_name(location_name);
 
-            npcs_.clear();
+            world_.npcs().clear();
             ground_items_.clear();
 
             // Find landing tile for player spawn
@@ -1897,13 +1897,13 @@ void Game::travel_to_destination(const ChartAction& action) {
         gen->generate(world_.map(), props, travel_seed);
         world_.map().set_location_name(location_name);
 
-        npcs_.clear();
+        world_.npcs().clear();
         ground_items_.clear();
         world_.map().find_open_spot(player_.x, player_.y);
 
         std::mt19937 npc_rng(travel_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(world_.map(), npcs_, player_.x, player_.y, occupied, npc_rng);
+        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
@@ -1919,7 +1919,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         }
         if (!has_terminal) {
             std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-            for (const auto& npc : npcs_) {
+            for (const auto& npc : world_.npcs()) {
                 occupied.push_back({npc.x, npc.y});
             }
             int tx, ty;
@@ -1989,7 +1989,7 @@ void Game::try_move(int dx, int dy) {
     }
 
     // Check NPC collision
-    for (auto& npc : npcs_) {
+    for (auto& npc : world_.npcs()) {
         if (npc.alive() && npc.x == nx && npc.y == ny) {
             if (npc.disposition == Disposition::Hostile) {
                 attack_npc(npc);
@@ -2057,7 +2057,7 @@ void Game::try_interact(int dx, int dy) {
 
     // Find NPC at target tile
     Npc* target = nullptr;
-    for (auto& npc : npcs_) {
+    for (auto& npc : world_.npcs()) {
         if (npc.x == tx && npc.y == ty) {
             target = &npc;
             break;
@@ -2105,7 +2105,7 @@ void Game::try_interact(int dx, int dy) {
 
 bool Game::is_interactable(int tx, int ty) const {
     // Check for NPC
-    for (const auto& npc : npcs_) {
+    for (const auto& npc : world_.npcs()) {
         if (npc.x == tx && npc.y == ty && npc.disposition != Disposition::Hostile) return true;
     }
     // Check for interactable fixture (including doors)
@@ -2719,7 +2719,7 @@ void Game::recompute_fov() {
 
 void Game::advance_world(int cost) {
     // Grant energy to all NPCs on the current map
-    for (auto& npc : npcs_) {
+    for (auto& npc : world_.npcs()) {
         npc.energy += cost * npc.quickness / 100;
     }
 
@@ -2727,7 +2727,7 @@ void Game::advance_world(int cost) {
     bool acted = true;
     while (acted) {
         acted = false;
-        for (auto& npc : npcs_) {
+        for (auto& npc : world_.npcs()) {
             while (npc.energy >= energy_threshold) {
                 npc.energy -= energy_threshold;
                 process_npc_turn(npc);
@@ -2744,7 +2744,7 @@ void Game::advance_world(int cost) {
     // Tick and expire effects
     tick_effects(player_.effects, player_.hp, player_.effective_max_hp());
     expire_effects(player_.effects);
-    for (auto& npc : npcs_) {
+    for (auto& npc : world_.npcs()) {
         if (npc.alive()) {
             tick_effects(npc.effects, npc.hp, npc.max_hp);
             expire_effects(npc.effects);
@@ -2879,7 +2879,7 @@ void Game::process_npc_turn(Npc& npc) {
 
 bool Game::tile_occupied(int x, int y) const {
     if (player_.x == x && player_.y == y) return true;
-    for (const auto& npc : npcs_) {
+    for (const auto& npc : world_.npcs()) {
         if (npc.alive() && npc.x == x && npc.y == y) return true;
     }
     return false;
@@ -2927,7 +2927,7 @@ void Game::begin_targeting() {
     // Find nearest visible hostile NPC
     Npc* nearest = nullptr;
     int best_dist = 9999;
-    for (auto& npc : npcs_) {
+    for (auto& npc : world_.npcs()) {
         if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
         if (world_.visibility().get(npc.x, npc.y) != Visibility::Visible) continue;
         int d = chebyshev_dist(player_.x, player_.y, npc.x, npc.y);
@@ -2970,7 +2970,7 @@ void Game::handle_targeting_input(int key) {
         case '\n': case '\r': {
             // Check for alive NPC at cursor
             Npc* found = nullptr;
-            for (auto& npc : npcs_) {
+            for (auto& npc : world_.npcs()) {
                 if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
                     found = &npc;
                     break;
@@ -3184,7 +3184,7 @@ static const char* fixture_type_desc(FixtureType type) {
 
 std::string Game::look_tile_name(int mx, int my) const {
     // NPC
-    for (const auto& npc : npcs_) {
+    for (const auto& npc : world_.npcs()) {
         if (npc.x == mx && npc.y == my) return npc.display_name();
     }
     // Player
@@ -3231,7 +3231,7 @@ std::string Game::look_tile_name(int mx, int my) const {
 
 std::string Game::look_tile_desc(int mx, int my) const {
     // NPC
-    for (const auto& npc : npcs_) {
+    for (const auto& npc : world_.npcs()) {
         if (npc.x == mx && npc.y == my) {
             std::string desc = std::string(race_name(npc.race));
             if (!npc.role.empty()) desc += " " + npc.role;
@@ -3513,10 +3513,10 @@ void Game::remove_dead_npcs() {
         dialog_tree_ = nullptr;
         dialog_node_ = -1;
     }
-    npcs_.erase(
-        std::remove_if(npcs_.begin(), npcs_.end(),
+    world_.npcs().erase(
+        std::remove_if(world_.npcs().begin(), world_.npcs().end(),
                         [](const Npc& n) { return !n.alive(); }),
-        npcs_.end());
+        world_.npcs().end());
 }
 
 // --- Level-up rewards (easy to balance) ---
@@ -3562,7 +3562,7 @@ void Game::check_player_death() {
         ms.map_id = 0;
         ms.tilemap = world_.map();
         ms.visibility = world_.visibility();
-        ms.npcs = npcs_;
+        ms.npcs = world_.npcs();
         data.maps.push_back(std::move(ms));
 
         write_save("save_" + std::to_string(seed_), data);
@@ -3680,7 +3680,7 @@ void Game::save_game() {
     ms.map_id = 0;
     ms.tilemap = world_.map();
     ms.visibility = world_.visibility();
-    ms.npcs = npcs_;
+    ms.npcs = world_.npcs();
     ms.ground_items = ground_items_;
     data.maps.push_back(std::move(ms));
 
@@ -3709,7 +3709,7 @@ bool Game::load_game(const std::string& filename) {
     const auto& ms = data.maps[0];
     world_.map() = ms.tilemap;
     world_.visibility() = ms.visibility;
-    npcs_ = ms.npcs;
+    world_.npcs() = ms.npcs;
     ground_items_ = ms.ground_items;
 
     // Restore navigation data (or bootstrap for old saves)
@@ -4324,7 +4324,7 @@ void Game::render_map() {
     }
 
     // Draw visible NPCs
-    for (const auto& npc : npcs_) {
+    for (const auto& npc : world_.npcs()) {
         if (npc.alive() && world_.visibility().get(npc.x, npc.y) == Visibility::Visible) {
             ctx.put(npc.x - camera_x_, npc.y - camera_y_, npc.glyph, npc.color);
         }
@@ -4367,7 +4367,7 @@ void Game::render_map() {
         int rx = target_x_ - camera_x_, ry = target_y_ - camera_y_;
         if (rx >= 0 && rx < map_rect_.w && ry >= 0 && ry < map_rect_.h) {
             bool has_entity = false;
-            for (const auto& npc : npcs_) {
+            for (const auto& npc : world_.npcs()) {
                 if (npc.alive() && npc.x == target_x_ && npc.y == target_y_) {
                     has_entity = true;
                     break;
