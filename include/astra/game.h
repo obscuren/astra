@@ -154,6 +154,10 @@ private:
     void console_log(const std::string& msg);
     void render_console();
 
+    // Help screen
+    void handle_help_input(int key);
+    void render_help();
+
     // Helpers
     void log(const std::string& msg);
     Color hp_color() const;
@@ -186,6 +190,12 @@ private:
     std::deque<std::string> console_history_;
     int console_history_idx_ = -1; // -1 = not browsing history
     static constexpr size_t max_console_history_ = 50;
+
+    // Help screen
+    bool help_open_ = false;
+    int help_tab_ = 0;
+    int help_scroll_ = 0;
+    static constexpr int help_tab_count_ = 4;
 
     // Gameplay
     unsigned seed_ = 0;

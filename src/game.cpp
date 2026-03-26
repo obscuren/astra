@@ -301,12 +301,21 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Help screen intercept
+    if (help_open_) {
+        handle_help_input(key);
+        return;
+    }
+
     // Pause menu intercepts all input when open
     if (pause_menu_.is_open()) {
         MenuResult result = pause_menu_.handle_input(key);
         if (result == MenuResult::Selected) {
             char k = pause_menu_.selected_key();
             if (k == 'r') { /* Return to Game — just closes */ }
+            else if (k == 'h') {
+                help_open_ = true; help_tab_ = 0; help_scroll_ = 0;
+            }
             else if (k == 's') {
                 if (dev_mode_) { log("Saving disabled in dev mode."); }
                 else { save_game(); log("Game saved."); }
@@ -425,6 +434,7 @@ void Game::handle_play_input(int key) {
             pause_menu_.close();
             pause_menu_.set_title("Menu");
             pause_menu_.add_option('r', "return to game");
+            pause_menu_.add_option('h', "help");
             pause_menu_.add_option('s', "save game");
             pause_menu_.add_option('l', "load game");
             pause_menu_.add_option('o', "options");
@@ -472,6 +482,7 @@ void Game::handle_play_input(int key) {
         case 'r': reload_weapon(); break;
         case 'g': pickup_ground_item(); break;
         case 'c': character_screen_.open(&player_, renderer_.get()); break;
+        case '?': help_open_ = true; help_tab_ = 0; help_scroll_ = 0; break;
         case 'm':
             if (dev_mode_) {
                 star_chart_viewer_.open();
@@ -4134,6 +4145,7 @@ void Game::render_play() {
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
     quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
     render_console();
+    render_help();
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
