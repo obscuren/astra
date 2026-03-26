@@ -19,10 +19,10 @@
 - [x] **Marksman** — +1 damage, +2 range with rifles
 
 ### Active Abilities (requires ability bar UI)
-- [ ] **Jab** — extra attack at 50% damage, 3 turn cooldown
-- [ ] **Cleave** — hit all adjacent hostiles, 5 turn cooldown
-- [ ] **Quickdraw** — shoot at reduced action cost, 3 turn cooldown
-- [ ] **Intimidate** — target flees for 3-5 turns, 10 turn cooldown
+- [x] **Jab** — 50% damage quick strike, 3 tick cooldown (ShortBlade)
+- [x] **Cleave** — hit all adjacent hostiles, 5 tick cooldown (LongBlade)
+- [x] **Quickdraw** — fast ranged shot, 3 tick cooldown (Pistol)
+- [x] **Intimidate** — frighten adjacent enemy, 10 tick cooldown (placeholder)
 - [ ] **SuppressingFire** — cone AoE, apply slow, 8 turn cooldown
 - [ ] **Tumble** — reactive dodge on melee hit (complex)
 
@@ -69,7 +69,7 @@
 - [ ] **Conversation dialog in contextual menu** — show NPC speech in the popup, not just message log
 - [ ] **Autoexplore** — auto-walk through unexplored areas until enemy/item found
 - [ ] **Minimap** — small overview in corner
-- [ ] **Ability bar** — display and activate learned abilities (keys 1-5)
+- [x] **Ability bar** — display and activate learned abilities (keys 1-5)
 - [ ] **Message log scrollback** — scroll through message history
 - [ ] **Item comparison** — show stat diff when hovering equipment
 
