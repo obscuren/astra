@@ -9,6 +9,7 @@
 #include "astra/star_chart.h"
 #include "astra/character_creation.h"
 #include "astra/character_screen.h"
+#include "astra/input_manager.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/trade_window.h"
 #include "astra/tile_props.h"
@@ -98,14 +99,9 @@ private:
     void begin_targeting();
     void handle_targeting_input(int key);
     void shoot_target();
-    void begin_look();
-    void begin_look_at(int mx, int my);
-    void handle_look_input(int key);
     void render_look_popup();
     std::string look_tile_name(int mx, int my) const;
     std::string look_tile_desc(int mx, int my) const;
-    std::string look_tile_glyph(int mx, int my) const;
-    Color look_tile_color(int mx, int my) const;
     void pickup_ground_item();
     void drop_item(int index);
     void use_item(int index);
@@ -222,13 +218,11 @@ private:
     int active_tab_ = 0;
     bool panel_visible_ = true;
 
+    // Input subsystem (look mode)
+    InputManager input_;
+
     // Input modes
     bool awaiting_interact_ = false;
-    bool looking_ = false;
-    int look_x_ = 0, look_y_ = 0;
-    int look_blink_ = 0;
-    char look_cell_glyph_[5] = {};   // cached from screen before cursor drawn
-    Color look_cell_color_ = Color::White;
     bool targeting_ = false;
     int target_x_ = 0, target_y_ = 0;
     int blink_phase_ = 0;

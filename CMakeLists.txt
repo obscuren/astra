@@ -53,6 +53,7 @@ set(ASTRA_SOURCES
     src/character_creation.cpp
     src/effect.cpp
     src/game_help.cpp
+    src/input_manager.cpp
     src/boot_sequence.cpp
 )
 

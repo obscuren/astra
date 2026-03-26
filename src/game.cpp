@@ -99,7 +99,7 @@ void Game::run() {
     render();
 
     while (running_) {
-        int key = (targeting_ || looking_ || quit_confirm_.is_open())
+        int key = (targeting_ || input_.looking() || quit_confirm_.is_open())
                       ? renderer_->wait_input_timeout(300)
                       : renderer_->wait_input();
 
@@ -116,7 +116,7 @@ void Game::run() {
         } else if (key == -1) {
             // Timeout — toggle blink phase for reticule
             ++blink_phase_;
-            ++look_blink_;
+            input_.tick_look_blink();
         } else {
             handle_input(key);
         }
@@ -380,7 +380,7 @@ void Game::handle_play_input(int key) {
         // [l] Look — enter look mode focused on NPC
         if (key == 'l' && interacting_npc_) {
             npc_dialog_.close();
-            begin_look_at(interacting_npc_->x, interacting_npc_->y);
+            input_.begin_look_at(interacting_npc_->x, interacting_npc_->y);
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -1;
@@ -404,8 +404,8 @@ void Game::handle_play_input(int key) {
     }
 
     // Look mode intercept
-    if (looking_) {
-        handle_look_input(key);
+    if (input_.looking()) {
+        input_.handle_look_input(key, map_.width(), map_.height());
         return;
     }
 
@@ -476,7 +476,10 @@ void Game::handle_play_input(int key) {
             advance_world(ActionCost::wait);
             recompute_fov();
             break;
-        case 'l': begin_look(); break;
+        case 'l':
+            input_.begin_look(player_.x, player_.y);
+            log("Look mode. Move cursor to examine. [Esc] to exit.");
+            break;
         case 't': begin_targeting(); break;
         case 's': shoot_target(); break;
         case 'r': reload_weapon(); break;
@@ -1087,7 +1090,7 @@ void Game::new_game() {
     messages_.clear();
     awaiting_interact_ = false;
     targeting_ = false;
-    looking_ = false;
+    input_.cancel_look();
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
@@ -1239,7 +1242,7 @@ void Game::new_game(const CreationResult& cr) {
     messages_.clear();
     awaiting_interact_ = false;
     targeting_ = false;
-    looking_ = false;
+    input_.cancel_look();
     target_npc_ = nullptr;
     inventory_cursor_ = 0;
     inspecting_item_ = false;
@@ -3363,41 +3366,7 @@ void Game::reload_weapon() {
     log("No energy cells to reload.");
 }
 
-// ── Look mode ───────────────────────────────────────────────────────
 
-void Game::begin_look() {
-    looking_ = true;
-    look_x_ = player_.x;
-    look_y_ = player_.y;
-    look_blink_ = 0;
-    log("Look mode. Move cursor to examine. [Esc] to exit.");
-}
-
-void Game::begin_look_at(int mx, int my) {
-    looking_ = true;
-    look_x_ = mx;
-    look_y_ = my;
-    look_blink_ = 0;
-}
-
-void Game::handle_look_input(int key) {
-    switch (key) {
-        case 'k': case KEY_UP:    look_y_--; break;
-        case 'j': case KEY_DOWN:  look_y_++; break;
-        case 'h': case KEY_LEFT:  look_x_--; break;
-        case 'l': case KEY_RIGHT: look_x_++; break;
-        case 27: // Escape
-            looking_ = false;
-            return;
-        default:
-            return;
-    }
-    // Clamp to map bounds
-    if (look_x_ < 0) look_x_ = 0;
-    if (look_y_ < 0) look_y_ = 0;
-    if (look_x_ >= map_.width()) look_x_ = map_.width() - 1;
-    if (look_y_ >= map_.height()) look_y_ = map_.height() - 1;
-}
 
 static const char* fixture_type_name(FixtureType type) {
     switch (type) {
@@ -3560,27 +3529,18 @@ std::string Game::look_tile_desc(int mx, int my) const {
     }
 }
 
-std::string Game::look_tile_glyph(int, int) const {
-    // Use cached glyph read before the cursor was drawn
-    return std::string(look_cell_glyph_);
-}
-
-Color Game::look_tile_color(int, int) const {
-    return look_cell_color_;
-}
-
 void Game::render_look_popup() {
-    if (!looking_) return;
+    if (!input_.looking()) return;
 
-    Visibility v = visibility_.get(look_x_, look_y_);
+    Visibility v = visibility_.get(input_.look_x(), input_.look_y());
     if (v == Visibility::Unexplored) return;
 
-    std::string name = look_tile_name(look_x_, look_y_);
+    std::string name = look_tile_name(input_.look_x(), input_.look_y());
     if (name.empty()) return;
 
-    std::string desc = look_tile_desc(look_x_, look_y_);
-    std::string glyph = look_tile_glyph(look_x_, look_y_);
-    Color glyph_color = look_tile_color(look_x_, look_y_);
+    std::string desc = look_tile_desc(input_.look_x(), input_.look_y());
+    std::string glyph = std::string(input_.cached_glyph()); // cached from render_map (input_.look_x(), input_.look_y());
+    Color glyph_color = input_.cached_color(); // cached from render_map (input_.look_x(), input_.look_y());
 
     // Word-wrap description to fit popup width
     int popup_w = std::max(36, std::min(static_cast<int>(name.size()) + 12, screen_w_ / 2));
@@ -4664,16 +4624,21 @@ void Game::render_map() {
     }
 
     // Draw look mode cursor — read cell BEFORE overwriting with reticule
-    if (looking_) {
-        int lsx = look_x_ - camera_x_;
-        int lsy = look_y_ - camera_y_;
+    if (input_.looking()) {
+        int lsx = input_.look_x() - camera_x_;
+        int lsy = input_.look_y() - camera_y_;
         if (lsx >= 0 && lsx < map_rect_.w && lsy >= 0 && lsy < map_rect_.h) {
             // Cache the actual glyph/color at this position
             int screen_x = map_rect_.x + lsx;
             int screen_y = map_rect_.y + lsy;
-            renderer_->read_cell(screen_x, screen_y, look_cell_glyph_, look_cell_color_);
+            {
+                char buf[5] = {};
+                Color fg = Color::White;
+                renderer_->read_cell(screen_x, screen_y, buf, fg);
+                input_.cache_look_cell(buf, fg);
+            }
 
-            if (look_blink_ % 2 == 0) {
+            if (input_.look_blink() % 2 == 0) {
                 ctx.put(lsx, lsy, 'X', Color::Yellow);
             }
         }
