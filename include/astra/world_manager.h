@@ -23,11 +23,16 @@ public:
     std::vector<GroundItem>& ground_items() { return ground_items_; }
     const std::vector<GroundItem>& ground_items() const { return ground_items_; }
 
+    std::vector<Item>& stash() { return stash_; }
+    const std::vector<Item>& stash() const { return stash_; }
+    static constexpr int max_stash_size = 20;
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
     std::vector<Npc> npcs_;
     std::vector<GroundItem> ground_items_;
+    std::vector<Item> stash_;
 };
 
 } // namespace astra

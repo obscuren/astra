@@ -2273,8 +2273,8 @@ void Game::interact_fixture(int fid) {
         case FixtureType::SupplyLocker: {
             npc_dialog_.close();
             npc_dialog_.set_title("Supply Locker");
-            npc_dialog_body_ = "Stash (" + std::to_string(stash_.size()) + "/" +
-                std::to_string(max_stash_size_) + ")";
+            npc_dialog_body_ = "Stash (" + std::to_string(world_.stash().size()) + "/" +
+                std::to_string(WorldManager::max_stash_size) + ")";
             log(npc_dialog_body_);
             npc_dialog_.add_option('s', "Store an item");
             npc_dialog_.add_option('r', "Retrieve an item");
@@ -2391,16 +2391,16 @@ void Game::advance_dialog(int selected) {
                 dialog_node_ = -1;
                 return;
             }
-            if (static_cast<int>(stash_.size()) >= max_stash_size_) {
-                log("Stash is full! (" + std::to_string(max_stash_size_) +
-                    "/" + std::to_string(max_stash_size_) + ")");
+            if (static_cast<int>(world_.stash().size()) >= WorldManager::max_stash_size) {
+                log("Stash is full! (" + std::to_string(WorldManager::max_stash_size) +
+                    "/" + std::to_string(WorldManager::max_stash_size) + ")");
                 dialog_node_ = -1;
                 return;
             }
             npc_dialog_.close();
             npc_dialog_.set_title("Store Item");
-            log("Select item to store (" + std::to_string(stash_.size()) +
-                "/" + std::to_string(max_stash_size_) + "):");
+            log("Select item to store (" + std::to_string(world_.stash().size()) +
+                "/" + std::to_string(WorldManager::max_stash_size) + "):");
             { char sk = '1';
             for (const auto& item : player_.inventory.items) {
                 npc_dialog_.add_option(sk++, item.name);
@@ -2412,17 +2412,17 @@ void Game::advance_dialog(int selected) {
             dialog_node_ = -4; // sentinel: store mode
         } else if (selected == 1) {
             // Retrieve mode — show stash contents
-            if (stash_.empty()) {
+            if (world_.stash().empty()) {
                 log("The stash is empty.");
                 dialog_node_ = -1;
                 return;
             }
             npc_dialog_.close();
             npc_dialog_.set_title("Retrieve Item");
-            log("Select item to retrieve (" + std::to_string(stash_.size()) +
-                "/" + std::to_string(max_stash_size_) + "):");
+            log("Select item to retrieve (" + std::to_string(world_.stash().size()) +
+                "/" + std::to_string(WorldManager::max_stash_size) + "):");
             { char rk = '1';
-            for (const auto& item : stash_) {
+            for (const auto& item : world_.stash()) {
                 npc_dialog_.add_option(rk++, item.name);
                 if (rk > '9') rk = 'a';
             } }
@@ -2446,7 +2446,7 @@ void Game::advance_dialog(int selected) {
             player_.inventory.items.erase(
                 player_.inventory.items.begin() + selected);
             log("Stored " + stored.name + " in the stash.");
-            stash_.push_back(std::move(stored));
+            world_.stash().push_back(std::move(stored));
         }
         return;
     }
@@ -2454,13 +2454,13 @@ void Game::advance_dialog(int selected) {
     // Stash retrieve mode — player selected a stash item to retrieve
     if (dialog_node_ == -5) {
         dialog_node_ = -1;
-        int stash_count = static_cast<int>(stash_.size());
+        int stash_count = static_cast<int>(world_.stash().size());
         if (selected >= 0 && selected < stash_count) {
-            Item retrieved = std::move(stash_[selected]);
-            stash_.erase(stash_.begin() + selected);
+            Item retrieved = std::move(world_.stash()[selected]);
+            world_.stash().erase(world_.stash().begin() + selected);
             if (!player_.inventory.can_add(retrieved)) {
                 log("Too heavy! Can't carry " + retrieved.name + ".");
-                stash_.insert(stash_.begin() + selected, std::move(retrieved));
+                world_.stash().insert(world_.stash().begin() + selected, std::move(retrieved));
             } else {
                 log("Retrieved " + retrieved.name + " from the stash.");
                 player_.inventory.items.push_back(std::move(retrieved));
@@ -3676,7 +3676,7 @@ void Game::save_game() {
     data.panel_visible = panel_visible_;
     data.messages = messages_;
     data.death_message = death_message_;
-    data.stash = stash_;
+    data.stash = world_.stash();
     data.navigation = navigation_;
     data.surface_mode = static_cast<uint8_t>(surface_mode_);
     data.overworld_x = overworld_x_;
@@ -3711,7 +3711,7 @@ bool Game::load_game(const std::string& filename) {
     active_tab_ = data.active_tab;
     panel_visible_ = data.panel_visible;
     messages_ = data.messages;
-    stash_ = data.stash;
+    world_.stash() = data.stash;
 
     // Restore first map
     const auto& ms = data.maps[0];

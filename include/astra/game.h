@@ -187,8 +187,6 @@ private:
     unsigned seed_ = 0;
     std::mt19937 rng_;
     Player player_;
-    std::vector<Item> stash_;
-    static constexpr int max_stash_size_ = 20;
     WorldManager world_;
     NavigationData navigation_;
     StarChartViewer star_chart_viewer_;
