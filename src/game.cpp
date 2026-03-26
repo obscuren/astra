@@ -646,6 +646,10 @@ void Game::apply_passive_skill_effects() {
         !has_effect(player_.effects, EffectId::Haggle)) {
         add_effect(player_.effects, make_haggle());
     }
+    if (player_has_skill(player_, SkillId::ThickSkin) &&
+        !has_effect(player_.effects, EffectId::ThickSkin)) {
+        add_effect(player_.effects, make_thick_skin());
+    }
 }
 
 } // namespace astra

@@ -20,6 +20,7 @@ enum class EffectId : uint32_t {
     Slow         = 8,
     Haste        = 9,
     Haggle       = 10,
+    ThickSkin    = 11,
 };
 
 struct Effect {
@@ -82,5 +83,6 @@ Effect make_dodge_boost(int duration, int amount);
 Effect make_attack_boost(int duration, int amount);
 Effect make_defense_boost(int duration, int amount);
 Effect make_haggle();
+Effect make_thick_skin();
 
 } // namespace astra

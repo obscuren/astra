@@ -196,4 +196,16 @@ Effect make_haggle() {
     return e;
 }
 
+Effect make_thick_skin() {
+    Effect e;
+    e.id = EffectId::ThickSkin;
+    e.name = "Thick Skin";
+    e.color = Color::Green;
+    e.duration = -1;
+    e.remaining = -1;
+    e.show_in_bar = false;
+    e.modifiers.defense = 1;
+    return e;
+}
+
 } // namespace astra
