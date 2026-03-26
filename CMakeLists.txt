@@ -52,7 +52,7 @@ set(ASTRA_SOURCES
     src/character_screen.cpp
     src/character_creation.cpp
     src/effect.cpp
-    src/game_help.cpp
+    src/help_screen.cpp
     src/input_manager.cpp
     src/dev_console.cpp
     src/boot_sequence.cpp

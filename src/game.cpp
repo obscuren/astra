@@ -302,8 +302,8 @@ void Game::handle_play_input(int key) {
     }
 
     // Help screen intercept
-    if (help_open_) {
-        handle_help_input(key);
+    if (help_screen_.is_open()) {
+        help_screen_.handle_input(key);
         return;
     }
 
@@ -314,7 +314,7 @@ void Game::handle_play_input(int key) {
             char k = pause_menu_.selected_key();
             if (k == 'r') { /* Return to Game — just closes */ }
             else if (k == 'h') {
-                help_open_ = true; help_tab_ = 0; help_scroll_ = 0;
+                help_screen_.open();
             }
             else if (k == 's') {
                 if (dev_mode_) { log("Saving disabled in dev mode."); }
@@ -485,7 +485,7 @@ void Game::handle_play_input(int key) {
         case 'r': reload_weapon(); break;
         case 'g': pickup_ground_item(); break;
         case 'c': character_screen_.open(&player_, renderer_.get()); break;
-        case '?': help_open_ = true; help_tab_ = 0; help_scroll_ = 0; break;
+        case '?': help_screen_.open(); break;
         case 'm':
             if (dev_mode_) {
                 star_chart_viewer_.open();
@@ -3865,7 +3865,7 @@ void Game::render_play() {
     pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
     quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
     console_.draw(renderer_.get(), screen_w_, screen_h_);
-    render_help();
+    help_screen_.draw(renderer_.get(), screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);

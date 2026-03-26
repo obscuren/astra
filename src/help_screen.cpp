@@ -1,33 +1,41 @@
-#include "astra/game.h"
+#include "astra/help_screen.h"
 
 namespace astra {
 
-void Game::handle_help_input(int key) {
-    switch (key) {
-        case 27: case '?':
-            help_open_ = false;
-            return;
-        case 'q':
-            help_tab_ = (help_tab_ - 1 + help_tab_count_) % help_tab_count_;
-            help_scroll_ = 0;
-            return;
-        case 'e':
-            help_tab_ = (help_tab_ + 1) % help_tab_count_;
-            help_scroll_ = 0;
-            return;
-        case KEY_UP: case 'k':
-            if (help_scroll_ > 0) --help_scroll_;
-            return;
-        case KEY_DOWN: case 'j':
-            ++help_scroll_;
-            return;
-    }
+void HelpScreen::open() {
+    open_ = true;
+    tab_ = 0;
+    scroll_ = 0;
 }
 
-void Game::render_help() {
-    if (!help_open_) return;
+bool HelpScreen::handle_input(int key) {
+    if (!open_) return false;
 
-    // Help content — {key, description} pairs. Empty key = section header.
+    switch (key) {
+        case 27: case '?':
+            open_ = false;
+            return true;
+        case 'q':
+            tab_ = (tab_ - 1 + tab_count_) % tab_count_;
+            scroll_ = 0;
+            return true;
+        case 'e':
+            tab_ = (tab_ + 1) % tab_count_;
+            scroll_ = 0;
+            return true;
+        case KEY_UP: case 'k':
+            if (scroll_ > 0) --scroll_;
+            return true;
+        case KEY_DOWN: case 'j':
+            ++scroll_;
+            return true;
+    }
+    return true; // consume all input while open
+}
+
+void HelpScreen::draw(Renderer* renderer, int screen_w, int screen_h) {
+    if (!open_) return;
+
     struct HelpLine { const char* key; const char* desc; };
 
     static const HelpLine tab_controls[] = {
@@ -136,19 +144,18 @@ void Game::render_help() {
     static const HelpLine* tabs[] = { tab_controls, tab_movement, tab_combat, tab_systems };
     static const char* tab_names[] = { "Controls", "Movement", "Combat", "Systems" };
 
-    // Full-screen panel
     int margin = 2;
-    Rect bounds{margin, margin, screen_w_ - margin * 2, screen_h_ - margin * 2};
-    Panel help(renderer_.get(), bounds, "Help");
+    Rect bounds{margin, margin, screen_w - margin * 2, screen_h - margin * 2};
+    Panel help(renderer, bounds, "Help");
     help.set_footer("[ESC] Close  [q/e] Prev/Next Tab  [Up/Down] Scroll");
     help.draw();
     DrawContext ctx = help.content();
 
     // Tab bar
     int tx = 1;
-    for (int i = 0; i < help_tab_count_; ++i) {
-        Color c = (i == help_tab_) ? Color::Yellow : Color::DarkGray;
-        std::string label = (i == help_tab_)
+    for (int i = 0; i < tab_count_; ++i) {
+        Color c = (i == tab_) ? Color::Yellow : Color::DarkGray;
+        std::string label = (i == tab_)
             ? std::string("[") + tab_names[i] + "]"
             : std::string(" ") + tab_names[i] + " ";
         ctx.text(tx, 0, label, c);
@@ -160,37 +167,32 @@ void Game::render_help() {
         ctx.put(x, 1, BoxDraw::H, Color::DarkGray);
 
     // Content
-    const HelpLine* lines = tabs[help_tab_];
+    const HelpLine* lines = tabs[tab_];
     int content_y = 3;
     int visible_h = ctx.height() - content_y;
 
-    // Count total lines
     int total_lines = 0;
     for (const HelpLine* l = lines; l->key != nullptr || l->desc != nullptr; ++l)
         ++total_lines;
 
-    // Clamp scroll
     int max_scroll = total_lines - visible_h;
     if (max_scroll < 0) max_scroll = 0;
-    if (help_scroll_ > max_scroll) help_scroll_ = max_scroll;
+    if (scroll_ > max_scroll) scroll_ = max_scroll;
 
     int row = 0;
     int drawn = 0;
     for (const HelpLine* l = lines; l->key != nullptr || l->desc != nullptr; ++l) {
-        if (row < help_scroll_) { ++row; continue; }
+        if (row < scroll_) { ++row; continue; }
         if (drawn >= visible_h) break;
 
         int y = content_y + drawn;
         if (l->key == nullptr) {
-            // Pure text line (continuation)
             ctx.text(2, y, l->desc, Color::DarkGray);
         } else if (l->key[0] == '\0' && l->desc[0] != '\0') {
-            // Section header
             ctx.text(1, y, l->desc, Color::White);
         } else if (l->key[0] == '\0') {
             // Blank line
         } else {
-            // Key-value pair
             ctx.text(3, y, l->key, Color::Yellow);
             ctx.text(19, y, l->desc, Color::DarkGray);
         }
