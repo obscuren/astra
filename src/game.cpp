@@ -442,7 +442,7 @@ void Game::handle_play_input(int key) {
             pause_menu_.open();
             break;
         case ' ':
-            if (on_overworld()) {
+            if (world_.on_overworld()) {
                 Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::OW_Landing) {
                     enter_detail_map();
@@ -542,14 +542,14 @@ void Game::handle_play_input(int key) {
             break;
         }
         case '>': {
-            if (on_overworld()) {
+            if (world_.on_overworld()) {
                 Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
                     enter_detail_map();
                 }
-            } else if (on_detail_map()) {
+            } else if (world_.on_detail_map()) {
                 // Check for Portal tile to enter dungeon
                 Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::Portal) {
@@ -559,9 +559,9 @@ void Game::handle_play_input(int key) {
             break;
         }
         case '<': {
-            if (on_detail_map()) {
+            if (world_.on_detail_map()) {
                 exit_detail_to_overworld();
-            } else if (surface_mode_ == SurfaceMode::Dungeon &&
+            } else if (world_.surface_mode() == SurfaceMode::Dungeon &&
                        !navigation_.at_station && !navigation_.on_ship) {
                 exit_dungeon_to_detail();
             }
@@ -573,7 +573,7 @@ void Game::handle_play_input(int key) {
             // Number keys only apply to Wait tab
             if (key >= '1' && key <= '6' && tab != PanelTab::Wait) break;
             // Overworld: enter detail map for the tile underneath the player
-            if (on_overworld() && (key == '\n' || key == '\r')) {
+            if (world_.on_overworld() && (key == '\n' || key == '\r')) {
                 Tile t = world_.map().get(player_.x, player_.y);
                 if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
@@ -729,7 +729,7 @@ void Game::dev_warp_random() {
     recompute_fov();
     compute_camera();
     current_region_ = -1;
-    surface_mode_ = SurfaceMode::Dungeon;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
 
     log(std::string("[DEV] Warped to: ") + m.name);
     check_region_change();
@@ -765,7 +765,7 @@ void Game::dev_warp_stamp_test() {
     recompute_fov();
     compute_camera();
     current_region_ = -1;
-    surface_mode_ = SurfaceMode::Dungeon;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
 
     check_region_change();
 }
@@ -864,9 +864,9 @@ void Game::new_game() {
     inspecting_item_ = false;
     current_region_ = -1;
     active_tab_ = 0; // Start on Messages tab
-    surface_mode_ = SurfaceMode::Dungeon;
-    overworld_x_ = 0;
-    overworld_y_ = 0;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    world_.overworld_x() = 0;
+    world_.overworld_y() = 0;
     world_tick_ = 0;
     day_clock_ = DayClock{};  // station day = 200 ticks
     location_cache_.clear();
@@ -1016,9 +1016,9 @@ void Game::new_game(const CreationResult& cr) {
     inspecting_item_ = false;
     current_region_ = -1;
     active_tab_ = 0;
-    surface_mode_ = SurfaceMode::Dungeon;
-    overworld_x_ = 0;
-    overworld_y_ = 0;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    world_.overworld_x() = 0;
+    world_.overworld_y() = 0;
     world_tick_ = 0;
     day_clock_ = DayClock{};
     location_cache_.clear();
@@ -1056,16 +1056,16 @@ void Game::save_current_location() {
         key = ship_key_;
     } else if (navigation_.at_station) {
         key = {navigation_.current_system_id, -1, -1, true, -1, -1, 0};
-    } else if (on_overworld()) {
+    } else if (world_.on_overworld()) {
         key = {navigation_.current_system_id, navigation_.current_body_index,
                navigation_.current_moon_index, false, -1, -1, 0};
-    } else if (on_detail_map()) {
+    } else if (world_.on_detail_map()) {
         key = {navigation_.current_system_id, navigation_.current_body_index,
-               navigation_.current_moon_index, false, overworld_x_, overworld_y_, 0};
+               navigation_.current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 0};
     } else {
         // Dungeon (depth=1)
         key = {navigation_.current_system_id, navigation_.current_body_index,
-               navigation_.current_moon_index, false, overworld_x_, overworld_y_, 1};
+               navigation_.current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 1};
     }
     LocationState& state = location_cache_[key];
     state.map = std::move(world_.map());
@@ -1106,7 +1106,7 @@ void Game::restore_location(const LocationKey& key) {
 void Game::enter_ship() {
     save_current_location();
     navigation_.on_ship = true;
-    surface_mode_ = SurfaceMode::Dungeon;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
 
     if (location_cache_.count(ship_key_)) {
         restore_location(ship_key_);
@@ -1138,8 +1138,8 @@ void Game::enter_ship() {
 
 void Game::enter_overworld_tile() {
     Tile tile = world_.map().get(player_.x, player_.y);
-    overworld_x_ = player_.x;
-    overworld_y_ = player_.y;
+    world_.overworld_x() = player_.x;
+    world_.overworld_y() = player_.y;
 
     // Determine detail map type + biome from overworld tile
     MapType detail_type = MapType::Rocky;
@@ -1216,11 +1216,11 @@ void Game::enter_overworld_tile() {
     LocationKey detail_key = {navigation_.current_system_id,
                               navigation_.current_body_index,
                               navigation_.current_moon_index,
-                              false, overworld_x_, overworld_y_, 1};
+                              false, world_.overworld_x(), world_.overworld_y(), 1};
 
     // Save overworld before entering detail
     save_current_location();
-    surface_mode_ = SurfaceMode::Dungeon;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
 
     if (location_cache_.count(detail_key)) {
         restore_location(detail_key);
@@ -1230,8 +1230,8 @@ void Game::enter_overworld_tile() {
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
-            ^ (static_cast<unsigned>(overworld_x_) * 1013u)
-            ^ (static_cast<unsigned>(overworld_y_) * 2039u);
+            ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
         auto props = default_properties(detail_type);
         props.biome = detail_biome;
@@ -1280,9 +1280,9 @@ void Game::exit_to_overworld() {
         restore_location(ow_key);
     }
 
-    player_.x = overworld_x_;
-    player_.y = overworld_y_;
-    surface_mode_ = SurfaceMode::Overworld;
+    player_.x = world_.overworld_x();
+    player_.y = world_.overworld_y();
+    world_.set_surface_mode(SurfaceMode::Overworld);
     world_.visibility().reveal_all();
     current_region_ = -1;
     compute_camera();
@@ -1299,7 +1299,7 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
                           false, -1, -1, 0};
 
     const TileMap* ow_map = nullptr;
-    if (on_overworld()) {
+    if (world_.on_overworld()) {
         ow_map = &world_.map();
     } else {
         auto it = location_cache_.find(ow_key);
@@ -1330,19 +1330,19 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
 }
 
 void Game::enter_detail_map() {
-    overworld_x_ = player_.x;
-    overworld_y_ = player_.y;
+    world_.overworld_x() = player_.x;
+    world_.overworld_y() = player_.y;
 
-    auto props = build_detail_props(overworld_x_, overworld_y_);
+    auto props = build_detail_props(world_.overworld_x(), world_.overworld_y());
     std::string body_name = world_.map().location_name();
 
     LocationKey detail_key = {navigation_.current_system_id,
                               navigation_.current_body_index,
                               navigation_.current_moon_index,
-                              false, overworld_x_, overworld_y_, 0};
+                              false, world_.overworld_x(), world_.overworld_y(), 0};
 
     save_current_location();
-    surface_mode_ = SurfaceMode::DetailMap;
+    world_.set_surface_mode(SurfaceMode::DetailMap);
 
     if (location_cache_.count(detail_key)) {
         restore_location(detail_key);
@@ -1351,8 +1351,8 @@ void Game::enter_detail_map() {
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
-            ^ (static_cast<unsigned>(overworld_x_) * 1013u)
-            ^ (static_cast<unsigned>(overworld_y_) * 2039u);
+            ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
         world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
@@ -1438,9 +1438,9 @@ void Game::exit_detail_to_overworld() {
         restore_location(ow_key);
     }
 
-    player_.x = overworld_x_;
-    player_.y = overworld_y_;
-    surface_mode_ = SurfaceMode::Overworld;
+    player_.x = world_.overworld_x();
+    player_.y = world_.overworld_y();
+    world_.set_surface_mode(SurfaceMode::Overworld);
     world_.visibility().reveal_all();
     current_region_ = -1;
     compute_camera();
@@ -1461,7 +1461,7 @@ void Game::enter_dungeon_from_detail() {
     Biome ow_biome = world_.map().biome();
     auto it = location_cache_.find(ow_key);
     if (it != location_cache_.end()) {
-        ow_tile = it->second.map.get(overworld_x_, overworld_y_);
+        ow_tile = it->second.map.get(world_.overworld_x(), world_.overworld_y());
         ow_biome = it->second.map.biome();
     }
 
@@ -1506,9 +1506,9 @@ void Game::enter_dungeon_from_detail() {
     LocationKey dungeon_key = {navigation_.current_system_id,
                                navigation_.current_body_index,
                                navigation_.current_moon_index,
-                               false, overworld_x_, overworld_y_, 1};
+                               false, world_.overworld_x(), world_.overworld_y(), 1};
 
-    surface_mode_ = SurfaceMode::Dungeon;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
 
     if (location_cache_.count(dungeon_key)) {
         restore_location(dungeon_key);
@@ -1517,8 +1517,8 @@ void Game::enter_dungeon_from_detail() {
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
-            ^ (static_cast<unsigned>(overworld_x_) * 1013u)
-            ^ (static_cast<unsigned>(overworld_y_) * 2039u)
+            ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u)
             ^ 0xDE3Du;
 
         auto props = default_properties(detail_type);
@@ -1554,21 +1554,21 @@ void Game::exit_dungeon_to_detail() {
     LocationKey detail_key = {navigation_.current_system_id,
                               navigation_.current_body_index,
                               navigation_.current_moon_index,
-                              false, overworld_x_, overworld_y_, 0};
+                              false, world_.overworld_x(), world_.overworld_y(), 0};
 
-    surface_mode_ = SurfaceMode::DetailMap;
+    world_.set_surface_mode(SurfaceMode::DetailMap);
 
     if (location_cache_.count(detail_key)) {
         restore_location(detail_key);
     } else {
         // Detail map was never cached — generate it
-        auto props = build_detail_props(overworld_x_, overworld_y_);
+        auto props = build_detail_props(world_.overworld_x(), world_.overworld_y());
         unsigned detail_seed = seed_
             ^ (navigation_.current_system_id * 7919u)
             ^ (static_cast<unsigned>(navigation_.current_body_index) * 6271u)
             ^ (static_cast<unsigned>(navigation_.current_moon_index + 1) * 3571u)
-            ^ (static_cast<unsigned>(overworld_x_) * 1013u)
-            ^ (static_cast<unsigned>(overworld_y_) * 2039u);
+            ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
         world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
@@ -1602,8 +1602,8 @@ void Game::transition_detail_edge(int dx, int dy) {
     }
 
     const auto& ow_map = ow_it->second.map;
-    int new_ow_x = overworld_x_ + dx;
-    int new_ow_y = overworld_y_ + dy;
+    int new_ow_x = world_.overworld_x() + dx;
+    int new_ow_y = world_.overworld_y() + dy;
 
     // Bounds check
     if (new_ow_x < 0 || new_ow_x >= ow_map.width() ||
@@ -1623,8 +1623,8 @@ void Game::transition_detail_edge(int dx, int dy) {
     save_current_location();
 
     // Update overworld position
-    overworld_x_ = new_ow_x;
-    overworld_y_ = new_ow_y;
+    world_.overworld_x() = new_ow_x;
+    world_.overworld_y() = new_ow_y;
 
     // Generate or restore the new detail map
     auto props = build_detail_props(new_ow_x, new_ow_y);
@@ -1881,9 +1881,9 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
         }
 
-        surface_mode_ = SurfaceMode::Overworld;
-        overworld_x_ = 0;
-        overworld_y_ = 0;
+        world_.set_surface_mode(SurfaceMode::Overworld);
+        world_.overworld_x() = 0;
+        world_.overworld_y() = 0;
         world_.visibility().reveal_all();
         current_region_ = -1;
         compute_camera();
@@ -1937,7 +1937,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         }
     }
 
-    surface_mode_ = SurfaceMode::Dungeon;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
     current_region_ = -1;
     recompute_fov();
     compute_camera();
@@ -1950,7 +1950,7 @@ void Game::try_move(int dx, int dy) {
     int ny = player_.y + dy;
 
     // Detail map: edge transitions
-    if (on_detail_map()) {
+    if (world_.on_detail_map()) {
         if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) {
             int ddx = (nx < 0) ? -1 : (nx >= world_.map().width()) ? 1 : 0;
             int ddy = (ny < 0) ? -1 : (ny >= world_.map().height()) ? 1 : 0;
@@ -1961,7 +1961,7 @@ void Game::try_move(int dx, int dy) {
     }
 
     // Overworld: simplified movement
-    if (on_overworld()) {
+    if (world_.on_overworld()) {
         if (nx < 0 || nx >= world_.map().width() || ny < 0 || ny >= world_.map().height()) return;
         if (!world_.map().passable(nx, ny)) {
             log("Impassable terrain.");
@@ -2023,7 +2023,7 @@ void Game::try_move(int dx, int dy) {
 
     // Portal tile: return to detail map / overworld if in a dungeon on a body
     if (world_.map().get(nx, ny) == Tile::Portal &&
-        surface_mode_ == SurfaceMode::Dungeon && !navigation_.at_station && !navigation_.on_ship) {
+        world_.surface_mode() == SurfaceMode::Dungeon && !navigation_.at_station && !navigation_.on_ship) {
         exit_dungeon_to_detail();
         return;
     }
@@ -2184,9 +2184,9 @@ void Game::use_at(int tx, int ty) {
         // Portal / stairs
         Tile t = world_.map().get(tx, ty);
         if (t == Tile::Portal) {
-            if (on_detail_map()) {
+            if (world_.on_detail_map()) {
                 enter_dungeon_from_detail();
-            } else if (surface_mode_ == SurfaceMode::Dungeon) {
+            } else if (world_.surface_mode() == SurfaceMode::Dungeon) {
                 exit_dungeon_to_detail();
             }
             return;
@@ -2681,7 +2681,7 @@ void Game::recompute_fov() {
     bool is_indoor = world_.map().map_type() == MapType::SpaceStation
                   || world_.map().map_type() == MapType::DerelictStation
                   || world_.map().map_type() == MapType::Starship;
-    bool is_dungeon = !on_overworld() && !on_detail_map()
+    bool is_dungeon = !world_.on_overworld() && !world_.on_detail_map()
                       && world_.map().map_type() != MapType::DetailMap
                       && !is_indoor;
     if (is_indoor) {
@@ -2689,7 +2689,7 @@ void Game::recompute_fov() {
     } else if (is_dungeon) {
         // Underground: always use light_radius (no sunlight)
         radius = player_.light_radius;
-    } else if (!on_overworld()) {
+    } else if (!world_.on_overworld()) {
         // Surface detail maps: time of day affects view range
         int max_radius = std::max(world_.map().width(), world_.map().height());
         radius = day_clock_.effective_view_radius(max_radius, player_.light_radius);
@@ -2698,7 +2698,7 @@ void Game::recompute_fov() {
     compute_fov(world_.map(), world_.visibility(), player_.x, player_.y, radius);
 
     // Detail maps: shadowcast for lighting, but entire map stays revealed
-    if (on_detail_map() || world_.map().map_type() == MapType::DetailMap) {
+    if (world_.on_detail_map() || world_.map().map_type() == MapType::DetailMap) {
         world_.visibility().explore_all();
         return;
     }
@@ -3678,9 +3678,9 @@ void Game::save_game() {
     data.death_message = death_message_;
     data.stash = world_.stash();
     data.navigation = navigation_;
-    data.surface_mode = static_cast<uint8_t>(surface_mode_);
-    data.overworld_x = overworld_x_;
-    data.overworld_y = overworld_y_;
+    data.surface_mode = static_cast<uint8_t>(world_.surface_mode());
+    data.overworld_x = world_.overworld_x();
+    data.overworld_y = world_.overworld_y();
     data.local_tick = day_clock_.local_tick;
     data.local_ticks_per_day = day_clock_.local_ticks_per_day;
 
@@ -3729,9 +3729,9 @@ bool Game::load_game(const std::string& filename) {
     star_chart_viewer_ = StarChartViewer(&navigation_, renderer_.get());
 
     // Restore overworld state
-    surface_mode_ = static_cast<SurfaceMode>(data.surface_mode);
-    overworld_x_ = data.overworld_x;
-    overworld_y_ = data.overworld_y;
+    world_.set_surface_mode(static_cast<SurfaceMode>(data.surface_mode));
+    world_.overworld_x() = data.overworld_x;
+    world_.overworld_y() = data.overworld_y;
 
     // Restore day clock
     day_clock_.local_tick = data.local_tick;

@@ -39,11 +39,7 @@ enum class GameState {
     HallOfFame,
 };
 
-enum class SurfaceMode : uint8_t {
-    Dungeon,
-    DetailMap,
-    Overworld,
-};
+// SurfaceMode moved to world_manager.h
 
 enum class PanelTab : uint8_t {
     Messages,
@@ -275,11 +271,7 @@ private:
     std::map<LocationKey, LocationState> location_cache_;
 
     // Surface mode
-    SurfaceMode surface_mode_ = SurfaceMode::Dungeon;
-    bool on_overworld() const { return surface_mode_ == SurfaceMode::Overworld; }
-    bool on_detail_map() const { return surface_mode_ == SurfaceMode::DetailMap; }
-    int overworld_x_ = 0;
-    int overworld_y_ = 0;
+    // surface_mode_, overworld_x/y moved to world_
 };
 
 } // namespace astra
