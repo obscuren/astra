@@ -255,6 +255,7 @@ void Game::handle_menu_input(int key) {
                                    [](const SaveSlot& s) { return s.dead; }),
                     save_slots_.end());
                 load_selection_ = 0;
+                prev_state_ = GameState::MainMenu;
                 state_ = GameState::LoadMenu;
             } else if (menu_selection_ == off + 2) {
                 save_slots_ = list_saves();
@@ -327,6 +328,7 @@ void Game::handle_play_input(int key) {
                                    [](const SaveSlot& s) { return s.dead; }),
                     save_slots_.end());
                 load_selection_ = 0;
+                prev_state_ = GameState::Playing;
                 state_ = GameState::LoadMenu;
             }
             else if (k == 'o') { log("Options not yet implemented."); }
@@ -3593,8 +3595,8 @@ void Game::handle_gameover_input(int key) {
 void Game::handle_load_input(int key) {
     switch (key) {
         case '\033':
-            state_ = GameState::MainMenu;
-            menu_selection_ = 0;
+            state_ = prev_state_;
+            if (state_ == GameState::MainMenu) menu_selection_ = 0;
             break;
         case 'w': case 'k': case KEY_UP:
             if (!save_slots_.empty()) {

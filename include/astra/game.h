@@ -161,6 +161,7 @@ private:
 
     std::unique_ptr<Renderer> renderer_;
     GameState state_ = GameState::MainMenu;
+    GameState prev_state_ = GameState::MainMenu; // for returning from Load/HallOfFame
     bool running_ = false;
     bool show_welcome_ = false;
 
