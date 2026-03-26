@@ -60,6 +60,7 @@ set(ASTRA_SOURCES
     src/game_interaction.cpp
     src/game_world.cpp
     src/game_rendering.cpp
+    src/map_renderer.cpp
     src/save_system.cpp
     src/dev_console.cpp
     src/boot_sequence.cpp

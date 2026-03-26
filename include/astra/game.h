@@ -160,7 +160,7 @@ private:
     void render_stats_bar();
     void render_bars();
     void render_tabs();
-    void render_map();
+    // render_map extracted to map_renderer.h
     void render_side_panel();
     void render_item_inspect();
     void render_effects_bar();
