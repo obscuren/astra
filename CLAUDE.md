@@ -110,3 +110,15 @@ The entire world state need to be able to be persisted.
 ## Plans
 
 After each plan is made also write it to the docs/plans/ folder so we can track the plans
+
+## C++ structure
+
+Keep files consistent and consice. Make sure that logic is not all dumped in one monolithic file. Keep neat classes, use proper inheritance where it make sense. 
+
+* All input should be handled by the InputManager
+* Containerize code
+    - InputManager handles input
+    - HelpScreen handles help related things
+    - Renderer is for rendering
+    - etc.
+* The Game class should be a coordinator rather than a CONTAIN everything

@@ -108,3 +108,19 @@ Here's an example
 ▐────────────────────────────────────▌
 ▐ [Space] Action  [a] do something   ▌ <---- [Space] [] is white, space is yellow, action is dark grey
 ▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌
+
+
+
+┌─╡═║       ║═╞──┐
+│                │
+│       @        │
+│                │
+│     Human      │
+│                │
+└─╡═║       ║═╞──┘
+
+
+
+
+
+
