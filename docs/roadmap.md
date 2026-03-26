@@ -4,7 +4,7 @@
 
 ### Quick Wins
 - [x] **Haggle** — 10% better buy/sell prices via permanent passive effect
-- [ ] **ThickSkin** — +1 natural armor in effective_defense() (player.h)
+- [x] **ThickSkin** — +1 defense via permanent passive effect
 
 ### Combat Mechanics
 - [ ] **Dodge/miss chance** — roll against effective_dodge(), miss = no damage
