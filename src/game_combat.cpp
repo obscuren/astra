@@ -3,6 +3,7 @@
 #include "astra/item_gen.h"
 
 #include <algorithm>
+#include <array>
 
 namespace astra {
 
