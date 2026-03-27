@@ -90,7 +90,7 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 npc_dialog_.add_option(fkey++, label);
             }
             npc_dialog_.add_option('q', "Leave");
-            npc_dialog_.set_max_width_frac(0.4f);
+            npc_dialog_.set_max_width_frac(0.45f);
             npc_dialog_.open();
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
@@ -213,7 +213,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     interact_options_.push_back(InteractOption::Farewell);
 
     npc_dialog_.set_footer("[Space] Select  [Tab] Trade  [l] Look  [Esc] Close");
-    npc_dialog_.set_max_width_frac(0.35f);
+    npc_dialog_.set_max_width_frac(0.45f);
     npc_dialog_.open();
 }
 
@@ -256,7 +256,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (sk > '9') sk = 'a';
             } }
             npc_dialog_.add_option('c', "Cancel");
-            npc_dialog_.set_max_width_frac(0.35f);
+            npc_dialog_.set_max_width_frac(0.45f);
             npc_dialog_.open();
             dialog_node_ = -4; // sentinel: store mode
         } else if (selected == 1) {
@@ -276,7 +276,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (rk > '9') rk = 'a';
             } }
             npc_dialog_.add_option('c', "Cancel");
-            npc_dialog_.set_max_width_frac(0.35f);
+            npc_dialog_.set_max_width_frac(0.45f);
             npc_dialog_.open();
             dialog_node_ = -5; // sentinel: retrieve mode
         } else {
@@ -446,7 +446,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             npc_dialog_.add_option(hk++, choice.label);
         } }
         npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-        npc_dialog_.set_max_width_frac(0.35f);
+        npc_dialog_.set_max_width_frac(0.45f);
         npc_dialog_.open();
         return;
     }
@@ -472,7 +472,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 npc_dialog_.add_option(hk++, choice.label);
             } }
             npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.set_max_width_frac(0.35f);
+            npc_dialog_.set_max_width_frac(0.45f);
             npc_dialog_.open();
             break;
         }
@@ -495,7 +495,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 npc_dialog_.add_option(hk++, choice.label);
             } }
             npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.set_max_width_frac(0.35f);
+            npc_dialog_.set_max_width_frac(0.45f);
             npc_dialog_.open();
             break;
         }
