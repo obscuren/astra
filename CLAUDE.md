@@ -37,6 +37,8 @@ Key virtual keycodes (`KEY_UP`, `KEY_DOWN`, etc.) are defined in `renderer.h` so
 - Headers: `#pragma once`, located in `include/astra/`
 - Compile definition for SDL: `ASTRA_HAS_SDL`
 - Default compile: Terminal
+- Update `docs/roadmap.md` and checkof boxes as wel implement features.
+- All game formulas go in to `docs/formulas.md` and must be updated.
 
 ## Rules
 
