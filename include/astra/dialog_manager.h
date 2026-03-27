@@ -44,6 +44,9 @@ private:
 
     enum class InteractOption : uint8_t { Talk, Shop, Quest, Farewell };
     std::vector<InteractOption> interact_options_;
+
+    // Repair bench state (dialog_node_ == -10)
+    int repair_bench_item_ = -1; // inventory index of item on bench, -1 = empty
 };
 
 } // namespace astra
