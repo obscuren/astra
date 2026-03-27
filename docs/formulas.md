@@ -2,11 +2,86 @@
 
 Reference for all gameplay formulas used in Astra.
 
+## Derived Stats
+
+- **Effective Attack**: `attack_value + (STR - 10) / 2 + equipment.attack + effects.attack`
+- **Effective Defense**: `defense_value + (TOU - 10) / 3 + equipment.defense + effects.defense`
+- **Effective Dodge**: `dodge_value + (AGI - 10) / 3 + effects.dodge_mod`
+- **Effective Max HP**: `max_hp + (TOU - 10) * 2 + equipment.max_hp + effects.max_hp`
+
+Base values: attack=1, defense=5, dodge=3, max_hp=10
+
 ## Combat
 
-- **NPC Attack Damage**: `base_damage * level + (elite ? 1 : 0)`
-- **Player Attack Damage**: `attack_value` (minimum 1)
+### Damage Formulas
+
+- **Player → NPC (melee)**: `effective_attack + weapon_expertise_bonus(+1)`
+- **Player → NPC (ranged)**: same as melee, uses missile slot weapon
+- **NPC → Player**: `npc.base_damage * npc.level + (elite ? 1 : 0) - effective_defense`
 - **NPC XP Reward**: `base_xp * level * (elite ? 3 : 1)`
+- **Kill Credits**: `level * 2 + (elite ? 5 : 0)`
+
+### Dodge/Miss Chance
+
+- **Player dodge chance**: `min(effective_dodge * 2, 50)` — checked before NPC deals damage
+- **NPC dodge chance**: `min(npc.level + (elite ? 5 : 0), 25)` — checked before player deals damage
+- Dodge check: `roll 1-100 <= dodge_chance` → miss (no damage applied)
+- Ranged miss still consumes ammo
+
+### Critical Hits (Player only)
+
+- **Crit chance**: `clamp((LUC - 8) * 2 + 3, 0, 30)`
+- **Crit multiplier**: 1.5x → `damage + (damage + 1) / 2` (always at least +1)
+- Checked after base damage, before effects pipeline
+
+### Damage Effects Pipeline
+
+For each active effect on the target:
+```
+damage = damage * effect.damage_multiplier / 100
+damage += effect.damage_flat_mod
+damage = max(damage, 0)
+```
+- Invulnerable: `damage_multiplier = 0` (immune to all damage)
+
+### Loot Drops
+
+- 50% chance on enemy kill
+- Item level = npc.level
+- Rarity: Common 50%, Uncommon 30%, Rare 15%, Epic 4%, Legendary 1%
+
+### Ability Cooldowns
+
+| Ability | Cooldown | Action Cost | Weapon | Effect |
+|---------|----------|-------------|--------|--------|
+| Jab | 3 ticks | 25 | ShortBlade | 50% effective_attack damage |
+| Cleave | 5 ticks | 50 | LongBlade | Full damage to all adjacent hostiles |
+| Quickdraw | 3 ticks | 25 | Pistol | Full damage to current target |
+| Intimidate | 10 ticks | 50 | Any | Frighten adjacent enemy |
+
+## Economy
+
+### Trade Prices
+
+```
+buy_cost  = buy_value + (buy_value * effect_buy_price_pct / 100)
+sell_price = sell_value + (sell_value * effect_sell_price_pct / 100)
+```
+- Haggle effect: `buy_price_pct = -10`, `sell_price_pct = +10`
+
+### Repair Bench Cost
+
+```
+cost = max(1, missing_durability * 2)
+```
+
+## Character Creation
+
+### Attribute Point Buy
+
+- Budget: 10 points
+- Max per attribute: +8
+- Final = `class_base + race_modifier + player_allocation`
 
 ## NPC Energy & Turns
 
