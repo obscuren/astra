@@ -7,8 +7,8 @@
 - [x] **ThickSkin** — +1 defense via permanent passive effect
 
 ### Combat Mechanics
-- [ ] **Dodge/miss chance** — roll against effective_dodge(), miss = no damage
-- [ ] **Critical hits** — roll against LUC stat, crit = 2x damage
+- [x] **Dodge/miss chance** — player dodge (DV*2, cap 50%), NPC dodge (level-based, cap 25%)
+- [x] **Critical hits** — LUC-based crit chance (cap 30%), 1.5x multiplier, player only
 - [ ] **Status effects from combat** — weapons/skills apply burn, poison, slow on hit
 - [x] **Weapon class system** — WeaponClass enum, all 10 weapons tagged
 
