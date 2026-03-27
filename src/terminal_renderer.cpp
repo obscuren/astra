@@ -55,6 +55,7 @@ static void restore_terminal() {
 }
 
 static volatile sig_atomic_t s_quit_requested = 0;
+static volatile sig_atomic_t s_needs_redraw = 0;
 
 static void signal_handler(int) {
     s_quit_requested = 1;
@@ -101,8 +102,9 @@ static void sigcont_handler(int) {
     sigemptyset(&sa.sa_mask);
     sigaction(SIGTSTP, &sa, nullptr);
 
-    // Trigger resize to force full redraw
+    // Trigger resize + redraw
     s_resized = 1;
+    s_needs_redraw = 1;
 }
 
 // Append a 256-color foreground escape sequence, or reset for Default.
