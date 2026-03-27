@@ -226,6 +226,7 @@ public:
     // Add an option: key is the hotkey, label is the display text
     void add_option(char key, std::string_view label);
     void set_title(std::string_view title);
+    void set_body(std::string_view body);  // optional text shown between title and options
     void set_max_width_frac(float frac); // 0.0–1.0, default 0.25
     void set_footer(std::string_view footer);
 
@@ -241,6 +242,7 @@ public:
 
 private:
     std::string title_;
+    std::string body_;
     std::vector<MenuOption> options_;
     std::string footer_;
     int selection_ = 0;

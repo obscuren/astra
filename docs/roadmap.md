@@ -66,7 +66,7 @@
 
 ## UI/UX
 
-- [ ] **Conversation dialog in contextual menu** — show NPC speech in the popup, not just message log
+- [x] **Conversation dialog in contextual menu** — NPC speech shown as body text in PopupMenu
 - [ ] **Autoexplore** — auto-walk through unexplored areas until enemy/item found
 - [ ] **Minimap** — small overview in corner
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)

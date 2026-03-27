@@ -721,11 +721,12 @@ void PopupMenu::add_option(char key, std::string_view label) {
 }
 
 void PopupMenu::set_title(std::string_view title) { title_ = title; }
+void PopupMenu::set_body(std::string_view body) { body_ = body; }
 void PopupMenu::set_max_width_frac(float frac) { max_width_frac_ = frac; }
 void PopupMenu::set_footer(std::string_view footer) { footer_ = footer; }
 
 void PopupMenu::open() { open_ = true; selection_ = 0; }
-void PopupMenu::close() { open_ = false; options_.clear(); title_.clear(); footer_.clear(); }
+void PopupMenu::close() { open_ = false; options_.clear(); title_.clear(); body_.clear(); footer_.clear(); }
 bool PopupMenu::is_open() const { return open_; }
 
 char PopupMenu::selected_key() const {
@@ -789,12 +790,35 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
     if (max_w < 24) max_w = 24;
     int win_w = std::min(content_w + 2, max_w);
 
-    // Layout: top(1) + title(1)? + sep(1)? + blank(1) + options(n*2-1) + blank(1) + sep(1)? + footer(1)? + bottom(1)
+    // Word-wrap body text
+    bool has_body = !body_.empty();
+    std::vector<std::string> body_lines;
+    if (has_body) {
+        int inner_w = win_w - 6; // padding on each side
+        if (inner_w < 10) inner_w = 10;
+        std::string line;
+        for (size_t i = 0; i < body_.size(); ++i) {
+            if (body_[i] == ' ' && static_cast<int>(line.size()) >= inner_w) {
+                body_lines.push_back(line);
+                line.clear();
+            } else {
+                line += body_[i];
+                if (static_cast<int>(line.size()) >= inner_w + 5) {
+                    body_lines.push_back(line);
+                    line.clear();
+                }
+            }
+        }
+        if (!line.empty()) body_lines.push_back(line);
+    }
+
+    // Layout: top(1) + title(1)? + sep(1)? + body? + sep(1)? + blank(1) + options(n*2-1) + blank(1) + sep(1)? + footer(1)? + bottom(1)
     int option_count = static_cast<int>(options_.size());
     int option_rows = option_count * 2 - 1;
     int title_rows = has_title ? 2 : 0;
+    int body_rows = has_body ? static_cast<int>(body_lines.size()) + 3 : 0; // blank + lines + blank + sep
     int footer_rows = has_footer ? 2 : 0;
-    int win_h = 1 + title_rows + 1 + option_rows + 1 + footer_rows + 1;
+    int win_h = 1 + title_rows + body_rows + 1 + option_rows + 1 + footer_rows + 1;
 
     int mx = (screen_w - win_w) / 2;
     int my = (screen_h - win_h) / 2;
@@ -831,6 +855,20 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
         int tx = (win_w - static_cast<int>(title_.size())) / 2;
         ctx.text(tx, y, title_, Color::White);
         y++;
+        for (int x = 1; x < win_w - 1; ++x)
+            ctx.put(x, y, BoxDraw::H, Color::DarkGray);
+        y++;
+    }
+
+    // Body text (NPC speech etc.)
+    if (has_body) {
+        y++; // blank line before body
+        for (const auto& bl : body_lines) {
+            ctx.text(3, y, bl, Color::Cyan);
+            y++;
+        }
+        y++; // blank line after body
+        // Separator between body and options
         for (int x = 1; x < win_w - 1; ++x)
             ctx.put(x, y, BoxDraw::H, Color::DarkGray);
         y++;

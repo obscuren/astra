@@ -73,6 +73,7 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             npc_dialog_.close();
             npc_dialog_.set_title("Food Terminal");
             npc_dialog_body_ = "What'll it be?";
+            npc_dialog_.set_body("\"What'll it be?\"");
             game.log("Food Terminal: What'll it be?");
             char fkey = '1';
             for (const auto& entry : menu) {
@@ -144,6 +145,7 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             npc_dialog_.close();
             npc_dialog_.set_title("Shipping Terminal");
             npc_dialog_body_ = "Your starship is docked and ready.";
+            npc_dialog_.set_body("\"" + npc_dialog_body_ + "\"");
             game.log(npc_dialog_body_);
             npc_dialog_.add_option('b', "Board ship");
             npc_dialog_.add_option('c', "Cancel");
@@ -190,6 +192,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     npc_dialog_.set_title(npc.display_name());
     npc_dialog_body_ = data.talk ? data.talk->greeting : "";
     if (!npc_dialog_body_.empty()) {
+        npc_dialog_.set_body("\"" + npc_dialog_body_ + "\"");
         game.log(npc.display_name() + ": \"" + npc_dialog_body_ + "\"");
     }
 
@@ -436,6 +439,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         npc_dialog_.close();
         npc_dialog_.set_title(interacting_npc_->display_name());
         npc_dialog_body_ = next_node.text;
+        npc_dialog_.set_body("\"" + next_node.text + "\"");
         game.log(interacting_npc_->display_name() + ": \"" + next_node.text + "\"");
         { char hk = '1';
         for (const auto& choice : next_node.choices) {
@@ -461,6 +465,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             npc_dialog_.close();
             npc_dialog_.set_title(interacting_npc_->display_name());
             npc_dialog_body_ = node.text;
+            npc_dialog_.set_body("\"" + node.text + "\"");
             game.log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
             { char hk = '1';
             for (const auto& choice : node.choices) {
@@ -483,6 +488,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             npc_dialog_.close();
             npc_dialog_.set_title(interacting_npc_->display_name());
             npc_dialog_body_ = node.text;
+            npc_dialog_.set_body("\"" + node.text + "\"");
             game.log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
             { char hk = '1';
             for (const auto& choice : node.choices) {
