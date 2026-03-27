@@ -464,7 +464,13 @@ void CharacterScreen::open_context_menu() {
         const auto& item = player_->inventory.items[inv_cursor_];
         context_menu_.add_option('l', "look");
         if (item.slot.has_value()) {
-            context_menu_.add_option('e', "equip");
+            if (item.type == ItemType::MeleeWeapon) {
+                // Melee weapons can go in either hand
+                context_menu_.add_option('e', "equip right hand");
+                context_menu_.add_option('q', "equip left hand");
+            } else {
+                context_menu_.add_option('e', "equip");
+            }
         }
         if (item.ranged) {
             context_menu_.add_option('r', "reload");
@@ -510,10 +516,15 @@ void CharacterScreen::execute_context_action(char key) {
         if (key == 'l') {
             look_item_ = &items[inv_cursor_];
             look_open_ = true;
-        } else if (key == 'e') {
+        } else if (key == 'e' || key == 'q') {
             auto& item = items[inv_cursor_];
             if (item.slot) {
-                auto& sl = player_->equipment.slot_ref(*item.slot);
+                EquipSlot target_slot = *item.slot;
+                // 'q' = left hand for melee weapons
+                if (key == 'q' && item.type == ItemType::MeleeWeapon) {
+                    target_slot = EquipSlot::LeftHand;
+                }
+                auto& sl = player_->equipment.slot_ref(target_slot);
                 Item to_equip = std::move(item);
                 items.erase(items.begin() + inv_cursor_);
                 if (sl) items.push_back(std::move(*sl));
