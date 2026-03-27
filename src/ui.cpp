@@ -789,6 +789,8 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
     int max_w = static_cast<int>(screen_w * max_width_frac_);
     if (max_w < 24) max_w = 24;
     int win_w = std::min(content_w + 2, max_w);
+    // When body text is present, use full max width for readability
+    if (!body_.empty()) win_w = max_w;
 
     // Word-wrap body text
     bool has_body = !body_.empty();
