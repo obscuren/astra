@@ -64,6 +64,47 @@ static void sigwinch_handler(int) {
     s_resized = 1;
 }
 
+static void sigtstp_handler(int) {
+    // Restore terminal before suspending
+    restore_terminal();
+    std::printf("\033[0m\033[?25h\033[?1049l"); // reset colors, show cursor, main screen
+    std::fflush(stdout);
+    std::fprintf(stderr,
+        "\n"
+        "ASTRA has been suspended. Run `fg` to bring ASTRA back.\n"
+        "note: ctrl + z suspends ASTRA\n"
+        "\n");
+
+    // Re-raise SIGTSTP with default handler to actually suspend
+    signal(SIGTSTP, SIG_DFL);
+    raise(SIGTSTP);
+}
+
+static void sigcont_handler(int) {
+    // Re-init terminal after resume from suspend
+    struct termios raw = s_orig_termios;
+    raw.c_lflag &= ~(ECHO | ICANON);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    s_raw_mode = 1;
+
+    // Restore alternate screen, hide cursor
+    std::printf("\033[?1049h");
+    std::printf("\033[?25l");
+    std::fflush(stdout);
+
+    // Re-register SIGTSTP handler (was reset to SIG_DFL before suspend)
+    struct sigaction sa{};
+    sa.sa_handler = sigtstp_handler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGTSTP, &sa, nullptr);
+
+    // Trigger resize to force full redraw
+    s_resized = 1;
+}
+
 // Append a 256-color foreground escape sequence, or reset for Default.
 static void append_color(std::string& buf, Color c) {
     if (c == Color::Default) {
@@ -117,6 +158,18 @@ void TerminalRenderer::init() {
     sigemptyset(&sa_winch.sa_mask);
     sigaction(SIGWINCH, &sa_winch, nullptr);
 
+    struct sigaction sa_tstp{};
+    sa_tstp.sa_handler = sigtstp_handler;
+    sa_tstp.sa_flags = 0;
+    sigemptyset(&sa_tstp.sa_mask);
+    sigaction(SIGTSTP, &sa_tstp, nullptr);
+
+    struct sigaction sa_cont{};
+    sa_cont.sa_handler = sigcont_handler;
+    sa_cont.sa_flags = 0;
+    sigemptyset(&sa_cont.sa_mask);
+    sigaction(SIGCONT, &sa_cont, nullptr);
+
     // Query terminal size
     struct winsize ws;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
@@ -140,6 +193,8 @@ void TerminalRenderer::shutdown() {
     sigaction(SIGINT, &sa, nullptr);
     sigaction(SIGTERM, &sa, nullptr);
     sigaction(SIGWINCH, &sa, nullptr);
+    sigaction(SIGTSTP, &sa, nullptr);
+    sigaction(SIGCONT, &sa, nullptr);
 }
 
 void TerminalRenderer::rebuild_buffer() {
