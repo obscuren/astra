@@ -794,7 +794,7 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
     bool has_body = !body_.empty();
     std::vector<std::string> body_lines;
     if (has_body) {
-        int inner_w = win_w - 6; // padding on each side
+        int inner_w = win_w - 5; // 3 left pad + 1 right pad + 1 border
         if (inner_w < 10) inner_w = 10;
         std::string line;
         for (size_t i = 0; i < body_.size(); ++i) {
@@ -803,7 +803,7 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
                 line.clear();
             } else {
                 line += body_[i];
-                if (static_cast<int>(line.size()) >= inner_w + 5) {
+                if (static_cast<int>(line.size()) >= inner_w) {
                     body_lines.push_back(line);
                     line.clear();
                 }
@@ -889,8 +889,9 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
         ctx.put(ox + 2, y, ']', Color::White);
         ox += 4;
 
+        int max_label = win_w - ox - 2; // leave 2 chars before right border
         bool highlighted = false;
-        for (int ci = 0; ci < static_cast<int>(opt.label.size()); ++ci) {
+        for (int ci = 0; ci < static_cast<int>(opt.label.size()) && ci < max_label; ++ci) {
             char ch = opt.label[ci];
             if (!highlighted && (ch == opt.key || ch == (opt.key - 32) || ch == (opt.key + 32))) {
                 ctx.put(ox + ci, y, ch, Color::Yellow);
