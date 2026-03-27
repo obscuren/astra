@@ -2,12 +2,24 @@
 #include "astra/game.h"
 #include "astra/item_gen.h"
 
+#include <algorithm>
+
 namespace astra {
 
 static int sign(int v) { return (v > 0) - (v < 0); }
 
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
+}
+
+static bool roll_percent(std::mt19937& rng, int chance) {
+    if (chance <= 0) return false;
+    return std::uniform_int_distribution<int>(1, 100)(rng) <= chance;
+}
+
+static int npc_dodge_chance(const Npc& npc) {
+    int chance = npc.level + (npc.elite ? 5 : 0);
+    return std::min(chance, 25);
 }
 
 void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
@@ -36,6 +48,12 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
         // Adjacent — attack
         if (dist <= 1) {
+            // Player dodge check
+            int dodge_chance = std::min(game.player().effective_dodge() * 2, 50);
+            if (roll_percent(game.world().rng(), dodge_chance)) {
+                game.log("You dodge " + npc.display_name() + "'s attack!");
+                return;
+            }
             int raw_damage = npc.attack_damage();
             int defense = game.player().effective_defense();
             int damage = raw_damage - defense;
@@ -95,6 +113,12 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 }
 
 void CombatSystem::attack_npc(Npc& npc, Game& game) {
+    // Dodge check
+    if (roll_percent(game.world().rng(), npc_dodge_chance(npc))) {
+        game.log(npc.display_name() + " dodges your attack!");
+        return;
+    }
+
     int damage = game.player().effective_attack();
     // Weapon expertise bonus
     const auto& weapon = game.player().equipment.right_hand;
@@ -107,6 +131,15 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
             damage += 1;
     }
     if (damage < 1) damage = 1;
+
+    // Critical hit check
+    bool is_crit = false;
+    int crit_chance = std::clamp((game.player().attributes.luck - 8) * 2 + 3, 0, 30);
+    if (roll_percent(game.world().rng(), crit_chance)) {
+        damage = damage + (damage + 1) / 2;
+        is_crit = true;
+    }
+
     damage = apply_damage_effects(npc.effects, damage);
     if (damage <= 0) {
         game.log("Your attack has no effect on " + npc.display_name() + ".");
@@ -114,8 +147,13 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     }
     npc.hp -= damage;
     if (npc.hp < 0) npc.hp = 0;
-    game.log("You strike " + npc.display_name() + " for " +
-        std::to_string(damage) + " damage!");
+    if (is_crit) {
+        game.log("CRITICAL HIT! You strike " + npc.display_name() + " for " +
+            std::to_string(damage) + " damage!");
+    } else {
+        game.log("You strike " + npc.display_name() + " for " +
+            std::to_string(damage) + " damage!");
+    }
     if (!npc.alive()) {
         game.log(npc.display_name() + " is destroyed!");
         game.player().kills++;
@@ -278,6 +316,13 @@ void CombatSystem::shoot_target(Game& game) {
     // Consume charge
     rd.current_charge -= rd.charge_per_shot;
 
+    // Dodge check (ranged — ammo already consumed)
+    if (roll_percent(game.world().rng(), npc_dodge_chance(*target_npc_))) {
+        game.log(target_npc_->display_name() + " dodges your shot!");
+        game.advance_world(ActionCost::shoot);
+        return;
+    }
+
     // Damage = effective attack (includes STR modifier + all equipment)
     int damage = game.player().effective_attack();
     // Ranged weapon expertise bonus
@@ -291,6 +336,15 @@ void CombatSystem::shoot_target(Game& game) {
             damage += 1;
     }
     if (damage < 1) damage = 1;
+
+    // Critical hit check
+    bool is_crit = false;
+    int crit_chance = std::clamp((game.player().attributes.luck - 8) * 2 + 3, 0, 30);
+    if (roll_percent(game.world().rng(), crit_chance)) {
+        damage = damage + (damage + 1) / 2;
+        is_crit = true;
+    }
+
     damage = apply_damage_effects(target_npc_->effects, damage);
     if (damage <= 0) {
         game.log("Your shot has no effect on " + target_npc_->display_name() + ".");
@@ -299,7 +353,8 @@ void CombatSystem::shoot_target(Game& game) {
     }
     target_npc_->hp -= damage;
     if (target_npc_->hp < 0) target_npc_->hp = 0;
-    game.log("You shoot " + target_npc_->display_name() + " for " +
+    std::string hit_msg = is_crit ? "CRITICAL HIT! You shoot " : "You shoot ";
+    game.log(hit_msg + target_npc_->display_name() + " for " +
         std::to_string(damage) + " damage. [" +
         std::to_string(rd.current_charge) + "/" +
         std::to_string(rd.charge_capacity) + "]");
