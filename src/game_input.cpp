@@ -131,13 +131,13 @@ void Game::handle_play_input(int key) {
     switch (key) {
         case '\033':
             pause_menu_.close();
-            pause_menu_.set_title("Menu");
+            pause_menu_.set_title("Game Menu");
             pause_menu_.add_option('r', "return to game");
             pause_menu_.add_option('h', "help");
             pause_menu_.add_option('s', "save game");
             pause_menu_.add_option('l', "load game");
             pause_menu_.add_option('o', "options");
-            pause_menu_.add_option('q', "quit");
+            pause_menu_.add_option('q', dev_mode_ ? "quit" : "save and quit");
             pause_menu_.open();
             break;
         case ' ':
