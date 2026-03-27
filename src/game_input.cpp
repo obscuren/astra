@@ -84,6 +84,12 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Repair bench intercepts when open
+    if (repair_bench_.is_open()) {
+        repair_bench_.handle_input(key);
+        return;
+    }
+
     // NPC dialog intercepts input when open
     if (dialog_.is_open()) {
         dialog_.handle_input(key, *this);

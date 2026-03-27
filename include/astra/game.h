@@ -15,6 +15,7 @@
 #include "astra/help_screen.h"
 #include "astra/save_system.h"
 #include "astra/input_manager.h"
+#include "astra/repair_bench.h"
 #include "astra/world_manager.h"
 #include "astra/star_chart_viewer.h"
 #include "astra/trade_window.h"
@@ -83,6 +84,7 @@ public:
     void set_dev_mode(bool v) { dev_mode_ = v; }
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
+    void open_repair_bench();
     void rebuild_star_chart_viewer();
     void reset_interaction_state();
     void post_load();
@@ -211,6 +213,7 @@ private:
     CharacterScreen character_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
+    RepairBench repair_bench_;
     int camera_x_ = 0;
     int camera_y_ = 0;
 

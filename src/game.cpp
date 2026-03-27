@@ -618,6 +618,10 @@ void Game::check_player_death() {
     }
 }
 
+void Game::open_repair_bench() {
+    repair_bench_.open(&player_, renderer_.get());
+}
+
 void Game::rebuild_star_chart_viewer() {
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
 }

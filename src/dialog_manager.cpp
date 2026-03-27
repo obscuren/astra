@@ -113,16 +113,7 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::RepairBench: {
-            npc_dialog_.close();
-            npc_dialog_.set_title("Repair Bench");
-            npc_dialog_.add_option(' ', "Place item on bench");
-            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.open();
-            interacting_npc_ = nullptr;
-            dialog_tree_ = nullptr;
-            dialog_node_ = -10; // sentinel: repair bench
-            repair_bench_item_ = -1;
-            game.log("A sturdy repair bench. Place an item to see the repair cost.");
+            game.open_repair_bench();
             break;
         }
         case FixtureType::SupplyLocker: {
@@ -403,115 +394,6 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             };
             game.dev_command_warp_stamp(poi_types[selected]);
             game.log(std::string("[DEV] Stamp Test: ") + poi_names[selected]);
-        }
-        return;
-    }
-
-    // Repair bench — initial "Place item" selection → show item picker
-    if (dialog_node_ == -10) {
-        auto& items = game.player().inventory.items;
-        std::vector<int> damaged;
-        for (int i = 0; i < static_cast<int>(items.size()); ++i) {
-            if (items[i].max_durability > 0 && items[i].durability < items[i].max_durability) {
-                damaged.push_back(i);
-            }
-        }
-        if (damaged.empty()) {
-            game.log("None of your items need repair.");
-            dialog_node_ = -1;
-            return;
-        }
-        // Show item picker
-        npc_dialog_.close();
-        npc_dialog_.set_title("Repair Bench — Select Item");
-        char key = '1';
-        for (int idx : damaged) {
-            std::string label = items[idx].name + " (" +
-                std::to_string(items[idx].durability) + "/" +
-                std::to_string(items[idx].max_durability) + ")";
-            npc_dialog_.add_option(key++, label);
-            if (key > '9') key = 'a';
-        }
-        npc_dialog_.add_option('c', "Cancel");
-        npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-        npc_dialog_.set_max_width_frac(0.4f);
-        npc_dialog_.open();
-        dialog_node_ = -12; // sentinel: picking item from list
-        return;
-    }
-
-    // Repair bench — item picked from list
-    if (dialog_node_ == -12) {
-        auto& items = game.player().inventory.items;
-        std::vector<int> damaged;
-        for (int i = 0; i < static_cast<int>(items.size()); ++i) {
-            if (items[i].max_durability > 0 && items[i].durability < items[i].max_durability) {
-                damaged.push_back(i);
-            }
-        }
-        if (selected >= 0 && selected < static_cast<int>(damaged.size())) {
-            repair_bench_item_ = damaged[selected];
-            auto& item = items[repair_bench_item_];
-            int missing = item.max_durability - item.durability;
-            int cost = std::max(1, missing * 2);
-            npc_dialog_.close();
-            npc_dialog_.set_title("Repair Bench");
-            npc_dialog_.add_option('r', "Repair (" + std::to_string(cost) + "$)");
-            npc_dialog_.add_option('x', "Clear bench");
-            npc_dialog_.add_option('c', "Close");
-            npc_dialog_.set_footer(item.name + " — " +
-                std::to_string(item.durability) + "/" +
-                std::to_string(item.max_durability) + " durability");
-            npc_dialog_.open();
-            dialog_node_ = -11; // sentinel: item on bench
-        } else {
-            dialog_node_ = -1;
-        }
-        return;
-    }
-
-    // Repair bench — item on bench
-    if (dialog_node_ == -11) {
-        if (selected == 0) { // Repair
-            auto& items = game.player().inventory.items;
-            if (repair_bench_item_ >= 0 && repair_bench_item_ < static_cast<int>(items.size())) {
-                auto& item = items[repair_bench_item_];
-                int missing = item.max_durability - item.durability;
-                int cost = std::max(1, missing * 2);
-                if (game.player().money < cost) {
-                    game.log("Not enough credits. Need " + std::to_string(cost) + "$.");
-                } else {
-                    game.player().money -= cost;
-                    item.durability = item.max_durability;
-                    game.log("Repaired " + item.name + " to full durability. (-" +
-                             std::to_string(cost) + "$)");
-                }
-            }
-            repair_bench_item_ = -1;
-            dialog_node_ = -1;
-        } else if (selected == 1) { // Clear
-            repair_bench_item_ = -1;
-            // Reopen item picker
-            npc_dialog_.close();
-            npc_dialog_.set_title("Repair Bench");
-            auto& items = game.player().inventory.items;
-            char key = '1';
-            for (int i = 0; i < static_cast<int>(items.size()); ++i) {
-                if (items[i].max_durability > 0 && items[i].durability < items[i].max_durability) {
-                    std::string label = items[i].name + " (" +
-                        std::to_string(items[i].durability) + "/" +
-                        std::to_string(items[i].max_durability) + ")";
-                    npc_dialog_.add_option(key++, label);
-                    if (key > '9') key = 'a';
-                }
-            }
-            npc_dialog_.add_option('c', "Close");
-            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.open();
-            dialog_node_ = -10;
-        } else { // Close
-            repair_bench_item_ = -1;
-            dialog_node_ = -1;
         }
         return;
     }
