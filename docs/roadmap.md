@@ -36,7 +36,7 @@
 
 - [ ] **More synthesis recipes** — expand beyond the initial 10
 - [ ] **Blueprint discovery flow** — find blueprints in dungeons, learn from analyzing loot
-- [ ] **Repair bench fixture** — world fixture still shows "Under maintenance" (repair works via Tinkering tab)
+- [x] **Repair bench fixture** — pay credits to restore durability, no skill required
 
 ---
 
