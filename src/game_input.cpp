@@ -146,10 +146,10 @@ void Game::handle_play_input(int key) {
             pause_menu_.close();
             pause_menu_.set_title("Game Menu");
             pause_menu_.add_option('r', "return to game");
+            pause_menu_.add_option('o', "options");
             pause_menu_.add_option('h', "help");
             pause_menu_.add_option('s', "save game");
             pause_menu_.add_option('l', "load game");
-            pause_menu_.add_option('o', "options");
             if (!dev_mode_) {
                 pause_menu_.add_option('q', "save and quit");
             }
