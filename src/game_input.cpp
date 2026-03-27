@@ -52,8 +52,21 @@ void Game::handle_play_input(int key) {
             }
             else if (k == 'o') { log("Options not yet implemented."); }
             else if (k == 'q') {
-                if (!dev_mode_) save_system_.save(*this);
+                // Save and quit (only shown in normal mode)
+                save_system_.save(*this);
                 running_ = false;
+            }
+            else if (k == 'x') {
+                if (dev_mode_) {
+                    running_ = false;
+                } else {
+                    // Confirm quit without saving
+                    quit_confirm_.close();
+                    quit_confirm_.set_title("Quit without saving?");
+                    quit_confirm_.add_option('y', "Yes, quit without saving");
+                    quit_confirm_.add_option('n', "No, keep playing");
+                    quit_confirm_.open();
+                }
             }
         }
         return;
@@ -137,7 +150,10 @@ void Game::handle_play_input(int key) {
             pause_menu_.add_option('s', "save game");
             pause_menu_.add_option('l', "load game");
             pause_menu_.add_option('o', "options");
-            pause_menu_.add_option('q', dev_mode_ ? "quit" : "save and quit");
+            if (!dev_mode_) {
+                pause_menu_.add_option('q', "save and quit");
+            }
+            pause_menu_.add_option('x', "quit without saving");
             pause_menu_.open();
             break;
         case ' ':
