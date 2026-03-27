@@ -27,6 +27,7 @@ enum class EffectId : uint32_t {
     CooldownQuickdraw   = 102,
     CooldownIntimidate  = 103,
     CooldownSuppressing = 104,
+    Flee                = 200,
 };
 
 struct Effect {
@@ -90,5 +91,6 @@ Effect make_attack_boost(int duration, int amount);
 Effect make_defense_boost(int duration, int amount);
 Effect make_haggle();
 Effect make_thick_skin();
+Effect make_flee(int duration);
 
 } // namespace astra

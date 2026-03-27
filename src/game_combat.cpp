@@ -46,6 +46,27 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     if (npc.disposition == Disposition::Hostile) {
         int dist = chebyshev_dist(npc.x, npc.y, game.player().x, game.player().y);
 
+        // Fleeing — move away from player instead of attacking
+        if (has_effect(npc.effects, EffectId::Flee)) {
+            int dx = sign(npc.x - game.player().x);
+            int dy = sign(npc.y - game.player().y);
+            // Try away diagonal, then each cardinal fallback
+            struct { int x, y; } candidates[] = {
+                {dx, dy}, {dx, 0}, {0, dy}, {-dy, dx}, {dy, -dx}
+            };
+            for (auto [cx, cy] : candidates) {
+                if (cx == 0 && cy == 0) continue;
+                int nx = npc.x + cx;
+                int ny = npc.y + cy;
+                if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
+                    npc.x = nx;
+                    npc.y = ny;
+                    return;
+                }
+            }
+            return; // cornered, skip turn
+        }
+
         // Adjacent — attack
         if (dist <= 1) {
             // Player dodge check

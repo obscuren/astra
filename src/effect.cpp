@@ -208,4 +208,15 @@ Effect make_thick_skin() {
     return e;
 }
 
+Effect make_flee(int duration) {
+    Effect e;
+    e.id = EffectId::Flee;
+    e.name = "Fleeing";
+    e.color = Color::Yellow;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = false; // NPC effect, not shown on player bar
+    return e;
+}
+
 } // namespace astra

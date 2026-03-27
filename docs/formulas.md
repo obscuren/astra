@@ -57,7 +57,7 @@ damage = max(damage, 0)
 | Jab | 3 ticks | 25 | ShortBlade | 50% effective_attack damage |
 | Cleave | 5 ticks | 50 | LongBlade | Full damage to all adjacent hostiles |
 | Quickdraw | 3 ticks | 25 | Pistol | Full damage to current target |
-| Intimidate | 10 ticks | 50 | Any | Frighten adjacent enemy |
+| Intimidate | 10 ticks | 50 | Any | Target flees for 3 + (WIL-10)/2 ticks (min 2) |
 
 ## Economy
 

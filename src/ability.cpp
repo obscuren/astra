@@ -115,9 +115,12 @@ public:
     }
 
     bool execute(Game& game, Npc* target) override {
+        int duration = 3 + (game.player().attributes.willpower - 10) / 2;
+        if (duration < 2) duration = 2;
+        add_effect(target->effects, make_flee(duration));
         game.log("You intimidate " + target->display_name() + "!");
-        game.log(target->display_name() + " cowers in fear.");
-        // TODO: apply flee effect when flee behavior is implemented
+        game.log(target->display_name() + " flees in fear! (" +
+                 std::to_string(duration) + " ticks)");
         return true;
     }
 };

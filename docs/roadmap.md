@@ -22,13 +22,13 @@
 - [x] **Jab** — 50% damage quick strike, 3 tick cooldown (ShortBlade)
 - [x] **Cleave** — hit all adjacent hostiles, 5 tick cooldown (LongBlade)
 - [x] **Quickdraw** — fast ranged shot, 3 tick cooldown (Pistol)
-- [x] **Intimidate** — frighten adjacent enemy, 10 tick cooldown (placeholder)
+- [x] **Intimidate** — frighten adjacent enemy, flee for WIL-scaled duration
 - [ ] **SuppressingFire** — cone AoE, apply slow, 8 turn cooldown
 - [ ] **Tumble** — reactive dodge on melee hit (complex)
 
 ### NPC Combat
 - [ ] **Ranged NPC attacks** — NPCs with ranged weapons shoot instead of chase
-- [ ] **Flee behavior** — low-HP or intimidated NPCs run away
+- [x] **Flee behavior** — Intimidate causes NPCs to flee (move away from player)
 
 ---
 
