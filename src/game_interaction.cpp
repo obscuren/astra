@@ -343,11 +343,11 @@ std::pair<int,int> Game::bfs_explore_step() const {
     int w = world_.map().width();
     int h = world_.map().height();
     int px = player_.x, py = player_.y;
-    int view_r = player_.view_radius;
 
-    // BFS to find nearest passable tile that is adjacent to an unexplored tile
-    // that is OUTSIDE the player's current view radius. This avoids zigzagging
-    // along the edge of visibility and instead walks toward the real frontier.
+    // BFS to find nearest passable tile adjacent to an Unexplored tile.
+    // After each step, try_move calls recompute_fov which updates the
+    // visibility map, so previously-unexplored tiles near the player
+    // become Explored and the BFS naturally progresses outward.
     std::vector<std::vector<int>> dist(h, std::vector<int>(w, -1));
     std::vector<std::vector<std::pair<int,int>>> parent(h, std::vector<std::pair<int,int>>(w, {-1,-1}));
 
@@ -361,62 +361,18 @@ std::pair<int,int> Game::bfs_explore_step() const {
         auto [cx, cy] = queue.front();
         queue.pop_front();
 
-        // Check if this tile is adjacent to an unexplored tile outside view range
-        if (cx != px || cy != py) {
-            for (int i = 0; i < 4; ++i) {
-                int nx = cx + dx4[i], ny = cy + dy4[i];
-                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                if (world_.visibility().get(nx, ny) == Visibility::Unexplored) {
-                    // Only target if the unexplored tile is beyond our current view
-                    int vdx = nx - px, vdy = ny - py;
-                    if (vdx * vdx + vdy * vdy > view_r * view_r) {
-                        goal_x = cx;
-                        goal_y = cy;
-                        goto found;
-                    }
-                }
+        // Check if this tile is adjacent to an unexplored tile
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx4[i], ny = cy + dy4[i];
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            if (world_.visibility().get(nx, ny) == Visibility::Unexplored) {
+                goal_x = cx;
+                goal_y = cy;
+                goto found;
             }
         }
 
         // Expand neighbors
-        for (int i = 0; i < 4; ++i) {
-            int nx = cx + dx4[i], ny = cy + dy4[i];
-            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-            if (dist[ny][nx] >= 0) continue;
-            if (!world_.map().passable(nx, ny)) continue;
-            bool blocked = false;
-            for (const auto& npc : world_.npcs()) {
-                if (npc.alive() && npc.x == nx && npc.y == ny) { blocked = true; break; }
-            }
-            if (blocked) continue;
-            dist[ny][nx] = dist[cy][cx] + 1;
-            parent[ny][nx] = {cx, cy};
-            queue.push_back({nx, ny});
-        }
-    }
-
-    // Fallback: if no frontier outside view range, try any unexplored adjacent
-    // (handles small remaining pockets)
-    dist.assign(h, std::vector<int>(w, -1));
-    parent.assign(h, std::vector<std::pair<int,int>>(w, {-1,-1}));
-    queue.clear();
-    dist[py][px] = 0;
-    queue.push_back({px, py});
-
-    while (!queue.empty()) {
-        auto [cx, cy] = queue.front();
-        queue.pop_front();
-        if (cx != px || cy != py) {
-            for (int i = 0; i < 4; ++i) {
-                int nx = cx + dx4[i], ny = cy + dy4[i];
-                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                if (world_.visibility().get(nx, ny) == Visibility::Unexplored) {
-                    goal_x = cx;
-                    goal_y = cy;
-                    goto found;
-                }
-            }
-        }
         for (int i = 0; i < 4; ++i) {
             int nx = cx + dx4[i], ny = cy + dy4[i];
             if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
