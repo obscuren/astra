@@ -47,13 +47,12 @@ enum class GameState {
 
 enum class PanelTab : uint8_t {
     Messages,
-    Inventory,
     Equipment,
     Ship,
     Wait,
 };
 
-static constexpr int panel_tab_count = 5;
+static constexpr int panel_tab_count = 4;
 
 class Game {
 public:

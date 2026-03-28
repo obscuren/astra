@@ -62,7 +62,6 @@ static const char* menu_items[] = {
 
 static const char* tab_names[] = {
     "Messages",
-    "Inventory",
     "Equipment",
     "Ship",
     "Wait",
@@ -978,67 +977,20 @@ void Game::render_side_panel() {
             }
             break;
         }
-        case PanelTab::Inventory: {
-            const auto& inv = player_.inventory;
-            if (inv.items.empty()) {
-                ctx.text(1, 1, "Inventory is empty.", Color::DarkGray);
-            } else {
-                int y = 0;
-                for (int idx = 0; idx < static_cast<int>(inv.items.size()); ++idx) {
-                    if (y >= ctx.height() - 2) break; // reserve space for weight + hints
-                    const auto& item = inv.items[idx];
-                    bool selected = (idx == inventory_cursor_);
-                    if (selected) ctx.text(0, y, ">", Color::Yellow);
-                    ctx.put(1, y, item.glyph, item.color);
-                    ctx.put(2, y, ' ');
-                    draw_item_name(ctx, 3, y, item, selected);
-                    ++y;
-                }
-                // Weight summary
-                int wy = ctx.height() - 2;
-                if (wy > static_cast<int>(inv.items.size())) {
-                    std::string wt = "Weight: " + std::to_string(inv.total_weight())
-                                   + "/" + std::to_string(inv.max_carry_weight);
-                    ctx.text(1, wy, wt, Color::DarkGray);
-                }
-            }
-            // Key hints at bottom — context-sensitive
-            int hy = ctx.height() - 1;
-            if (!inv.items.empty() && inventory_cursor_ < static_cast<int>(inv.items.size())) {
-                const auto& sel = inv.items[inventory_cursor_];
-                std::string hints = "+/- ";
-                if (sel.slot.has_value())
-                    hints += "[Enter]equip ";
-                else if (sel.usable)
-                    hints += "[Enter]use ";
-                hints += "[i]nfo [d]rop";
-                ctx.text(1, hy, hints, Color::DarkGray);
-            } else {
-                ctx.text(1, hy, "+/- navigate", Color::DarkGray);
-            }
-            break;
-        }
         case PanelTab::Equipment: {
             const auto& eq = player_.equipment;
             int y = 0;
-            int slot_idx = 0;
             auto draw_slot = [&](const char* label, const std::optional<Item>& slot) {
-                if (y >= ctx.height() - 2) return;
-                bool selected = (slot_idx == inventory_cursor_);
-                if (selected) {
-                    ctx.text(0, y, ">", Color::Yellow);
-                }
+                if (y >= ctx.height() - 1) return;
                 ctx.text(1, y, label, Color::DarkGray);
                 int lx = 1 + static_cast<int>(std::string_view(label).size());
                 if (slot) {
                     ctx.put(lx, y, slot->glyph, slot->color);
-                    Color fg = selected ? Color::White : rarity_color(slot->rarity);
-                    ctx.text(lx + 1, y, " " + slot->name, fg);
+                    ctx.text(lx + 1, y, " " + slot->name, rarity_color(slot->rarity));
                 } else {
                     ctx.text(lx, y, "---", Color::DarkGray);
                 }
                 ++y;
-                ++slot_idx;
             };
             draw_slot("Face:    ", eq.face);
             draw_slot("Head:    ", eq.head);
@@ -1080,15 +1032,8 @@ void Game::render_side_panel() {
                     ++y;
                 }
             }
-            // Key hints at bottom
-            int hy = ctx.height() - 1;
-            auto sel_slot = static_cast<EquipSlot>(inventory_cursor_);
-            const auto& sel_opt = eq.slot_ref(sel_slot);
-            if (sel_opt) {
-                ctx.text(1, hy, "+/- [Enter]unequip [i]nfo", Color::DarkGray);
-            } else {
-                ctx.text(1, hy, "+/- navigate", Color::DarkGray);
-            }
+            // Read-only — manage equipment via character screen (c)
+            ctx.text(1, ctx.height() - 1, "[c] manage equipment", Color::DarkGray);
             break;
         }
         case PanelTab::Ship:

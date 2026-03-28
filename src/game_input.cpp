@@ -208,51 +208,15 @@ void Game::handle_play_input(int key) {
             break;
         case '+': case '=': {
             auto tab = static_cast<PanelTab>(active_tab_);
-            if (tab == PanelTab::Inventory) {
-                int count = static_cast<int>(player_.inventory.items.size());
-                if (count > 0 && inventory_cursor_ < count - 1) ++inventory_cursor_;
-            } else if (tab == PanelTab::Equipment) {
-                if (inventory_cursor_ < equip_slot_count - 1) ++inventory_cursor_;
-            } else if (tab == PanelTab::Wait) {
+            if (tab == PanelTab::Wait) {
                 if (wait_cursor_ < 5) ++wait_cursor_;
             }
             break;
         }
         case '-': {
             auto tab = static_cast<PanelTab>(active_tab_);
-            if (tab == PanelTab::Inventory || tab == PanelTab::Equipment) {
-                if (inventory_cursor_ > 0) --inventory_cursor_;
-            } else if (tab == PanelTab::Wait) {
+            if (tab == PanelTab::Wait) {
                 if (wait_cursor_ > 0) --wait_cursor_;
-            }
-            break;
-        }
-        case 'i': {
-            // Auto-switch to Inventory tab if on a non-item tab
-            auto tab = static_cast<PanelTab>(active_tab_);
-            if (tab != PanelTab::Inventory && tab != PanelTab::Equipment) {
-                active_tab_ = static_cast<int>(PanelTab::Inventory);
-                inventory_cursor_ = 0;
-                if (!panel_visible_) {
-                    panel_visible_ = true;
-                    compute_layout();
-                    compute_camera();
-                }
-                break;
-            }
-            if (tab == PanelTab::Inventory) {
-                int count = static_cast<int>(player_.inventory.items.size());
-                if (count > 0 && inventory_cursor_ < count) {
-                    inspected_item_ = player_.inventory.items[inventory_cursor_];
-                    inspecting_item_ = true;
-                }
-            } else if (tab == PanelTab::Equipment) {
-                auto slot = static_cast<EquipSlot>(inventory_cursor_);
-                const auto& opt = player_.equipment.slot_ref(slot);
-                if (opt) {
-                    inspected_item_ = *opt;
-                    inspecting_item_ = true;
-                }
             }
             break;
         }
@@ -357,33 +321,6 @@ void Game::handle_play_input(int key) {
                 }
                 recompute_fov();
                 break;
-            }
-            if (tab == PanelTab::Inventory) {
-                int count = static_cast<int>(player_.inventory.items.size());
-                if (count > 0 && inventory_cursor_ < count) {
-                    const auto& item = player_.inventory.items[inventory_cursor_];
-                    if (item.slot.has_value()) {
-                        equip_item(inventory_cursor_);
-                    } else if (item.usable) {
-                        use_item(inventory_cursor_);
-                    }
-                    if (inventory_cursor_ >= static_cast<int>(player_.inventory.items.size()))
-                        inventory_cursor_ = std::max(0, static_cast<int>(player_.inventory.items.size()) - 1);
-                }
-            } else if (tab == PanelTab::Equipment) {
-                unequip_slot(inventory_cursor_);
-            }
-            break;
-        }
-        case 'd': {
-            auto tab = static_cast<PanelTab>(active_tab_);
-            if (tab == PanelTab::Inventory) {
-                int count = static_cast<int>(player_.inventory.items.size());
-                if (count > 0 && inventory_cursor_ < count) {
-                    drop_item(inventory_cursor_);
-                    if (inventory_cursor_ >= static_cast<int>(player_.inventory.items.size()))
-                        inventory_cursor_ = std::max(0, static_cast<int>(player_.inventory.items.size()) - 1);
-                }
             }
             break;
         }
