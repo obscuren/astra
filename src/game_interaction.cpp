@@ -328,10 +328,44 @@ void Game::auto_step() {
         auto_walk_hp_ = player_.hp; // update for damage detection
     }
     else if (auto_exploring_) {
-        auto [dx, dy] = bfs_explore_step();
+        // Check if current goal is still valid (still adjacent to unexplored)
+        bool goal_valid = false;
+        if (explore_goal_x_ >= 0) {
+            // Reached the goal?
+            if (player_.x == explore_goal_x_ && player_.y == explore_goal_y_) {
+                goal_valid = false; // need new goal
+            } else {
+                // Goal still adjacent to unexplored?
+                for (int i = 0; i < 4; ++i) {
+                    int nx = explore_goal_x_ + dx4[i], ny = explore_goal_y_ + dy4[i];
+                    if (nx >= 0 && nx < world_.map().width() &&
+                        ny >= 0 && ny < world_.map().height() &&
+                        world_.visibility().get(nx, ny) == Visibility::Unexplored) {
+                        goal_valid = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Find new goal if needed
+        if (!goal_valid) {
+            auto [gx, gy] = bfs_explore_goal();
+            if (gx < 0) {
+                auto_exploring_ = false;
+                explore_goal_x_ = explore_goal_y_ = -1;
+                log("Nothing left to explore nearby.");
+                return;
+            }
+            explore_goal_x_ = gx;
+            explore_goal_y_ = gy;
+        }
+
+        // BFS one step toward the committed goal
+        auto [dx, dy] = bfs_step_toward(explore_goal_x_, explore_goal_y_);
         if (dx == 0 && dy == 0) {
-            auto_exploring_ = false;
-            log("Nothing left to explore nearby.");
+            // Can't reach goal — pick a new one next step
+            explore_goal_x_ = explore_goal_y_ = -1;
             return;
         }
         try_move(dx, dy);
@@ -339,7 +373,9 @@ void Game::auto_step() {
     }
 }
 
-std::pair<int,int> Game::bfs_explore_step() const {
+std::pair<int,int> Game::bfs_explore_goal() const {
+    // Find the nearest passable tile adjacent to an Unexplored tile.
+    // Prefers goals at least view_radius away for efficient coverage.
     int w = world_.map().width();
     int h = world_.map().height();
     int px = player_.x, py = player_.y;
@@ -415,14 +451,55 @@ std::pair<int,int> Game::bfs_explore_step() const {
     }
 
 found:
-    // Trace back to find the first step from player
-    int tx = goal_x, ty = goal_y;
-    while (parent[ty][tx].first != px || parent[ty][tx].second != py) {
-        auto [ppx, ppy] = parent[ty][tx];
-        tx = ppx;
-        ty = ppy;
+    return {goal_x, goal_y};
+}
+
+std::pair<int,int> Game::bfs_step_toward(int gx, int gy) const {
+    // BFS from player to target, return the first step direction
+    int w = world_.map().width();
+    int h = world_.map().height();
+    int px = player_.x, py = player_.y;
+
+    if (px == gx && py == gy) return {0, 0};
+
+    std::vector<std::vector<int>> dist(h, std::vector<int>(w, -1));
+    std::vector<std::vector<std::pair<int,int>>> parent(h, std::vector<std::pair<int,int>>(w, {-1,-1}));
+
+    std::deque<std::pair<int,int>> queue;
+    dist[py][px] = 0;
+    queue.push_back({px, py});
+
+    while (!queue.empty()) {
+        auto [cx, cy] = queue.front();
+        queue.pop_front();
+
+        if (cx == gx && cy == gy) {
+            // Trace back
+            int tx = gx, ty = gy;
+            while (parent[ty][tx].first != px || parent[ty][tx].second != py) {
+                auto [ppx, ppy] = parent[ty][tx];
+                tx = ppx;
+                ty = ppy;
+            }
+            return {tx - px, ty - py};
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx4[i], ny = cy + dy4[i];
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            if (dist[ny][nx] >= 0) continue;
+            if (!world_.map().passable(nx, ny)) continue;
+            bool blocked = false;
+            for (const auto& npc : world_.npcs()) {
+                if (npc.alive() && npc.x == nx && npc.y == ny) { blocked = true; break; }
+            }
+            if (blocked) continue;
+            dist[ny][nx] = dist[cy][cx] + 1;
+            parent[ny][nx] = {cx, cy};
+            queue.push_back({nx, ny});
+        }
     }
-    return {tx - px, ty - py};
+    return {0, 0}; // unreachable
 }
 
 } // namespace astra

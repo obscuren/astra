@@ -168,6 +168,7 @@ void Game::handle_play_input(int key) {
             case 'w':
                 // ww = auto-explore
                 auto_exploring_ = true;
+                explore_goal_x_ = explore_goal_y_ = -1;
                 auto_walk_hp_ = player_.hp;
                 log("Auto-exploring...");
                 return;
