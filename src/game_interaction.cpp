@@ -343,11 +343,12 @@ std::pair<int,int> Game::bfs_explore_step() const {
     int w = world_.map().width();
     int h = world_.map().height();
     int px = player_.x, py = player_.y;
+    int vr = player_.view_radius;
 
     // BFS to find nearest passable tile adjacent to an Unexplored tile.
-    // After each step, try_move calls recompute_fov which updates the
-    // visibility map, so previously-unexplored tiles near the player
-    // become Explored and the BFS naturally progresses outward.
+    // Two-pass approach:
+    // 1. First, look for goals at least view_radius away (big jumps)
+    // 2. Fallback: any unexplored-adjacent tile (mop up corners)
     std::vector<std::vector<int>> dist(h, std::vector<int>(w, -1));
     std::vector<std::vector<std::pair<int,int>>> parent(h, std::vector<std::pair<int,int>>(w, {-1,-1}));
 
@@ -356,19 +357,35 @@ std::pair<int,int> Game::bfs_explore_step() const {
     queue.push_back({px, py});
 
     int goal_x = -1, goal_y = -1;
+    int fallback_x = -1, fallback_y = -1;
 
     while (!queue.empty()) {
         auto [cx, cy] = queue.front();
         queue.pop_front();
 
         // Check if this tile is adjacent to an unexplored tile
+        bool has_unexplored = false;
         for (int i = 0; i < 4; ++i) {
             int nx = cx + dx4[i], ny = cy + dy4[i];
             if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
             if (world_.visibility().get(nx, ny) == Visibility::Unexplored) {
+                has_unexplored = true;
+                break;
+            }
+        }
+
+        if (has_unexplored && (cx != px || cy != py)) {
+            int ddx = cx - px, ddy = cy - py;
+            int dist_sq = ddx * ddx + ddy * ddy;
+            if (dist_sq >= vr * vr) {
+                // Far enough — use this as the goal
                 goal_x = cx;
                 goal_y = cy;
                 goto found;
+            } else if (fallback_x < 0) {
+                // Remember first close one as fallback
+                fallback_x = cx;
+                fallback_y = cy;
             }
         }
 
@@ -388,7 +405,14 @@ std::pair<int,int> Game::bfs_explore_step() const {
             queue.push_back({nx, ny});
         }
     }
-    return {0, 0}; // nothing to explore
+
+    // No far goal found — use fallback (close unexplored) or give up
+    if (fallback_x >= 0) {
+        goal_x = fallback_x;
+        goal_y = fallback_y;
+    } else {
+        return {0, 0};
+    }
 
 found:
     // Trace back to find the first step from player
