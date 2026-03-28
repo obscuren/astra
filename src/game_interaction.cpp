@@ -1,6 +1,9 @@
 #include "astra/game.h"
 #include "astra/tile_props.h"
 
+#include <deque>
+#include <vector>
+
 namespace astra {
 
 void Game::try_move(int dx, int dy) {
@@ -257,5 +260,146 @@ void Game::use_at(int tx, int ty) {
     try_interact(dx, dy);
 }
 
+
+// ── Auto-walk / Auto-explore ────────────────────────────────────────
+
+static const int dx4[] = {0, 0, -1, 1};
+static const int dy4[] = {-1, 1, 0, 0};
+
+bool Game::auto_walk_should_stop() const {
+    // Hostile NPC visible
+    for (const auto& npc : world_.npcs()) {
+        if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
+        if (world_.visibility().get(npc.x, npc.y) == Visibility::Visible) return true;
+    }
+    // Item on ground at player position
+    for (const auto& gi : world_.ground_items()) {
+        if (gi.x == player_.x && gi.y == player_.y) return true;
+    }
+    // Player took damage
+    if (player_.hp < auto_walk_hp_) return true;
+    // Door adjacent
+    for (int i = 0; i < 4; ++i) {
+        int nx = player_.x + dx4[i], ny = player_.y + dy4[i];
+        if (world_.map().get(nx, ny) == Tile::Fixture) {
+            int fid = world_.map().fixture_id(nx, ny);
+            if (fid >= 0 && world_.map().fixture(fid).type == FixtureType::Door) return true;
+        }
+    }
+    return false;
+}
+
+void Game::auto_step() {
+    if (auto_walk_should_stop()) {
+        auto_walking_ = false;
+        auto_exploring_ = false;
+        return;
+    }
+
+    if (auto_walking_) {
+        // Straight-line walk
+        int nx = player_.x + auto_walk_dx_;
+        int ny = player_.y + auto_walk_dy_;
+        if (!world_.map().passable(nx, ny)) {
+            auto_walking_ = false;
+            return;
+        }
+        // Check for intersection (more than 2 open adjacent tiles perpendicular to direction)
+        int open = 0;
+        for (int i = 0; i < 4; ++i) {
+            int cx = player_.x + dx4[i], cy = player_.y + dy4[i];
+            if (world_.map().passable(cx, cy)) ++open;
+        }
+        if (open > 2) { // corridor branch/intersection
+            auto_walking_ = false;
+            return;
+        }
+        // Check for hostile NPC at destination
+        for (const auto& npc : world_.npcs()) {
+            if (npc.alive() && npc.x == nx && npc.y == ny) {
+                auto_walking_ = false;
+                return;
+            }
+        }
+        try_move(auto_walk_dx_, auto_walk_dy_);
+        auto_walk_hp_ = player_.hp; // update for damage detection
+    }
+    else if (auto_exploring_) {
+        auto [dx, dy] = bfs_explore_step();
+        if (dx == 0 && dy == 0) {
+            auto_exploring_ = false;
+            log("Nothing left to explore nearby.");
+            return;
+        }
+        try_move(dx, dy);
+        auto_walk_hp_ = player_.hp;
+    }
+}
+
+std::pair<int,int> Game::bfs_explore_step() const {
+    int w = world_.map().width();
+    int h = world_.map().height();
+    int px = player_.x, py = player_.y;
+
+    // BFS to find nearest tile adjacent to an unexplored tile
+    std::vector<std::vector<int>> dist(h, std::vector<int>(w, -1));
+    std::vector<std::vector<std::pair<int,int>>> parent(h, std::vector<std::pair<int,int>>(w, {-1,-1}));
+
+    std::deque<std::pair<int,int>> queue;
+    dist[py][px] = 0;
+    queue.push_back({px, py});
+
+    static const int dx4[] = {0, 0, -1, 1};
+    static const int dy4[] = {-1, 1, 0, 0};
+
+    int goal_x = -1, goal_y = -1;
+
+    while (!queue.empty()) {
+        auto [cx, cy] = queue.front();
+        queue.pop_front();
+
+        // Check if this tile is adjacent to an unexplored tile
+        if (cx != px || cy != py) { // not the starting tile
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx4[i], ny = cy + dy4[i];
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                    if (world_.visibility().get(nx, ny) == Visibility::Unexplored) {
+                        goal_x = cx;
+                        goal_y = cy;
+                        goto found;
+                    }
+                }
+            }
+        }
+
+        // Expand neighbors
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx4[i], ny = cy + dy4[i];
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            if (dist[ny][nx] >= 0) continue; // already visited
+            if (!world_.map().passable(nx, ny)) continue;
+            // Don't walk through NPCs
+            bool blocked = false;
+            for (const auto& npc : world_.npcs()) {
+                if (npc.alive() && npc.x == nx && npc.y == ny) { blocked = true; break; }
+            }
+            if (blocked) continue;
+            dist[ny][nx] = dist[cy][cx] + 1;
+            parent[ny][nx] = {cx, cy};
+            queue.push_back({nx, ny});
+        }
+    }
+    return {0, 0}; // nothing to explore
+
+found:
+    // Trace back to find the first step from player
+    int tx = goal_x, ty = goal_y;
+    while (parent[ty][tx].first != px || parent[ty][tx].second != py) {
+        auto [ppx, ppy] = parent[ty][tx];
+        tx = ppx;
+        ty = ppy;
+    }
+    return {tx - px, ty - py};
+}
 
 } // namespace astra

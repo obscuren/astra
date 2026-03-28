@@ -48,7 +48,7 @@
 - [ ] Faction reputation effects — NPCs react to your standing
 
 ### Gameplay
-- [ ] **Autoexplore** — auto-walk through unexplored areas until enemy/item found
+- [x] **Auto-walk/explore** — `w` + direction = walk straight, `ww` = BFS auto-explore
 
 ### World Generation
 - [ ] New dungeon generator types / biomes

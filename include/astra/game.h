@@ -83,6 +83,9 @@ public:
     void set_dev_mode(bool v) { dev_mode_ = v; }
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
+    void auto_step();
+    bool auto_walk_should_stop() const;
+    std::pair<int,int> bfs_explore_step() const;
     void open_repair_bench();
     void rebuild_star_chart_viewer();
     void reset_interaction_state();
@@ -227,6 +230,11 @@ private:
 
     // Input modes
     bool awaiting_interact_ = false;
+    bool awaiting_autowalk_ = false;
+    bool auto_walking_ = false;
+    int auto_walk_dx_ = 0, auto_walk_dy_ = 0;
+    bool auto_exploring_ = false;
+    int auto_walk_hp_ = 0; // HP when auto-walk started, to detect damage
     bool targeting_ = false;
     int target_x_ = 0, target_y_ = 0;
     int blink_phase_ = 0;

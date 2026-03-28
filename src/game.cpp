@@ -33,9 +33,11 @@ void Game::run() {
     render();
 
     while (running_) {
-        int key = (combat_.targeting() || input_.looking() || quit_confirm_.is_open())
-                      ? renderer_->wait_input_timeout(300)
-                      : renderer_->wait_input();
+        bool needs_timeout = combat_.targeting() || input_.looking()
+                           || quit_confirm_.is_open()
+                           || auto_walking_ || auto_exploring_;
+        int key = needs_timeout ? renderer_->wait_input_timeout(needs_timeout && (auto_walking_ || auto_exploring_) ? 50 : 300)
+                                : renderer_->wait_input();
 
         // Check for Ctrl+C quit request (signal fires during read, returning -1)
         if (renderer_->consume_quit_request()) {
@@ -51,8 +53,19 @@ void Game::run() {
             // Timeout — toggle blink phase for reticule
             combat_.tick_blink();
             input_.tick_look_blink();
+            // Auto-walk/explore step
+            if (auto_walking_ || auto_exploring_) {
+                auto_step();
+            }
         } else {
-            handle_input(key);
+            // Any keypress stops auto-walk/explore
+            if (auto_walking_ || auto_exploring_) {
+                auto_walking_ = false;
+                auto_exploring_ = false;
+                log("Stopped.");
+            } else {
+                handle_input(key);
+            }
         }
 
         int w = renderer_->get_width();

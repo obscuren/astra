@@ -141,6 +141,42 @@ void Game::handle_play_input(int key) {
         }
     }
 
+    // Awaiting auto-walk direction (w + direction or ww)
+    if (awaiting_autowalk_) {
+        awaiting_autowalk_ = false;
+        switch (key) {
+            case 'k': case KEY_UP:
+                auto_walking_ = true; auto_walk_dx_ = 0; auto_walk_dy_ = -1;
+                auto_walk_hp_ = player_.hp;
+                log("Auto-walking north...");
+                return;
+            case 'j': case KEY_DOWN:
+                auto_walking_ = true; auto_walk_dx_ = 0; auto_walk_dy_ = 1;
+                auto_walk_hp_ = player_.hp;
+                log("Auto-walking south...");
+                return;
+            case 'h': case KEY_LEFT:
+                auto_walking_ = true; auto_walk_dx_ = -1; auto_walk_dy_ = 0;
+                auto_walk_hp_ = player_.hp;
+                log("Auto-walking west...");
+                return;
+            case KEY_RIGHT:
+                auto_walking_ = true; auto_walk_dx_ = 1; auto_walk_dy_ = 0;
+                auto_walk_hp_ = player_.hp;
+                log("Auto-walking east...");
+                return;
+            case 'w':
+                // ww = auto-explore
+                auto_exploring_ = true;
+                auto_walk_hp_ = player_.hp;
+                log("Auto-exploring...");
+                return;
+            default:
+                log("Cancelled.");
+                return;
+        }
+    }
+
     switch (key) {
         case '\033':
             pause_menu_.close();
@@ -194,6 +230,10 @@ void Game::handle_play_input(int key) {
         case 'l':
             input_.begin_look(player_.x, player_.y);
             log("Look mode. Move cursor to examine. [Esc] to exit.");
+            break;
+        case 'w':
+            awaiting_autowalk_ = true;
+            log("Auto-walk: choose direction, or press w again to explore.");
             break;
         case 't': combat_.begin_targeting(*this); break;
         case 's': combat_.shoot_target(*this); break;
