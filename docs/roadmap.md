@@ -47,6 +47,9 @@
 - [ ] Quest system expansion — multi-step quests with objectives
 - [ ] Faction reputation effects — NPCs react to your standing
 
+### Gameplay
+- [ ] **Autoexplore** — auto-walk through unexplored areas until enemy/item found
+
 ### World Generation
 - [ ] New dungeon generator types / biomes
 - [ ] More overworld POI stamps (temples, factories, research labs)
@@ -67,7 +70,6 @@
 ## UI/UX
 
 - [x] **Conversation dialog in contextual menu** — NPC speech shown as body text in PopupMenu
-- [ ] **Autoexplore** — auto-walk through unexplored areas until enemy/item found
 - [ ] **Minimap** — small overview in corner
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)
 - [ ] **Message log scrollback** — scroll through message history
