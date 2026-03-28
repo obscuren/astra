@@ -144,6 +144,15 @@ void TerminalRenderer::shutdown() {
     impl_->raw_mode = false;
 }
 
+bool TerminalRenderer::read_cell(int x, int y, char* glyph_out, Color& fg_out) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return false;
+    const auto& cell = buffer_[y][x];
+    if (cell.continuation) return false;
+    for (int i = 0; i < 5; ++i) glyph_out[i] = cell.ch[i];
+    fg_out = cell.fg;
+    return true;
+}
+
 bool TerminalRenderer::consume_quit_request() {
     if (InterlockedExchange(&s_quit_requested, 0)) {
         return true;
