@@ -74,8 +74,8 @@
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)
 - [ ] **Message log scrollback** — scroll through message history
 - [ ] **Item comparison** — show stat diff when hovering equipment
-- [ ] **Equipment tab read-only** — make equipment in side panel non-interactable (view only)
-- [ ] **Remove inventory from side panel** — inventory management moves to character screen only
+- [x] **Equipment tab read-only** — side panel equipment is display-only
+- [x] **Remove inventory from side panel** — inventory management via character screen only
 
 ---
 
