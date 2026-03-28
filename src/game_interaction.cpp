@@ -304,13 +304,16 @@ void Game::auto_step() {
             auto_walking_ = false;
             return;
         }
-        // Check for intersection (more than 2 open adjacent tiles perpendicular to direction)
-        int open = 0;
+        // Check for intersection: only in corridors (<=2 open neighbors)
+        // In open rooms, skip this check to avoid immediately stopping
+        int open_here = 0;
+        int open_next = 0;
         for (int i = 0; i < 4; ++i) {
-            int cx = player_.x + dx4[i], cy = player_.y + dy4[i];
-            if (world_.map().passable(cx, cy)) ++open;
+            if (world_.map().passable(player_.x + dx4[i], player_.y + dy4[i])) ++open_here;
+            if (world_.map().passable(nx + dx4[i], ny + dy4[i])) ++open_next;
         }
-        if (open > 2) { // corridor branch/intersection
+        // If we're in a corridor and the next tile is an intersection, stop
+        if (open_here <= 2 && open_next > 2) {
             auto_walking_ = false;
             return;
         }
