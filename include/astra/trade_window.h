@@ -5,6 +5,8 @@
 #include "astra/ui.h"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace astra {
 
@@ -27,6 +29,9 @@ private:
     void sell_selected();
     void draw_item_list(DrawContext& ctx, const std::vector<Item>& items,
                         int cursor, int scroll, bool active, bool show_buy_price);
+    void draw_sell_list(DrawContext& ctx,
+                        const std::vector<std::pair<const Item*, bool>>& items,
+                        int cursor, int scroll, bool active);
 
     Npc* merchant_ = nullptr;
     Player* player_ = nullptr;

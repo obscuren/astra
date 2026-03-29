@@ -54,6 +54,9 @@ bool TradeWindow::handle_input(int key) {
     auto& cursor = (active_side_ == Side::Merchant) ? merchant_cursor_ : player_cursor_;
 
     int count = static_cast<int>(items.size());
+    // Player side includes ship cargo
+    if (active_side_ == Side::Player)
+        count += static_cast<int>(player_->ship.cargo.size());
 
     if (key == KEY_UP) {
         if (cursor > 0) --cursor;
@@ -105,19 +108,24 @@ void TradeWindow::buy_selected() {
     Item bought = item;
     bought.stack_count = 1;
 
-    // Merge into existing stack if possible
-    bool merged = false;
-    if (bought.stackable) {
-        for (auto& pi : player_->inventory.items) {
-            if (pi.id == bought.id) {
-                pi.stack_count += 1;
-                merged = true;
-                break;
+    if (bought.type == ItemType::ShipComponent) {
+        // Ship components go to ship cargo
+        player_->ship.cargo.push_back(std::move(bought));
+    } else {
+        // Merge into existing stack if possible
+        bool merged = false;
+        if (bought.stackable) {
+            for (auto& pi : player_->inventory.items) {
+                if (pi.id == bought.id) {
+                    pi.stack_count += 1;
+                    merged = true;
+                    break;
+                }
             }
         }
-    }
-    if (!merged) {
-        player_->inventory.items.push_back(std::move(bought));
+        if (!merged) {
+            player_->inventory.items.push_back(std::move(bought));
+        }
     }
 
     // Remove from merchant
@@ -135,11 +143,17 @@ void TradeWindow::buy_selected() {
 }
 
 void TradeWindow::sell_selected() {
+    // Combined sell list: player inventory + ship cargo
     auto& inv = player_->inventory.items;
-    if (inv.empty()) return;
-    if (player_cursor_ < 0 || player_cursor_ >= static_cast<int>(inv.size())) return;
+    auto& cargo = player_->ship.cargo;
+    int inv_count = static_cast<int>(inv.size());
+    int total = inv_count + static_cast<int>(cargo.size());
+    if (total == 0) return;
+    if (player_cursor_ < 0 || player_cursor_ >= total) return;
 
-    auto& item = inv[player_cursor_];
+    bool from_cargo = (player_cursor_ >= inv_count);
+    Item& item = from_cargo ? cargo[player_cursor_ - inv_count] : inv[player_cursor_];
+
     int effect_mod = effect_sell_price_pct(player_->effects);
     int faction_mod = -reputation_price_pct(reputation_for(*player_, merchant_->faction));
     int price = item.sell_value + (item.sell_value * (effect_mod + faction_mod) / 100);
@@ -169,14 +183,19 @@ void TradeWindow::sell_selected() {
         shop_inv.push_back(std::move(sold));
     }
 
-    // Remove from player
+    // Remove from source
     if (item.stackable && item.stack_count > 1) {
         item.stack_count -= 1;
     } else {
-        inv.erase(inv.begin() + player_cursor_);
-        if (player_cursor_ >= static_cast<int>(inv.size()) && player_cursor_ > 0) {
-            --player_cursor_;
+        if (from_cargo) {
+            int ci = player_cursor_ - inv_count;
+            cargo.erase(cargo.begin() + ci);
+        } else {
+            inv.erase(inv.begin() + player_cursor_);
         }
+        int new_total = static_cast<int>(inv.size()) + static_cast<int>(cargo.size());
+        if (player_cursor_ >= new_total && player_cursor_ > 0)
+            --player_cursor_;
     }
 
     status_msg_ = "Sold " + sold_name + " for " + std::to_string(price) + "$.";
@@ -235,8 +254,12 @@ void TradeWindow::draw(int screen_w, int screen_h) {
 
     draw_item_list(left_list, merchant_->interactions.shop->inventory,
                    merchant_cursor_, merchant_scroll_, merchant_active, true);
-    draw_item_list(right_list, player_->inventory.items,
-                   player_cursor_, player_scroll_, !merchant_active, false);
+    // Build combined player + cargo view for the sell side
+    std::vector<std::pair<const Item*, bool>> sell_items; // {item, is_cargo}
+    for (const auto& it : player_->inventory.items) sell_items.push_back({&it, false});
+    for (const auto& it : player_->ship.cargo) sell_items.push_back({&it, true});
+    draw_sell_list(right_list, sell_items,
+                   player_cursor_, player_scroll_, !merchant_active);
 
     // Bottom separator
     int info_y = 2 + list_h;
@@ -303,6 +326,47 @@ void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& item
         if (!show_buy_price) faction_pct = -faction_pct;
         int price = base_price + (base_price * (effect_pct + faction_pct) / 100);
         if (price < (show_buy_price ? 1 : 0)) price = show_buy_price ? 1 : 0;
+        std::string price_str = std::to_string(price) + "$";
+        int px = w - static_cast<int>(price_str.size()) - 1;
+        if (px > x + static_cast<int>(item.name.size()) + 2) {
+            ctx.text(px, i, price_str, Color::Yellow);
+        }
+    }
+}
+
+void TradeWindow::draw_sell_list(DrawContext& ctx,
+                                 const std::vector<std::pair<const Item*, bool>>& items,
+                                 int cursor, int scroll, bool active) {
+    int w = ctx.width();
+    int h = ctx.height();
+    int inv_count = static_cast<int>(player_->inventory.items.size());
+
+    for (int i = 0; i < h; ++i) {
+        int idx = scroll + i;
+        if (idx >= static_cast<int>(items.size())) break;
+
+        const auto& [item_ptr, is_cargo] = items[idx];
+        const auto& item = *item_ptr;
+        bool selected = active && (idx == cursor);
+        int x = 1;
+
+        // Separator between player inventory and cargo
+        if (idx == inv_count && inv_count > 0 && idx > scroll) {
+            ctx.text(1, i, "-- Ship Cargo --", Color::DarkGray);
+            continue;  // skip this row for items — but this shifts indices...
+        }
+
+        if (selected) ctx.put(0, i, '>', Color::Yellow);
+        ctx.put(x, i, item.glyph, rarity_color(item.rarity));
+        x += 2;
+
+        draw_item_name(ctx, x, i, item, selected);
+
+        // Sell price
+        int effect_pct = effect_sell_price_pct(player_->effects);
+        int faction_pct = -reputation_price_pct(reputation_for(*player_, merchant_->faction));
+        int price = item.sell_value + (item.sell_value * (effect_pct + faction_pct) / 100);
+        if (price < 0) price = 0;
         std::string price_str = std::to_string(price) + "$";
         int px = w - static_cast<int>(price_str.size()) - 1;
         if (px > x + static_cast<int>(item.name.size()) + 2) {

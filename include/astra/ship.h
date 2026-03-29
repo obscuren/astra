@@ -12,12 +12,16 @@ struct Starship {
     std::string name;
     std::string type = "Light Freighter";
 
+    // Component slots
     std::optional<Item> engine;
     std::optional<Item> hull;
     std::optional<Item> navi_computer;
     std::optional<Item> shield;
     std::optional<Item> utility1;
     std::optional<Item> utility2;
+
+    // Ship cargo hold (ship components, spare parts, etc.)
+    std::vector<Item> cargo;
 
     std::optional<Item>& slot_ref(ShipSlot slot);
     const std::optional<Item>& slot_ref(ShipSlot slot) const;

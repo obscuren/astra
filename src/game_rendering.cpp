@@ -321,13 +321,19 @@ void Game::render_look_popup() {
 void Game::pickup_ground_item() {
     for (auto it = world_.ground_items().begin(); it != world_.ground_items().end(); ++it) {
         if (it->x == player_.x && it->y == player_.y) {
-            if (!player_.inventory.can_add(it->item)) {
-                log("Too heavy to pick up " + it->item.name + ".");
-                return;
-            }
             std::string picked_name = it->item.name;
-            log("You pick up " + picked_name + ".");
-            player_.inventory.items.push_back(std::move(it->item));
+            if (it->item.type == ItemType::ShipComponent) {
+                // Ship components go to ship cargo
+                log("You pick up " + picked_name + " (stored in ship cargo).");
+                player_.ship.cargo.push_back(std::move(it->item));
+            } else {
+                if (!player_.inventory.can_add(it->item)) {
+                    log("Too heavy to pick up " + it->item.name + ".");
+                    return;
+                }
+                log("You pick up " + picked_name + ".");
+                player_.inventory.items.push_back(std::move(it->item));
+            }
             world_.ground_items().erase(it);
             quest_manager_.on_item_picked_up(picked_name);
             advance_world(ActionCost::move);

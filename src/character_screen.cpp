@@ -221,10 +221,7 @@ bool CharacterScreen::handle_input(int key) {
             if (key == KEY_UP && ship_equip_cursor_ > 0) --ship_equip_cursor_;
             if (key == KEY_DOWN && ship_equip_cursor_ < ship_slot_count - 1) ++ship_equip_cursor_;
         } else {
-            // Count ship components in inventory
-            int count = 0;
-            for (const auto& it : player_->inventory.items)
-                if (it.type == ItemType::ShipComponent) ++count;
+            int count = static_cast<int>(player_->ship.cargo.size());
             if (key == KEY_UP && ship_inv_cursor_ > 0) --ship_inv_cursor_;
             if (key == KEY_DOWN && ship_inv_cursor_ < count - 1) ++ship_inv_cursor_;
         }
@@ -482,19 +479,12 @@ void CharacterScreen::open_context_menu() {
             context_menu_.add_option('l', "look");
             context_menu_.add_option('r', "uninstall");
         } else {
-            // Find the nth ship component in inventory
-            int idx = 0;
-            for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
-                if (player_->inventory.items[i].type == ItemType::ShipComponent) {
-                    if (idx == ship_inv_cursor_) {
-                        context_menu_.add_option('l', "look");
-                        if (player_->inventory.items[i].ship_slot.has_value())
-                            context_menu_.add_option('e', "install");
-                        break;
-                    }
-                    ++idx;
-                }
-            }
+            auto& cargo = player_->ship.cargo;
+            if (ship_inv_cursor_ < 0 || ship_inv_cursor_ >= static_cast<int>(cargo.size()))
+                return;
+            context_menu_.add_option('l', "look");
+            if (cargo[ship_inv_cursor_].ship_slot.has_value())
+                context_menu_.add_option('e', "install");
         }
         context_menu_.open();
         return;
@@ -543,28 +533,16 @@ void CharacterScreen::execute_context_action(char key) {
                 look_item_ = &(*equipped);
                 look_open_ = true;
             } else if (key == 'r') {
-                if (!player_->inventory.can_add(*equipped)) {
-                    context_message_ = "Inventory too heavy.";
-                    context_msg_timer_ = 3;
-                    return;
-                }
                 context_message_ = "Uninstalled " + equipped->name + ".";
                 context_msg_timer_ = 3;
-                player_->inventory.items.push_back(std::move(*equipped));
+                player_->ship.cargo.push_back(std::move(*equipped));
                 equipped.reset();
             }
         } else {
-            // Find the nth ship component in inventory
-            int idx = 0;
-            int real_idx = -1;
-            for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
-                if (player_->inventory.items[i].type == ItemType::ShipComponent) {
-                    if (idx == ship_inv_cursor_) { real_idx = i; break; }
-                    ++idx;
-                }
-            }
-            if (real_idx < 0) return;
-            auto& item = player_->inventory.items[real_idx];
+            auto& cargo = player_->ship.cargo;
+            if (ship_inv_cursor_ < 0 || ship_inv_cursor_ >= static_cast<int>(cargo.size()))
+                return;
+            auto& item = cargo[ship_inv_cursor_];
             if (key == 'l') {
                 look_item_ = &item;
                 look_open_ = true;
@@ -572,17 +550,12 @@ void CharacterScreen::execute_context_action(char key) {
                 ShipSlot target = *item.ship_slot;
                 auto& sl = player_->ship.slot_ref(target);
                 Item to_install = std::move(item);
-                player_->inventory.items.erase(
-                    player_->inventory.items.begin() + real_idx);
-                if (sl) player_->inventory.items.push_back(std::move(*sl));
+                cargo.erase(cargo.begin() + ship_inv_cursor_);
+                if (sl) cargo.push_back(std::move(*sl));
                 sl = std::move(to_install);
                 context_message_ = "Installed " + sl->name + ".";
                 context_msg_timer_ = 3;
-                // Adjust cursor
-                int count = 0;
-                for (const auto& it : player_->inventory.items)
-                    if (it.type == ItemType::ShipComponent) ++count;
-                if (ship_inv_cursor_ >= count && ship_inv_cursor_ > 0)
+                if (ship_inv_cursor_ >= static_cast<int>(cargo.size()) && ship_inv_cursor_ > 0)
                     --ship_inv_cursor_;
             }
         }
@@ -2108,24 +2081,18 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
         ctx.text(2, footer_y, "Board your ship to manage equipment.", Color::DarkGray);
     }
 
-    // Right side: ship components in inventory
+    // Right side: ship cargo hold
     int ry = 2;
     int rx = half + 2;
     int rw = w - half - 3;
 
-    // Collect ship components from inventory
-    std::vector<int> ship_items;
-    for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
-        if (player_->inventory.items[i].type == ItemType::ShipComponent)
-            ship_items.push_back(i);
-    }
-
-    if (ship_items.empty()) {
-        ctx.text(rx, ry, "No ship components.", Color::DarkGray);
+    auto& cargo = player_->ship.cargo;
+    if (cargo.empty()) {
+        ctx.text(rx, ry, "Cargo hold empty.", Color::DarkGray);
     } else {
-        for (int si = 0; si < static_cast<int>(ship_items.size()); ++si) {
+        for (int si = 0; si < static_cast<int>(cargo.size()); ++si) {
             if (ry >= ctx.height() - 1) break;
-            const auto& item = player_->inventory.items[ship_items[si]];
+            const auto& item = cargo[si];
             bool selected = (ship_focus_ == ShipFocus::Inventory && ship_inv_cursor_ == si);
 
             if (selected) ctx.put(rx - 1, ry, '>', Color::Yellow);

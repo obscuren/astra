@@ -456,6 +456,9 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     for (int i = 0; i < ship_slot_count; ++i) {
         write_optional_item(w, p.ship.slot_ref(static_cast<ShipSlot>(i)));
     }
+    // Ship cargo
+    w.write_u32(static_cast<uint32_t>(p.ship.cargo.size()));
+    for (const auto& item : p.ship.cargo) write_item(w, item);
     w.end_section(pos);
 }
 
@@ -934,6 +937,12 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
         p.ship.type = r.read_string();
         for (int i = 0; i < ship_slot_count; ++i) {
             p.ship.slot_ref(static_cast<ShipSlot>(i)) = read_optional_item(r, version);
+        }
+        // Ship cargo
+        uint32_t cargo_count = r.read_u32();
+        p.ship.cargo.resize(cargo_count);
+        for (uint32_t i = 0; i < cargo_count; ++i) {
+            p.ship.cargo[i] = read_item(r, version);
         }
     }
 }
