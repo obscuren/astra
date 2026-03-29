@@ -24,4 +24,8 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep = 0);
 Npc build_astronomer(Race race, std::mt19937& rng);
 Npc build_engineer(Race race, std::mt19937& rng);
 
+// Random civilian NPC — race-based glyph, flavor dialog from pool
+Npc build_civilian(Race race, std::mt19937& rng);
+Npc build_random_civilian(std::mt19937& rng); // picks random friendly race
+
 } // namespace astra

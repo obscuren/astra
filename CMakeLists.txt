@@ -21,6 +21,7 @@ set(ASTRA_SOURCES
     src/npcs/xytomorph.cpp
     src/npcs/nova.cpp
     src/npcs/hub_npcs.cpp
+    src/npcs/civilian.cpp
     src/npc_spawner.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp

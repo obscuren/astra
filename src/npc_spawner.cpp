@@ -41,8 +41,10 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
             case RoomFlavor::Cantina: {
                 place_npc(build_food_merchant(pick_race(), rng, kreth_rep), rid);
                 place_npc(build_merchant(pick_race(), rng, kreth_rep), rid);
-                // Also a drifter hanging around
-                place_npc(build_drifter(Race::Sylphari, rng), rid);
+                // Civilians and a drifter hanging around
+                place_npc(build_drifter(pick_race(), rng), rid);
+                place_npc(build_random_civilian(rng), rid);
+                place_npc(build_random_civilian(rng), rid);
                 break;
             }
             case RoomFlavor::Medbay: {
@@ -69,19 +71,20 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
             }
             case RoomFlavor::StorageBay:
             case RoomFlavor::CargoHold: {
-                // Occasional drifter
-                std::uniform_int_distribution<int> chance(0, 1);
-                if (chance(rng) == 0) {
+                // Occasional drifter or civilian
+                std::uniform_int_distribution<int> chance(0, 2);
+                if (chance(rng) == 0)
                     place_npc(build_drifter(pick_race(), rng), rid);
-                }
+                if (chance(rng) == 0)
+                    place_npc(build_random_civilian(rng), rid);
                 break;
             }
             case RoomFlavor::CrewQuarters: {
-                // Occasional sleeping drifter
-                std::uniform_int_distribution<int> chance(0, 2);
-                if (chance(rng) == 0) {
-                    place_npc(build_drifter(pick_race(), rng), rid);
-                }
+                // Residents
+                place_npc(build_random_civilian(rng), rid);
+                std::uniform_int_distribution<int> chance(0, 1);
+                if (chance(rng) == 0)
+                    place_npc(build_random_civilian(rng), rid);
                 break;
             }
             default:
@@ -183,34 +186,41 @@ void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
             place_near(build_food_merchant(pick_friendly_race(rng), rng, kreth_rep), crx, cry);
     }
 
-    // Bunk #1 → Resident
+    // Bunk #1 → Resident civilian
     auto [bx1, by1] = find_fixture_pos(map, FixtureType::Bunk, 0);
     if (bx1 >= 0)
-        place_near(build_drifter(pick_friendly_race(rng), rng), bx1, by1);
+        place_near(build_random_civilian(rng), bx1, by1);
 
     // Bunk #2 → 50% chance Resident
     auto [bx2, by2] = find_fixture_pos(map, FixtureType::Bunk, 1);
     if (bx2 >= 0) {
         std::uniform_int_distribution<int> chance(0, 1);
         if (chance(rng) == 0)
-            place_near(build_drifter(pick_friendly_race(rng), rng), bx2, by2);
+            place_near(build_random_civilian(rng), bx2, by2);
     }
 
-    // Plaza wanderers (center of map)
+    // Plaza wanderers (center of map) — mix of civilians and drifters
     int pcx = map.width() / 2;
     int pcy = map.height() / 2;
     {
-        Npc wanderer = build_drifter(pick_friendly_race(rng), rng);
+        Npc wanderer = build_random_civilian(rng);
         if (find_floor_near(map, pcx, pcy, wanderer.x, wanderer.y, occupied)) {
             occupied.push_back({wanderer.x, wanderer.y});
             npcs.push_back(std::move(wanderer));
         }
     }
-    // 33% chance second plaza wanderer
+    {
+        Npc wanderer = build_drifter(pick_friendly_race(rng), rng);
+        if (find_floor_near(map, pcx - 2, pcy + 1, wanderer.x, wanderer.y, occupied)) {
+            occupied.push_back({wanderer.x, wanderer.y});
+            npcs.push_back(std::move(wanderer));
+        }
+    }
+    // 33% chance extra civilian
     {
         std::uniform_int_distribution<int> chance(0, 2);
         if (chance(rng) == 0) {
-            Npc wanderer = build_drifter(pick_friendly_race(rng), rng);
+            Npc wanderer = build_random_civilian(rng);
             if (find_floor_near(map, pcx + 2, pcy + 1, wanderer.x, wanderer.y, occupied)) {
                 occupied.push_back({wanderer.x, wanderer.y});
                 npcs.push_back(std::move(wanderer));
@@ -237,22 +247,29 @@ void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
     if (cx >= 0)
         place_near(build_commander(pick_friendly_race(rng), rng), cx, cy);
 
-    // Bunk → Guard (Main Building)
+    // Bunk → Guard or civilian
     auto [bx, by] = find_fixture_pos(map, FixtureType::Bunk);
     if (bx >= 0)
-        place_near(build_drifter(pick_friendly_race(rng), rng), bx, by);
+        place_near(build_random_civilian(rng), bx, by);
 
     // Crate → Quartermaster (Storage Shed)
     auto [crx, cry] = find_fixture_pos(map, FixtureType::Crate);
     if (crx >= 0)
         place_near(build_merchant(pick_friendly_race(rng), rng, kreth_rep), crx, cry);
 
-    // Courtyard patrol
+    // Courtyard — civilian + drifter
     int pcx = map.width() / 2;
     int pcy = map.height() / 2;
     {
-        Npc patrol = build_drifter(pick_friendly_race(rng), rng);
+        Npc patrol = build_random_civilian(rng);
         if (find_floor_near(map, pcx, pcy, patrol.x, patrol.y, occupied)) {
+            occupied.push_back({patrol.x, patrol.y});
+            npcs.push_back(std::move(patrol));
+        }
+    }
+    {
+        Npc patrol = build_drifter(pick_friendly_race(rng), rng);
+        if (find_floor_near(map, pcx + 2, pcy, patrol.x, patrol.y, occupied)) {
             occupied.push_back({patrol.x, patrol.y});
             npcs.push_back(std::move(patrol));
         }
