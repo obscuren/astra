@@ -43,8 +43,12 @@
 ## Content
 
 ### NPCs & Quests
+- [x] **Quest system core** — QuestManager, objectives, rewards, quests tab
+- [x] **Quest visual markers** — `!` markers on star chart (galaxy/region/local/system views) and overworld
+- [x] **Story quest framework** — StoryQuest base class, quest-triggered world modification
+- [x] **The Missing Hauler** — first story quest with dialog integration, dungeon spawn, quest items
 - [ ] More NPC types with unique dialog trees
-- [ ] Quest system expansion — multi-step quests with objectives
+- [ ] Quest system expansion — random quest generation from world state
 - [ ] Faction reputation effects — NPCs react to your standing
 
 ### Gameplay

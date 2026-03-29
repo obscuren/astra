@@ -42,7 +42,7 @@ private:
     const std::vector<DialogNode>* dialog_tree_ = nullptr;
     int dialog_node_ = -1;
 
-    enum class InteractOption : uint8_t { Talk, Shop, Quest, Farewell };
+    enum class InteractOption : uint8_t { Talk, Shop, Quest, QuestTurnIn, Farewell };
     std::vector<InteractOption> interact_options_;
 };
 

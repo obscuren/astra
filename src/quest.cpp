@@ -13,6 +13,18 @@ bool Quest::all_objectives_complete() const {
     return !objectives.empty();
 }
 
+bool Quest::ready_for_turnin() const {
+    if (objectives.empty()) return false;
+    for (size_t i = 0; i < objectives.size(); ++i) {
+        const auto& obj = objectives[i];
+        // Skip the final TalkToNpc objective — that's the turn-in itself
+        if (obj.type == ObjectiveType::TalkToNpc && i == objectives.size() - 1)
+            continue;
+        if (!obj.complete()) return false;
+    }
+    return true;
+}
+
 // ── QuestManager ────────────────────────────────────────────────────
 
 void QuestManager::accept_quest(Quest quest, int world_tick) {
@@ -114,9 +126,17 @@ void QuestManager::on_location_entered(const std::string& location_name) {
 
 void QuestManager::on_npc_talked(const std::string& npc_name) {
     for (auto& q : active_) {
-        for (auto& obj : q.objectives) {
+        for (size_t i = 0; i < q.objectives.size(); ++i) {
+            auto& obj = q.objectives[i];
             if (obj.type == ObjectiveType::TalkToNpc && obj.target_id == npc_name) {
-                obj.current_count = obj.target_count;
+                // Only complete if all prior objectives are done
+                bool prior_done = true;
+                for (size_t j = 0; j < i; ++j) {
+                    if (!q.objectives[j].complete()) { prior_done = false; break; }
+                }
+                if (prior_done) {
+                    obj.current_count = obj.target_count;
+                }
             }
         }
     }

@@ -477,6 +477,7 @@ void CharacterScreen::open_context_menu() {
             context_menu_.add_option('r', "reload");
             context_menu_.add_option('u', "unload");
         }
+        context_menu_.add_option('d', "drop");
     }
 
     context_menu_.open();
@@ -547,6 +548,15 @@ void CharacterScreen::execute_context_action(char key) {
                 context_message_ = "Nothing to unload.";
             }
             context_msg_timer_ = 3;
+        } else if (key == 'd') {
+            auto& item = items[inv_cursor_];
+            context_message_ = "Dropped " + item.name + ".";
+            context_msg_timer_ = 3;
+            dropped_item_ = std::move(item);
+            has_dropped_item_ = true;
+            items.erase(items.begin() + inv_cursor_);
+            if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
+                --inv_cursor_;
         }
     }
 }
@@ -608,10 +618,11 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         case CharTab::Tinkering:  draw_tinkering(full); break;
         case CharTab::Journal:    draw_journal(content); break;
         case CharTab::Quests: {
-            if (!quests_ || quests_->active_quests().empty()) {
+            if (!quests_ || (quests_->active_quests().empty() && quests_->completed_quests().empty())) {
                 draw_stub(content, "No active quests.");
             } else {
                 int y = 0;
+                // Active quests
                 for (const auto& q : quests_->active_quests()) {
                     if (y >= content.height() - 1) break;
                     content.text(1, y, q.title, Color::Yellow);

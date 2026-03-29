@@ -323,9 +323,11 @@ void Game::pickup_ground_item() {
                 log("Too heavy to pick up " + it->item.name + ".");
                 return;
             }
-            log("You pick up " + it->item.name + ".");
+            std::string picked_name = it->item.name;
+            log("You pick up " + picked_name + ".");
             player_.inventory.items.push_back(std::move(it->item));
             world_.ground_items().erase(it);
+            quest_manager_.on_item_picked_up(picked_name);
             advance_world(ActionCost::move);
             return;
         }

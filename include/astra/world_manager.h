@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <map>
 #include <random>
+#include <set>
 #include <tuple>
 
 namespace astra {
@@ -23,6 +24,18 @@ struct LocationState {
     std::vector<GroundItem> ground_items;
     int player_x = 0;
     int player_y = 0;
+};
+
+struct QuestLocationMeta {
+    std::string quest_id;
+    std::string quest_title;               // display name for markers
+    int difficulty_override = -1;          // -1 = use default
+    std::vector<std::string> npc_roles;    // specific NPCs to spawn
+    std::vector<std::string> quest_items;  // items to place on ground
+    Tile poi_type = Tile::Empty;           // overworld stamp to place
+    bool remove_on_completion = false;     // clean up after quest done
+    uint32_t target_system_id = 0;         // star chart marker: system
+    int target_body_index = -1;            // star chart marker: body
 };
 
 enum class SurfaceMode : uint8_t {
@@ -79,6 +92,38 @@ public:
     const std::map<LocationKey, LocationState>& location_cache() const { return location_cache_; }
     static inline const LocationKey ship_key = {0, -2, -1, false, -1, -1, 0};
 
+    // Quest-triggered world modification
+    std::map<LocationKey, QuestLocationMeta>& quest_locations() { return quest_locations_; }
+    const std::map<LocationKey, QuestLocationMeta>& quest_locations() const { return quest_locations_; }
+
+    // Collect system IDs that have active quest targets
+    std::set<uint32_t> quest_target_system_ids() const {
+        std::set<uint32_t> ids;
+        for (const auto& [key, meta] : quest_locations_) {
+            if (meta.target_system_id != 0)
+                ids.insert(meta.target_system_id);
+        }
+        return ids;
+    }
+
+    // Check if a specific body in a system is a quest target
+    bool is_quest_target_body(uint32_t system_id, int body_index) const {
+        for (const auto& [key, meta] : quest_locations_) {
+            if (meta.target_system_id == system_id && meta.target_body_index == body_index)
+                return true;
+        }
+        return false;
+    }
+
+    // Get quest title for a target body (empty if not a quest target)
+    std::string quest_title_for_body(uint32_t system_id, int body_index) const {
+        for (const auto& [key, meta] : quest_locations_) {
+            if (meta.target_system_id == system_id && meta.target_body_index == body_index)
+                return meta.quest_title;
+        }
+        return "";
+    }
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
@@ -95,6 +140,7 @@ private:
     std::mt19937 rng_;
     NavigationData navigation_;
     std::map<LocationKey, LocationState> location_cache_;
+    std::map<LocationKey, QuestLocationMeta> quest_locations_;
 };
 
 } // namespace astra

@@ -6,6 +6,8 @@
 
 namespace astra {
 
+class WorldManager;
+
 enum class ChartZoom { Galaxy, Region, Local, System };
 
 enum class ChartActionType { None, WarpToSystem, TravelToBody, TravelToStation };
@@ -21,7 +23,7 @@ struct ChartAction {
 class StarChartViewer {
 public:
     StarChartViewer() = default;
-    StarChartViewer(NavigationData* nav, Renderer* renderer);
+    StarChartViewer(NavigationData* nav, Renderer* renderer, WorldManager* world = nullptr);
 
     bool is_open() const { return open_; }
     void open();
@@ -38,6 +40,7 @@ public:
 private:
     NavigationData* nav_ = nullptr;
     Renderer* renderer_ = nullptr;
+    WorldManager* world_ = nullptr;
     bool open_ = false;
     ChartZoom zoom_ = ChartZoom::Galaxy;
 

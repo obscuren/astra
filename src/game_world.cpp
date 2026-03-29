@@ -509,9 +509,63 @@ void Game::enter_dungeon_from_detail() {
 
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+
+        // Check for quest-specific spawns
+        auto qit = world_.quest_locations().find(dungeon_key);
+        if (qit == world_.quest_locations().end()) {
+            // Also check body-level key
+            LocationKey body_key = {world_.navigation().current_system_id,
+                                    world_.navigation().current_body_index,
+                                    world_.navigation().current_moon_index,
+                                    false, -1, -1, 0};
+            qit = world_.quest_locations().find(body_key);
+        }
+
+        if (qit != world_.quest_locations().end()) {
+            const auto& meta = qit->second;
+            // Spawn quest-specific NPCs
+            for (const auto& role : meta.npc_roles) {
+                Npc npc = create_npc_by_role(role, npc_rng);
+                if (world_.map().find_open_spot_other_room(
+                        player_.x, player_.y, npc.x, npc.y, occupied, &npc_rng)) {
+                    occupied.push_back({npc.x, npc.y});
+                    world_.npcs().push_back(std::move(npc));
+                }
+            }
+            // Place quest items on the ground
+            for (const auto& item_name : meta.quest_items) {
+                int ix = 0, iy = 0;
+                if (world_.map().find_open_spot_other_room(
+                        player_.x, player_.y, ix, iy, occupied, &npc_rng)) {
+                    Item quest_item;
+                    quest_item.name = item_name;
+                    quest_item.type = ItemType::QuestItem;
+                    quest_item.description = "A quest item: " + item_name;
+                    world_.ground_items().push_back({ix, iy, quest_item});
+                    occupied.push_back({ix, iy});
+                }
+            }
+        } else {
+            debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+        }
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    }
+
+    // Quest location entry tracking — notify with the map's location name
+    {
+        LocationKey dkey = {world_.navigation().current_system_id,
+                            world_.navigation().current_body_index,
+                            world_.navigation().current_moon_index,
+                            false, world_.overworld_x(), world_.overworld_y(), 1};
+        LocationKey bkey = {world_.navigation().current_system_id,
+                            world_.navigation().current_body_index,
+                            world_.navigation().current_moon_index,
+                            false, -1, -1, 0};
+        if (world_.quest_locations().count(dkey) ||
+            world_.quest_locations().count(bkey)) {
+            quest_manager_.on_location_entered(world_.map().location_name());
+        }
     }
 
     world_.current_region() = -1;
@@ -864,6 +918,9 @@ void Game::travel_to_destination(const ChartAction& action) {
         compute_camera();
         log("You land on " + colored(location_name, Color::Cyan)
             + ". The surface stretches before you.");
+
+        // Notify quest system of arrival at this body
+        quest_manager_.on_location_entered(location_name);
         return;
     }
 

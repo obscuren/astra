@@ -503,7 +503,7 @@ void Game::new_game() {
     world_.navigation() = generate_galaxy(world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
 
     apply_passive_skill_effects();
     state_ = GameState::Playing;
@@ -602,7 +602,7 @@ void Game::new_game(const CreationResult& cr) {
     world_.navigation() = generate_galaxy(world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
 
     apply_passive_skill_effects();
     state_ = GameState::Playing;
@@ -636,7 +636,7 @@ void Game::open_repair_bench() {
 }
 
 void Game::rebuild_star_chart_viewer() {
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get());
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
 }
 
 void Game::reset_interaction_state() {

@@ -205,10 +205,32 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
         npc_dialog_.add_option(hotkey++, "Trade");
         interact_options_.push_back(InteractOption::Shop);
     }
-    if (data.quest) {
-        npc_dialog_.add_option(hotkey++, data.quest->quest_intro);
-        interact_options_.push_back(InteractOption::Quest);
+
+    // Check for turnable-in quests from this NPC
+    bool has_turnin = false;
+    for (const auto& q : game.quests().active_quests()) {
+        if (q.giver_npc == npc.role && q.ready_for_turnin()) {
+            has_turnin = true;
+            break;
+        }
     }
+    if (has_turnin) {
+        npc_dialog_.add_option(hotkey++, "I have news about the job.");
+        interact_options_.push_back(InteractOption::QuestTurnIn);
+    }
+
+    // Offer new quests if none active from this NPC
+    if (data.quest) {
+        bool has_active_from_npc = false;
+        for (const auto& q : game.quests().active_quests()) {
+            if (q.giver_npc == npc.role) { has_active_from_npc = true; break; }
+        }
+        if (!has_active_from_npc) {
+            npc_dialog_.add_option(hotkey++, data.quest->quest_intro);
+            interact_options_.push_back(InteractOption::Quest);
+        }
+    }
+
     npc_dialog_.add_option('f', "Farewell");
     interact_options_.push_back(InteractOption::Farewell);
 
@@ -433,6 +455,21 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             return;
         }
 
+        // Check for quest acceptance: transitioning from node 0 to node 1
+        // in a quest dialog tree means the player accepted the quest
+        if (dialog_tree_ == &interacting_npc_->interactions.quest->nodes &&
+            dialog_node_ == 0 && next == 1) {
+            // Accept the story quest if available
+            auto* sq = find_story_quest("story_missing_hauler");
+            if (sq && interacting_npc_->role == "Station Keeper" &&
+                !game.quests().has_active_quest("story_missing_hauler")) {
+                auto q = sq->create_quest();
+                game.quests().accept_quest(std::move(q), game.world().world_tick());
+                sq->on_accepted(game);
+                game.log("Quest accepted: " + colored("The Missing Hauler", Color::Yellow));
+            }
+        }
+
         // Advance to next node
         dialog_node_ = next;
         const auto& next_node = (*dialog_tree_)[dialog_node_];
@@ -497,6 +534,59 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             npc_dialog_.set_footer("[Space] Select  [Esc] Close");
             npc_dialog_.set_max_width_frac(0.45f);
             npc_dialog_.open();
+            break;
+        }
+        case InteractOption::QuestTurnIn: {
+            // Find the completable quest from this NPC and turn it in
+            std::string turn_in_id;
+            std::string quest_title;
+            for (const auto& q : game.quests().active_quests()) {
+                if (q.giver_npc == interacting_npc_->role && q.ready_for_turnin()) {
+                    turn_in_id = q.id;
+                    quest_title = q.title;
+                    break;
+                }
+            }
+            if (!turn_in_id.empty()) {
+                // Notify talk objective (now all prior are done, so it will complete)
+                game.quests().on_npc_talked(interacting_npc_->role);
+
+                // Find quest rewards before completing (for the log message)
+                const Quest* qptr = game.quests().find_active(turn_in_id);
+                QuestReward reward;
+                if (qptr) reward = qptr->reward;
+
+                // Complete the quest
+                game.quests().complete_quest(turn_in_id, game.player());
+
+                // Log reward details
+                game.log("Quest completed: " + colored(quest_title, Color::Green));
+                std::string reward_msg = "Received:";
+                if (reward.xp > 0) reward_msg += " " + colored(std::to_string(reward.xp) + " XP", Color::Cyan);
+                if (reward.credits > 0) reward_msg += " " + colored(std::to_string(reward.credits) + " credits", Color::Yellow);
+                if (reward.skill_points > 0) reward_msg += " " + colored(std::to_string(reward.skill_points) + " SP", Color::Cyan);
+                if (!reward.faction_name.empty() && reward.reputation_change != 0)
+                    reward_msg += " " + colored("+" + std::to_string(reward.reputation_change) + " " + reward.faction_name + " rep", Color::Green);
+                game.log(reward_msg);
+
+                // Trigger story quest cleanup
+                auto* sq = find_story_quest(turn_in_id);
+                if (sq) sq->on_completed(game);
+
+                // Show NPC response
+                npc_dialog_.close();
+                npc_dialog_.set_title(interacting_npc_->display_name());
+                std::string reply = "Well done, commander. You've earned your pay.";
+                npc_dialog_.set_body("\"" + reply + "\"");
+                game.log(interacting_npc_->display_name() + ": \"" + reply + "\"");
+                npc_dialog_.add_option('1', "Thanks.");
+                npc_dialog_.set_footer("[Space] Select  [Esc] Close");
+                npc_dialog_.set_max_width_frac(0.45f);
+                npc_dialog_.open();
+                // Set dialog to return to top-level on next selection
+                dialog_tree_ = nullptr;
+                dialog_node_ = -1;
+            }
             break;
         }
         case InteractOption::Farewell:

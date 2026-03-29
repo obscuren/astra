@@ -19,6 +19,7 @@ const char* stamp_glyph(uint8_t index) {
         "\xe2\x96\xbc",           // 12 ▼
         "|",                      // 13 |
         "\xc2\xb7",               // 14 ·
+        "!",                      // 15 ! (quest marker)
     };
     if (index == 0 || index >= SG_COUNT) return nullptr;
     return table[index];

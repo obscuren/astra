@@ -1,6 +1,7 @@
 #include "astra/star_chart_viewer.h"
 
 #include "astra/celestial_body.h"
+#include "astra/world_manager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -28,8 +29,8 @@ static const ArmLabel arm_labels[] = {
 // Construction / open / close
 // ---------------------------------------------------------------------------
 
-StarChartViewer::StarChartViewer(NavigationData* nav, Renderer* renderer)
-    : nav_(nav), renderer_(renderer) {}
+StarChartViewer::StarChartViewer(NavigationData* nav, Renderer* renderer, WorldManager* world)
+    : nav_(nav), renderer_(renderer), world_(world) {}
 
 void StarChartViewer::open() {
     open_ = true;
@@ -568,6 +569,19 @@ void StarChartViewer::draw_galaxy_view(DrawContext& map_ctx, DrawContext& info_c
         }
     }
 
+    // Draw quest target markers
+    if (world_) {
+        auto quest_targets = world_->quest_target_system_ids();
+        for (const auto& sys : nav_->systems) {
+            if (quest_targets.count(sys.id) == 0) continue;
+            int sx = to_screen_x(sys.gx, view_left, view_w, mw);
+            int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+            if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
+            // Draw '!' next to the system
+            if (sx + 1 < mw) map_ctx.put(sx + 1, sy, '!', Color::BrightYellow);
+        }
+    }
+
     // Draw arm labels
     for (const auto& label : arm_labels) {
         int lx = to_screen_x(label.gx, view_left, view_w, mw);
@@ -680,6 +694,18 @@ void StarChartViewer::draw_region_view(DrawContext& map_ctx, DrawContext& info_c
         }
     }
 
+    // Quest target markers
+    if (world_) {
+        auto quest_targets = world_->quest_target_system_ids();
+        for (const auto& sys : nav_->systems) {
+            if (quest_targets.count(sys.id) == 0) continue;
+            int sx = to_screen_x(sys.gx, view_left, view_w, mw);
+            int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+            if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
+            if (sy > 0) map_ctx.put(sx, sy - 1, '!', Color::BrightYellow);
+        }
+    }
+
     // Crosshair reticle at viewport center when no cursor selected
     if (cursor_index_ < 0) {
         int cx = mw / 2;
@@ -778,6 +804,18 @@ void StarChartViewer::draw_local_view(DrawContext& map_ctx, DrawContext& info_ct
             }
         } else {
             map_ctx.put(sx, sy, '.', Color::DarkGray);
+        }
+    }
+
+    // Quest target markers
+    if (world_) {
+        auto quest_targets = world_->quest_target_system_ids();
+        for (const auto& sys : nav_->systems) {
+            if (quest_targets.count(sys.id) == 0) continue;
+            int sx = to_screen_x(sys.gx, view_left, view_w, mw);
+            int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+            if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
+            if (sy > 0) map_ctx.put(sx, sy - 1, '!', Color::BrightYellow);
         }
     }
 
@@ -911,6 +949,13 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
                 } else {
                     map_ctx.put(bx, by, glyph, color);
                 }
+            }
+
+            // --- Quest target marker above body ---
+            if (world_ && world_->is_quest_target_body(sys.id, i)) {
+                int qy = cy - 2;
+                if (qy >= 0 && qy < mh)
+                    map_ctx.put(bx, qy, '!', Color::BrightYellow);
             }
 
             // --- Orbital track dot ---
@@ -1106,6 +1151,13 @@ void StarChartViewer::draw_system_view(DrawContext& map_ctx, DrawContext& info_c
         info_ctx.text(10, y++, body.name, body_type_color(body.type));
     } else if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
         draw_body_info(info_ctx, sys.bodies[body_cursor_], sys, y);
+    }
+
+    // Quest target indicator in info panel
+    if (world_ && body_cursor_ >= 0 && world_->is_quest_target_body(sys.id, body_cursor_)) {
+        std::string qt = world_->quest_title_for_body(sys.id, body_cursor_);
+        int qy = info_ctx.height() - 2;
+        info_ctx.text(1, qy, "! " + (qt.empty() ? "QUEST TARGET" : qt), Color::BrightYellow);
     }
 }
 

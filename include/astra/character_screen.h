@@ -90,6 +90,14 @@ private:
     void execute_context_action(char key);
     void draw_look_overlay(DrawContext& ctx);
 
+    // Drop output — Game reads this after handle_input
+    bool has_dropped_item_ = false;
+    Item dropped_item_;
+public:
+    bool has_dropped_item() const { return has_dropped_item_; }
+    Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
+private:
+
     void draw_tab_bar(DrawContext& ctx);
     void draw_attributes(DrawContext& ctx);
     void draw_skills(DrawContext& ctx);

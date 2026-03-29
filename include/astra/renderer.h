@@ -30,6 +30,7 @@ enum class Color : uint8_t {
     Cyan          = 6,
     White         = 7,
     DarkGray      = 8,
+    BrightYellow  = 11,
     BrightMagenta = 13,
 };
 

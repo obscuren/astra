@@ -85,6 +85,11 @@ void Game::handle_play_input(int key) {
     // Character screen intercepts input when open
     if (character_screen_.is_open()) {
         character_screen_.handle_input(key);
+        if (character_screen_.has_dropped_item()) {
+            Item dropped = character_screen_.consume_dropped_item();
+            log("You drop " + dropped.name + ".");
+            world_.ground_items().push_back({player_.x, player_.y, std::move(dropped)});
+        }
         return;
     }
 

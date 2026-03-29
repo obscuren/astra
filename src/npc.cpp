@@ -104,4 +104,14 @@ Npc create_npc(NpcRole npc_role, Race race, std::mt19937& rng) {
     return {};
 }
 
+Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng) {
+    if (role_name == "Xytomorph")        return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
+    if (role_name == "Young Xytomorph")  return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
+    if (role_name == "Station Keeper")   return create_npc(NpcRole::StationKeeper, Race::Human, rng);
+    if (role_name == "Merchant")         return create_npc(NpcRole::Merchant, Race::Human, rng);
+    if (role_name == "Drifter")          return create_npc(NpcRole::Drifter, Race::Human, rng);
+    // Fallback: hostile xytomorph
+    return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
+}
+
 } // namespace astra

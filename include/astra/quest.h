@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -10,6 +11,7 @@ struct Player;
 struct Npc;
 struct Item;
 class WorldManager;
+class Game;
 
 enum class QuestStatus : uint8_t {
     Available,
@@ -57,6 +59,8 @@ struct Quest {
     int accepted_tick = 0;
 
     bool all_objectives_complete() const;
+    // True if all objectives except a trailing TalkToNpc are complete (ready for turn-in)
+    bool ready_for_turnin() const;
 };
 
 class QuestManager {
@@ -91,5 +95,20 @@ private:
     std::vector<Quest> active_;
     std::vector<Quest> completed_;
 };
+
+// ── Story Quests ─────────────────────────────────────────────────────
+
+class StoryQuest {
+public:
+    virtual ~StoryQuest() = default;
+    virtual Quest create_quest() = 0;
+    virtual void on_accepted(Game& game) {}
+    virtual void on_completed(Game& game) {}
+    virtual void on_failed(Game& game) {}
+};
+
+// Registry of all story quests
+const std::vector<std::unique_ptr<StoryQuest>>& story_quest_catalog();
+StoryQuest* find_story_quest(const std::string& id);
 
 } // namespace astra

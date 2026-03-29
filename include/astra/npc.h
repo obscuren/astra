@@ -63,4 +63,7 @@ Npc create_npc(NpcRole role, Race race, std::mt19937& rng);
 // Generate a personal name appropriate for a given race.
 std::string generate_name(Race race, std::mt19937& rng);
 
+// Create an NPC from a role name string (e.g. "Xytomorph", "Station Keeper").
+Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng);
+
 } // namespace astra

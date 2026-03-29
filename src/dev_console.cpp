@@ -108,6 +108,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  effect regen <dur> - apply regen effect");
         log("  effect clear       - remove all effects");
         log("  kill all           - kill all hostile NPCs");
+        log("  quest kill         - random kill quest");
+        log("  quest fetch        - random fetch quest");
+        log("  quest story        - The Missing Hauler");
         log("  heal               - full heal");
         log("  clear              - clear console");
     }
@@ -234,8 +237,22 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("Quest: " + q.title);
             log("  " + q.description);
             game.quests().accept_quest(std::move(q), game.world().world_tick());
+        } else if (args.size() >= 2 && args[1] == "story") {
+            auto* sq = find_story_quest("story_missing_hauler");
+            if (sq && !game.quests().has_active_quest("story_missing_hauler")) {
+                auto q = sq->create_quest();
+                log("Quest: " + q.title);
+                log("  " + q.description);
+                game.quests().accept_quest(std::move(q), game.world().world_tick());
+                sq->on_accepted(game);
+                log("Quest markers placed on star chart.");
+            } else if (game.quests().has_active_quest("story_missing_hauler")) {
+                log("Quest already active.");
+            } else {
+                log("Story quest not found.");
+            }
         } else {
-            log("Usage: quest kill | quest fetch");
+            log("Usage: quest kill | quest fetch | quest story");
         }
     }
     else {

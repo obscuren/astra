@@ -23,6 +23,7 @@ enum StampGlyph : uint8_t {
     SG_DownTriangle = 12,  // ▼
     SG_Pipe         = 13,  // |
     SG_MiddleDot    = 14,  // ·
+    SG_QuestMarker  = 15,  // !
     SG_COUNT
 };
 

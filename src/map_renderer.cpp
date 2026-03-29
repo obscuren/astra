@@ -110,6 +110,7 @@ void render_map(const MapRenderContext& rc) {
                 Color c = overworld_tile_color(tile_at, rc.world.map().biome());
                 uint8_t gov = rc.world.map().glyph_override(mx, my);
                 const char* og = (gov != 0) ? stamp_glyph(gov) : nullptr;
+                if (gov == SG_QuestMarker) c = Color::BrightYellow;
                 if (!og) og = overworld_glyph(tile_at, mx, my);
                 ctx.put(sx, sy, og, c);
                 continue;
