@@ -15,6 +15,7 @@
 #include "astra/help_screen.h"
 #include "astra/save_system.h"
 #include "astra/input_manager.h"
+#include "astra/quest.h"
 #include "astra/repair_bench.h"
 #include "astra/world_manager.h"
 #include "astra/star_chart_viewer.h"
@@ -83,6 +84,7 @@ public:
     void set_dev_mode(bool v) { dev_mode_ = v; }
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
+    QuestManager& quests() { return quest_manager_; }
     void auto_step();
     bool auto_walk_should_stop() const;
     std::pair<int,int> bfs_explore_goal() const;
@@ -216,6 +218,7 @@ private:
     CharacterScreen character_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
+    QuestManager quest_manager_;
     RepairBench repair_bench_;
     int camera_x_ = 0;
     int camera_y_ = 0;

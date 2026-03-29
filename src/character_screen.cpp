@@ -18,9 +18,10 @@ static const char* tab_names[] = {
 
 bool CharacterScreen::is_open() const { return open_; }
 
-void CharacterScreen::open(Player* player, Renderer* renderer) {
+void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests) {
     player_ = player;
     renderer_ = renderer;
+    quests_ = quests;
     open_ = true;
     cursor_ = 0;
     scroll_ = 0;
@@ -606,7 +607,51 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         case CharTab::Reputation: draw_reputation(content); break;
         case CharTab::Tinkering:  draw_tinkering(full); break;
         case CharTab::Journal:    draw_journal(content); break;
-        case CharTab::Quests:     draw_stub(content, "No active quests."); break;
+        case CharTab::Quests: {
+            if (!quests_ || quests_->active_quests().empty()) {
+                draw_stub(content, "No active quests.");
+            } else {
+                int y = 0;
+                for (const auto& q : quests_->active_quests()) {
+                    if (y >= content.height() - 1) break;
+                    content.text(1, y, q.title, Color::Yellow);
+                    y++;
+                    content.text(2, y, q.description, Color::DarkGray);
+                    y++;
+                    for (const auto& obj : q.objectives) {
+                        if (y >= content.height() - 1) break;
+                        std::string status = obj.complete() ? "[x] " : "[ ] ";
+                        std::string progress = " (" + std::to_string(obj.current_count) + "/" +
+                                              std::to_string(obj.target_count) + ")";
+                        Color c = obj.complete() ? Color::Green : Color::White;
+                        content.text(3, y, status + obj.description + progress, c);
+                        y++;
+                    }
+                    // Reward summary
+                    if (y < content.height() - 1) {
+                        std::string rew = "  Reward:";
+                        if (q.reward.xp > 0) rew += " " + std::to_string(q.reward.xp) + " XP";
+                        if (q.reward.credits > 0) rew += " " + std::to_string(q.reward.credits) + "$";
+                        if (q.reward.skill_points > 0) rew += " " + std::to_string(q.reward.skill_points) + " SP";
+                        content.text(2, y, rew, Color::Cyan);
+                        y++;
+                    }
+                    y++; // blank line between quests
+                }
+                // Completed quests
+                if (!quests_->completed_quests().empty() && y < content.height() - 1) {
+                    content.text(1, y, "Completed:", Color::DarkGray);
+                    y++;
+                    for (const auto& q : quests_->completed_quests()) {
+                        if (y >= content.height() - 1) break;
+                        Color c = q.status == QuestStatus::Completed ? Color::Green : Color::Red;
+                        content.text(2, y, q.title, c);
+                        y++;
+                    }
+                }
+            }
+            break;
+        }
         case CharTab::Ship:       draw_stub(content, "Ship systems not available."); break;
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/player.h"
+#include "astra/quest.h"
 #include "astra/ui.h"
 
 #include <random>
@@ -26,13 +27,14 @@ public:
     CharacterScreen() = default;
 
     bool is_open() const;
-    void open(Player* player, Renderer* renderer);
+    void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr);
     void close();
     bool handle_input(int key);
     void draw(int screen_w, int screen_h);
 
 private:
     Player* player_ = nullptr;
+    QuestManager* quests_ = nullptr;
     Renderer* renderer_ = nullptr;
     std::mt19937 rng_{std::random_device{}()};
     bool open_ = false;

@@ -223,6 +223,21 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         game.dev_command_kill_hostiles();
         log("Killed " + std::to_string(count) + " hostile NPCs.");
     }
+    else if (verb == "quest") {
+        if (args.size() >= 2 && args[1] == "kill") {
+            auto q = game.quests().generate_kill_quest(game.world().rng());
+            log("Quest: " + q.title);
+            log("  " + q.description);
+            game.quests().accept_quest(std::move(q), game.world().world_tick());
+        } else if (args.size() >= 2 && args[1] == "fetch") {
+            auto q = game.quests().generate_fetch_quest(game.world().rng());
+            log("Quest: " + q.title);
+            log("  " + q.description);
+            game.quests().accept_quest(std::move(q), game.world().world_tick());
+        } else {
+            log("Usage: quest kill | quest fetch");
+        }
+    }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
     }

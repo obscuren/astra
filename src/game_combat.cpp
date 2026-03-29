@@ -179,6 +179,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     if (!npc.alive()) {
         game.log(npc.display_name() + " is destroyed!");
         game.player().kills++;
+        game.quests().on_npc_killed(npc.role);
         int xp = npc.xp_reward();
         if (xp > 0) {
             game.player().xp += xp;
@@ -384,6 +385,7 @@ void CombatSystem::shoot_target(Game& game) {
     if (!target_npc_->alive()) {
         game.log(target_npc_->display_name() + " is destroyed!");
         game.player().kills++;
+        game.quests().on_npc_killed(target_npc_->role);
         int xp = target_npc_->xp_reward();
         if (xp > 0) {
             game.player().xp += xp;
