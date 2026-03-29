@@ -491,12 +491,24 @@ Item build_alloy_ingot() {
 // Ship components
 // ---------------------------------------------------------------------------
 
+Item build_engine_coil_mk1() {
+    Item it;
+    it.id = 8000; it.name = "Engine Coil Mk1"; it.type = ItemType::ShipComponent;
+    it.description = "Standard hyperspace engine coil. Enables interstellar travel.";
+    it.glyph = '#'; it.color = Color::Yellow; it.weight = 12;
+    it.buy_value = 300; it.sell_value = 100;
+    it.ship_slot = ShipSlot::Engine;
+    return it;
+}
+
 Item build_hull_plate() {
     Item it;
     it.id = 8001; it.name = "Hull Plate Mk1"; it.type = ItemType::ShipComponent;
     it.description = "Standard hull plating. Reinforces ship integrity.";
     it.glyph = '#'; it.color = Color::White; it.weight = 10;
     it.buy_value = 200; it.sell_value = 65;
+    it.ship_slot = ShipSlot::Hull;
+    it.ship_modifiers.hull_hp = 25;
     return it;
 }
 
@@ -506,6 +518,8 @@ Item build_shield_generator() {
     it.description = "Energy shield emitter. Absorbs incoming fire.";
     it.glyph = '#'; it.color = Color::Cyan; it.weight = 8;
     it.buy_value = 500; it.sell_value = 170;
+    it.ship_slot = ShipSlot::Shield;
+    it.ship_modifiers.shield_hp = 15;
     return it;
 }
 
@@ -515,6 +529,8 @@ Item build_navi_computer_mk2() {
     it.description = "Upgraded navigation computer. Plots longer hyperspace routes.";
     it.glyph = '#'; it.color = Color::Green; it.weight = 5;
     it.buy_value = 400; it.sell_value = 135;
+    it.ship_slot = ShipSlot::NaviComputer;
+    it.ship_modifiers.warp_range = 1;
     return it;
 }
 

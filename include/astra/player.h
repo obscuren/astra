@@ -5,6 +5,7 @@
 #include "astra/item.h"
 #include "astra/journal.h"
 #include "astra/race.h"
+#include "astra/ship.h"
 #include "astra/skill_defs.h"
 #include "astra/tinkering.h"
 
@@ -86,6 +87,9 @@ struct Player {
 
     // Reputation
     std::vector<FactionStanding> reputation;
+
+    // Starship
+    Starship ship;
 
     // Tinkering
     std::vector<BlueprintSignature> learned_blueprints;

@@ -59,6 +59,7 @@ Item build_circuit_board();
 Item build_alloy_ingot();
 
 // --- Ship components ---
+Item build_engine_coil_mk1();
 Item build_hull_plate();
 Item build_shield_generator();
 Item build_navi_computer_mk2();

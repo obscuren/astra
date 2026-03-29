@@ -426,6 +426,15 @@ void Game::new_game() {
     world_.world_tick() = 0;
     world_.day_clock() = DayClock{};  // station day = 200 ticks
     world_.location_cache().clear();
+    // Initialize ship with random name
+    player_.ship.name = generate_ship_name(world_.rng());
+    if (dev_mode_) {
+        // Dev mode: ship fully equipped
+        player_.ship.engine = build_engine_coil_mk1();
+        player_.ship.hull = build_hull_plate();
+        player_.ship.navi_computer = build_navi_computer_mk2();
+    }
+
     if (dev_mode_) {
         log("--- DEVELOPER MODE --- Saving disabled.");
     }
@@ -579,6 +588,9 @@ void Game::new_game(const CreationResult& cr) {
     world_.world_tick() = 0;
     world_.day_clock() = DayClock{};
     world_.location_cache().clear();
+
+    // Initialize ship with random name (empty — tutorial will equip it)
+    player_.ship.name = generate_ship_name(world_.rng());
 
     log("Welcome aboard, " + cr.name + ". Your journey to Sgr A* begins.");
     log("You are docked at The Heavens Above, the space station orbiting Jupiter.");

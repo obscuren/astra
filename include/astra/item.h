@@ -59,6 +59,26 @@ static constexpr int equip_slot_count = 11;
 
 const char* equip_slot_name(EquipSlot slot);
 
+enum class ShipSlot : uint8_t {
+    Engine,
+    Hull,
+    NaviComputer,
+    Shield,
+    Utility1,
+    Utility2,
+};
+
+static constexpr int ship_slot_count = 6;
+
+const char* ship_slot_name(ShipSlot slot);
+
+struct ShipModifiers {
+    int hull_hp = 0;
+    int shield_hp = 0;
+    int warp_range = 0;
+    int cargo_capacity = 0;
+};
+
 enum class Rarity : uint8_t {
     Common,
     Uncommon,
@@ -136,6 +156,10 @@ struct Item {
     std::optional<RangedData> ranged;
     int enhancement_slots = 0;
     std::vector<EnhancementSlot> enhancements;
+
+    // Ship component fields (only meaningful when type == ShipComponent)
+    std::optional<ShipSlot> ship_slot;
+    ShipModifiers ship_modifiers;
 };
 
 struct GroundItem {

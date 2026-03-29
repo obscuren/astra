@@ -53,6 +53,7 @@ set(ASTRA_SOURCES
     src/character_creation.cpp
     src/effect.cpp
     src/faction.cpp
+    src/ship.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp
