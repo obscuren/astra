@@ -186,6 +186,23 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 if (reward_xp > 0) reward_msg += " " + colored(std::to_string(reward_xp) + " XP", Color::Cyan);
                 if (reward_credits > 0) reward_msg += " " + colored(std::to_string(reward_credits) + "$", Color::Yellow);
                 game.log(reward_msg);
+
+                // Show completion dialog
+                npc_dialog_.close();
+                npc_dialog_.set_title("ARIA");
+                npc_dialog_.set_body(
+                    "\"All primary systems restored. We're flight-ready, "
+                    "commander.\n\n"
+                    "The galaxy awaits. Plot a course from the " +
+                    colored("Star Chart", Color::Cyan) +
+                    " whenever you're ready. I'll be here.\"");
+                npc_dialog_.add_option('f', "Let's fly.");
+                npc_dialog_.set_footer("[Space] Continue");
+                npc_dialog_.set_max_width_frac(0.5f);
+                npc_dialog_.open();
+                interacting_npc_ = nullptr;
+                dialog_tree_ = nullptr;
+                dialog_node_ = -1;
                 return;
             }
 
