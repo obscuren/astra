@@ -64,20 +64,9 @@ void Game::restore_location(const LocationKey& key) {
     world_.npcs() = std::move(state.npcs);
     world_.ground_items() = std::move(state.ground_items);
 
-    if (key == WorldManager::ship_key || key == WorldManager::maintenance_key) {
-        // Restore cached position
-        player_.x = state.player_x;
-        player_.y = state.player_y;
-    } else {
-        // Spawn at the map's starting area (docking bay / entrance), not cached position
-        std::vector<std::pair<int,int>> exclude;
-        for (const auto& npc : world_.npcs()) {
-            exclude.push_back({npc.x, npc.y});
-        }
-        if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, exclude)) {
-            world_.map().find_open_spot(player_.x, player_.y);
-        }
-    }
+    // Always restore cached position — return to where we left
+    player_.x = state.player_x;
+    player_.y = state.player_y;
 
     world_.location_cache().erase(it);
 }
