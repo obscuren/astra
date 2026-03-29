@@ -151,22 +151,17 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
     }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
-        auto& ship = player.ship;
-        if (args[2] == "engine") {
-            ship.engine = build_engine_coil_mk1();
-            log("Installed Engine Coil Mk1.");
-        } else if (args[2] == "hull") {
-            ship.hull = build_hull_plate();
-            log("Installed Hull Plate Mk1.");
-        } else if (args[2] == "navi") {
-            ship.navi_computer = build_navi_computer_mk2();
-            log("Installed Navi Computer Mk2.");
-        } else if (args[2] == "shield") {
-            ship.shield = build_shield_generator();
-            log("Installed Shield Generator.");
-        } else {
+        Item item;
+        if (args[2] == "engine") item = build_engine_coil_mk1();
+        else if (args[2] == "hull") item = build_hull_plate();
+        else if (args[2] == "navi") item = build_navi_computer_mk2();
+        else if (args[2] == "shield") item = build_shield_generator();
+        else {
             log("Unknown component: " + args[2] + ". Options: engine, hull, navi, shield");
+            return;
         }
+        log("Added " + item.name + " to ship cargo.");
+        player.ship.cargo.push_back(std::move(item));
     }
     else if (verb == "give" && args.size() >= 3) {
         int val = 0;
