@@ -245,19 +245,43 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("  " + q.description);
             game.quests().accept_quest(std::move(q), game.world().world_tick());
         } else if (args.size() >= 2 && args[1] == "scout") {
-            // Find a body name from the current system
-            std::string body = "Unknown Body";
+            // Pick a random landable body from the current system
             auto& nav = game.world().navigation();
+            std::string body;
+            int body_idx = -1;
+            uint32_t sys_id = 0;
             for (auto& sys : nav.systems) {
                 if (sys.id == nav.current_system_id) {
                     generate_system_bodies(sys);
-                    for (const auto& b : sys.bodies) {
-                        if (b.landable) { body = b.name; break; }
+                    sys_id = sys.id;
+                    std::vector<int> landable;
+                    for (int i = 0; i < static_cast<int>(sys.bodies.size()); ++i) {
+                        if (sys.bodies[i].landable) landable.push_back(i);
+                    }
+                    if (!landable.empty()) {
+                        int idx = std::uniform_int_distribution<int>(
+                            0, static_cast<int>(landable.size()) - 1)(game.world().rng());
+                        body_idx = landable[idx];
+                        body = sys.bodies[body_idx].name;
                     }
                     break;
                 }
             }
+            if (body.empty()) body = "Unknown Body";
             auto q = game.quests().generate_scout_quest(body, game.world().rng());
+            // Register map marker
+            if (sys_id != 0 && body_idx >= 0) {
+                q.target_system_id = sys_id;
+                q.target_body_index = body_idx;
+                LocationKey mk = {sys_id, body_idx, -1, false, -1, -1, 0};
+                QuestLocationMeta meta;
+                meta.quest_id = q.id;
+                meta.quest_title = q.title;
+                meta.target_system_id = sys_id;
+                meta.target_body_index = body_idx;
+                meta.remove_on_completion = true;
+                game.world().quest_locations()[mk] = std::move(meta);
+            }
             log("Quest: " + q.title);
             log("  " + q.description);
             game.quests().accept_quest(std::move(q), game.world().world_tick());

@@ -59,6 +59,10 @@ struct Quest {
     bool is_story = false;
     int accepted_tick = 0;
 
+    // Target location for map markers (set by generator, 0/-1 = none)
+    uint32_t target_system_id = 0;
+    int target_body_index = -1;
+
     bool all_objectives_complete() const;
     // True if all objectives except a trailing TalkToNpc are complete (ready for turn-in)
     bool ready_for_turnin() const;

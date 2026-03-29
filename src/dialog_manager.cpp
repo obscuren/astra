@@ -473,6 +473,17 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     interacting_npc_->role, interacting_npc_->display_name(),
                     game.world().navigation(), game.world().rng());
                 q.giver_npc = interacting_npc_->role;
+                // Register map marker if quest has a target location
+                if (q.target_system_id != 0) {
+                    LocationKey mk = {q.target_system_id, q.target_body_index, -1, false, -1, -1, 0};
+                    QuestLocationMeta meta;
+                    meta.quest_id = q.id;
+                    meta.quest_title = q.title;
+                    meta.target_system_id = q.target_system_id;
+                    meta.target_body_index = q.target_body_index;
+                    meta.remove_on_completion = true;
+                    game.world().quest_locations()[mk] = std::move(meta);
+                }
                 game.log("Quest accepted: " + colored(q.title, Color::Yellow));
                 game.quests().accept_quest(std::move(q), game.world().world_tick());
             }
@@ -580,6 +591,15 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 // Trigger story quest cleanup
                 auto* sq = find_story_quest(turn_in_id);
                 if (sq) sq->on_completed(game);
+
+                // Clean up quest location markers by quest_id
+                auto& ql = game.world().quest_locations();
+                for (auto it = ql.begin(); it != ql.end(); ) {
+                    if (it->second.quest_id == turn_in_id)
+                        it = ql.erase(it);
+                    else
+                        ++it;
+                }
 
                 // Show NPC response
                 npc_dialog_.close();

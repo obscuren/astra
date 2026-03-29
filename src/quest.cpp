@@ -147,15 +147,16 @@ void QuestManager::on_npc_talked(const std::string& npc_name) {
 // ── Random Quest Generation ─────────────────────────────────────────
 
 // Pick a random landable body from a system (generates bodies if needed)
-static std::string pick_body_name(StarSystem& sys, std::mt19937& rng) {
+// Returns {body_name, body_index} — empty name / -1 if none found
+static std::pair<std::string, int> pick_body(StarSystem& sys, std::mt19937& rng) {
     generate_system_bodies(sys);
     std::vector<int> landable;
     for (int i = 0; i < static_cast<int>(sys.bodies.size()); ++i) {
         if (sys.bodies[i].landable) landable.push_back(i);
     }
-    if (landable.empty()) return "";
+    if (landable.empty()) return {"", -1};
     int idx = landable[std::uniform_int_distribution<int>(0, static_cast<int>(landable.size()) - 1)(rng)];
-    return sys.bodies[idx].name;
+    return {sys.bodies[idx].name, idx};
 }
 
 // Find the current system
@@ -337,9 +338,12 @@ Quest QuestManager::generate_quest_for_role(const std::string& role,
 
     // Pick a body from the target system
     std::string body_name;
+    int body_index = -1;
     std::string system_name;
     if (target_sys) {
-        body_name = pick_body_name(*target_sys, rng);
+        auto [bn, bi] = pick_body(*target_sys, rng);
+        body_name = bn;
+        body_index = bi;
         system_name = target_sys->name;
     }
 
@@ -386,6 +390,12 @@ Quest QuestManager::generate_quest_for_role(const std::string& role,
         }
     } else {
         q = generate_kill_quest(rng);
+    }
+
+    // Set target location for map markers (scout and kill quests with locations)
+    if (target_sys && body_index >= 0 && !body_name.empty()) {
+        q.target_system_id = target_sys->id;
+        q.target_body_index = body_index;
     }
 
     // Scale rewards by distance
