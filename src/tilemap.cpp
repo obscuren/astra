@@ -378,6 +378,10 @@ FixtureData make_fixture(FixtureType type) {
             fd.glyph = 'v'; fd.utf8_glyph = "\xe2\x96\xbc";   // ▼
             fd.color = Color::Yellow;
             fd.passable = false; fd.interactable = true; break;
+        case FixtureType::StairsUp:
+            fd.glyph = '<'; fd.utf8_glyph = "\xe2\x96\xb2";   // ▲
+            fd.color = Color::White;
+            fd.passable = false; fd.interactable = true; break;
     }
     return fd;
 }

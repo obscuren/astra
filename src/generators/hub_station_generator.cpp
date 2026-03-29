@@ -382,20 +382,20 @@ static constexpr RoomFlavor hub_fixed_flavors[] = {
     RoomFlavor::CommandCenter,      // room 4
     RoomFlavor::Armory,             // room 5
     RoomFlavor::Observatory,        // room 6 — Nova's room
-    RoomFlavor::MaintenanceTunnels, // room 7 — tutorial dungeon entrance
+    RoomFlavor::Engineering,        // room 7 — Engineer lives here
+    RoomFlavor::MaintenanceTunnels, // room 8 — tutorial dungeon entrance
 };
-static constexpr int hub_fixed_count = 8;
+static constexpr int hub_fixed_count = 9;
 
 // Random flavors for the remaining rooms
 static constexpr RoomFlavor hub_random_pool[] = {
     RoomFlavor::CrewQuarters,
-    RoomFlavor::Engineering,
     RoomFlavor::CargoHold,
 };
-static constexpr int hub_random_pool_size = 3;
+static constexpr int hub_random_pool_size = 2;
 
 void HubStationGenerator::generate_layout(std::mt19937& rng) {
-    // 7 fixed rooms + 2 random rooms on a 120x80 map
+    // 9 fixed rooms + 2 random rooms on a 120x80 map
     // Fixed rooms are placed on a 3x3 grid to avoid overlap.
     // Docking Bay (0,0) and Storage Bay (1,0) share the top row,
     // so connect_rooms guarantees a direct corridor between them.
@@ -406,12 +406,13 @@ void HubStationGenerator::generate_layout(std::mt19937& rng) {
     std::uniform_int_distribution<int> w_dist(10, 14);
     std::uniform_int_distribution<int> h_dist(8, 12);
 
-    // Grid: 3 columns, 3 rows — 9 slots for 7 fixed + 2 random
+    // Grid: 3 columns, 3 rows — 9 slots for 9 fixed rooms
     struct GridPos { int col; int row; };
     static constexpr GridPos grid_positions[] = {
         {0, 0}, {1, 0}, {2, 0},  // Docking Bay, Storage Bay, Cantina
         {0, 1}, {1, 1}, {2, 1},  // Medbay, Command Center, Armory
         {1, 2},                   // Observatory (centered bottom)
+        {0, 2}, {2, 2},          // Engineering, Maintenance Tunnels
     };
 
     int col_width = map_w / 3;
@@ -647,6 +648,8 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
         {RoomFlavor::Observatory, "Nova's Observatory",
             "A viewport dominates the far wall. Jupiter's swirling storms fill the view. "
             "Nova stands silhouetted against the light."},
+        {RoomFlavor::Engineering, "Engineering Bay",
+            "Conduits and junction boxes crowd every surface. The station's guts exposed."},
         {RoomFlavor::MaintenanceTunnels, "Maintenance Access",
             "A grimy utility room. Pipes snake along the ceiling and a heavy "
             "floor hatch leads to the tunnels below. Caution markings everywhere."},
@@ -656,8 +659,6 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
     static const FlavorInfo random_room_info[] = {
         {RoomFlavor::CrewQuarters, "Crew Quarters",
             "Bunks line the walls in neat rows. A rest pod glows softly at the far end."},
-        {RoomFlavor::Engineering, "Engineering Bay",
-            "Conduits and junction boxes crowd every surface. The station's guts exposed."},
         {RoomFlavor::CargoHold, "Cargo Hold",
             "A cavernous hold packed with crates. Magnetic clamps secure the heavier loads."},
     };

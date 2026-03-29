@@ -426,6 +426,7 @@ enum class FixtureType : uint8_t {
     ShipTerminal,   // '>'  — board your starship
     CommandTerminal,// '#'  — ship AI terminal (ARIA)
     DungeonHatch,   // 'v'  — floor hatch leading to dungeon below
+    StairsUp,       // '<'  — exit dungeon / return to previous location
 };
 
 struct FixtureData {

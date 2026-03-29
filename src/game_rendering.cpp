@@ -92,6 +92,7 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::ShipTerminal:  return "Ship Terminal";
         case FixtureType::CommandTerminal: return "Command Terminal";
         case FixtureType::DungeonHatch:    return "Floor Hatch";
+        case FixtureType::StairsUp:        return "Stairs Up";
     }
     return "Unknown";
 }
@@ -121,6 +122,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::ShipTerminal:  return "A terminal for boarding your docked starship.";
         case FixtureType::CommandTerminal: return "ARIA — the ship's autonomous intelligence. Manages all onboard systems.";
         case FixtureType::DungeonHatch:    return "A heavy floor hatch with caution markings. Leads to the maintenance tunnels below.";
+        case FixtureType::StairsUp:        return "Stairs leading back up to the surface.";
     }
     return "";
 }

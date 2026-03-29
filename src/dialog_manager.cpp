@@ -145,6 +145,15 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             game.log("Weapons gleam behind reinforced glass. Talk to the Arms Dealer to browse.");
             break;
         }
+        case FixtureType::StairsUp: {
+            // General dungeon exit — return to previous location
+            if (game.world().map().location_name() == "Maintenance Tunnels") {
+                game.exit_maintenance_tunnels();
+            } else {
+                game.exit_dungeon_to_detail();
+            }
+            break;
+        }
         case FixtureType::DungeonHatch: {
             // If we're in the tunnels, go back up
             if (game.world().map().location_name() == "Maintenance Tunnels") {

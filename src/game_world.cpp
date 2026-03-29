@@ -143,13 +143,20 @@ void Game::enter_maintenance_tunnels() {
             world_.map().find_open_spot(player_.x, player_.y);
         }
 
-        // Place exit hatch near player spawn
-        {
-            int hx = player_.x + 1, hy = player_.y;
-            if (hx < world_.map().width() && world_.map().get(hx, hy) == Tile::Floor) {
-                world_.map().add_fixture(hx, hy, make_fixture(FixtureType::DungeonHatch));
+        // Place exit stairs near player spawn
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                if (dx == 0 && dy == 0) continue;
+                int sx = player_.x + dx, sy = player_.y + dy;
+                if (sx >= 0 && sy >= 0 && sx < world_.map().width() && sy < world_.map().height()
+                    && world_.map().get(sx, sy) == Tile::Floor
+                    && world_.map().fixture_ids()[sy * world_.map().width() + sx] < 0) {
+                    world_.map().add_fixture(sx, sy, make_fixture(FixtureType::StairsUp));
+                    goto tunnels_stairs_placed;
+                }
             }
         }
+        tunnels_stairs_placed:
 
         // Spawn Young Xytomorphs
         std::mt19937 npc_rng(tunnel_seed ^ 0xA1u);
@@ -618,6 +625,21 @@ void Game::enter_dungeon_from_detail() {
         world_.npcs().clear();
         world_.ground_items().clear();
         world_.map().find_open_spot(player_.x, player_.y);
+
+        // Place exit stairs near player spawn
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                if (dx == 0 && dy == 0) continue;
+                int sx = player_.x + dx, sy = player_.y + dy;
+                if (sx >= 0 && sy >= 0 && sx < world_.map().width() && sy < world_.map().height()
+                    && world_.map().get(sx, sy) == Tile::Floor
+                    && world_.map().fixture_ids()[sy * world_.map().width() + sx] < 0) {
+                    world_.map().add_fixture(sx, sy, make_fixture(FixtureType::StairsUp));
+                    goto stairs_placed;
+                }
+            }
+        }
+        stairs_placed:
 
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};

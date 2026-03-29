@@ -72,6 +72,7 @@ public:
     void enter_ship();
     void enter_maintenance_tunnels();
     void exit_maintenance_tunnels();
+    void exit_dungeon_to_detail();
     void advance_world(int cost);
 
     // Save system accessors
@@ -124,7 +125,6 @@ private:
     void enter_detail_map();
     void exit_detail_to_overworld();
     void enter_dungeon_from_detail();
-    void exit_dungeon_to_detail();
     void transition_detail_edge(int dx, int dy);
     MapProperties build_detail_props(int ow_x, int ow_y);
 
