@@ -371,7 +371,7 @@ void Game::new_game() {
     world_.map().set_location_name("The Heavens Above");
 
     player_ = Player{};
-    player_.money = 10;
+    player_.money = 50;
     if (dev_mode_) {
         add_effect(player_.effects, make_invulnerable());
         player_.name = "Dev Commander";
@@ -541,7 +541,7 @@ void Game::new_game(const CreationResult& cr) {
     player_.player_class = cr.player_class;
     player_.attributes = cr.attributes;
     player_.resistances = cr.resistances;
-    player_.money = 10;
+    player_.money = 50;
 
     // Apply class template for non-attribute bonuses
     const auto& tmpl = class_template(cr.player_class);

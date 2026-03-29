@@ -506,7 +506,7 @@ Item build_hull_plate() {
     it.id = 8001; it.name = "Hull Plate Mk1"; it.type = ItemType::ShipComponent;
     it.description = "Standard hull plating. Reinforces ship integrity.";
     it.glyph = '#'; it.color = Color::White; it.weight = 10;
-    it.buy_value = 200; it.sell_value = 65;
+    it.buy_value = 50; it.sell_value = 15;
     it.ship_slot = ShipSlot::Hull;
     it.ship_modifiers.hull_hp = 25;
     return it;
