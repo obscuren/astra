@@ -2028,22 +2028,7 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
     Color status_color = ship.operational() ? Color::Green : Color::Red;
     ctx.text(w - 2 - static_cast<int>(status.size()), 0, status, status_color);
 
-    // Ship stats
-    auto mods = ship.total_modifiers();
     int y = 2;
-    if (mods.hull_hp > 0) {
-        ctx.text(2, y, "Hull: " + std::to_string(mods.hull_hp) + " HP", Color::DarkGray);
-        y++;
-    }
-    if (mods.shield_hp > 0) {
-        ctx.text(2, y, "Shield: " + std::to_string(mods.shield_hp) + " HP", Color::DarkGray);
-        y++;
-    }
-    if (mods.warp_range > 0) {
-        ctx.text(2, y, "Warp Range: +" + std::to_string(mods.warp_range), Color::DarkGray);
-        y++;
-    }
-    y++;
 
     // Component slots on the left
     draw_section_header(ctx, y, "COMPONENTS");
@@ -2072,6 +2057,28 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
             Color empty_color = is_critical ? Color::Red : Color::DarkGray;
             ctx.text(name_x, y, empty_label, empty_color);
         }
+        y++;
+    }
+
+    // Diagnostics section below components
+    y++;
+    draw_section_header(ctx, y, "DIAGNOSTICS");
+    y += 2;
+    auto mods = ship.total_modifiers();
+    if (mods.hull_hp > 0) {
+        ctx.text(3, y, "Hull: " + std::to_string(mods.hull_hp) + " HP", Color::DarkGray);
+        y++;
+    }
+    if (mods.shield_hp > 0) {
+        ctx.text(3, y, "Shield: " + std::to_string(mods.shield_hp) + " HP", Color::DarkGray);
+        y++;
+    }
+    if (mods.warp_range > 0) {
+        ctx.text(3, y, "Warp Range: +" + std::to_string(mods.warp_range), Color::DarkGray);
+        y++;
+    }
+    if (mods.hull_hp == 0 && mods.shield_hp == 0 && mods.warp_range == 0) {
+        ctx.text(3, y, "No active systems.", Color::DarkGray);
         y++;
     }
 
