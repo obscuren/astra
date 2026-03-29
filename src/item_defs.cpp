@@ -601,6 +601,9 @@ std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     stock.push_back(random_armor(rng));
     stock.push_back(make_stack(build_frag_grenade(), 3));
     stock.push_back(build_night_goggles());
+    // Ship components
+    stock.push_back(build_hull_plate());
+    stock.push_back(build_shield_generator());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_combat_stim(), 3));
