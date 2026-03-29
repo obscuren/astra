@@ -494,8 +494,6 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     // Ship terminal dialog
     // Tutorial choice
     if (dialog_node_ == -11) {
-        dialog_node_ = -1;
-        dialog_tree_ = nullptr;
         if (selected == 0) {
             // Play tutorial — accept quest, ship stays empty
             auto* sq = find_story_quest("story_getting_airborne");
@@ -509,8 +507,23 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 + ". He runs this place — he'll know where to find parts.\"");
             game.log("ARIA: \"Check your " + colored("Datapad", Color::Cyan) + " ("
                 + colored("c", Color::Yellow) + ") to track your objectives.\"");
+            // Show follow-up dialog with guidance
+            npc_dialog_.close();
+            npc_dialog_.set_title("ARIA");
+            npc_dialog_.set_body(
+                "\"Understood. Let's get to work.\n\n"
+                "I'd start with the Station Commander. He runs this place "
+                "— he'll know where to find parts.\n\n"
+                "Check your Datapad (c) to track your objectives.\"");
+            npc_dialog_.add_option('f', "Got it.");
+            npc_dialog_.set_footer("[Space] Continue");
+            npc_dialog_.set_max_width_frac(0.5f);
+            npc_dialog_.open();
+            dialog_node_ = -1; // next advance will just close
         } else {
             // Skip tutorial — equip ship with starter components
+            dialog_node_ = -1;
+            dialog_tree_ = nullptr;
             game.player().ship.engine = build_engine_coil_mk1();
             game.player().ship.hull = build_hull_plate();
             game.player().ship.navi_computer = build_navi_computer_mk2();
