@@ -194,6 +194,7 @@ private:
     GameState prev_state_ = GameState::MainMenu; // for returning from Load/HallOfFame
     bool running_ = false;
     bool show_welcome_ = false;
+    bool tutorial_pending_ = false;  // show tutorial choice dialog on next frame
 
     // Menu
     int menu_selection_ = 0;

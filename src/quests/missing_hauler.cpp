@@ -124,9 +124,13 @@ public:
 
 // ── Story Quest Registry ─────────────────────────────────────────────
 
+// Forward declare registrations from other quest files
+void register_getting_airborne(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+
 static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     std::vector<std::unique_ptr<StoryQuest>> catalog;
     catalog.push_back(std::make_unique<MissingHaulerQuest>());
+    register_getting_airborne(catalog);
     return catalog;
 }
 

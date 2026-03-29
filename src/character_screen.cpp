@@ -12,7 +12,7 @@
 namespace astra {
 
 static const char* tab_names[] = {
-    "Skills", "Attributes", "Equipment", "Tinkering",
+    "Skills", "Attributes", "Inventory & Equipment", "Tinkering",
     "Journal", "Quests", "Reputation", "Ship",
 };
 
@@ -555,6 +555,7 @@ void CharacterScreen::execute_context_action(char key) {
                 sl = std::move(to_install);
                 context_message_ = "Installed " + sl->name + ".";
                 context_msg_timer_ = 3;
+                installed_ship_slot_ = ship_slot_name(target);
                 if (ship_inv_cursor_ >= static_cast<int>(cargo.size()) && ship_inv_cursor_ > 0)
                     --ship_inv_cursor_;
             }

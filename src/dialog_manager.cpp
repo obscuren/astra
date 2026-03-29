@@ -1,6 +1,7 @@
 #include "astra/dialog_manager.h"
 #include "astra/character.h"
 #include "astra/game.h"
+#include "astra/item_defs.h"
 #include "astra/player.h"
 #include "astra/shop.h"
 
@@ -211,6 +212,23 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             game.log("Nothing happens.");
             break;
     }
+}
+
+void DialogManager::show_tutorial_choice(Game& game) {
+    npc_dialog_.close();
+    npc_dialog_.set_title("ARIA");
+    npc_dialog_.set_body(
+        "\"Systems critical. Multiple component failures detected. "
+        "Engine, hull plating, and navigation computer are offline. "
+        "We're grounded until repairs are complete, commander.\"");
+    npc_dialog_.add_option('1', "I need to find parts to fix this ship.");
+    npc_dialog_.add_option('2', "I know what I'm doing.");
+    npc_dialog_.set_footer("[Space] Select");
+    npc_dialog_.set_max_width_frac(0.5f);
+    npc_dialog_.open();
+    interacting_npc_ = nullptr;
+    dialog_tree_ = nullptr;
+    dialog_node_ = -11; // sentinel: tutorial choice
 }
 
 void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
@@ -474,6 +492,29 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     }
 
     // Ship terminal dialog
+    // Tutorial choice
+    if (dialog_node_ == -11) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        if (selected == 0) {
+            // Play tutorial — accept quest, ship stays empty
+            auto* sq = find_story_quest("story_getting_airborne");
+            if (sq) {
+                auto q = sq->create_quest();
+                game.log("Quest accepted: " + q.title);
+                game.quests().accept_quest(std::move(q), game.world().world_tick());
+            }
+            game.log("ARIA: \"Understood. Let's get to work.\"");
+        } else {
+            // Skip tutorial — equip ship with starter components
+            game.player().ship.engine = build_engine_coil_mk1();
+            game.player().ship.hull = build_hull_plate();
+            game.player().ship.navi_computer = build_navi_computer_mk2();
+            game.log("ARIA: \"All systems nominal. Where to, commander?\"");
+        }
+        return;
+    }
+
     // ARIA command terminal
     if (dialog_node_ == -10) {
         dialog_node_ = -1;

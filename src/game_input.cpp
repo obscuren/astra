@@ -6,7 +6,14 @@ namespace astra {
 void Game::handle_play_input(int key) {
     // Welcome screen — space dismisses
     if (show_welcome_) {
-        if (key == ' ') show_welcome_ = false;
+        if (key == ' ') {
+            show_welcome_ = false;
+            // Show tutorial choice dialog after welcome
+            if (tutorial_pending_) {
+                tutorial_pending_ = false;
+                dialog_.show_tutorial_choice(*this);
+            }
+        }
         return;
     }
 
@@ -89,6 +96,10 @@ void Game::handle_play_input(int key) {
             Item dropped = character_screen_.consume_dropped_item();
             log("You drop " + dropped.name + ".");
             world_.ground_items().push_back({player_.x, player_.y, std::move(dropped)});
+        }
+        auto installed_slot = character_screen_.consume_installed_ship_slot();
+        if (!installed_slot.empty()) {
+            quest_manager_.on_ship_component_installed(installed_slot);
         }
         return;
     }

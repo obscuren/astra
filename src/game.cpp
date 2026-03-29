@@ -592,9 +592,13 @@ void Game::new_game(const CreationResult& cr) {
     // Initialize ship with random name (empty — tutorial will equip it)
     player_.ship.name = generate_ship_name(world_.rng());
 
-    log("Welcome aboard, " + cr.name + ". Your journey to Sgr A* begins.");
-    log("You are docked at The Heavens Above, the space station orbiting Jupiter.");
+    log("You barely made it. Pirates hit you hard in the outer belt.");
+    log("Engine destroyed, hull breached, navigation fried.");
+    log("You limped into The Heavens Above on emergency thrusters.");
+    log("ARIA managed the docking sequence before going into low-power mode.");
+    log("You need parts. You need credits. And you need to get off this station.");
     show_welcome_ = true;
+    tutorial_pending_ = true;
     check_region_change();
 
     // Starter gear: random ranged weapon + batteries

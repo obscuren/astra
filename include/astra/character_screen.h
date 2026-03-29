@@ -94,9 +94,16 @@ private:
     // Drop output — Game reads this after handle_input
     bool has_dropped_item_ = false;
     Item dropped_item_;
+    // Ship component install output — Game reads this to update quests
+    std::string installed_ship_slot_;
 public:
     bool has_dropped_item() const { return has_dropped_item_; }
     Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
+    std::string consume_installed_ship_slot() {
+        std::string s = std::move(installed_ship_slot_);
+        installed_ship_slot_.clear();
+        return s;
+    }
 private:
 
     // Ship tab

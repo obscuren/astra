@@ -25,6 +25,9 @@ public:
     // Fixture interaction
     void interact_fixture(int fixture_id, Game& game);
 
+    // Tutorial choice dialog
+    void show_tutorial_choice(Game& game);
+
     // Input — returns true if consumed. Handles Tab (trade), l (look), etc.
     bool handle_input(int key, Game& game);
 

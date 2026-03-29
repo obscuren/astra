@@ -60,6 +60,7 @@ set(ASTRA_SOURCES
     src/ability.cpp
     src/quest.cpp
     src/quests/missing_hauler.cpp
+    src/quests/getting_airborne.cpp
     src/game_combat.cpp
     src/game_input.cpp
     src/game_interaction.cpp

@@ -149,6 +149,17 @@ void QuestManager::on_npc_talked(const std::string& npc_name) {
     }
 }
 
+void QuestManager::on_ship_component_installed(const std::string& slot_name) {
+    for (auto& q : active_) {
+        for (auto& obj : q.objectives) {
+            if (obj.type == ObjectiveType::InstallShipComponent &&
+                obj.target_id == slot_name) {
+                obj.current_count = obj.target_count;
+            }
+        }
+    }
+}
+
 // ── Random Quest Generation ─────────────────────────────────────────
 
 // Pick a random landable body from a system (generates bodies if needed)
