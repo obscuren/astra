@@ -317,6 +317,25 @@ static void furnish_observatory(RoomContext& ctx) {
     }
 }
 
+static void furnish_maintenance_tunnels(RoomContext& ctx) {
+    if (ctx.too_small()) return;
+
+    // Sparse industrial room: conduits, crates, and a floor hatch
+    // Conduits along north wall
+    for (int x = ctx.ix1; x <= ctx.ix2; x += 3) {
+        ctx.place(x, ctx.iy1, make_fixture(FixtureType::Conduit));
+    }
+
+    // A couple of crates
+    ctx.place(ctx.ix2, ctx.iy2, make_fixture(FixtureType::Crate));
+    ctx.place(ctx.ix2 - 1, ctx.iy1, make_fixture(FixtureType::Crate));
+
+    // DungeonHatch in the center — the entrance to the tunnels below
+    int cx = (ctx.ix1 + ctx.ix2) / 2;
+    int cy = (ctx.iy1 + ctx.iy2) / 2;
+    ctx.place(cx, cy, make_fixture(FixtureType::DungeonHatch));
+}
+
 static void furnish_room(TileMap& map, RoomFlavor flavor,
                           const MapGenerator::RoomRect& r) {
     RoomContext ctx(map, r);
@@ -332,7 +351,8 @@ static void furnish_room(TileMap& map, RoomFlavor flavor,
         case RoomFlavor::CommandCenter: furnish_command_center(ctx); break;
         case RoomFlavor::CargoHold:     furnish_cargo_hold(ctx); break;
         case RoomFlavor::Armory:        furnish_armory(ctx); break;
-        case RoomFlavor::Observatory:   furnish_observatory(ctx); break;
+        case RoomFlavor::Observatory:        furnish_observatory(ctx); break;
+        case RoomFlavor::MaintenanceTunnels: furnish_maintenance_tunnels(ctx); break;
         default: break;
     }
 }
@@ -355,15 +375,16 @@ private:
 
 // Fixed room flavors for the 7 deterministic rooms
 static constexpr RoomFlavor hub_fixed_flavors[] = {
-    RoomFlavor::EmptyRoom,     // Docking Bay (room 0)
-    RoomFlavor::StorageBay,    // room 1 — always adjacent to Docking Bay
-    RoomFlavor::Cantina,       // room 2
-    RoomFlavor::Medbay,        // room 3
-    RoomFlavor::CommandCenter,  // room 4
-    RoomFlavor::Armory,        // room 5
-    RoomFlavor::Observatory,   // room 6 — Nova's room
+    RoomFlavor::EmptyRoom,          // Docking Bay (room 0)
+    RoomFlavor::StorageBay,         // room 1 — always adjacent to Docking Bay
+    RoomFlavor::Cantina,            // room 2
+    RoomFlavor::Medbay,             // room 3
+    RoomFlavor::CommandCenter,      // room 4
+    RoomFlavor::Armory,             // room 5
+    RoomFlavor::Observatory,        // room 6 — Nova's room
+    RoomFlavor::MaintenanceTunnels, // room 7 — tutorial dungeon entrance
 };
-static constexpr int hub_fixed_count = 7;
+static constexpr int hub_fixed_count = 8;
 
 // Random flavors for the remaining rooms
 static constexpr RoomFlavor hub_random_pool[] = {
@@ -626,6 +647,9 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
         {RoomFlavor::Observatory, "Nova's Observatory",
             "A viewport dominates the far wall. Jupiter's swirling storms fill the view. "
             "Nova stands silhouetted against the light."},
+        {RoomFlavor::MaintenanceTunnels, "Maintenance Access",
+            "A grimy utility room. Pipes snake along the ceiling and a heavy "
+            "floor hatch leads to the tunnels below. Caution markings everywhere."},
     };
 
     // Random room flavor info

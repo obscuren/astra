@@ -91,6 +91,7 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::RestPod:       return "Rest Pod";
         case FixtureType::ShipTerminal:  return "Ship Terminal";
         case FixtureType::CommandTerminal: return "Command Terminal";
+        case FixtureType::DungeonHatch:    return "Floor Hatch";
     }
     return "Unknown";
 }
@@ -119,6 +120,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::RestPod:       return "A padded pod for deep restorative sleep.";
         case FixtureType::ShipTerminal:  return "A terminal for boarding your docked starship.";
         case FixtureType::CommandTerminal: return "ARIA — the ship's autonomous intelligence. Manages all onboard systems.";
+        case FixtureType::DungeonHatch:    return "A heavy floor hatch with caution markings. Leads to the maintenance tunnels below.";
     }
     return "";
 }

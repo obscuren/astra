@@ -70,6 +70,8 @@ public:
     StarChartViewer& star_chart_viewer() { return star_chart_viewer_; }
     void log(const std::string& msg);
     void enter_ship();
+    void enter_maintenance_tunnels();
+    void exit_maintenance_tunnels();
     void advance_world(int cost);
 
     // Save system accessors

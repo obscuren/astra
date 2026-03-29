@@ -379,6 +379,8 @@ enum class RoomFlavor : uint8_t {
     CavernPool,
     MinedOut,
     CollapseZone,
+    // Hub station special
+    MaintenanceTunnels,
     // Corridors (all map types)
     CorridorPlain,
     CorridorDimLit,
@@ -423,6 +425,7 @@ enum class FixtureType : uint8_t {
     RestPod,        // '='  — crew quarters rest (advance ticks, full heal)
     ShipTerminal,   // '>'  — board your starship
     CommandTerminal,// '#'  — ship AI terminal (ARIA)
+    DungeonHatch,   // 'v'  — floor hatch leading to dungeon below
 };
 
 struct FixtureData {

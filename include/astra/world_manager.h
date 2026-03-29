@@ -91,6 +91,7 @@ public:
     std::map<LocationKey, LocationState>& location_cache() { return location_cache_; }
     const std::map<LocationKey, LocationState>& location_cache() const { return location_cache_; }
     static inline const LocationKey ship_key = {0, -2, -1, false, -1, -1, 0};
+    static inline const LocationKey maintenance_key = {0, -3, -1, false, -1, -1, 0};
 
     // Quest-triggered world modification
     std::map<LocationKey, QuestLocationMeta>& quest_locations() { return quest_locations_; }

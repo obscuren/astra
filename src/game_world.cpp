@@ -1,7 +1,9 @@
 #include "astra/game.h"
 #include "astra/debug_spawn.h"
+#include "astra/item_defs.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
 #include "astra/star_chart.h"
 
@@ -27,7 +29,9 @@ static Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
 
 void Game::save_current_location() {
     LocationKey key;
-    if (world_.navigation().on_ship) {
+    if (world_.map().location_name() == "Maintenance Tunnels") {
+        key = WorldManager::maintenance_key;
+    } else if (world_.navigation().on_ship) {
         key = WorldManager::ship_key;
     } else if (world_.navigation().at_station) {
         key = {world_.navigation().current_system_id, -1, -1, true, -1, -1, 0};
@@ -60,8 +64,8 @@ void Game::restore_location(const LocationKey& key) {
     world_.npcs() = std::move(state.npcs);
     world_.ground_items() = std::move(state.ground_items);
 
-    if (key == WorldManager::ship_key) {
-        // Restore cached position on the ship
+    if (key == WorldManager::ship_key || key == WorldManager::maintenance_key) {
+        // Restore cached position
         player_.x = state.player_x;
         player_.y = state.player_y;
     } else {
@@ -109,6 +113,114 @@ void Game::enter_ship() {
     compute_camera();
     check_region_change();
     log("You board your starship.");
+}
+
+void Game::enter_maintenance_tunnels() {
+    save_current_location();
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+
+    if (world_.location_cache().count(WorldManager::maintenance_key)) {
+        restore_location(WorldManager::maintenance_key);
+    } else {
+        // Generate a small derelict-style dungeon
+        unsigned tunnel_seed = world_.seed() ^ 0xD33Du;
+        auto props = default_properties(MapType::SpaceStation);
+        props.width = 50;
+        props.height = 40;
+        props.room_count_min = 4;
+        props.room_count_max = 6;
+        props.difficulty = 1;
+        world_.map() = TileMap(props.width, props.height, MapType::SpaceStation);
+        auto gen = create_derelict_generator();
+        gen->generate(world_.map(), props, tunnel_seed);
+        world_.map().set_location_name("Maintenance Tunnels");
+
+        world_.npcs().clear();
+        world_.ground_items().clear();
+
+        // Spawn player at region 0
+        if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+            world_.map().find_open_spot(player_.x, player_.y);
+        }
+
+        // Place exit hatch near player spawn
+        {
+            int hx = player_.x + 1, hy = player_.y;
+            if (hx < world_.map().width() && world_.map().get(hx, hy) == Tile::Floor) {
+                world_.map().add_fixture(hx, hy, make_fixture(FixtureType::DungeonHatch));
+            }
+        }
+
+        // Spawn Young Xytomorphs
+        std::mt19937 npc_rng(tunnel_seed ^ 0xA1u);
+        std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+        int enemy_count = std::uniform_int_distribution<int>(3, 5)(npc_rng);
+        for (int i = 0; i < enemy_count; ++i) {
+            Npc xeno = build_xytomorph(npc_rng);
+            xeno.name = "Young Xytomorph";
+            xeno.hp = 6; xeno.max_hp = 6;
+            xeno.base_damage = 1;
+            xeno.base_xp = 10;
+            int rx = 0, ry = 0;
+            // Try to place in a room other than region 0
+            bool placed = false;
+            for (int r = 1; r < world_.map().region_count() && !placed; ++r) {
+                if (world_.map().find_open_spot_in_region(r, rx, ry, occupied)) {
+                    xeno.x = rx; xeno.y = ry;
+                    occupied.push_back({rx, ry});
+                    world_.npcs().push_back(std::move(xeno));
+                    placed = true;
+                }
+            }
+            if (!placed) {
+                if (world_.map().find_open_spot_other_room(
+                        player_.x, player_.y, rx, ry, occupied, &npc_rng)) {
+                    xeno.x = rx; xeno.y = ry;
+                    occupied.push_back({rx, ry});
+                    world_.npcs().push_back(std::move(xeno));
+                }
+            }
+        }
+
+        // Place Engine Coil as a ground item in a deeper room
+        {
+            Item engine = build_engine_coil_mk1();
+            int ix = 0, iy = 0;
+            int last_region = world_.map().region_count() - 1;
+            if (last_region > 0 &&
+                world_.map().find_open_spot_in_region(last_region, ix, iy, occupied)) {
+                world_.ground_items().push_back({ix, iy, std::move(engine)});
+            } else if (world_.map().find_open_spot_other_room(
+                           player_.x, player_.y, ix, iy, occupied, &npc_rng)) {
+                world_.ground_items().push_back({ix, iy, std::move(engine)});
+            }
+        }
+
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    }
+
+    recompute_fov();
+    world_.current_region() = -1;
+    compute_camera();
+    check_region_change();
+    log("You descend into the maintenance tunnels.");
+}
+
+void Game::exit_maintenance_tunnels() {
+    save_current_location();
+
+    // Restore the hub station from cache
+    LocationKey hub_key = {world_.navigation().current_system_id,
+                           -1, -1, true, -1, -1, 0};
+    if (world_.location_cache().count(hub_key)) {
+        restore_location(hub_key);
+    }
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    recompute_fov();
+    world_.current_region() = -1;
+    compute_camera();
+    check_region_change();
+    log("You climb back up to the station.");
 }
 
 void Game::enter_overworld_tile() {

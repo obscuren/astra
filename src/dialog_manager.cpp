@@ -145,6 +145,20 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             game.log("Weapons gleam behind reinforced glass. Talk to the Arms Dealer to browse.");
             break;
         }
+        case FixtureType::DungeonHatch: {
+            // If we're in the tunnels, go back up
+            if (game.world().map().location_name() == "Maintenance Tunnels") {
+                game.exit_maintenance_tunnels();
+                break;
+            }
+            // Gated by tutorial quest
+            if (game.quests().has_active_quest("story_getting_airborne")) {
+                game.enter_maintenance_tunnels();
+            } else {
+                game.log("Maintenance Tunnels -- Currently Under Maintenance.");
+            }
+            break;
+        }
         case FixtureType::CommandTerminal: {
             npc_dialog_.close();
             npc_dialog_.set_title("ARIA");

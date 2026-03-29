@@ -374,6 +374,10 @@ FixtureData make_fixture(FixtureType type) {
             fd.glyph = '#'; fd.utf8_glyph = "\xe2\x96\xa3";   // ▣
             fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = true; break;
+        case FixtureType::DungeonHatch:
+            fd.glyph = 'v'; fd.utf8_glyph = "\xe2\x96\xbc";   // ▼
+            fd.color = Color::Yellow;
+            fd.passable = false; fd.interactable = true; break;
     }
     return fd;
 }
