@@ -10,6 +10,7 @@ namespace astra {
 struct Player;
 struct Npc;
 struct Item;
+struct NavigationData;
 class WorldManager;
 class Game;
 
@@ -87,9 +88,18 @@ public:
     // Check if any quest just completed all objectives (returns quest id, empty if none)
     std::string check_completions() const;
 
-    // Random quest generation
+    // Random quest generation (simple — no world awareness)
     Quest generate_kill_quest(std::mt19937& rng);
     Quest generate_fetch_quest(std::mt19937& rng);
+    Quest generate_deliver_quest(const std::string& npc_name, std::mt19937& rng);
+    Quest generate_scout_quest(const std::string& body_name, std::mt19937& rng);
+
+    // Generate a random quest appropriate for an NPC role, using world state
+    // for real locations and distance-scaled difficulty/rewards
+    Quest generate_quest_for_role(const std::string& role,
+                                  const std::string& npc_name,
+                                  NavigationData& nav,
+                                  std::mt19937& rng);
 
 private:
     std::vector<Quest> active_;

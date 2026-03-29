@@ -376,10 +376,12 @@ Renders:
 - Dialog integration for quest acceptance + turn-in
 - on_item_picked_up and on_npc_talked wired in
 
-### Phase 4: Random Quest Generation
-- Template system with world-aware generation
-- NPC quest offering via dialog
-- Quest variety based on NPC role and location
+### Phase 4: Random Quest Generation ✅ (done)
+- Template system: kill, fetch, deliver, scout
+- generate_quest_for_role() picks template by NPC role
+- Merchant and Drifter NPCs now offer quests via dialog
+- Generic quest acceptance in dialog system (story + random)
+- Dev console: quest deliver, quest scout commands
 
 ### Phase 5: Save/Load + Polish
 - Quest serialization

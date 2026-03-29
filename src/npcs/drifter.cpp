@@ -51,6 +51,29 @@ Npc build_drifter(Race race, std::mt19937& rng) {
         },
     };
 
+    // --- Quest: odd jobs from the drift ---
+    npc.interactions.quest = QuestTrait{
+        "Heard any rumors out there?",
+        {
+            // Node 0: quest offer
+            {
+                "Matter of fact, yeah. Ran into some trouble on "
+                "my way here. Could use someone to deal with it.",
+                {
+                    {"Tell me more.", 1},
+                    {"Sounds like your problem.", -1},
+                },
+            },
+            // Node 1: accepted
+            {
+                "Appreciate it. Watch yourself out there.",
+                {
+                    {"Will do.", -1},
+                },
+            },
+        },
+    };
+
     return npc;
 }
 

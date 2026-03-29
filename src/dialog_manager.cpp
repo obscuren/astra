@@ -459,7 +459,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         // in a quest dialog tree means the player accepted the quest
         if (dialog_tree_ == &interacting_npc_->interactions.quest->nodes &&
             dialog_node_ == 0 && next == 1) {
-            // Accept the story quest if available
+            // Try story quest first (Station Keeper)
             auto* sq = find_story_quest("story_missing_hauler");
             if (sq && interacting_npc_->role == "Station Keeper" &&
                 !game.quests().has_active_quest("story_missing_hauler")) {
@@ -467,6 +467,14 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.quests().accept_quest(std::move(q), game.world().world_tick());
                 sq->on_accepted(game);
                 game.log("Quest accepted: " + colored("The Missing Hauler", Color::Yellow));
+            } else {
+                // Generate a random quest based on NPC role + world state
+                auto q = game.quests().generate_quest_for_role(
+                    interacting_npc_->role, interacting_npc_->display_name(),
+                    game.world().navigation(), game.world().rng());
+                q.giver_npc = interacting_npc_->role;
+                game.log("Quest accepted: " + colored(q.title, Color::Yellow));
+                game.quests().accept_quest(std::move(q), game.world().world_tick());
             }
         }
 

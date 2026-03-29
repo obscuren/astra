@@ -48,7 +48,7 @@
 - [x] **Story quest framework** — StoryQuest base class, quest-triggered world modification
 - [x] **The Missing Hauler** — first story quest with dialog integration, dungeon spawn, quest items
 - [ ] More NPC types with unique dialog trees
-- [ ] Quest system expansion — random quest generation from world state
+- [x] **Random quest generation** — kill/fetch/deliver/scout templates, NPC role-based offering
 - [ ] Faction reputation effects — NPCs react to your standing
 
 ### Gameplay

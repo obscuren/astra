@@ -110,6 +110,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  kill all           - kill all hostile NPCs");
         log("  quest kill         - random kill quest");
         log("  quest fetch        - random fetch quest");
+        log("  quest deliver      - random deliver quest");
+        log("  quest scout        - random scout quest");
         log("  quest story        - The Missing Hauler");
         log("  heal               - full heal");
         log("  clear              - clear console");
@@ -237,6 +239,28 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("Quest: " + q.title);
             log("  " + q.description);
             game.quests().accept_quest(std::move(q), game.world().world_tick());
+        } else if (args.size() >= 2 && args[1] == "deliver") {
+            auto q = game.quests().generate_deliver_quest("Merchant", game.world().rng());
+            log("Quest: " + q.title);
+            log("  " + q.description);
+            game.quests().accept_quest(std::move(q), game.world().world_tick());
+        } else if (args.size() >= 2 && args[1] == "scout") {
+            // Find a body name from the current system
+            std::string body = "Unknown Body";
+            auto& nav = game.world().navigation();
+            for (auto& sys : nav.systems) {
+                if (sys.id == nav.current_system_id) {
+                    generate_system_bodies(sys);
+                    for (const auto& b : sys.bodies) {
+                        if (b.landable) { body = b.name; break; }
+                    }
+                    break;
+                }
+            }
+            auto q = game.quests().generate_scout_quest(body, game.world().rng());
+            log("Quest: " + q.title);
+            log("  " + q.description);
+            game.quests().accept_quest(std::move(q), game.world().world_tick());
         } else if (args.size() >= 2 && args[1] == "story") {
             auto* sq = find_story_quest("story_missing_hauler");
             if (sq && !game.quests().has_active_quest("story_missing_hauler")) {
@@ -252,7 +276,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 log("Story quest not found.");
             }
         } else {
-            log("Usage: quest kill | quest fetch | quest story");
+            log("Usage: quest kill|fetch|deliver|scout|story");
         }
     }
     else {

@@ -56,6 +56,30 @@ Npc build_merchant(Race race, std::mt19937& rng) {
         generate_merchant_stock(rng),
     };
 
+    // --- Quest: supply runs ---
+    npc.interactions.quest = QuestTrait{
+        "Need any supplies picked up?",
+        {
+            // Node 0: placeholder — actual quest is generated dynamically
+            {
+                "I could use someone to track down some materials. "
+                "Interested?",
+                {
+                    {"What do you need?", 1},
+                    {"Not right now.", -1},
+                },
+            },
+            // Node 1: accepted
+            {
+                "Good. Bring them back in one piece and I'll "
+                "make it worth your while.",
+                {
+                    {"Consider it done.", -1},
+                },
+            },
+        },
+    };
+
     return npc;
 }
 
