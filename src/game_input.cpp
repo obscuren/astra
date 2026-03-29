@@ -100,6 +100,17 @@ void Game::handle_play_input(int key) {
         auto installed_slot = character_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {
             quest_manager_.on_ship_component_installed(installed_slot);
+            // ARIA reacts to each component installation
+            if (installed_slot == "Engine")
+                log("ARIA: \"Engine online. I can feel the hum again. Almost missed it.\"");
+            else if (installed_slot == "Hull")
+                log("ARIA: \"Hull integrity restored. I was getting tired of the draft.\"");
+            else if (installed_slot == "Navi Computer")
+                log("ARIA: \"Navigation online. The stars are mine again. Where shall we go?\"");
+            else if (installed_slot == "Shield")
+                log("ARIA: \"Shield generator active. That's a comfort.\"");
+            else
+                log("ARIA: \"Component installed. Systems updated.\"");
         }
         return;
     }

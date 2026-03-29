@@ -76,6 +76,15 @@ sell_price  = sell_value + (sell_value * (-faction_pct + effect_sell_pct) / 100)
   - Liked (rep 10 to 49): -10%
   - Trusted (rep >= 50): -20%
 
+### Ship Stats
+
+```
+hull_hp    = sum of installed component ship_modifiers.hull_hp
+shield_hp  = sum of installed component ship_modifiers.shield_hp
+warp_range = sum of installed component ship_modifiers.warp_range
+operational = engine slot is occupied
+```
+
 ### Repair Bench Cost
 
 ```

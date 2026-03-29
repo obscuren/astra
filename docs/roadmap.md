@@ -66,9 +66,14 @@
 - [ ] Consumables with effects (stims, shields, scanners)
 
 ### Starship
-- [ ] Ship upgrade system (engine, navi computer, hull, weapons)
+- [x] **Ship component system** — 6 equipment slots, Ship tab in character pane, install/uninstall
+- [x] **Ship cargo hold** — separate inventory for ship components
+- [x] **ARIA ship AI** — command terminal with context-aware dialog, ship systems access
+- [x] **Tutorial quest "Getting Airborne"** — repair ship with 3 components, skip option
+- [x] **Maintenance tunnels** — hub station dungeon with Engine Coil + Xytomorphs
+- [x] **Observatory view-only star chart** — can browse but not travel
 - [ ] Ship combat (space encounters)
-- [ ] Ship inventory / cargo hold
+- [ ] Ship weapons / utility slots
 
 ---
 
