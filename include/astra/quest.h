@@ -92,6 +92,9 @@ public:
     // Check if any quest just completed all objectives (returns quest id, empty if none)
     std::string check_completions() const;
 
+    // Restore from save (replaces internal state without triggering rewards)
+    void restore(std::vector<Quest> active, std::vector<Quest> completed);
+
     // Random quest generation (simple — no world awareness)
     Quest generate_kill_quest(std::mt19937& rng);
     Quest generate_fetch_quest(std::mt19937& rng);

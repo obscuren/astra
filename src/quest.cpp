@@ -83,6 +83,11 @@ Quest* QuestManager::find_active(const std::string& id) {
     return nullptr;
 }
 
+void QuestManager::restore(std::vector<Quest> active, std::vector<Quest> completed) {
+    active_ = std::move(active);
+    completed_ = std::move(completed);
+}
+
 std::string QuestManager::check_completions() const {
     for (const auto& q : active_) {
         if (q.all_objectives_complete()) return q.id;

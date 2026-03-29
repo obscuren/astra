@@ -383,11 +383,11 @@ Renders:
 - Generic quest acceptance in dialog system (story + random)
 - Dev console: quest deliver, quest scout commands
 
-### Phase 5: Save/Load + Polish
-- Quest serialization
-- Quest location meta serialization
-- Journal integration (quest entries)
-- Quest completion notifications in game log
+### Phase 5: Save/Load + Polish ✅ (done)
+- Quest serialization (QUST section in save file, version 13)
+- Quest location meta serialization (LocationKey + QuestLocationMeta)
+- QuestManager::restore() for loading without re-applying rewards
+- Quest completion notifications in game log (colored messages)
 
 ---
 
@@ -403,5 +403,5 @@ Renders:
 | `src/game_interaction.cpp` | on_item_picked_up hook |
 | `src/dialog_manager.cpp` | Quest acceptance from dialog |
 | `src/character_screen.cpp` | Quests tab rendering ✅ |
-| `src/save_file.cpp` | Quest serialization |
+| `src/save_file.cpp` | Quest serialization ✅ |
 | `src/quests/` | Individual story quest classes (future) |

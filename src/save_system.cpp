@@ -1,5 +1,6 @@
 #include "astra/save_system.h"
 #include "astra/game.h"
+#include "astra/quest.h"
 #include "astra/star_chart.h"
 
 namespace astra {
@@ -28,6 +29,11 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.overworld_y = world.overworld_y();
         data.local_tick = world.day_clock().local_tick;
         data.local_ticks_per_day = world.day_clock().local_ticks_per_day;
+
+        // Quest state
+        data.active_quests = game.quests().active_quests();
+        data.completed_quests = game.quests().completed_quests();
+        data.quest_locations = world.quest_locations();
     }
 
     MapState ms;
@@ -85,6 +91,11 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     } else {
         world.navigation() = generate_galaxy(world.seed());
     }
+    // Restore quest state (before star chart rebuild so markers appear)
+    game.quests().restore(std::move(data.active_quests),
+                          std::move(data.completed_quests));
+    world.quest_locations() = std::move(data.quest_locations);
+
     game.rebuild_star_chart_viewer();
 
     // Restore overworld state

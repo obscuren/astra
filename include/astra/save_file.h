@@ -2,9 +2,11 @@
 
 #include "astra/npc.h"
 #include "astra/player.h"
+#include "astra/quest.h"
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
 #include "astra/visibility_map.h"
+#include "astra/world_manager.h"
 
 #include <cstdint>
 #include <deque>
@@ -37,7 +39,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 12;
+    uint32_t version = 13;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -56,6 +58,11 @@ struct SaveData {
     int overworld_y = 0;
     int local_tick = 0;
     int local_ticks_per_day = 200;
+
+    // v13: quest state
+    std::vector<Quest> active_quests;
+    std::vector<Quest> completed_quests;
+    std::map<LocationKey, QuestLocationMeta> quest_locations;
 };
 
 std::filesystem::path save_directory();

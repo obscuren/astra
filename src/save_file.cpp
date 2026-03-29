@@ -1,4 +1,5 @@
 #include "astra/save_file.h"
+#include "astra/world_manager.h"
 
 #include <chrono>
 #include <cstring>
@@ -643,6 +644,160 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
     w.end_section(pos);
 }
 
+// ---------------------------------------------------------------------------
+// Quest serialization (v13)
+// ---------------------------------------------------------------------------
+
+static void write_quest(BinaryWriter& w, const Quest& q) {
+    w.write_string(q.id);
+    w.write_string(q.title);
+    w.write_string(q.description);
+    w.write_string(q.giver_npc);
+    w.write_u8(static_cast<uint8_t>(q.status));
+    w.write_u8(q.is_story ? 1 : 0);
+    w.write_i32(q.accepted_tick);
+    w.write_u32(q.target_system_id);
+    w.write_i32(q.target_body_index);
+
+    // Objectives
+    w.write_u32(static_cast<uint32_t>(q.objectives.size()));
+    for (const auto& obj : q.objectives) {
+        w.write_u8(static_cast<uint8_t>(obj.type));
+        w.write_string(obj.description);
+        w.write_i32(obj.target_count);
+        w.write_i32(obj.current_count);
+        w.write_string(obj.target_id);
+    }
+
+    // Reward
+    w.write_i32(q.reward.xp);
+    w.write_i32(q.reward.credits);
+    w.write_i32(q.reward.skill_points);
+    w.write_string(q.reward.item_name);
+    w.write_string(q.reward.faction_name);
+    w.write_i32(q.reward.reputation_change);
+}
+
+static Quest read_quest(BinaryReader& r) {
+    Quest q;
+    q.id = r.read_string();
+    q.title = r.read_string();
+    q.description = r.read_string();
+    q.giver_npc = r.read_string();
+    q.status = static_cast<QuestStatus>(r.read_u8());
+    q.is_story = r.read_u8() != 0;
+    q.accepted_tick = r.read_i32();
+    q.target_system_id = r.read_u32();
+    q.target_body_index = r.read_i32();
+
+    uint32_t obj_count = r.read_u32();
+    q.objectives.resize(obj_count);
+    for (auto& obj : q.objectives) {
+        obj.type = static_cast<ObjectiveType>(r.read_u8());
+        obj.description = r.read_string();
+        obj.target_count = r.read_i32();
+        obj.current_count = r.read_i32();
+        obj.target_id = r.read_string();
+    }
+
+    q.reward.xp = r.read_i32();
+    q.reward.credits = r.read_i32();
+    q.reward.skill_points = r.read_i32();
+    q.reward.item_name = r.read_string();
+    q.reward.faction_name = r.read_string();
+    q.reward.reputation_change = r.read_i32();
+
+    return q;
+}
+
+static void write_quest_section(BinaryWriter& w, const SaveData& data) {
+    auto pos = w.begin_section("QUST");
+
+    // Active quests
+    w.write_u32(static_cast<uint32_t>(data.active_quests.size()));
+    for (const auto& q : data.active_quests) {
+        write_quest(w, q);
+    }
+
+    // Completed quests
+    w.write_u32(static_cast<uint32_t>(data.completed_quests.size()));
+    for (const auto& q : data.completed_quests) {
+        write_quest(w, q);
+    }
+
+    // Quest locations map
+    w.write_u32(static_cast<uint32_t>(data.quest_locations.size()));
+    for (const auto& [key, meta] : data.quest_locations) {
+        // LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}
+        auto [sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth] = key;
+        w.write_u32(sys_id);
+        w.write_i32(body_idx);
+        w.write_i32(moon_idx);
+        w.write_u8(is_station ? 1 : 0);
+        w.write_i32(ow_x);
+        w.write_i32(ow_y);
+        w.write_i32(depth);
+
+        // QuestLocationMeta
+        w.write_string(meta.quest_id);
+        w.write_string(meta.quest_title);
+        w.write_i32(meta.difficulty_override);
+        w.write_u32(static_cast<uint32_t>(meta.npc_roles.size()));
+        for (const auto& role : meta.npc_roles) w.write_string(role);
+        w.write_u32(static_cast<uint32_t>(meta.quest_items.size()));
+        for (const auto& item : meta.quest_items) w.write_string(item);
+        w.write_u16(static_cast<uint16_t>(meta.poi_type));
+        w.write_u8(meta.remove_on_completion ? 1 : 0);
+        w.write_u32(meta.target_system_id);
+        w.write_i32(meta.target_body_index);
+    }
+
+    w.end_section(pos);
+}
+
+static void read_quest_section(BinaryReader& r, SaveData& data) {
+    uint32_t active_count = r.read_u32();
+    data.active_quests.resize(active_count);
+    for (auto& q : data.active_quests) {
+        q = read_quest(r);
+    }
+
+    uint32_t completed_count = r.read_u32();
+    data.completed_quests.resize(completed_count);
+    for (auto& q : data.completed_quests) {
+        q = read_quest(r);
+    }
+
+    uint32_t loc_count = r.read_u32();
+    for (uint32_t i = 0; i < loc_count; ++i) {
+        uint32_t sys_id = r.read_u32();
+        int body_idx = r.read_i32();
+        int moon_idx = r.read_i32();
+        bool is_station = r.read_u8() != 0;
+        int ow_x = r.read_i32();
+        int ow_y = r.read_i32();
+        int depth = r.read_i32();
+        LocationKey key{sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth};
+
+        QuestLocationMeta meta;
+        meta.quest_id = r.read_string();
+        meta.quest_title = r.read_string();
+        meta.difficulty_override = r.read_i32();
+        uint32_t role_count = r.read_u32();
+        meta.npc_roles.resize(role_count);
+        for (auto& role : meta.npc_roles) role = r.read_string();
+        uint32_t item_count = r.read_u32();
+        meta.quest_items.resize(item_count);
+        for (auto& item : meta.quest_items) item = r.read_string();
+        meta.poi_type = static_cast<Tile>(r.read_u16());
+        meta.remove_on_completion = r.read_u8() != 0;
+        meta.target_system_id = r.read_u32();
+        meta.target_body_index = r.read_i32();
+
+        data.quest_locations[key] = std::move(meta);
+    }
+}
+
 static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     auto pos = w.begin_section("GSTA");
     w.write_i32(data.current_region);
@@ -1059,6 +1214,10 @@ bool write_save(const std::string& name, const SaveData& data) {
     if (!data.navigation.systems.empty()) {
         write_navigation_section(w, data.navigation);
     }
+    if (!data.active_quests.empty() || !data.completed_quests.empty() ||
+        !data.quest_locations.empty()) {
+        write_quest_section(w, data);
+    }
 
     // Sentinel
     out.write("END\0", 4);
@@ -1108,6 +1267,8 @@ bool read_save(const std::string& name, SaveData& data) {
             read_stash_section(r, data.stash);
         } else if (std::memcmp(tag, "STAR", 4) == 0) {
             read_navigation_section(r, data.navigation, data.version);
+        } else if (std::memcmp(tag, "QUST", 4) == 0) {
+            read_quest_section(r, data);
         } else {
             // Unknown section — skip
             r.skip(size);
