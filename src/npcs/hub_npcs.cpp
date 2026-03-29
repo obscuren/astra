@@ -107,7 +107,7 @@ Npc build_commander(Race race, std::mt19937& rng) {
     npc.interactions.talk = TalkTrait{
         "Commander. I run this station. What do you need?",
         {
-            // Node 0: Main talk menu
+            // Node 0: Main
             {
                 "The Heavens Above is the last major outpost before the "
                 "inner systems. We keep the peace, maintain the docks, "
@@ -115,7 +115,7 @@ Npc build_commander(Race race, std::mt19937& rng) {
                 "you're on your own.",
                 {
                     {"What's the situation out there?", 1},
-                    {"My ship is wrecked. I need parts.", 2},
+                    {"I heard you might have a spare nav computer.", 2},
                     {"Understood.", -1},
                 },
             },
@@ -129,40 +129,15 @@ Npc build_commander(Race race, std::mt19937& rng) {
                     {"I'll keep my eyes open.", -1},
                 },
             },
-            // Node 2: Ship repair guidance
+            // Node 2: Nav computer favor
             {
-                "Saw your ship limp in. You're lucky to be alive. "
-                "Here's what I can tell you: the maintenance tunnels "
-                "below deck are crawling with Xytomorph pests. Nasty, "
-                "but there's salvage down there — probably an engine "
-                "coil if you're lucky. Talk to the Engineer, he can "
-                "point you to the hatch. For hull plating, try the "
-                "Merchant in the market — he stocks ship components. "
-                "And I might have a spare nav computer. Do me a favor "
-                "and we'll call it even.",
+                "A nav computer? Maybe. We salvaged one from a wreck "
+                "last cycle. I could part with it — but I need a favor "
+                "first. We intercepted a distress signal from the lower "
+                "decks. Something's down there that shouldn't be. Clear "
+                "it out and the nav computer is yours.",
                 {
-                    {"Where's the Engineer?", 3},
-                    {"What kind of favor?", 4},
-                    {"Thanks for the intel.", -1},
-                },
-            },
-            // Node 3: Engineer location
-            {
-                "Engineering bay, east side of the station. Look for "
-                "the fellow covered in conduit grease. He knows every "
-                "bolt on this station. He'll get you to the tunnels.",
-                {
-                    {"Got it.", -1},
-                },
-            },
-            // Node 4: The favor (preview of his quest)
-            {
-                "We intercepted a distress signal from the lower decks "
-                "a few cycles back. Something's down there that shouldn't "
-                "be. Clear it out and the nav computer is yours. Talk to "
-                "me when you're ready for the assignment.",
-                {
-                    {"I'll be ready.", -1},
+                    {"I'll take a look.", -1},
                 },
             },
         },

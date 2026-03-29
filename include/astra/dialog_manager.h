@@ -27,6 +27,7 @@ public:
 
     // Tutorial choice dialog
     void show_tutorial_choice(Game& game);
+    void show_tutorial_followup();
 
     // Input — returns true if consumed. Handles Tab (trade), l (look), etc.
     bool handle_input(int key, Game& game);
@@ -51,9 +52,11 @@ private:
     // ARIA command terminal output flags
     bool aria_open_ship_tab_ = false;
     bool aria_open_star_chart_ = false;
+    bool aria_tutorial_followup_ = false;
 public:
     bool consume_aria_ship_tab() { bool v = aria_open_ship_tab_; aria_open_ship_tab_ = false; return v; }
     bool consume_aria_star_chart() { bool v = aria_open_star_chart_; aria_open_star_chart_ = false; return v; }
+    bool consume_aria_tutorial_followup() { bool v = aria_tutorial_followup_; aria_tutorial_followup_ = false; return v; }
 };
 
 } // namespace astra

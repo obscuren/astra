@@ -16,7 +16,7 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
-    // --- Talk: station lore ---
+    // --- Talk: station lore + ship repair guidance ---
     npc.interactions.talk = TalkTrait{
         "Greetings, commander. Welcome to The Heavens Above.",
         {
@@ -25,8 +25,8 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
                 "This station has orbited Jupiter for over three centuries. "
                 "Built by the first wave, before the Collapse.",
                 {
+                    {"My ship is wrecked. I need parts.", 3},
                     {"Tell me more about the Collapse.", 1},
-                    {"Interesting. What else?", 0},
                     {"Thanks.", -1},
                 },
             },
@@ -49,6 +49,41 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
                 {
                     {"Back to the beginning.", 0},
                     {"Thanks for the history lesson.", -1},
+                },
+            },
+            // Node 3: Ship repair guidance
+            {
+                "Saw your ship limp in. You're lucky to be alive. "
+                "Here's what I can tell you: the maintenance tunnels "
+                "below deck are crawling with Xytomorph pests. Nasty, "
+                "but there's salvage down there — probably an engine "
+                "coil if you're lucky. Talk to the Engineer, he can "
+                "point you to the hatch. For hull plating, try the "
+                "Merchant in the market — he stocks ship components. "
+                "And the Station Commander might have a spare nav "
+                "computer. Do him a favor and he'll sort you out.",
+                {
+                    {"Where's the Engineer?", 4},
+                    {"Where's the Merchant?", 5},
+                    {"Thanks for the intel.", -1},
+                },
+            },
+            // Node 4: Engineer location
+            {
+                "Engineering bay, east side of the station. Look for "
+                "the fellow covered in conduit grease. He knows every "
+                "bolt on this station. He'll get you to the tunnels.",
+                {
+                    {"Got it.", -1},
+                },
+            },
+            // Node 5: Merchant location
+            {
+                "The market's in the cantina area. You'll find the "
+                "Merchant there. He deals in all sorts — supplies, "
+                "components, whatever the haulers bring in.",
+                {
+                    {"Thanks.", -1},
                 },
             },
         },

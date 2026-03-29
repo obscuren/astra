@@ -231,6 +231,23 @@ void DialogManager::show_tutorial_choice(Game& game) {
     dialog_node_ = -11; // sentinel: tutorial choice
 }
 
+void DialogManager::show_tutorial_followup() {
+    npc_dialog_.close();
+    npc_dialog_.set_title("ARIA");
+    npc_dialog_.set_body(
+        "\"Understood. Let's get to work.\n\n"
+        "I'd start with the Station Keeper. He's been here since "
+        "before the Collapse -- he'll know where to find parts.\n\n"
+        "Check your Datapad (c) to track your objectives.\"");
+    npc_dialog_.add_option('f', "Got it.");
+    npc_dialog_.set_footer("[Space] Continue");
+    npc_dialog_.set_max_width_frac(0.5f);
+    npc_dialog_.open();
+    interacting_npc_ = nullptr;
+    dialog_tree_ = nullptr;
+    dialog_node_ = -1;
+}
+
 void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     interacting_npc_ = &npc;
     dialog_tree_ = nullptr;
@@ -494,6 +511,8 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     // Ship terminal dialog
     // Tutorial choice
     if (dialog_node_ == -11) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
         if (selected == 0) {
             // Play tutorial — accept quest, ship stays empty
             auto* sq = find_story_quest("story_getting_airborne");
@@ -503,27 +522,14 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.quests().accept_quest(std::move(q), game.world().world_tick());
             }
             game.log("ARIA: \"Understood. Let's get to work.\"");
-            game.log("ARIA: \"I'd start with the " + colored("Station Commander", Color::White)
-                + ". He runs this place — he'll know where to find parts.\"");
+            game.log("ARIA: \"I'd start with the " + colored("Station Keeper", Color::White)
+                + ". He's been here since before the Collapse — he'll know where to find parts.\"");
             game.log("ARIA: \"Check your " + colored("Datapad", Color::Cyan) + " ("
                 + colored("c", Color::Yellow) + ") to track your objectives.\"");
-            // Show follow-up dialog with guidance
-            npc_dialog_.close();
-            npc_dialog_.set_title("ARIA");
-            npc_dialog_.set_body(
-                "\"Understood. Let's get to work.\n\n"
-                "I'd start with the Station Commander. He runs this place "
-                "— he'll know where to find parts.\n\n"
-                "Check your Datapad (c) to track your objectives.\"");
-            npc_dialog_.add_option('f', "Got it.");
-            npc_dialog_.set_footer("[Space] Continue");
-            npc_dialog_.set_max_width_frac(0.5f);
-            npc_dialog_.open();
-            dialog_node_ = -1; // next advance will just close
+            // Queue follow-up dialog for next frame
+            aria_tutorial_followup_ = true;
         } else {
             // Skip tutorial — equip ship with starter components
-            dialog_node_ = -1;
-            dialog_tree_ = nullptr;
             game.player().ship.engine = build_engine_coil_mk1();
             game.player().ship.hull = build_hull_plate();
             game.player().ship.navi_computer = build_navi_computer_mk2();

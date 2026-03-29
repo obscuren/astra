@@ -131,6 +131,10 @@ void Game::handle_play_input(int key) {
             star_chart_viewer_.set_view_only(false);
             star_chart_viewer_.open();
         }
+        // Tutorial follow-up: show guidance after tutorial choice dialog closes
+        if (!dialog_.is_open() && dialog_.consume_aria_tutorial_followup()) {
+            dialog_.show_tutorial_followup();
+        }
         return;
     }
 
