@@ -102,20 +102,31 @@ jobs:
         with:
           merge-multiple: true
 
-      - name: Create release
+      - name: Upload binaries to release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # Delete any auto-created release for this tag so we can recreate
-          # it with artifacts attached
-          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes \
-            astra-linux-x86_64.tar.gz \
-            astra-macos-arm64.tar.gz \
-            astra-windows-x86_64.zip \
-            astra-dev-linux-x86_64.tar.gz \
-            astra-dev-macos-arm64.tar.gz \
-            astra-dev-windows-x86_64.zip
+          TAG="${{ github.ref_name }}"
+          # If a release already exists (created manually with notes),
+          # just upload the binaries. Otherwise create a new release.
+          if gh release view "$TAG" &>/dev/null; then
+            gh release upload "$TAG" \
+              astra-linux-x86_64.tar.gz \
+              astra-macos-arm64.tar.gz \
+              astra-windows-x86_64.zip \
+              astra-dev-linux-x86_64.tar.gz \
+              astra-dev-macos-arm64.tar.gz \
+              astra-dev-windows-x86_64.zip \
+              --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              astra-linux-x86_64.tar.gz \
+              astra-macos-arm64.tar.gz \
+              astra-windows-x86_64.zip \
+              astra-dev-linux-x86_64.tar.gz \
+              astra-dev-macos-arm64.tar.gz \
+              astra-dev-windows-x86_64.zip
+          fi
