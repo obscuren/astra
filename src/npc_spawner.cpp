@@ -40,6 +40,7 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
             }
             case RoomFlavor::Cantina: {
                 place_npc(build_food_merchant(pick_race(), rng, kreth_rep), rid);
+                place_npc(build_merchant(pick_race(), rng, kreth_rep), rid);
                 // Also a drifter hanging around
                 place_npc(build_drifter(Race::Sylphari, rng), rid);
                 break;
