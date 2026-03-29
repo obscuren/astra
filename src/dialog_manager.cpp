@@ -511,6 +511,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     // Ship terminal dialog
     // Tutorial choice
     if (dialog_node_ == -11) {
+        npc_dialog_.close();
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
         if (selected == 0) {
