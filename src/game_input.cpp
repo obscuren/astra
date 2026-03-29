@@ -23,7 +23,7 @@ void Game::handle_play_input(int key) {
         return;
     }
     // Backtick opens console in dev mode
-    if (key == '`' && dev_mode_) {
+    if (key == '`') {
         console_.toggle();
         return;
     }

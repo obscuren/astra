@@ -150,6 +150,24 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("Usage: warp random | warp stamp <type>");
         }
     }
+    else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
+        auto& ship = player.ship;
+        if (args[2] == "engine") {
+            ship.engine = build_engine_coil_mk1();
+            log("Installed Engine Coil Mk1.");
+        } else if (args[2] == "hull") {
+            ship.hull = build_hull_plate();
+            log("Installed Hull Plate Mk1.");
+        } else if (args[2] == "navi") {
+            ship.navi_computer = build_navi_computer_mk2();
+            log("Installed Navi Computer Mk2.");
+        } else if (args[2] == "shield") {
+            ship.shield = build_shield_generator();
+            log("Installed Shield Generator.");
+        } else {
+            log("Unknown component: " + args[2] + ". Options: engine, hull, navi, shield");
+        }
+    }
     else if (verb == "give" && args.size() >= 3) {
         int val = 0;
         try { val = std::stoi(args[2]); } catch (...) {
@@ -198,23 +216,6 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 log("Reputation with " + faction + " set to " + std::to_string(rep_val));
             else
                 log("Unknown faction: " + faction);
-        } else if (args[1] == "ship" && args.size() >= 3) {
-            auto& ship = player.ship;
-            if (args[2] == "engine") {
-                ship.engine = build_engine_coil_mk1();
-                log("Installed Engine Coil Mk1.");
-            } else if (args[2] == "hull") {
-                ship.hull = build_hull_plate();
-                log("Installed Hull Plate Mk1.");
-            } else if (args[2] == "navi") {
-                ship.navi_computer = build_navi_computer_mk2();
-                log("Installed Navi Computer Mk2.");
-            } else if (args[2] == "shield") {
-                ship.shield = build_shield_generator();
-                log("Installed Shield Generator.");
-            } else {
-                log("Unknown component: " + args[2] + ". Options: engine, hull, navi, shield");
-            }
         } else {
             log("Unknown: give " + args[1]);
         }
