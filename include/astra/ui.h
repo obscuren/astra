@@ -62,6 +62,8 @@ public:
     void put(int x, int y, const char* utf8, Color fg);
     void text(int x, int y, std::string_view s, Color fg = Color::Default);
     void text(int x, int y, std::string_view s, Color fg, Color bg);
+    // Render text with inline COLOR_BEGIN/COLOR_END markers
+    void text_rich(int x, int y, std::string_view s, Color default_fg = Color::Default);
 
     // Lines
     void hline(int y, char ch = '-');

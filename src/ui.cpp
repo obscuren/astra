@@ -119,6 +119,25 @@ void DrawContext::text(int x, int y, std::string_view s, Color fg) {
     }
 }
 
+void DrawContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
+    Color cur = default_fg;
+    int col = 0;
+    for (size_t i = 0; i < s.size(); ++i) {
+        char ch = s[i];
+        if (ch == COLOR_BEGIN && i + 1 < s.size()) {
+            cur = static_cast<Color>(static_cast<uint8_t>(s[i + 1]));
+            ++i;
+            continue;
+        }
+        if (ch == COLOR_END) {
+            cur = default_fg;
+            continue;
+        }
+        put(x + col, y, ch, cur);
+        ++col;
+    }
+}
+
 void DrawContext::text(int x, int y, std::string_view s, Color fg, Color bg) {
     for (int i = 0; i < static_cast<int>(s.size()); ++i) {
         put(x + i, y, s[i], fg, bg);
@@ -799,15 +818,35 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
         int inner_w = win_w - 5; // 3 left pad + 1 right pad + 1 border
         if (inner_w < 10) inner_w = 10;
         std::string line;
+        int vis_len = 0; // visible length (excludes color markers)
         for (size_t i = 0; i < body_.size(); ++i) {
-            if (body_[i] == ' ' && static_cast<int>(line.size()) >= inner_w) {
+            char ch = body_[i];
+            if (ch == '\n') {
                 body_lines.push_back(line);
                 line.clear();
+                vis_len = 0;
+                continue;
+            }
+            if (ch == COLOR_BEGIN && i + 1 < body_.size()) {
+                line += ch;
+                line += body_[++i]; // color byte
+                continue;
+            }
+            if (ch == COLOR_END) {
+                line += ch;
+                continue;
+            }
+            if (ch == ' ' && vis_len >= inner_w) {
+                body_lines.push_back(line);
+                line.clear();
+                vis_len = 0;
             } else {
-                line += body_[i];
-                if (static_cast<int>(line.size()) >= inner_w) {
+                line += ch;
+                ++vis_len;
+                if (vis_len >= inner_w) {
                     body_lines.push_back(line);
                     line.clear();
+                    vis_len = 0;
                 }
             }
         }
@@ -866,7 +905,7 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
     if (has_body) {
         y++; // blank line before body
         for (const auto& bl : body_lines) {
-            ctx.text(3, y, bl, Color::Cyan);
+            ctx.text_rich(3, y, bl, Color::Cyan);
             y++;
         }
         y++; // blank line after body

@@ -236,9 +236,15 @@ void DialogManager::show_tutorial_followup() {
     npc_dialog_.set_title("ARIA");
     npc_dialog_.set_body(
         "\"Understood. Let's get to work.\n\n"
-        "I'd start with the Station Keeper. He's been here since "
-        "before the Collapse -- he'll know where to find parts.\n\n"
-        "Check your Datapad (c) to track your objectives.\"");
+        "I'd start with the " +
+        colored("Station Keeper", Color::White) + " " +
+        colored("(K)", Color::Green) +
+        ". He's been here since before the Collapse -- he'll know "
+        "where to find parts.\n\n"
+        "Check your " +
+        colored("Datapad", Color::Cyan) + " (" +
+        colored("c", Color::Yellow) +
+        ") to track your objectives.\"");
     npc_dialog_.add_option('f', "Got it.");
     npc_dialog_.set_footer("[Space] Continue");
     npc_dialog_.set_max_width_frac(0.5f);
@@ -524,6 +530,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             }
             game.log("ARIA: \"Understood. Let's get to work.\"");
             game.log("ARIA: \"I'd start with the " + colored("Station Keeper", Color::White)
+                + " " + colored("(K)", Color::Green)
                 + ". He's been here since before the Collapse — he'll know where to find parts.\"");
             game.log("ARIA: \"Check your " + colored("Datapad", Color::Cyan) + " ("
                 + colored("c", Color::Yellow) + ") to track your objectives.\"");

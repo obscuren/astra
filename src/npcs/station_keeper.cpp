@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/renderer.h"
 
 namespace astra {
 
@@ -54,14 +55,26 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
             // Node 3: Ship repair guidance
             {
                 "Saw your ship limp in. You're lucky to be alive. "
-                "Here's what I can tell you: the maintenance tunnels "
-                "below deck are crawling with Xytomorph pests. Nasty, "
-                "but there's salvage down there — probably an engine "
-                "coil if you're lucky. Talk to the Engineer, he can "
-                "point you to the hatch. For hull plating, try the "
-                "Merchant in the market — he stocks ship components. "
-                "And the Station Commander might have a spare nav "
-                "computer. Do him a favor and he'll sort you out.",
+                "Here's what I can tell you: the " +
+                colored("Maintenance Tunnels", Color::Yellow) +
+                " below deck are crawling with Xytomorph pests. Nasty, "
+                "but there's salvage down there — probably an " +
+                colored("Engine Coil", Color::White) +
+                " if you're lucky. Talk to the " +
+                colored("Engineer", Color::White) + " " +
+                colored("(E)", Color::Yellow) +
+                ", he can point you to the hatch. For " +
+                colored("Hull Plating", Color::White) +
+                ", try the " +
+                colored("Merchant", Color::White) + " " +
+                colored("(M)", Color::Cyan) +
+                " in the market — he stocks ship components. "
+                "And the " +
+                colored("Station Commander", Color::White) + " " +
+                colored("(C)", Color::White) +
+                " might have a spare " +
+                colored("Nav Computer", Color::White) +
+                ". Do him a favor and he'll sort you out.",
                 {
                     {"Where's the Engineer?", 4},
                     {"Where's the Merchant?", 5},
@@ -71,16 +84,21 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
             // Node 4: Engineer location
             {
                 "Engineering bay, east side of the station. Look for "
-                "the fellow covered in conduit grease. He knows every "
-                "bolt on this station. He'll get you to the tunnels.",
+                "the fellow covered in conduit grease — " +
+                colored("Engineer", Color::White) + " " +
+                colored("(E)", Color::Yellow) +
+                ". He knows every bolt on this station. He'll get you "
+                "to the tunnels.",
                 {
                     {"Got it.", -1},
                 },
             },
             // Node 5: Merchant location
             {
-                "The market's in the cantina area. You'll find the "
-                "Merchant there. He deals in all sorts — supplies, "
+                "The market's in the cantina area. You'll find the " +
+                colored("Merchant", Color::White) + " " +
+                colored("(M)", Color::Cyan) +
+                " there. He deals in all sorts — supplies, "
                 "components, whatever the haulers bring in.",
                 {
                     {"Thanks.", -1},
