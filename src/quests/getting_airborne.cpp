@@ -22,6 +22,8 @@ class GettingAirborneQuest : public StoryQuest {
             "Repair hull breach", 1, 0, "Hull"});
         q.objectives.push_back({ObjectiveType::InstallShipComponent,
             "Bring navigation online", 1, 0, "Navi Computer"});
+        q.objectives.push_back({ObjectiveType::TalkToNpc,
+            "Report to ARIA", 1, 0, "ARIA"});
 
         q.reward.xp = 100;
         q.reward.credits = 50;

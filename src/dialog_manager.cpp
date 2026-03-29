@@ -169,6 +169,26 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::CommandTerminal: {
+            // Trigger quest tracking for "talk to ARIA" objectives
+            game.quests().on_npc_talked("ARIA");
+
+            // Check if tutorial quest is ready for turn-in
+            auto* tq = game.quests().find_active("story_getting_airborne");
+            if (tq && tq->all_objectives_complete()) {
+                // Grab reward info before complete_quest moves the quest
+                int reward_xp = tq->reward.xp;
+                int reward_credits = tq->reward.credits;
+                game.quests().complete_quest("story_getting_airborne", game.player());
+                auto* sq = find_story_quest("story_getting_airborne");
+                if (sq) sq->on_completed(game);
+                game.log("Quest complete: " + colored("Getting Airborne", Color::Yellow));
+                std::string reward_msg = "Reward:";
+                if (reward_xp > 0) reward_msg += " " + colored(std::to_string(reward_xp) + " XP", Color::Cyan);
+                if (reward_credits > 0) reward_msg += " " + colored(std::to_string(reward_credits) + "$", Color::Yellow);
+                game.log(reward_msg);
+                return;
+            }
+
             npc_dialog_.close();
             npc_dialog_.set_title("ARIA");
             // Greeting varies by ship state
