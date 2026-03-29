@@ -266,24 +266,26 @@ static void furnish_armory(RoomContext& ctx) {
 static void furnish_observatory(RoomContext& ctx) {
     if (ctx.too_small()) return;
 
-    // Open up the north wall to space. For each tile on the wall row:
-    // - Wall tiles → Empty (space view)
-    // - Floor tiles (corridor doorways) → seal back to Wall so nothing
-    //   leaks into the void
-    // We never touch tiles ABOVE the wall row — corridors stay intact.
+    // Open up the north wall to space where safe.
+    // Only convert wall tiles that have no corridor above them.
+    // Skip any north-wall floor tiles (doorways) — leave them as-is.
     int obs_rid = ctx.map->region_id(ctx.ix1, ctx.iy1);
 
     for (int x = ctx.wx1; x <= ctx.wx2; ++x) {
         Tile t = ctx.map->get(x, ctx.wy1);
-        int rid = ctx.map->region_id(x, ctx.wy1);
-
         if (t == Tile::Floor) {
-            // Corridor doorway — seal it to prevent void leak
-            ctx.map->set(x, ctx.wy1, Tile::Wall);
-        } else if (t == Tile::Wall && (rid == obs_rid || rid < 0)) {
-            // Observatory's own wall — open to space
-            ctx.map->set(x, ctx.wy1, Tile::Empty);
-            ctx.map->set_region(x, ctx.wy1, -1);
+            // Corridor doorway — do NOT seal it
+            continue;
+        }
+        int rid = ctx.map->region_id(x, ctx.wy1);
+        if (t == Tile::Wall && (rid == obs_rid || rid < 0)) {
+            // Check if there's a corridor above — if so, don't open to space
+            bool has_corridor_above = (ctx.wy1 > 0 &&
+                ctx.map->get(x, ctx.wy1 - 1) == Tile::Floor);
+            if (!has_corridor_above) {
+                ctx.map->set(x, ctx.wy1, Tile::Empty);
+                ctx.map->set_region(x, ctx.wy1, -1);
+            }
         }
     }
 
