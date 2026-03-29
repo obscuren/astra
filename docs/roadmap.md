@@ -62,7 +62,7 @@
 
 ### Items & Gear
 - [ ] New weapon types
-- [ ] Ship components and upgrades
+- [x] **Ship components and upgrades** — ShipSlot system, Mk1 components, cargo hold
 - [ ] Consumables with effects (stims, shields, scanners)
 
 ### Starship
