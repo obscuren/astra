@@ -49,7 +49,8 @@
 - [x] **The Missing Hauler** — first story quest with dialog integration, dungeon spawn, quest items
 - [ ] More NPC types with unique dialog trees
 - [x] **Random quest generation** — kill/fetch/deliver/scout templates, NPC role-based offering
-- [ ] Faction reputation effects — NPCs react to your standing
+- [x] **Quest save/load** — full quest state persistence (active, completed, quest locations)
+- [x] **Faction reputation effects** — pricing, dialog gates, quest availability, tiered shop stock
 
 ### Gameplay
 - [x] **Auto-walk/explore** — `w` + direction = walk straight, `ww` = BFS auto-explore

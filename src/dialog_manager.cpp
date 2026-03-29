@@ -1,5 +1,7 @@
 #include "astra/dialog_manager.h"
+#include "astra/character.h"
 #include "astra/game.h"
+#include "astra/player.h"
 #include "astra/shop.h"
 
 namespace astra {
@@ -190,6 +192,22 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     const auto& data = npc.interactions;
     npc_dialog_.close();
     npc_dialog_.set_title(npc.display_name());
+
+    // Faction gate: Hated NPCs refuse all interaction
+    if (!npc.faction.empty()) {
+        int rep = reputation_for(game.player(), npc.faction);
+        if (reputation_tier(rep) == ReputationTier::Hated) {
+            npc_dialog_.set_body("\"I have nothing to say to you. Get lost.\"");
+            game.log(npc.display_name() + " refuses to speak with you.");
+            npc_dialog_.add_option('f', "Leave");
+            interact_options_.push_back(InteractOption::Farewell);
+            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
+            npc_dialog_.set_max_width_frac(0.45f);
+            npc_dialog_.open();
+            return;
+        }
+    }
+
     npc_dialog_body_ = data.talk ? data.talk->greeting : "";
     if (!npc_dialog_body_.empty()) {
         npc_dialog_.set_body("\"" + npc_dialog_body_ + "\"");
@@ -219,13 +237,15 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
         interact_options_.push_back(InteractOption::QuestTurnIn);
     }
 
-    // Offer new quests if none active from this NPC
+    // Offer new quests if none active from this NPC and reputation is Neutral+
     if (data.quest) {
         bool has_active_from_npc = false;
         for (const auto& q : game.quests().active_quests()) {
             if (q.giver_npc == npc.role) { has_active_from_npc = true; break; }
         }
-        if (!has_active_from_npc) {
+        int rep = reputation_for(game.player(), npc.faction);
+        bool rep_ok = npc.faction.empty() || reputation_tier(rep) >= ReputationTier::Neutral;
+        if (!has_active_from_npc && rep_ok) {
             npc_dialog_.add_option(hotkey++, data.quest->quest_intro);
             interact_options_.push_back(InteractOption::Quest);
         }

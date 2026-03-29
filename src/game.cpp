@@ -312,9 +312,9 @@ void Game::dev_warp_stamp_test() {
     // Spawn NPCs for settlement/outpost stamp tests
     std::mt19937 npc_rng(warp_seed ^ 0xC1A5u);
     if (dev_warp_stamp_test_poi_ == Tile::OW_Settlement) {
-        spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
+        spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
     } else if (dev_warp_stamp_test_poi_ == Tile::OW_Outpost) {
-        spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
+        spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
     }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -405,7 +405,7 @@ void Game::new_game() {
     world_.npcs().clear();
     world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -558,7 +558,7 @@ void Game::new_game(const CreationResult& cr) {
     world_.npcs().clear();
     world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();

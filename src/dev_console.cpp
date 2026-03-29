@@ -102,6 +102,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  give money <n>     - set credits");
         log("  give sp <n>        - set skill points");
         log("  give ap <n>        - set attribute points");
+        log("  give rep <faction> <n> - set faction reputation");
         log("  set invuln         - toggle invulnerability");
         log("  set level <n>      - set player level");
         log("  effect burn <dur>  - apply burn effect");
@@ -170,6 +171,31 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         } else if (args[1] == "ap") {
             player.attribute_points = val;
             log("AP set to " + std::to_string(player.attribute_points));
+        } else if (args[1] == "rep" && args.size() >= 4) {
+            // give rep <faction words...> <value>
+            // Last arg is the value, everything between is the faction name
+            int rep_val = 0;
+            try { rep_val = std::stoi(args.back()); } catch (...) {
+                log("Invalid number: " + args.back());
+                return;
+            }
+            std::string faction;
+            for (size_t i = 2; i < args.size() - 1; ++i) {
+                if (!faction.empty()) faction += " ";
+                faction += args[i];
+            }
+            bool found = false;
+            for (auto& fs : player.reputation) {
+                if (fs.faction_name == faction) {
+                    fs.reputation = rep_val;
+                    found = true;
+                    break;
+                }
+            }
+            if (found)
+                log("Reputation with " + faction + " set to " + std::to_string(rep_val));
+            else
+                log("Unknown faction: " + faction);
         } else {
             log("Unknown: give " + args[1]);
         }

@@ -11,6 +11,7 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
     npc.hp = 20;
     npc.max_hp = 20;
     npc.disposition = Disposition::Friendly;
+    npc.faction = "Stellari Conclave";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);

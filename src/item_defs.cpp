@@ -576,7 +576,7 @@ static Item make_stack(Item item, int count) {
     return item;
 }
 
-std::vector<Item> generate_merchant_stock(std::mt19937& rng) {
+std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     std::vector<Item> stock;
     stock.push_back(make_stack(build_battery(), 3));
     stock.push_back(make_stack(build_ration_pack(), 5));
@@ -585,10 +585,17 @@ std::vector<Item> generate_merchant_stock(std::mt19937& rng) {
     stock.push_back(random_armor(rng));
     stock.push_back(make_stack(build_frag_grenade(), 3));
     stock.push_back(build_night_goggles());
+    if (faction_rep >= 10) { // Liked+
+        stock.push_back(random_ranged_weapon(rng));
+        stock.push_back(make_stack(build_combat_stim(), 3));
+    }
+    if (faction_rep >= 50) { // Trusted
+        stock.push_back(random_armor(rng));
+    }
     return stock;
 }
 
-std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng) {
+std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep) {
     std::vector<Item> stock;
     std::uniform_int_distribution<int> dist(2, 3);
     int weapon_count = dist(rng);
@@ -599,14 +606,26 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng) {
     stock.push_back(make_stack(build_battery(), 5));
     stock.push_back(random_armor(rng));
     stock.push_back(make_stack(build_emp_grenade(), 2));
+    if (faction_rep >= 10) { // Liked+
+        stock.push_back(random_ranged_weapon(rng));
+        stock.push_back(make_stack(build_emp_grenade(), 2));
+    }
+    if (faction_rep >= 50) { // Trusted
+        stock.push_back(random_melee_weapon(rng));
+        stock.push_back(random_armor(rng));
+    }
     return stock;
 }
 
-std::vector<Item> generate_food_merchant_stock(std::mt19937& rng) {
+std::vector<Item> generate_food_merchant_stock(std::mt19937& rng, int faction_rep) {
     (void)rng;
     std::vector<Item> stock;
     stock.push_back(make_stack(build_ration_pack(), 10));
     stock.push_back(make_stack(build_combat_stim(), 3));
+    if (faction_rep >= 10) { // Liked+
+        stock.push_back(make_stack(build_ration_pack(), 5));
+        stock.push_back(make_stack(build_combat_stim(), 2));
+    }
     return stock;
 }
 

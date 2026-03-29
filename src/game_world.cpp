@@ -366,9 +366,9 @@ void Game::enter_detail_map() {
         // Spawn NPCs in settlements and outposts (after player placement)
         std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
         if (props.detail_poi_type == Tile::OW_Settlement) {
-            spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
+            spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
         } else if (props.detail_poi_type == Tile::OW_Outpost) {
-            spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng);
+            spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
         }
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());

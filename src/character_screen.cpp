@@ -1950,7 +1950,9 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
         if (selected) ctx.put(1, y, '>', Color::Yellow);
         ctx.text(3, y, f.faction_name, selected ? Color::White : Color::Default);
 
-        std::string rep = "Reputation: " + std::to_string(f.reputation);
+        auto tier = reputation_tier(f.reputation);
+        std::string rep = std::string(reputation_tier_name(tier)) +
+                          " (" + std::to_string(f.reputation) + ")";
         Color rep_color = f.reputation > 0 ? Color::Green
                         : f.reputation < 0 ? Color::Red
                         : Color::DarkGray;
@@ -1959,11 +1961,13 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
         // Flavor text
         y++;
         std::string flavor;
-        if (f.reputation >= 50) flavor = "They consider you a trusted ally.";
-        else if (f.reputation > 0) flavor = "They view you with curiosity.";
-        else if (f.reputation == 0) flavor = "They are indifferent toward you.";
-        else if (f.reputation > -50) flavor = "They are wary of you.";
-        else flavor = "They are hostile toward you.";
+        switch (tier) {
+            case ReputationTier::Trusted:  flavor = "They consider you a trusted ally."; break;
+            case ReputationTier::Liked:    flavor = "They view you with curiosity."; break;
+            case ReputationTier::Neutral:  flavor = "They are indifferent toward you."; break;
+            case ReputationTier::Disliked: flavor = "They are wary of you."; break;
+            case ReputationTier::Hated:    flavor = "They are hostile toward you."; break;
+        }
         ctx.text(5, y, flavor, Color::DarkGray);
         y += 2;
     }

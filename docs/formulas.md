@@ -64,10 +64,17 @@ damage = max(damage, 0)
 ### Trade Prices
 
 ```
-buy_cost  = buy_value + (buy_value * effect_buy_price_pct / 100)
-sell_price = sell_value + (sell_value * effect_sell_price_pct / 100)
+total_mod  = effect_pct + faction_pct
+buy_cost   = buy_value + (buy_value * total_mod / 100)
+sell_price  = sell_value + (sell_value * (-faction_pct + effect_sell_pct) / 100)
 ```
 - Haggle effect: `buy_price_pct = -10`, `sell_price_pct = +10`
+- Faction reputation modifier (`faction_pct`):
+  - Hated (rep <= -50): +30%
+  - Disliked (rep -49 to -10): +15%
+  - Neutral (rep -9 to 9): 0%
+  - Liked (rep 10 to 49): -10%
+  - Trusted (rep >= 50): -20%
 
 ### Repair Bench Cost
 

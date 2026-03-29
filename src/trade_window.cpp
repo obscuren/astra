@@ -1,5 +1,7 @@
 #include "astra/trade_window.h"
+#include "astra/character.h"
 #include "astra/effect.h"
+#include "astra/player.h"
 
 #include <algorithm>
 
@@ -80,8 +82,9 @@ void TradeWindow::buy_selected() {
     if (merchant_cursor_ < 0 || merchant_cursor_ >= static_cast<int>(inv.size())) return;
 
     auto& item = inv[merchant_cursor_];
-    int mod = effect_buy_price_pct(player_->effects);
-    int cost = item.buy_value + (item.buy_value * mod / 100);
+    int effect_mod = effect_buy_price_pct(player_->effects);
+    int faction_mod = reputation_price_pct(reputation_for(*player_, merchant_->faction));
+    int cost = item.buy_value + (item.buy_value * (effect_mod + faction_mod) / 100);
     if (cost < 1) cost = 1;
 
     if (player_->money < cost) {
@@ -137,8 +140,9 @@ void TradeWindow::sell_selected() {
     if (player_cursor_ < 0 || player_cursor_ >= static_cast<int>(inv.size())) return;
 
     auto& item = inv[player_cursor_];
-    int mod = effect_sell_price_pct(player_->effects);
-    int price = item.sell_value + (item.sell_value * mod / 100);
+    int effect_mod = effect_sell_price_pct(player_->effects);
+    int faction_mod = -reputation_price_pct(reputation_for(*player_, merchant_->faction));
+    int price = item.sell_value + (item.sell_value * (effect_mod + faction_mod) / 100);
     if (price < 0) price = 0;
 
     player_->money += price;
@@ -244,14 +248,25 @@ void TradeWindow::draw(int screen_w, int screen_h) {
     std::string credits_str = "Credits: " + std::to_string(player_->money) + "$";
     left_ctx.text_center(credits_y, credits_str, Color::Yellow);
 
+    // Faction standing indicator
+    int faction_pct = reputation_price_pct(reputation_for(*player_, merchant_->faction));
+    if (faction_pct != 0) {
+        std::string faction_str = merchant_->faction + ": ";
+        if (faction_pct > 0) faction_str += "+" + std::to_string(faction_pct) + "% markup";
+        else faction_str += std::to_string(faction_pct) + "% discount";
+        Color fc = faction_pct > 0 ? Color::Red : Color::Green;
+        left_ctx.text_center(credits_y + 1, faction_str, fc);
+    }
+
     int total_w = player_->inventory.total_weight();
     int max_w = player_->inventory.max_carry_weight;
     std::string weight_str = "Weight: " + std::to_string(total_w) + "/" + std::to_string(max_w);
     right_ctx.text_center(credits_y, weight_str, Color::Cyan);
 
     // Status message
+    int status_y = credits_y + (faction_pct != 0 ? 2 : 1);
     if (status_timer_ > 0 && !status_msg_.empty()) {
-        ctx.text_center(credits_y + 1, status_msg_, Color::Green);
+        ctx.text_center(status_y, status_msg_, Color::Green);
     }
 }
 
@@ -280,11 +295,13 @@ void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& item
         // Name (rarity color) + stack count (white)
         draw_item_name(ctx, x, i, item, selected);
 
-        // Price right-aligned (with Haggle modifier)
+        // Price right-aligned (with Haggle + faction modifier)
         int base_price = show_buy_price ? item.buy_value : item.sell_value;
-        int pct = show_buy_price ? effect_buy_price_pct(player_->effects)
-                                 : effect_sell_price_pct(player_->effects);
-        int price = base_price + (base_price * pct / 100);
+        int effect_pct = show_buy_price ? effect_buy_price_pct(player_->effects)
+                                        : effect_sell_price_pct(player_->effects);
+        int faction_pct = reputation_price_pct(reputation_for(*player_, merchant_->faction));
+        if (!show_buy_price) faction_pct = -faction_pct;
+        int price = base_price + (base_price * (effect_pct + faction_pct) / 100);
         if (price < (show_buy_price ? 1 : 0)) price = show_buy_price ? 1 : 0;
         std::string price_str = std::to_string(price) + "$";
         int px = w - static_cast<int>(price_str.size()) - 1;

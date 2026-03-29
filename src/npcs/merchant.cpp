@@ -3,7 +3,7 @@
 
 namespace astra {
 
-Npc build_merchant(Race race, std::mt19937& rng) {
+Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
     Npc npc;
     npc.race = race;
     npc.glyph = 'M';
@@ -12,6 +12,7 @@ Npc build_merchant(Race race, std::mt19937& rng) {
     npc.hp = 15;
     npc.max_hp = 15;
     npc.disposition = Disposition::Neutral;
+    npc.faction = "Kreth Mining Guild";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
@@ -53,7 +54,7 @@ Npc build_merchant(Race race, std::mt19937& rng) {
     // --- Shop ---
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Supplies",
-        generate_merchant_stock(rng),
+        generate_merchant_stock(rng, faction_rep),
     };
 
     // --- Quest: supply runs ---

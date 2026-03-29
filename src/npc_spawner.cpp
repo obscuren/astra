@@ -1,10 +1,13 @@
 #include "astra/npc_spawner.h"
 #include "astra/npc_defs.h"
+#include "astra/player.h"
 
 namespace astra {
 
 void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
-                    int player_x, int player_y, std::mt19937& rng) {
+                    int player_x, int player_y, std::mt19937& rng,
+                    const Player* player) {
+    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
     auto place_npc = [&](Npc npc, int region_id) {
@@ -36,7 +39,7 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                 break;
             }
             case RoomFlavor::Cantina: {
-                place_npc(build_food_merchant(pick_race(), rng), rid);
+                place_npc(build_food_merchant(pick_race(), rng, kreth_rep), rid);
                 // Also a drifter hanging around
                 place_npc(build_drifter(Race::Sylphari, rng), rid);
                 break;
@@ -50,7 +53,7 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                 break;
             }
             case RoomFlavor::Armory: {
-                place_npc(build_arms_dealer(Race::Kreth, rng), rid);
+                place_npc(build_arms_dealer(Race::Kreth, rng, kreth_rep), rid);
                 break;
             }
             case RoomFlavor::Observatory: {
@@ -147,7 +150,9 @@ static Race pick_friendly_race(std::mt19937& rng) {
 }
 
 void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
-                           int player_x, int player_y, std::mt19937& rng) {
+                           int player_x, int player_y, std::mt19937& rng,
+                           const Player* player) {
+    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
     auto place_near = [&](Npc npc, int fx, int fy) {
@@ -165,16 +170,16 @@ void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
     // Table → Merchant (Market)
     auto [tx, ty] = find_fixture_pos(map, FixtureType::Table);
     if (tx >= 0)
-        place_near(build_merchant(pick_friendly_race(rng), rng), tx, ty);
+        place_near(build_merchant(pick_friendly_race(rng), rng, kreth_rep), tx, ty);
 
     // Crate → Arms Dealer or Food Merchant (50/50)
     auto [crx, cry] = find_fixture_pos(map, FixtureType::Crate);
     if (crx >= 0) {
         std::uniform_int_distribution<int> coin(0, 1);
         if (coin(rng) == 0)
-            place_near(build_arms_dealer(pick_friendly_race(rng), rng), crx, cry);
+            place_near(build_arms_dealer(pick_friendly_race(rng), rng, kreth_rep), crx, cry);
         else
-            place_near(build_food_merchant(pick_friendly_race(rng), rng), crx, cry);
+            place_near(build_food_merchant(pick_friendly_race(rng), rng, kreth_rep), crx, cry);
     }
 
     // Bunk #1 → Resident
@@ -214,7 +219,9 @@ void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
 }
 
 void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
-                        int player_x, int player_y, std::mt19937& rng) {
+                        int player_x, int player_y, std::mt19937& rng,
+                        const Player* player) {
+    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
     auto place_near = [&](Npc npc, int fx, int fy) {
@@ -237,7 +244,7 @@ void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
     // Crate → Quartermaster (Storage Shed)
     auto [crx, cry] = find_fixture_pos(map, FixtureType::Crate);
     if (crx >= 0)
-        place_near(build_merchant(pick_friendly_race(rng), rng), crx, cry);
+        place_near(build_merchant(pick_friendly_race(rng), rng, kreth_rep), crx, cry);
 
     // Courtyard patrol
     int pcx = map.width() / 2;

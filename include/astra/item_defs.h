@@ -69,9 +69,9 @@ Item random_melee_weapon(std::mt19937& rng);
 Item random_armor(std::mt19937& rng);
 Item random_junk(std::mt19937& rng);
 
-// Merchant stock generators
-std::vector<Item> generate_merchant_stock(std::mt19937& rng);
-std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng);
-std::vector<Item> generate_food_merchant_stock(std::mt19937& rng);
+// Merchant stock generators (faction_rep controls tiered availability)
+std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep = 0);
+std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep = 0);
+std::vector<Item> generate_food_merchant_stock(std::mt19937& rng, int faction_rep = 0);
 
 } // namespace astra

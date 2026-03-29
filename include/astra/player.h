@@ -124,4 +124,7 @@ inline int regen_interval(HungerState h) {
     return 0;
 }
 
+// Look up player's reputation with a faction (0 if not found)
+int reputation_for(const Player& player, const std::string& faction);
+
 } // namespace astra

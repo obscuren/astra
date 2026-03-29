@@ -40,6 +40,18 @@ struct FactionStanding {
     int reputation = 0;
 };
 
+enum class ReputationTier : int8_t {
+    Hated    = -2,   // rep <= -50
+    Disliked = -1,   // rep -49 to -10
+    Neutral  =  0,   // rep -9 to 9
+    Liked    =  1,   // rep 10 to 49
+    Trusted  =  2,   // rep >= 50
+};
+
+ReputationTier reputation_tier(int reputation);
+const char* reputation_tier_name(ReputationTier tier);
+int reputation_price_pct(int reputation);  // buy modifier: +30/+15/0/-10/-20
+
 // Class template — defines starting stats for each PlayerClass
 struct ClassTemplate {
     PlayerClass player_class;
