@@ -245,7 +245,8 @@ void Game::handle_play_input(int key) {
         case 's': combat_.shoot_target(*this); break;
         case 'r': combat_.reload_weapon(*this); break;
         case 'g': pickup_ground_item(); break;
-        case 'c': character_screen_.open(&player_, renderer_.get(), &quest_manager_); break;
+        case 'c': character_screen_.open(&player_, renderer_.get(), &quest_manager_,
+                                        world_.navigation().on_ship); break;
         case '?': help_screen_.open(); break;
         case 'm':
             if (dev_mode_) {

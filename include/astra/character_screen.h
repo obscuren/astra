@@ -27,7 +27,8 @@ public:
     CharacterScreen() = default;
 
     bool is_open() const;
-    void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr);
+    void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr,
+              bool on_ship = false);
     void close();
     bool handle_input(int key);
     void draw(int screen_w, int screen_h);
@@ -98,10 +99,18 @@ public:
     Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
 private:
 
+    // Ship tab
+    enum class ShipFocus { Equipment, Inventory };
+    ShipFocus ship_focus_ = ShipFocus::Equipment;
+    int ship_equip_cursor_ = 0;
+    int ship_inv_cursor_ = 0;
+    bool on_ship_ = false;  // set in open(), controls interactivity
+
     void draw_tab_bar(DrawContext& ctx);
     void draw_attributes(DrawContext& ctx);
     void draw_skills(DrawContext& ctx);
     void draw_equipment(DrawContext& ctx);
+    void draw_ship(DrawContext& ctx);
     void draw_stub(DrawContext& ctx, const char* message);
     void draw_reputation(DrawContext& ctx);
 

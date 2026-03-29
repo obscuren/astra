@@ -18,10 +18,12 @@ static const char* tab_names[] = {
 
 bool CharacterScreen::is_open() const { return open_; }
 
-void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests) {
+void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
+                           bool on_ship) {
     player_ = player;
     renderer_ = renderer;
     quests_ = quests;
+    on_ship_ = on_ship;
     open_ = true;
     cursor_ = 0;
     scroll_ = 0;
@@ -205,6 +207,27 @@ bool CharacterScreen::handle_input(int key) {
             if (key == KEY_DOWN && inv_cursor_ < count - 1) ++inv_cursor_;
         }
         if (key == ' ') {
+            open_context_menu();
+            return true;
+        }
+    } else if (active_tab_ == CharTab::Ship) {
+        if (key == '\t') {
+            ship_focus_ = (ship_focus_ == ShipFocus::Equipment)
+                ? ShipFocus::Inventory : ShipFocus::Equipment;
+            return true;
+        }
+        if (ship_focus_ == ShipFocus::Equipment) {
+            if (key == KEY_UP && ship_equip_cursor_ > 0) --ship_equip_cursor_;
+            if (key == KEY_DOWN && ship_equip_cursor_ < ship_slot_count - 1) ++ship_equip_cursor_;
+        } else {
+            // Count ship components in inventory
+            int count = 0;
+            for (const auto& it : player_->inventory.items)
+                if (it.type == ItemType::ShipComponent) ++count;
+            if (key == KEY_UP && ship_inv_cursor_ > 0) --ship_inv_cursor_;
+            if (key == KEY_DOWN && ship_inv_cursor_ < count - 1) ++ship_inv_cursor_;
+        }
+        if (key == ' ' && on_ship_) {
             open_context_menu();
             return true;
         }
@@ -450,6 +473,32 @@ bool CharacterScreen::handle_input(int key) {
 void CharacterScreen::open_context_menu() {
     context_menu_.close(); // reset
 
+    if (active_tab_ == CharTab::Ship) {
+        if (ship_focus_ == ShipFocus::Equipment) {
+            auto slot = static_cast<ShipSlot>(ship_equip_cursor_);
+            const auto& item = player_->ship.slot_ref(slot);
+            if (!item) return;
+            context_menu_.add_option('l', "look");
+            context_menu_.add_option('r', "uninstall");
+        } else {
+            // Find the nth ship component in inventory
+            int idx = 0;
+            for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+                if (player_->inventory.items[i].type == ItemType::ShipComponent) {
+                    if (idx == ship_inv_cursor_) {
+                        context_menu_.add_option('l', "look");
+                        if (player_->inventory.items[i].ship_slot.has_value())
+                            context_menu_.add_option('e', "install");
+                        break;
+                    }
+                    ++idx;
+                }
+            }
+        }
+        context_menu_.open();
+        return;
+    }
+
     if (equip_focus_ == EquipFocus::PaperDoll) {
         auto slot = static_cast<EquipSlot>(equip_cursor_);
         const auto& item = player_->equipment.slot_ref(slot);
@@ -484,6 +533,60 @@ void CharacterScreen::open_context_menu() {
 }
 
 void CharacterScreen::execute_context_action(char key) {
+    if (active_tab_ == CharTab::Ship) {
+        if (ship_focus_ == ShipFocus::Equipment) {
+            auto slot = static_cast<ShipSlot>(ship_equip_cursor_);
+            auto& equipped = player_->ship.slot_ref(slot);
+            if (!equipped) return;
+            if (key == 'l') {
+                look_item_ = &(*equipped);
+                look_open_ = true;
+            } else if (key == 'r') {
+                if (!player_->inventory.can_add(*equipped)) {
+                    context_message_ = "Inventory too heavy.";
+                    context_msg_timer_ = 3;
+                    return;
+                }
+                context_message_ = "Uninstalled " + equipped->name + ".";
+                context_msg_timer_ = 3;
+                player_->inventory.items.push_back(std::move(*equipped));
+                equipped.reset();
+            }
+        } else {
+            // Find the nth ship component in inventory
+            int idx = 0;
+            int real_idx = -1;
+            for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+                if (player_->inventory.items[i].type == ItemType::ShipComponent) {
+                    if (idx == ship_inv_cursor_) { real_idx = i; break; }
+                    ++idx;
+                }
+            }
+            if (real_idx < 0) return;
+            auto& item = player_->inventory.items[real_idx];
+            if (key == 'l') {
+                look_item_ = &item;
+                look_open_ = true;
+            } else if (key == 'e' && item.ship_slot.has_value()) {
+                ShipSlot target = *item.ship_slot;
+                auto& sl = player_->ship.slot_ref(target);
+                Item to_install = std::move(item);
+                player_->inventory.items.erase(
+                    player_->inventory.items.begin() + real_idx);
+                if (sl) player_->inventory.items.push_back(std::move(*sl));
+                sl = std::move(to_install);
+                context_message_ = "Installed " + sl->name + ".";
+                context_msg_timer_ = 3;
+                // Adjust cursor
+                int count = 0;
+                for (const auto& it : player_->inventory.items)
+                    if (it.type == ItemType::ShipComponent) ++count;
+                if (ship_inv_cursor_ >= count && ship_inv_cursor_ > 0)
+                    --ship_inv_cursor_;
+            }
+        }
+        return;
+    }
     if (equip_focus_ == EquipFocus::PaperDoll) {
         auto slot = static_cast<EquipSlot>(equip_cursor_);
         auto& equipped = player_->equipment.slot_ref(slot);
@@ -663,13 +766,14 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
             }
             break;
         }
-        case CharTab::Ship:       draw_stub(content, "Ship systems not available."); break;
+        case CharTab::Ship:       draw_ship(content); break;
     }
 
     // Draw vertical divider only for tabs that use a split layout
     bool needs_divider = (active_tab_ == CharTab::Attributes
                        || active_tab_ == CharTab::Skills
                        || active_tab_ == CharTab::Equipment
+                       || active_tab_ == CharTab::Ship
                        || (active_tab_ == CharTab::Tinkering && player_has_skill(*player_, SkillId::Cat_Tinkering))
                        || (active_tab_ == CharTab::Journal && !player_->journal.empty()));
     if (needs_divider) {
@@ -1931,6 +2035,112 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
                     line_x = 0;
                 }
             }
+        }
+    }
+}
+
+void CharacterScreen::draw_ship(DrawContext& ctx) {
+    int w = ctx.width();
+    int half = w / 2;
+    auto& ship = player_->ship;
+
+    // Header: ship name + type
+    std::string title = ship.name;
+    if (!ship.type.empty()) title += " (" + ship.type + ")";
+    ctx.text(2, 0, title, Color::Cyan);
+
+    // Status
+    std::string status = ship.operational() ? "Operational" : "GROUNDED";
+    Color status_color = ship.operational() ? Color::Green : Color::Red;
+    ctx.text(w - 2 - static_cast<int>(status.size()), 0, status, status_color);
+
+    // Ship stats
+    auto mods = ship.total_modifiers();
+    int y = 2;
+    if (mods.hull_hp > 0) {
+        ctx.text(2, y, "Hull: " + std::to_string(mods.hull_hp) + " HP", Color::DarkGray);
+        y++;
+    }
+    if (mods.shield_hp > 0) {
+        ctx.text(2, y, "Shield: " + std::to_string(mods.shield_hp) + " HP", Color::DarkGray);
+        y++;
+    }
+    if (mods.warp_range > 0) {
+        ctx.text(2, y, "Warp Range: +" + std::to_string(mods.warp_range), Color::DarkGray);
+        y++;
+    }
+    y++;
+
+    // Equipment slots on the left
+    draw_section_header(ctx, y, "EQUIPMENT");
+    y++;
+
+    for (int i = 0; i < ship_slot_count; ++i) {
+        if (y >= ctx.height() - 1) break;
+        auto slot = static_cast<ShipSlot>(i);
+        const auto& item = ship.slot_ref(slot);
+        bool selected = (ship_focus_ == ShipFocus::Equipment && ship_equip_cursor_ == i);
+        bool is_critical = (slot == ShipSlot::Engine || slot == ShipSlot::Hull
+                         || slot == ShipSlot::NaviComputer);
+
+        if (selected) ctx.put(1, y, '>', Color::Yellow);
+
+        std::string slot_label = std::string(ship_slot_name(slot)) + ": ";
+        ctx.text(3, y, slot_label, selected ? Color::Yellow : Color::White);
+
+        int name_x = 3 + static_cast<int>(slot_label.size());
+        if (item) {
+            ctx.put(name_x, y, item->glyph, rarity_color(item->rarity));
+            ctx.text(name_x + 2, y, item->name,
+                     selected ? Color::White : Color::Default);
+        } else {
+            std::string empty_label = is_critical ? "OFFLINE" : "(empty)";
+            Color empty_color = is_critical ? Color::Red : Color::DarkGray;
+            ctx.text(name_x, y, empty_label, empty_color);
+        }
+        y++;
+    }
+
+    // Footer for interaction hint
+    if (!on_ship_) {
+        int footer_y = ctx.height() - 1;
+        ctx.text(2, footer_y, "Board your ship to manage equipment.", Color::DarkGray);
+    }
+
+    // Right side: ship components in inventory
+    int ry = 2;
+    int rx = half + 2;
+    int rw = w - half - 3;
+
+    // Collect ship components from inventory
+    std::vector<int> ship_items;
+    for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
+        if (player_->inventory.items[i].type == ItemType::ShipComponent)
+            ship_items.push_back(i);
+    }
+
+    if (ship_items.empty()) {
+        ctx.text(rx, ry, "No ship components.", Color::DarkGray);
+    } else {
+        for (int si = 0; si < static_cast<int>(ship_items.size()); ++si) {
+            if (ry >= ctx.height() - 1) break;
+            const auto& item = player_->inventory.items[ship_items[si]];
+            bool selected = (ship_focus_ == ShipFocus::Inventory && ship_inv_cursor_ == si);
+
+            if (selected) ctx.put(rx - 1, ry, '>', Color::Yellow);
+            ctx.put(rx, ry, item.glyph, rarity_color(item.rarity));
+
+            std::string name = item.name;
+            if (item.ship_slot) {
+                name += " [" + std::string(ship_slot_name(*item.ship_slot)) + "]";
+            }
+            ctx.text(rx + 2, ry, name, selected ? Color::White : Color::Default);
+
+            std::string price = std::to_string(item.sell_value) + "$";
+            int px = half + rw - static_cast<int>(price.size());
+            ctx.text(px, ry, price, Color::Yellow);
+
+            ry++;
         }
     }
 }
