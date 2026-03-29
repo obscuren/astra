@@ -84,6 +84,13 @@ private:
     std::string scan_message_;
     int scan_message_timer_ = 0;
 
+    // View-only mode (observatory): can browse but not travel
+    bool view_only_ = false;
+public:
+    void set_view_only(bool v) { view_only_ = v; }
+    bool view_only() const { return view_only_; }
+private:
+
     // Pending travel action
     ChartAction pending_action_;
 

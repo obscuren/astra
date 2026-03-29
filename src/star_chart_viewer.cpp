@@ -219,6 +219,11 @@ bool StarChartViewer::handle_input(int key) {
                             break;
                         }
                     }
+                    if (view_only_) {
+                        scan_message_ = "Board your ship to travel.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
                     pending_action_ = {ChartActionType::WarpToSystem, cursor_index_, -1, -1, true};
                     close();
                     return true;
@@ -279,6 +284,11 @@ bool StarChartViewer::handle_input(int key) {
                     // Travel within current system only
                     if (sys.id != nav_->current_system_id) {
                         scan_message_ = "Must warp to this system first.";
+                        scan_message_timer_ = 90;
+                        break;
+                    }
+                    if (view_only_) {
+                        scan_message_ = "Board your ship to travel.";
                         scan_message_timer_ = 90;
                         break;
                     }

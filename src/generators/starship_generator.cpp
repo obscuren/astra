@@ -115,6 +115,9 @@ void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
         int cy = (iy1 + iy2) / 2;
         // StarChart in center
         safe_place(*map_, r, cx, cy, make_fixture(FixtureType::StarChart));
+        // CommandTerminal (ARIA) to the left of star chart
+        if (cx - 2 >= ix1)
+            safe_place(*map_, r, cx - 2, cy, make_fixture(FixtureType::CommandTerminal));
         // Console row below
         if (cy + 1 <= iy2) {
             for (int x = cx - 1; x <= cx + 1; ++x) {

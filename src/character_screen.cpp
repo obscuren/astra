@@ -19,12 +19,13 @@ static const char* tab_names[] = {
 bool CharacterScreen::is_open() const { return open_; }
 
 void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
-                           bool on_ship) {
+                           bool on_ship, CharTab initial_tab) {
     player_ = player;
     renderer_ = renderer;
     quests_ = quests;
     on_ship_ = on_ship;
     open_ = true;
+    active_tab_ = initial_tab;
     cursor_ = 0;
     scroll_ = 0;
     for (int i = 0; i < 6; ++i) pending_points_[i] = 0;
@@ -2071,9 +2072,9 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
     }
     y++;
 
-    // Equipment slots on the left
-    draw_section_header(ctx, y, "EQUIPMENT");
-    y++;
+    // Component slots on the left
+    draw_section_header(ctx, y, "COMPONENTS");
+    y += 2;
 
     for (int i = 0; i < ship_slot_count; ++i) {
         if (y >= ctx.height() - 1) break;

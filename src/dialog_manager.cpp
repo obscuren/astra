@@ -135,12 +135,42 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::StarChart: {
+            game.star_chart_viewer().set_view_only(true);
             game.star_chart_viewer().open();
             game.log("The star chart hums to life, projecting a holographic galaxy map.");
             break;
         }
         case FixtureType::WeaponDisplay: {
             game.log("Weapons gleam behind reinforced glass. Talk to the Arms Dealer to browse.");
+            break;
+        }
+        case FixtureType::CommandTerminal: {
+            npc_dialog_.close();
+            npc_dialog_.set_title("ARIA");
+            // Greeting varies by ship state
+            auto& ship = game.player().ship;
+            bool has_engine = ship.operational();
+            bool has_hull = ship.hull.has_value();
+            bool has_navi = ship.has_navigation();
+            std::string greeting;
+            if (!has_engine && !has_hull && !has_navi)
+                greeting = "Welcome back. I'd run diagnostics but half my systems are offline. Let's fix that.";
+            else if (has_engine && has_hull && has_navi)
+                greeting = "All systems nominal. Where to, commander?";
+            else
+                greeting = "Systems partially restored. We're getting there, commander.";
+            npc_dialog_.set_body("\"" + greeting + "\"");
+            game.log("ARIA: \"" + greeting + "\"");
+            char hotkey = '1';
+            npc_dialog_.add_option(hotkey++, "Ship Systems");
+            npc_dialog_.add_option(hotkey++, "Star Chart");
+            npc_dialog_.add_option('f', "Close");
+            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
+            npc_dialog_.set_max_width_frac(0.45f);
+            npc_dialog_.open();
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -10; // sentinel: ARIA terminal
             break;
         }
         case FixtureType::ShipTerminal: {
@@ -444,6 +474,24 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     }
 
     // Ship terminal dialog
+    // ARIA command terminal
+    if (dialog_node_ == -10) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        if (selected == 0) {
+            // Ship Systems → open character screen on Ship tab
+            aria_open_ship_tab_ = true;
+        } else if (selected == 1) {
+            // Star Chart
+            if (game.player().ship.operational()) {
+                aria_open_star_chart_ = true;
+            } else {
+                game.log("ARIA: \"I need an engine to plot routes. I'm an AI, not a fortune teller.\"");
+            }
+        }
+        return;
+    }
+
     if (dialog_node_ == -6) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;

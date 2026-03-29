@@ -111,6 +111,15 @@ void Game::handle_play_input(int key) {
     // NPC dialog intercepts input when open
     if (dialog_.is_open()) {
         dialog_.handle_input(key, *this);
+        // Check ARIA command terminal outputs
+        if (dialog_.consume_aria_ship_tab()) {
+            character_screen_.open(&player_, renderer_.get(), &quest_manager_,
+                                   world_.navigation().on_ship, CharTab::Ship);
+        }
+        if (dialog_.consume_aria_star_chart()) {
+            star_chart_viewer_.set_view_only(false);
+            star_chart_viewer_.open();
+        }
         return;
     }
 

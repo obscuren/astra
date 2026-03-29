@@ -44,6 +44,13 @@ private:
 
     enum class InteractOption : uint8_t { Talk, Shop, Quest, QuestTurnIn, Farewell };
     std::vector<InteractOption> interact_options_;
+
+    // ARIA command terminal output flags
+    bool aria_open_ship_tab_ = false;
+    bool aria_open_star_chart_ = false;
+public:
+    bool consume_aria_ship_tab() { bool v = aria_open_ship_tab_; aria_open_ship_tab_ = false; return v; }
+    bool consume_aria_star_chart() { bool v = aria_open_star_chart_; aria_open_star_chart_ = false; return v; }
 };
 
 } // namespace astra

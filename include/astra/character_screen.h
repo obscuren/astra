@@ -28,7 +28,7 @@ public:
 
     bool is_open() const;
     void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr,
-              bool on_ship = false);
+              bool on_ship = false, CharTab initial_tab = CharTab::Skills);
     void close();
     bool handle_input(int key);
     void draw(int screen_w, int screen_h);

@@ -422,6 +422,7 @@ enum class FixtureType : uint8_t {
     StarChart,      // '*'  — observatory lore terminal (future)
     RestPod,        // '='  — crew quarters rest (advance ticks, full heal)
     ShipTerminal,   // '>'  — board your starship
+    CommandTerminal,// '#'  — ship AI terminal (ARIA)
 };
 
 struct FixtureData {
