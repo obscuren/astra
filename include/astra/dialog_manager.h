@@ -53,10 +53,12 @@ private:
     bool aria_open_ship_tab_ = false;
     bool aria_open_star_chart_ = false;
     bool aria_tutorial_followup_ = false;
+    bool aria_disembark_ = false;
 public:
     bool consume_aria_ship_tab() { bool v = aria_open_ship_tab_; aria_open_ship_tab_ = false; return v; }
     bool consume_aria_star_chart() { bool v = aria_open_star_chart_; aria_open_star_chart_ = false; return v; }
     bool consume_aria_tutorial_followup() { bool v = aria_tutorial_followup_; aria_tutorial_followup_ = false; return v; }
+    bool consume_aria_disembark() { bool v = aria_disembark_; aria_disembark_ = false; return v; }
 };
 
 } // namespace astra

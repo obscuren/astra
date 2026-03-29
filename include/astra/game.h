@@ -70,6 +70,7 @@ public:
     StarChartViewer& star_chart_viewer() { return star_chart_viewer_; }
     void log(const std::string& msg);
     void enter_ship();
+    void exit_ship_to_station();
     void enter_maintenance_tunnels();
     void exit_maintenance_tunnels();
     void exit_dungeon_to_detail();

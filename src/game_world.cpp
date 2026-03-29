@@ -115,6 +115,24 @@ void Game::enter_ship() {
     log("You board your starship.");
 }
 
+void Game::exit_ship_to_station() {
+    save_current_location();
+    world_.navigation().on_ship = false;
+
+    // Restore station from cache
+    LocationKey station_key = {world_.navigation().current_system_id,
+                               -1, -1, true, -1, -1, 0};
+    if (world_.location_cache().count(station_key)) {
+        restore_location(station_key);
+    }
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    recompute_fov();
+    world_.current_region() = -1;
+    compute_camera();
+    check_region_change();
+    log("You disembark and return to the station.");
+}
+
 void Game::enter_maintenance_tunnels() {
     save_current_location();
     world_.set_surface_mode(SurfaceMode::Dungeon);

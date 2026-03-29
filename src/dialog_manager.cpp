@@ -188,6 +188,8 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             char hotkey = '1';
             npc_dialog_.add_option(hotkey++, "Ship Systems");
             npc_dialog_.add_option(hotkey++, "Star Chart");
+            if (game.world().navigation().at_station)
+                npc_dialog_.add_option(hotkey++, "Disembark");
             npc_dialog_.add_option('f', "Close");
             npc_dialog_.set_footer("[Space] Select  [Esc] Close");
             npc_dialog_.set_max_width_frac(0.45f);
@@ -583,6 +585,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             } else {
                 game.log("ARIA: \"I need an engine to plot routes. I'm an AI, not a fortune teller.\"");
             }
+        } else if (selected == 2) {
+            // Disembark — exit ship to station
+            aria_disembark_ = true;
         }
         return;
     }
@@ -622,10 +627,21 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         // in a quest dialog tree means the player accepted the quest
         if (dialog_tree_ == &interacting_npc_->interactions.quest->nodes &&
             dialog_node_ == 0 && next == 1) {
-            // Try story quest first (Station Keeper)
-            auto* sq = find_story_quest("story_missing_hauler");
-            if (sq && interacting_npc_->role == "Station Keeper" &&
-                !game.quests().has_active_quest("story_missing_hauler")) {
+            // Station Commander during tutorial: reward is Nav Computer
+            if (interacting_npc_->role == "Station Commander" &&
+                game.quests().has_active_quest("story_getting_airborne")) {
+                Item navi = build_navi_computer_mk2();
+                game.player().ship.cargo.push_back(std::move(navi));
+                game.log("The Commander hands you a " +
+                    colored("Navi Computer Mk2", Color::White) + ".");
+                game.log("Stored in ship cargo.");
+                // Don't accept a quest — this is a direct reward
+            }
+            // Try story quest (Station Keeper) — only after tutorial
+            else if (auto* sq = find_story_quest("story_missing_hauler");
+                sq && interacting_npc_->role == "Station Keeper" &&
+                !game.quests().has_active_quest("story_missing_hauler") &&
+                !game.quests().has_active_quest("story_getting_airborne")) {
                 auto q = sq->create_quest();
                 game.quests().accept_quest(std::move(q), game.world().world_tick());
                 sq->on_accepted(game);

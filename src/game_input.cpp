@@ -135,6 +135,9 @@ void Game::handle_play_input(int key) {
         if (!dialog_.is_open() && dialog_.consume_aria_tutorial_followup()) {
             dialog_.show_tutorial_followup();
         }
+        if (dialog_.consume_aria_disembark()) {
+            exit_ship_to_station();
+        }
         return;
     }
 

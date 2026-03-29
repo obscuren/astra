@@ -144,16 +144,24 @@ Npc build_commander(Race race, std::mt19937& rng) {
     };
 
     npc.interactions.quest = QuestTrait{
-        "Any assignments available?",
+        "About that nav computer...",
         {
+            // Node 0: offer
             {
-                "Actually, yes. We lost a cargo hauler in the asteroid "
-                "belt three cycles ago. The transponder went dark near "
-                "sector 7G. If you can locate the wreckage and recover "
-                "the manifest data, there's a reward in it for you.",
+                "Right. We salvaged a nav computer from a derelict last "
+                "cycle. It's yours — consider it a welcome gift. Can't "
+                "have ships stranded on my station.",
                 {
-                    {"I'll look into it.", -1},
-                    {"Not right now.", -1},
+                    {"Thank you, Commander.", 1},
+                    {"Maybe later.", -1},
+                },
+            },
+            // Node 1: accepted
+            {
+                "Don't mention it. Get your ship running and come see "
+                "me when you're ready for real work.",
+                {
+                    {"Will do.", -1},
                 },
             },
         },
