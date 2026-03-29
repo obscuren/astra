@@ -221,8 +221,8 @@ void DialogManager::show_tutorial_choice(Game& game) {
         "\"Systems critical. Multiple component failures detected. "
         "Engine, hull plating, and navigation computer are offline. "
         "We're grounded until repairs are complete, commander.\"");
-    npc_dialog_.add_option('1', "I need to find parts to fix this ship.");
-    npc_dialog_.add_option('2', "I know what I'm doing.");
+    npc_dialog_.add_option('1', "I need to find parts to fix this ship. (Begin tutorial)");
+    npc_dialog_.add_option('2', "I know what I'm doing. (Skip tutorial)");
     npc_dialog_.set_footer("[Space] Select");
     npc_dialog_.set_max_width_frac(0.5f);
     npc_dialog_.open();
@@ -505,6 +505,10 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.quests().accept_quest(std::move(q), game.world().world_tick());
             }
             game.log("ARIA: \"Understood. Let's get to work.\"");
+            game.log("ARIA: \"I'd start with the " + colored("Station Commander", Color::White)
+                + ". He runs this place — he'll know where to find parts.\"");
+            game.log("ARIA: \"Check your " + colored("Datapad", Color::Cyan) + " ("
+                + colored("c", Color::Yellow) + ") to track your objectives.\"");
         } else {
             // Skip tutorial — equip ship with starter components
             game.player().ship.engine = build_engine_coil_mk1();

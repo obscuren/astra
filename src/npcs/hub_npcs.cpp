@@ -107,6 +107,7 @@ Npc build_commander(Race race, std::mt19937& rng) {
     npc.interactions.talk = TalkTrait{
         "Commander. I run this station. What do you need?",
         {
+            // Node 0: Main talk menu
             {
                 "The Heavens Above is the last major outpost before the "
                 "inner systems. We keep the peace, maintain the docks, "
@@ -114,9 +115,11 @@ Npc build_commander(Race race, std::mt19937& rng) {
                 "you're on your own.",
                 {
                     {"What's the situation out there?", 1},
+                    {"My ship is wrecked. I need parts.", 2},
                     {"Understood.", -1},
                 },
             },
+            // Node 1: Situation report
             {
                 "Xytomorph activity has been increasing in the asteroid "
                 "belts. We've lost contact with two survey teams this "
@@ -124,6 +127,42 @@ Npc build_commander(Race race, std::mt19937& rng) {
                 "you find anything useful, report back.",
                 {
                     {"I'll keep my eyes open.", -1},
+                },
+            },
+            // Node 2: Ship repair guidance
+            {
+                "Saw your ship limp in. You're lucky to be alive. "
+                "Here's what I can tell you: the maintenance tunnels "
+                "below deck are crawling with Xytomorph pests. Nasty, "
+                "but there's salvage down there — probably an engine "
+                "coil if you're lucky. Talk to the Engineer, he can "
+                "point you to the hatch. For hull plating, try the "
+                "Merchant in the market — he stocks ship components. "
+                "And I might have a spare nav computer. Do me a favor "
+                "and we'll call it even.",
+                {
+                    {"Where's the Engineer?", 3},
+                    {"What kind of favor?", 4},
+                    {"Thanks for the intel.", -1},
+                },
+            },
+            // Node 3: Engineer location
+            {
+                "Engineering bay, east side of the station. Look for "
+                "the fellow covered in conduit grease. He knows every "
+                "bolt on this station. He'll get you to the tunnels.",
+                {
+                    {"Got it.", -1},
+                },
+            },
+            // Node 4: The favor (preview of his quest)
+            {
+                "We intercepted a distress signal from the lower decks "
+                "a few cycles back. Something's down there that shouldn't "
+                "be. Clear it out and the nav computer is yours. Talk to "
+                "me when you're ready for the assignment.",
+                {
+                    {"I'll be ready.", -1},
                 },
             },
         },
@@ -255,22 +294,46 @@ Npc build_engineer(Race race, std::mt19937& rng) {
     npc.interactions.talk = TalkTrait{
         "Watch your step — live conduits everywhere.",
         {
+            // Node 0: Main
             {
                 "I keep this station running. Power distribution, life "
                 "support, hull integrity — it all flows through here. "
                 "Half of these systems are older than I am, but they "
                 "still work. Barely.",
                 {
-                    {"Can you repair my gear?", 1},
+                    {"What about the maintenance tunnels?", 1},
+                    {"Can you repair my gear?", 2},
                     {"Keep up the good work.", -1},
                 },
             },
+            // Node 1: Maintenance tunnels hint
+            {
+                "The lower decks? Yeah, they're infested. Some kind of "
+                "Xytomorph nest moved in a few cycles back. We sealed "
+                "the hatch but if you're brave — or desperate — there's "
+                "good salvage down there. Engine parts, conduit cores, "
+                "the works. Just watch yourself. Those things bite.",
+                {
+                    {"Where's the hatch?", 3},
+                    {"I'll gear up first.", -1},
+                },
+            },
+            // Node 2: Repair bench
             {
                 "The repair bench is under maintenance right now. "
                 "Give me a few more cycles and I'll have it online. "
                 "In the meantime, try not to break anything too badly.",
                 {
                     {"I'll manage.", -1},
+                },
+            },
+            // Node 3: Hatch location
+            {
+                "Should be in the storage area. Look for a floor hatch "
+                "with caution markings. Can't miss it — assuming it's "
+                "still sealed. Good luck down there.",
+                {
+                    {"Thanks.", -1},
                 },
             },
         },
