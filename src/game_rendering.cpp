@@ -80,6 +80,7 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::Viewport:      return "Viewport";
         case FixtureType::Door:          return "Door";
         case FixtureType::Window:        return "Window";
+        case FixtureType::Torch:         return "Torch";
         case FixtureType::Stool:         return "Stool";
         case FixtureType::Debris:        return "Debris";
         case FixtureType::HealPod:       return "Healing Pod";
@@ -110,6 +111,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::Viewport:      return "A reinforced window looking out into space.";
         case FixtureType::Door:          return "A reinforced bulkhead door.";
         case FixtureType::Window:        return "A transparent panel set into the wall.";
+        case FixtureType::Torch:         return "A flickering wall-mounted lamp.";
         case FixtureType::Stool:         return "A simple seat bolted to the floor.";
         case FixtureType::Debris:        return "Scattered wreckage and broken components.";
         case FixtureType::HealPod:       return "A medical pod that restores health using nanite technology.";
@@ -647,7 +649,7 @@ void Game::render_play() {
     DrawContext sep_ctx(renderer_.get(), separator_rect_);
     sep_ctx.vline(0, BoxDraw::V, Color::DarkGray);
 
-    render_map({renderer_.get(), map_rect_, world_, player_, combat_, input_, camera_x_, camera_y_});
+    render_map({renderer_.get(), map_rect_, world_, player_, combat_, input_, camera_x_, camera_y_, &animations_});
 
     if (panel_visible_) {
         render_side_panel();

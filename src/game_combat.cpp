@@ -1,4 +1,5 @@
 #include "astra/combat_system.h"
+#include "astra/animation.h"
 #include "astra/game.h"
 #include "astra/item_gen.h"
 
@@ -87,6 +88,7 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             }
             game.player().hp -= damage;
             if (game.player().hp < 0) game.player().hp = 0;
+            game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
             game.log(npc.display_name() + " strikes you for " +
                 std::to_string(damage) + " damage!");
             if (game.player().hp <= 0) {
@@ -169,6 +171,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     }
     npc.hp -= damage;
     if (npc.hp < 0) npc.hp = 0;
+    game.animations().spawn_effect(anim_damage_flash, npc.x, npc.y);
     if (is_crit) {
         game.log("CRITICAL HIT! You strike " + npc.display_name() + " for " +
             std::to_string(damage) + " damage!");
@@ -376,6 +379,11 @@ void CombatSystem::shoot_target(Game& game) {
     }
     target_npc_->hp -= damage;
     if (target_npc_->hp < 0) target_npc_->hp = 0;
+    // Projectile travel + damage flash
+    game.animations().spawn_effect_line(anim_projectile,
+        game.player().x, game.player().y,
+        target_npc_->x, target_npc_->y);
+    game.animations().spawn_effect(anim_damage_flash, target_npc_->x, target_npc_->y);
     std::string hit_msg = is_crit ? "CRITICAL HIT! You shoot " : "You shoot ";
     game.log(hit_msg + target_npc_->display_name() + " for " +
         std::to_string(damage) + " damage. [" +
@@ -472,6 +480,7 @@ void CombatSystem::check_level_up(Game& game) {
         game.player().max_hp = game.player().effective_max_hp();
         game.player().hp = game.player().max_hp;
 
+        game.animations().spawn_effect(anim_level_up, game.player().x, game.player().y);
         game.log("LEVEL UP! You are now level " + std::to_string(game.player().level) + ".");
         game.log("  +" + std::to_string(attr_points_per_level) + " attribute points, +"
             + std::to_string(skill_points_per_level) + " SP.");

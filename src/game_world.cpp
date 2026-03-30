@@ -28,6 +28,7 @@ static Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
 
 
 void Game::save_current_location() {
+    animations_.clear();
     LocationKey key;
     if (world_.map().location_name() == "Maintenance Tunnels") {
         key = WorldManager::maintenance_key;
@@ -388,6 +389,7 @@ void Game::exit_to_overworld() {
     player_.y = world_.overworld_y();
     world_.set_surface_mode(SurfaceMode::Overworld);
     world_.visibility().reveal_all();
+    animations_.spawn_fixture_anims(world_.map(), world_.visibility());
     world_.current_region() = -1;
     compute_camera();
     log("You return to the surface.");
@@ -562,6 +564,7 @@ void Game::exit_detail_to_overworld() {
     world_.zone_y() = 1;
     world_.set_surface_mode(SurfaceMode::Overworld);
     world_.visibility().reveal_all();
+    animations_.spawn_fixture_anims(world_.map(), world_.visibility());
     world_.current_region() = -1;
     compute_camera();
     log("You return to the surface view.");
@@ -1101,6 +1104,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         world_.overworld_x() = 0;
         world_.overworld_y() = 0;
         world_.visibility().reveal_all();
+        animations_.spawn_fixture_anims(world_.map(), world_.visibility());
         world_.current_region() = -1;
         compute_camera();
         log("You land on " + colored(location_name, Color::Cyan)
@@ -1208,6 +1212,7 @@ void Game::recompute_fov() {
     // Detail maps: shadowcast for lighting, but entire map stays revealed
     if (world_.on_detail_map() || world_.map().map_type() == MapType::DetailMap) {
         world_.visibility().explore_all();
+        animations_.spawn_fixture_anims(world_.map(), world_.visibility());
         return;
     }
 
@@ -1231,6 +1236,9 @@ void Game::recompute_fov() {
             }
         }
     }
+
+    // Add fixture animations for newly visible tiles (preserves existing ones)
+    animations_.spawn_fixture_anims(world_.map(), world_.visibility());
 }
 
 void Game::advance_world(int cost) {

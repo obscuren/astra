@@ -328,6 +328,10 @@ FixtureData make_fixture(FixtureType type) {
             fd.glyph = '"'; fd.utf8_glyph = "\xe2\x96\x91";   // ░
             fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Torch:
+            fd.glyph = '*';
+            fd.color = Color::Yellow;
+            fd.passable = true; fd.interactable = false; break;
         case FixtureType::Stool:
             fd.glyph = 'o'; fd.utf8_glyph = "\xc2\xb7";       // ·
             fd.color = Color::DarkGray;

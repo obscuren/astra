@@ -1,4 +1,5 @@
 #include "astra/dev_console.h"
+#include "astra/animation.h"
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
@@ -126,6 +127,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "heal") {
         player.hp = player.effective_max_hp();
         log("HP restored to " + std::to_string(player.hp));
+    }
+    else if (verb == "flash") {
+        game.animations().spawn_effect(anim_damage_flash, player.x, player.y);
+        log("Spawned damage flash at player (" + std::to_string(player.x) + "," + std::to_string(player.y) +
+            "). Active effects: " + std::to_string(game.animations().has_active_effects() ? 1 : 0));
     }
     else if (verb == "bearings") {
         if (game.lost()) {

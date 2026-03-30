@@ -1,4 +1,5 @@
 #include "astra/map_renderer.h"
+#include "astra/animation.h"
 #include "astra/combat_system.h"
 #include "astra/input_manager.h"
 #include "astra/world_manager.h"
@@ -112,6 +113,15 @@ void render_map(const MapRenderContext& rc) {
                 const char* og = (gov != 0) ? stamp_glyph(gov) : nullptr;
                 if (gov == SG_QuestMarker) c = Color::BrightYellow;
                 if (!og) og = overworld_glyph(tile_at, mx, my);
+
+                // Animation override for overworld tiles
+                if (rc.animations) {
+                    if (auto* frame = rc.animations->query(mx, my)) {
+                        if (frame->utf8) og = frame->utf8;
+                        c = frame->color;
+                    }
+                }
+
                 ctx.put(sx, sy, og, c);
                 continue;
             }
@@ -185,6 +195,19 @@ void render_map(const MapRenderContext& rc) {
                     }
                 }
 
+                // Animation override (effects + fixture animations)
+                if (rc.animations) {
+                    if (auto* frame = rc.animations->query(mx, my)) {
+                        if (frame->utf8) {
+                            utf8 = frame->utf8;
+                        } else {
+                            g = frame->glyph;
+                            utf8 = nullptr;
+                        }
+                        c = frame->color;
+                    }
+                }
+
                 if (utf8) {
                     ctx.put(sx, sy, utf8, c);
                 } else {
@@ -238,15 +261,35 @@ void render_map(const MapRenderContext& rc) {
         }
     }
 
-    // Draw visible NPCs
+    // Draw visible NPCs (only effect animations override NPC glyph)
     for (const auto& npc : rc.world.npcs()) {
         if (npc.alive() && rc.world.visibility().get(npc.x, npc.y) == Visibility::Visible) {
+            if (rc.animations) {
+                if (auto* frame = rc.animations->query_effect(npc.x, npc.y)) {
+                    if (frame->utf8)
+                        ctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, frame->utf8, frame->color);
+                    else
+                        ctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, frame->glyph, frame->color);
+                    continue;
+                }
+            }
             ctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, npc.glyph, npc.color);
         }
     }
 
-    // Draw player relative to camera
-    ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, '@', Color::Yellow);
+    // Draw player (only effect animations override player glyph)
+    if (rc.animations) {
+        if (auto* frame = rc.animations->query_effect(rc.player.x, rc.player.y)) {
+            if (frame->utf8)
+                ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->utf8, frame->color);
+            else
+                ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->glyph, frame->color);
+        } else {
+            ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, '@', Color::Yellow);
+        }
+    } else {
+        ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, '@', Color::Yellow);
+    }
 
     // Draw targeting line and reticule
     if (rc.combat.targeting()) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/action.h"
+#include "astra/animation.h"
 #include "astra/fov.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -92,6 +93,7 @@ public:
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
     QuestManager& quests() { return quest_manager_; }
+    AnimationManager& animations() { return animations_; }
     void auto_step();
     bool auto_walk_should_stop() const;
     std::pair<int,int> bfs_explore_goal() const;
@@ -227,6 +229,7 @@ private:
     CombatSystem combat_;
     QuestManager quest_manager_;
     RepairBench repair_bench_;
+    AnimationManager animations_;
     int camera_x_ = 0;
     int camera_y_ = 0;
 

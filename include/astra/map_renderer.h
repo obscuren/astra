@@ -9,6 +9,7 @@ namespace astra {
 class WorldManager;
 class CombatSystem;
 class InputManager;
+class AnimationManager;
 struct Player;
 
 struct MapRenderContext {
@@ -20,6 +21,7 @@ struct MapRenderContext {
     InputManager& input; // non-const: caches look cell
     int camera_x;
     int camera_y;
+    const AnimationManager* animations = nullptr;
 };
 
 void render_map(const MapRenderContext& ctx);

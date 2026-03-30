@@ -412,6 +412,7 @@ enum class FixtureType : uint8_t {
     Window,         // '◻'  — building window (blue)
 
     // Walkable (floor-like, no interaction)
+    Torch,          // '*'  — wall-mounted torch/lamp (animated)
     Stool,          // 'o'  — bar stools, chairs
     Debris,         // ','  — floor clutter
 

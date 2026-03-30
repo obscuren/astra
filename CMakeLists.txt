@@ -42,6 +42,7 @@ set(ASTRA_SOURCES
     src/star_chart.cpp
     src/star_chart_viewer.cpp
     src/item.cpp
+    src/animation.cpp
     src/item_defs.cpp
     src/item_gen.cpp
     src/journal.cpp

@@ -83,6 +83,22 @@ void Game::try_move(int dx, int dy) {
     player_.x = nx;
     player_.y = ny;
 
+    // Walk-over messages for walkable fixtures
+    if (world_.map().get(nx, ny) == Tile::Fixture) {
+        int fid = world_.map().fixture_id(nx, ny);
+        if (fid >= 0) {
+            const auto& f = world_.map().fixture(fid);
+            if (f.passable) {
+                switch (f.type) {
+                    case FixtureType::Torch:  log("You pass a torch."); break;
+                    case FixtureType::Stool:  log("You step past a stool."); break;
+                    case FixtureType::Debris: log("You step over debris."); break;
+                    default: break;
+                }
+            }
+        }
+    }
+
     // Portal tile: return to detail map / overworld if in a dungeon on a body
     if (world_.map().get(nx, ny) == Tile::Portal &&
         world_.surface_mode() == SurfaceMode::Dungeon && !world_.navigation().at_station && !world_.navigation().on_ship) {

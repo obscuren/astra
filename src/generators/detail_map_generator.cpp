@@ -1177,6 +1177,52 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 }
             }
 
+            // Torches — plaza corners and near building entrances
+            auto place_torch = [&](int tx, int ty) {
+                if (!in_bounds(tx, ty)) return;
+                Tile t = map_->get(tx, ty);
+                if (t == Tile::Floor || t == Tile::IndoorFloor) {
+                    map_->set(tx, ty, Tile::Fixture);
+                    map_->add_fixture(tx, ty, make_fixture(FixtureType::Torch));
+                }
+            };
+            // Plaza corners
+            place_torch(plaza_x - 1, plaza_y - 1);
+            place_torch(plaza_x + plaza_w, plaza_y - 1);
+            place_torch(plaza_x - 1, plaza_y + plaza_h);
+            place_torch(plaza_x + plaza_w, plaza_y + plaza_h);
+            // Place torches in front of building entrances (outside the door)
+            // For each door, find which direction faces outside (Floor, not
+            // StructuralWall or IndoorFloor inside the building), then place
+            // a torch 2 tiles out on each side of the entrance.
+            for (int sy = 0; sy < h; ++sy) {
+                for (int sx = 0; sx < w; ++sx) {
+                    if (map_->get(sx, sy) != Tile::Fixture) continue;
+                    int fid = map_->fixture_id(sx, sy);
+                    if (fid < 0) continue;
+                    if (map_->fixture(fid).type != FixtureType::Door) continue;
+                    // Check each cardinal direction for the outside
+                    static const int ddx[] = {0, 0, -1, 1};
+                    static const int ddy[] = {-1, 1, 0, 0};
+                    for (int d = 0; d < 4; ++d) {
+                        int nx = sx + ddx[d], ny = sy + ddy[d];
+                        if (!in_bounds(nx, ny)) continue;
+                        Tile nt = map_->get(nx, ny);
+                        // Outside = not a wall (path or open ground)
+                        if (nt == Tile::StructuralWall || nt == Tile::Wall) continue;
+                        // Place torches flanking the entrance, perpendicular to exit direction
+                        int px = ddx[d] == 0 ? 1 : 0;  // perpendicular x
+                        int py = ddy[d] == 0 ? 1 : 0;  // perpendicular y
+                        // 2 tiles out from door, offset left and right
+                        int fx = sx + ddx[d] * 2;
+                        int fy = sy + ddy[d] * 2;
+                        place_torch(fx + px, fy + py);
+                        place_torch(fx - px, fy - py);
+                        break; // only one outside direction per door
+                    }
+                }
+            }
+
             // ============================================================
             // PHASE 5: Scatter settlement props (reusable decoration pass)
             // ============================================================

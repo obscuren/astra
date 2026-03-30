@@ -35,8 +35,13 @@ void Game::run() {
     while (running_) {
         bool needs_timeout = combat_.targeting() || input_.looking()
                            || quit_confirm_.is_open()
-                           || auto_walking_ || auto_exploring_;
-        int key = needs_timeout ? renderer_->wait_input_timeout(needs_timeout && (auto_walking_ || auto_exploring_) ? 50 : 300)
+                           || auto_walking_ || auto_exploring_
+                           || animations_.has_any();
+        int timeout_ms = (auto_walking_ || auto_exploring_) ? 50
+                       : animations_.has_active_effects() ? 80
+                       : animations_.has_any() ? 200
+                       : 300;
+        int key = needs_timeout ? renderer_->wait_input_timeout(timeout_ms)
                                 : renderer_->wait_input();
 
         // Check for Ctrl+C quit request (signal fires during read, returning -1)
@@ -77,6 +82,7 @@ void Game::run() {
             }
         }
 
+        animations_.tick();
         update();
         render();
     }
@@ -234,6 +240,7 @@ void Game::handle_menu_input(int key) {
 // --- Logic ---
 
 void Game::dev_warp_random() {
+    animations_.clear();
     // All generator combinations: {MapType, Biome, label}
     struct DevMap {
         MapType type;
@@ -292,6 +299,7 @@ void Game::dev_warp_random() {
 }
 
 void Game::dev_warp_stamp_test() {
+    animations_.clear();
     unsigned warp_seed = static_cast<unsigned>(std::time(nullptr));
 
     auto props = default_properties(MapType::DetailMap);
