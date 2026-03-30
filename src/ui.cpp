@@ -122,18 +122,35 @@ void DrawContext::text(int x, int y, std::string_view s, Color fg) {
 void DrawContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
     Color cur = default_fg;
     int col = 0;
-    for (size_t i = 0; i < s.size(); ++i) {
-        char ch = s[i];
-        if (ch == COLOR_BEGIN && i + 1 < s.size()) {
+    size_t i = 0;
+    while (i < s.size()) {
+        unsigned char ch = static_cast<unsigned char>(s[i]);
+        if (ch == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < s.size()) {
             cur = static_cast<Color>(static_cast<uint8_t>(s[i + 1]));
+            i += 2;
+            continue;
+        }
+        if (ch == static_cast<unsigned char>(COLOR_END)) {
+            cur = default_fg;
             ++i;
             continue;
         }
-        if (ch == COLOR_END) {
-            cur = default_fg;
-            continue;
+        if (ch < 0x80) {
+            // ASCII byte
+            put(x + col, y, static_cast<char>(ch), cur);
+            ++i;
+        } else {
+            // UTF-8 multi-byte sequence
+            int seq_len = 1;
+            if ((ch & 0xE0) == 0xC0) seq_len = 2;
+            else if ((ch & 0xF0) == 0xE0) seq_len = 3;
+            else if ((ch & 0xF8) == 0xF0) seq_len = 4;
+            char buf[5] = {};
+            for (int j = 0; j < seq_len && i + j < s.size(); ++j)
+                buf[j] = s[i + j];
+            put(x + col, y, buf, cur);
+            i += seq_len;
         }
-        put(x + col, y, ch, cur);
         ++col;
     }
 }
@@ -839,10 +856,16 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
                 line += ch;
                 continue;
             }
-            line += ch;
-            ++vis_len;
-            if (ch == ' ') {
-                last_space_pos = static_cast<int>(line.size()) - 1;
+            if (static_cast<unsigned char>(ch) >= 0x80 &&
+                (static_cast<unsigned char>(ch) & 0xC0) == 0x80) {
+                // UTF-8 continuation byte — add to line but don't count as visible
+                line += ch;
+            } else {
+                line += ch;
+                ++vis_len;
+                if (ch == ' ') {
+                    last_space_pos = static_cast<int>(line.size()) - 1;
+                }
             }
             if (vis_len >= inner_w) {
                 if (last_space_pos > 0) {
@@ -856,6 +879,8 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
                     for (size_t j = 0; j < line.size(); ++j) {
                         if (line[j] == COLOR_BEGIN && j + 1 < line.size()) { ++j; continue; }
                         if (line[j] == COLOR_END) continue;
+                        unsigned char uc = static_cast<unsigned char>(line[j]);
+                        if (uc >= 0x80 && (uc & 0xC0) == 0x80) continue; // UTF-8 continuation
                         ++vis_len;
                     }
                 } else {
