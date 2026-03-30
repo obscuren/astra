@@ -1176,9 +1176,11 @@ void Game::travel_to_destination(const ChartAction& action) {
 
 
 void Game::compute_camera() {
-    // Center camera on player, clamped to map edges
-    camera_x_ = player_.x - map_rect_.w / 2;
-    camera_y_ = player_.y - map_rect_.h / 2;
+    // Center camera on look cursor if in look mode, otherwise on player
+    int focus_x = input_.looking() ? input_.look_x() : player_.x;
+    int focus_y = input_.looking() ? input_.look_y() : player_.y;
+    camera_x_ = focus_x - map_rect_.w / 2;
+    camera_y_ = focus_y - map_rect_.h / 2;
 
     if (camera_x_ < 0) camera_x_ = 0;
     if (camera_y_ < 0) camera_y_ = 0;

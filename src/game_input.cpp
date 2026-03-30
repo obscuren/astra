@@ -177,6 +177,7 @@ void Game::handle_play_input(int key) {
     // Look mode intercept
     if (input_.looking()) {
         input_.handle_look_input(key, world_.map().width(), world_.map().height());
+        compute_camera(); // follow look cursor, or snap back to player on exit
         return;
     }
 

@@ -356,9 +356,13 @@ void render_map(const MapRenderContext& rc) {
                 rc.input.cache_look_cell(buf, fg);
             }
 
-            if (rc.input.look_blink() % 2 == 0) {
+            // [X] cursor — brackets always visible, X blinks
+            if (lsx > 0)
+                ctx.put(lsx - 1, lsy, '[', Color::White);
+            if (rc.input.look_blink() % 2 == 0)
                 ctx.put(lsx, lsy, 'X', Color::Yellow);
-            }
+            if (lsx + 1 < rc.map_rect.w)
+                ctx.put(lsx + 1, lsy, ']', Color::White);
         }
     }
 }
