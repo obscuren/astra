@@ -84,6 +84,8 @@ struct TerminalRenderer::Impl {
     HANDLE h_out = INVALID_HANDLE_VALUE;
     DWORD orig_in_mode = 0;
     DWORD orig_out_mode = 0;
+    UINT orig_output_cp = 0;
+    UINT orig_input_cp = 0;
     bool raw_mode = false;
 };
 
@@ -97,6 +99,12 @@ TerminalRenderer::~TerminalRenderer() {
 void TerminalRenderer::init() {
     impl_->h_in = GetStdHandle(STD_INPUT_HANDLE);
     impl_->h_out = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    // Set console to UTF-8 so box-drawing and other glyphs render correctly
+    impl_->orig_output_cp = GetConsoleOutputCP();
+    impl_->orig_input_cp = GetConsoleCP();
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
 
     // Save original console modes
     GetConsoleMode(impl_->h_in, &impl_->orig_in_mode);
@@ -127,6 +135,13 @@ void TerminalRenderer::init() {
     std::printf("\033[?1049h");
     std::printf("\033[?25l");
     std::fflush(stdout);
+
+    // Re-query size after switching to alternate screen
+    if (GetConsoleScreenBufferInfo(impl_->h_out, &csbi)) {
+        width_ = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        height_ = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    }
+    rebuild_buffer();
 }
 
 void TerminalRenderer::shutdown() {
@@ -136,9 +151,11 @@ void TerminalRenderer::shutdown() {
     std::printf("\033[0m\033[?25h\033[?1049l");
     std::fflush(stdout);
 
-    // Restore original console modes
+    // Restore original console modes and codepage
     SetConsoleMode(impl_->h_in, impl_->orig_in_mode);
     SetConsoleMode(impl_->h_out, impl_->orig_out_mode);
+    SetConsoleOutputCP(impl_->orig_output_cp);
+    SetConsoleCP(impl_->orig_input_cp);
     SetConsoleCtrlHandler(console_ctrl_handler, FALSE);
 
     impl_->raw_mode = false;
@@ -174,13 +191,16 @@ void TerminalRenderer::clear() {
 
 void TerminalRenderer::present() {
     out_buf_.clear();
-    out_buf_.reserve(width_ * height_ * 2 + height_ + 64);
-
-    out_buf_ += "\033[H"; // cursor home
+    out_buf_.reserve(width_ * height_ * 4 + height_ * 16 + 64);
 
     Color prev_color = Color::Default;
 
     for (int y = 0; y < height_; ++y) {
+        // Position cursor at start of each row (1-based: row y+1, column 1)
+        char pos_buf[16];
+        std::snprintf(pos_buf, sizeof(pos_buf), "\033[%d;1H", y + 1);
+        out_buf_ += pos_buf;
+
         for (int x = 0; x < width_; ++x) {
             const auto& cell = buffer_[y][x];
 
@@ -192,9 +212,6 @@ void TerminalRenderer::present() {
             }
 
             out_buf_ += cell.ch;
-        }
-        if (y < height_ - 1) {
-            out_buf_ += '\n';
         }
     }
 

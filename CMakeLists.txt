@@ -107,6 +107,11 @@ if(DEV)
     target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_DEV_MODE=1)
 endif()
 
+# Static link on MinGW so the exe is self-contained (no DLL dependencies)
+if(MINGW)
+    target_link_options(${ASTRA_BIN} PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
+
 if(SDL)
     target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_HAS_SDL=1)
     target_include_directories(${ASTRA_BIN} PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS})
