@@ -207,3 +207,19 @@ When lost:
 - Player enters detail map at random zone in the 3x3 grid
 - `<` key blocked until bearings regained
 - Dev mode never gets lost
+
+## Light Sources
+
+Fixtures with `light_radius > 0` extend the player's FOV toward them.
+When a light source is visible, the player can see tiles that are:
+1. Within the player's line-of-sight (shadowcast from player position)
+2. Within `light_radius` distance of the light source
+
+Effective extended range = distance_to_light + light_radius.
+Walls still block line of sight — no seeing around corners.
+
+| Fixture  | light_radius |
+|----------|-------------|
+| Torch    | 4           |
+| Console  | 2           |
+| Viewport | 1           |

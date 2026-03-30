@@ -299,7 +299,8 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::Console:
             fd.glyph = '#'; fd.utf8_glyph = "\xe2\x95\xac";   // ╬
             fd.color = Color::Cyan;
-            fd.passable = false; fd.interactable = false; break;
+            fd.passable = false; fd.interactable = false;
+            fd.light_radius = 2; break;
         case FixtureType::Crate:
             fd.glyph = '='; fd.utf8_glyph = "\xe2\x96\xa0";   // ■
             fd.color = Color::Yellow;
@@ -327,11 +328,13 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::Viewport:
             fd.glyph = '"'; fd.utf8_glyph = "\xe2\x96\x91";   // ░
             fd.color = Color::Cyan;
-            fd.passable = false; fd.interactable = false; break;
+            fd.passable = false; fd.interactable = false;
+            fd.light_radius = 1; break;
         case FixtureType::Torch:
             fd.glyph = '*';
             fd.color = Color::Yellow;
-            fd.passable = true; fd.interactable = false; break;
+            fd.passable = true; fd.interactable = false;
+            fd.light_radius = 8; break;
         case FixtureType::Stool:
             fd.glyph = 'o'; fd.utf8_glyph = "\xc2\xb7";       // ·
             fd.color = Color::DarkGray;

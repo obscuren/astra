@@ -112,9 +112,6 @@ static void furnish_docking_bay(RoomContext& ctx) {
     int mid_x = (ctx.ix1 + ctx.ix2) / 2;
     int mid_y = (ctx.iy1 + ctx.iy2) / 2;
     ctx.place(mid_x, mid_y, make_fixture(FixtureType::ShipTerminal));
-
-    // Test torch near entrance
-    ctx.place(ctx.ix1 + 2, ctx.iy1 + 2, make_fixture(FixtureType::Torch));
 }
 
 static void furnish_cantina(RoomContext& ctx) {

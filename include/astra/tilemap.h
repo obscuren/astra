@@ -441,6 +441,7 @@ struct FixtureData {
     int last_used_tick = -1;    // world_tick when last used (-1 = never)
     bool locked = false;        // doors: requires key to open
     bool open = false;          // doors: currently open
+    int light_radius = 0;      // FOV extension radius (0 = no light emission)
 };
 
 FixtureData make_fixture(FixtureType type);

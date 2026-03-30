@@ -1209,6 +1209,25 @@ void Game::recompute_fov() {
 
     compute_fov(world_.map(), world_.visibility(), player_.x, player_.y, radius);
 
+    // Light source pass: visible light-emitting fixtures extend FOV
+    {
+        std::vector<LightSource> lights;
+        for (int y = 0; y < world_.map().height(); ++y) {
+            for (int x = 0; x < world_.map().width(); ++x) {
+                if (world_.visibility().get(x, y) != Visibility::Visible) continue;
+                if (world_.map().get(x, y) != Tile::Fixture) continue;
+                int fid = world_.map().fixture_id(x, y);
+                if (fid < 0) continue;
+                int lr = world_.map().fixture(fid).light_radius;
+                if (lr > 0) lights.push_back({x, y, lr});
+            }
+        }
+        if (!lights.empty()) {
+            compute_fov_lit(world_.map(), world_.visibility(),
+                            player_.x, player_.y, lights);
+        }
+    }
+
     // Detail maps: shadowcast for lighting, but entire map stays revealed
     if (world_.on_detail_map() || world_.map().map_type() == MapType::DetailMap) {
         world_.visibility().explore_all();
