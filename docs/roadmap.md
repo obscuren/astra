@@ -47,7 +47,7 @@
 - [x] **Quest visual markers** — `!` markers on star chart (galaxy/region/local/system views) and overworld
 - [x] **Story quest framework** — StoryQuest base class, quest-triggered world modification
 - [x] **The Missing Hauler** — first story quest with dialog integration, dungeon spawn, quest items
-- [ ] More NPC types with unique dialog trees
+- [x] **More NPC types with unique dialog trees** — random civilians with race-based glyphs, unique names, flavor dialog pools
 - [x] **Random quest generation** — kill/fetch/deliver/scout templates, NPC role-based offering
 - [x] **Quest save/load** — full quest state persistence (active, completed, quest locations)
 - [x] **Faction reputation effects** — pricing, dialog gates, quest availability, tiered shop stock

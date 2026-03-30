@@ -41,6 +41,10 @@ void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* que
             }
         }
     }
+
+    // Show tab help overlay if player hasn't seen this tab yet (skip for DevCommander)
+    showing_tab_help_ = false;
+    show_tab_help();
 }
 
 bool CharacterScreen::has_pending() const {
@@ -75,6 +79,17 @@ void CharacterScreen::close() { open_ = false; }
 bool CharacterScreen::handle_input(int key) {
     if (!open_) return false;
 
+    // Tab help popup — intercepts input when showing
+    if (showing_tab_help_ && tab_help_menu_.is_open()) {
+        MenuResult r = tab_help_menu_.handle_input(key);
+        if (r == MenuResult::Selected || r == MenuResult::Closed) {
+            tab_help_menu_.close();
+            showing_tab_help_ = false;
+            player_->tab_help_seen |= (1 << static_cast<int>(active_tab_));
+        }
+        return true;
+    }
+
     // ESC: close overlays first, then the screen itself
     if (key == 27) {
         if (look_open_) {
@@ -98,6 +113,7 @@ bool CharacterScreen::handle_input(int key) {
         active_tab_ = static_cast<CharTab>(t);
         cursor_ = 0;
         scroll_ = 0;
+        show_tab_help();
         return true;
     }
     if (key == 'e' && !tab_switch_blocked) {
@@ -106,6 +122,7 @@ bool CharacterScreen::handle_input(int key) {
         active_tab_ = static_cast<CharTab>(t);
         cursor_ = 0;
         scroll_ = 0;
+        show_tab_help();
         return true;
     }
 
@@ -770,6 +787,11 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     // Status message at bottom of content
     if (context_msg_timer_ > 0 && !context_message_.empty()) {
         content.text_center(content.height() - 1, context_message_, Color::Green);
+    }
+
+    // Tab help overlay (shown once per tab for non-dev players)
+    if (showing_tab_help_) {
+        tab_help_menu_.draw(renderer_, screen_w, screen_h);
     }
 }
 
@@ -2165,6 +2187,103 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
 
 void CharacterScreen::draw_stub(DrawContext& ctx, const char* message) {
     ctx.text_center(ctx.height() / 2, message, Color::DarkGray);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Tab help — shown once per tab for new players (block-layout popup)
+// ─────────────────────────────────────────────────────────────────
+
+static const char* tab_help_body(CharTab tab) {
+    switch (tab) {
+        case CharTab::Skills:
+            return "Your learned skills and available skill trees.\n\n"
+                   "Skills are organized into categories. Expand a "
+                   "category to see individual skills. Spend skill "
+                   "points to learn new abilities.\n\n"
+                   "[Space] Expand/collapse category\n"
+                   "[l] Learn a skill (costs SP)";
+        case CharTab::Attributes:
+            return "Your primary attributes define your character.\n\n"
+                   "Attributes affect combat, health, and more. "
+                   "When you level up you gain attribute points "
+                   "that can be spent here.\n\n"
+                   "[-/+] Adjust allocation\n"
+                   "[Space] Commit changes";
+        case CharTab::Equipment:
+            return "Manage your personal gear and inventory.\n\n"
+                   "Left side shows your equipped items. Right "
+                   "side shows your inventory (backpack).\n\n"
+                   "[Tab] Switch between equipped/inventory\n"
+                   "[e] Equip an item from inventory\n"
+                   "[r] Remove equipped item\n"
+                   "[d] Drop item from inventory\n"
+                   "[l] Look at item details";
+        case CharTab::Tinkering:
+            return "Analyze, repair, and enhance your gear.\n\n"
+                   "Place an item on the workbench to work on it. "
+                   "Items can be repaired, analyzed for blueprints, "
+                   "salvaged for materials, or enhanced with mods.\n\n"
+                   "[r] Repair item\n"
+                   "[a] Analyze for blueprints\n"
+                   "[s] Salvage for materials\n"
+                   "[f] Assemble from blueprints";
+        case CharTab::Journal:
+            return "Your personal log of discoveries and events.\n\n"
+                   "Entries are added as you explore the galaxy. "
+                   "Check here for lore, encounter notes, and "
+                   "important story moments.";
+        case CharTab::Quests:
+            return "Track your active and completed quests.\n\n"
+                   "Active quests show their objectives and your "
+                   "progress toward completing them. Completed "
+                   "quests are listed below.\n\n"
+                   "Rewards are shown for each active quest.";
+        case CharTab::Reputation:
+            return "Your standing with the galaxy's factions.\n\n"
+                   "Reputation affects prices, dialog options, "
+                   "and quest availability. Help a faction to "
+                   "improve your standing. Hostile actions will "
+                   "lower it.\n\n"
+                   "Tiers: Hated < Disliked < Neutral < Liked < Trusted";
+        case CharTab::Ship:
+            return "Your starship's components and diagnostics.\n\n"
+                   "Install and manage ship components here. "
+                   "Critical systems must be online before you "
+                   "can travel between star systems.\n\n"
+                   "[Tab] Switch components/cargo\n"
+                   "[Space] Install or uninstall a component\n\n"
+                   "Board your ship to manage equipment.";
+    }
+    return "";
+}
+
+static const char* tab_help_title(CharTab tab) {
+    switch (tab) {
+        case CharTab::Skills:     return "Skills";
+        case CharTab::Attributes: return "Attributes";
+        case CharTab::Equipment:  return "Inventory & Equipment";
+        case CharTab::Tinkering:  return "Tinkering";
+        case CharTab::Journal:    return "Journal";
+        case CharTab::Quests:     return "Quests";
+        case CharTab::Reputation: return "Reputation";
+        case CharTab::Ship:       return "Ship";
+    }
+    return "";
+}
+
+void CharacterScreen::show_tab_help() {
+    int tab_bit = 1 << static_cast<int>(active_tab_);
+    if (player_->player_class == PlayerClass::DevCommander) return;
+    if (player_->tab_help_seen & tab_bit) return;
+
+    tab_help_menu_.close();
+    tab_help_menu_.set_title(tab_help_title(active_tab_));
+    tab_help_menu_.set_body(tab_help_body(active_tab_));
+    tab_help_menu_.add_option('f', "Got it");
+    tab_help_menu_.set_footer("[Space] Dismiss");
+    tab_help_menu_.set_max_width_frac(0.45f);
+    tab_help_menu_.open();
+    showing_tab_help_ = true;
 }
 
 } // namespace astra

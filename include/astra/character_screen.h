@@ -120,6 +120,11 @@ private:
     void draw_ship(DrawContext& ctx);
     void draw_stub(DrawContext& ctx, const char* message);
     void draw_reputation(DrawContext& ctx);
+    void show_tab_help();
+
+    // Tab help overlay
+    PopupMenu tab_help_menu_;
+    bool showing_tab_help_ = false;
 
     void draw_stat_box(DrawContext& ctx, int x, int y,
                        const char* label, int value,

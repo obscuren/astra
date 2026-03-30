@@ -307,13 +307,13 @@ void DialogManager::show_tutorial_followup() {
         colored("Datapad", Color::Cyan) + " (" +
         colored("c", Color::Yellow) +
         ") to track your objectives.\"");
-    npc_dialog_.add_option('f', "Got it.");
+    npc_dialog_.add_option('f', "Got it, I'll check my Datapad.");
     npc_dialog_.set_footer("[Space] Continue");
     npc_dialog_.set_max_width_frac(0.5f);
     npc_dialog_.open();
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
-    dialog_node_ = -1;
+    dialog_node_ = -12; // sentinel: tutorial followup — opens datapad on dismiss
 }
 
 void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
@@ -576,6 +576,15 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         return;
     }
 
+    // Tutorial followup — "Got it, I'll check my Datapad" opens character screen
+    if (dialog_node_ == -12) {
+        npc_dialog_.close();
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        aria_open_datapad_ = true;
+        return;
+    }
+
     // Ship terminal dialog
     // Tutorial choice
     if (dialog_node_ == -11) {
@@ -691,7 +700,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 q.giver_npc = interacting_npc_->role;
                 // Register map marker if quest has a target location
                 if (q.target_system_id != 0) {
-                    LocationKey mk = {q.target_system_id, q.target_body_index, -1, false, -1, -1, 0};
+                    LocationKey mk = {q.target_system_id, q.target_body_index, -1, false, -1, -1, 0, -1, -1};
                     QuestLocationMeta meta;
                     meta.quest_id = q.id;
                     meta.quest_title = q.title;

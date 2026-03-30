@@ -149,6 +149,10 @@ void Game::handle_play_input(int key) {
         if (dialog_.consume_aria_disembark()) {
             exit_ship_to_station();
         }
+        if (dialog_.consume_aria_open_datapad()) {
+            character_screen_.open(&player_, renderer_.get(), &quest_manager_,
+                                   world_.navigation().on_ship);
+        }
         return;
     }
 
