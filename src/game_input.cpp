@@ -130,6 +130,15 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Lost popup intercepts when open
+    if (lost_popup_.is_open()) {
+        MenuResult r = lost_popup_.handle_input(key);
+        if (r == MenuResult::Selected || r == MenuResult::Closed) {
+            lost_popup_.close();
+        }
+        return;
+    }
+
     // NPC dialog intercepts input when open
     if (dialog_.is_open()) {
         dialog_.handle_input(key, *this);
@@ -331,6 +340,10 @@ void Game::handle_play_input(int key) {
             break;
         }
         case '<': {
+            if (lost_ && world_.on_detail_map()) {
+                log("You're lost. Keep moving to regain your bearings.");
+                break;
+            }
             if (world_.on_detail_map()) {
                 exit_detail_to_overworld();
             } else if (world_.surface_mode() == SurfaceMode::Dungeon &&

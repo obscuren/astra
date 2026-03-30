@@ -177,3 +177,30 @@ Derived from body type and size:
 | Station / Ship | 200 (standard) |
 
 Final: `base + (size * 8)`, clamped to 100–400
+
+
+## Getting Lost
+
+When moving on the overworld, each step has a chance to get lost.
+
+**Get Lost Chance:** `base 15%` per overworld move
+- TODO: terrain modifiers (forest/swamp higher, plains lower)
+- TODO: wayfaring skill reduces chance
+
+**Regain Bearings:** checked each move while lost on detail map
+- Formula: `min(5 + lost_moves * 5, 80)`
+- Starts at 5%, ramps by 5% per move, caps at 80%
+- TODO: wayfaring skill increases base and ramp rate
+
+| Moves | Chance |
+|-------|--------|
+| 0 | 5% |
+| 1 | 10% |
+| 5 | 30% |
+| 10 | 55% |
+| 15 | 80% (cap) |
+
+When lost:
+- Player enters detail map at random zone in the 3x3 grid
+- `<` key blocked until bearings regained
+- Dev mode never gets lost

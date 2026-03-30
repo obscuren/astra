@@ -1310,4 +1310,127 @@ void Game::advance_world(int cost) {
 }
 
 
+// ─────────────────────────────────────────────────────────────────
+// Lost mechanic
+// ─────────────────────────────────────────────────────────────────
+
+int Game::get_lost_chance([[maybe_unused]] Tile terrain) const {
+    // Base 15% chance per overworld move. Terrain can modify later.
+    int base = 15;
+    // TODO: reduce with wayfaring skill, increase for forests/swamps
+    return base;
+}
+
+int Game::regain_chance() const {
+    // Starts at 5%, ramps by 5% per move, caps at 80%
+    int chance = 5 + lost_moves_ * 5;
+    // TODO: increase with wayfaring skill
+    return std::min(chance, 80);
+}
+
+void Game::check_get_lost() {
+    if (dev_mode_) return;  // dev never gets lost
+    if (lost_) return;      // already lost
+
+    Tile terrain = world_.map().get(player_.x, player_.y);
+    int chance = get_lost_chance(terrain);
+
+    std::uniform_int_distribution<int> dist(1, 100);
+    if (dist(world_.rng()) > chance) return; // not lost
+
+    // Player got lost — enter detail map at a random zone
+    lost_ = true;
+    lost_moves_ = 0;
+
+    world_.overworld_x() = player_.x;
+    world_.overworld_y() = player_.y;
+
+    // Random zone within the 3x3 grid
+    std::uniform_int_distribution<int> zone_dist(0, zones_per_tile - 1);
+    world_.zone_x() = zone_dist(world_.rng());
+    world_.zone_y() = zone_dist(world_.rng());
+
+    auto props = build_detail_props(world_.overworld_x(), world_.overworld_y());
+    std::string body_name = world_.map().location_name();
+
+    LocationKey detail_key = {world_.navigation().current_system_id,
+                              world_.navigation().current_body_index,
+                              world_.navigation().current_moon_index,
+                              false, world_.overworld_x(), world_.overworld_y(), 0,
+                              world_.zone_x(), world_.zone_y()};
+
+    save_current_location();
+    world_.set_surface_mode(SurfaceMode::DetailMap);
+
+    if (world_.location_cache().count(detail_key)) {
+        restore_location(detail_key);
+    } else {
+        unsigned detail_seed = world_.seed()
+            ^ (world_.navigation().current_system_id * 7919u)
+            ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
+            ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
+            ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u)
+            ^ (static_cast<unsigned>(world_.zone_x()) * 4517u)
+            ^ (static_cast<unsigned>(world_.zone_y()) * 5381u);
+
+        world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
+        auto gen = create_generator(MapType::DetailMap);
+        gen->generate(world_.map(), props, detail_seed);
+        world_.map().set_biome(props.biome);
+        world_.map().set_location_name(body_name);
+
+        world_.npcs().clear();
+        world_.ground_items().clear();
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    }
+
+    // Random position within the zone
+    player_.x = world_.map().width() / 2;
+    player_.y = world_.map().height() / 2;
+    if (!world_.map().passable(player_.x, player_.y))
+        world_.map().find_open_spot(player_.x, player_.y);
+
+    world_.current_region() = -1;
+    recompute_fov();
+    compute_camera();
+
+    // Show lost popup
+    lost_popup_.close();
+    lost_popup_.set_title("Lost!");
+    lost_popup_.set_body(
+        "The terrain all looks the same. You've lost your bearings "
+        "and can't find your way back to the surface view.\n\n"
+        "Keep moving to regain your sense of direction.");
+    lost_popup_.add_option('f', "Press on");
+    lost_popup_.set_footer("[Space] Continue");
+    lost_popup_.set_max_width_frac(0.4f);
+    lost_popup_.open();
+}
+
+void Game::check_regain_bearings() {
+    if (!lost_) return;
+    if (!world_.on_detail_map()) return;
+
+    ++lost_moves_;
+
+    int chance = regain_chance();
+    std::uniform_int_distribution<int> dist(1, 100);
+    if (dist(world_.rng()) > chance) return;
+
+    // Regained bearings
+    lost_ = false;
+    lost_moves_ = 0;
+
+    lost_popup_.close();
+    lost_popup_.set_title("Bearings Regained");
+    lost_popup_.set_body(
+        "You recognize a landmark and regain your sense of direction. "
+        "You can now return to the surface view.");
+    lost_popup_.add_option('f', "Continue");
+    lost_popup_.set_footer("[Space] Continue");
+    lost_popup_.set_max_width_frac(0.4f);
+    lost_popup_.open();
+}
+
 } // namespace astra

@@ -46,6 +46,7 @@ void Game::try_move(int dx, int dy) {
         }
         compute_camera();
         advance_world(15);
+        check_get_lost();
         return;
     }
 
@@ -93,6 +94,11 @@ void Game::try_move(int dx, int dy) {
     compute_camera();
     check_region_change();
     advance_world(ActionCost::move);
+
+    // Check if player regains bearings while lost on detail map
+    if (lost_ && world_.on_detail_map()) {
+        check_regain_bearings();
+    }
 }
 
 void Game::check_region_change() {

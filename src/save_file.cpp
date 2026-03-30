@@ -845,6 +845,8 @@ static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     // v16: zone position within 3x3 grid
     w.write_i32(data.zone_x);
     w.write_i32(data.zone_y);
+    w.write_u8(data.lost ? 1 : 0);
+    w.write_i32(data.lost_moves);
     // v10: day clock
     w.write_i32(data.local_tick);
     w.write_i32(data.local_ticks_per_day);
@@ -1202,10 +1204,12 @@ static void read_game_state_section(BinaryReader& r, SaveData& data) {
         data.overworld_x = r.read_i32();
         data.overworld_y = r.read_i32();
     }
-    // v16: zone position
+    // v16: zone position + lost state
     if (data.version >= 16) {
         data.zone_x = r.read_i32();
         data.zone_y = r.read_i32();
+        data.lost = r.read_u8() != 0;
+        data.lost_moves = r.read_i32();
     }
     // v10: day clock
     if (data.version >= 10) {

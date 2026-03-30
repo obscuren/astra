@@ -666,6 +666,7 @@ void Game::render_play() {
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
+    lost_popup_.draw(renderer_.get(), screen_w_, screen_h_);
 
     // Welcome screen overlay
     if (show_welcome_) {

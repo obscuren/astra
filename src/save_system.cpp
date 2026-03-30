@@ -29,6 +29,8 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.overworld_y = world.overworld_y();
         data.zone_x = world.zone_x();
         data.zone_y = world.zone_y();
+        data.lost = game.lost();
+        data.lost_moves = game.lost_moves();
         data.local_tick = world.day_clock().local_tick;
         data.local_ticks_per_day = world.day_clock().local_ticks_per_day;
 
@@ -106,6 +108,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.overworld_y() = data.overworld_y;
     world.zone_x() = data.zone_x;
     world.zone_y() = data.zone_y;
+    game.set_lost(data.lost, data.lost_moves);
 
     // Restore day clock
     world.day_clock().local_tick = data.local_tick;

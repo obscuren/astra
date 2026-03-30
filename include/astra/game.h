@@ -86,6 +86,9 @@ public:
     std::deque<std::string>& messages() { return messages_; }
     bool tile_occupied(int x, int y) const;
     void set_dev_mode(bool v) { dev_mode_ = v; }
+    bool lost() const { return lost_; }
+    int lost_moves() const { return lost_moves_; }
+    void set_lost(bool v, int moves = 0) { lost_ = v; lost_moves_ = moves; }
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
     QuestManager& quests() { return quest_manager_; }
@@ -253,6 +256,15 @@ private:
     int wait_cursor_ = 0;
     bool inspecting_item_ = false;
     Item inspected_item_;
+
+    // Lost mechanic — getting lost on the overworld
+    bool lost_ = false;
+    int lost_moves_ = 0;  // moves since getting lost (ramps regain chance)
+    PopupMenu lost_popup_;
+    void check_get_lost();
+    void check_regain_bearings();
+    int get_lost_chance(Tile terrain) const;    // % chance per overworld move
+    int regain_chance() const;                  // % chance per detail move, ramps with lost_moves_
 
     // Dialogs
     DialogManager dialog_;

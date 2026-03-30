@@ -58,6 +58,8 @@ struct SaveData {
     int overworld_y = 0;
     int zone_x = 1;
     int zone_y = 1;
+    bool lost = false;
+    int lost_moves = 0;
     int local_tick = 0;
     int local_ticks_per_day = 200;
 
