@@ -965,11 +965,26 @@ void Game::render_side_panel() {
                 }
             }
 
-            // Auto-scroll: show the last 'visible' lines
+            // Scrollback: message_scroll_ = 0 means latest, >0 means scrolled up
             int total = static_cast<int>(lines.size());
-            int start = (total > visible) ? total - visible : 0;
-            int y = 0;
-            for (int i = start; i < total && y < visible; ++i, ++y) {
+            int max_scroll = (total > visible) ? total - visible : 0;
+            if (message_scroll_ > max_scroll) message_scroll_ = max_scroll;
+            int start = (total > visible) ? total - visible - message_scroll_ : 0;
+            if (start < 0) start = 0;
+
+            // Scroll indicator when scrolled back
+            if (message_scroll_ > 0) {
+                std::string indicator = "-- scrolled (" + std::to_string(message_scroll_) + ") [-/+] --";
+                int ix = (max_w - static_cast<int>(indicator.size())) / 2;
+                if (ix < 0) ix = 0;
+                ctx.text(ix, 0, indicator, Color::Yellow);
+                // Shift content down by 1 to make room for indicator
+                start++;
+                visible--;
+            }
+
+            int y = message_scroll_ > 0 ? 1 : 0;
+            for (int i = start; i < start + visible && i < total; ++i, ++y) {
                 // Render with inline color markers
                 int px = lines[i].x;
                 Color cur = Color::Default;

@@ -630,6 +630,7 @@ void Game::log(const std::string& msg) {
     if (messages_.size() > max_messages_) {
         messages_.pop_front();
     }
+    message_scroll_ = 0; // auto-scroll to latest on new message
 }
 
 bool Game::tile_occupied(int x, int y) const {

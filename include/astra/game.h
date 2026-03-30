@@ -232,6 +232,7 @@ private:
     // Tabs
     int active_tab_ = 0;
     bool panel_visible_ = true;
+    int message_scroll_ = 0;  // 0 = latest, >0 = scrolled back
 
     // Input subsystem (look mode)
     InputManager input_;

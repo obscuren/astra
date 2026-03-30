@@ -295,6 +295,8 @@ void Game::handle_play_input(int key) {
             auto tab = static_cast<PanelTab>(active_tab_);
             if (tab == PanelTab::Wait) {
                 if (wait_cursor_ < 5) ++wait_cursor_;
+            } else if (tab == PanelTab::Messages && message_scroll_ > 0) {
+                message_scroll_--;
             }
             break;
         }
@@ -302,6 +304,8 @@ void Game::handle_play_input(int key) {
             auto tab = static_cast<PanelTab>(active_tab_);
             if (tab == PanelTab::Wait) {
                 if (wait_cursor_ > 0) --wait_cursor_;
+            } else if (tab == PanelTab::Messages) {
+                message_scroll_++;
             }
             break;
         }
