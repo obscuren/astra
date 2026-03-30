@@ -119,6 +119,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest story        - The Missing Hauler");
         log("  heal               - full heal");
         log("  bearings           - regain bearings if lost");
+        log("  editor             - open map editor");
         log("  clear              - clear console");
     }
     else if (verb == "clear") {
@@ -132,6 +133,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         game.animations().spawn_effect(anim_damage_flash, player.x, player.y);
         log("Spawned damage flash at player (" + std::to_string(player.x) + "," + std::to_string(player.y) +
             "). Active effects: " + std::to_string(game.animations().has_active_effects() ? 1 : 0));
+    }
+    else if (verb == "editor") {
+        game.map_editor().open(game);
+        if (game.map_editor().is_open()) {
+            log("Map editor opened.");
+        }
     }
     else if (verb == "bearings") {
         if (game.lost()) {

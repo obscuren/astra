@@ -17,6 +17,21 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Map editor intercept
+    if (map_editor_.is_open()) {
+        if (map_editor_.playing()) {
+            // During play-test, F2 stops — otherwise normal game input
+            if (key == KEY_F2) {
+                map_editor_.stop_play(*this);
+                return;
+            }
+            // Fall through to normal play input
+        } else {
+            map_editor_.handle_input(key, *this);
+            return;
+        }
+    }
+
     // Dev console intercept
     if (console_.is_open()) {
         console_.handle_input(key, *this);

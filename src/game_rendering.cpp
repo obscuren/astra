@@ -641,6 +641,12 @@ void Game::render_menu() {
 }
 
 void Game::render_play() {
+    // Map editor draws its own full-screen UI (except during play-test)
+    if (map_editor_.is_open() && !map_editor_.playing()) {
+        map_editor_.draw(screen_w_, screen_h_);
+        return;
+    }
+
     render_stats_bar();
     render_bars();
 

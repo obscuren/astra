@@ -14,6 +14,9 @@ enum Key {
     KEY_SHIFT_TAB,
     KEY_PAGE_UP,
     KEY_PAGE_DOWN,
+    KEY_DELETE,
+    KEY_F1,
+    KEY_F2,
 };
 
 // 256-color palette indices stored directly in the enum.

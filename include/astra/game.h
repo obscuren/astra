@@ -2,6 +2,7 @@
 
 #include "astra/action.h"
 #include "astra/animation.h"
+#include "astra/map_editor.h"
 #include "astra/fov.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -103,6 +104,11 @@ public:
     void reset_interaction_state();
     void post_load();
     void apply_passive_skill_effects();
+    void save_current_location();
+    void restore_location(const LocationKey& key);
+    void recompute_fov();
+    void compute_camera();
+    MapEditor& map_editor() { return map_editor_; }
 
     // Dev commands
     void dev_command_warp_random();
@@ -126,8 +132,6 @@ private:
     void new_game();
     void new_game(const CreationResult& cr);
     void travel_to_destination(const ChartAction& action);
-    void save_current_location();
-    void restore_location(const LocationKey& key);
     void enter_detail_map();
     void exit_detail_to_overworld();
     void enter_dungeon_from_detail();
@@ -160,8 +164,6 @@ private:
     void remove_dead_npcs();
     void check_player_death();
     void check_level_up();
-    // Dialog methods (now in DialogManager, but Game still has some callers)
-    void recompute_fov();
     void check_region_change();
     void save_game();
     bool load_game(const std::string& filename);
@@ -184,7 +186,6 @@ private:
 
     // Layout
     void compute_layout();
-    void compute_camera();
 
     // Dev tools
     void dev_warp_random();
@@ -230,6 +231,7 @@ private:
     QuestManager quest_manager_;
     RepairBench repair_bench_;
     AnimationManager animations_;
+    MapEditor map_editor_;
     int camera_x_ = 0;
     int camera_y_ = 0;
 

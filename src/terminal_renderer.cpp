@@ -425,14 +425,28 @@ int TerminalRenderer::wait_input() {
                 case 'C': return KEY_RIGHT;
                 case 'D': return KEY_LEFT;
                 case 'Z': return KEY_SHIFT_TAB;
-                case '5': case '6': {
+                case '3': case '5': case '6': {
                     char tilde;
                     if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                        if (seq[1] == '3') return KEY_DELETE;
                         return seq[1] == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
                     }
                     break;
                 }
+                case '1': {
+                    char c3, tilde;
+                    if (read(STDIN_FILENO, &c3, 1) == 1 &&
+                        read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                        if (c3 == '1') return KEY_F1;
+                        if (c3 == '2') return KEY_F2;
+                    }
+                    break;
+                }
             }
+        }
+        if (seq[0] == 'O') {
+            if (seq[1] == 'P') return KEY_F1;
+            if (seq[1] == 'Q') return KEY_F2;
         }
         return '\033';
     }
@@ -474,14 +488,28 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
                 case 'C': return KEY_RIGHT;
                 case 'D': return KEY_LEFT;
                 case 'Z': return KEY_SHIFT_TAB;
-                case '5': case '6': {
+                case '3': case '5': case '6': {
                     char tilde;
                     if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                        if (seq[1] == '3') return KEY_DELETE;
                         return seq[1] == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
                     }
                     break;
                 }
+                case '1': {
+                    char c3, tilde;
+                    if (read(STDIN_FILENO, &c3, 1) == 1 &&
+                        read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                        if (c3 == '1') return KEY_F1;
+                        if (c3 == '2') return KEY_F2;
+                    }
+                    break;
+                }
             }
+        }
+        if (seq[0] == 'O') {
+            if (seq[1] == 'P') return KEY_F1;
+            if (seq[1] == 'Q') return KEY_F2;
         }
         return '\033';
     }
