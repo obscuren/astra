@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/debug_spawn.h"
+#include "astra/tinkering.h"
 #include "astra/item_defs.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
@@ -835,7 +836,12 @@ void Game::transition_detail_edge(int dx, int dy) {
         ow_it->second.player_x = new_ow_x;
         ow_it->second.player_y = new_ow_y;
 
-        time_cost = 15; // overworld tile transition
+        time_cost = 15;
+        // Terrain lore halves cross-tile travel
+        Tile dest_ow = ow_map.get(new_ow_x, new_ow_y);
+        SkillId lore = terrain_lore_for(dest_ow);
+        if (static_cast<uint32_t>(lore) != 0 && player_has_skill(player_, lore))
+            time_cost /= 2;
     }
 
     // Save current zone
@@ -1341,20 +1347,29 @@ void Game::advance_world(int cost) {
 // Lost mechanic
 // ─────────────────────────────────────────────────────────────────
 
-int Game::get_lost_chance([[maybe_unused]] Tile terrain) const {
-    // Base 15% chance per overworld move. Terrain can modify later.
+int Game::get_lost_chance(Tile terrain) const {
     int base = 15;
-    // TODO: reduce with wayfaring skill, increase for forests/swamps
-    return base;
+    // Wayfinding category unlock gives small flat reduction
+    if (player_has_skill(player_, SkillId::Cat_Wayfinding)) base -= 2;
+    // Terrain lore halves chance for matching terrain
+    SkillId lore = terrain_lore_for(terrain);
+    if (static_cast<uint32_t>(lore) != 0 && player_has_skill(player_, lore))
+        base /= 2;
+    return std::max(base, 1);
 }
 
 int Game::regain_chance() const {
-    // No chance for first 30 moves, then ramps 1% every 3 moves, caps at 25%
-    // Expect ~60-100 moves total before regaining bearings
-    if (lost_moves_ < 30) return 0;
-    int chance = (lost_moves_ - 30) / 3;
-    // TODO: increase with wayfaring skill
-    return std::min(chance, 25);
+    int grace = 30;
+    int ramp_divisor = 3;
+    int cap = 25;
+    if (player_has_skill(player_, SkillId::CompassSense)) {
+        grace = 15;
+        ramp_divisor = 2;
+        cap = 40;
+    }
+    if (lost_moves_ < grace) return 0;
+    int chance = (lost_moves_ - grace) / ramp_divisor;
+    return std::min(chance, cap);
 }
 
 void Game::check_get_lost() {

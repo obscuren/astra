@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/tile_props.h"
+#include "astra/tinkering.h"
 
 #include <deque>
 #include <vector>
@@ -45,7 +46,11 @@ void Game::try_move(int dx, int dy) {
             }
         }
         compute_camera();
-        advance_world(15);
+        int travel_cost = 15;
+        SkillId lore = terrain_lore_for(stepped);
+        if (static_cast<uint32_t>(lore) != 0 && player_has_skill(player_, lore))
+            travel_cost /= 2;
+        advance_world(travel_cost);
         check_get_lost();
         return;
     }

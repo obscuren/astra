@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "astra/tilemap.h"
+
 namespace astra {
 
 enum class SkillId : uint32_t {
@@ -42,6 +44,15 @@ enum class SkillId : uint32_t {
     // Persuasion
     Haggle = 800,
     Intimidate = 801,
+    // Wayfinding
+    Cat_Wayfinding = 9,
+    CampMaking = 900,
+    CompassSense = 901,
+    LorePlains = 902,
+    LoreForest = 903,
+    LoreWetlands = 904,
+    LoreMountains = 905,
+    LoreTundra = 906,
 };
 
 struct SkillDef {
@@ -67,5 +78,9 @@ const std::vector<SkillCategory>& skill_catalog();
 
 // Look up a skill definition by ID. Returns nullptr if not found.
 const SkillDef* find_skill(SkillId id);
+
+// Check if the player has the terrain lore skill matching the given overworld tile.
+// Requires player.learned_skills to be checked via player_has_skill().
+SkillId terrain_lore_for(Tile terrain);
 
 } // namespace astra

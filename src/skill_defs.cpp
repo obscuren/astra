@@ -91,6 +91,37 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Effectiveness scales with level.",
              false, 100, 15, "Willpower"},
         }},
+        {SkillId::Cat_Wayfinding, "Wayfinding",
+         "Knowledge of navigation, terrain, and survival in the wild. "
+         "Reduces the chance of getting lost and improves overland travel.", 75, {
+            {SkillId::CampMaking, "Camp Making",
+             "Set up a makeshift camp with a fire for resting and cooking.",
+             false, 50, 12, "Intelligence"},
+            {SkillId::CompassSense, "Compass Sense",
+             "Your natural sense of direction is sharpened. Grace period before "
+             "regaining bearings is halved and recovery rate doubled.",
+             true, 50, 13, "Intelligence"},
+            {SkillId::LorePlains, "Terrain Lore: Plains",
+             "Familiarity with open terrain. 50% less likely to get lost on "
+             "plains and desert. Travel time halved.",
+             true, 50, 12, "Intelligence"},
+            {SkillId::LoreForest, "Terrain Lore: Forest",
+             "You read forest trails instinctively. 50% less likely to get lost "
+             "in forests and fungal growth. Travel time halved.",
+             true, 50, 13, "Intelligence"},
+            {SkillId::LoreWetlands, "Terrain Lore: Wetlands",
+             "Navigating bogs and waterways comes naturally. 50% less likely to "
+             "get lost in swamps, rivers, and lakeside. Travel time halved.",
+             true, 75, 14, "Intelligence"},
+            {SkillId::LoreMountains, "Terrain Lore: Mountains",
+             "Highland pathfinding expertise. 50% less likely to get lost in "
+             "mountains and craters. Travel time halved.",
+             true, 75, 15, "Intelligence"},
+            {SkillId::LoreTundra, "Terrain Lore: Tundra",
+             "Survival knowledge for extreme environments. 50% less likely to "
+             "get lost on ice fields and volcanic terrain. Travel time halved.",
+             true, 75, 15, "Intelligence"},
+        }},
     };
     return catalog;
 }
@@ -102,6 +133,23 @@ const SkillDef* find_skill(SkillId id) {
         }
     }
     return nullptr;
+}
+
+SkillId terrain_lore_for(Tile terrain) {
+    switch (terrain) {
+        case Tile::OW_Plains: case Tile::OW_Desert:
+            return SkillId::LorePlains;
+        case Tile::OW_Forest: case Tile::OW_Fungal:
+            return SkillId::LoreForest;
+        case Tile::OW_Swamp: case Tile::OW_River: case Tile::OW_Lake:
+            return SkillId::LoreWetlands;
+        case Tile::OW_Mountains: case Tile::OW_Crater:
+            return SkillId::LoreMountains;
+        case Tile::OW_IceField: case Tile::OW_LavaFlow:
+            return SkillId::LoreTundra;
+        default:
+            return static_cast<SkillId>(0); // no matching lore
+    }
 }
 
 } // namespace astra

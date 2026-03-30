@@ -223,3 +223,22 @@ Walls still block line of sight — no seeing around corners.
 | Torch    | 4           |
 | Console  | 2           |
 | Viewport | 1           |
+
+## Wayfinding Skills
+
+**Category unlock** (Cat_Wayfinding): -2% flat lost chance (15% → 13%)
+
+**Compass Sense**: Grace period 30→15 moves, ramp 1/3→1/2 per move, cap 25%→40%
+
+**Terrain Lore** (per terrain type):
+- Lost chance halved for matching terrain
+- Overworld travel ticks halved (15→7) for matching terrain
+- Cross-tile zone transitions halved (15→7) for matching terrain
+
+| Skill | Terrains |
+|-------|----------|
+| Lore: Plains | Plains, Desert |
+| Lore: Forest | Forest, Fungal |
+| Lore: Wetlands | Swamp, River, Lake |
+| Lore: Mountains | Mountains, Crater |
+| Lore: Tundra | Ice Field, Lava Flow |
