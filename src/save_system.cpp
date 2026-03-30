@@ -27,6 +27,8 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.surface_mode = static_cast<uint8_t>(world.surface_mode());
         data.overworld_x = world.overworld_x();
         data.overworld_y = world.overworld_y();
+        data.zone_x = world.zone_x();
+        data.zone_y = world.zone_y();
         data.local_tick = world.day_clock().local_tick;
         data.local_ticks_per_day = world.day_clock().local_ticks_per_day;
 
@@ -102,6 +104,8 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.set_surface_mode(static_cast<SurfaceMode>(data.surface_mode));
     world.overworld_x() = data.overworld_x;
     world.overworld_y() = data.overworld_y;
+    world.zone_x() = data.zone_x;
+    world.zone_y() = data.zone_y;
 
     // Restore day clock
     world.day_clock().local_tick = data.local_tick;

@@ -459,6 +459,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     // Ship cargo
     w.write_u32(static_cast<uint32_t>(p.ship.cargo.size()));
     for (const auto& item : p.ship.cargo) write_item(w, item);
+    // v15: tab help seen bitfield
+    w.write_u16(p.tab_help_seen);
     w.end_section(pos);
 }
 
@@ -753,8 +755,8 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
     // Quest locations map
     w.write_u32(static_cast<uint32_t>(data.quest_locations.size()));
     for (const auto& [key, meta] : data.quest_locations) {
-        // LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}
-        auto [sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth] = key;
+        // LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth, zone_x, zone_y}
+        auto [sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth, zone_x, zone_y] = key;
         w.write_u32(sys_id);
         w.write_i32(body_idx);
         w.write_i32(moon_idx);
@@ -762,6 +764,8 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
         w.write_i32(ow_x);
         w.write_i32(ow_y);
         w.write_i32(depth);
+        w.write_i32(zone_x);
+        w.write_i32(zone_y);
 
         // QuestLocationMeta
         w.write_string(meta.quest_id);
@@ -802,7 +806,12 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
         int ow_x = r.read_i32();
         int ow_y = r.read_i32();
         int depth = r.read_i32();
-        LocationKey key{sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth};
+        int zone_x = -1, zone_y = -1;
+        if (data.version >= 16) {
+            zone_x = r.read_i32();
+            zone_y = r.read_i32();
+        }
+        LocationKey key = LocationKey{sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth, zone_x, zone_y};
 
         QuestLocationMeta meta;
         meta.quest_id = r.read_string();
@@ -833,6 +842,9 @@ static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     w.write_u8(data.surface_mode);
     w.write_i32(data.overworld_x);
     w.write_i32(data.overworld_y);
+    // v16: zone position within 3x3 grid
+    w.write_i32(data.zone_x);
+    w.write_i32(data.zone_y);
     // v10: day clock
     w.write_i32(data.local_tick);
     w.write_i32(data.local_ticks_per_day);
@@ -944,6 +956,10 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
         for (uint32_t i = 0; i < cargo_count; ++i) {
             p.ship.cargo[i] = read_item(r, version);
         }
+    }
+    // v15: tab help seen
+    if (version >= 15) {
+        p.tab_help_seen = r.read_u16();
     }
 }
 
@@ -1185,6 +1201,11 @@ static void read_game_state_section(BinaryReader& r, SaveData& data) {
         data.surface_mode = on_ow ? 2 : 0; // 2=Overworld, 0=Dungeon
         data.overworld_x = r.read_i32();
         data.overworld_y = r.read_i32();
+    }
+    // v16: zone position
+    if (data.version >= 16) {
+        data.zone_x = r.read_i32();
+        data.zone_y = r.read_i32();
     }
     // v10: day clock
     if (data.version >= 10) {

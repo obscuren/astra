@@ -359,7 +359,7 @@ MapProperties default_properties(MapType type) {
             p.room_count_min = 0;
             p.room_count_max = 0;
             p.light_bias = 100;
-            p.width = 80;
+            p.width = 120;
             p.height = 50;
             break;
     }

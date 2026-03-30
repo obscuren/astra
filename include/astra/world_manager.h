@@ -15,7 +15,10 @@
 
 namespace astra {
 
-using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int>;
+// LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth, zone_x, zone_y}
+using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int, int, int>;
+
+static constexpr int zones_per_tile = 3; // 3x3 zone grid per overworld tile
 
 struct LocationState {
     TileMap map;
@@ -71,6 +74,10 @@ public:
 
     int& overworld_x() { return overworld_x_; }
     int& overworld_y() { return overworld_y_; }
+    int& zone_x() { return zone_x_; }
+    int& zone_y() { return zone_y_; }
+    int zone_x() const { return zone_x_; }
+    int zone_y() const { return zone_y_; }
 
     int& world_tick() { return world_tick_; }
     int world_tick() const { return world_tick_; }
@@ -90,8 +97,8 @@ public:
 
     std::map<LocationKey, LocationState>& location_cache() { return location_cache_; }
     const std::map<LocationKey, LocationState>& location_cache() const { return location_cache_; }
-    static inline const LocationKey ship_key = {0, -2, -1, false, -1, -1, 0};
-    static inline const LocationKey maintenance_key = {0, -3, -1, false, -1, -1, 0};
+    static inline const LocationKey ship_key = {0, -2, -1, false, -1, -1, 0, -1, -1};
+    static inline const LocationKey maintenance_key = {0, -3, -1, false, -1, -1, 0, -1, -1};
 
     // Quest-triggered world modification
     std::map<LocationKey, QuestLocationMeta>& quest_locations() { return quest_locations_; }
@@ -134,6 +141,8 @@ private:
     SurfaceMode surface_mode_ = SurfaceMode::Dungeon;
     int overworld_x_ = 0;
     int overworld_y_ = 0;
+    int zone_x_ = 1;  // 0-2 within 3x3 grid, default center
+    int zone_y_ = 1;
     int world_tick_ = 0;
     DayClock day_clock_;
     int current_region_ = -1;

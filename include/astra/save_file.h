@@ -39,7 +39,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 14;
+    uint32_t version = 16;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -56,6 +56,8 @@ struct SaveData {
     uint8_t surface_mode = 0;  // 0=Dungeon, 1=DetailMap, 2=Overworld
     int overworld_x = 0;
     int overworld_y = 0;
+    int zone_x = 1;
+    int zone_y = 1;
     int local_tick = 0;
     int local_ticks_per_day = 200;
 

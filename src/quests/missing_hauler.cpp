@@ -79,7 +79,7 @@ public:
         // Register quest location for the dungeon on this body
         // Key: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}
         // We'll use a special key for the overworld of this body
-        LocationKey ow_key = {sys.id, target_body, -1, false, -1, -1, 0};
+        LocationKey ow_key = {sys.id, target_body, -1, false, -1, -1, 0, -1, -1};
         QuestLocationMeta meta;
         meta.quest_id = quest_id;
         meta.quest_title = "The Missing Hauler";
