@@ -11,6 +11,7 @@ enum class JournalCategory : uint8_t {
     Discovery,
     Encounter,
     Event,
+    Quest,
 };
 
 struct JournalEntry {
@@ -20,6 +21,7 @@ struct JournalEntry {
     std::string personal;        // commander's notes
     std::string timestamp;       // e.g. "Cycle 1, Day 3 — Dawn"
     int world_tick = 0;
+    std::string quest_id;        // links entry to a quest for updates (empty = none)
 };
 
 const char* journal_category_name(JournalCategory c);
@@ -40,5 +42,8 @@ JournalEntry make_event_journal_entry(
     int world_tick,
     const std::string& phase_name);
 
+
+// Find a journal entry by quest_id (returns nullptr if not found)
+JournalEntry* find_journal_entry(std::vector<JournalEntry>& journal, const std::string& quest_id);
 
 } // namespace astra

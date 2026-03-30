@@ -1,7 +1,9 @@
 #include "astra/quest.h"
+#include "astra/journal.h"
 #include "astra/player.h"
 #include "astra/character.h"
 #include "astra/star_chart.h"
+#include "astra/time_of_day.h"
 
 #include <algorithm>
 #include <cmath>
@@ -29,9 +31,34 @@ bool Quest::ready_for_turnin() const {
 
 // ── QuestManager ────────────────────────────────────────────────────
 
-void QuestManager::accept_quest(Quest quest, int world_tick) {
+static std::string make_timestamp(int world_tick) {
+    return "Cycle " + std::to_string(global_cycle(world_tick))
+         + ", Day " + std::to_string(day_in_cycle(world_tick));
+}
+
+void QuestManager::accept_quest(Quest quest, int world_tick, Player& player) {
     quest.status = QuestStatus::Active;
     quest.accepted_tick = world_tick;
+
+    // Journal entry for new quest
+    JournalEntry entry;
+    entry.category = JournalCategory::Quest;
+    entry.title = "Quest: " + quest.title;
+    entry.quest_id = quest.id;
+    entry.world_tick = world_tick;
+    entry.timestamp = make_timestamp(world_tick);
+    entry.technical = quest.description;
+    // Build objectives list
+    std::string objectives;
+    for (const auto& obj : quest.objectives) {
+        objectives += "[ ] " + obj.description + "\n";
+    }
+    entry.personal = "Objectives:\n" + objectives;
+    if (!quest.giver_npc.empty()) {
+        entry.personal += "\nGiven by: " + quest.giver_npc;
+    }
+    player.journal.push_back(std::move(entry));
+
     active_.push_back(std::move(quest));
 }
 
@@ -51,6 +78,25 @@ void QuestManager::complete_quest(const std::string& quest_id, Player& player) {
                     }
                 }
             }
+
+            // Update journal entry
+            JournalEntry* je = find_journal_entry(player.journal, quest_id);
+            if (je) {
+                je->title = "Quest Complete: " + it->title;
+                // Update objectives to show all complete
+                std::string objectives;
+                for (const auto& obj : it->objectives) {
+                    objectives += "[x] " + obj.description + "\n";
+                }
+                je->personal = "Objectives:\n" + objectives;
+                // Append reward summary
+                std::string rewards;
+                if (it->reward.xp > 0) rewards += std::to_string(it->reward.xp) + " XP  ";
+                if (it->reward.credits > 0) rewards += std::to_string(it->reward.credits) + "$  ";
+                if (it->reward.skill_points > 0) rewards += std::to_string(it->reward.skill_points) + " SP  ";
+                if (!rewards.empty()) je->personal += "\nRewards: " + rewards;
+            }
+
             completed_.push_back(std::move(*it));
             active_.erase(it);
             return;
@@ -93,6 +139,28 @@ std::string QuestManager::check_completions() const {
         if (q.all_objectives_complete()) return q.id;
     }
     return "";
+}
+
+void QuestManager::update_quest_journals(Player& player) {
+    for (const auto& q : active_) {
+        JournalEntry* je = find_journal_entry(player.journal, q.id);
+        if (!je) continue;
+
+        std::string objectives;
+        for (const auto& obj : q.objectives) {
+            std::string mark = obj.complete() ? "[x] " : "[ ] ";
+            objectives += mark + obj.description;
+            if (obj.target_count > 1) {
+                objectives += " (" + std::to_string(obj.current_count)
+                           + "/" + std::to_string(obj.target_count) + ")";
+            }
+            objectives += "\n";
+        }
+        je->personal = "Objectives:\n" + objectives;
+        if (!q.giver_npc.empty()) {
+            je->personal += "\nGiven by: " + q.giver_npc;
+        }
+    }
 }
 
 // ── Progress Tracking ───────────────────────────────────────────────

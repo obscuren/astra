@@ -544,6 +544,10 @@ void Game::handle_hall_input(int key) {
 
 void Game::update() {
     // Tick-based — world updates happen in response to player actions.
+    // Sync quest journal entries with current objective progress
+    if (state_ == GameState::Playing) {
+        quest_manager_.update_quest_journals(player_);
+    }
 }
 
 // --- Rendering ---

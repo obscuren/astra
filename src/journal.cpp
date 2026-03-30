@@ -13,8 +13,16 @@ const char* journal_category_name(JournalCategory c) {
         case JournalCategory::Discovery:  return "Discovery";
         case JournalCategory::Encounter:  return "Encounter";
         case JournalCategory::Event:      return "Event";
+        case JournalCategory::Quest:      return "Quest";
     }
     return "Unknown";
+}
+
+JournalEntry* find_journal_entry(std::vector<JournalEntry>& journal, const std::string& quest_id) {
+    for (auto& entry : journal) {
+        if (entry.quest_id == quest_id) return &entry;
+    }
+    return nullptr;
 }
 
 JournalEntry make_blueprint_journal_entry(

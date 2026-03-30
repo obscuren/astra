@@ -1946,6 +1946,7 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
             case JournalCategory::Discovery:  cat_icon = '*'; cat_color = Color::Green; break;
             case JournalCategory::Encounter:  cat_icon = '!'; cat_color = Color::Red; break;
             case JournalCategory::Event:      cat_icon = '.'; cat_color = Color::White; break;
+            case JournalCategory::Quest:      cat_icon = '?'; cat_color = Color::Yellow; break;
         }
         ctx.put(2, y, cat_icon, cat_color);
 

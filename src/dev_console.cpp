@@ -283,17 +283,17 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             auto q = game.quests().generate_kill_quest(game.world().rng());
             log("Quest: " + q.title);
             log("  " + q.description);
-            game.quests().accept_quest(std::move(q), game.world().world_tick());
+            game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
         } else if (args.size() >= 2 && args[1] == "fetch") {
             auto q = game.quests().generate_fetch_quest(game.world().rng());
             log("Quest: " + q.title);
             log("  " + q.description);
-            game.quests().accept_quest(std::move(q), game.world().world_tick());
+            game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
         } else if (args.size() >= 2 && args[1] == "deliver") {
             auto q = game.quests().generate_deliver_quest("Merchant", game.world().rng());
             log("Quest: " + q.title);
             log("  " + q.description);
-            game.quests().accept_quest(std::move(q), game.world().world_tick());
+            game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
         } else if (args.size() >= 2 && args[1] == "scout") {
             // Pick a random landable body from the current system
             auto& nav = game.world().navigation();
@@ -334,14 +334,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             }
             log("Quest: " + q.title);
             log("  " + q.description);
-            game.quests().accept_quest(std::move(q), game.world().world_tick());
+            game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
         } else if (args.size() >= 2 && args[1] == "story") {
             auto* sq = find_story_quest("story_missing_hauler");
             if (sq && !game.quests().has_active_quest("story_missing_hauler")) {
                 auto q = sq->create_quest();
                 log("Quest: " + q.title);
                 log("  " + q.description);
-                game.quests().accept_quest(std::move(q), game.world().world_tick());
+                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
                 sq->on_accepted(game);
                 log("Quest markers placed on star chart.");
             } else if (game.quests().has_active_quest("story_missing_hauler")) {

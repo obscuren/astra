@@ -597,7 +597,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             if (sq) {
                 auto q = sq->create_quest();
                 game.log("Quest accepted: " + q.title);
-                game.quests().accept_quest(std::move(q), game.world().world_tick());
+                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
             }
             game.log("ARIA: \"Understood. Let's get to work.\"");
             game.log("ARIA: \"I'd start with the " + colored("Station Keeper", Color::White)
@@ -689,7 +689,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 !game.quests().has_active_quest("story_missing_hauler") &&
                 !game.quests().has_active_quest("story_getting_airborne")) {
                 auto q = sq->create_quest();
-                game.quests().accept_quest(std::move(q), game.world().world_tick());
+                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
                 sq->on_accepted(game);
                 game.log("Quest accepted: " + colored("The Missing Hauler", Color::Yellow));
             } else {
@@ -710,7 +710,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     game.world().quest_locations()[mk] = std::move(meta);
                 }
                 game.log("Quest accepted: " + colored(q.title, Color::Yellow));
-                game.quests().accept_quest(std::move(q), game.world().world_tick());
+                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
             }
         }
 

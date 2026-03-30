@@ -449,6 +449,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_string(je.personal);
         w.write_string(je.timestamp);
         w.write_i32(je.world_tick);
+        // v16: quest_id link
+        w.write_string(je.quest_id);
     }
     // v14: starship
     w.write_string(p.ship.name);
@@ -943,6 +945,9 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
             p.journal[i].personal = r.read_string();
             p.journal[i].timestamp = r.read_string();
             p.journal[i].world_tick = r.read_i32();
+            if (version >= 16) {
+                p.journal[i].quest_id = r.read_string();
+            }
         }
     }
     // v14: starship

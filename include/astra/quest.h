@@ -74,7 +74,7 @@ public:
     QuestManager() = default;
 
     // Quest lifecycle
-    void accept_quest(Quest quest, int world_tick);
+    void accept_quest(Quest quest, int world_tick, Player& player);
     void complete_quest(const std::string& quest_id, Player& player);
     void fail_quest(const std::string& quest_id);
 
@@ -93,6 +93,9 @@ public:
 
     // Check if any quest just completed all objectives (returns quest id, empty if none)
     std::string check_completions() const;
+
+    // Update journal entries for all active quests with current objective progress
+    void update_quest_journals(Player& player);
 
     // Restore from save (replaces internal state without triggering rewards)
     void restore(std::vector<Quest> active, std::vector<Quest> completed);
