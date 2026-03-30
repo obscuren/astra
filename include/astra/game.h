@@ -208,9 +208,9 @@ private:
     // Menu
     int menu_selection_ = 0;
 #ifdef ASTRA_DEV_MODE
-    static constexpr int menu_item_count_ = 5;
+    static constexpr int menu_item_count_ = 6; // dev game, new, load, hall, editor, quit
 #else
-    static constexpr int menu_item_count_ = 4;
+    static constexpr int menu_item_count_ = 4; // new, load, hall, quit
 #endif
 
     // Dev mode

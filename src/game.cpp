@@ -226,7 +226,17 @@ void Game::handle_menu_input(int key) {
                 load_selection_ = 0;
                 confirm_delete_ = false;
                 state_ = GameState::HallOfFame;
-            } else if (menu_selection_ == menu_item_count_ - 1) {
+            }
+#ifdef ASTRA_DEV_MODE
+            else if (menu_selection_ == off + 3) {
+                // Map Editor — standalone from main menu
+                map_editor_.open_standalone(*this);
+                if (map_editor_.is_open()) {
+                    state_ = GameState::Playing;
+                }
+            }
+#endif
+            else if (menu_selection_ == menu_item_count_ - 1) {
                 running_ = false;
             }
             break;

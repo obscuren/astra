@@ -27,7 +27,12 @@ void Game::handle_play_input(int key) {
             }
             // Fall through to normal play input
         } else {
+            bool was_standalone = map_editor_.standalone();
             map_editor_.handle_input(key, *this);
+            if (!map_editor_.is_open() && was_standalone) {
+                state_ = GameState::MainMenu;
+                menu_selection_ = 0;
+            }
             return;
         }
     }

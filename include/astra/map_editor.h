@@ -19,8 +19,10 @@ public:
 
     bool is_open() const { return open_; }
     bool playing() const { return playing_; }
+    bool standalone() const { return standalone_; }
 
-    void open(Game& game);
+    void open(Game& game);             // open from gameplay (teleport to overworld)
+    void open_standalone(Game& game);   // open from main menu (blank world)
     void close(Game& game);
     bool handle_input(int key, Game& game);
     void draw(int screen_w, int screen_h);
@@ -33,6 +35,7 @@ private:
     Renderer* renderer_ = nullptr;
     WorldManager* world_ = nullptr;
     bool open_ = false;
+    bool standalone_ = false;  // true when opened from main menu
     Mode mode_ = Mode::Overworld;
     PaintMode paint_mode_ = PaintMode::Tile;
 
@@ -79,6 +82,14 @@ private:
 
     // Popups
     PopupMenu popup_;
+    bool pending_generate_ = false;
+    int pending_biome_ = -1;  // biome index for generate
+
+    // Paint-while-moving mode
+    bool painting_ = false;
+
+    // Cursor blink
+    int blink_counter_ = 0;
 
     // Palette init
     void init_overworld_palette();
@@ -111,6 +122,10 @@ private:
     // Undo
     void push_undo();
     void pop_undo();
+
+    // Editor-specific save/restore — copies instead of moves (non-destructive)
+    void editor_save_current(Game& game);
+    void editor_restore(const LocationKey& key, Game& game);
 
     // Camera
     void compute_editor_camera(int map_w, int map_h, int viewport_w, int viewport_h);

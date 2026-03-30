@@ -57,6 +57,9 @@ static const char* menu_items[] = {
     "New Game",
     "Load Game",
     "Hall of Fame",
+#ifdef ASTRA_DEV_MODE
+    "Editor (WIP)",
+#endif
     "Quit",
 };
 

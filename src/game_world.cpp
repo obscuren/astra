@@ -10,23 +10,6 @@
 
 namespace astra {
 
-static Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
-    switch (terrain) {
-        case Tile::OW_Forest:    return Biome::Forest;
-        case Tile::OW_Plains:    return Biome::Grassland;
-        case Tile::OW_Desert:    return Biome::Sandy;
-        case Tile::OW_IceField:  return Biome::Ice;
-        case Tile::OW_LavaFlow:  return Biome::Volcanic;
-        case Tile::OW_Swamp:     return Biome::Aquatic;
-        case Tile::OW_Fungal:    return Biome::Fungal;
-        case Tile::OW_Mountains: return Biome::Rocky;
-        case Tile::OW_Crater:    return Biome::Rocky;
-        case Tile::OW_River:     return Biome::Aquatic;
-        case Tile::OW_Lake:      return Biome::Aquatic;
-        default:                 return planet_biome;
-    }
-}
-
 
 void Game::save_current_location() {
     animations_.clear();

@@ -81,9 +81,16 @@ void MapEditor::open(Game& game) {
     return_y_ = game.player().y;
     return_surface_ = world_->surface_mode();
 
+    // Must be on a body with an overworld — stations don't have one
+    if (world_->navigation().at_station && !world_->on_overworld()) {
+        game.log("Land on a planet or moon first to use the editor.");
+        open_ = false;
+        return;
+    }
+
     // Teleport to overworld if not already there
     if (!world_->on_overworld()) {
-        game.save_current_location();
+        editor_save_current(game);
 
         LocationKey ow_key = {world_->navigation().current_system_id,
                               world_->navigation().current_body_index,
@@ -91,7 +98,7 @@ void MapEditor::open(Game& game) {
                               false, -1, -1, 0, -1, -1};
 
         if (world_->location_cache().count(ow_key)) {
-            game.restore_location(ow_key);
+            editor_restore(ow_key, game);
         } else {
             game.log("No overworld available for editing.");
             open_ = false;
@@ -109,10 +116,49 @@ void MapEditor::open(Game& game) {
     init_npc_palette();
 }
 
+void MapEditor::open_standalone(Game& game) {
+    renderer_ = game.renderer();
+    world_ = &game.world();
+    open_ = true;
+    standalone_ = true;
+    playing_ = false;
+    mode_ = Mode::Overworld;
+    paint_mode_ = PaintMode::Tile;
+    undo_stack_.clear();
+    painting_ = false;
+    blink_counter_ = 0;
+
+    // Create a blank overworld
+    auto props = default_properties(MapType::Overworld);
+    world_->map() = TileMap(props.width, props.height, MapType::Overworld);
+    world_->visibility() = VisibilityMap(props.width, props.height);
+    world_->visibility().reveal_all();
+    world_->npcs().clear();
+    world_->ground_items().clear();
+    world_->set_surface_mode(SurfaceMode::Overworld);
+    world_->location_cache().clear();
+
+    // Place cursor at center
+    cursor_x_ = props.width / 2;
+    cursor_y_ = props.height / 2;
+
+    // Set a dummy player position so nothing crashes
+    game.player().x = cursor_x_;
+    game.player().y = cursor_y_;
+
+    init_overworld_palette();
+    init_fixture_palette();
+    init_npc_palette();
+}
+
 void MapEditor::close(Game& game) {
     open_ = false;
     playing_ = false;
-    // Stay on overworld — don't teleport back (edits are live)
+    if (standalone_) {
+        // Return to main menu
+        standalone_ = false;
+        world_->location_cache().clear();
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -323,6 +369,54 @@ void MapEditor::pop_undo() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Editor save/restore — copies, not moves. Non-destructive.
+// ─────────────────────────────────────────────────────────────────
+
+void MapEditor::editor_save_current(Game& game) {
+    // Build key same as Game::save_current_location but copy instead of move
+    LocationKey key;
+    if (world_->on_overworld()) {
+        key = LocationKey{world_->navigation().current_system_id,
+                          world_->navigation().current_body_index,
+                          world_->navigation().current_moon_index,
+                          false, -1, -1, 0, -1, -1};
+    } else if (world_->on_detail_map()) {
+        key = LocationKey{world_->navigation().current_system_id,
+                          world_->navigation().current_body_index,
+                          world_->navigation().current_moon_index,
+                          false, world_->overworld_x(), world_->overworld_y(), 0,
+                          world_->zone_x(), world_->zone_y()};
+    } else {
+        // Dungeon
+        key = LocationKey{world_->navigation().current_system_id,
+                          world_->navigation().current_body_index,
+                          world_->navigation().current_moon_index,
+                          false, world_->overworld_x(), world_->overworld_y(), 1,
+                          world_->zone_x(), world_->zone_y()};
+    }
+    LocationState& state = world_->location_cache()[key];
+    state.map = world_->map();           // copy, not move
+    state.visibility = world_->visibility();
+    state.npcs = world_->npcs();
+    state.ground_items = world_->ground_items();
+    state.player_x = game.player().x;
+    state.player_y = game.player().y;
+}
+
+void MapEditor::editor_restore(const LocationKey& key, Game& game) {
+    auto it = world_->location_cache().find(key);
+    if (it == world_->location_cache().end()) return;
+    const LocationState& state = it->second;
+    world_->map() = state.map;           // copy, not move
+    world_->visibility() = state.visibility;
+    world_->npcs() = state.npcs;
+    world_->ground_items() = state.ground_items;
+    game.player().x = state.player_x;
+    game.player().y = state.player_y;
+    // Do NOT erase from cache — editor keeps maps around
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Mode transitions
 // ─────────────────────────────────────────────────────────────────
 
@@ -336,7 +430,7 @@ void MapEditor::enter_detail(int ow_x, int ow_y, Game& game) {
     active_map().set_custom_detail(ow_x, ow_y, true);
 
     // Save overworld and transition to detail
-    game.save_current_location();
+    editor_save_current(game);
     world_->overworld_x() = ow_x;
     world_->overworld_y() = ow_y;
     world_->zone_x() = detail_zone_x_;
@@ -351,10 +445,33 @@ void MapEditor::enter_detail(int ow_x, int ow_y, Game& game) {
                               detail_zone_x_, detail_zone_y_};
 
     if (world_->location_cache().count(detail_key)) {
-        game.restore_location(detail_key);
+        editor_restore(detail_key, game);
     } else {
-        // Blank canvas
+        // Seed with generated terrain based on the overworld tile
+        // Look up the overworld tile type from the cached overworld map
+        LocationKey ow_key = {world_->navigation().current_system_id,
+                              world_->navigation().current_body_index,
+                              world_->navigation().current_moon_index,
+                              false, -1, -1, 0, -1, -1};
+        auto ow_it = world_->location_cache().find(ow_key);
+        if (ow_it != world_->location_cache().end()) {
+            Tile ow_tile = ow_it->second.map.get(ow_x, ow_y);
+            props.detail_terrain = ow_tile;
+            props.biome = detail_biome_for_terrain(ow_tile, ow_it->second.map.biome());
+            props.detail_has_poi = (ow_tile == Tile::OW_Settlement || ow_tile == Tile::OW_Ruins ||
+                                    ow_tile == Tile::OW_CrashedShip || ow_tile == Tile::OW_Outpost ||
+                                    ow_tile == Tile::OW_CaveEntrance || ow_tile == Tile::OW_Landing);
+            if (props.detail_has_poi) props.detail_poi_type = ow_tile;
+        }
+        unsigned detail_seed = static_cast<unsigned>(std::time(nullptr))
+            ^ (static_cast<unsigned>(ow_x) * 1013u)
+            ^ (static_cast<unsigned>(ow_y) * 2039u)
+            ^ (static_cast<unsigned>(detail_zone_x_) * 4517u)
+            ^ (static_cast<unsigned>(detail_zone_y_) * 5381u);
         world_->map() = TileMap(props.width, props.height, MapType::DetailMap);
+        auto gen = create_generator(MapType::DetailMap);
+        gen->generate(world_->map(), props, detail_seed);
+        world_->map().set_biome(props.biome);
         world_->npcs().clear();
         world_->ground_items().clear();
         world_->visibility() = VisibilityMap(props.width, props.height);
@@ -375,7 +492,7 @@ void MapEditor::switch_zone(int zx, int zy, Game& game) {
     if (zx == detail_zone_x_ && zy == detail_zone_y_) return;
 
     // Save current zone
-    game.save_current_location();
+    editor_save_current(game);
 
     detail_zone_x_ = zx;
     detail_zone_y_ = zy;
@@ -390,9 +507,32 @@ void MapEditor::switch_zone(int zx, int zy, Game& game) {
                        false, detail_ow_x_, detail_ow_y_, 0, zx, zy};
 
     if (world_->location_cache().count(key)) {
-        game.restore_location(key);
+        editor_restore(key, game);
     } else {
+        // Seed with terrain from overworld tile
+        LocationKey ow_key = {world_->navigation().current_system_id,
+                              world_->navigation().current_body_index,
+                              world_->navigation().current_moon_index,
+                              false, -1, -1, 0, -1, -1};
+        auto ow_it = world_->location_cache().find(ow_key);
+        if (ow_it != world_->location_cache().end()) {
+            Tile ow_tile = ow_it->second.map.get(detail_ow_x_, detail_ow_y_);
+            props.detail_terrain = ow_tile;
+            props.biome = detail_biome_for_terrain(ow_tile, ow_it->second.map.biome());
+            props.detail_has_poi = (ow_tile == Tile::OW_Settlement || ow_tile == Tile::OW_Ruins ||
+                                    ow_tile == Tile::OW_CrashedShip || ow_tile == Tile::OW_Outpost ||
+                                    ow_tile == Tile::OW_CaveEntrance || ow_tile == Tile::OW_Landing);
+            if (props.detail_has_poi) props.detail_poi_type = ow_tile;
+        }
+        unsigned detail_seed = static_cast<unsigned>(std::time(nullptr))
+            ^ (static_cast<unsigned>(detail_ow_x_) * 1013u)
+            ^ (static_cast<unsigned>(detail_ow_y_) * 2039u)
+            ^ (static_cast<unsigned>(zx) * 4517u)
+            ^ (static_cast<unsigned>(zy) * 5381u);
         world_->map() = TileMap(props.width, props.height, MapType::DetailMap);
+        auto gen = create_generator(MapType::DetailMap);
+        gen->generate(world_->map(), props, detail_seed);
+        world_->map().set_biome(props.biome);
         world_->npcs().clear();
         world_->ground_items().clear();
         world_->visibility() = VisibilityMap(props.width, props.height);
@@ -406,7 +546,7 @@ void MapEditor::switch_zone(int zx, int zy, Game& game) {
 }
 
 void MapEditor::exit_detail(Game& game) {
-    game.save_current_location();
+    editor_save_current(game);
 
     LocationKey ow_key = {world_->navigation().current_system_id,
                           world_->navigation().current_body_index,
@@ -414,7 +554,12 @@ void MapEditor::exit_detail(Game& game) {
                           false, -1, -1, 0, -1, -1};
 
     if (world_->location_cache().count(ow_key)) {
-        game.restore_location(ow_key);
+        editor_restore(ow_key, game);
+    } else {
+        // Overworld not in cache — shouldn't happen but recover gracefully
+        auto props = default_properties(MapType::Overworld);
+        world_->map() = TileMap(props.width, props.height, MapType::Overworld);
+        world_->visibility() = VisibilityMap(props.width, props.height);
     }
 
     world_->set_surface_mode(SurfaceMode::Overworld);
@@ -428,7 +573,7 @@ void MapEditor::exit_detail(Game& game) {
 }
 
 void MapEditor::enter_dungeon(Game& game) {
-    game.save_current_location();
+    editor_save_current(game);
 
     auto props = default_properties(MapType::Rocky);
 
@@ -439,7 +584,7 @@ void MapEditor::enter_dungeon(Game& game) {
                        detail_zone_x_, detail_zone_y_};
 
     if (world_->location_cache().count(key)) {
-        game.restore_location(key);
+        editor_restore(key, game);
     } else {
         world_->map() = TileMap(props.width, props.height, MapType::Rocky);
         world_->npcs().clear();
@@ -458,7 +603,7 @@ void MapEditor::enter_dungeon(Game& game) {
 }
 
 void MapEditor::exit_dungeon(Game& game) {
-    game.save_current_location();
+    editor_save_current(game);
 
     LocationKey key = {world_->navigation().current_system_id,
                        world_->navigation().current_body_index,
@@ -467,7 +612,7 @@ void MapEditor::exit_dungeon(Game& game) {
                        detail_zone_x_, detail_zone_y_};
 
     if (world_->location_cache().count(key)) {
-        game.restore_location(key);
+        editor_restore(key, game);
     }
 
     world_->set_surface_mode(SurfaceMode::DetailMap);
@@ -496,6 +641,68 @@ void MapEditor::stop_play(Game& game) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Generate
+// ─────────────────────────────────────────────────────────────────
+
+static void show_biome_picker(PopupMenu& popup, MapEditor::Mode mode) {
+    popup.close();
+    popup.set_title("Generate — Select Type");
+    if (mode == MapEditor::Mode::Overworld) {
+        popup.add_option('1', "Rocky Planet");
+        popup.add_option('2', "Grassland Planet");
+        popup.add_option('3', "Desert Planet");
+        popup.add_option('4', "Ice Planet");
+        popup.add_option('5', "Volcanic Planet");
+        popup.add_option('6', "Aquatic Planet");
+    } else if (mode == MapEditor::Mode::Detail) {
+        popup.add_option('1', "Plains / Open");
+        popup.add_option('2', "Forest");
+        popup.add_option('3', "Mountains / Rocky");
+        popup.add_option('4', "Settlement");
+        popup.add_option('5', "Ruins");
+        popup.add_option('6', "Crashed Ship");
+    } else {
+        popup.add_option('1', "Rocky Cave");
+        popup.add_option('2', "Lava Cave");
+        popup.add_option('3', "Station Interior");
+        popup.add_option('4', "Derelict Station");
+    }
+    popup.set_footer("[Space] Select  [Esc] Cancel");
+    popup.set_max_width_frac(0.3f);
+    popup.open();
+}
+
+void MapEditor::generate_zone([[maybe_unused]] Game& game) {
+    // Check if map has content
+    auto& map = active_map();
+    bool has_content = false;
+    for (int i = 0; i < map.width() * map.height(); ++i) {
+        if (map.tiles()[i] != Tile::Empty && map.tiles()[i] != Tile::Floor) {
+            has_content = true;
+            break;
+        }
+    }
+
+    if (has_content) {
+        popup_.close();
+        popup_.set_title("Generate");
+        popup_.set_body("This will overwrite the current map. Continue?");
+        popup_.add_option('y', "Yes, generate");
+        popup_.add_option('n', "No, cancel");
+        popup_.set_footer("[Space] Select");
+        popup_.set_max_width_frac(0.35f);
+        popup_.open();
+        pending_generate_ = true;
+        pending_biome_ = -1;
+    } else {
+        // Empty — go straight to biome picker
+        pending_generate_ = true;
+        pending_biome_ = -1;
+        show_biome_picker(popup_, mode_);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Camera
 // ─────────────────────────────────────────────────────────────────
 
@@ -520,8 +727,99 @@ bool MapEditor::handle_input(int key, Game& game) {
     // Popup intercept
     if (popup_.is_open()) {
         MenuResult r = popup_.handle_input(key);
-        if (r == MenuResult::Selected || r == MenuResult::Closed) {
+        if (r == MenuResult::Selected) {
+            char k = popup_.selected_key();
             popup_.close();
+            if (pending_generate_ && pending_biome_ < 0) {
+                if (k == 'y') {
+                    // Confirmed — show biome picker
+                    show_biome_picker(popup_, mode_);
+                } else if (k >= '1' && k <= '9') {
+                    // Biome selected — run generator
+                    pending_biome_ = k - '1';
+                    pending_generate_ = false;
+                    push_undo();
+                    unsigned seed = static_cast<unsigned>(std::time(nullptr));
+                    if (mode_ == Mode::Overworld) {
+                        auto props = default_properties(MapType::Overworld);
+                        // Set body properties based on planet type selection
+                        switch (pending_biome_) {
+                            case 0: // Rocky
+                                props.body_type = BodyType::Rocky;
+                                props.body_atmosphere = Atmosphere::None;
+                                props.body_temperature = Temperature::Cold;
+                                break;
+                            case 1: // Grassland
+                                props.body_type = BodyType::Terrestrial;
+                                props.body_atmosphere = Atmosphere::Standard;
+                                props.body_temperature = Temperature::Temperate;
+                                break;
+                            case 2: // Desert
+                                props.body_type = BodyType::Terrestrial;
+                                props.body_atmosphere = Atmosphere::Thin;
+                                props.body_temperature = Temperature::Hot;
+                                break;
+                            case 3: // Ice
+                                props.body_type = BodyType::Terrestrial;
+                                props.body_atmosphere = Atmosphere::Standard;
+                                props.body_temperature = Temperature::Frozen;
+                                break;
+                            case 4: // Volcanic
+                                props.body_type = BodyType::Rocky;
+                                props.body_atmosphere = Atmosphere::Reducing;
+                                props.body_temperature = Temperature::Scorching;
+                                break;
+                            case 5: // Aquatic
+                                props.body_type = BodyType::Terrestrial;
+                                props.body_atmosphere = Atmosphere::Dense;
+                                props.body_temperature = Temperature::Temperate;
+                                break;
+                        }
+                        // Map biome from body type
+                        Biome ow_biomes[] = {Biome::Rocky, Biome::Grassland, Biome::Sandy,
+                                             Biome::Ice, Biome::Volcanic, Biome::Aquatic};
+                        Biome ow_biome = (pending_biome_ < 6) ? ow_biomes[pending_biome_] : Biome::Rocky;
+                        world_->map() = TileMap(props.width, props.height, MapType::Overworld);
+                        auto gen = create_generator(MapType::Overworld);
+                        gen->generate(world_->map(), props, seed);
+                        world_->map().set_biome(ow_biome);
+                        world_->visibility().reveal_all();
+                    } else if (mode_ == Mode::Detail) {
+                        auto props = default_properties(MapType::DetailMap);
+                        Tile terrains[] = {Tile::OW_Plains, Tile::OW_Forest, Tile::OW_Mountains,
+                                           Tile::OW_Settlement, Tile::OW_Ruins, Tile::OW_CrashedShip};
+                        if (pending_biome_ < 6) {
+                            props.detail_terrain = terrains[pending_biome_];
+                            props.detail_has_poi = (pending_biome_ >= 3);
+                            if (props.detail_has_poi) props.detail_poi_type = terrains[pending_biome_];
+                        }
+                        world_->map() = TileMap(props.width, props.height, MapType::DetailMap);
+                        auto gen = create_generator(MapType::DetailMap);
+                        gen->generate(world_->map(), props, seed);
+                        world_->visibility().reveal_all();
+                    } else {
+                        MapType types[] = {MapType::Rocky, MapType::Lava,
+                                           MapType::SpaceStation, MapType::DerelictStation};
+                        MapType mt = (pending_biome_ < 4) ? types[pending_biome_] : MapType::Rocky;
+                        auto props = default_properties(mt);
+                        world_->map() = TileMap(props.width, props.height, mt);
+                        auto gen = create_generator(mt);
+                        gen->generate(world_->map(), props, seed);
+                        world_->visibility().reveal_all();
+                    }
+                    pending_biome_ = -1;
+                } else {
+                    pending_generate_ = false;
+                    pending_biome_ = -1;
+                }
+            } else {
+                pending_generate_ = false;
+                pending_biome_ = -1;
+            }
+        } else if (r == MenuResult::Closed) {
+            popup_.close();
+            pending_generate_ = false;
+            pending_biome_ = -1;
         }
         return true;
     }
@@ -549,11 +847,17 @@ bool MapEditor::handle_input(int key, Game& game) {
         case KEY_LEFT:  cursor_x_--; break;
         case KEY_RIGHT: cursor_x_++; break;
 
-        case ' ': // Paint/place
-            switch (paint_mode_) {
-                case PaintMode::Tile:    paint_brush(cursor_x_, cursor_y_); break;
-                case PaintMode::Fixture: place_fixture(cursor_x_, cursor_y_); break;
-                case PaintMode::Npc:     place_npc(cursor_x_, cursor_y_, game); break;
+        case ' ': // Toggle painting mode or single paint
+            if (painting_) {
+                painting_ = false;
+            } else {
+                painting_ = true;
+                // Paint the current tile immediately
+                switch (paint_mode_) {
+                    case PaintMode::Tile:    paint_brush(cursor_x_, cursor_y_); break;
+                    case PaintMode::Fixture: place_fixture(cursor_x_, cursor_y_); break;
+                    case PaintMode::Npc:     place_npc(cursor_x_, cursor_y_, game); break;
+                }
             }
             return true;
 
@@ -636,10 +940,12 @@ bool MapEditor::handle_input(int key, Game& game) {
             }
             return true;
 
+        case 'g': // Generate
+            generate_zone(game);
+            return true;
+
         case KEY_F2: // Play test
-            if (mode_ != Mode::Overworld) {
-                start_play(game);
-            }
+            start_play(game);
             return true;
 
         case KEY_PAGE_UP: // Previous zone
@@ -677,6 +983,14 @@ bool MapEditor::handle_input(int key, Game& game) {
     if (cursor_y_ < 0) cursor_y_ = 0;
     if (cursor_x_ >= map.width()) cursor_x_ = map.width() - 1;
     if (cursor_y_ >= map.height()) cursor_y_ = map.height() - 1;
+
+    // Paint while moving (hold-space mode)
+    if (painting_ && paint_mode_ == PaintMode::Tile) {
+        paint_brush(cursor_x_, cursor_y_);
+    }
+
+    // Tick blink counter on every input
+    ++blink_counter_;
 
     return true;
 }
@@ -736,6 +1050,9 @@ void MapEditor::draw(int screen_w, int screen_h) {
     // Status bar
     for (int x = 0; x < screen_w; ++x) full.put(x, screen_h - status_h, BoxDraw::H, Color::DarkGray);
     draw_status(full, screen_w);
+
+    // Popup overlay
+    popup_.draw(renderer_, screen_w, screen_h);
 }
 
 void MapEditor::draw_viewport(DrawContext& ctx) {
@@ -754,28 +1071,65 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
 
             if (is_ow) {
                 const char* og = overworld_glyph(t, mx, my);
-                c = Color::White; // simplified coloring for editor
+                // Use actual overworld colors
+                switch (t) {
+                    case Tile::OW_Plains:      c = Color::Green; break;
+                    case Tile::OW_Mountains:   c = Color::White; break;
+                    case Tile::OW_Forest:      c = Color::Green; break;
+                    case Tile::OW_Desert:      c = Color::Yellow; break;
+                    case Tile::OW_Crater:      c = Color::DarkGray; break;
+                    case Tile::OW_IceField:    c = Color::Cyan; break;
+                    case Tile::OW_LavaFlow:    c = Color::Red; break;
+                    case Tile::OW_Fungal:      c = Color::Green; break;
+                    case Tile::OW_River:       c = Color::Blue; break;
+                    case Tile::OW_Lake:        c = Color::Cyan; break;
+                    case Tile::OW_Swamp:       c = Color::Green; break;
+                    case Tile::OW_CaveEntrance:c = Color::Magenta; break;
+                    case Tile::OW_Ruins:       c = Color::BrightMagenta; break;
+                    case Tile::OW_Settlement:  c = Color::Yellow; break;
+                    case Tile::OW_CrashedShip: c = Color::Cyan; break;
+                    case Tile::OW_Outpost:     c = Color::Green; break;
+                    case Tile::OW_Landing:     c = Color::Cyan; break;
+                    default:                   c = Color::White; break;
+                }
+                // Custom tiles get a bright marker
+                if (map.custom_detail(mx, my)) c = Color::BrightYellow;
                 ctx.put(sx, sy, og, c);
             } else {
+                auto bc = biome_colors(map.biome());
+                const char* utf8 = nullptr;
                 if (t == Tile::Fixture) {
                     int fid = map.fixture_id(mx, my);
                     if (fid >= 0) {
                         auto& f = map.fixture(fid);
-                        g = f.glyph;
+                        if (f.utf8_glyph) utf8 = f.utf8_glyph;
+                        else g = f.glyph;
                         c = f.color;
                     }
-                } else if (t == Tile::Wall || t == Tile::StructuralWall) {
+                } else if (t == Tile::StructuralWall) {
                     c = Color::White;
-                } else if (t == Tile::Floor || t == Tile::IndoorFloor) {
-                    c = Color::DarkGray;
+                    utf8 = "\xe2\x96\x88"; // █
+                } else if (t == Tile::Wall) {
+                    c = bc.wall;
+                    utf8 = dungeon_wall_glyph(map.biome(), mx, my);
+                } else if (t == Tile::Floor) {
+                    c = bc.floor;
+                } else if (t == Tile::IndoorFloor) {
+                    c = static_cast<Color>(137); // warm tan
+                    utf8 = "\xe2\x96\xaa"; // ▪
                 } else if (t == Tile::Water) {
-                    c = Color::Blue;
+                    c = bc.water;
+                } else if (t == Tile::Ice) {
+                    c = Color::Cyan;
                 } else if (t == Tile::Empty) {
                     g = ' ';
                 } else {
                     c = Color::White;
                 }
-                ctx.put(sx, sy, g, c);
+                if (utf8)
+                    ctx.put(sx, sy, utf8, c);
+                else
+                    ctx.put(sx, sy, g, c);
             }
 
             // Draw NPCs
@@ -788,14 +1142,18 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
     }
 
     // Cursor
+    // Cursor: [X] with blinking X, brackets always visible
+    // When painting, show solid block instead of X
     int csx = cursor_x_ - camera_x_;
     int csy = cursor_y_ - camera_y_;
     if (csx >= 0 && csx < ctx.width() && csy >= 0 && csy < ctx.height()) {
+        Color bracket_color = painting_ ? Color::Green : Color::White;
         if (csx > 0)
-            ctx.put(csx - 1, csy, '[', Color::White);
-        ctx.put(csx, csy, 'X', Color::Yellow);
+            ctx.put(csx - 1, csy, '[', bracket_color);
+        if (blink_counter_ % 4 < 3) // blink: visible 75% of the time
+            ctx.put(csx, csy, painting_ ? '+' : 'X', Color::Yellow);
         if (csx + 1 < ctx.width())
-            ctx.put(csx + 1, csy, ']', Color::White);
+            ctx.put(csx + 1, csy, ']', bracket_color);
     }
 }
 
@@ -867,6 +1225,7 @@ void MapEditor::draw_status(DrawContext& ctx, int full_w) {
         left += "  Tile: " + std::string(tile_name(active_tile()));
         left += " [" + std::string(1, tile_glyph(active_tile())) + "]";
         left += "  Brush: " + std::to_string(brush_size_);
+        if (painting_) left += "  [PAINTING]";
     } else if (paint_mode_ == PaintMode::Fixture) {
         left += "  Fixture: " + std::string(fixture_name(active_fixture()));
     } else {
@@ -881,9 +1240,11 @@ void MapEditor::draw_status(DrawContext& ctx, int full_w) {
 
     std::string right;
     if (mode_ == Mode::Overworld) {
-        right = "[Space] Paint  [Enter] Detail  [c] Custom";
+        right = "[Space] Paint  [Enter] Detail  [c] Custom  [g] Gen  [F2] Play";
+    } else if (mode_ == Mode::Detail) {
+        right = "[Space] Paint  [Tab] Mode  [F2] Play  [d] Dungeon  [PgUp/Dn] Zone";
     } else {
-        right = "[Space] Paint  [Tab] Mode  [F2] Play";
+        right = "[Space] Paint  [Tab] Mode  [F2] Play  [Esc] Back";
     }
     ctx.text(full_w - static_cast<int>(right.size()) - 1, y, right, Color::DarkGray);
 }
