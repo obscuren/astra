@@ -52,6 +52,7 @@ struct MapProperties {
     Tile detail_neighbor_w = Tile::Empty;
     bool detail_has_poi = false;
     Tile detail_poi_type = Tile::Empty;
+    bool detail_is_custom = false;  // hand-crafted zone (skip generator)
 };
 
 MapProperties default_properties(MapType type);

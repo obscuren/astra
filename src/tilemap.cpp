@@ -132,6 +132,20 @@ void TileMap::load_glyph_overrides(std::vector<uint8_t> overrides) {
     glyph_override_ = std::move(overrides);
 }
 
+bool TileMap::custom_detail(int x, int y) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return false;
+    if (custom_flags_.empty()) return false;
+    return custom_flags_[y * width_ + x] != 0;
+}
+
+void TileMap::set_custom_detail(int x, int y, bool v) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    if (custom_flags_.empty()) {
+        custom_flags_.resize(width_ * height_, 0);
+    }
+    custom_flags_[y * width_ + x] = v ? 1 : 0;
+}
+
 void TileMap::find_open_spot(int& out_x, int& out_y) const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {

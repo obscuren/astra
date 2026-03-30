@@ -530,6 +530,12 @@ public:
     bool is_hub() const { return hub_; }
     void set_hub(bool h) { hub_ = h; }
 
+    // Custom detail flag — marks overworld tiles as hand-crafted
+    bool custom_detail(int x, int y) const;
+    void set_custom_detail(int x, int y, bool v);
+    const std::vector<uint8_t>& custom_flags() const { return custom_flags_; }
+    void load_custom_flags(std::vector<uint8_t> flags) { custom_flags_ = std::move(flags); }
+
     // Glyph override layer (for stamp system)
     uint8_t glyph_override(int x, int y) const;
     void set_glyph_override(int x, int y, uint8_t idx);
@@ -581,6 +587,7 @@ private:
     std::vector<FixtureData> fixtures_;
     std::vector<int> fixture_ids_;  // parallel to tiles_, -1 if no fixture
     std::vector<uint8_t> glyph_override_;  // parallel to tiles_, 0 = no override
+    std::vector<uint8_t> custom_flags_;   // parallel to tiles_, 1 = custom detail (overworld only)
 };
 
 } // namespace astra
