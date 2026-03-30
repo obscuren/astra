@@ -117,6 +117,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest scout        - random scout quest");
         log("  quest story        - The Missing Hauler");
         log("  heal               - full heal");
+        log("  bearings           - regain bearings if lost");
         log("  clear              - clear console");
     }
     else if (verb == "clear") {
@@ -125,6 +126,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "heal") {
         player.hp = player.effective_max_hp();
         log("HP restored to " + std::to_string(player.hp));
+    }
+    else if (verb == "bearings") {
+        if (game.lost()) {
+            game.set_lost(false);
+            log("Bearings regained.");
+        } else {
+            log("You're not lost.");
+        }
     }
     else if (verb == "warp" && args.size() >= 2) {
         if (args[1] == "random") {

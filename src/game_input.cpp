@@ -135,6 +135,9 @@ void Game::handle_play_input(int key) {
         MenuResult r = lost_popup_.handle_input(key);
         if (r == MenuResult::Selected || r == MenuResult::Closed) {
             lost_popup_.close();
+            if (lost_pending_) {
+                enter_lost_detail();
+            }
         }
         return;
     }

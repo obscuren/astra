@@ -1322,10 +1322,12 @@ int Game::get_lost_chance([[maybe_unused]] Tile terrain) const {
 }
 
 int Game::regain_chance() const {
-    // Starts at 5%, ramps by 5% per move, caps at 80%
-    int chance = 5 + lost_moves_ * 5;
+    // No chance for first 30 moves, then ramps 1% every 3 moves, caps at 25%
+    // Expect ~60-100 moves total before regaining bearings
+    if (lost_moves_ < 30) return 0;
+    int chance = (lost_moves_ - 30) / 3;
     // TODO: increase with wayfaring skill
-    return std::min(chance, 80);
+    return std::min(chance, 25);
 }
 
 void Game::check_get_lost() {
@@ -1338,9 +1340,25 @@ void Game::check_get_lost() {
     std::uniform_int_distribution<int> dist(1, 100);
     if (dist(world_.rng()) > chance) return; // not lost
 
-    // Player got lost — enter detail map at a random zone
+    // Mark as lost and show popup — stay on overworld until dismissed
     lost_ = true;
+    lost_pending_ = true;
     lost_moves_ = 0;
+
+    lost_popup_.close();
+    lost_popup_.set_title("Lost!");
+    lost_popup_.set_body(
+        "The terrain all looks the same. You've lost your bearings "
+        "and can't find your way back to the surface view.\n\n"
+        "Keep moving to regain your sense of direction.");
+    lost_popup_.add_option('f', "Press on");
+    lost_popup_.set_footer("[Space] Continue");
+    lost_popup_.set_max_width_frac(0.4f);
+    lost_popup_.open();
+}
+
+void Game::enter_lost_detail() {
+    lost_pending_ = false;
 
     world_.overworld_x() = player_.x;
     world_.overworld_y() = player_.y;
@@ -1394,18 +1412,6 @@ void Game::check_get_lost() {
     world_.current_region() = -1;
     recompute_fov();
     compute_camera();
-
-    // Show lost popup
-    lost_popup_.close();
-    lost_popup_.set_title("Lost!");
-    lost_popup_.set_body(
-        "The terrain all looks the same. You've lost your bearings "
-        "and can't find your way back to the surface view.\n\n"
-        "Keep moving to regain your sense of direction.");
-    lost_popup_.add_option('f', "Press on");
-    lost_popup_.set_footer("[Space] Continue");
-    lost_popup_.set_max_width_frac(0.4f);
-    lost_popup_.open();
 }
 
 void Game::check_regain_bearings() {

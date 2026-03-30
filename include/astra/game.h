@@ -259,9 +259,11 @@ private:
 
     // Lost mechanic — getting lost on the overworld
     bool lost_ = false;
+    bool lost_pending_ = false;  // popup shown, awaiting dismiss before entering detail
     int lost_moves_ = 0;  // moves since getting lost (ramps regain chance)
     PopupMenu lost_popup_;
     void check_get_lost();
+    void enter_lost_detail();    // called when lost popup is dismissed
     void check_regain_bearings();
     int get_lost_chance(Tile terrain) const;    // % chance per overworld move
     int regain_chance() const;                  // % chance per detail move, ramps with lost_moves_

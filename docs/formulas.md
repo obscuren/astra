@@ -188,17 +188,20 @@ When moving on the overworld, each step has a chance to get lost.
 - TODO: wayfaring skill reduces chance
 
 **Regain Bearings:** checked each move while lost on detail map
-- Formula: `min(5 + lost_moves * 5, 80)`
-- Starts at 5%, ramps by 5% per move, caps at 80%
-- TODO: wayfaring skill increases base and ramp rate
+- No chance for first 30 moves (grace period)
+- Formula: `min((lost_moves - 30) / 3, 25)`
+- After grace: ramps 1% every 3 moves, caps at 25%
+- Expected ~60-100 total moves to regain bearings
+- TODO: wayfaring skill reduces grace period and increases ramp
 
 | Moves | Chance |
 |-------|--------|
-| 0 | 5% |
-| 1 | 10% |
-| 5 | 30% |
-| 10 | 55% |
-| 15 | 80% (cap) |
+| 0-29 | 0% |
+| 30 | 0% |
+| 45 | 5% |
+| 60 | 10% |
+| 75 | 15% |
+| 105+ | 25% (cap) |
 
 When lost:
 - Player enters detail map at random zone in the 3x3 grid
