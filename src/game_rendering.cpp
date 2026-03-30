@@ -945,10 +945,10 @@ void Game::render_side_panel() {
                         lines.push_back({remaining, x});
                         break;
                     }
-                    // Find cut point at line_w visible chars
+                    // Find cut point at line_w visible chars, preferring word boundaries
                     int vis = 0;
                     int cut = 0;
-                    int last_space = 0;
+                    int last_space = -1;
                     for (size_t i = 0; i < remaining.size() && vis < line_w; ++i) {
                         if (remaining[i] == COLOR_BEGIN) { ++i; continue; }
                         if (remaining[i] == COLOR_END) continue;
@@ -957,7 +957,7 @@ void Game::render_side_panel() {
                         cut = static_cast<int>(i) + 1;
                     }
                     if (last_space > 0) cut = last_space;
-                    if (cut == 0) cut = static_cast<int>(remaining.size());
+                    if (cut <= 0) cut = static_cast<int>(remaining.size());
                     lines.push_back({remaining.substr(0, cut), x});
                     remaining = remaining.substr(cut);
                     if (!remaining.empty() && remaining[0] == ' ')

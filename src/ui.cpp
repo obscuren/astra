@@ -817,37 +817,54 @@ void PopupMenu::draw(Renderer* renderer, int screen_w, int screen_h) {
     if (has_body) {
         int inner_w = win_w - 5; // 3 left pad + 1 right pad + 1 border
         if (inner_w < 10) inner_w = 10;
+        // Word-wrap: accumulate words, break at last space before width limit
         std::string line;
-        int vis_len = 0; // visible length (excludes color markers)
+        int vis_len = 0;
+        int last_space_pos = -1;     // byte position of last space in line
         for (size_t i = 0; i < body_.size(); ++i) {
             char ch = body_[i];
             if (ch == '\n') {
                 body_lines.push_back(line);
                 line.clear();
                 vis_len = 0;
+                last_space_pos = -1;
                 continue;
             }
             if (ch == COLOR_BEGIN && i + 1 < body_.size()) {
                 line += ch;
-                line += body_[++i]; // color byte
+                line += body_[++i];
                 continue;
             }
             if (ch == COLOR_END) {
                 line += ch;
                 continue;
             }
-            if (ch == ' ' && vis_len >= inner_w) {
-                body_lines.push_back(line);
-                line.clear();
-                vis_len = 0;
-            } else {
-                line += ch;
-                ++vis_len;
-                if (vis_len >= inner_w) {
+            line += ch;
+            ++vis_len;
+            if (ch == ' ') {
+                last_space_pos = static_cast<int>(line.size()) - 1;
+            }
+            if (vis_len >= inner_w) {
+                if (last_space_pos > 0) {
+                    // Break at the last space
+                    std::string remainder = line.substr(last_space_pos + 1);
+                    line.resize(last_space_pos);
+                    body_lines.push_back(line);
+                    line = remainder;
+                    // Recount visible chars in remainder
+                    vis_len = 0;
+                    for (size_t j = 0; j < line.size(); ++j) {
+                        if (line[j] == COLOR_BEGIN && j + 1 < line.size()) { ++j; continue; }
+                        if (line[j] == COLOR_END) continue;
+                        ++vis_len;
+                    }
+                } else {
+                    // No space found — hard break
                     body_lines.push_back(line);
                     line.clear();
                     vis_len = 0;
                 }
+                last_space_pos = -1;
             }
         }
         if (!line.empty()) body_lines.push_back(line);
