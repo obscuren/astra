@@ -469,8 +469,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
 static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_i32(npc.x);
     w.write_i32(npc.y);
-    w.write_u8(static_cast<uint8_t>(npc.glyph));
-    w.write_u8(static_cast<uint8_t>(npc.color));
+    // v18: write npc_role instead of legacy glyph/color
+    w.write_u8(static_cast<uint8_t>(npc.npc_role));
     w.write_string(npc.name);
     w.write_string(npc.role);
     w.write_u8(static_cast<uint8_t>(npc.race));
@@ -973,11 +973,31 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     Npc npc;
     npc.x = r.read_i32();
     npc.y = r.read_i32();
-    npc.glyph = static_cast<char>(r.read_u8());
-    npc.color = static_cast<Color>(r.read_u8());
+    if (version >= 18) {
+        npc.npc_role = static_cast<NpcRole>(r.read_u8());
+    } else {
+        r.read_u8();  // skip legacy glyph
+        r.read_u8();  // skip legacy color
+    }
     npc.name = r.read_string();
     npc.role = r.read_string();
     npc.race = static_cast<Race>(r.read_u8());
+
+    // Reconstruct npc_role from role string for pre-v18 saves
+    if (version < 18) {
+        if (npc.role == "Station Keeper") npc.npc_role = NpcRole::StationKeeper;
+        else if (npc.role == "Merchant") npc.npc_role = NpcRole::Merchant;
+        else if (npc.role == "Drifter") npc.npc_role = NpcRole::Drifter;
+        else if (npc.role == "Xytomorph") npc.npc_role = NpcRole::Xytomorph;
+        else if (npc.role == "Food Merchant") npc.npc_role = NpcRole::FoodMerchant;
+        else if (npc.role == "Medic") npc.npc_role = NpcRole::Medic;
+        else if (npc.role == "Station Commander") npc.npc_role = NpcRole::Commander;
+        else if (npc.role == "Arms Dealer") npc.npc_role = NpcRole::ArmsDealer;
+        else if (npc.role == "Astronomer") npc.npc_role = NpcRole::Astronomer;
+        else if (npc.role == "Engineer") npc.npc_role = NpcRole::Engineer;
+        else if (npc.role == "Stellar Engineer") npc.npc_role = NpcRole::Nova;
+        // Default is Civilian (covers all civilian role titles)
+    }
     npc.hp = r.read_i32();
     npc.max_hp = r.read_i32();
     npc.disposition = static_cast<Disposition>(r.read_u8());
