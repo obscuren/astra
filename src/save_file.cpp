@@ -595,8 +595,7 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
     w.write_u32(static_cast<uint32_t>(fixtures.size()));
     for (const auto& f : fixtures) {
         w.write_u8(static_cast<uint8_t>(f.type));
-        w.write_u8(static_cast<uint8_t>(f.glyph));
-        w.write_u8(static_cast<uint8_t>(f.color));
+        // v17: glyph and color no longer written (renderer-resolved)
         w.write_u8(f.passable ? 1 : 0);
         w.write_u8(f.interactable ? 1 : 0);
         w.write_i32(f.cooldown);
@@ -1098,8 +1097,10 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         std::vector<FixtureData> fixtures(fixture_count);
         for (auto& f : fixtures) {
             f.type = static_cast<FixtureType>(r.read_u8());
-            f.glyph = static_cast<char>(r.read_u8());
-            f.color = static_cast<Color>(r.read_u8());
+            if (version < 17) {
+                r.read_u8();  // skip legacy glyph
+                r.read_u8();  // skip legacy color
+            }
             f.passable = r.read_u8() != 0;
             f.interactable = r.read_u8() != 0;
             f.cooldown = r.read_i32();
@@ -1107,6 +1108,26 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
+
+        // Migrate Debris fixtures from old saves (v3-v16)
+        if (version < 17) {
+            for (int i = 0; i < area; ++i) {
+                int fid = fids[i];
+                if (fid >= 0 && fid < static_cast<int>(fixtures.size())) {
+                    auto& f = fixtures[fid];
+                    if (f.type == FixtureType::Debris) {
+                        if (f.passable) {
+                            // Passable debris becomes floor — remove fixture
+                            fids[i] = -1;
+                            ms.tilemap.set(i % width, i / width, Tile::Floor);
+                        } else {
+                            f.type = FixtureType::NaturalObstacle;
+                        }
+                    }
+                }
+            }
+        }
+
         ms.tilemap.load_fixtures(std::move(fixtures), std::move(fids));
 
         bool hub = r.read_u8() != 0;
