@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/rect.h"
 #include "astra/renderer.h"
 #include <deque>
 #include <string>
@@ -35,21 +36,6 @@ namespace BoxDraw {
     constexpr const char* RIGHT_HALF = "\xe2\x96\x90"; // ▐ right half block
     constexpr const char* FULL       = "\xe2\x96\x88"; // █ full block
 }
-
-struct Rect {
-    int x = 0, y = 0, w = 0, h = 0;
-
-    Rect inset(int n) const;
-    Rect inset(int horiz, int vert) const;
-    Rect row(int index) const;
-    Rect rows(int start, int count) const;
-    Rect split_left(int width) const;
-    Rect split_right(int width) const;
-    Rect split_top(int height) const;
-    Rect split_bottom(int height) const;
-    bool contains(int px, int py) const;
-    bool empty() const;
-};
 
 class UIContext {
 public:

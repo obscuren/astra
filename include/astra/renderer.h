@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/rect.h"
 #include <cstdint>
 #include <string>
 
@@ -59,6 +60,16 @@ inline std::string colored(const std::string& text, Color c) {
 struct RenderDescriptor;
 enum class AnimationType : uint8_t;
 
+// Forward declarations for semantic UI
+struct PanelDesc;
+struct ProgressBarDesc;
+struct TextDesc;
+struct StyledTextDesc;
+struct ListDesc;
+struct TabBarDesc;
+struct SeparatorDesc;
+struct LabelValueDesc;
+
 // Abstract rendering interface.
 // Terminal now, SDL later — game logic never touches this directly.
 class Renderer {
@@ -93,6 +104,16 @@ public:
 
     // Semantic animation — render an animation frame at a position.
     virtual void draw_animation(int x, int y, AnimationType type, int frame_index) = 0;
+
+    // Semantic UI rendering
+    virtual Rect draw_panel(const Rect& bounds, const PanelDesc& desc) = 0;
+    virtual void draw_progress_bar(int x, int y, const ProgressBarDesc& desc) = 0;
+    virtual void draw_ui_text(int x, int y, const TextDesc& desc) = 0;
+    virtual void draw_styled_text(int x, int y, const StyledTextDesc& desc) = 0;
+    virtual void draw_list(const Rect& bounds, const ListDesc& desc) = 0;
+    virtual void draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) = 0;
+    virtual void draw_separator(const Rect& bounds, const SeparatorDesc& desc) = 0;
+    virtual void draw_label_value(int x, int y, const LabelValueDesc& desc) = 0;
 
     // Returns true if the user requested quit (e.g. Ctrl+C), and clears the flag.
     virtual bool consume_quit_request() { return false; }
