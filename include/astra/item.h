@@ -141,8 +141,6 @@ struct Item {
     WeaponClass weapon_class = WeaponClass::None;
     std::optional<EquipSlot> slot;
     Rarity rarity = Rarity::Common;
-    char glyph = '?';
-    Color color = Color::White;
     int weight = 1;
     bool stackable = false;
     int stack_count = 1;

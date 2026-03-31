@@ -111,7 +111,7 @@ Rarity roll_rarity(std::mt19937& rng) {
 
 static void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng) {
     item.rarity = rarity;
-    item.color = rarity_color(rarity);
+    // Color now resolved from item_def_id via terminal_theme
 
     std::uniform_int_distribution<int> prefix_dist(0, prefix_count - 1);
     std::uniform_int_distribution<int> suffix_dist(0, suffix_count - 1);

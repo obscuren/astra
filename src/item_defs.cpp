@@ -17,8 +17,6 @@ Item build_plasma_pistol() {
     it.weapon_class = WeaponClass::Pistol;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Common;
-    it.glyph = ')';
-    it.color = Color::Cyan;
     it.weight = 3;
     it.buy_value = 120;
     it.sell_value = 40;
@@ -39,8 +37,6 @@ Item build_ion_blaster() {
     it.weapon_class = WeaponClass::Pistol;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Uncommon;
-    it.glyph = ')';
-    it.color = Color::Green;
     it.weight = 4;
     it.buy_value = 250;
     it.sell_value = 85;
@@ -61,8 +57,6 @@ Item build_pulse_rifle() {
     it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Rare;
-    it.glyph = ')';
-    it.color = Color::Blue;
     it.weight = 6;
     it.buy_value = 500;
     it.sell_value = 170;
@@ -84,8 +78,6 @@ Item build_arc_caster() {
     it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Epic;
-    it.glyph = ')';
-    it.color = Color::Magenta;
     it.weight = 5;
     it.buy_value = 900;
     it.sell_value = 300;
@@ -107,8 +99,6 @@ Item build_void_lance() {
     it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
     it.rarity = Rarity::Legendary;
-    it.glyph = ')';
-    it.color = static_cast<Color>(208); // xterm orange
     it.weight = 7;
     it.buy_value = 2500;
     it.sell_value = 800;
@@ -132,8 +122,6 @@ Item build_battery() {
     it.description = "Standard power cell. Recharges ranged weapons.";
     it.type = ItemType::Battery;
     it.rarity = Rarity::Common;
-    it.glyph = '=';
-    it.color = Color::Yellow;
     it.weight = 1;
     it.stackable = true;
     it.stack_count = 1;
@@ -151,8 +139,6 @@ Item build_ration_pack() {
     it.description = "Compact nutrient paste. Restores hunger.";
     it.type = ItemType::Food;
     it.rarity = Rarity::Common;
-    it.glyph = '%';
-    it.color = Color::Green;
     it.weight = 1;
     it.stackable = true;
     it.stack_count = 1;
@@ -170,8 +156,6 @@ Item build_combat_stim() {
     it.description = "Adrenaline injection. Temporarily boosts attack.";
     it.type = ItemType::Stim;
     it.rarity = Rarity::Uncommon;
-    it.glyph = '!';
-    it.color = Color::Red;
     it.weight = 1;
     it.stackable = true;
     it.stack_count = 1;
@@ -191,7 +175,7 @@ Item build_combat_knife() {
     it.id = 1101; it.name = "Combat Knife"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
     it.description = "A short, serrated blade. Fast and deadly at close range.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
-    it.glyph = '/'; it.color = Color::White; it.weight = 2;
+    it.weight = 2;
     it.buy_value = 60; it.sell_value = 20; it.modifiers.attack = 2;
     it.max_durability = 60; it.durability = 60;
     return it;
@@ -203,7 +187,7 @@ Item build_vibro_blade() {
     it.id = 1102; it.name = "Vibro Blade"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
     it.description = "A high-frequency vibrating blade that cuts through armor.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Uncommon;
-    it.glyph = '/'; it.color = Color::Green; it.weight = 3;
+    it.weight = 3;
     it.buy_value = 180; it.sell_value = 60; it.modifiers.attack = 4;
     it.max_durability = 50; it.durability = 50;
     return it;
@@ -215,7 +199,7 @@ Item build_plasma_saber() {
     it.id = 1103; it.name = "Plasma Saber"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A long blade wreathed in superheated plasma. Devastating.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Rare;
-    it.glyph = '/'; it.color = Color::Blue; it.weight = 4;
+    it.weight = 4;
     it.buy_value = 400; it.sell_value = 135; it.modifiers.attack = 7;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -227,7 +211,7 @@ Item build_stun_baton() {
     it.id = 1104; it.name = "Stun Baton"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "An electrified baton. Slow but stuns on hit.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
-    it.glyph = '/'; it.color = Color::Yellow; it.weight = 3;
+    it.weight = 3;
     it.buy_value = 80; it.sell_value = 25; it.modifiers.attack = 1;
     it.modifiers.quickness = 5; it.max_durability = 70; it.durability = 70;
     return it;
@@ -239,7 +223,7 @@ Item build_ancient_mono_edge() {
     it.id = 1105; it.name = "Ancient Mono-Edge"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A relic blade from a lost civilization. Its molecular edge never dulls.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Epic;
-    it.glyph = '/'; it.color = Color::Magenta; it.weight = 2;
+    it.weight = 2;
     it.buy_value = 1200; it.sell_value = 400; it.modifiers.attack = 10;
     it.max_durability = 200; it.durability = 200;
     return it;
@@ -255,7 +239,7 @@ Item build_padded_vest() {
     it.id = 3001; it.name = "Padded Vest"; it.type = ItemType::Armor;
     it.description = "Basic torso protection. Better than nothing.";
     it.slot = EquipSlot::Body; it.rarity = Rarity::Common;
-    it.glyph = '['; it.color = Color::White; it.weight = 4;
+    it.weight = 4;
     it.buy_value = 80; it.sell_value = 25; it.modifiers.defense = 2;
     it.max_durability = 50; it.durability = 50;
     return it;
@@ -267,7 +251,7 @@ Item build_composite_armor() {
     it.id = 3002; it.name = "Composite Armor"; it.type = ItemType::Armor;
     it.description = "Layered ceramic-polymer plates. Standard military issue.";
     it.slot = EquipSlot::Body; it.rarity = Rarity::Uncommon;
-    it.glyph = '['; it.color = Color::Green; it.weight = 8;
+    it.weight = 8;
     it.buy_value = 250; it.sell_value = 85; it.modifiers.defense = 4;
     it.max_durability = 80; it.durability = 80;
     return it;
@@ -279,7 +263,7 @@ Item build_exo_suit() {
     it.id = 3003; it.name = "Exo-Suit"; it.type = ItemType::Armor;
     it.description = "Powered exoskeleton with integrated armor plating.";
     it.slot = EquipSlot::Body; it.rarity = Rarity::Rare;
-    it.glyph = '['; it.color = Color::Blue; it.weight = 12;
+    it.weight = 12;
     it.buy_value = 600; it.sell_value = 200; it.modifiers.defense = 6;
     it.modifiers.max_hp = 3; it.max_durability = 120; it.durability = 120;
     return it;
@@ -291,7 +275,7 @@ Item build_flight_helmet() {
     it.id = 3004; it.name = "Flight Helmet"; it.type = ItemType::Armor;
     it.description = "Lightweight helmet with a tinted visor.";
     it.slot = EquipSlot::Head; it.rarity = Rarity::Common;
-    it.glyph = '^'; it.color = Color::White; it.weight = 2;
+    it.weight = 2;
     it.buy_value = 50; it.sell_value = 15; it.modifiers.defense = 1;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -303,7 +287,7 @@ Item build_tactical_helmet() {
     it.id = 3005; it.name = "Tactical Helmet"; it.type = ItemType::Armor;
     it.description = "Ballistic-rated helmet with HUD overlay.";
     it.slot = EquipSlot::Head; it.rarity = Rarity::Uncommon;
-    it.glyph = '^'; it.color = Color::Green; it.weight = 3;
+    it.weight = 3;
     it.buy_value = 150; it.sell_value = 50; it.modifiers.defense = 2;
     it.modifiers.view_radius = 1; it.max_durability = 60; it.durability = 60;
     return it;
@@ -315,7 +299,7 @@ Item build_combat_boots() {
     it.id = 3006; it.name = "Combat Boots"; it.type = ItemType::Armor;
     it.description = "Sturdy boots with reinforced soles.";
     it.slot = EquipSlot::Feet; it.rarity = Rarity::Common;
-    it.glyph = '_'; it.color = Color::White; it.weight = 3;
+    it.weight = 3;
     it.buy_value = 60; it.sell_value = 20; it.modifiers.defense = 1;
     it.max_durability = 50; it.durability = 50;
     return it;
@@ -327,7 +311,7 @@ Item build_mag_lock_boots() {
     it.id = 3007; it.name = "Mag-Lock Boots"; it.type = ItemType::Armor;
     it.description = "Magnetic boots for zero-G traversal. Surprisingly agile.";
     it.slot = EquipSlot::Feet; it.rarity = Rarity::Uncommon;
-    it.glyph = '_'; it.color = Color::Green; it.weight = 4;
+    it.weight = 4;
     it.buy_value = 120; it.sell_value = 40; it.modifiers.defense = 1;
     it.modifiers.quickness = 3; it.max_durability = 60; it.durability = 60;
     return it;
@@ -339,7 +323,7 @@ Item build_arm_guard() {
     it.id = 3008; it.name = "Arm Guard"; it.type = ItemType::Armor;
     it.description = "Lightweight forearm protector.";
     it.slot = EquipSlot::LeftArm; it.rarity = Rarity::Common;
-    it.glyph = '}'; it.color = Color::White; it.weight = 2;
+    it.weight = 2;
     it.buy_value = 40; it.sell_value = 12; it.modifiers.defense = 1;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -351,7 +335,7 @@ Item build_riot_shield() {
     it.id = 3009; it.name = "Riot Shield"; it.type = ItemType::Shield;
     it.description = "Heavy ballistic shield. Blocks incoming fire at the cost of speed.";
     it.slot = EquipSlot::LeftHand; it.rarity = Rarity::Uncommon;
-    it.glyph = '0'; it.color = Color::Green; it.weight = 6;
+    it.weight = 6;
     it.buy_value = 200; it.sell_value = 65; it.modifiers.defense = 3;
     it.modifiers.quickness = -5; it.max_durability = 100; it.durability = 100;
     return it;
@@ -367,7 +351,7 @@ Item build_recon_visor() {
     it.id = 4001; it.name = "Recon Visor"; it.type = ItemType::Accessory;
     it.description = "Enhanced optics with thermal overlay. Extends vision range.";
     it.slot = EquipSlot::Face; it.rarity = Rarity::Uncommon;
-    it.glyph = '&'; it.color = Color::Green; it.weight = 1;
+    it.weight = 1;
     it.buy_value = 200; it.sell_value = 65; it.modifiers.view_radius = 2;
     return it;
 }
@@ -378,7 +362,7 @@ Item build_night_goggles() {
     it.id = 4002; it.name = "Night Goggles"; it.type = ItemType::Accessory;
     it.description = "Amplifies ambient light. Useful in dark environments.";
     it.slot = EquipSlot::Face; it.rarity = Rarity::Common;
-    it.glyph = '&'; it.color = Color::White; it.weight = 1;
+    it.weight = 1;
     it.buy_value = 80; it.sell_value = 25; it.modifiers.view_radius = 1;
     return it;
 }
@@ -389,7 +373,7 @@ Item build_jetpack() {
     it.id = 4003; it.name = "Jetpack"; it.type = ItemType::Accessory;
     it.description = "Compact thruster pack. Greatly increases movement speed.";
     it.slot = EquipSlot::Back; it.rarity = Rarity::Rare;
-    it.glyph = '\\'; it.color = Color::Blue; it.weight = 5;
+    it.weight = 5;
     it.buy_value = 500; it.sell_value = 170; it.modifiers.quickness = 5;
     it.max_durability = 40; it.durability = 40;
     return it;
@@ -401,7 +385,7 @@ Item build_cargo_pack() {
     it.id = 4004; it.name = "Cargo Pack"; it.type = ItemType::Accessory;
     it.description = "A reinforced backpack. Increases carrying capacity.";
     it.slot = EquipSlot::Back; it.rarity = Rarity::Common;
-    it.glyph = '\\'; it.color = Color::White; it.weight = 2;
+    it.weight = 2;
     it.buy_value = 60; it.sell_value = 20;
     return it;
 }
@@ -416,7 +400,7 @@ Item build_frag_grenade() {
     it.id = 5001; it.name = "Frag Grenade"; it.type = ItemType::Grenade;
     it.description = "Explosive fragmentation grenade. Lethal in a small radius.";
     it.slot = EquipSlot::Thrown; it.rarity = Rarity::Common;
-    it.glyph = '*'; it.color = Color::Red; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.buy_value = 30; it.sell_value = 10;
     it.modifiers.attack = 6;
     return it;
@@ -428,7 +412,7 @@ Item build_emp_grenade() {
     it.id = 5002; it.name = "EMP Grenade"; it.type = ItemType::Grenade;
     it.description = "Electromagnetic pulse. Disables electronics and shields.";
     it.slot = EquipSlot::Thrown; it.rarity = Rarity::Uncommon;
-    it.glyph = '*'; it.color = Color::Cyan; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.buy_value = 50; it.sell_value = 18;
     it.modifiers.attack = 4;
     return it;
@@ -440,7 +424,7 @@ Item build_cryo_grenade() {
     it.id = 5003; it.name = "Cryo Grenade"; it.type = ItemType::Grenade;
     it.description = "Flash-freezes the target area. Slows and damages.";
     it.slot = EquipSlot::Thrown; it.rarity = Rarity::Rare;
-    it.glyph = '*'; it.color = Color::Blue; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.buy_value = 80; it.sell_value = 28;
     it.modifiers.attack = 8;
     return it;
@@ -455,7 +439,7 @@ Item build_scrap_metal() {
     it.item_def_id = ITEM_SCRAP_METAL;
     it.id = 6001; it.name = "Scrap Metal"; it.type = ItemType::Junk;
     it.description = "Twisted metal salvage. Worth a few credits.";
-    it.glyph = '~'; it.color = Color::DarkGray; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.sell_value = 2;
     return it;
 }
@@ -465,7 +449,7 @@ Item build_broken_circuit() {
     it.item_def_id = ITEM_BROKEN_CIRCUIT;
     it.id = 6002; it.name = "Broken Circuit"; it.type = ItemType::Junk;
     it.description = "A fried circuit board. Might be useful for tinkering.";
-    it.glyph = '~'; it.color = Color::DarkGray; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.sell_value = 3;
     return it;
 }
@@ -475,7 +459,7 @@ Item build_empty_casing() {
     it.item_def_id = ITEM_EMPTY_CASING;
     it.id = 6003; it.name = "Empty Casing"; it.type = ItemType::Junk;
     it.description = "Spent ammunition casing. Recycle for scrap.";
-    it.glyph = '~'; it.color = Color::DarkGray; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.sell_value = 1;
     return it;
 }
@@ -489,7 +473,7 @@ Item build_nano_fiber() {
     it.item_def_id = ITEM_NANO_FIBER;
     it.id = 7001; it.name = "Nano-Fiber"; it.type = ItemType::CraftingMaterial;
     it.description = "Ultra-strong synthetic fiber. Used in advanced repairs.";
-    it.glyph = '+'; it.color = Color::Cyan; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.buy_value = 20; it.sell_value = 8;
     return it;
 }
@@ -499,7 +483,7 @@ Item build_power_core() {
     it.item_def_id = ITEM_POWER_CORE;
     it.id = 7002; it.name = "Power Core"; it.type = ItemType::CraftingMaterial;
     it.description = "A compact energy source. Powers advanced equipment.";
-    it.glyph = '+'; it.color = Color::Yellow; it.weight = 2;
+    it.weight = 2;
     it.stackable = true; it.buy_value = 40; it.sell_value = 15;
     return it;
 }
@@ -509,7 +493,7 @@ Item build_circuit_board() {
     it.item_def_id = ITEM_CIRCUIT_BOARD;
     it.id = 7003; it.name = "Circuit Board"; it.type = ItemType::CraftingMaterial;
     it.description = "Intact circuit board. Essential for electronics work.";
-    it.glyph = '+'; it.color = Color::Green; it.weight = 1;
+    it.weight = 1;
     it.stackable = true; it.buy_value = 25; it.sell_value = 10;
     return it;
 }
@@ -519,7 +503,7 @@ Item build_alloy_ingot() {
     it.item_def_id = ITEM_ALLOY_INGOT;
     it.id = 7004; it.name = "Alloy Ingot"; it.type = ItemType::CraftingMaterial;
     it.description = "Refined metal alloy. Used in armor and weapon smithing.";
-    it.glyph = '+'; it.color = Color::White; it.weight = 3;
+    it.weight = 3;
     it.stackable = true; it.buy_value = 30; it.sell_value = 12;
     return it;
 }
@@ -533,7 +517,7 @@ Item build_engine_coil_mk1() {
     it.item_def_id = ITEM_ENGINE_COIL_MK1;
     it.id = 8000; it.name = "Engine Coil Mk1"; it.type = ItemType::ShipComponent;
     it.description = "Standard hyperspace engine coil. Enables interstellar travel.";
-    it.glyph = '#'; it.color = Color::Yellow; it.weight = 12;
+    it.weight = 12;
     it.buy_value = 300; it.sell_value = 100;
     it.ship_slot = ShipSlot::Engine;
     return it;
@@ -544,7 +528,7 @@ Item build_hull_plate() {
     it.item_def_id = ITEM_HULL_PLATE;
     it.id = 8001; it.name = "Hull Plate Mk1"; it.type = ItemType::ShipComponent;
     it.description = "Standard hull plating. Reinforces ship integrity.";
-    it.glyph = '#'; it.color = Color::White; it.weight = 10;
+    it.weight = 10;
     it.buy_value = 50; it.sell_value = 15;
     it.ship_slot = ShipSlot::Hull;
     it.ship_modifiers.hull_hp = 25;
@@ -556,7 +540,7 @@ Item build_shield_generator() {
     it.item_def_id = ITEM_SHIELD_GENERATOR;
     it.id = 8002; it.name = "Shield Generator"; it.type = ItemType::ShipComponent;
     it.description = "Energy shield emitter. Absorbs incoming fire.";
-    it.glyph = '#'; it.color = Color::Cyan; it.weight = 8;
+    it.weight = 8;
     it.buy_value = 500; it.sell_value = 170;
     it.ship_slot = ShipSlot::Shield;
     it.ship_modifiers.shield_hp = 15;
@@ -568,7 +552,7 @@ Item build_navi_computer_mk2() {
     it.item_def_id = ITEM_NAVI_COMPUTER_MK2;
     it.id = 8003; it.name = "Navi Computer Mk2"; it.type = ItemType::ShipComponent;
     it.description = "Upgraded navigation computer. Plots longer hyperspace routes.";
-    it.glyph = '#'; it.color = Color::Green; it.weight = 5;
+    it.weight = 5;
     it.buy_value = 400; it.sell_value = 135;
     it.ship_slot = ShipSlot::NaviComputer;
     it.ship_modifiers.warp_range = 1;

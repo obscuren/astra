@@ -1,6 +1,7 @@
 #include "astra/ability.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
+#include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
 
@@ -1034,7 +1035,8 @@ void Game::render_side_panel() {
                 ctx.text(1, y, label, Color::DarkGray);
                 int lx = 1 + static_cast<int>(std::string_view(label).size());
                 if (slot) {
-                    ctx.put(lx, y, slot->glyph, slot->color);
+                    auto sv = item_visual(slot->item_def_id);
+                    ctx.put(lx, y, sv.glyph, rarity_color(slot->rarity));
                     ctx.text(lx + 1, y, " " + slot->name, rarity_color(slot->rarity));
                 } else {
                     ctx.text(lx, y, "---", Color::DarkGray);
