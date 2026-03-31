@@ -6,8 +6,7 @@ namespace astra {
 Npc build_food_merchant(Race race, std::mt19937& rng, int faction_rep) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'F';
-    npc.color = Color::Yellow;
+    npc.npc_role = NpcRole::FoodMerchant;
     npc.role = "Food Merchant";
     npc.hp = 12;
     npc.max_hp = 12;
@@ -50,8 +49,7 @@ Npc build_food_merchant(Race race, std::mt19937& rng, int faction_rep) {
 Npc build_medic(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'D';
-    npc.color = Color::Green;
+    npc.npc_role = NpcRole::Medic;
     npc.role = "Medic";
     npc.hp = 10;
     npc.max_hp = 10;
@@ -93,8 +91,7 @@ Npc build_medic(Race race, std::mt19937& rng) {
 Npc build_commander(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'C';
-    npc.color = Color::White;
+    npc.npc_role = NpcRole::Commander;
     npc.role = "Station Commander";
     npc.hp = 25;
     npc.max_hp = 25;
@@ -173,8 +170,7 @@ Npc build_commander(Race race, std::mt19937& rng) {
 Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'A';
-    npc.color = Color::Red;
+    npc.npc_role = NpcRole::ArmsDealer;
     npc.role = "Arms Dealer";
     npc.hp = 20;
     npc.max_hp = 20;
@@ -220,8 +216,7 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
 Npc build_astronomer(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'P';
-    npc.color = Color::Cyan;
+    npc.npc_role = NpcRole::Astronomer;
     npc.role = "Astronomer";
     npc.hp = 8;
     npc.max_hp = 8;
@@ -263,8 +258,7 @@ Npc build_astronomer(Race race, std::mt19937& rng) {
 Npc build_engineer(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'E';
-    npc.color = Color::Yellow;
+    npc.npc_role = NpcRole::Engineer;
     npc.role = "Engineer";
     npc.hp = 15;
     npc.max_hp = 15;

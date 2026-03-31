@@ -1,6 +1,7 @@
 #include "astra/tinkering.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
+#include "astra/item_ids.h"
 #include "astra/player.h"
 
 #include <algorithm>
@@ -227,9 +228,13 @@ TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) 
             mat.id = slot.material_id;
             mat.name = slot.material_name;
             mat.type = ItemType::CraftingMaterial;
+            // Resolve item_def_id from material_id
+            if (slot.material_id == 7001) mat.item_def_id = ITEM_NANO_FIBER;
+            else if (slot.material_id == 7002) mat.item_def_id = ITEM_POWER_CORE;
+            else if (slot.material_id == 7003) mat.item_def_id = ITEM_CIRCUIT_BOARD;
+            else if (slot.material_id == 7004) mat.item_def_id = ITEM_ALLOY_INGOT;
             mat.stackable = true;
             mat.stack_count = 1;
-            mat.glyph = '+';
             mat.weight = 1;
             player.inventory.items.push_back(std::move(mat));
         }
@@ -462,6 +467,7 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     // Create result item
     Item item;
     item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
+    item.item_def_id = ITEM_SYNTH_PLASMA_EDGE + static_cast<uint16_t>(&*recipe - &synthesis_recipes()[0]);
     item.name = recipe->result_name;
     item.description = recipe->result_desc;
     item.type = recipe->result_type;
@@ -469,7 +475,6 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
         item.slot = recipe->result_slot;
     else
         item.slot = std::nullopt; // ship components have no equip slot
-    item.glyph = recipe->result_glyph;
     item.modifiers = recipe->base_modifiers;
     item.max_durability = recipe->base_durability;
     item.durability = recipe->base_durability;
@@ -488,7 +493,6 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     else if (roll >= 50) item.rarity = Rarity::Uncommon;
     else item.rarity = Rarity::Common;
 
-    item.color = rarity_color(item.rarity);
     init_enhancement_slots(item);
 
     // Set buy/sell based on rarity

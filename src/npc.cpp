@@ -100,6 +100,14 @@ Npc create_npc(NpcRole npc_role, Race race, std::mt19937& rng) {
         case NpcRole::Merchant:      return build_merchant(race, rng);
         case NpcRole::Drifter:       return build_drifter(race, rng);
         case NpcRole::Xytomorph:     return build_xytomorph(rng);
+        case NpcRole::FoodMerchant:  return build_food_merchant(race, rng);
+        case NpcRole::Medic:         return build_medic(race, rng);
+        case NpcRole::Commander:     return build_commander(race, rng);
+        case NpcRole::ArmsDealer:    return build_arms_dealer(race, rng);
+        case NpcRole::Astronomer:    return build_astronomer(race, rng);
+        case NpcRole::Engineer:      return build_engineer(race, rng);
+        case NpcRole::Nova:          return build_nova();
+        case NpcRole::Civilian:      return build_civilian(race, rng);
     }
     return {};
 }

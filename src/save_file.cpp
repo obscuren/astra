@@ -1,5 +1,8 @@
 #include "astra/save_file.h"
+#include "astra/item_ids.h"
 #include "astra/world_manager.h"
+
+#include <unordered_map>
 
 #include <chrono>
 #include <cstring>
@@ -205,6 +208,71 @@ static StatModifiers read_stat_modifiers(BinaryReader& r) {
     return m;
 }
 
+// Reconstruct item_def_id from name for pre-v19 saves
+static uint16_t item_def_id_from_name(const std::string& name) {
+    static const std::unordered_map<std::string, uint16_t> lookup = {
+        {"Plasma Pistol", ITEM_PLASMA_PISTOL},
+        {"Ion Blaster", ITEM_ION_BLASTER},
+        {"Pulse Rifle", ITEM_PULSE_RIFLE},
+        {"Arc Caster", ITEM_ARC_CASTER},
+        {"Void Lance", ITEM_VOID_LANCE},
+        {"Energy Cell", ITEM_BATTERY},
+        {"Battery", ITEM_BATTERY},
+        {"Ration Pack", ITEM_RATION_PACK},
+        {"Combat Stim", ITEM_COMBAT_STIM},
+        {"Combat Knife", ITEM_COMBAT_KNIFE},
+        {"Vibro Blade", ITEM_VIBRO_BLADE},
+        {"Vibro-Blade", ITEM_VIBRO_BLADE},
+        {"Plasma Saber", ITEM_PLASMA_SABER},
+        {"Stun Baton", ITEM_STUN_BATON},
+        {"Ancient Mono-Edge", ITEM_ANCIENT_MONO_EDGE},
+        {"Padded Vest", ITEM_PADDED_VEST},
+        {"Composite Armor", ITEM_COMPOSITE_ARMOR},
+        {"Exo-Suit", ITEM_EXO_SUIT},
+        {"Flight Helmet", ITEM_FLIGHT_HELMET},
+        {"Tactical Helmet", ITEM_TACTICAL_HELMET},
+        {"Combat Boots", ITEM_COMBAT_BOOTS},
+        {"Mag-Lock Boots", ITEM_MAG_LOCK_BOOTS},
+        {"Arm Guard", ITEM_ARM_GUARD},
+        {"Riot Shield", ITEM_RIOT_SHIELD},
+        {"Recon Visor", ITEM_RECON_VISOR},
+        {"Night Goggles", ITEM_NIGHT_GOGGLES},
+        {"Jetpack", ITEM_JETPACK},
+        {"Cargo Pack", ITEM_CARGO_PACK},
+        {"Frag Grenade", ITEM_FRAG_GRENADE},
+        {"EMP Grenade", ITEM_EMP_GRENADE},
+        {"Cryo Grenade", ITEM_CRYO_GRENADE},
+        {"Scrap Metal", ITEM_SCRAP_METAL},
+        {"Broken Circuit", ITEM_BROKEN_CIRCUIT},
+        {"Empty Casing", ITEM_EMPTY_CASING},
+        {"Nano-Fiber", ITEM_NANO_FIBER},
+        {"Power Core", ITEM_POWER_CORE},
+        {"Circuit Board", ITEM_CIRCUIT_BOARD},
+        {"Alloy Ingot", ITEM_ALLOY_INGOT},
+        {"Engine Coil Mk1", ITEM_ENGINE_COIL_MK1},
+        {"Engine Coil Mk.I", ITEM_ENGINE_COIL_MK1},
+        {"Hull Plate", ITEM_HULL_PLATE},
+        {"Hull Plate Mk1", ITEM_HULL_PLATE},
+        {"Shield Generator", ITEM_SHIELD_GENERATOR},
+        {"Navi Computer Mk2", ITEM_NAVI_COMPUTER_MK2},
+        {"Navi-Computer Mk.II", ITEM_NAVI_COMPUTER_MK2},
+    };
+    auto it = lookup.find(name);
+    if (it != lookup.end()) return it->second;
+    // Try matching synthesized items by prefix
+    if (name.find("Plasma Edge") != std::string::npos) return ITEM_SYNTH_PLASMA_EDGE;
+    if (name.find("Thruster Plate") != std::string::npos) return ITEM_SYNTH_THRUSTER_PLATE;
+    if (name.find("Targeting Array") != std::string::npos) return ITEM_SYNTH_TARGETING_ARRAY;
+    if (name.find("Dual-Edge") != std::string::npos) return ITEM_SYNTH_DUAL_EDGE;
+    if (name.find("Reinforced Pack") != std::string::npos) return ITEM_SYNTH_REINFORCED_PACK;
+    if (name.find("Overcharged Engine") != std::string::npos) return ITEM_SYNTH_OVERCHARGED_ENGINE;
+    if (name.find("Articulated Armor") != std::string::npos) return ITEM_SYNTH_ARTICULATED_ARMOR;
+    if (name.find("Guided Blaster") != std::string::npos) return ITEM_SYNTH_GUIDED_BLASTER;
+    if (name.find("Combat Gauntlet") != std::string::npos) return ITEM_SYNTH_COMBAT_GAUNTLET;
+    if (name.find("Armored Blade") != std::string::npos) return ITEM_SYNTH_ARMORED_BLADE;
+    return 0; // unknown — renders as '?' Magenta
+}
+
 static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u32(item.id);
     w.write_string(item.name);
@@ -213,8 +281,8 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u8(item.slot.has_value() ? 1 : 0);
     if (item.slot) w.write_u8(static_cast<uint8_t>(*item.slot));
     w.write_u8(static_cast<uint8_t>(item.rarity));
-    w.write_u8(static_cast<uint8_t>(item.glyph));
-    w.write_u8(static_cast<uint8_t>(item.color));
+    // v19: write item_def_id instead of glyph/color (same 2 bytes)
+    w.write_u16(item.item_def_id);
     w.write_i32(item.weight);
     w.write_u8(item.stackable ? 1 : 0);
     w.write_i32(item.stack_count);
@@ -265,8 +333,14 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
     bool has_slot = r.read_u8() != 0;
     if (has_slot) item.slot = static_cast<EquipSlot>(r.read_u8());
     item.rarity = static_cast<Rarity>(r.read_u8());
-    item.glyph = static_cast<char>(r.read_u8());
-    item.color = static_cast<Color>(r.read_u8());
+    // v19: item_def_id replaces glyph+color (same 2 bytes)
+    if (version >= 19) {
+        item.item_def_id = r.read_u16();
+    } else {
+        r.read_u8();  // skip legacy glyph
+        r.read_u8();  // skip legacy color
+        // Reconstruct item_def_id from name after full read (below)
+    }
     item.weight = r.read_i32();
     item.stackable = r.read_u8() != 0;
     item.stack_count = r.read_i32();
@@ -310,6 +384,10 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
         item.ship_modifiers.shield_hp = r.read_i32();
         item.ship_modifiers.warp_range = r.read_i32();
         item.ship_modifiers.cargo_capacity = r.read_i32();
+    }
+    // Reconstruct item_def_id for pre-v19 saves
+    if (version < 19 && item.item_def_id == 0) {
+        item.item_def_id = item_def_id_from_name(item.name);
     }
     return item;
 }
@@ -469,8 +547,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
 static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_i32(npc.x);
     w.write_i32(npc.y);
-    w.write_u8(static_cast<uint8_t>(npc.glyph));
-    w.write_u8(static_cast<uint8_t>(npc.color));
+    // v18: write npc_role instead of legacy glyph/color
+    w.write_u8(static_cast<uint8_t>(npc.npc_role));
     w.write_string(npc.name);
     w.write_string(npc.role);
     w.write_u8(static_cast<uint8_t>(npc.race));
@@ -595,8 +673,7 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
     w.write_u32(static_cast<uint32_t>(fixtures.size()));
     for (const auto& f : fixtures) {
         w.write_u8(static_cast<uint8_t>(f.type));
-        w.write_u8(static_cast<uint8_t>(f.glyph));
-        w.write_u8(static_cast<uint8_t>(f.color));
+        // v17: glyph and color no longer written (renderer-resolved)
         w.write_u8(f.passable ? 1 : 0);
         w.write_u8(f.interactable ? 1 : 0);
         w.write_i32(f.cooldown);
@@ -974,11 +1051,31 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     Npc npc;
     npc.x = r.read_i32();
     npc.y = r.read_i32();
-    npc.glyph = static_cast<char>(r.read_u8());
-    npc.color = static_cast<Color>(r.read_u8());
+    if (version >= 18) {
+        npc.npc_role = static_cast<NpcRole>(r.read_u8());
+    } else {
+        r.read_u8();  // skip legacy glyph
+        r.read_u8();  // skip legacy color
+    }
     npc.name = r.read_string();
     npc.role = r.read_string();
     npc.race = static_cast<Race>(r.read_u8());
+
+    // Reconstruct npc_role from role string for pre-v18 saves
+    if (version < 18) {
+        if (npc.role == "Station Keeper") npc.npc_role = NpcRole::StationKeeper;
+        else if (npc.role == "Merchant") npc.npc_role = NpcRole::Merchant;
+        else if (npc.role == "Drifter") npc.npc_role = NpcRole::Drifter;
+        else if (npc.role == "Xytomorph") npc.npc_role = NpcRole::Xytomorph;
+        else if (npc.role == "Food Merchant") npc.npc_role = NpcRole::FoodMerchant;
+        else if (npc.role == "Medic") npc.npc_role = NpcRole::Medic;
+        else if (npc.role == "Station Commander") npc.npc_role = NpcRole::Commander;
+        else if (npc.role == "Arms Dealer") npc.npc_role = NpcRole::ArmsDealer;
+        else if (npc.role == "Astronomer") npc.npc_role = NpcRole::Astronomer;
+        else if (npc.role == "Engineer") npc.npc_role = NpcRole::Engineer;
+        else if (npc.role == "Stellar Engineer") npc.npc_role = NpcRole::Nova;
+        // Default is Civilian (covers all civilian role titles)
+    }
     npc.hp = r.read_i32();
     npc.max_hp = r.read_i32();
     npc.disposition = static_cast<Disposition>(r.read_u8());
@@ -1098,8 +1195,10 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         std::vector<FixtureData> fixtures(fixture_count);
         for (auto& f : fixtures) {
             f.type = static_cast<FixtureType>(r.read_u8());
-            f.glyph = static_cast<char>(r.read_u8());
-            f.color = static_cast<Color>(r.read_u8());
+            if (version < 17) {
+                r.read_u8();  // skip legacy glyph
+                r.read_u8();  // skip legacy color
+            }
             f.passable = r.read_u8() != 0;
             f.interactable = r.read_u8() != 0;
             f.cooldown = r.read_i32();
@@ -1107,6 +1206,26 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
+
+        // Migrate Debris fixtures from old saves (v3-v16)
+        if (version < 17) {
+            for (int i = 0; i < area; ++i) {
+                int fid = fids[i];
+                if (fid >= 0 && fid < static_cast<int>(fixtures.size())) {
+                    auto& f = fixtures[fid];
+                    if (f.type == FixtureType::Debris) {
+                        if (f.passable) {
+                            // Passable debris becomes floor — remove fixture
+                            fids[i] = -1;
+                            ms.tilemap.set(i % width, i / width, Tile::Floor);
+                        } else {
+                            f.type = FixtureType::NaturalObstacle;
+                        }
+                    }
+                }
+            }
+        }
+
         ms.tilemap.load_fixtures(std::move(fixtures), std::move(fids));
 
         bool hub = r.read_u8() != 0;

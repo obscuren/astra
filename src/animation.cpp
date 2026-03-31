@@ -10,55 +10,50 @@ namespace astra {
 // ─────────────────────────────────────────────────────────────────
 
 const AnimationDef anim_console_blink = {
-    {{.glyph = '#', .color = Color::Cyan, .duration_ms = 500},
-     {.glyph = '#', .color = Color::DarkGray, .duration_ms = 500}},
-    true // looping
+    AnimationType::ConsoleBlink,
+    {{500}, {500}},
+    true
 };
 
 const AnimationDef anim_water_shimmer = {
-    {{.glyph = '~', .color = Color::Blue, .duration_ms = 400},
-     {.glyph = '~', .utf8 = "\xe2\x89\x88", .color = Color::Cyan, .duration_ms = 400},
-     {.glyph = '~', .color = Color::Blue, .duration_ms = 400}},
+    AnimationType::WaterShimmer,
+    {{400}, {400}, {400}},
     true
 };
 
 const AnimationDef anim_viewport_shimmer = {
-    {{.glyph = '"', .color = Color::Cyan, .duration_ms = 800},
-     {.glyph = '"', .color = Color::DarkGray, .duration_ms = 800}},
+    AnimationType::ViewportShimmer,
+    {{800}, {800}},
     true
 };
 
 const AnimationDef anim_damage_flash = {
-    {{.glyph = '*', .color = Color::Red, .duration_ms = 100},
-     {.glyph = ' ', .color = Color::Red, .duration_ms = 100}},
+    AnimationType::DamageFlash,
+    {{100}, {100}},
     false
 };
 
 const AnimationDef anim_heal_pulse = {
-    {{.glyph = '+', .color = Color::Green, .duration_ms = 120},
-     {.glyph = '+', .color = static_cast<Color>(10), .duration_ms = 120}, // bright green
-     {.glyph = '+', .color = Color::Green, .duration_ms = 120}},
+    AnimationType::HealPulse,
+    {{120}, {120}, {120}},
     false
 };
 
 const AnimationDef anim_projectile = {
-    {{.glyph = '*', .color = Color::Yellow, .duration_ms = 80}},
+    AnimationType::Projectile,
+    {{80}},
     false
 };
 
 const AnimationDef anim_torch_flicker = {
-    {{.glyph = '*', .utf8 = "\xe2\x9c\xb6", .color = Color::Yellow, .duration_ms = 180},          // ✶
-     {.glyph = '*', .utf8 = "\xe2\x9c\xb8", .color = Color::Red, .duration_ms = 140},             // ✸
-     {.glyph = '*', .utf8 = "\xe2\x9c\xba", .color = static_cast<Color>(11), .duration_ms = 200}, // ✺ bright yellow
-     {.glyph = '*', .utf8 = "\xe2\x9c\xb7", .color = Color::Yellow, .duration_ms = 150},          // ✷
-     {.glyph = '*', .utf8 = "\xe2\x9c\xb9", .color = Color::Red, .duration_ms = 170}},            // ✹
+    AnimationType::TorchFlicker,
+    {{180}, {140}, {200}, {150}, {170}},
     true
 };
 
 const AnimationDef anim_level_up = {
-    {{.glyph = '!', .color = Color::Yellow, .duration_ms = 150},
-     {.glyph = '!', .color = Color::BrightYellow, .duration_ms = 150},
-     {.glyph = '!', .color = Color::Yellow, .duration_ms = 150}},
+    AnimationType::LevelUp,
+    {{150}, {150}, {150}},
     false
 };
 
@@ -131,31 +126,31 @@ void AnimationManager::tick() {
     }
 }
 
-const AnimationFrame* AnimationManager::query(int mx, int my) const {
+std::optional<AnimQueryResult> AnimationManager::query(int mx, int my) const {
     uint64_t key = pos_key(mx, my);
     // Effects take priority over fixtures
     auto eit = effect_index_.find(key);
     if (eit != effect_index_.end()) {
         const auto& a = effect_anims_[eit->second];
         if (!a.finished && a.delay_ms <= 0)
-            return &a.def->frames[a.current_frame];
+            return AnimQueryResult{a.def->type, a.current_frame};
     }
     auto fit = fixture_index_.find(key);
     if (fit != fixture_index_.end()) {
         const auto& a = fixture_anims_[fit->second];
-        return &a.def->frames[a.current_frame];
+        return AnimQueryResult{a.def->type, a.current_frame};
     }
-    return nullptr;
+    return std::nullopt;
 }
 
-const AnimationFrame* AnimationManager::query_effect(int mx, int my) const {
+std::optional<AnimQueryResult> AnimationManager::query_effect(int mx, int my) const {
     auto eit = effect_index_.find(pos_key(mx, my));
     if (eit != effect_index_.end()) {
         const auto& a = effect_anims_[eit->second];
         if (!a.finished && a.delay_ms <= 0)
-            return &a.def->frames[a.current_frame];
+            return AnimQueryResult{a.def->type, a.current_frame};
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 void AnimationManager::spawn_effect(const AnimationDef& def, int x, int y) {

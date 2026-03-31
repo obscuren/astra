@@ -25,6 +25,9 @@ public:
     int get_width() const override;
     int get_height() const override;
 
+    void draw_entity(int x, int y, const RenderDescriptor& desc) override;
+    void draw_animation(int x, int y, AnimationType type, int frame_index) override;
+
     int poll_input() override;
     int wait_input() override;
     int wait_input_timeout(int timeout_ms) override;

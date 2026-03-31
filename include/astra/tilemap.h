@@ -230,128 +230,6 @@ struct BiomeColors {
 
 BiomeColors biome_colors(Biome b);
 
-// Biome-specific UTF-8 wall glyph for dungeon/station rendering.
-inline const char* dungeon_wall_glyph(Biome biome, int x, int y) {
-    unsigned h = static_cast<unsigned>(x) * 374761393u
-               + static_cast<unsigned>(y) * 668265263u;
-    h = (h ^ (h >> 13)) * 1103515245u;
-    h = h ^ (h >> 16);
-
-    switch (biome) {
-        case Biome::Station:
-            return "\xe2\x96\x88";  // █
-        case Biome::Rocky: {
-            static const char* g[] = {
-                "\xe2\x96\x91",  // ░
-                "\xe2\x96\x91",  // ░
-                "#",
-            };
-            return g[h % 3];
-        }
-        case Biome::Volcanic: {
-            static const char* g[] = {
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x92",  // ▒
-            };
-            return g[h % 3];
-        }
-        case Biome::Ice: {
-            static const char* g[] = {
-                "\xe2\x96\x91",  // ░
-                "\xe2\x96\x91",  // ░
-                "#",
-            };
-            return g[h % 3];
-        }
-        case Biome::Sandy: {
-            static const char* g[] = {
-                "\xe2\x96\x92",  // ▒
-                "\xe2\x96\x91",  // ░
-                "#",
-            };
-            return g[h % 3];
-        }
-        case Biome::Aquatic: {
-            static const char* g[] = {
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x92",  // ▒
-            };
-            return g[h % 2];
-        }
-        case Biome::Fungal: {
-            static const char* g[] = {
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x92",  // ▒
-                "#",
-            };
-            return g[h % 3];
-        }
-        case Biome::Crystal: {
-            static const char* g[] = {
-                "\xe2\x97\x86",  // ◆
-                "\xe2\x97\x87",  // ◇
-            };
-            return g[h % 2];
-        }
-        case Biome::Corroded: {
-            static const char* g[] = {
-                "\xe2\x96\x91",  // ░
-                "#",
-                "\xe2\x96\x92",  // ▒
-            };
-            return g[h % 3];
-        }
-        case Biome::Forest: {
-            static const char* g[] = {
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x92",  // ▒
-                "#",
-            };
-            return g[h % 3];
-        }
-        case Biome::Grassland: {
-            static const char* g[] = {
-                "\xe2\x96\x91",  // ░
-                "\xe2\x96\x91",  // ░
-                "#",
-            };
-            return g[h % 3];
-        }
-        case Biome::Jungle: {
-            static const char* g[] = {
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x92",  // ▒
-            };
-            return g[h % 3];
-        }
-        default:
-            return "#";
-    }
-}
-
-// UTF-8 water/liquid glyph for dungeon rendering.
-inline const char* dungeon_water_glyph(Biome biome, int x, int y) {
-    (void)biome;
-    unsigned h = static_cast<unsigned>(x) * 374761393u
-               + static_cast<unsigned>(y) * 668265263u;
-    h = (h ^ (h >> 13)) * 1103515245u;
-    h = h ^ (h >> 16);
-
-    static const char* g[] = {
-        "\xe2\x89\x88",  // ≈
-        "\xe2\x89\x88",  // ≈
-        "~",
-    };
-    return g[h % 3];
-}
-
-// UTF-8 portal/stairs glyph for dungeon rendering.
-inline const char* dungeon_portal_glyph() {
-    return "\xe2\x96\xbc";  // ▼
-}
-
 enum class RegionType : uint8_t {
     Room,
     Corridor,
@@ -428,13 +306,13 @@ enum class FixtureType : uint8_t {
     CommandTerminal,// '#'  — ship AI terminal (ARIA)
     DungeonHatch,   // 'v'  — floor hatch leading to dungeon below
     StairsUp,       // '<'  — exit dungeon / return to previous location
+
+    NaturalObstacle,    // impassable natural feature — renderer resolves from biome + seed
+    SettlementProp,     // impassable settlement prop — renderer resolves from seed
 };
 
 struct FixtureData {
     FixtureType type = FixtureType::Table;
-    char glyph = '?';
-    const char* utf8_glyph = nullptr;  // UTF-8 override (non-null = use instead of glyph)
-    Color color = Color::White;
     bool passable = false;
     bool interactable = false;
     int cooldown = 0;           // ticks until reusable (0 = no cooldown, -1 = one-time)

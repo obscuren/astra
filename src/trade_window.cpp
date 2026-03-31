@@ -2,6 +2,7 @@
 #include "astra/character.h"
 #include "astra/effect.h"
 #include "astra/player.h"
+#include "terminal_theme.h"
 
 #include <algorithm>
 
@@ -311,8 +312,9 @@ void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& item
             ctx.put(0, i, '>', Color::Yellow);
         }
 
-        // Glyph in rarity color
-        ctx.put(x, i, item.glyph, rarity_color(item.rarity));
+        // Glyph via theme
+        auto vis = item_visual(item.item_def_id);
+        ctx.put(x, i, vis.glyph, rarity_color(item.rarity));
         x += 2;
 
         // Name (rarity color) + stack count (white)
@@ -357,7 +359,8 @@ void TradeWindow::draw_sell_list(DrawContext& ctx,
         }
 
         if (selected) ctx.put(0, i, '>', Color::Yellow);
-        ctx.put(x, i, item.glyph, rarity_color(item.rarity));
+        auto vis = item_visual(item.item_def_id);
+        ctx.put(x, i, vis.glyph, rarity_color(item.rarity));
         x += 2;
 
         draw_item_name(ctx, x, i, item, selected);

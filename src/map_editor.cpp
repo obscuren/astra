@@ -2,6 +2,9 @@
 #include "astra/game.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/world_context.h"
+#include "astra/render_descriptor.h"
+#include "terminal_theme.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -46,19 +49,20 @@ void MapEditor::init_fixture_palette() {
         FixtureType::RepairBench, FixtureType::SupplyLocker, FixtureType::StarChart,
         FixtureType::RestPod, FixtureType::ShipTerminal, FixtureType::CommandTerminal,
         FixtureType::DungeonHatch, FixtureType::StairsUp,
+        FixtureType::NaturalObstacle, FixtureType::SettlementProp,
     };
     fixture_cursor_ = 0;
 }
 
 void MapEditor::init_npc_palette() {
     npc_palette_ = {
-        {"Guard",     'G', Color::White,  "guard",     Disposition::Neutral},
-        {"Merchant",  'M', Color::Yellow, "merchant",  Disposition::Neutral},
-        {"Engineer",  'E', Color::Cyan,   "engineer",  Disposition::Neutral},
-        {"Medic",     '+', Color::Green,  "medic",     Disposition::Neutral},
-        {"Commander", 'C', Color::White,  "commander", Disposition::Neutral},
-        {"Civilian",  'H', Color::White,  "civilian",  Disposition::Neutral},
-        {"Hostile",   'x', Color::Red,    "hostile",   Disposition::Hostile},
+        {"Guard",     NpcRole::Civilian,      "guard",     Disposition::Neutral},
+        {"Merchant",  NpcRole::Merchant,      "merchant",  Disposition::Neutral},
+        {"Engineer",  NpcRole::Engineer,      "engineer",  Disposition::Neutral},
+        {"Medic",     NpcRole::Medic,         "medic",     Disposition::Neutral},
+        {"Commander", NpcRole::Commander,     "commander", Disposition::Neutral},
+        {"Civilian",  NpcRole::Civilian,      "civilian",  Disposition::Neutral},
+        {"Hostile",   NpcRole::Xytomorph,     "hostile",   Disposition::Hostile},
     };
     npc_cursor_ = 0;
 }
@@ -249,6 +253,8 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::CommandTerminal:return "Cmd Terminal";
         case FixtureType::DungeonHatch:   return "Dungeon Hatch";
         case FixtureType::StairsUp:       return "Stairs Up";
+        case FixtureType::NaturalObstacle:return "Natural Obstacle";
+        case FixtureType::SettlementProp: return "Settlement Prop";
     }
     return "?";
 }
@@ -285,8 +291,7 @@ void MapEditor::place_npc(int x, int y, Game& game) {
     Npc npc;
     npc.x = x;
     npc.y = y;
-    npc.glyph = tmpl.glyph;
-    npc.color = tmpl.color;
+    npc.npc_role = tmpl.npc_role;
     npc.name = tmpl.name;
     npc.role = tmpl.role;
     npc.disposition = tmpl.disposition;
@@ -1058,6 +1063,7 @@ void MapEditor::draw(int screen_w, int screen_h) {
 void MapEditor::draw_viewport(DrawContext& ctx) {
     auto& map = active_map();
     bool is_ow = (mode_ == Mode::Overworld);
+    WorldContext wctx(renderer_, ctx.bounds());
 
     for (int sy = 0; sy < ctx.height(); ++sy) {
         for (int sx = 0; sx < ctx.width(); ++sx) {
@@ -1066,76 +1072,53 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
             if (mx < 0 || mx >= map.width() || my < 0 || my >= map.height()) continue;
 
             Tile t = map.get(mx, my);
-            char g = tile_glyph(t);
-            Color c = Color::DarkGray;
 
             if (is_ow) {
-                const char* og = overworld_glyph(t, mx, my);
-                // Use actual overworld colors
-                switch (t) {
-                    case Tile::OW_Plains:      c = Color::Green; break;
-                    case Tile::OW_Mountains:   c = Color::White; break;
-                    case Tile::OW_Forest:      c = Color::Green; break;
-                    case Tile::OW_Desert:      c = Color::Yellow; break;
-                    case Tile::OW_Crater:      c = Color::DarkGray; break;
-                    case Tile::OW_IceField:    c = Color::Cyan; break;
-                    case Tile::OW_LavaFlow:    c = Color::Red; break;
-                    case Tile::OW_Fungal:      c = Color::Green; break;
-                    case Tile::OW_River:       c = Color::Blue; break;
-                    case Tile::OW_Lake:        c = Color::Cyan; break;
-                    case Tile::OW_Swamp:       c = Color::Green; break;
-                    case Tile::OW_CaveEntrance:c = Color::Magenta; break;
-                    case Tile::OW_Ruins:       c = Color::BrightMagenta; break;
-                    case Tile::OW_Settlement:  c = Color::Yellow; break;
-                    case Tile::OW_CrashedShip: c = Color::Cyan; break;
-                    case Tile::OW_Outpost:     c = Color::Green; break;
-                    case Tile::OW_Landing:     c = Color::Cyan; break;
-                    default:                   c = Color::White; break;
+                // Overworld tiles via descriptor
+                RenderDescriptor desc;
+                desc.category = RenderCategory::Tile;
+                desc.type_id = static_cast<uint16_t>(t);
+                desc.seed = position_seed(mx, my);
+                desc.biome = map.biome();
+                desc.flags = RF_Lit;
+                if (map.custom_detail(mx, my)) desc.flags |= RF_Interactable;
+                wctx.put(sx, sy, desc);
+            } else if (t == Tile::Fixture) {
+                int fid = map.fixture_id(mx, my);
+                if (fid >= 0) {
+                    auto& f = map.fixture(fid);
+                    RenderDescriptor desc;
+                    desc.category = RenderCategory::Fixture;
+                    desc.type_id = static_cast<uint16_t>(f.type);
+                    desc.seed = position_seed(mx, my);
+                    desc.biome = map.biome();
+                    desc.flags = RF_Lit;
+                    if (f.open) desc.flags |= RF_Open;
+                    wctx.put(sx, sy, desc);
                 }
-                // Custom tiles get a bright marker
-                if (map.custom_detail(mx, my)) c = Color::BrightYellow;
-                ctx.put(sx, sy, og, c);
             } else {
-                auto bc = biome_colors(map.biome());
-                const char* utf8 = nullptr;
-                if (t == Tile::Fixture) {
-                    int fid = map.fixture_id(mx, my);
-                    if (fid >= 0) {
-                        auto& f = map.fixture(fid);
-                        if (f.utf8_glyph) utf8 = f.utf8_glyph;
-                        else g = f.glyph;
-                        c = f.color;
-                    }
-                } else if (t == Tile::StructuralWall) {
-                    c = Color::White;
-                    utf8 = "\xe2\x96\x88"; // █
-                } else if (t == Tile::Wall) {
-                    c = bc.wall;
-                    utf8 = dungeon_wall_glyph(map.biome(), mx, my);
-                } else if (t == Tile::Floor) {
-                    c = bc.floor;
-                } else if (t == Tile::IndoorFloor) {
-                    c = static_cast<Color>(137); // warm tan
-                    utf8 = "\xe2\x96\xaa"; // ▪
-                } else if (t == Tile::Water) {
-                    c = bc.water;
-                } else if (t == Tile::Ice) {
-                    c = Color::Cyan;
-                } else if (t == Tile::Empty) {
-                    g = ' ';
+                // Dungeon non-fixture tiles via descriptor
+                RenderDescriptor desc;
+                desc.category = RenderCategory::Tile;
+                desc.type_id = static_cast<uint16_t>(t);
+                desc.biome = map.biome();
+                desc.flags = RF_Lit;
+                if (t == Tile::StructuralWall) {
+                    desc.seed = encode_wall_seed(0, mx, my);
                 } else {
-                    c = Color::White;
+                    desc.seed = position_seed(mx, my);
                 }
-                if (utf8)
-                    ctx.put(sx, sy, utf8, c);
-                else
-                    ctx.put(sx, sy, g, c);
+                wctx.put(sx, sy, desc);
             }
 
             // Draw NPCs
             for (const auto& npc : world_->npcs()) {
                 if (npc.x == mx && npc.y == my) {
-                    ctx.put(sx, sy, npc.glyph, npc.color);
+                    RenderDescriptor desc;
+                    desc.category = RenderCategory::Npc;
+                    desc.type_id = static_cast<uint16_t>(npc.npc_role);
+                    desc.seed = static_cast<uint8_t>(npc.race);
+                    wctx.put(sx, sy, desc);
                 }
             }
         }
@@ -1179,8 +1162,8 @@ void MapEditor::draw_palette(DrawContext& ctx) {
             bool sel = (i == fixture_cursor_);
             char marker = sel ? '>' : ' ';
             Color fg = sel ? Color::White : Color::DarkGray;
-            auto fd = make_fixture(fixture_palette_[i]);
-            std::string line = std::string(1, marker) + " " + fd.glyph + " " + fixture_name(fixture_palette_[i]);
+            char g = fixture_glyph(fixture_palette_[i]);
+            std::string line = std::string(1, marker) + " " + g + " " + fixture_name(fixture_palette_[i]);
             ctx.text(0, y++, line, fg);
         }
     } else if (paint_mode_ == PaintMode::Npc) {
@@ -1188,7 +1171,7 @@ void MapEditor::draw_palette(DrawContext& ctx) {
             bool sel = (i == npc_cursor_);
             char marker = sel ? '>' : ' ';
             Color fg = sel ? Color::White : Color::DarkGray;
-            std::string line = std::string(1, marker) + " " + npc_palette_[i].glyph + " " + npc_palette_[i].name;
+            std::string line = std::string(1, marker) + " " + npc_palette_[i].name;
             ctx.text(0, y++, line, fg);
         }
     }

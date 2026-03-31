@@ -51,9 +51,9 @@ struct Rect {
     bool empty() const;
 };
 
-class DrawContext {
+class UIContext {
 public:
-    DrawContext(Renderer* r, Rect bounds);
+    UIContext(Renderer* r, Rect bounds);
 
     // Core — all coords local to bounds, clipped
     void put(int x, int y, char ch);
@@ -90,7 +90,7 @@ public:
             char fill_ch = '=', char empty_ch = '-');
 
     // Sub-region
-    DrawContext sub(Rect local_rect) const;
+    UIContext sub(Rect local_rect) const;
 
     const Rect& bounds() const;
     int width() const;
@@ -100,6 +100,9 @@ private:
     Renderer* renderer_;
     Rect bounds_;
 };
+
+// Backward-compatibility alias — remove after UI semantic redesign
+using DrawContext = UIContext;
 
 struct TextList {
     static void draw(DrawContext& ctx, const std::deque<std::string>& lines,

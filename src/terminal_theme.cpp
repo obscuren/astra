@@ -1,0 +1,1066 @@
+// src/terminal_theme.cpp
+#include "terminal_theme.h"
+#include "astra/item_ids.h"
+#include "astra/npc.h"
+#include "astra/race.h"
+#include "astra/render_descriptor.h"
+
+namespace astra {
+
+// ---------------------------------------------------------------------------
+// Biome palette — mirrors biome_colors() in tilemap.cpp
+// ---------------------------------------------------------------------------
+
+ThemeBiomeColors biome_palette(Biome biome) {
+    switch (biome) {
+        case Biome::Station:
+            return {Color::White, Color::Default, Color::Blue, Color::Blue};
+        case Biome::Rocky:
+            return {Color::White, Color::DarkGray, Color::Blue, Color::Blue};
+        case Biome::Volcanic:
+            return {Color::Red, static_cast<Color>(52), Color::Red, static_cast<Color>(52)};
+        case Biome::Ice:
+            return {Color::Cyan, Color::White, static_cast<Color>(39), Color::Blue};
+        case Biome::Sandy:
+            return {Color::Yellow, static_cast<Color>(180), Color::Blue, static_cast<Color>(58)};
+        case Biome::Aquatic:
+            return {static_cast<Color>(30), static_cast<Color>(24), Color::Blue, static_cast<Color>(24)};
+        case Biome::Fungal:
+            return {Color::Green, static_cast<Color>(22), Color::Green, static_cast<Color>(22)};
+        case Biome::Crystal:
+            return {Color::BrightMagenta, Color::Magenta, Color::Magenta, static_cast<Color>(54)};
+        case Biome::Corroded:
+            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), static_cast<Color>(58)};
+        case Biome::Forest:
+            return {Color::Green, static_cast<Color>(58), Color::Blue, static_cast<Color>(22)};
+        case Biome::Grassland:
+            return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
+        case Biome::Jungle:
+            return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
+    }
+    return {Color::White, Color::Default, Color::Blue, Color::Blue};
+}
+
+// ---------------------------------------------------------------------------
+// Helper: select variant from an array using seed
+// ---------------------------------------------------------------------------
+
+template<int N>
+static const char* select_variant(const char* const (&arr)[N], uint8_t seed) {
+    return arr[seed % N];
+}
+
+// ---------------------------------------------------------------------------
+// Starfield — mirrors star_at() in map_renderer.cpp
+// seed < 8 gives ~3% density (8/256 = 3.125%)
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_starfield(uint8_t seed) {
+    if (seed >= 8) return {' ', nullptr, Color::Default, Color::Default};
+    // seed 0-4: dim dot, 5-6: bright star, 7: cross
+    if (seed < 5) return {'.', nullptr, Color::Cyan, Color::Default};
+    if (seed < 7) return {'*', nullptr, Color::White, Color::Default};
+    return {'+', nullptr, Color::White, Color::Default};
+}
+
+// ---------------------------------------------------------------------------
+// Overworld tile color — mirrors overworld_tile_color() in map_renderer.cpp
+// ---------------------------------------------------------------------------
+
+static Color ow_tile_color(Tile tile, Biome biome) {
+    switch (tile) {
+        case Tile::OW_Plains:
+            switch (biome) {
+                case Biome::Ice:   return Color::White;
+                case Biome::Rocky: return Color::DarkGray;
+                case Biome::Sandy: return Color::Yellow;
+                default:           return Color::Green;
+            }
+        case Tile::OW_Mountains:   return Color::White;
+        case Tile::OW_Crater:      return Color::DarkGray;
+        case Tile::OW_IceField:    return Color::Cyan;
+        case Tile::OW_LavaFlow:    return Color::Red;
+        case Tile::OW_Desert:      return Color::Yellow;
+        case Tile::OW_Fungal:      return Color::Green;
+        case Tile::OW_Forest:      return Color::Green;
+        case Tile::OW_River:       return Color::Blue;
+        case Tile::OW_Lake:        return Color::Cyan;
+        case Tile::OW_Swamp:       return static_cast<Color>(58);
+        case Tile::OW_CaveEntrance:return Color::Magenta;
+        case Tile::OW_Ruins:       return Color::BrightMagenta;
+        case Tile::OW_Settlement:  return Color::Yellow;
+        case Tile::OW_CrashedShip: return Color::Cyan;
+        case Tile::OW_Outpost:     return Color::Green;
+        case Tile::OW_Landing:     return static_cast<Color>(14); // bright cyan
+        default:                   return Color::White;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Overworld glyph — mirrors overworld_glyph() in tilemap.h
+// Uses seed for position variation instead of inline hash.
+// ---------------------------------------------------------------------------
+
+static const char* ow_glyph(Tile t, uint8_t seed) {
+    switch (t) {
+        case Tile::OW_Mountains: {
+            static const char* g[] = {
+                "\xe2\x96\xb2",  // ▲
+                "\xe2\x88\xa9",  // ∩
+                "^",
+                "\xce\x93",      // Γ
+                "\xe2\x96\xb2",  // ▲
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Forest: {
+            static const char* g[] = {
+                "\xe2\x99\xa0",  // ♠
+                "\xce\xa6",      // Φ
+                "\xc6\x92",      // ƒ
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Plains: {
+            static const char* g[] = {
+                "\xc2\xb7",      // ·
+                ".",
+                ",",
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Desert: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xc2\xb7",      // ·
+                ".",
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Lake:
+            return "\xe2\x89\x88"; // ≈
+        case Tile::OW_River: {
+            static const char* g[] = {
+                "\xe2\x89\x88",  // ≈
+                "~",
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Swamp: {
+            static const char* g[] = {
+                "\xcf\x84",      // τ
+                "\"",
+                ",",
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Fungal: {
+            static const char* g[] = {
+                "\xce\xa6",      // Φ
+                "\"",
+                "\xcf\x84",      // τ
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_IceField: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xc2\xb7",      // ·
+                "'",
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_LavaFlow: {
+            static const char* g[] = {
+                "\xe2\x89\x88",  // ≈
+                "~",
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Crater: {
+            static const char* g[] = {
+                "o",
+                "\xc2\xb0",      // °
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_CaveEntrance: {
+            static const char* g[] = {
+                "\xe2\x96\xbc",  // ▼
+                "\xce\x98",      // Θ
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Ruins: {
+            static const char* g[] = {
+                "\xcf\x80",      // π
+                "\xce\xa9",      // Ω
+                "\xc2\xa7",      // §
+                "\xce\xa3",      // Σ
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Settlement:  return "\xe2\x99\xa6"; // ♦
+        case Tile::OW_CrashedShip: {
+            static const char* g[] = {
+                "%",
+                "\xc2\xa4",      // ¤
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Outpost:     return "+";
+        case Tile::OW_Landing:     return "\xe2\x89\xa1"; // ≡
+        default:                   return " ";
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Dungeon wall glyph — mirrors dungeon_wall_glyph() in tilemap.h
+// ---------------------------------------------------------------------------
+
+static const char* wall_glyph_for_biome(Biome biome, uint8_t seed) {
+    switch (biome) {
+        case Biome::Station:
+            return "\xe2\x96\x88";  // █
+        case Biome::Rocky: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Volcanic: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Ice: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Sandy: {
+            static const char* g[] = {
+                "\xe2\x96\x92",  // ▒
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Aquatic: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Fungal: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Crystal: {
+            static const char* g[] = {
+                "\xe2\x97\x86",  // ◆
+                "\xe2\x97\x87",  // ◇
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Corroded: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "#",
+                "\xe2\x96\x92",  // ▒
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Forest: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Grassland: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::Jungle: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+            };
+            return select_variant(g, seed);
+        }
+        default:
+            return "#";
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Water glyph — mirrors dungeon_water_glyph() in tilemap.h
+// ---------------------------------------------------------------------------
+
+static const char* water_glyph(uint8_t seed) {
+    static const char* g[] = {
+        "\xe2\x89\x88",  // ≈
+        "\xe2\x89\x88",  // ≈
+        "~",
+    };
+    return select_variant(g, seed);
+}
+
+// ---------------------------------------------------------------------------
+// Floor scatter — mirrors floor_scatter() in map_renderer.cpp
+// seed % 100 for threshold, (seed >> 4) % count for glyph selection
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color, Color remembered_color) {
+    if (biome == Biome::Station) {
+        return {'.', nullptr, floor_color, Color::Default};
+    }
+
+    int roll = seed % 100;
+    int variant = (seed >> 4) % 8; // use different bits for variant selection
+
+    // --- Tier 3: Rare decorations (~1% density, roll 0) ---
+    if (roll < 1) {
+        switch (biome) {
+            case Biome::Grassland:
+                return {'*', "\xe2\x9c\xbb", Color::Magenta, Color::Default}; // ✻ rare flower
+            case Biome::Forest:
+                return {'*', nullptr, Color::Red, Color::Default};           // berries
+            case Biome::Jungle:
+                return {'*', nullptr, Color::Yellow, Color::Default};        // exotic flower
+            case Biome::Sandy:
+                return {'.', nullptr, static_cast<Color>(180), Color::Default}; // pebbles
+            case Biome::Ice:
+                return {'-', nullptr, Color::White, Color::Default};         // ice ridges
+            case Biome::Fungal:
+                return {',', nullptr, static_cast<Color>(22), Color::Default}; // fairy ring
+            case Biome::Rocky:
+                return {',', nullptr, Color::DarkGray, Color::Default};      // loose rocks
+            case Biome::Volcanic:
+                return {';', nullptr, Color::Red, Color::Default};           // cinder
+            case Biome::Aquatic:
+                return {'"', nullptr, Color::Green, Color::Default};         // seaweed
+            case Biome::Crystal:
+                return {'.', nullptr, Color::BrightMagenta, Color::Default}; // crystal circle
+            case Biome::Corroded:
+                return {';', nullptr, static_cast<Color>(58), Color::Default}; // acid residue
+            default: break;
+        }
+    }
+
+    // --- Tier 2: Biome-specific colored decorations (~4% density, roll 1-4) ---
+    if (roll < 5) {
+        switch (biome) {
+            case Biome::Grassland: {
+                // Use seed directly for better distribution across more variants
+                int v = seed % 12;
+                static const ResolvedVisual variants[] = {
+                    {'*', "\xc2\xb7", Color::Yellow, Color::Default},               // · yellow wildflower
+                    {'*', "\xe2\x9c\xbf", Color::Red, Color::Default},              // ✿ red bloom
+                    {'"', nullptr, Color::Green, Color::Default},                    // tall grass
+                    {'*', "\xe2\x9c\xb6", static_cast<Color>(208), Color::Default}, // ✶ orange flower
+                    {',', "\xcf\x84", Color::Green, Color::Default},                // τ grass tuft
+                    {'*', "\xe2\x80\xa2", Color::Magenta, Color::Default},           // • violet bud
+                    {'*', "\xc2\xb7", Color::BrightYellow, Color::Default},          // · bright daisy
+                    {'*', "\xe2\x9c\xbf", Color::Yellow, Color::Default},            // ✿ yellow bloom
+                    {',', "\xc6\x92", Color::Green, Color::Default},                // ƒ fern sprout
+                    {'*', "\xe2\x80\xa2", Color::Red, Color::Default},               // • red bud
+                    {'*', "\xe2\x9c\xb6", Color::Cyan, Color::Default},              // ✶ blue flower
+                    {'.', "\xc2\xb0", Color::Green, Color::Default},                // ° clover
+                };
+                return variants[v];
+            }
+            case Biome::Forest: {
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(58), Color::Default},  // undergrowth
+                    {'"', nullptr, Color::Green, Color::Default},            // ferns
+                    {'\'', nullptr, static_cast<Color>(22), Color::Default}, // leaf litter
+                    {',', nullptr, Color::Green, Color::Default},            // moss
+                };
+                return variants[variant % 4];
+            }
+            case Biome::Jungle: {
+                static const ResolvedVisual variants[] = {
+                    {'"', nullptr, static_cast<Color>(22), Color::Default},  // vines
+                    {',', nullptr, Color::Green, Color::Default},            // creeper
+                    {'\'', nullptr, static_cast<Color>(22), Color::Default}, // tendril
+                };
+                return variants[variant % 3];
+            }
+            case Biome::Sandy: {
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, Color::Yellow, Color::Default},                        // sand ripple
+                    {'.', nullptr, static_cast<Color>(180), Color::Default},              // pebble
+                    {'~', nullptr, Color::Yellow, Color::Default},                        // dune crest
+                    {'\'', nullptr, static_cast<Color>(180), Color::Default},             // sand wisp
+                    {'-', "\xe2\x96\x81", Color::Yellow, Color::Default},                // ▁ low dune
+                    {'.', "\xc2\xb7", static_cast<Color>(137), Color::Default},          // · dry scrub
+                };
+                return variants[variant % 6];
+            }
+            case Biome::Ice: {
+                static const ResolvedVisual variants[] = {
+                    {'\'', nullptr, Color::Cyan, Color::Default},            // ice shard
+                    {'.', nullptr, Color::White, Color::Default},            // frost
+                };
+                return variants[variant % 2];
+            }
+            case Biome::Fungal: {
+                static const ResolvedVisual variants[] = {
+                    {'"', nullptr, Color::Green, Color::Default},            // spore cluster
+                    {',', nullptr, static_cast<Color>(22), Color::Default},  // mycelium
+                };
+                return variants[variant % 2];
+            }
+            case Biome::Rocky: {
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, Color::DarkGray, Color::Default},         // loose gravel
+                    {'`', nullptr, Color::White, Color::Default},            // quartz chip
+                };
+                return variants[variant % 2];
+            }
+            case Biome::Volcanic: {
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(52), Color::Default},  // slag
+                    {';', nullptr, Color::Red, Color::Default},              // ember
+                };
+                return variants[variant % 2];
+            }
+            case Biome::Aquatic: {
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(30), Color::Default},  // driftwood
+                    {'"', nullptr, Color::Green, Color::Default},            // seaweed
+                };
+                return variants[variant % 2];
+            }
+            case Biome::Crystal: {
+                static const ResolvedVisual variants[] = {
+                    {'\'', nullptr, Color::Magenta, Color::Default},         // crystal shard
+                    {'.', nullptr, Color::BrightMagenta, Color::Default},    // crystal dust
+                };
+                return variants[variant % 2];
+            }
+            case Biome::Corroded: {
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(142), Color::Default}, // corroded junk
+                    {';', nullptr, static_cast<Color>(58), Color::Default},  // residue
+                };
+                return variants[variant % 2];
+            }
+            default: break;
+        }
+    }
+
+    // --- Tier 1: Basic scatter in dim color (~10% density, roll 5-14) ---
+    struct ScatterSet { int threshold; const char* glyphs; int count; };
+    ScatterSet s;
+    switch (biome) {
+        case Biome::Rocky:    s = {15, ",:`",  3}; break;
+        case Biome::Volcanic: s = {15, ",';" , 3}; break;
+        case Biome::Ice:      s = {12, "'`,",  3}; break;
+        case Biome::Sandy:    s = {15, ",`:",  3}; break;
+        case Biome::Aquatic:  s = {10, ",:",   2}; break;
+        case Biome::Fungal:   s = {15, "\",'", 3}; break;
+        case Biome::Crystal:  s = {15, "*'`",  3}; break;
+        case Biome::Corroded: s = {15, ",:;",  3}; break;
+        case Biome::Forest:   s = {15, "\",'", 3}; break;
+        case Biome::Grassland:s = {15, ",`.",  3}; break;
+        case Biome::Jungle:   s = {15, "\",'", 3}; break;
+        default: return {'.', nullptr, floor_color, Color::Default};
+    }
+
+    if (roll >= s.threshold) {
+        return {'.', nullptr, floor_color, Color::Default};
+    }
+    char scatter = s.glyphs[variant % s.count];
+    return {scatter, nullptr, remembered_color, Color::Default};
+}
+
+// ---------------------------------------------------------------------------
+// Structural wall — mirrors structural wall rendering in map_renderer.cpp
+// Material encoded via decode_wall_material() on the seed.
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_structural_wall(uint8_t seed) {
+    uint8_t mat = decode_wall_material(seed);
+    switch (mat) {
+        case 1:  // Concrete
+            return {'#', "\xe2\x96\x93", static_cast<Color>(245), Color::Default};  // ▓ medium gray
+        case 2:  // Wood
+            return {'#', "\xe2\x96\x92", static_cast<Color>(137), Color::Default};  // ▒ brown/tan
+        case 3:  // Salvage
+            return {'#', "\xe2\x96\x91", static_cast<Color>(240), Color::Default};  // ░ dark gray
+        default: // Metal (0)
+            return {'#', "\xe2\x96\x88", Color::White, Color::Default};              // █
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Fixture resolution — mirrors make_fixture() in tilemap.cpp
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome biome, uint8_t seed) {
+    auto type = static_cast<FixtureType>(type_id);
+    bool remembered = (flags & RF_Remembered) != 0;
+    bool open = (flags & RF_Open) != 0;
+
+    ResolvedVisual vis;
+    switch (type) {
+        case FixtureType::Door:
+            vis = open
+                ? ResolvedVisual{'\'', nullptr, static_cast<Color>(137), Color::Default}
+                : ResolvedVisual{'+', nullptr, static_cast<Color>(137), Color::Default};
+            break;
+        case FixtureType::Window:
+            vis = {'O', nullptr, Color::Cyan, Color::Default}; break;
+        case FixtureType::Table:
+            vis = {'o', "\xc2\xa4", Color::DarkGray, Color::Default}; break;           // ¤
+        case FixtureType::Console:
+            vis = {'#', "\xe2\x95\xac", Color::Cyan, Color::Default}; break;           // ╬
+        case FixtureType::Crate:
+            vis = {'=', "\xe2\x96\xa0", Color::Yellow, Color::Default}; break;          // ■
+        case FixtureType::Bunk:
+            vis = {'=', "\xe2\x89\xa1", Color::DarkGray, Color::Default}; break;        // ≡
+        case FixtureType::Rack:
+            vis = {'|', "\xe2\x95\x8f", Color::DarkGray, Color::Default}; break;        // ╏
+        case FixtureType::Conduit:
+            vis = {'%', "\xe2\x95\xa3", Color::DarkGray, Color::Default}; break;        // ╣
+        case FixtureType::ShuttleClamp:
+            vis = {'=', "\xe2\x95\xa4", Color::White, Color::Default}; break;           // ╤
+        case FixtureType::Shelf:
+            vis = {'[', "\xe2\x95\x94", Color::DarkGray, Color::Default}; break;        // ╔
+        case FixtureType::Viewport:
+            vis = {'"', "\xe2\x96\x91", Color::Cyan, Color::Default}; break;            // ░
+        case FixtureType::Torch:
+            vis = {'*', nullptr, Color::Yellow, Color::Default}; break;
+        case FixtureType::Stool:
+            vis = {'o', "\xc2\xb7", Color::DarkGray, Color::Default}; break;            // ·
+        case FixtureType::Debris:
+            vis = {',', nullptr, Color::DarkGray, Color::Default}; break;
+        case FixtureType::HealPod:
+            vis = {'+', "\xe2\x9c\x9a", Color::Green, Color::Default}; break;           // ✚
+        case FixtureType::FoodTerminal:
+            vis = {'$', nullptr, Color::Yellow, Color::Default}; break;
+        case FixtureType::WeaponDisplay:
+            vis = {'/', "\xe2\x80\xa0", Color::Red, Color::Default}; break;             // †
+        case FixtureType::RepairBench:
+            vis = {'%', "\xe2\x95\xaa", Color::Cyan, Color::Default}; break;            // ╪
+        case FixtureType::SupplyLocker:
+            vis = {'&', "\xe2\x96\xaa", Color::Yellow, Color::Default}; break;          // ▪
+        case FixtureType::StarChart:
+            vis = {'*', nullptr, Color::Cyan, Color::Default}; break;
+        case FixtureType::RestPod:
+            vis = {'=', "\xe2\x88\xa9", Color::Green, Color::Default}; break;           // ∩
+        case FixtureType::ShipTerminal:
+            vis = {'>', "\xc2\xbb", Color::Yellow, Color::Default}; break;              // »
+        case FixtureType::CommandTerminal:
+            vis = {'#', "\xe2\x96\xa3", Color::Cyan, Color::Default}; break;            // ▣
+        case FixtureType::DungeonHatch:
+            vis = {'v', "\xe2\x96\xbc", Color::Yellow, Color::Default}; break;          // ▼
+        case FixtureType::StairsUp:
+            vis = {'<', "\xe2\x96\xb2", Color::White, Color::Default}; break;           // ▲
+        case FixtureType::NaturalObstacle: {
+            switch (biome) {
+                case Biome::Grassland: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° grey boulder
+                        {'o', "\xc2\xb0", Color::White, Color::Default},                  // ° pale rock
+                        {'o', "\xe2\x97\x8b", static_cast<Color>(94), Color::Default},    // ○ brown rock
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ lone tree
+                        {'o', "\xe2\x88\x99", Color::DarkGray, Color::Default},           // ∙ small stone
+                        {'#', "\xe2\x96\x91", static_cast<Color>(94), Color::Default},    // ░ log
+                    };
+                    vis = variants[seed % 6]; break;
+                }
+                case Biome::Rocky: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° boulder
+                        {'o', "\xc2\xb0", Color::White, Color::Default},                  // ° pale rock
+                        {'#', "\xe2\x96\x93", Color::DarkGray, Color::Default},           // ▓ rock face
+                        {'o', "\xe2\x97\x8b", Color::White, Color::Default},              // ○ round stone
+                        {'^', nullptr, Color::DarkGray, Color::Default},                  // jagged rock
+                    };
+                    vis = variants[seed % 5]; break;
+                }
+                case Biome::Forest: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},        // ¤ brown stump
+                        {'T', "\xce\xa6", static_cast<Color>(22), Color::Default},         // Φ fallen tree
+                        {'#', "\xe2\x96\x92", Color::Green, Color::Default},              // ▒ thicket
+                        {'o', "\xe2\x97\x8b", static_cast<Color>(58), Color::Default},    // ○ mossy rock
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ dense bush
+                    };
+                    vis = variants[seed % 5]; break;
+                }
+                case Biome::Jungle: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xa4", static_cast<Color>(22), Color::Default},        // ¤ thick trunk
+                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default},    // ▓ root mass
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ giant fern
+                        {'#', "\xe2\x96\x92", static_cast<Color>(22), Color::Default},    // ▒ tangled vines
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::Sandy: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° large rock
+                        {'o', "\xc2\xb0", Color::Yellow, Color::Default},                 // ° sandstone
+                        {'^', nullptr, static_cast<Color>(180), Color::Default},           // sandy outcrop
+                        {'T', "\xe2\x80\xa0", Color::Green, Color::Default},              // † tall cactus
+                        {'Y', nullptr, Color::Green, Color::Default},                      // branching cactus
+                        {'|', "\xe2\x94\x82", static_cast<Color>(22), Color::Default},    // │ thin cactus
+                    };
+                    vis = variants[seed % 6]; break;
+                }
+                case Biome::Ice: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::Cyan, Color::Default},                  // ° frozen boulder
+                        {'*', "\xe2\x97\x87", Color::White, Color::Default},              // ◇ ice crystal
+                        {'#', "\xe2\x96\x91", Color::Cyan, Color::Default},               // ░ ice wall
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Fungal: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xce\xa6", Color::Green, Color::Default},                  // Φ large mushroom
+                        {'o', "\xce\xa6", Color::Magenta, Color::Default},                // Φ purple mushroom
+                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default},    // ▓ fungal mass
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Volcanic: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° lava rock
+                        {'o', "\xc2\xb0", Color::Red, Color::Default},                    // ° hot rock
+                        {'^', nullptr, static_cast<Color>(52), Color::Default},            // obsidian spike
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Aquatic: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", static_cast<Color>(30), Color::Default},        // ° wet rock
+                        {'#', "\xe2\x96\x92", Color::Blue, Color::Default},               // ▒ coral
+                    };
+                    vis = variants[seed % 2]; break;
+                }
+                case Biome::Crystal: {
+                    static const ResolvedVisual variants[] = {
+                        {'*', "\xe2\x97\x87", Color::BrightMagenta, Color::Default},     // ◇ crystal
+                        {'*', "\xe2\x97\x86", Color::Magenta, Color::Default},            // ◆ dark crystal
+                        {'*', "\xe2\x9c\xb6", Color::Cyan, Color::Default},               // ✶ prism
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Corroded: {
+                    static const ResolvedVisual variants[] = {
+                        {'#', "\xe2\x96\x91", static_cast<Color>(142), Color::Default},  // ░ collapsed
+                        {'%', "\xe2\x9a\x99", Color::DarkGray, Color::Default},           // ⚙ wreckage
+                        {'o', nullptr, static_cast<Color>(58), Color::Default},            // rusted lump
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                default:
+                    vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;
+            }
+            break;
+        }
+        case FixtureType::SettlementProp: {
+            static const ResolvedVisual props[] = {
+                {'T', "\xe2\x94\xb4", Color::Cyan, Color::Default},         // ┴ antenna
+                {'O', "\xc2\xb0", Color::Blue, Color::Default},              // ° water well
+                {'=', "\xe2\x95\x90", Color::DarkGray, Color::Default},      // ═ bench
+                {'*', "\xe2\x9c\xb6", Color::Yellow, Color::Default},        // ✶ lamp post
+                {'%', "\xe2\x9a\x99", Color::DarkGray, Color::Default},      // ⚙ machinery
+            };
+            vis = props[seed % 5];
+            break;
+        }
+    }
+
+    if (remembered) {
+        vis.fg = biome_palette(biome).remembered;
+    }
+    return vis;
+}
+
+// ---------------------------------------------------------------------------
+// NPC resolution — NpcRole + Race → glyph + color
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_npc(uint16_t type_id, uint8_t seed, uint8_t /*flags*/) {
+    auto role = static_cast<NpcRole>(type_id);
+
+    switch (role) {
+        case NpcRole::StationKeeper: return {'K', nullptr, Color::Green, Color::Default};
+        case NpcRole::Merchant:      return {'M', nullptr, Color::Cyan, Color::Default};
+        case NpcRole::Drifter:       return {'D', nullptr, Color::White, Color::Default};
+        case NpcRole::Xytomorph:     return {'X', nullptr, Color::Red, Color::Default};
+        case NpcRole::FoodMerchant:  return {'F', nullptr, Color::Yellow, Color::Default};
+        case NpcRole::Medic:         return {'D', nullptr, Color::Green, Color::Default};
+        case NpcRole::Commander:     return {'C', nullptr, Color::White, Color::Default};
+        case NpcRole::ArmsDealer:    return {'A', nullptr, Color::Red, Color::Default};
+        case NpcRole::Astronomer:    return {'P', nullptr, Color::Cyan, Color::Default};
+        case NpcRole::Engineer:      return {'E', nullptr, Color::Yellow, Color::Default};
+        case NpcRole::Nova:          return {'N', nullptr, static_cast<Color>(135), Color::Default};
+        case NpcRole::Civilian: {
+            auto race = static_cast<Race>(seed);
+            switch (race) {
+                case Race::Human:     return {'H', nullptr, Color::White, Color::Default};
+                case Race::Veldrani:  return {'V', nullptr, Color::Cyan, Color::Default};
+                case Race::Kreth:     return {'R', nullptr, Color::Yellow, Color::Default};
+                case Race::Sylphari:  return {'S', nullptr, Color::Green, Color::Default};
+                case Race::Stellari:  return {'L', nullptr, Color::Magenta, Color::Default};
+                case Race::Xytomorph: return {'X', nullptr, Color::Red, Color::Default};
+                default:              return {'H', nullptr, Color::White, Color::Default};
+            }
+        }
+        default: return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Item resolution — item_def_id → glyph + color
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_item(uint16_t item_def_id) {
+    switch (item_def_id) {
+        // Ranged weapons (1-5)
+        case ITEM_PLASMA_PISTOL:       return {')', nullptr, Color::Cyan, Color::Default};
+        case ITEM_ION_BLASTER:         return {')', nullptr, Color::Green, Color::Default};
+        case ITEM_PULSE_RIFLE:         return {')', nullptr, Color::Blue, Color::Default};
+        case ITEM_ARC_CASTER:          return {')', nullptr, Color::Magenta, Color::Default};
+        case ITEM_VOID_LANCE:          return {')', nullptr, static_cast<Color>(208), Color::Default};
+
+        // Consumables (6-8)
+        case ITEM_BATTERY:             return {'=', nullptr, Color::Yellow, Color::Default};
+        case ITEM_RATION_PACK:         return {'%', nullptr, Color::Green, Color::Default};
+        case ITEM_COMBAT_STIM:         return {'!', nullptr, Color::Red, Color::Default};
+
+        // Melee weapons (9-13)
+        case ITEM_COMBAT_KNIFE:        return {'/', nullptr, Color::White, Color::Default};
+        case ITEM_VIBRO_BLADE:         return {'/', nullptr, Color::Green, Color::Default};
+        case ITEM_PLASMA_SABER:        return {'/', nullptr, Color::Blue, Color::Default};
+        case ITEM_STUN_BATON:          return {'/', nullptr, Color::Yellow, Color::Default};
+        case ITEM_ANCIENT_MONO_EDGE:   return {'/', nullptr, Color::Magenta, Color::Default};
+
+        // Armor — body (14-16)
+        case ITEM_PADDED_VEST:         return {'[', nullptr, Color::White, Color::Default};
+        case ITEM_COMPOSITE_ARMOR:     return {'[', nullptr, Color::Green, Color::Default};
+        case ITEM_EXO_SUIT:            return {'[', nullptr, Color::Blue, Color::Default};
+
+        // Armor — head (17-18)
+        case ITEM_FLIGHT_HELMET:       return {'^', nullptr, Color::White, Color::Default};
+        case ITEM_TACTICAL_HELMET:     return {'^', nullptr, Color::Green, Color::Default};
+
+        // Armor — feet (19-20)
+        case ITEM_COMBAT_BOOTS:        return {'_', nullptr, Color::White, Color::Default};
+        case ITEM_MAG_LOCK_BOOTS:      return {'_', nullptr, Color::Green, Color::Default};
+
+        // Armor — arm / shield (21-22)
+        case ITEM_ARM_GUARD:           return {'}', nullptr, Color::White, Color::Default};
+        case ITEM_RIOT_SHIELD:         return {'0', nullptr, Color::Green, Color::Default};
+
+        // Accessories (23-26)
+        case ITEM_RECON_VISOR:         return {'&', nullptr, Color::Green, Color::Default};
+        case ITEM_NIGHT_GOGGLES:       return {'&', nullptr, Color::White, Color::Default};
+        case ITEM_JETPACK:             return {'\\', nullptr, Color::Blue, Color::Default};
+        case ITEM_CARGO_PACK:          return {'\\', nullptr, Color::White, Color::Default};
+
+        // Grenades (27-29)
+        case ITEM_FRAG_GRENADE:        return {'*', nullptr, Color::Red, Color::Default};
+        case ITEM_EMP_GRENADE:         return {'*', nullptr, Color::Cyan, Color::Default};
+        case ITEM_CRYO_GRENADE:        return {'*', nullptr, Color::Blue, Color::Default};
+
+        // Junk (30-32)
+        case ITEM_SCRAP_METAL:         return {'~', nullptr, Color::DarkGray, Color::Default};
+        case ITEM_BROKEN_CIRCUIT:      return {'~', nullptr, Color::DarkGray, Color::Default};
+        case ITEM_EMPTY_CASING:        return {'~', nullptr, Color::DarkGray, Color::Default};
+
+        // Crafting materials (33-36)
+        case ITEM_NANO_FIBER:          return {'+', nullptr, Color::Cyan, Color::Default};
+        case ITEM_POWER_CORE:          return {'+', nullptr, Color::Yellow, Color::Default};
+        case ITEM_CIRCUIT_BOARD:       return {'+', nullptr, Color::Green, Color::Default};
+        case ITEM_ALLOY_INGOT:         return {'+', nullptr, Color::White, Color::Default};
+
+        // Ship components (37-40)
+        case ITEM_ENGINE_COIL_MK1:     return {'#', nullptr, Color::Yellow, Color::Default};
+        case ITEM_HULL_PLATE:          return {'#', nullptr, Color::White, Color::Default};
+        case ITEM_SHIELD_GENERATOR:    return {'#', nullptr, Color::Cyan, Color::Default};
+        case ITEM_NAVI_COMPUTER_MK2:   return {'#', nullptr, Color::Green, Color::Default};
+
+        // Synthesized items (1000+)
+        case ITEM_SYNTH_PLASMA_EDGE:       return {'/', nullptr, Color::Cyan, Color::Default};
+        case ITEM_SYNTH_THRUSTER_PLATE:    return {'[', nullptr, Color::Yellow, Color::Default};
+        case ITEM_SYNTH_TARGETING_ARRAY:   return {'&', nullptr, Color::Cyan, Color::Default};
+        case ITEM_SYNTH_DUAL_EDGE:         return {'/', nullptr, Color::BrightMagenta, Color::Default};
+        case ITEM_SYNTH_REINFORCED_PACK:   return {'\\', nullptr, Color::Green, Color::Default};
+        case ITEM_SYNTH_OVERCHARGED_ENGINE:return {'#', nullptr, static_cast<Color>(208), Color::Default};
+        case ITEM_SYNTH_ARTICULATED_ARMOR: return {'[', nullptr, Color::Magenta, Color::Default};
+        case ITEM_SYNTH_GUIDED_BLASTER:    return {')', nullptr, Color::Yellow, Color::Default};
+        case ITEM_SYNTH_COMBAT_GAUNTLET:   return {'}', nullptr, Color::Red, Color::Default};
+        case ITEM_SYNTH_ARMORED_BLADE:     return {'/', nullptr, Color::Red, Color::Default};
+
+        default: return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Main resolve — dispatches on RenderCategory
+// ---------------------------------------------------------------------------
+
+ResolvedVisual resolve(const RenderDescriptor& desc) {
+    if (desc.category == RenderCategory::Fixture) {
+        return resolve_fixture(desc.type_id, desc.flags, desc.biome, desc.seed);
+    }
+
+    if (desc.category == RenderCategory::Npc) {
+        return resolve_npc(desc.type_id, desc.seed, desc.flags);
+    }
+
+    if (desc.category == RenderCategory::Item) {
+        return resolve_item(desc.type_id);
+    }
+
+    if (desc.category == RenderCategory::Player) {
+        return {'@', nullptr, Color::Yellow, Color::Default};
+    }
+
+    if (desc.category != RenderCategory::Tile) {
+        return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+
+    auto tile = static_cast<Tile>(desc.type_id);
+    uint8_t seed = desc.seed;
+    uint8_t flags = desc.flags;
+    Biome biome = desc.biome;
+    bool remembered = (flags & RF_Remembered) != 0;
+
+    auto bc = biome_palette(biome);
+
+    // --- Starfield (Station Empty tiles) ---
+    if (flags & RF_Starfield) {
+        return resolve_starfield(seed);
+    }
+
+    // --- Empty tile ---
+    if (tile == Tile::Empty) {
+        return {' ', nullptr, Color::Default, Color::Default};
+    }
+
+    // --- Overworld tiles (OW_*) ---
+    if (tile >= Tile::OW_Plains && tile <= Tile::OW_Landing) {
+        Color c = ow_tile_color(tile, biome);
+        const char* utf8 = ow_glyph(tile, seed);
+        return {tile_glyph(tile), utf8, c, Color::Default};
+    }
+
+    // --- Dungeon / station tiles ---
+
+    if (tile == Tile::StructuralWall) {
+        ResolvedVisual vis = resolve_structural_wall(seed);
+        if (remembered) vis.fg = bc.remembered;
+        return vis;
+    }
+
+    if (tile == Tile::Wall) {
+        const char* utf8 = wall_glyph_for_biome(biome, seed);
+        Color c = remembered ? bc.remembered : bc.wall;
+        return {'#', utf8, c, Color::Default};
+    }
+
+    if (tile == Tile::Portal) {
+        const char* utf8 = "\xe2\x96\xbc";  // ▼
+        Color c = remembered ? bc.remembered : Color::Magenta;
+        return {'>', utf8, c, Color::Default};
+    }
+
+    if (tile == Tile::Water) {
+        const char* utf8 = water_glyph(seed);
+        Color c = remembered ? bc.remembered : bc.water;
+        return {'~', utf8, c, Color::Default};
+    }
+
+    if (tile == Tile::Ice) {
+        const char* utf8 = water_glyph(seed);
+        Color c = remembered ? bc.remembered : static_cast<Color>(39);
+        return {'~', utf8, c, Color::Default};
+    }
+
+    if (tile == Tile::IndoorFloor) {
+        const char* utf8 = "\xe2\x96\xaa";  // ▪
+        Color c = remembered ? bc.remembered : static_cast<Color>(137); // warm tan/brown
+        return {'.', utf8, c, Color::Default};
+    }
+
+    if (tile == Tile::Floor) {
+        if (remembered) {
+            return {'.', nullptr, bc.remembered, Color::Default};
+        }
+        return resolve_floor(seed, biome, bc.floor, bc.remembered);
+    }
+
+    // Fallback for unhandled tile types (e.g. Fixture — handled by a different category)
+    return {'?', nullptr, Color::Magenta, Color::Default};
+}
+
+// ---------------------------------------------------------------------------
+// Animation stub
+// ---------------------------------------------------------------------------
+
+ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
+    switch (type) {
+        case AnimationType::ConsoleBlink: {
+            static const ResolvedVisual frames[] = {
+                {'#', nullptr, Color::Cyan, Color::Default},
+                {'#', nullptr, Color::DarkGray, Color::Default},
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::WaterShimmer: {
+            static const ResolvedVisual frames[] = {
+                {'~', nullptr, Color::Blue, Color::Default},
+                {'~', "\xe2\x89\x88", Color::Cyan, Color::Default},
+                {'~', nullptr, Color::Blue, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+        case AnimationType::ViewportShimmer: {
+            static const ResolvedVisual frames[] = {
+                {'"', nullptr, Color::Cyan, Color::Default},
+                {'"', nullptr, Color::DarkGray, Color::Default},
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::TorchFlicker: {
+            static const ResolvedVisual frames[] = {
+                {'*', "\xe2\x9c\xb6", Color::Yellow, Color::Default},
+                {'*', "\xe2\x9c\xb8", Color::Red, Color::Default},
+                {'*', "\xe2\x9c\xba", Color::BrightYellow, Color::Default},
+                {'*', "\xe2\x9c\xb7", Color::Yellow, Color::Default},
+                {'*', "\xe2\x9c\xb9", Color::Red, Color::Default},
+            };
+            return frames[frame_index % 5];
+        }
+        case AnimationType::DamageFlash: {
+            static const ResolvedVisual frames[] = {
+                {'*', nullptr, Color::Red, Color::Default},
+                {' ', nullptr, Color::Red, Color::Default},
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::HealPulse: {
+            static const ResolvedVisual frames[] = {
+                {'+', nullptr, Color::Green, Color::Default},
+                {'+', nullptr, static_cast<Color>(10), Color::Default},
+                {'+', nullptr, Color::Green, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+        case AnimationType::Projectile:
+            return {'*', nullptr, Color::Yellow, Color::Default};
+        case AnimationType::LevelUp: {
+            static const ResolvedVisual frames[] = {
+                {'!', nullptr, Color::Yellow, Color::Default},
+                {'!', nullptr, Color::BrightYellow, Color::Default},
+                {'!', nullptr, Color::Yellow, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+    }
+    return {'?', nullptr, Color::Magenta, Color::Default};
+}
+
+// ---------------------------------------------------------------------------
+// Fixture glyph — ASCII glyph for UI / editor palette display
+// ---------------------------------------------------------------------------
+
+char fixture_glyph(FixtureType type) {
+    switch (type) {
+        case FixtureType::Door:            return '+';
+        case FixtureType::Window:          return 'O';
+        case FixtureType::Table:           return 'o';
+        case FixtureType::Console:         return '#';
+        case FixtureType::Crate:           return '=';
+        case FixtureType::Bunk:            return '=';
+        case FixtureType::Rack:            return '|';
+        case FixtureType::Conduit:         return '%';
+        case FixtureType::ShuttleClamp:    return '=';
+        case FixtureType::Shelf:           return '[';
+        case FixtureType::Viewport:        return '"';
+        case FixtureType::Torch:           return '*';
+        case FixtureType::Stool:           return 'o';
+        case FixtureType::Debris:          return ',';
+        case FixtureType::HealPod:         return '+';
+        case FixtureType::FoodTerminal:    return '$';
+        case FixtureType::WeaponDisplay:   return '/';
+        case FixtureType::RepairBench:     return '%';
+        case FixtureType::SupplyLocker:    return '&';
+        case FixtureType::StarChart:       return '*';
+        case FixtureType::RestPod:         return '=';
+        case FixtureType::ShipTerminal:    return '>';
+        case FixtureType::CommandTerminal: return '#';
+        case FixtureType::DungeonHatch:    return 'v';
+        case FixtureType::StairsUp:        return '<';
+        case FixtureType::NaturalObstacle: return 'o';
+        case FixtureType::SettlementProp:  return '*';
+    }
+    return '?';
+}
+
+char npc_glyph(NpcRole role, Race race) {
+    switch (role) {
+        case NpcRole::StationKeeper: return 'K';
+        case NpcRole::Merchant:      return 'M';
+        case NpcRole::Drifter:       return 'D';
+        case NpcRole::Xytomorph:     return 'X';
+        case NpcRole::FoodMerchant:  return 'F';
+        case NpcRole::Medic:         return 'D';
+        case NpcRole::Commander:     return 'C';
+        case NpcRole::ArmsDealer:    return 'A';
+        case NpcRole::Astronomer:    return 'P';
+        case NpcRole::Engineer:      return 'E';
+        case NpcRole::Nova:          return 'N';
+        case NpcRole::Civilian: {
+            switch (race) {
+                case Race::Human:     return 'H';
+                case Race::Veldrani:  return 'V';
+                case Race::Kreth:     return 'R';
+                case Race::Sylphari:  return 'S';
+                case Race::Stellari:  return 'L';
+                case Race::Xytomorph: return 'X';
+                default:              return 'H';
+            }
+        }
+        default: return '?';
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Public item visual — for UI screens (inventory, shops, etc.)
+// ---------------------------------------------------------------------------
+
+ResolvedVisual item_visual(uint16_t item_def_id) {
+    return resolve_item(item_def_id);
+}
+
+} // namespace astra

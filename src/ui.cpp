@@ -1,5 +1,6 @@
 #include "astra/ui.h"
 #include "astra/item.h"
+#include "terminal_theme.h"
 
 #include <algorithm>
 #include <string>
@@ -54,12 +55,12 @@ bool Rect::empty() const {
     return w <= 0 || h <= 0;
 }
 
-// --- DrawContext ---
+// --- UIContext ---
 
-DrawContext::DrawContext(Renderer* r, Rect bounds)
+UIContext::UIContext(Renderer* r, Rect bounds)
     : renderer_(r), bounds_(bounds) {}
 
-void DrawContext::put(int x, int y, char ch) {
+void UIContext::put(int x, int y, char ch) {
     int ax = bounds_.x + x;
     int ay = bounds_.y + y;
     if (bounds_.contains(ax, ay)) {
@@ -67,7 +68,7 @@ void DrawContext::put(int x, int y, char ch) {
     }
 }
 
-void DrawContext::put(int x, int y, char ch, Color fg) {
+void UIContext::put(int x, int y, char ch, Color fg) {
     int ax = bounds_.x + x;
     int ay = bounds_.y + y;
     if (bounds_.contains(ax, ay)) {
@@ -75,7 +76,7 @@ void DrawContext::put(int x, int y, char ch, Color fg) {
     }
 }
 
-void DrawContext::put(int x, int y, char ch, Color fg, Color bg) {
+void UIContext::put(int x, int y, char ch, Color fg, Color bg) {
     int ax = bounds_.x + x;
     int ay = bounds_.y + y;
     if (bounds_.contains(ax, ay)) {
@@ -83,7 +84,7 @@ void DrawContext::put(int x, int y, char ch, Color fg, Color bg) {
     }
 }
 
-void DrawContext::put(int x, int y, const char* utf8, Color fg) {
+void UIContext::put(int x, int y, const char* utf8, Color fg) {
     int ax = bounds_.x + x;
     int ay = bounds_.y + y;
     if (bounds_.contains(ax, ay)) {
@@ -91,7 +92,7 @@ void DrawContext::put(int x, int y, const char* utf8, Color fg) {
     }
 }
 
-void DrawContext::text(int x, int y, std::string_view s, Color fg) {
+void UIContext::text(int x, int y, std::string_view s, Color fg) {
     int col = 0;
     int i = 0;
     int len = static_cast<int>(s.size());
@@ -119,7 +120,7 @@ void DrawContext::text(int x, int y, std::string_view s, Color fg) {
     }
 }
 
-void DrawContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
+void UIContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
     Color cur = default_fg;
     int col = 0;
     size_t i = 0;
@@ -155,37 +156,37 @@ void DrawContext::text_rich(int x, int y, std::string_view s, Color default_fg) 
     }
 }
 
-void DrawContext::text(int x, int y, std::string_view s, Color fg, Color bg) {
+void UIContext::text(int x, int y, std::string_view s, Color fg, Color bg) {
     for (int i = 0; i < static_cast<int>(s.size()); ++i) {
         put(x + i, y, s[i], fg, bg);
     }
 }
 
-void DrawContext::hline(int y, char ch) {
+void UIContext::hline(int y, char ch) {
     for (int x = 0; x < bounds_.w; ++x) {
         put(x, y, ch);
     }
 }
 
-void DrawContext::hline(int y, const char* utf8, Color fg) {
+void UIContext::hline(int y, const char* utf8, Color fg) {
     for (int x = 0; x < bounds_.w; ++x) {
         put(x, y, utf8, fg);
     }
 }
 
-void DrawContext::vline(int x, char ch) {
+void UIContext::vline(int x, char ch) {
     for (int y = 0; y < bounds_.h; ++y) {
         put(x, y, ch);
     }
 }
 
-void DrawContext::vline(int x, const char* utf8, Color fg) {
+void UIContext::vline(int x, const char* utf8, Color fg) {
     for (int y = 0; y < bounds_.h; ++y) {
         put(x, y, utf8, fg);
     }
 }
 
-void DrawContext::border(char h, char v, char corner) {
+void UIContext::border(char h, char v, char corner) {
     // Top and bottom
     for (int x = 1; x < bounds_.w - 1; ++x) {
         put(x, 0, h);
@@ -203,7 +204,7 @@ void DrawContext::border(char h, char v, char corner) {
     put(bounds_.w - 1, bounds_.h - 1, corner);
 }
 
-void DrawContext::box(Color fg) {
+void UIContext::box(Color fg) {
     // Top and bottom
     for (int x = 1; x < bounds_.w - 1; ++x) {
         put(x, 0, BoxDraw::H, fg);
@@ -221,7 +222,7 @@ void DrawContext::box(Color fg) {
     put(bounds_.w - 1, bounds_.h - 1, BoxDraw::BR, fg);
 }
 
-void DrawContext::fill(char ch) {
+void UIContext::fill(char ch) {
     for (int y = 0; y < bounds_.h; ++y) {
         for (int x = 0; x < bounds_.w; ++x) {
             put(x, y, ch);
@@ -229,23 +230,23 @@ void DrawContext::fill(char ch) {
     }
 }
 
-void DrawContext::text_left(int y, std::string_view s, Color fg) {
+void UIContext::text_left(int y, std::string_view s, Color fg) {
     text(0, y, s, fg);
 }
 
-void DrawContext::text_center(int y, std::string_view s, Color fg) {
+void UIContext::text_center(int y, std::string_view s, Color fg) {
     int x = (bounds_.w - static_cast<int>(s.size())) / 2;
     if (x < 0) x = 0;
     text(x, y, s, fg);
 }
 
-void DrawContext::text_right(int y, std::string_view s, Color fg) {
+void UIContext::text_right(int y, std::string_view s, Color fg) {
     int x = bounds_.w - static_cast<int>(s.size());
     if (x < 0) x = 0;
     text(x, y, s, fg);
 }
 
-int DrawContext::label_value(int x, int y,
+int UIContext::label_value(int x, int y,
                              std::string_view label, Color label_color,
                              std::string_view value, Color value_color) {
     text(x, y, label, label_color);
@@ -254,7 +255,7 @@ int DrawContext::label_value(int x, int y,
     return vx + static_cast<int>(value.size());
 }
 
-int DrawContext::bar(int x, int y, int bar_width, int value, int max_value,
+int UIContext::bar(int x, int y, int bar_width, int value, int max_value,
                      Color fill_color, Color empty_color,
                      char fill_ch, char empty_ch) {
     (void)fill_ch; (void)empty_ch;
@@ -277,7 +278,7 @@ int DrawContext::bar(int x, int y, int bar_width, int value, int max_value,
     return x + bar_width + 2;
 }
 
-DrawContext DrawContext::sub(Rect local_rect) const {
+UIContext UIContext::sub(Rect local_rect) const {
     // Translate local_rect into absolute coordinates, clipped to bounds
     int ax = bounds_.x + local_rect.x;
     int ay = bounds_.y + local_rect.y;
@@ -292,12 +293,12 @@ DrawContext DrawContext::sub(Rect local_rect) const {
     if (aw < 0) aw = 0;
     if (ah < 0) ah = 0;
 
-    return DrawContext(renderer_, {ax, ay, aw, ah});
+    return UIContext(renderer_, {ax, ay, aw, ah});
 }
 
-const Rect& DrawContext::bounds() const { return bounds_; }
-int DrawContext::width() const { return bounds_.w; }
-int DrawContext::height() const { return bounds_.h; }
+const Rect& UIContext::bounds() const { return bounds_; }
+int UIContext::width() const { return bounds_.w; }
+int UIContext::height() const { return bounds_.h; }
 
 // --- TextList ---
 
@@ -635,7 +636,8 @@ DrawContext Panel::content() const {
 void draw_item_info(DrawContext& ctx, const Item& item) {
     int y = 0;
 
-    ctx.put(0, y, item.glyph, item.color);
+    auto vis = item_visual(item.item_def_id);
+    ctx.put(0, y, vis.glyph, vis.fg);
     ctx.text(2, y, rarity_name(item.rarity), rarity_color(item.rarity));
     y++;
 

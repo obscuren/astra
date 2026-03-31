@@ -5,6 +5,7 @@
 #include "astra/skill_defs.h"
 #include "astra/journal.h"
 #include "astra/tinkering.h"
+#include "terminal_theme.h"
 
 #include <algorithm>
 #include <string>
@@ -1486,7 +1487,8 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
         // Content: item glyph centered, or empty
         if (item) {
             int mid = bx + bw / 2;
-            ctx.put(mid, by + 1, item->glyph, rarity_color(item->rarity));
+            auto vis = item_visual(item->item_def_id);
+            ctx.put(mid, by + 1, vis.glyph, rarity_color(item->rarity));
         } else {
             ctx.text(bx + 2, by + 1, "   ", Color::DarkGray);
         }
@@ -1534,7 +1536,8 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 
         if (selected) ctx.put(rx - 1, ry, '>', Color::Yellow);
 
-        ctx.put(rx, ry, item.glyph, rarity_color(item.rarity));
+        auto vis = item_visual(item.item_def_id);
+        ctx.put(rx, ry, vis.glyph, rarity_color(item.rarity));
         draw_item_name(ctx, rx + 2, ry, item, selected);
 
         std::string price = std::to_string(item.sell_value) + "$";
@@ -1588,10 +1591,11 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
     // Workbench content
     if (workbench_item_) {
-        std::string display = std::string(1, workbench_item_->glyph) + " " + workbench_item_->name;
+        auto wb_vis = item_visual(workbench_item_->item_def_id);
+        std::string display = std::string(1, wb_vis.glyph) + " " + workbench_item_->name;
         if (static_cast<int>(display.size()) > wb_w - 4) display = display.substr(0, wb_w - 4);
         int nx = wb_x + (wb_w - static_cast<int>(display.size())) / 2;
-        ctx.put(nx, wb_y + 1, workbench_item_->glyph, rarity_color(workbench_item_->rarity));
+        ctx.put(nx, wb_y + 1, wb_vis.glyph, rarity_color(workbench_item_->rarity));
         ctx.text(nx + 2, wb_y + 1, workbench_item_->name, rarity_color(workbench_item_->rarity));
     } else {
     {
@@ -1773,7 +1777,8 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
     for (const auto& item : player_->inventory.items) {
         if (item.type == ItemType::CraftingMaterial) {
             std::string label = item.name + " x" + std::to_string(item.stack_count);
-            ctx.put(mx, mat_y, '+', item.color);
+            auto mat_vis = item_visual(item.item_def_id);
+            ctx.put(mx, mat_y, mat_vis.glyph, mat_vis.fg);
             ctx.text(mx + 2, mat_y, label, Color::DarkGray);
             mat_y++;
         }
@@ -2073,7 +2078,8 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
 
         int name_x = 3 + static_cast<int>(slot_label.size());
         if (item) {
-            ctx.put(name_x, y, item->glyph, rarity_color(item->rarity));
+            auto ship_vis = item_visual(item->item_def_id);
+            ctx.put(name_x, y, ship_vis.glyph, rarity_color(item->rarity));
             ctx.text(name_x + 2, y, item->name,
                      selected ? Color::White : Color::Default);
         } else {
@@ -2127,7 +2133,8 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
             bool selected = (ship_focus_ == ShipFocus::Inventory && ship_inv_cursor_ == si);
 
             if (selected) ctx.put(rx - 1, ry, '>', Color::Yellow);
-            ctx.put(rx, ry, item.glyph, rarity_color(item.rarity));
+            auto cargo_vis = item_visual(item.item_def_id);
+            ctx.put(rx, ry, cargo_vis.glyph, rarity_color(item.rarity));
 
             std::string name = item.name;
             if (item.ship_slot) {

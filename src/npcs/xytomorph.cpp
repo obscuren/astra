@@ -5,8 +5,7 @@ namespace astra {
 Npc build_xytomorph(std::mt19937& /*rng*/) {
     Npc npc;
     npc.race = Race::Xytomorph;
-    npc.glyph = 'X';
-    npc.color = Color::Red;
+    npc.npc_role = NpcRole::Xytomorph;
     npc.role = "Xytomorph";
     npc.hp = 12;
     npc.max_hp = 12;

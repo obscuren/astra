@@ -55,6 +55,10 @@ inline std::string colored(const std::string& text, Color c) {
     return s;
 }
 
+// Forward declarations for semantic rendering
+struct RenderDescriptor;
+enum class AnimationType : uint8_t;
+
 // Abstract rendering interface.
 // Terminal now, SDL later — game logic never touches this directly.
 class Renderer {
@@ -82,6 +86,13 @@ public:
         (void)x; (void)y; (void)glyph_out; (void)fg_out;
         return false;
     }
+
+    // Semantic rendering — render a game-world entity from its descriptor.
+    // Each renderer implementation resolves the descriptor to backend-specific visuals.
+    virtual void draw_entity(int x, int y, const RenderDescriptor& desc) = 0;
+
+    // Semantic animation — render an animation frame at a position.
+    virtual void draw_animation(int x, int y, AnimationType type, int frame_index) = 0;
 
     // Returns true if the user requested quit (e.g. Ctrl+C), and clears the flag.
     virtual bool consume_quit_request() { return false; }

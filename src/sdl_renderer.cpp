@@ -173,3 +173,19 @@ int SdlRenderer::wait_input_timeout(int timeout_ms) {
 }
 
 } // namespace astra
+
+#include "astra/render_descriptor.h"
+
+namespace astra {
+
+void SdlRenderer::draw_entity(int x, int y, const RenderDescriptor& desc) {
+    (void)desc;
+    draw_char(x, y, '?');  // stub
+}
+
+void SdlRenderer::draw_animation(int x, int y, AnimationType type, int frame_index) {
+    (void)type; (void)frame_index;
+    draw_char(x, y, '*');  // stub
+}
+
+} // namespace astra

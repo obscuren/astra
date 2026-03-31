@@ -1,6 +1,7 @@
 #include "astra/ability.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
+#include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
 
@@ -97,6 +98,8 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::CommandTerminal: return "Command Terminal";
         case FixtureType::DungeonHatch:    return "Floor Hatch";
         case FixtureType::StairsUp:        return "Stairs Up";
+        case FixtureType::NaturalObstacle: return "Natural Obstacle";
+        case FixtureType::SettlementProp:  return "Settlement Prop";
     }
     return "Unknown";
 }
@@ -128,6 +131,8 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::CommandTerminal: return "ARIA — the ship's autonomous intelligence. Manages all onboard systems.";
         case FixtureType::DungeonHatch:    return "A heavy floor hatch with caution markings. Leads to the maintenance tunnels below.";
         case FixtureType::StairsUp:        return "Stairs leading back up to the surface.";
+        case FixtureType::NaturalObstacle: return "A natural formation blocking the path.";
+        case FixtureType::SettlementProp:  return "A piece of settlement infrastructure.";
     }
     return "";
 }
@@ -1030,7 +1035,8 @@ void Game::render_side_panel() {
                 ctx.text(1, y, label, Color::DarkGray);
                 int lx = 1 + static_cast<int>(std::string_view(label).size());
                 if (slot) {
-                    ctx.put(lx, y, slot->glyph, slot->color);
+                    auto sv = item_visual(slot->item_def_id);
+                    ctx.put(lx, y, sv.glyph, rarity_color(slot->rarity));
                     ctx.text(lx + 1, y, " " + slot->name, rarity_color(slot->rarity));
                 } else {
                     ctx.text(lx, y, "---", Color::DarkGray);

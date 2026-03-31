@@ -518,3 +518,30 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
 }
 
 } // namespace astra
+
+// Semantic rendering implementations — kept after the anonymous namespace
+// to access resolve() / resolve_animation() from the terminal theme.
+#include "astra/render_descriptor.h"
+#include "terminal_theme.h"
+
+namespace astra {
+
+void TerminalRenderer::draw_entity(int x, int y, const RenderDescriptor& desc) {
+    auto visual = resolve(desc);
+    if (visual.utf8)
+        draw_glyph(x, y, visual.utf8, visual.fg);
+    else if (visual.bg != Color::Default)
+        draw_char(x, y, visual.glyph, visual.fg, visual.bg);
+    else
+        draw_char(x, y, visual.glyph, visual.fg);
+}
+
+void TerminalRenderer::draw_animation(int x, int y, AnimationType type, int frame_index) {
+    auto visual = resolve_animation(type, frame_index);
+    if (visual.utf8)
+        draw_glyph(x, y, visual.utf8, visual.fg);
+    else
+        draw_char(x, y, visual.glyph, visual.fg);
+}
+
+} // namespace astra

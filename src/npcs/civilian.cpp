@@ -2,31 +2,6 @@
 
 namespace astra {
 
-// Race-based glyph and color for civilians
-static char civilian_glyph(Race race) {
-    switch (race) {
-        case Race::Human:    return 'H';
-        case Race::Veldrani: return 'V';
-        case Race::Kreth:    return 'R';
-        case Race::Sylphari: return 'S';
-        case Race::Stellari: return 'L';
-        case Race::Xytomorph: return 'X';
-    }
-    return '?';
-}
-
-static Color civilian_color(Race race) {
-    switch (race) {
-        case Race::Human:    return Color::White;
-        case Race::Veldrani: return Color::Cyan;
-        case Race::Kreth:    return Color::Yellow;
-        case Race::Sylphari: return Color::Green;
-        case Race::Stellari: return Color::Magenta;
-        case Race::Xytomorph: return Color::Red;
-    }
-    return Color::DarkGray;
-}
-
 // Random civilian role titles
 static const char* civilian_roles[] = {
     "Resident", "Traveler", "Spacer", "Pilgrim", "Scavenger",
@@ -82,8 +57,7 @@ static constexpr int general_dialog_count = 7;
 Npc build_civilian(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = civilian_glyph(race);
-    npc.color = civilian_color(race);
+    npc.npc_role = NpcRole::Civilian;
     npc.role = civilian_roles[std::uniform_int_distribution<int>(
         0, civilian_role_count - 1)(rng)];
     npc.hp = std::uniform_int_distribution<int>(5, 10)(rng);
