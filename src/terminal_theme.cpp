@@ -340,7 +340,7 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
     if (roll < 1) {
         switch (biome) {
             case Biome::Grassland:
-                return {'*', nullptr, Color::Magenta, Color::Default};       // rare flower
+                return {'*', "\xe2\x9c\xbb", Color::Magenta, Color::Default}; // ✻ rare flower
             case Biome::Forest:
                 return {'*', nullptr, Color::Red, Color::Default};           // berries
             case Biome::Jungle:
@@ -370,14 +370,16 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
         switch (biome) {
             case Biome::Grassland: {
                 static const ResolvedVisual variants[] = {
-                    {'*', nullptr, Color::Yellow, Color::Default},           // wildflower
+                    {'*', "\xc2\xb7", Color::Yellow, Color::Default},        // · small wildflower
                     {'"', nullptr, Color::Green, Color::Default},            // tall grass
-                    {',', nullptr, Color::Green, Color::Default},            // low grass
-                    {'\'', nullptr, Color::Yellow, Color::Default},          // dandelion
-                    {'.', nullptr, Color::Green, Color::Default},            // clover
-                    {'*', nullptr, static_cast<Color>(208), Color::Default}, // orange wildflower
+                    {',', "\xcf\x84", Color::Green, Color::Default},         // τ low grass tuft
+                    {'*', "\xe2\x9c\xbf", Color::Yellow, Color::Default},    // ✿ bloom
+                    {'.', "\xc2\xb0", Color::Green, Color::Default},         // ° clover
+                    {'*', "\xe2\x9c\xb6", static_cast<Color>(208), Color::Default}, // ✶ orange flower
+                    {'*', "\xe2\x80\xa2", Color::Magenta, Color::Default},   // • violet bud
+                    {',', "\xc6\x92", Color::Green, Color::Default},         // ƒ fern sprout
                 };
-                return variants[variant % 6];
+                return variants[variant % 8];
             }
             case Biome::Forest: {
                 static const ResolvedVisual variants[] = {
