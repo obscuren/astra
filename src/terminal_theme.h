@@ -32,4 +32,7 @@ ResolvedVisual resolve(const RenderDescriptor& desc);
 // Returns fallback '*' / Magenta for unhandled types (stub).
 ResolvedVisual resolve_animation(AnimationType type, int frame_index);
 
+// Return the ASCII glyph for a fixture type (for UI / editor palette display).
+char fixture_glyph(FixtureType type);
+
 } // namespace astra

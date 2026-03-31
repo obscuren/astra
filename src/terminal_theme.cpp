@@ -379,10 +379,86 @@ static ResolvedVisual resolve_structural_wall(uint8_t seed) {
 }
 
 // ---------------------------------------------------------------------------
-// Main resolve — dispatches on RenderCategory::Tile
+// Fixture resolution — mirrors make_fixture() in tilemap.cpp
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome biome) {
+    auto type = static_cast<FixtureType>(type_id);
+    bool remembered = (flags & RF_Remembered) != 0;
+    bool open = (flags & RF_Open) != 0;
+
+    ResolvedVisual vis;
+    switch (type) {
+        case FixtureType::Door:
+            vis = open
+                ? ResolvedVisual{'\'', nullptr, static_cast<Color>(137), Color::Default}
+                : ResolvedVisual{'+', nullptr, static_cast<Color>(137), Color::Default};
+            break;
+        case FixtureType::Window:
+            vis = {'O', nullptr, Color::Cyan, Color::Default}; break;
+        case FixtureType::Table:
+            vis = {'o', "\xc2\xa4", Color::DarkGray, Color::Default}; break;           // ¤
+        case FixtureType::Console:
+            vis = {'#', "\xe2\x95\xac", Color::Cyan, Color::Default}; break;           // ╬
+        case FixtureType::Crate:
+            vis = {'=', "\xe2\x96\xa0", Color::Yellow, Color::Default}; break;          // ■
+        case FixtureType::Bunk:
+            vis = {'=', "\xe2\x89\xa1", Color::DarkGray, Color::Default}; break;        // ≡
+        case FixtureType::Rack:
+            vis = {'|', "\xe2\x95\x8f", Color::DarkGray, Color::Default}; break;        // ╏
+        case FixtureType::Conduit:
+            vis = {'%', "\xe2\x95\xa3", Color::DarkGray, Color::Default}; break;        // ╣
+        case FixtureType::ShuttleClamp:
+            vis = {'=', "\xe2\x95\xa4", Color::White, Color::Default}; break;           // ╤
+        case FixtureType::Shelf:
+            vis = {'[', "\xe2\x95\x94", Color::DarkGray, Color::Default}; break;        // ╔
+        case FixtureType::Viewport:
+            vis = {'"', "\xe2\x96\x91", Color::Cyan, Color::Default}; break;            // ░
+        case FixtureType::Torch:
+            vis = {'*', nullptr, Color::Yellow, Color::Default}; break;
+        case FixtureType::Stool:
+            vis = {'o', "\xc2\xb7", Color::DarkGray, Color::Default}; break;            // ·
+        case FixtureType::Debris:
+            vis = {',', nullptr, Color::DarkGray, Color::Default}; break;
+        case FixtureType::HealPod:
+            vis = {'+', "\xe2\x9c\x9a", Color::Green, Color::Default}; break;           // ✚
+        case FixtureType::FoodTerminal:
+            vis = {'$', nullptr, Color::Yellow, Color::Default}; break;
+        case FixtureType::WeaponDisplay:
+            vis = {'/', "\xe2\x80\xa0", Color::Red, Color::Default}; break;             // †
+        case FixtureType::RepairBench:
+            vis = {'%', "\xe2\x95\xaa", Color::Cyan, Color::Default}; break;            // ╪
+        case FixtureType::SupplyLocker:
+            vis = {'&', "\xe2\x96\xaa", Color::Yellow, Color::Default}; break;          // ▪
+        case FixtureType::StarChart:
+            vis = {'*', nullptr, Color::Cyan, Color::Default}; break;
+        case FixtureType::RestPod:
+            vis = {'=', "\xe2\x88\xa9", Color::Green, Color::Default}; break;           // ∩
+        case FixtureType::ShipTerminal:
+            vis = {'>', "\xc2\xbb", Color::Yellow, Color::Default}; break;              // »
+        case FixtureType::CommandTerminal:
+            vis = {'#', "\xe2\x96\xa3", Color::Cyan, Color::Default}; break;            // ▣
+        case FixtureType::DungeonHatch:
+            vis = {'v', "\xe2\x96\xbc", Color::Yellow, Color::Default}; break;          // ▼
+        case FixtureType::StairsUp:
+            vis = {'<', "\xe2\x96\xb2", Color::White, Color::Default}; break;           // ▲
+    }
+
+    if (remembered) {
+        vis.fg = biome_palette(biome).remembered;
+    }
+    return vis;
+}
+
+// ---------------------------------------------------------------------------
+// Main resolve — dispatches on RenderCategory
 // ---------------------------------------------------------------------------
 
 ResolvedVisual resolve(const RenderDescriptor& desc) {
+    if (desc.category == RenderCategory::Fixture) {
+        return resolve_fixture(desc.type_id, desc.flags, desc.biome);
+    }
+
     if (desc.category != RenderCategory::Tile) {
         // Stub for non-tile categories
         return {'?', nullptr, Color::Magenta, Color::Default};
@@ -471,6 +547,41 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
     (void)frame_index;
     // Stub — returns bright magenta '*' so unresolved animations are obvious.
     return {'*', nullptr, Color::Magenta, Color::Default};
+}
+
+// ---------------------------------------------------------------------------
+// Fixture glyph — ASCII glyph for UI / editor palette display
+// ---------------------------------------------------------------------------
+
+char fixture_glyph(FixtureType type) {
+    switch (type) {
+        case FixtureType::Door:            return '+';
+        case FixtureType::Window:          return 'O';
+        case FixtureType::Table:           return 'o';
+        case FixtureType::Console:         return '#';
+        case FixtureType::Crate:           return '=';
+        case FixtureType::Bunk:            return '=';
+        case FixtureType::Rack:            return '|';
+        case FixtureType::Conduit:         return '%';
+        case FixtureType::ShuttleClamp:    return '=';
+        case FixtureType::Shelf:           return '[';
+        case FixtureType::Viewport:        return '"';
+        case FixtureType::Torch:           return '*';
+        case FixtureType::Stool:           return 'o';
+        case FixtureType::Debris:          return ',';
+        case FixtureType::HealPod:         return '+';
+        case FixtureType::FoodTerminal:    return '$';
+        case FixtureType::WeaponDisplay:   return '/';
+        case FixtureType::RepairBench:     return '%';
+        case FixtureType::SupplyLocker:    return '&';
+        case FixtureType::StarChart:       return '*';
+        case FixtureType::RestPod:         return '=';
+        case FixtureType::ShipTerminal:    return '>';
+        case FixtureType::CommandTerminal: return '#';
+        case FixtureType::DungeonHatch:    return 'v';
+        case FixtureType::StairsUp:        return '<';
+    }
+    return '?';
 }
 
 } // namespace astra

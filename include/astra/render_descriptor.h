@@ -24,6 +24,7 @@ enum RenderFlag : uint8_t {
     RF_Interactable = 1 << 4,
     RF_Equipped     = 1 << 5,
     RF_Starfield    = 1 << 6,  // tile is in a starfield zone (Station Empty tiles)
+    RF_Open         = 1 << 7,  // door is open
 };
 
 struct RenderDescriptor {
