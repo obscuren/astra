@@ -84,6 +84,7 @@ Npc build_civilian(Race race, std::mt19937& rng) {
     npc.race = race;
     npc.glyph = civilian_glyph(race);
     npc.color = civilian_color(race);
+    npc.npc_role = NpcRole::Civilian;
     npc.role = civilian_roles[std::uniform_int_distribution<int>(
         0, civilian_role_count - 1)(rng)];
     npc.hp = std::uniform_int_distribution<int>(5, 10)(rng);

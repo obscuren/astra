@@ -17,6 +17,22 @@ enum class Disposition : uint8_t {
     Hostile,
 };
 
+// NPC templates define the archetype; the factory fills in name/race.
+enum class NpcRole : uint8_t {
+    StationKeeper,
+    Merchant,
+    Drifter,
+    Xytomorph,
+    FoodMerchant,
+    Medic,
+    Commander,
+    ArmsDealer,
+    Astronomer,
+    Engineer,
+    Nova,
+    Civilian,
+};
+
 struct Npc {
     int x = 0;
     int y = 0;
@@ -36,6 +52,7 @@ struct Npc {
     bool elite = false;
     int base_xp = 0;
     int base_damage = 0;
+    NpcRole npc_role = NpcRole::Civilian;
     InteractionData interactions;
 
     // When displaced by player swap, NPC tries to return here next tick
@@ -47,14 +64,6 @@ struct Npc {
     int attack_damage() const { return base_damage * level + (elite ? 1 : 0); }
     void scale_to_level(int lvl, bool is_elite);
     std::string display_name() const;
-};
-
-// NPC templates define the archetype; the factory fills in name/race.
-enum class NpcRole : uint8_t {
-    StationKeeper,
-    Merchant,
-    Drifter,
-    Xytomorph,
 };
 
 // Create a fully configured NPC. Race is used for name generation.

@@ -8,6 +8,7 @@ Npc build_station_keeper(Race race, std::mt19937& rng) {
     npc.race = race;
     npc.glyph = 'K';
     npc.color = Color::Green;
+    npc.npc_role = NpcRole::StationKeeper;
     npc.role = "Station Keeper";
     npc.hp = 20;
     npc.max_hp = 20;

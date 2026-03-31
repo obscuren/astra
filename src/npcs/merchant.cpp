@@ -8,6 +8,7 @@ Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
     npc.race = race;
     npc.glyph = 'M';
     npc.color = Color::Cyan;
+    npc.npc_role = NpcRole::Merchant;
     npc.role = "Merchant";
     npc.hp = 15;
     npc.max_hp = 15;
