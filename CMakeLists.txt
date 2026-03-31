@@ -72,6 +72,7 @@ set(ASTRA_SOURCES
     src/map_renderer.cpp
     src/terminal_theme.cpp
     src/terminal_ui_theme.cpp
+    src/terminal_renderer_ui.cpp
     src/repair_bench.cpp
     src/save_system.cpp
     src/dev_console.cpp
