@@ -23,6 +23,7 @@ enum RenderFlag : uint8_t {
     RF_Lit          = 1 << 3,
     RF_Interactable = 1 << 4,
     RF_Equipped     = 1 << 5,
+    RF_Starfield    = 1 << 6,  // tile is in a starfield zone (Station Empty tiles)
 };
 
 struct RenderDescriptor {
@@ -50,6 +51,16 @@ inline uint8_t position_seed(int x, int y) {
     uint32_t h = static_cast<uint32_t>(x * 374761393 + y * 668265263);
     h = (h ^ (h >> 13)) * 1274126177;
     return static_cast<uint8_t>(h >> 24);
+}
+
+// Encode structural wall material in top 2 bits of seed, variation in bottom 6.
+inline uint8_t encode_wall_seed(uint8_t material, int x, int y) {
+    uint8_t base = position_seed(x, y) & 0x3F;
+    return static_cast<uint8_t>((material << 6) | base);
+}
+
+inline uint8_t decode_wall_material(uint8_t seed) {
+    return seed >> 6;
 }
 
 } // namespace astra

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/renderer.h"  // Color
+#include "astra/tilemap.h"   // Biome, Tile
 
 namespace astra {
 
@@ -13,6 +14,15 @@ struct ResolvedVisual {
     Color fg           = Color::Magenta;
     Color bg           = Color::Default;
 };
+
+struct ThemeBiomeColors {
+    Color wall;
+    Color floor;
+    Color water;
+    Color remembered;
+};
+
+ThemeBiomeColors biome_palette(Biome biome);
 
 // Resolve a game-world descriptor to terminal visuals.
 // Returns fallback '?' / Magenta for unhandled categories (stub).
