@@ -568,56 +568,100 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'<', "\xe2\x96\xb2", Color::White, Color::Default}; break;           // ▲
         case FixtureType::NaturalObstacle: {
             switch (biome) {
-                case Biome::Grassland:
-                case Biome::Rocky: {
-                    // boulders
+                case Biome::Grassland: {
                     static const ResolvedVisual variants[] = {
-                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},   // °
-                        {'o', "\xc2\xb0", Color::White, Color::Default},
-                        {'o', nullptr, Color::DarkGray, Color::Default},
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° grey boulder
+                        {'o', "\xc2\xb0", Color::White, Color::Default},                  // ° pale rock
+                        {'o', "\xe2\x97\x8b", static_cast<Color>(94), Color::Default},    // ○ brown rock
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ lone tree
+                        {'o', "\xe2\x88\x99", Color::DarkGray, Color::Default},           // ∙ small stone
+                        {'#', "\xe2\x96\x91", static_cast<Color>(94), Color::Default},    // ░ log
                     };
-                    vis = variants[seed % 3]; break;
+                    vis = variants[seed % 6]; break;
+                }
+                case Biome::Rocky: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° boulder
+                        {'o', "\xc2\xb0", Color::White, Color::Default},                  // ° pale rock
+                        {'#', "\xe2\x96\x93", Color::DarkGray, Color::Default},           // ▓ rock face
+                        {'o', "\xe2\x97\x8b", Color::White, Color::Default},              // ○ round stone
+                        {'^', nullptr, Color::DarkGray, Color::Default},                  // jagged rock
+                    };
+                    vis = variants[seed % 5]; break;
                 }
                 case Biome::Forest: {
-                    // tree stump or thicket
                     static const ResolvedVisual variants[] = {
-                        {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},     // ¤ brown stump
-                        {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},
-                        {'#', "\xe2\x96\x92", Color::Green, Color::Default},            // ▒ thicket
+                        {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},        // ¤ brown stump
+                        {'T', "\xce\xa6", static_cast<Color>(22), Color::Default},         // Φ fallen tree
+                        {'#', "\xe2\x96\x92", Color::Green, Color::Default},              // ▒ thicket
+                        {'o', "\xe2\x97\x8b", static_cast<Color>(58), Color::Default},    // ○ mossy rock
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ dense bush
                     };
-                    vis = variants[seed % 3]; break;
+                    vis = variants[seed % 5]; break;
                 }
                 case Biome::Jungle: {
                     static const ResolvedVisual variants[] = {
-                        {'o', "\xc2\xa4", static_cast<Color>(22), Color::Default},     // ¤ thick trunk
-                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default}, // ▓ root mass
+                        {'o', "\xc2\xa4", static_cast<Color>(22), Color::Default},        // ¤ thick trunk
+                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default},    // ▓ root mass
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ giant fern
+                        {'#', "\xe2\x96\x92", static_cast<Color>(22), Color::Default},    // ▒ tangled vines
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::Sandy: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° large rock
+                        {'o', "\xc2\xb0", Color::Yellow, Color::Default},                 // ° sandstone
+                        {'^', nullptr, static_cast<Color>(180), Color::Default},           // sandy outcrop
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Ice: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::Cyan, Color::Default},                  // ° frozen boulder
+                        {'*', "\xe2\x97\x87", Color::White, Color::Default},              // ◇ ice crystal
+                        {'#', "\xe2\x96\x91", Color::Cyan, Color::Default},               // ░ ice wall
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Fungal: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xce\xa6", Color::Green, Color::Default},                  // Φ large mushroom
+                        {'o', "\xce\xa6", Color::Magenta, Color::Default},                // Φ purple mushroom
+                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default},    // ▓ fungal mass
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Volcanic: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° lava rock
+                        {'o', "\xc2\xb0", Color::Red, Color::Default},                    // ° hot rock
+                        {'^', nullptr, static_cast<Color>(52), Color::Default},            // obsidian spike
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Aquatic: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", static_cast<Color>(30), Color::Default},        // ° wet rock
+                        {'#', "\xe2\x96\x92", Color::Blue, Color::Default},               // ▒ coral
                     };
                     vis = variants[seed % 2]; break;
                 }
-                case Biome::Sandy: {
-                    vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;  // large rock
-                }
-                case Biome::Ice: {
-                    vis = {'o', "\xc2\xb0", Color::Cyan, Color::Default}; break;      // frozen boulder
-                }
-                case Biome::Fungal: {
-                    vis = {'o', "\xce\xa6", Color::Green, Color::Default}; break;      // Φ large mushroom
-                }
-                case Biome::Volcanic: {
-                    vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;  // lava tube rock
-                }
-                case Biome::Aquatic: {
-                    vis = {'o', "\xc2\xb0", static_cast<Color>(30), Color::Default}; break;
-                }
                 case Biome::Crystal: {
-                    vis = {'*', "\xe2\x97\x87", Color::BrightMagenta, Color::Default}; break; // ◇
+                    static const ResolvedVisual variants[] = {
+                        {'*', "\xe2\x97\x87", Color::BrightMagenta, Color::Default},     // ◇ crystal
+                        {'*', "\xe2\x97\x86", Color::Magenta, Color::Default},            // ◆ dark crystal
+                        {'*', "\xe2\x9c\xb6", Color::Cyan, Color::Default},               // ✶ prism
+                    };
+                    vis = variants[seed % 3]; break;
                 }
                 case Biome::Corroded: {
                     static const ResolvedVisual variants[] = {
-                        {'#', "\xe2\x96\x91", static_cast<Color>(142), Color::Default}, // ░ collapsed
-                        {'o', nullptr, static_cast<Color>(142), Color::Default},
+                        {'#', "\xe2\x96\x91", static_cast<Color>(142), Color::Default},  // ░ collapsed
+                        {'%', "\xe2\x9a\x99", Color::DarkGray, Color::Default},           // ⚙ wreckage
+                        {'o', nullptr, static_cast<Color>(58), Color::Default},            // rusted lump
                     };
-                    vis = variants[seed % 2]; break;
+                    vis = variants[seed % 3]; break;
                 }
                 default:
                     vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;
