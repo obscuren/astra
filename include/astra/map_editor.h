@@ -60,8 +60,7 @@ private:
     // NPC palette
     struct NpcTemplate {
         std::string name;
-        char glyph;
-        Color color;
+        NpcRole npc_role;
         std::string role;
         Disposition disposition;
     };

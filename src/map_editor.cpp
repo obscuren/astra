@@ -56,13 +56,13 @@ void MapEditor::init_fixture_palette() {
 
 void MapEditor::init_npc_palette() {
     npc_palette_ = {
-        {"Guard",     'G', Color::White,  "guard",     Disposition::Neutral},
-        {"Merchant",  'M', Color::Yellow, "merchant",  Disposition::Neutral},
-        {"Engineer",  'E', Color::Cyan,   "engineer",  Disposition::Neutral},
-        {"Medic",     '+', Color::Green,  "medic",     Disposition::Neutral},
-        {"Commander", 'C', Color::White,  "commander", Disposition::Neutral},
-        {"Civilian",  'H', Color::White,  "civilian",  Disposition::Neutral},
-        {"Hostile",   'x', Color::Red,    "hostile",   Disposition::Hostile},
+        {"Guard",     NpcRole::Civilian,      "guard",     Disposition::Neutral},
+        {"Merchant",  NpcRole::Merchant,      "merchant",  Disposition::Neutral},
+        {"Engineer",  NpcRole::Engineer,      "engineer",  Disposition::Neutral},
+        {"Medic",     NpcRole::Medic,         "medic",     Disposition::Neutral},
+        {"Commander", NpcRole::Commander,     "commander", Disposition::Neutral},
+        {"Civilian",  NpcRole::Civilian,      "civilian",  Disposition::Neutral},
+        {"Hostile",   NpcRole::Xytomorph,     "hostile",   Disposition::Hostile},
     };
     npc_cursor_ = 0;
 }
@@ -291,8 +291,7 @@ void MapEditor::place_npc(int x, int y, Game& game) {
     Npc npc;
     npc.x = x;
     npc.y = y;
-    npc.glyph = tmpl.glyph;
-    npc.color = tmpl.color;
+    npc.npc_role = tmpl.npc_role;
     npc.name = tmpl.name;
     npc.role = tmpl.role;
     npc.disposition = tmpl.disposition;
@@ -1172,7 +1171,7 @@ void MapEditor::draw_palette(DrawContext& ctx) {
             bool sel = (i == npc_cursor_);
             char marker = sel ? '>' : ' ';
             Color fg = sel ? Color::White : Color::DarkGray;
-            std::string line = std::string(1, marker) + " " + npc_palette_[i].glyph + " " + npc_palette_[i].name;
+            std::string line = std::string(1, marker) + " " + npc_palette_[i].name;
             ctx.text(0, y++, line, fg);
         }
     }

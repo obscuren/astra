@@ -3,7 +3,6 @@
 #include "astra/effect.h"
 #include "astra/interaction.h"
 #include "astra/race.h"
-#include "astra/renderer.h"
 
 #include <cstdint>
 #include <random>
@@ -36,8 +35,6 @@ enum class NpcRole : uint8_t {
 struct Npc {
     int x = 0;
     int y = 0;
-    char glyph = '?';
-    Color color = Color::White;
     std::string name;           // personal name, e.g. "Krath"
     std::string role;           // title, e.g. "Station Keeper"
     Race race = Race::Human;

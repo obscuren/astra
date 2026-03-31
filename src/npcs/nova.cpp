@@ -5,8 +5,6 @@ namespace astra {
 Npc build_nova() {
     Npc npc;
     npc.race = Race::Stellari;
-    npc.glyph = 'N';
-    npc.color = static_cast<Color>(135);
     npc.name = "Nova";
     npc.npc_role = NpcRole::Nova;
     npc.role = "Stellar Engineer";

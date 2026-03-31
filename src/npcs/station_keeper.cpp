@@ -6,8 +6,6 @@ namespace astra {
 Npc build_station_keeper(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'K';
-    npc.color = Color::Green;
     npc.npc_role = NpcRole::StationKeeper;
     npc.role = "Station Keeper";
     npc.hp = 20;

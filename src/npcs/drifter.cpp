@@ -5,8 +5,6 @@ namespace astra {
 Npc build_drifter(Race race, std::mt19937& rng) {
     Npc npc;
     npc.race = race;
-    npc.glyph = 'D';
-    npc.color = Color::White;
     npc.npc_role = NpcRole::Drifter;
     npc.role = "Drifter";
     npc.hp = 8;
