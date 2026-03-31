@@ -841,8 +841,11 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         return resolve_item(desc.type_id);
     }
 
+    if (desc.category == RenderCategory::Player) {
+        return {'@', nullptr, Color::Yellow, Color::Default};
+    }
+
     if (desc.category != RenderCategory::Tile) {
-        // Stub for non-tile categories
         return {'?', nullptr, Color::Magenta, Color::Default};
     }
 

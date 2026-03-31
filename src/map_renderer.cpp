@@ -225,17 +225,22 @@ void render_map(const MapRenderContext& rc) {
     }
 
     // Draw player (only effect animations override player glyph)
-    if (rc.animations) {
-        if (auto* frame = rc.animations->query_effect(rc.player.x, rc.player.y)) {
-            if (frame->utf8)
-                ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->utf8, frame->color);
-            else
-                ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->glyph, frame->color);
-        } else {
-            ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, '@', Color::Yellow);
+    {
+        bool anim_override = false;
+        if (rc.animations) {
+            if (auto* frame = rc.animations->query_effect(rc.player.x, rc.player.y)) {
+                if (frame->utf8)
+                    ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->utf8, frame->color);
+                else
+                    ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->glyph, frame->color);
+                anim_override = true;
+            }
         }
-    } else {
-        ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, '@', Color::Yellow);
+        if (!anim_override) {
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Player;
+            wctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, desc);
+        }
     }
 
     // Draw targeting line and reticule
