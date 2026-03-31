@@ -2,6 +2,8 @@
 #include "astra/game.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/world_context.h"
+#include "astra/render_descriptor.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -1058,6 +1060,7 @@ void MapEditor::draw(int screen_w, int screen_h) {
 void MapEditor::draw_viewport(DrawContext& ctx) {
     auto& map = active_map();
     bool is_ow = (mode_ == Mode::Overworld);
+    WorldContext wctx(renderer_, ctx.bounds());
 
     for (int sy = 0; sy < ctx.height(); ++sy) {
         for (int sx = 0; sx < ctx.width(); ++sx) {
@@ -1066,70 +1069,40 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
             if (mx < 0 || mx >= map.width() || my < 0 || my >= map.height()) continue;
 
             Tile t = map.get(mx, my);
-            char g = tile_glyph(t);
-            Color c = Color::DarkGray;
 
             if (is_ow) {
-                const char* og = overworld_glyph(t, mx, my);
-                // Use actual overworld colors
-                switch (t) {
-                    case Tile::OW_Plains:      c = Color::Green; break;
-                    case Tile::OW_Mountains:   c = Color::White; break;
-                    case Tile::OW_Forest:      c = Color::Green; break;
-                    case Tile::OW_Desert:      c = Color::Yellow; break;
-                    case Tile::OW_Crater:      c = Color::DarkGray; break;
-                    case Tile::OW_IceField:    c = Color::Cyan; break;
-                    case Tile::OW_LavaFlow:    c = Color::Red; break;
-                    case Tile::OW_Fungal:      c = Color::Green; break;
-                    case Tile::OW_River:       c = Color::Blue; break;
-                    case Tile::OW_Lake:        c = Color::Cyan; break;
-                    case Tile::OW_Swamp:       c = Color::Green; break;
-                    case Tile::OW_CaveEntrance:c = Color::Magenta; break;
-                    case Tile::OW_Ruins:       c = Color::BrightMagenta; break;
-                    case Tile::OW_Settlement:  c = Color::Yellow; break;
-                    case Tile::OW_CrashedShip: c = Color::Cyan; break;
-                    case Tile::OW_Outpost:     c = Color::Green; break;
-                    case Tile::OW_Landing:     c = Color::Cyan; break;
-                    default:                   c = Color::White; break;
+                // Overworld tiles via descriptor
+                RenderDescriptor desc;
+                desc.category = RenderCategory::Tile;
+                desc.type_id = static_cast<uint16_t>(t);
+                desc.seed = position_seed(mx, my);
+                desc.biome = map.biome();
+                desc.flags = RF_Lit;
+                if (map.custom_detail(mx, my)) desc.flags |= RF_Interactable;
+                wctx.put(sx, sy, desc);
+            } else if (t == Tile::Fixture) {
+                // Fixtures stay on old DrawContext path
+                int fid = map.fixture_id(mx, my);
+                if (fid >= 0) {
+                    auto& f = map.fixture(fid);
+                    if (f.utf8_glyph)
+                        ctx.put(sx, sy, f.utf8_glyph, f.color);
+                    else
+                        ctx.put(sx, sy, f.glyph, f.color);
                 }
-                // Custom tiles get a bright marker
-                if (map.custom_detail(mx, my)) c = Color::BrightYellow;
-                ctx.put(sx, sy, og, c);
             } else {
-                auto bc = biome_colors(map.biome());
-                const char* utf8 = nullptr;
-                if (t == Tile::Fixture) {
-                    int fid = map.fixture_id(mx, my);
-                    if (fid >= 0) {
-                        auto& f = map.fixture(fid);
-                        if (f.utf8_glyph) utf8 = f.utf8_glyph;
-                        else g = f.glyph;
-                        c = f.color;
-                    }
-                } else if (t == Tile::StructuralWall) {
-                    c = Color::White;
-                    utf8 = "\xe2\x96\x88"; // █
-                } else if (t == Tile::Wall) {
-                    c = bc.wall;
-                    utf8 = dungeon_wall_glyph(map.biome(), mx, my);
-                } else if (t == Tile::Floor) {
-                    c = bc.floor;
-                } else if (t == Tile::IndoorFloor) {
-                    c = static_cast<Color>(137); // warm tan
-                    utf8 = "\xe2\x96\xaa"; // ▪
-                } else if (t == Tile::Water) {
-                    c = bc.water;
-                } else if (t == Tile::Ice) {
-                    c = Color::Cyan;
-                } else if (t == Tile::Empty) {
-                    g = ' ';
+                // Dungeon non-fixture tiles via descriptor
+                RenderDescriptor desc;
+                desc.category = RenderCategory::Tile;
+                desc.type_id = static_cast<uint16_t>(t);
+                desc.biome = map.biome();
+                desc.flags = RF_Lit;
+                if (t == Tile::StructuralWall) {
+                    desc.seed = encode_wall_seed(0, mx, my);
                 } else {
-                    c = Color::White;
+                    desc.seed = position_seed(mx, my);
                 }
-                if (utf8)
-                    ctx.put(sx, sy, utf8, c);
-                else
-                    ctx.put(sx, sy, g, c);
+                wctx.put(sx, sy, desc);
             }
 
             // Draw NPCs
