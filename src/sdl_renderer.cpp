@@ -174,6 +174,24 @@ int SdlRenderer::wait_input_timeout(int timeout_ms) {
 
 } // namespace astra
 
+#include "astra/ui_types.h"
+
+namespace astra {
+
+Rect SdlRenderer::draw_panel(const Rect& bounds, const PanelDesc& /*desc*/) {
+    return bounds;
+}
+
+void SdlRenderer::draw_progress_bar(int /*x*/, int /*y*/, const ProgressBarDesc& /*desc*/) {}
+void SdlRenderer::draw_ui_text(int /*x*/, int /*y*/, const TextDesc& /*desc*/) {}
+void SdlRenderer::draw_styled_text(int /*x*/, int /*y*/, const StyledTextDesc& /*desc*/) {}
+void SdlRenderer::draw_list(const Rect& /*bounds*/, const ListDesc& /*desc*/) {}
+void SdlRenderer::draw_tab_bar(const Rect& /*bounds*/, const TabBarDesc& /*desc*/) {}
+void SdlRenderer::draw_separator(const Rect& /*bounds*/, const SeparatorDesc& /*desc*/) {}
+void SdlRenderer::draw_label_value(int /*x*/, int /*y*/, const LabelValueDesc& /*desc*/) {}
+
+} // namespace astra
+
 #include "astra/render_descriptor.h"
 
 namespace astra {

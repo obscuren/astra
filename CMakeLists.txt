@@ -13,6 +13,8 @@ set(ASTRA_SOURCES
     src/main.cpp
     src/game.cpp
     src/ui.cpp
+    src/ui_layout.cpp
+    src/ui_components.cpp
     src/fov.cpp
     src/npc.cpp
     src/npcs/station_keeper.cpp
@@ -71,6 +73,8 @@ set(ASTRA_SOURCES
     src/game_rendering.cpp
     src/map_renderer.cpp
     src/terminal_theme.cpp
+    src/terminal_ui_theme.cpp
+    src/terminal_renderer_ui.cpp
     src/repair_bench.cpp
     src/save_system.cpp
     src/dev_console.cpp

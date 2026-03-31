@@ -28,6 +28,16 @@ public:
     void draw_entity(int x, int y, const RenderDescriptor& desc) override;
     void draw_animation(int x, int y, AnimationType type, int frame_index) override;
 
+    // Semantic UI
+    Rect draw_panel(const Rect& bounds, const PanelDesc& desc) override;
+    void draw_progress_bar(int x, int y, const ProgressBarDesc& desc) override;
+    void draw_ui_text(int x, int y, const TextDesc& desc) override;
+    void draw_styled_text(int x, int y, const StyledTextDesc& desc) override;
+    void draw_list(const Rect& bounds, const ListDesc& desc) override;
+    void draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) override;
+    void draw_separator(const Rect& bounds, const SeparatorDesc& desc) override;
+    void draw_label_value(int x, int y, const LabelValueDesc& desc) override;
+
     int poll_input() override;
     int wait_input() override;
     int wait_input_timeout(int timeout_ms) override;
