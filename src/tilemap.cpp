@@ -403,6 +403,14 @@ FixtureData make_fixture(FixtureType type) {
             fd.glyph = '<'; fd.utf8_glyph = "\xe2\x96\xb2";   // ▲
             fd.color = Color::White;
             fd.passable = false; fd.interactable = true; break;
+        case FixtureType::NaturalObstacle:
+            fd.glyph = 'o';
+            fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::SettlementProp:
+            fd.glyph = '*';
+            fd.color = Color::DarkGray;
+            fd.passable = false; fd.interactable = false; break;
     }
     return fd;
 }

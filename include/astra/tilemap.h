@@ -306,6 +306,9 @@ enum class FixtureType : uint8_t {
     CommandTerminal,// '#'  — ship AI terminal (ARIA)
     DungeonHatch,   // 'v'  — floor hatch leading to dungeon below
     StairsUp,       // '<'  — exit dungeon / return to previous location
+
+    NaturalObstacle,    // impassable natural feature — renderer resolves from biome + seed
+    SettlementProp,     // impassable settlement prop — renderer resolves from seed
 };
 
 struct FixtureData {

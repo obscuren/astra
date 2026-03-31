@@ -382,7 +382,7 @@ static ResolvedVisual resolve_structural_wall(uint8_t seed) {
 // Fixture resolution — mirrors make_fixture() in tilemap.cpp
 // ---------------------------------------------------------------------------
 
-static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome biome) {
+static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome biome, uint8_t seed) {
     auto type = static_cast<FixtureType>(type_id);
     bool remembered = (flags & RF_Remembered) != 0;
     bool open = (flags & RF_Open) != 0;
@@ -442,6 +442,75 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'v', "\xe2\x96\xbc", Color::Yellow, Color::Default}; break;          // ▼
         case FixtureType::StairsUp:
             vis = {'<', "\xe2\x96\xb2", Color::White, Color::Default}; break;           // ▲
+        case FixtureType::NaturalObstacle: {
+            switch (biome) {
+                case Biome::Grassland:
+                case Biome::Rocky: {
+                    // boulders
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::DarkGray, Color::Default},   // °
+                        {'o', "\xc2\xb0", Color::White, Color::Default},
+                        {'o', nullptr, Color::DarkGray, Color::Default},
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Forest: {
+                    // tree stump or thicket
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},     // ¤ brown stump
+                        {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},
+                        {'#', "\xe2\x96\x92", Color::Green, Color::Default},            // ▒ thicket
+                    };
+                    vis = variants[seed % 3]; break;
+                }
+                case Biome::Jungle: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xa4", static_cast<Color>(22), Color::Default},     // ¤ thick trunk
+                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default}, // ▓ root mass
+                    };
+                    vis = variants[seed % 2]; break;
+                }
+                case Biome::Sandy: {
+                    vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;  // large rock
+                }
+                case Biome::Ice: {
+                    vis = {'o', "\xc2\xb0", Color::Cyan, Color::Default}; break;      // frozen boulder
+                }
+                case Biome::Fungal: {
+                    vis = {'o', "\xce\xa6", Color::Green, Color::Default}; break;      // Φ large mushroom
+                }
+                case Biome::Volcanic: {
+                    vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;  // lava tube rock
+                }
+                case Biome::Aquatic: {
+                    vis = {'o', "\xc2\xb0", static_cast<Color>(30), Color::Default}; break;
+                }
+                case Biome::Crystal: {
+                    vis = {'*', "\xe2\x97\x87", Color::BrightMagenta, Color::Default}; break; // ◇
+                }
+                case Biome::Corroded: {
+                    static const ResolvedVisual variants[] = {
+                        {'#', "\xe2\x96\x91", static_cast<Color>(142), Color::Default}, // ░ collapsed
+                        {'o', nullptr, static_cast<Color>(142), Color::Default},
+                    };
+                    vis = variants[seed % 2]; break;
+                }
+                default:
+                    vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;
+            }
+            break;
+        }
+        case FixtureType::SettlementProp: {
+            static const ResolvedVisual props[] = {
+                {'T', "\xe2\x94\xb4", Color::Cyan, Color::Default},         // ┴ antenna
+                {'O', "\xc2\xb0", Color::Blue, Color::Default},              // ° water well
+                {'=', "\xe2\x95\x90", Color::DarkGray, Color::Default},      // ═ bench
+                {'*', "\xe2\x9c\xb6", Color::Yellow, Color::Default},        // ✶ lamp post
+                {'%', "\xe2\x9a\x99", Color::DarkGray, Color::Default},      // ⚙ machinery
+            };
+            vis = props[seed % 5];
+            break;
+        }
     }
 
     if (remembered) {
@@ -456,7 +525,7 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
 
 ResolvedVisual resolve(const RenderDescriptor& desc) {
     if (desc.category == RenderCategory::Fixture) {
-        return resolve_fixture(desc.type_id, desc.flags, desc.biome);
+        return resolve_fixture(desc.type_id, desc.flags, desc.biome, desc.seed);
     }
 
     if (desc.category != RenderCategory::Tile) {
@@ -580,6 +649,8 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::CommandTerminal: return '#';
         case FixtureType::DungeonHatch:    return 'v';
         case FixtureType::StairsUp:        return '<';
+        case FixtureType::NaturalObstacle: return 'o';
+        case FixtureType::SettlementProp:  return '*';
     }
     return '?';
 }

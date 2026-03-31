@@ -49,6 +49,7 @@ void MapEditor::init_fixture_palette() {
         FixtureType::RepairBench, FixtureType::SupplyLocker, FixtureType::StarChart,
         FixtureType::RestPod, FixtureType::ShipTerminal, FixtureType::CommandTerminal,
         FixtureType::DungeonHatch, FixtureType::StairsUp,
+        FixtureType::NaturalObstacle, FixtureType::SettlementProp,
     };
     fixture_cursor_ = 0;
 }
@@ -252,6 +253,8 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::CommandTerminal:return "Cmd Terminal";
         case FixtureType::DungeonHatch:   return "Dungeon Hatch";
         case FixtureType::StairsUp:       return "Stairs Up";
+        case FixtureType::NaturalObstacle:return "Natural Obstacle";
+        case FixtureType::SettlementProp: return "Settlement Prop";
     }
     return "?";
 }
@@ -1088,6 +1091,7 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
                     RenderDescriptor desc;
                     desc.category = RenderCategory::Fixture;
                     desc.type_id = static_cast<uint16_t>(f.type);
+                    desc.seed = position_seed(mx, my);
                     desc.biome = map.biome();
                     desc.flags = RF_Lit;
                     if (f.open) desc.flags |= RF_Open;

@@ -134,6 +134,7 @@ void render_map(const MapRenderContext& rc) {
                         RenderDescriptor desc;
                         desc.category = RenderCategory::Fixture;
                         desc.type_id = static_cast<uint16_t>(f.type);
+                        desc.seed = position_seed(mx, my);
                         desc.biome = biome;
                         desc.flags = RF_Lit;
                         if (f.open) desc.flags |= RF_Open;
@@ -143,6 +144,7 @@ void render_map(const MapRenderContext& rc) {
                         RenderDescriptor desc;
                         desc.category = RenderCategory::Fixture;
                         desc.type_id = static_cast<uint16_t>(f.type);
+                        desc.seed = position_seed(mx, my);
                         desc.biome = biome;
                         desc.flags = RF_Remembered;
                         if (f.open) desc.flags |= RF_Open;
