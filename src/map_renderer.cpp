@@ -80,16 +80,12 @@ void render_map(const MapRenderContext& rc) {
                 bool has_stamp = (gov != 0 && gov != SG_QuestMarker);
                 const char* stamp_og = has_stamp ? stamp_glyph(gov) : nullptr;
 
-                // Animation overrides stay on old DrawContext path
+                // Animation overrides — semantic path via WorldContext
                 bool has_anim = false;
                 if (rc.animations) {
-                    if (auto* frame = rc.animations->query(mx, my)) {
+                    if (auto anim = rc.animations->query(mx, my)) {
                         has_anim = true;
-                        Color c = overworld_tile_color(tile_at, rc.world.map().biome());
-                        const char* og = stamp_og ? stamp_og : overworld_glyph(tile_at, mx, my);
-                        if (frame->utf8) og = frame->utf8;
-                        c = frame->color;
-                        ctx.put(sx, sy, og, c);
+                        wctx.put_animation(sx, sy, anim->type, anim->frame_index);
                     }
                 }
 
@@ -122,11 +118,10 @@ void render_map(const MapRenderContext& rc) {
                     const auto& f = rc.world.map().fixture(fid);
 
                     if (v == Visibility::Visible) {
-                        // Animation override stays on old path (not migrated yet)
+                        // Animation override — semantic path via WorldContext
                         if (rc.animations) {
-                            if (auto* frame = rc.animations->query(mx, my)) {
-                                if (frame->utf8) ctx.put(sx, sy, frame->utf8, frame->color);
-                                else ctx.put(sx, sy, frame->glyph, frame->color);
+                            if (auto anim = rc.animations->query(mx, my)) {
+                                wctx.put_animation(sx, sy, anim->type, anim->frame_index);
                                 continue;
                             }
                         }
@@ -156,15 +151,10 @@ void render_map(const MapRenderContext& rc) {
                 continue;
             }
 
-            // Non-fixture dungeon/station tiles — use descriptors
-            // Animation override: falls back to old DrawContext path
+            // Non-fixture dungeon/station tiles — animation override via WorldContext
             if (rc.animations) {
-                if (auto* frame = rc.animations->query(mx, my)) {
-                    if (frame->utf8) {
-                        ctx.put(sx, sy, frame->utf8, frame->color);
-                    } else {
-                        ctx.put(sx, sy, frame->glyph, frame->color);
-                    }
+                if (auto anim = rc.animations->query(mx, my)) {
+                    wctx.put_animation(sx, sy, anim->type, anim->frame_index);
                     continue;
                 }
             }
@@ -208,11 +198,8 @@ void render_map(const MapRenderContext& rc) {
     for (const auto& npc : rc.world.npcs()) {
         if (npc.alive() && rc.world.visibility().get(npc.x, npc.y) == Visibility::Visible) {
             if (rc.animations) {
-                if (auto* frame = rc.animations->query_effect(npc.x, npc.y)) {
-                    if (frame->utf8)
-                        ctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, frame->utf8, frame->color);
-                    else
-                        ctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, frame->glyph, frame->color);
+                if (auto anim = rc.animations->query_effect(npc.x, npc.y)) {
+                    wctx.put_animation(npc.x - rc.camera_x, npc.y - rc.camera_y, anim->type, anim->frame_index);
                     continue;
                 }
             }
@@ -228,11 +215,8 @@ void render_map(const MapRenderContext& rc) {
     {
         bool anim_override = false;
         if (rc.animations) {
-            if (auto* frame = rc.animations->query_effect(rc.player.x, rc.player.y)) {
-                if (frame->utf8)
-                    ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->utf8, frame->color);
-                else
-                    ctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, frame->glyph, frame->color);
+            if (auto anim = rc.animations->query_effect(rc.player.x, rc.player.y)) {
+                wctx.put_animation(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, anim->type, anim->frame_index);
                 anim_override = true;
             }
         }

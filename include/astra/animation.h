@@ -1,25 +1,30 @@
 #pragma once
 
 #include "astra/renderer.h"
+#include "astra/render_descriptor.h"
 #include "astra/tilemap.h"
 #include "astra/visibility_map.h"
 
 #include <chrono>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
 namespace astra {
 
 struct AnimationFrame {
-    char glyph = ' ';
-    const char* utf8 = nullptr;  // null = use char glyph
-    Color color = Color::White;
     int duration_ms = 150;
 };
 
 struct AnimationDef {
+    AnimationType type;
     std::vector<AnimationFrame> frames;
     bool looping = false;
+};
+
+struct AnimQueryResult {
+    AnimationType type;
+    int frame_index;
 };
 
 struct ActiveAnimation {
@@ -36,11 +41,11 @@ public:
     // Advance all animations using wall-clock delta. Call every frame.
     void tick();
 
-    // Query animation override at world position. Returns null if none.
-    const AnimationFrame* query(int mx, int my) const;
+    // Query animation override at world position.
+    std::optional<AnimQueryResult> query(int mx, int my) const;
 
     // Query only effect animations (not fixtures) — for player/NPC override
-    const AnimationFrame* query_effect(int mx, int my) const;
+    std::optional<AnimQueryResult> query_effect(int mx, int my) const;
 
     // Spawn a one-shot effect at a position
     void spawn_effect(const AnimationDef& def, int x, int y);

@@ -928,10 +928,66 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 // ---------------------------------------------------------------------------
 
 ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
-    (void)type;
-    (void)frame_index;
-    // Stub — returns bright magenta '*' so unresolved animations are obvious.
-    return {'*', nullptr, Color::Magenta, Color::Default};
+    switch (type) {
+        case AnimationType::ConsoleBlink: {
+            static const ResolvedVisual frames[] = {
+                {'#', nullptr, Color::Cyan, Color::Default},
+                {'#', nullptr, Color::DarkGray, Color::Default},
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::WaterShimmer: {
+            static const ResolvedVisual frames[] = {
+                {'~', nullptr, Color::Blue, Color::Default},
+                {'~', "\xe2\x89\x88", Color::Cyan, Color::Default},
+                {'~', nullptr, Color::Blue, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+        case AnimationType::ViewportShimmer: {
+            static const ResolvedVisual frames[] = {
+                {'"', nullptr, Color::Cyan, Color::Default},
+                {'"', nullptr, Color::DarkGray, Color::Default},
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::TorchFlicker: {
+            static const ResolvedVisual frames[] = {
+                {'*', "\xe2\x9c\xb6", Color::Yellow, Color::Default},
+                {'*', "\xe2\x9c\xb8", Color::Red, Color::Default},
+                {'*', "\xe2\x9c\xba", Color::BrightYellow, Color::Default},
+                {'*', "\xe2\x9c\xb7", Color::Yellow, Color::Default},
+                {'*', "\xe2\x9c\xb9", Color::Red, Color::Default},
+            };
+            return frames[frame_index % 5];
+        }
+        case AnimationType::DamageFlash: {
+            static const ResolvedVisual frames[] = {
+                {'*', nullptr, Color::Red, Color::Default},
+                {' ', nullptr, Color::Red, Color::Default},
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::HealPulse: {
+            static const ResolvedVisual frames[] = {
+                {'+', nullptr, Color::Green, Color::Default},
+                {'+', nullptr, static_cast<Color>(10), Color::Default},
+                {'+', nullptr, Color::Green, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+        case AnimationType::Projectile:
+            return {'*', nullptr, Color::Yellow, Color::Default};
+        case AnimationType::LevelUp: {
+            static const ResolvedVisual frames[] = {
+                {'!', nullptr, Color::Yellow, Color::Default},
+                {'!', nullptr, Color::BrightYellow, Color::Default},
+                {'!', nullptr, Color::Yellow, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+    }
+    return {'?', nullptr, Color::Magenta, Color::Default};
 }
 
 // ---------------------------------------------------------------------------

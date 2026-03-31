@@ -39,6 +39,7 @@ struct RenderDescriptor {
 enum class AnimationType : uint8_t {
     ConsoleBlink,
     WaterShimmer,
+    ViewportShimmer,
     TorchFlicker,
     DamageFlash,
     HealPulse,
