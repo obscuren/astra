@@ -96,38 +96,48 @@ void Game::compute_layout() {
 
     screen_rect_ = {0, 0, screen_w_, screen_h_};
 
+    // Vertical layout: stats | HP/tabs | XP/tab-sep | main | bottom-sep | effects | abilities
+    UIContext root(renderer_.get(), screen_rect_);
+    auto vrows = root.rows({
+        fixed(1),    // [0] stats bar
+        fixed(1),    // [1] HP bar / tabs row
+        fixed(1),    // [2] XP bar / tab separator row
+        fill(),      // [3] main content
+        fixed(1),    // [4] bottom separator
+        fixed(1),    // [5] effects
+        fixed(1),    // [6] abilities
+    });
+
+    stats_bar_rect_ = vrows[0].bounds();
+    bottom_sep_rect_ = vrows[4].bounds();
+    effects_rect_ = vrows[5].bounds();
+    abilities_rect_ = vrows[6].bounds();
+
+    // Panel width calculation
     int panel_w = screen_w_ * 35 / 100;
     if (panel_w < 30) panel_w = 30;
     if (panel_w > screen_w_ / 2) panel_w = screen_w_ / 2;
 
     int left_w = screen_w_ - panel_w - 1;
     int sep_x = left_w;
-    int main_h = screen_h_ - 6; // 1 stats + 2 bars + 1 separator + 1 effects + 1 abilities
 
     // Tabs always visible in top-right
-    tabs_rect_ = {sep_x + 1, 1, panel_w, 1};
+    tabs_rect_ = {sep_x + 1, vrows[1].bounds().y, panel_w, 1};
 
     // Bars always stop before the tab column
-    hp_bar_rect_ = {0, 1, left_w, 1};
-    xp_bar_rect_ = {0, 2, left_w, 1};
+    hp_bar_rect_ = {0, vrows[1].bounds().y, left_w, 1};
+    xp_bar_rect_ = {0, vrows[2].bounds().y, left_w, 1};
 
     if (panel_visible_) {
-        map_rect_ = {0, 3, left_w, main_h};
-        separator_rect_ = {sep_x, 1, 1, screen_h_ - 3};
-        side_panel_rect_ = {sep_x + 1, 3, panel_w, main_h};
+        auto main_cols = vrows[3].columns({fill(), fixed(1), fixed(panel_w)});
+        map_rect_ = main_cols[0].bounds();
+        separator_rect_ = {sep_x, vrows[1].bounds().y, 1, screen_h_ - 3};
+        side_panel_rect_ = main_cols[2].bounds();
     } else {
-        map_rect_ = {0, 3, screen_w_, main_h};
-        separator_rect_ = {sep_x, 1, 1, 2}; // only rows 1-2 (tabs + separator)
+        map_rect_ = vrows[3].bounds();
+        separator_rect_ = {sep_x, vrows[1].bounds().y, 1, 2}; // only rows 1-2 (tabs + separator)
         side_panel_rect_ = {0, 0, 0, 0};
     }
-
-    // Row 1: stats bar (full width)
-    stats_bar_rect_ = {0, 0, screen_w_, 1};
-
-    // Bottom: separator + effects + abilities
-    bottom_sep_rect_ = {0, screen_h_ - 3, screen_w_, 1};
-    effects_rect_ = {0, screen_h_ - 2, screen_w_, 1};
-    abilities_rect_ = {0, screen_h_ - 1, screen_w_, 1};
 }
 
 // --- Input ---
