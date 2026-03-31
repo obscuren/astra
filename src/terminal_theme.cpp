@@ -1,5 +1,7 @@
 // src/terminal_theme.cpp
 #include "terminal_theme.h"
+#include "astra/npc.h"
+#include "astra/race.h"
 #include "astra/render_descriptor.h"
 
 namespace astra {
@@ -701,12 +703,51 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
 }
 
 // ---------------------------------------------------------------------------
+// NPC resolution — NpcRole + Race → glyph + color
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_npc(uint16_t type_id, uint8_t seed, uint8_t /*flags*/) {
+    auto role = static_cast<NpcRole>(type_id);
+
+    switch (role) {
+        case NpcRole::StationKeeper: return {'K', nullptr, Color::Green, Color::Default};
+        case NpcRole::Merchant:      return {'M', nullptr, Color::Cyan, Color::Default};
+        case NpcRole::Drifter:       return {'D', nullptr, Color::White, Color::Default};
+        case NpcRole::Xytomorph:     return {'X', nullptr, Color::Red, Color::Default};
+        case NpcRole::FoodMerchant:  return {'F', nullptr, Color::Yellow, Color::Default};
+        case NpcRole::Medic:         return {'D', nullptr, Color::Green, Color::Default};
+        case NpcRole::Commander:     return {'C', nullptr, Color::White, Color::Default};
+        case NpcRole::ArmsDealer:    return {'A', nullptr, Color::Red, Color::Default};
+        case NpcRole::Astronomer:    return {'P', nullptr, Color::Cyan, Color::Default};
+        case NpcRole::Engineer:      return {'E', nullptr, Color::Yellow, Color::Default};
+        case NpcRole::Nova:          return {'N', nullptr, static_cast<Color>(135), Color::Default};
+        case NpcRole::Civilian: {
+            auto race = static_cast<Race>(seed);
+            switch (race) {
+                case Race::Human:     return {'H', nullptr, Color::White, Color::Default};
+                case Race::Veldrani:  return {'V', nullptr, Color::Cyan, Color::Default};
+                case Race::Kreth:     return {'R', nullptr, Color::Yellow, Color::Default};
+                case Race::Sylphari:  return {'S', nullptr, Color::Green, Color::Default};
+                case Race::Stellari:  return {'L', nullptr, Color::Magenta, Color::Default};
+                case Race::Xytomorph: return {'X', nullptr, Color::Red, Color::Default};
+                default:              return {'H', nullptr, Color::White, Color::Default};
+            }
+        }
+        default: return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main resolve — dispatches on RenderCategory
 // ---------------------------------------------------------------------------
 
 ResolvedVisual resolve(const RenderDescriptor& desc) {
     if (desc.category == RenderCategory::Fixture) {
         return resolve_fixture(desc.type_id, desc.flags, desc.biome, desc.seed);
+    }
+
+    if (desc.category == RenderCategory::Npc) {
+        return resolve_npc(desc.type_id, desc.seed, desc.flags);
     }
 
     if (desc.category != RenderCategory::Tile) {
@@ -834,6 +875,34 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::SettlementProp:  return '*';
     }
     return '?';
+}
+
+char npc_glyph(NpcRole role, Race race) {
+    switch (role) {
+        case NpcRole::StationKeeper: return 'K';
+        case NpcRole::Merchant:      return 'M';
+        case NpcRole::Drifter:       return 'D';
+        case NpcRole::Xytomorph:     return 'X';
+        case NpcRole::FoodMerchant:  return 'F';
+        case NpcRole::Medic:         return 'D';
+        case NpcRole::Commander:     return 'C';
+        case NpcRole::ArmsDealer:    return 'A';
+        case NpcRole::Astronomer:    return 'P';
+        case NpcRole::Engineer:      return 'E';
+        case NpcRole::Nova:          return 'N';
+        case NpcRole::Civilian: {
+            switch (race) {
+                case Race::Human:     return 'H';
+                case Race::Veldrani:  return 'V';
+                case Race::Kreth:     return 'R';
+                case Race::Sylphari:  return 'S';
+                case Race::Stellari:  return 'L';
+                case Race::Xytomorph: return 'X';
+                default:              return 'H';
+            }
+        }
+        default: return '?';
+    }
 }
 
 } // namespace astra

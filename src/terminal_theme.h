@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/npc.h"       // NpcRole
+#include "astra/race.h"      // Race
 #include "astra/renderer.h"  // Color
 #include "astra/tilemap.h"   // Biome, Tile
 
@@ -34,5 +36,8 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index);
 
 // Return the ASCII glyph for a fixture type (for UI / editor palette display).
 char fixture_glyph(FixtureType type);
+
+// Return the ASCII glyph for an NPC role (for UI display).
+char npc_glyph(NpcRole role, Race race = Race::Human);
 
 } // namespace astra
