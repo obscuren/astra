@@ -2,6 +2,7 @@
 
 #include "astra/renderer.h"
 #include "astra/ui.h"
+#include "astra/world_context.h"
 
 namespace astra {
 
