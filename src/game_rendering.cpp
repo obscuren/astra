@@ -4,6 +4,7 @@
 #include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
+#include "astra/ui.h"
 
 namespace astra {
 
@@ -883,44 +884,48 @@ void Game::render_bars() {
     // bar_start = 1 (margin) + 4 (label) + val_w + 1 (space)
     int bar_start = 1 + 4 + val_w + 1;
 
-    // HP bar
+    // HP bar — hp_color() provides value-aware coloring (green/yellow/red)
+    // but UITag::StatHealth is fixed green, so we keep hp_color() for the
+    // value text via raw ctx.text() while using semantic progress_bar().
     {
         DrawContext ctx(renderer_.get(), hp_bar_rect_);
         ctx.text(1, 0, "HP:", Color::DarkGray);
         ctx.text(4, 0, hp_val, hp_color());
         int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
-            ctx.bar(bar_start, 0, bar_w, player_.hp, player_.max_hp, hp_color());
+            ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
+                              .value=player_.hp, .max=player_.max_hp,
+                              .tag=UITag::HealthBar});
         }
     }
 
     // XP bar
     {
         DrawContext ctx(renderer_.get(), xp_bar_rect_);
-        ctx.text(1, 0, "XP:", Color::DarkGray);
-        ctx.text(4, 0, xp_val, Color::Cyan);
+        ctx.label_value({.x=1, .y=0, .label="XP:", .label_tag=UITag::TextDim,
+                         .value=xp_val, .value_tag=UITag::XpBar});
         int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
-            ctx.bar(bar_start, 0, bar_w, player_.xp, player_.max_xp, Color::Cyan);
+            ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
+                              .value=player_.xp, .max=player_.max_xp,
+                              .tag=UITag::XpBar});
         }
     }
 }
 
 void Game::render_tabs() {
-    DrawContext ctx(renderer_.get(), tabs_rect_);
-    int x = 1;
+    UIContext ctx(renderer_.get(), tabs_rect_);
 
-    for (int i = 0; i < panel_tab_count; ++i) {
-        bool active = (i == active_tab_);
-        std::string label = std::string("[") + tab_names[i] + "]";
-        Color fg = active ? Color::Yellow : Color::DarkGray;
-        ctx.text(x, 0, label, fg);
-        x += static_cast<int>(label.size()) + 1;
-    }
+    // Build tab names vector from the static array
+    std::vector<std::string> tabs;
+    for (int i = 0; i < panel_tab_count; ++i)
+        tabs.push_back(tab_names[i]);
 
-    // Horizontal separator below tabs (row 2 on right side)
-    DrawContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
-    sep.hline(0, BoxDraw::H, Color::DarkGray);
+    ctx.tab_bar({.tabs = tabs, .active = active_tab_});
+
+    // Separator below tabs
+    UIContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
+    sep.separator({});
 }
 
 
