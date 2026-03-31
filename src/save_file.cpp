@@ -1,5 +1,8 @@
 #include "astra/save_file.h"
+#include "astra/item_ids.h"
 #include "astra/world_manager.h"
+
+#include <unordered_map>
 
 #include <chrono>
 #include <cstring>
@@ -205,6 +208,71 @@ static StatModifiers read_stat_modifiers(BinaryReader& r) {
     return m;
 }
 
+// Reconstruct item_def_id from name for pre-v19 saves
+static uint16_t item_def_id_from_name(const std::string& name) {
+    static const std::unordered_map<std::string, uint16_t> lookup = {
+        {"Plasma Pistol", ITEM_PLASMA_PISTOL},
+        {"Ion Blaster", ITEM_ION_BLASTER},
+        {"Pulse Rifle", ITEM_PULSE_RIFLE},
+        {"Arc Caster", ITEM_ARC_CASTER},
+        {"Void Lance", ITEM_VOID_LANCE},
+        {"Energy Cell", ITEM_BATTERY},
+        {"Battery", ITEM_BATTERY},
+        {"Ration Pack", ITEM_RATION_PACK},
+        {"Combat Stim", ITEM_COMBAT_STIM},
+        {"Combat Knife", ITEM_COMBAT_KNIFE},
+        {"Vibro Blade", ITEM_VIBRO_BLADE},
+        {"Vibro-Blade", ITEM_VIBRO_BLADE},
+        {"Plasma Saber", ITEM_PLASMA_SABER},
+        {"Stun Baton", ITEM_STUN_BATON},
+        {"Ancient Mono-Edge", ITEM_ANCIENT_MONO_EDGE},
+        {"Padded Vest", ITEM_PADDED_VEST},
+        {"Composite Armor", ITEM_COMPOSITE_ARMOR},
+        {"Exo-Suit", ITEM_EXO_SUIT},
+        {"Flight Helmet", ITEM_FLIGHT_HELMET},
+        {"Tactical Helmet", ITEM_TACTICAL_HELMET},
+        {"Combat Boots", ITEM_COMBAT_BOOTS},
+        {"Mag-Lock Boots", ITEM_MAG_LOCK_BOOTS},
+        {"Arm Guard", ITEM_ARM_GUARD},
+        {"Riot Shield", ITEM_RIOT_SHIELD},
+        {"Recon Visor", ITEM_RECON_VISOR},
+        {"Night Goggles", ITEM_NIGHT_GOGGLES},
+        {"Jetpack", ITEM_JETPACK},
+        {"Cargo Pack", ITEM_CARGO_PACK},
+        {"Frag Grenade", ITEM_FRAG_GRENADE},
+        {"EMP Grenade", ITEM_EMP_GRENADE},
+        {"Cryo Grenade", ITEM_CRYO_GRENADE},
+        {"Scrap Metal", ITEM_SCRAP_METAL},
+        {"Broken Circuit", ITEM_BROKEN_CIRCUIT},
+        {"Empty Casing", ITEM_EMPTY_CASING},
+        {"Nano-Fiber", ITEM_NANO_FIBER},
+        {"Power Core", ITEM_POWER_CORE},
+        {"Circuit Board", ITEM_CIRCUIT_BOARD},
+        {"Alloy Ingot", ITEM_ALLOY_INGOT},
+        {"Engine Coil Mk1", ITEM_ENGINE_COIL_MK1},
+        {"Engine Coil Mk.I", ITEM_ENGINE_COIL_MK1},
+        {"Hull Plate", ITEM_HULL_PLATE},
+        {"Hull Plate Mk1", ITEM_HULL_PLATE},
+        {"Shield Generator", ITEM_SHIELD_GENERATOR},
+        {"Navi Computer Mk2", ITEM_NAVI_COMPUTER_MK2},
+        {"Navi-Computer Mk.II", ITEM_NAVI_COMPUTER_MK2},
+    };
+    auto it = lookup.find(name);
+    if (it != lookup.end()) return it->second;
+    // Try matching synthesized items by prefix
+    if (name.find("Plasma Edge") != std::string::npos) return ITEM_SYNTH_PLASMA_EDGE;
+    if (name.find("Thruster Plate") != std::string::npos) return ITEM_SYNTH_THRUSTER_PLATE;
+    if (name.find("Targeting Array") != std::string::npos) return ITEM_SYNTH_TARGETING_ARRAY;
+    if (name.find("Dual-Edge") != std::string::npos) return ITEM_SYNTH_DUAL_EDGE;
+    if (name.find("Reinforced Pack") != std::string::npos) return ITEM_SYNTH_REINFORCED_PACK;
+    if (name.find("Overcharged Engine") != std::string::npos) return ITEM_SYNTH_OVERCHARGED_ENGINE;
+    if (name.find("Articulated Armor") != std::string::npos) return ITEM_SYNTH_ARTICULATED_ARMOR;
+    if (name.find("Guided Blaster") != std::string::npos) return ITEM_SYNTH_GUIDED_BLASTER;
+    if (name.find("Combat Gauntlet") != std::string::npos) return ITEM_SYNTH_COMBAT_GAUNTLET;
+    if (name.find("Armored Blade") != std::string::npos) return ITEM_SYNTH_ARMORED_BLADE;
+    return 0; // unknown — renders as '?' Magenta
+}
+
 static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u32(item.id);
     w.write_string(item.name);
@@ -213,8 +281,8 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u8(item.slot.has_value() ? 1 : 0);
     if (item.slot) w.write_u8(static_cast<uint8_t>(*item.slot));
     w.write_u8(static_cast<uint8_t>(item.rarity));
-    w.write_u8(static_cast<uint8_t>(item.glyph));
-    w.write_u8(static_cast<uint8_t>(item.color));
+    // v19: write item_def_id instead of glyph/color (same 2 bytes)
+    w.write_u16(item.item_def_id);
     w.write_i32(item.weight);
     w.write_u8(item.stackable ? 1 : 0);
     w.write_i32(item.stack_count);
@@ -265,8 +333,14 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
     bool has_slot = r.read_u8() != 0;
     if (has_slot) item.slot = static_cast<EquipSlot>(r.read_u8());
     item.rarity = static_cast<Rarity>(r.read_u8());
-    item.glyph = static_cast<char>(r.read_u8());
-    item.color = static_cast<Color>(r.read_u8());
+    // v19: item_def_id replaces glyph+color (same 2 bytes)
+    if (version >= 19) {
+        item.item_def_id = r.read_u16();
+    } else {
+        r.read_u8();  // skip legacy glyph
+        r.read_u8();  // skip legacy color
+        // Reconstruct item_def_id from name after full read (below)
+    }
     item.weight = r.read_i32();
     item.stackable = r.read_u8() != 0;
     item.stack_count = r.read_i32();
@@ -310,6 +384,10 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
         item.ship_modifiers.shield_hp = r.read_i32();
         item.ship_modifiers.warp_range = r.read_i32();
         item.ship_modifiers.cargo_capacity = r.read_i32();
+    }
+    // Reconstruct item_def_id for pre-v19 saves
+    if (version < 19 && item.item_def_id == 0) {
+        item.item_def_id = item_def_id_from_name(item.name);
     }
     return item;
 }
