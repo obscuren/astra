@@ -1,6 +1,7 @@
 #include "astra/tinkering.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
+#include "astra/item_ids.h"
 #include "astra/player.h"
 
 #include <algorithm>
@@ -462,6 +463,7 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     // Create result item
     Item item;
     item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
+    item.item_def_id = ITEM_SYNTH_PLASMA_EDGE + static_cast<uint16_t>(&*recipe - &synthesis_recipes()[0]);
     item.name = recipe->result_name;
     item.description = recipe->result_desc;
     item.type = recipe->result_type;

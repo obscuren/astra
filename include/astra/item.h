@@ -134,6 +134,7 @@ struct RangedData {
 
 struct Item {
     uint32_t id = 0;
+    uint16_t item_def_id = 0;    // definition registry ID — renderer resolves visual from this
     std::string name;
     std::string description;
     ItemType type = ItemType::Trash;
