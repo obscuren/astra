@@ -5,51 +5,13 @@
 #include "astra/world_manager.h"
 #include "astra/player.h"
 #include "astra/overworld_stamps.h"
+#include "astra/world_context.h"
+#include "astra/render_descriptor.h"
 
 namespace astra {
 
-static char star_at(int x, int y) {
-    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
-    h = (h ^ (h >> 13)) * 1274126177;
-    h ^= h >> 16;
-    if ((h % 100) >= 3) return '\0';
-    unsigned st = (h >> 8) % 10;
-    if (st < 6) return '.';
-    if (st < 9) return '*';
-    return '+';
-}
-
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
-}
-
-static char floor_scatter(int x, int y, Biome biome) {
-    if (biome == Biome::Station) return '.';
-
-    // Simple spatial hash
-    unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
-    h = (h ^ (h >> 13)) * 1274126177;
-    h ^= h >> 16;
-    int roll = static_cast<int>(h % 100);
-
-    struct ScatterSet { int threshold; const char* glyphs; int count; };
-    ScatterSet s;
-    switch (biome) {
-        case Biome::Rocky:    s = {15, ",:`",  3}; break;
-        case Biome::Volcanic: s = {20, ",';" , 3}; break;
-        case Biome::Ice:      s = {12, "'`,",  3}; break;
-        case Biome::Sandy:    s = {20, ",`:",  3}; break;
-        case Biome::Aquatic:  s = {10, ",:",   2}; break;
-        case Biome::Fungal:   s = {18, "\",'", 3}; break;
-        case Biome::Crystal:  s = {15, "*'`",  3}; break;
-        case Biome::Corroded: s = {20, ",:;",  3}; break;
-        case Biome::Forest:   s = {18, "\",'", 3}; break;
-        case Biome::Grassland:s = {15, ",`.",  3}; break;
-        case Biome::Jungle:   s = {22, "\",'", 3}; break;
-        default: return '.';
-    }
-    if (roll >= s.threshold) return '.';
-    return s.glyphs[h / 100 % s.count];
 }
 
 static Color overworld_tile_color(Tile tile, Biome biome) {
@@ -82,7 +44,8 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
 }
 
 void render_map(const MapRenderContext& rc) {
-    DrawContext ctx(rc.renderer, rc.map_rect);
+    WorldContext wctx(rc.renderer, rc.map_rect);
+    DrawContext ctx(rc.renderer, rc.map_rect);  // kept for non-tile rendering
 
     for (int sy = 0; sy < rc.map_rect.h; ++sy) {
         for (int sx = 0; sx < rc.map_rect.w; ++sx) {
@@ -91,11 +54,13 @@ void render_map(const MapRenderContext& rc) {
 
             // Starfield backdrop — space stations only
             if (rc.world.map().biome() == Biome::Station && rc.world.map().get(mx, my) == Tile::Empty) {
-                char star = star_at(mx, my);
-                if (star) {
-                    Color c = (star == '*' || star == '+') ? Color::White : Color::Cyan;
-                    ctx.put(sx, sy, star, c);
-                }
+                RenderDescriptor desc;
+                desc.category = RenderCategory::Tile;
+                desc.type_id  = static_cast<uint16_t>(Tile::Empty);
+                desc.seed     = position_seed(mx, my);
+                desc.flags    = RF_Starfield;
+                desc.biome    = Biome::Station;
+                wctx.put(sx, sy, desc);
             }
 
             // Tiles respect FOV
@@ -108,68 +73,54 @@ void render_map(const MapRenderContext& rc) {
 
             // Overworld: no FOV dimming, use overworld colors + UTF-8 glyphs
             if (rc.world.map().map_type() == MapType::Overworld) {
-                Color c = overworld_tile_color(tile_at, rc.world.map().biome());
                 uint8_t gov = rc.world.map().glyph_override(mx, my);
-                const char* og = (gov != 0) ? stamp_glyph(gov) : nullptr;
-                if (gov == SG_QuestMarker) c = Color::BrightYellow;
-                if (!og) og = overworld_glyph(tile_at, mx, my);
 
-                // Animation override for overworld tiles
+                // Stamp glyph overrides (non-quest) stay on old DrawContext path
+                // because stamp_glyph() returns custom per-cell glyphs
+                bool has_stamp = (gov != 0 && gov != SG_QuestMarker);
+                const char* stamp_og = has_stamp ? stamp_glyph(gov) : nullptr;
+
+                // Animation overrides stay on old DrawContext path
+                bool has_anim = false;
                 if (rc.animations) {
                     if (auto* frame = rc.animations->query(mx, my)) {
+                        has_anim = true;
+                        Color c = overworld_tile_color(tile_at, rc.world.map().biome());
+                        const char* og = stamp_og ? stamp_og : overworld_glyph(tile_at, mx, my);
                         if (frame->utf8) og = frame->utf8;
                         c = frame->color;
+                        ctx.put(sx, sy, og, c);
                     }
                 }
 
-                ctx.put(sx, sy, og, c);
+                if (!has_anim) {
+                    if (stamp_og) {
+                        // Stamp glyph override — old path
+                        Color c = overworld_tile_color(tile_at, rc.world.map().biome());
+                        ctx.put(sx, sy, stamp_og, c);
+                    } else {
+                        // Descriptor-based rendering for overworld tiles
+                        RenderDescriptor desc;
+                        desc.category = RenderCategory::Tile;
+                        desc.type_id  = static_cast<uint16_t>(tile_at);
+                        desc.seed     = position_seed(mx, my);
+                        desc.flags    = RF_None;
+                        desc.biome    = rc.world.map().biome();
+                        if (gov == SG_QuestMarker) desc.flags |= RF_Interactable;
+                        wctx.put(sx, sy, desc);
+                    }
+                }
                 continue;
             }
 
-            auto bc = biome_colors(rc.world.map().biome());
             Biome biome = rc.world.map().biome();
-            if (v == Visibility::Visible) {
-                Color c = bc.floor;
-                const char* utf8 = nullptr;
 
-                if (tile_at == Tile::StructuralWall) {
-                    uint8_t mat = rc.world.map().glyph_override(mx, my);
-                    switch (mat) {
-                        case 1:  // Concrete
-                            c = static_cast<Color>(245);  // medium gray
-                            utf8 = "\xe2\x96\x93";        // ▓
-                            break;
-                        case 2:  // Wood
-                            c = static_cast<Color>(137);   // brown/tan
-                            utf8 = "\xe2\x96\x92";         // ▒
-                            break;
-                        case 3:  // Salvage
-                            c = static_cast<Color>(240);   // dark gray
-                            utf8 = "\xe2\x96\x91";         // ░
-                            break;
-                        default: // Metal (0)
-                            c = Color::White;
-                            utf8 = "\xe2\x96\x88";         // █
-                            break;
-                    }
-                }
-                else if (tile_at == Tile::Wall) {
-                    c = bc.wall;
-                    utf8 = dungeon_wall_glyph(biome, mx, my);
-                }
-                else if (tile_at == Tile::Portal) {
-                    c = Color::Magenta;
-                    utf8 = dungeon_portal_glyph();
-                }
-                else if (tile_at == Tile::Water) {
-                    c = bc.water;
-                    utf8 = dungeon_water_glyph(biome, mx, my);
-                }
-                else if (tile_at == Tile::Ice) {
-                    c = static_cast<Color>(39);
-                    utf8 = dungeon_water_glyph(biome, mx, my);
-                }
-                else if (tile_at == Tile::Fixture) {
+            // Fixtures stay entirely on old DrawContext path
+            if (tile_at == Tile::Fixture) {
+                auto bc = biome_colors(biome);
+                if (v == Visibility::Visible) {
+                    Color c = bc.floor;
+                    const char* utf8 = nullptr;
                     int fid = rc.world.map().fixture_id(mx, my);
                     if (fid >= 0 && fid < rc.world.map().fixture_count()) {
                         const auto& f = rc.world.map().fixture(fid);
@@ -182,58 +133,25 @@ void render_map(const MapRenderContext& rc) {
                     } else {
                         g = '?'; c = Color::Red;
                     }
-                }
-                else if (tile_at == Tile::IndoorFloor) {
-                    c = static_cast<Color>(137);  // warm tan/brown — reads as plating
-                    utf8 = "\xe2\x96\xaa";        // ▪ (small filled square)
-                }
-                else if (tile_at == Tile::Floor) {
-                    char sg = floor_scatter(mx, my, biome);
-                    if (sg != '.') {
-                        g = sg;
-                        c = bc.remembered; // dimmer shade for scatter
-                    }
-                }
 
-                // Animation override (effects + fixture animations)
-                if (rc.animations) {
-                    if (auto* frame = rc.animations->query(mx, my)) {
-                        if (frame->utf8) {
-                            utf8 = frame->utf8;
-                        } else {
-                            g = frame->glyph;
-                            utf8 = nullptr;
+                    // Animation override for fixtures
+                    if (rc.animations) {
+                        if (auto* frame = rc.animations->query(mx, my)) {
+                            if (frame->utf8) {
+                                utf8 = frame->utf8;
+                            } else {
+                                g = frame->glyph;
+                                utf8 = nullptr;
+                            }
+                            c = frame->color;
                         }
-                        c = frame->color;
                     }
-                }
 
-                if (utf8) {
-                    ctx.put(sx, sy, utf8, c);
+                    if (utf8) ctx.put(sx, sy, utf8, c);
+                    else      ctx.put(sx, sy, g, c);
                 } else {
-                    ctx.put(sx, sy, g, c);
-                }
-            } else {
-                // Remembered tiles: use UTF-8 glyphs too
-                const char* utf8 = nullptr;
-                if (tile_at == Tile::StructuralWall) {
-                    uint8_t mat = rc.world.map().glyph_override(mx, my);
-                    switch (mat) {
-                        case 1:  utf8 = "\xe2\x96\x93"; break; // ▓
-                        case 2:  utf8 = "\xe2\x96\x92"; break; // ▒
-                        case 3:  utf8 = "\xe2\x96\x91"; break; // ░
-                        default: utf8 = "\xe2\x96\x88"; break; // █
-                    }
-                }
-                else if (tile_at == Tile::Wall)
-                    utf8 = dungeon_wall_glyph(biome, mx, my);
-                else if (tile_at == Tile::IndoorFloor)
-                    utf8 = "\xe2\x96\xaa";   // ▪
-                else if (tile_at == Tile::Portal)
-                    utf8 = dungeon_portal_glyph();
-                else if (tile_at == Tile::Water || tile_at == Tile::Ice)
-                    utf8 = dungeon_water_glyph(biome, mx, my);
-                else if (tile_at == Tile::Fixture) {
+                    // Remembered fixture
+                    const char* utf8 = nullptr;
                     int fid = rc.world.map().fixture_id(mx, my);
                     if (fid >= 0 && fid < rc.world.map().fixture_count()) {
                         const auto& f = rc.world.map().fixture(fid);
@@ -243,12 +161,45 @@ void render_map(const MapRenderContext& rc) {
                             g = f.glyph;
                         }
                     }
+                    if (utf8) ctx.put(sx, sy, utf8, bc.remembered);
+                    else      ctx.put(sx, sy, g, bc.remembered);
+                }
+                continue;
+            }
+
+            // Non-fixture dungeon/station tiles — use descriptors
+            // Animation override: falls back to old DrawContext path
+            if (rc.animations) {
+                if (auto* frame = rc.animations->query(mx, my)) {
+                    if (frame->utf8) {
+                        ctx.put(sx, sy, frame->utf8, frame->color);
+                    } else {
+                        ctx.put(sx, sy, frame->glyph, frame->color);
+                    }
+                    continue;
+                }
+            }
+
+            {
+                RenderDescriptor desc;
+                desc.category = RenderCategory::Tile;
+                desc.type_id  = static_cast<uint16_t>(tile_at);
+                desc.biome    = biome;
+
+                if (tile_at == Tile::StructuralWall) {
+                    uint8_t mat = rc.world.map().glyph_override(mx, my);
+                    desc.seed = encode_wall_seed(mat, mx, my);
+                } else {
+                    desc.seed = position_seed(mx, my);
                 }
 
-                if (utf8)
-                    ctx.put(sx, sy, utf8, bc.remembered);
-                else
-                    ctx.put(sx, sy, g, bc.remembered);
+                if (v == Visibility::Visible) {
+                    desc.flags = RF_Lit;
+                } else {
+                    desc.flags = RF_Remembered;
+                }
+
+                wctx.put(sx, sy, desc);
             }
         }
     }
