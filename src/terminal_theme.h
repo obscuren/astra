@@ -40,4 +40,7 @@ char fixture_glyph(FixtureType type);
 // Return the ASCII glyph for an NPC role (for UI display).
 char npc_glyph(NpcRole role, Race race = Race::Human);
 
+// Return the resolved visual for an item definition (for inventory/shop UI).
+ResolvedVisual item_visual(uint16_t item_def_id);
+
 } // namespace astra

@@ -1,5 +1,6 @@
 // src/terminal_theme.cpp
 #include "terminal_theme.h"
+#include "astra/item_ids.h"
 #include "astra/npc.h"
 #include "astra/race.h"
 #include "astra/render_descriptor.h"
@@ -738,6 +739,92 @@ static ResolvedVisual resolve_npc(uint16_t type_id, uint8_t seed, uint8_t /*flag
 }
 
 // ---------------------------------------------------------------------------
+// Item resolution — item_def_id → glyph + color
+// ---------------------------------------------------------------------------
+
+static ResolvedVisual resolve_item(uint16_t item_def_id) {
+    switch (item_def_id) {
+        // Ranged weapons (1-5)
+        case ITEM_PLASMA_PISTOL:       return {')', nullptr, Color::Cyan, Color::Default};
+        case ITEM_ION_BLASTER:         return {')', nullptr, Color::Green, Color::Default};
+        case ITEM_PULSE_RIFLE:         return {')', nullptr, Color::Blue, Color::Default};
+        case ITEM_ARC_CASTER:          return {')', nullptr, Color::Magenta, Color::Default};
+        case ITEM_VOID_LANCE:          return {')', nullptr, static_cast<Color>(208), Color::Default};
+
+        // Consumables (6-8)
+        case ITEM_BATTERY:             return {'=', nullptr, Color::Yellow, Color::Default};
+        case ITEM_RATION_PACK:         return {'%', nullptr, Color::Green, Color::Default};
+        case ITEM_COMBAT_STIM:         return {'!', nullptr, Color::Red, Color::Default};
+
+        // Melee weapons (9-13)
+        case ITEM_COMBAT_KNIFE:        return {'/', nullptr, Color::White, Color::Default};
+        case ITEM_VIBRO_BLADE:         return {'/', nullptr, Color::Green, Color::Default};
+        case ITEM_PLASMA_SABER:        return {'/', nullptr, Color::Blue, Color::Default};
+        case ITEM_STUN_BATON:          return {'/', nullptr, Color::Yellow, Color::Default};
+        case ITEM_ANCIENT_MONO_EDGE:   return {'/', nullptr, Color::Magenta, Color::Default};
+
+        // Armor — body (14-16)
+        case ITEM_PADDED_VEST:         return {'[', nullptr, Color::White, Color::Default};
+        case ITEM_COMPOSITE_ARMOR:     return {'[', nullptr, Color::Green, Color::Default};
+        case ITEM_EXO_SUIT:            return {'[', nullptr, Color::Blue, Color::Default};
+
+        // Armor — head (17-18)
+        case ITEM_FLIGHT_HELMET:       return {'^', nullptr, Color::White, Color::Default};
+        case ITEM_TACTICAL_HELMET:     return {'^', nullptr, Color::Green, Color::Default};
+
+        // Armor — feet (19-20)
+        case ITEM_COMBAT_BOOTS:        return {'_', nullptr, Color::White, Color::Default};
+        case ITEM_MAG_LOCK_BOOTS:      return {'_', nullptr, Color::Green, Color::Default};
+
+        // Armor — arm / shield (21-22)
+        case ITEM_ARM_GUARD:           return {'}', nullptr, Color::White, Color::Default};
+        case ITEM_RIOT_SHIELD:         return {'0', nullptr, Color::Green, Color::Default};
+
+        // Accessories (23-26)
+        case ITEM_RECON_VISOR:         return {'&', nullptr, Color::Green, Color::Default};
+        case ITEM_NIGHT_GOGGLES:       return {'&', nullptr, Color::White, Color::Default};
+        case ITEM_JETPACK:             return {'\\', nullptr, Color::Blue, Color::Default};
+        case ITEM_CARGO_PACK:          return {'\\', nullptr, Color::White, Color::Default};
+
+        // Grenades (27-29)
+        case ITEM_FRAG_GRENADE:        return {'*', nullptr, Color::Red, Color::Default};
+        case ITEM_EMP_GRENADE:         return {'*', nullptr, Color::Cyan, Color::Default};
+        case ITEM_CRYO_GRENADE:        return {'*', nullptr, Color::Blue, Color::Default};
+
+        // Junk (30-32)
+        case ITEM_SCRAP_METAL:         return {'~', nullptr, Color::DarkGray, Color::Default};
+        case ITEM_BROKEN_CIRCUIT:      return {'~', nullptr, Color::DarkGray, Color::Default};
+        case ITEM_EMPTY_CASING:        return {'~', nullptr, Color::DarkGray, Color::Default};
+
+        // Crafting materials (33-36)
+        case ITEM_NANO_FIBER:          return {'+', nullptr, Color::Cyan, Color::Default};
+        case ITEM_POWER_CORE:          return {'+', nullptr, Color::Yellow, Color::Default};
+        case ITEM_CIRCUIT_BOARD:       return {'+', nullptr, Color::Green, Color::Default};
+        case ITEM_ALLOY_INGOT:         return {'+', nullptr, Color::White, Color::Default};
+
+        // Ship components (37-40)
+        case ITEM_ENGINE_COIL_MK1:     return {'#', nullptr, Color::Yellow, Color::Default};
+        case ITEM_HULL_PLATE:          return {'#', nullptr, Color::White, Color::Default};
+        case ITEM_SHIELD_GENERATOR:    return {'#', nullptr, Color::Cyan, Color::Default};
+        case ITEM_NAVI_COMPUTER_MK2:   return {'#', nullptr, Color::Green, Color::Default};
+
+        // Synthesized items (1000+)
+        case ITEM_SYNTH_PLASMA_EDGE:       return {'/', nullptr, Color::Cyan, Color::Default};
+        case ITEM_SYNTH_THRUSTER_PLATE:    return {'[', nullptr, Color::Yellow, Color::Default};
+        case ITEM_SYNTH_TARGETING_ARRAY:   return {'&', nullptr, Color::Cyan, Color::Default};
+        case ITEM_SYNTH_DUAL_EDGE:         return {'/', nullptr, Color::BrightMagenta, Color::Default};
+        case ITEM_SYNTH_REINFORCED_PACK:   return {'\\', nullptr, Color::Green, Color::Default};
+        case ITEM_SYNTH_OVERCHARGED_ENGINE:return {'#', nullptr, static_cast<Color>(208), Color::Default};
+        case ITEM_SYNTH_ARTICULATED_ARMOR: return {'[', nullptr, Color::Magenta, Color::Default};
+        case ITEM_SYNTH_GUIDED_BLASTER:    return {')', nullptr, Color::Yellow, Color::Default};
+        case ITEM_SYNTH_COMBAT_GAUNTLET:   return {'}', nullptr, Color::Red, Color::Default};
+        case ITEM_SYNTH_ARMORED_BLADE:     return {'/', nullptr, Color::Red, Color::Default};
+
+        default: return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main resolve — dispatches on RenderCategory
 // ---------------------------------------------------------------------------
 
@@ -748,6 +835,10 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
     if (desc.category == RenderCategory::Npc) {
         return resolve_npc(desc.type_id, desc.seed, desc.flags);
+    }
+
+    if (desc.category == RenderCategory::Item) {
+        return resolve_item(desc.type_id);
     }
 
     if (desc.category != RenderCategory::Tile) {
@@ -903,6 +994,14 @@ char npc_glyph(NpcRole role, Race race) {
         }
         default: return '?';
     }
+}
+
+// ---------------------------------------------------------------------------
+// Public item visual — for UI screens (inventory, shops, etc.)
+// ---------------------------------------------------------------------------
+
+ResolvedVisual item_visual(uint16_t item_def_id) {
+    return resolve_item(item_def_id);
 }
 
 } // namespace astra
