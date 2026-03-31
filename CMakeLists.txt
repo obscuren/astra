@@ -13,6 +13,8 @@ set(ASTRA_SOURCES
     src/main.cpp
     src/game.cpp
     src/ui.cpp
+    src/ui_layout.cpp
+    src/ui_components.cpp
     src/fov.cpp
     src/npc.cpp
     src/npcs/station_keeper.cpp

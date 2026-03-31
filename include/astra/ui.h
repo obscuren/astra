@@ -2,6 +2,7 @@
 
 #include "astra/rect.h"
 #include "astra/renderer.h"
+#include "astra/ui_types.h"
 #include <deque>
 #include <string>
 #include <string_view>
@@ -74,6 +75,20 @@ public:
     int bar(int x, int y, int bar_width, int value, int max_value,
             Color fill_color, Color empty_color = Color::DarkGray,
             char fill_ch = '=', char empty_ch = '-');
+
+    // Semantic UI components — delegates to renderer
+    UIContext panel(const PanelDesc& desc);
+    void progress_bar(const ProgressBarDesc& desc);
+    void text(const TextDesc& desc);
+    void styled_text(const StyledTextDesc& desc);
+    void list(const ListDesc& desc);
+    void tab_bar(const TabBarDesc& desc);
+    void separator(const SeparatorDesc& desc);
+    void label_value(const LabelValueDesc& desc);
+
+    // Layout — split this context into sub-regions
+    std::vector<UIContext> rows(const std::vector<Size>& sizes) const;
+    std::vector<UIContext> columns(const std::vector<Size>& sizes) const;
 
     // Sub-region
     UIContext sub(Rect local_rect) const;
