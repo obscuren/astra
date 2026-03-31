@@ -115,54 +115,41 @@ void render_map(const MapRenderContext& rc) {
 
             Biome biome = rc.world.map().biome();
 
-            // Fixtures stay entirely on old DrawContext path
+            // Fixtures — descriptor-based rendering via theme
             if (tile_at == Tile::Fixture) {
-                auto bc = biome_colors(biome);
-                if (v == Visibility::Visible) {
-                    Color c = bc.floor;
-                    const char* utf8 = nullptr;
-                    int fid = rc.world.map().fixture_id(mx, my);
-                    if (fid >= 0 && fid < rc.world.map().fixture_count()) {
-                        const auto& f = rc.world.map().fixture(fid);
-                        if (f.utf8_glyph) {
-                            utf8 = f.utf8_glyph;
-                        } else {
-                            g = f.glyph;
-                        }
-                        c = f.color;
-                    } else {
-                        g = '?'; c = Color::Red;
-                    }
+                int fid = rc.world.map().fixture_id(mx, my);
+                if (fid >= 0 && fid < rc.world.map().fixture_count()) {
+                    const auto& f = rc.world.map().fixture(fid);
 
-                    // Animation override for fixtures
-                    if (rc.animations) {
-                        if (auto* frame = rc.animations->query(mx, my)) {
-                            if (frame->utf8) {
-                                utf8 = frame->utf8;
-                            } else {
-                                g = frame->glyph;
-                                utf8 = nullptr;
+                    if (v == Visibility::Visible) {
+                        // Animation override stays on old path (not migrated yet)
+                        if (rc.animations) {
+                            if (auto* frame = rc.animations->query(mx, my)) {
+                                if (frame->utf8) ctx.put(sx, sy, frame->utf8, frame->color);
+                                else ctx.put(sx, sy, frame->glyph, frame->color);
+                                continue;
                             }
-                            c = frame->color;
                         }
-                    }
 
-                    if (utf8) ctx.put(sx, sy, utf8, c);
-                    else      ctx.put(sx, sy, g, c);
-                } else {
-                    // Remembered fixture
-                    const char* utf8 = nullptr;
-                    int fid = rc.world.map().fixture_id(mx, my);
-                    if (fid >= 0 && fid < rc.world.map().fixture_count()) {
-                        const auto& f = rc.world.map().fixture(fid);
-                        if (f.utf8_glyph) {
-                            utf8 = f.utf8_glyph;
-                        } else {
-                            g = f.glyph;
-                        }
+                        RenderDescriptor desc;
+                        desc.category = RenderCategory::Fixture;
+                        desc.type_id = static_cast<uint16_t>(f.type);
+                        desc.biome = biome;
+                        desc.flags = RF_Lit;
+                        if (f.open) desc.flags |= RF_Open;
+                        wctx.put(sx, sy, desc);
+                    } else {
+                        // Remembered fixture
+                        RenderDescriptor desc;
+                        desc.category = RenderCategory::Fixture;
+                        desc.type_id = static_cast<uint16_t>(f.type);
+                        desc.biome = biome;
+                        desc.flags = RF_Remembered;
+                        if (f.open) desc.flags |= RF_Open;
+                        wctx.put(sx, sy, desc);
                     }
-                    if (utf8) ctx.put(sx, sy, utf8, bc.remembered);
-                    else      ctx.put(sx, sy, g, bc.remembered);
+                } else {
+                    ctx.put(sx, sy, '?', Color::Red);  // invalid fixture
                 }
                 continue;
             }
