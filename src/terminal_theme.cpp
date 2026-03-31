@@ -613,8 +613,11 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
                         {'o', "\xc2\xb0", Color::DarkGray, Color::Default},              // ° large rock
                         {'o', "\xc2\xb0", Color::Yellow, Color::Default},                 // ° sandstone
                         {'^', nullptr, static_cast<Color>(180), Color::Default},           // sandy outcrop
+                        {'T', "\xe2\x80\xa0", Color::Green, Color::Default},              // † tall cactus
+                        {'Y', nullptr, Color::Green, Color::Default},                      // branching cactus
+                        {'|', "\xe2\x94\x82", static_cast<Color>(22), Color::Default},    // │ thin cactus
                     };
-                    vis = variants[seed % 3]; break;
+                    vis = variants[seed % 6]; break;
                 }
                 case Biome::Ice: {
                     static const ResolvedVisual variants[] = {
