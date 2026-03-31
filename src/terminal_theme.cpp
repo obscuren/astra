@@ -369,17 +369,23 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
     if (roll < 5) {
         switch (biome) {
             case Biome::Grassland: {
+                // Use seed directly for better distribution across more variants
+                int v = seed % 12;
                 static const ResolvedVisual variants[] = {
-                    {'*', "\xc2\xb7", Color::Yellow, Color::Default},        // · small wildflower
-                    {'"', nullptr, Color::Green, Color::Default},            // tall grass
-                    {',', "\xcf\x84", Color::Green, Color::Default},         // τ low grass tuft
-                    {'*', "\xe2\x9c\xbf", Color::Yellow, Color::Default},    // ✿ bloom
-                    {'.', "\xc2\xb0", Color::Green, Color::Default},         // ° clover
+                    {'*', "\xc2\xb7", Color::Yellow, Color::Default},               // · yellow wildflower
+                    {'*', "\xe2\x9c\xbf", Color::Red, Color::Default},              // ✿ red bloom
+                    {'"', nullptr, Color::Green, Color::Default},                    // tall grass
                     {'*', "\xe2\x9c\xb6", static_cast<Color>(208), Color::Default}, // ✶ orange flower
-                    {'*', "\xe2\x80\xa2", Color::Magenta, Color::Default},   // • violet bud
-                    {',', "\xc6\x92", Color::Green, Color::Default},         // ƒ fern sprout
+                    {',', "\xcf\x84", Color::Green, Color::Default},                // τ grass tuft
+                    {'*', "\xe2\x80\xa2", Color::Magenta, Color::Default},           // • violet bud
+                    {'*', "\xc2\xb7", Color::BrightYellow, Color::Default},          // · bright daisy
+                    {'*', "\xe2\x9c\xbf", Color::Yellow, Color::Default},            // ✿ yellow bloom
+                    {',', "\xc6\x92", Color::Green, Color::Default},                // ƒ fern sprout
+                    {'*', "\xe2\x80\xa2", Color::Red, Color::Default},               // • red bud
+                    {'*', "\xe2\x9c\xb6", Color::Cyan, Color::Default},              // ✶ blue flower
+                    {'.', "\xc2\xb0", Color::Green, Color::Default},                // ° clover
                 };
-                return variants[variant % 8];
+                return variants[v];
             }
             case Biome::Forest: {
                 static const ResolvedVisual variants[] = {
