@@ -1115,7 +1115,11 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
             // Draw NPCs
             for (const auto& npc : world_->npcs()) {
                 if (npc.x == mx && npc.y == my) {
-                    ctx.put(sx, sy, npc.glyph, npc.color);
+                    RenderDescriptor desc;
+                    desc.category = RenderCategory::Npc;
+                    desc.type_id = static_cast<uint16_t>(npc.npc_role);
+                    desc.seed = static_cast<uint8_t>(npc.race);
+                    wctx.put(sx, sy, desc);
                 }
             }
         }

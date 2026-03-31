@@ -213,7 +213,11 @@ void render_map(const MapRenderContext& rc) {
                     continue;
                 }
             }
-            ctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, npc.glyph, npc.color);
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Npc;
+            desc.type_id = static_cast<uint16_t>(npc.npc_role);
+            desc.seed = static_cast<uint8_t>(npc.race);
+            wctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, desc);
         }
     }
 
