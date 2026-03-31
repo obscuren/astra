@@ -258,14 +258,10 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             if (f.open) {
                 f.open = false;
                 f.passable = false;
-                f.glyph = '+';
-                f.utf8_glyph = nullptr;
                 game.log("You close the door.");
             } else {
                 f.open = true;
                 f.passable = true;
-                f.glyph = '/';
-                f.utf8_glyph = nullptr;
                 game.log("You open the door.");
             }
             break;

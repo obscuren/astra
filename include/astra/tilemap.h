@@ -313,12 +313,6 @@ enum class FixtureType : uint8_t {
 
 struct FixtureData {
     FixtureType type = FixtureType::Table;
-    // Visual fields — used by environmental decorations (deco system).
-    // Functional fixtures resolve visuals via terminal_theme instead.
-    // These fields will be removed once the decoration system is redesigned.
-    char glyph = '?';
-    const char* utf8_glyph = nullptr;
-    Color color = Color::White;
     bool passable = false;
     bool interactable = false;
     int cooldown = 0;           // ticks until reusable (0 = no cooldown, -1 = one-time)

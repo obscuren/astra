@@ -299,117 +299,63 @@ FixtureData make_fixture(FixtureType type) {
 
     switch (type) {
         case FixtureType::Door:
-            fd.glyph = '+'; fd.utf8_glyph = nullptr;
-            fd.color = static_cast<Color>(137);  // warm brown
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::Window:
-            fd.glyph = 'O'; fd.utf8_glyph = nullptr;
-            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Table:
-            fd.glyph = 'o'; fd.utf8_glyph = "\xc2\xa4";       // ¤
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Console:
-            fd.glyph = '#'; fd.utf8_glyph = "\xe2\x95\xac";   // ╬
-            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = false;
             fd.light_radius = 2; break;
         case FixtureType::Crate:
-            fd.glyph = '='; fd.utf8_glyph = "\xe2\x96\xa0";   // ■
-            fd.color = Color::Yellow;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Bunk:
-            fd.glyph = '='; fd.utf8_glyph = "\xe2\x89\xa1";   // ≡
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Rack:
-            fd.glyph = '|'; fd.utf8_glyph = "\xe2\x95\x8f";   // ╏
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Conduit:
-            fd.glyph = '%'; fd.utf8_glyph = "\xe2\x95\xa3";   // ╣
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::ShuttleClamp:
-            fd.glyph = '='; fd.utf8_glyph = "\xe2\x95\xa4";   // ╤
-            fd.color = Color::White;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Shelf:
-            fd.glyph = '['; fd.utf8_glyph = "\xe2\x95\x94";   // ╔
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::Viewport:
-            fd.glyph = '"'; fd.utf8_glyph = "\xe2\x96\x91";   // ░
-            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = false;
             fd.light_radius = 1; break;
         case FixtureType::Torch:
-            fd.glyph = '*';
-            fd.color = Color::Yellow;
             fd.passable = true; fd.interactable = false;
             fd.light_radius = 8; break;
         case FixtureType::Stool:
-            fd.glyph = 'o'; fd.utf8_glyph = "\xc2\xb7";       // ·
-            fd.color = Color::DarkGray;
             fd.passable = true; fd.interactable = false; break;
         case FixtureType::Debris:
-            fd.glyph = ',';
-            fd.color = Color::DarkGray;
             fd.passable = true; fd.interactable = false; break;
         case FixtureType::HealPod:
-            fd.glyph = '+'; fd.utf8_glyph = "\xe2\x9c\x9a";   // ✚
-            fd.color = Color::Green;
             fd.passable = false; fd.interactable = true;
             fd.cooldown = 50; break;
         case FixtureType::FoodTerminal:
-            fd.glyph = '$';
-            fd.color = Color::Yellow;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::WeaponDisplay:
-            fd.glyph = '/'; fd.utf8_glyph = "\xe2\x80\xa0";   // †
-            fd.color = Color::Red;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::RepairBench:
-            fd.glyph = '%'; fd.utf8_glyph = "\xe2\x95\xaa";   // ╪
-            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::SupplyLocker:
-            fd.glyph = '&'; fd.utf8_glyph = "\xe2\x96\xaa";   // ▪
-            fd.color = Color::Yellow;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::StarChart:
-            fd.glyph = '*';
-            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::RestPod:
-            fd.glyph = '='; fd.utf8_glyph = "\xe2\x88\xa9";   // ∩
-            fd.color = Color::Green;
             fd.passable = false; fd.interactable = true;
             fd.cooldown = 50; break;
         case FixtureType::ShipTerminal:
-            fd.glyph = '>'; fd.utf8_glyph = "\xc2\xbb";       // »
-            fd.color = Color::Yellow;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::CommandTerminal:
-            fd.glyph = '#'; fd.utf8_glyph = "\xe2\x96\xa3";   // ▣
-            fd.color = Color::Cyan;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::DungeonHatch:
-            fd.glyph = 'v'; fd.utf8_glyph = "\xe2\x96\xbc";   // ▼
-            fd.color = Color::Yellow;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::StairsUp:
-            fd.glyph = '<'; fd.utf8_glyph = "\xe2\x96\xb2";   // ▲
-            fd.color = Color::White;
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::NaturalObstacle:
-            fd.glyph = 'o';
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::SettlementProp:
-            fd.glyph = '*';
-            fd.color = Color::DarkGray;
             fd.passable = false; fd.interactable = false; break;
     }
     return fd;
