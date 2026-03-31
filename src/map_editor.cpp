@@ -4,6 +4,7 @@
 #include "astra/map_properties.h"
 #include "astra/world_context.h"
 #include "astra/render_descriptor.h"
+#include "terminal_theme.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -1081,14 +1082,16 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
                 if (map.custom_detail(mx, my)) desc.flags |= RF_Interactable;
                 wctx.put(sx, sy, desc);
             } else if (t == Tile::Fixture) {
-                // Fixtures stay on old DrawContext path
                 int fid = map.fixture_id(mx, my);
                 if (fid >= 0) {
                     auto& f = map.fixture(fid);
-                    if (f.utf8_glyph)
-                        ctx.put(sx, sy, f.utf8_glyph, f.color);
-                    else
-                        ctx.put(sx, sy, f.glyph, f.color);
+                    RenderDescriptor desc;
+                    desc.category = RenderCategory::Fixture;
+                    desc.type_id = static_cast<uint16_t>(f.type);
+                    desc.biome = map.biome();
+                    desc.flags = RF_Lit;
+                    if (f.open) desc.flags |= RF_Open;
+                    wctx.put(sx, sy, desc);
                 }
             } else {
                 // Dungeon non-fixture tiles via descriptor
@@ -1152,8 +1155,8 @@ void MapEditor::draw_palette(DrawContext& ctx) {
             bool sel = (i == fixture_cursor_);
             char marker = sel ? '>' : ' ';
             Color fg = sel ? Color::White : Color::DarkGray;
-            auto fd = make_fixture(fixture_palette_[i]);
-            std::string line = std::string(1, marker) + " " + fd.glyph + " " + fixture_name(fixture_palette_[i]);
+            char g = fixture_glyph(fixture_palette_[i]);
+            std::string line = std::string(1, marker) + " " + g + " " + fixture_name(fixture_palette_[i]);
             ctx.text(0, y++, line, fg);
         }
     } else if (paint_mode_ == PaintMode::Npc) {
