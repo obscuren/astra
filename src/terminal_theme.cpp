@@ -336,8 +336,8 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
     int roll = seed % 100;
     int variant = (seed >> 4) % 8; // use different bits for variant selection
 
-    // --- Tier 3: Rare decorations (~2% density, roll 0-1) ---
-    if (roll < 2) {
+    // --- Tier 3: Rare decorations (~1% density, roll 0) ---
+    if (roll < 1) {
         switch (biome) {
             case Biome::Grassland:
                 return {'*', nullptr, Color::Magenta, Color::Default};       // rare flower
@@ -365,82 +365,112 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
         }
     }
 
-    // --- Tier 2: Biome-specific colored decorations (~8% density, roll 2-9) ---
-    if (roll < 10) {
+    // --- Tier 2: Biome-specific colored decorations (~4% density, roll 1-4) ---
+    if (roll < 5) {
         switch (biome) {
             case Biome::Grassland: {
-                // wildflowers and tall grass
                 static const ResolvedVisual variants[] = {
                     {'*', nullptr, Color::Yellow, Color::Default},           // wildflower
-                    {'*', nullptr, Color::Yellow, Color::Default},           // wildflower
                     {'"', nullptr, Color::Green, Color::Default},            // tall grass
+                    {',', nullptr, Color::Green, Color::Default},            // low grass
+                    {'\'', nullptr, Color::Yellow, Color::Default},          // dandelion
+                    {'.', nullptr, Color::Green, Color::Default},            // clover
+                    {'*', nullptr, static_cast<Color>(208), Color::Default}, // orange wildflower
                 };
-                return variants[variant % 3];
+                return variants[variant % 6];
             }
             case Biome::Forest: {
-                // undergrowth and ferns
                 static const ResolvedVisual variants[] = {
                     {',', nullptr, static_cast<Color>(58), Color::Default},  // undergrowth
                     {'"', nullptr, Color::Green, Color::Default},            // ferns
-                    {',', nullptr, static_cast<Color>(58), Color::Default},  // undergrowth
+                    {'\'', nullptr, static_cast<Color>(22), Color::Default}, // leaf litter
+                    {',', nullptr, Color::Green, Color::Default},            // moss
+                };
+                return variants[variant % 4];
+            }
+            case Biome::Jungle: {
+                static const ResolvedVisual variants[] = {
+                    {'"', nullptr, static_cast<Color>(22), Color::Default},  // vines
+                    {',', nullptr, Color::Green, Color::Default},            // creeper
+                    {'\'', nullptr, static_cast<Color>(22), Color::Default}, // tendril
                 };
                 return variants[variant % 3];
             }
-            case Biome::Jungle: {
-                // vines
-                return {'"', nullptr, static_cast<Color>(22), Color::Default}; // vines
-            }
             case Biome::Sandy: {
-                // sand ripples
-                return {',', nullptr, Color::Yellow, Color::Default};        // sand ripples
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, Color::Yellow, Color::Default},           // sand ripple
+                    {'.', nullptr, static_cast<Color>(180), Color::Default}, // pebble
+                };
+                return variants[variant % 2];
             }
             case Biome::Ice: {
-                // ice shards
-                return {'\'', nullptr, Color::Cyan, Color::Default};         // ice shards
+                static const ResolvedVisual variants[] = {
+                    {'\'', nullptr, Color::Cyan, Color::Default},            // ice shard
+                    {'.', nullptr, Color::White, Color::Default},            // frost
+                };
+                return variants[variant % 2];
             }
             case Biome::Fungal: {
-                // spore clusters
-                return {'"', nullptr, Color::Green, Color::Default};         // spore clusters
+                static const ResolvedVisual variants[] = {
+                    {'"', nullptr, Color::Green, Color::Default},            // spore cluster
+                    {',', nullptr, static_cast<Color>(22), Color::Default},  // mycelium
+                };
+                return variants[variant % 2];
             }
             case Biome::Rocky: {
-                // loose rocks
-                return {',', nullptr, Color::DarkGray, Color::Default};      // loose rocks
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, Color::DarkGray, Color::Default},         // loose gravel
+                    {'`', nullptr, Color::White, Color::Default},            // quartz chip
+                };
+                return variants[variant % 2];
             }
             case Biome::Volcanic: {
-                // slag
-                return {',', nullptr, static_cast<Color>(52), Color::Default}; // slag
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(52), Color::Default},  // slag
+                    {';', nullptr, Color::Red, Color::Default},              // ember
+                };
+                return variants[variant % 2];
             }
             case Biome::Aquatic: {
-                // driftwood
-                return {',', nullptr, static_cast<Color>(30), Color::Default}; // driftwood
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(30), Color::Default},  // driftwood
+                    {'"', nullptr, Color::Green, Color::Default},            // seaweed
+                };
+                return variants[variant % 2];
             }
             case Biome::Crystal: {
-                // crystal shards
-                return {'\'', nullptr, Color::Magenta, Color::Default};      // crystal shards
+                static const ResolvedVisual variants[] = {
+                    {'\'', nullptr, Color::Magenta, Color::Default},         // crystal shard
+                    {'.', nullptr, Color::BrightMagenta, Color::Default},    // crystal dust
+                };
+                return variants[variant % 2];
             }
             case Biome::Corroded: {
-                // corroded junk
-                return {',', nullptr, static_cast<Color>(142), Color::Default}; // corroded junk
+                static const ResolvedVisual variants[] = {
+                    {',', nullptr, static_cast<Color>(142), Color::Default}, // corroded junk
+                    {';', nullptr, static_cast<Color>(58), Color::Default},  // residue
+                };
+                return variants[variant % 2];
             }
             default: break;
         }
     }
 
-    // --- Tier 1: Basic scatter in dim color (~15% density, roll 10-24) ---
+    // --- Tier 1: Basic scatter in dim color (~10% density, roll 5-14) ---
     struct ScatterSet { int threshold; const char* glyphs; int count; };
     ScatterSet s;
     switch (biome) {
-        case Biome::Rocky:    s = {25, ",:`",  3}; break;
-        case Biome::Volcanic: s = {25, ",';" , 3}; break;
-        case Biome::Ice:      s = {22, "'`,",  3}; break;
-        case Biome::Sandy:    s = {25, ",`:",  3}; break;
-        case Biome::Aquatic:  s = {20, ",:",   2}; break;
-        case Biome::Fungal:   s = {25, "\",'", 3}; break;
-        case Biome::Crystal:  s = {25, "*'`",  3}; break;
-        case Biome::Corroded: s = {25, ",:;",  3}; break;
-        case Biome::Forest:   s = {25, "\",'", 3}; break;
-        case Biome::Grassland:s = {25, ",`.",  3}; break;
-        case Biome::Jungle:   s = {25, "\",'", 3}; break;
+        case Biome::Rocky:    s = {15, ",:`",  3}; break;
+        case Biome::Volcanic: s = {15, ",';" , 3}; break;
+        case Biome::Ice:      s = {12, "'`,",  3}; break;
+        case Biome::Sandy:    s = {15, ",`:",  3}; break;
+        case Biome::Aquatic:  s = {10, ",:",   2}; break;
+        case Biome::Fungal:   s = {15, "\",'", 3}; break;
+        case Biome::Crystal:  s = {15, "*'`",  3}; break;
+        case Biome::Corroded: s = {15, ",:;",  3}; break;
+        case Biome::Forest:   s = {15, "\",'", 3}; break;
+        case Biome::Grassland:s = {15, ",`.",  3}; break;
+        case Biome::Jungle:   s = {15, "\",'", 3}; break;
         default: return {'.', nullptr, floor_color, Color::Default};
     }
 
@@ -448,7 +478,7 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
         return {'.', nullptr, floor_color, Color::Default};
     }
     char scatter = s.glyphs[variant % s.count];
-    return {scatter, nullptr, remembered_color, Color::Default}; // dimmer shade for scatter
+    return {scatter, nullptr, remembered_color, Color::Default};
 }
 
 // ---------------------------------------------------------------------------
