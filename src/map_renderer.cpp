@@ -196,8 +196,11 @@ void render_map(const MapRenderContext& rc) {
     // Draw visible ground items
     for (const auto& gi : rc.world.ground_items()) {
         if (rc.world.visibility().get(gi.x, gi.y) == Visibility::Visible) {
-            ctx.put(gi.x - rc.camera_x, gi.y - rc.camera_y,
-                    gi.item.glyph, gi.item.color);
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Item;
+            desc.type_id = gi.item.item_def_id;
+            desc.rarity = gi.item.rarity;
+            wctx.put(gi.x - rc.camera_x, gi.y - rc.camera_y, desc);
         }
     }
 

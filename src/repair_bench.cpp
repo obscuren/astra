@@ -1,4 +1,5 @@
 #include "astra/repair_bench.h"
+#include "terminal_theme.h"
 
 namespace astra {
 
@@ -130,11 +131,12 @@ void RepairBench::draw(int screen_w, int screen_h) {
 
     if (bench_item_ >= 0 && bench_item_ < static_cast<int>(player_->inventory.items.size())) {
         const auto& item = player_->inventory.items[bench_item_];
-        std::string display = std::string(1, item.glyph) + " " + item.name;
+        auto bench_vis = item_visual(item.item_def_id);
+        std::string display = std::string(1, bench_vis.glyph) + " " + item.name;
         if (static_cast<int>(display.size()) > wb_w - 4)
             display = display.substr(0, wb_w - 4);
         int nx = wb_x + (wb_w - static_cast<int>(display.size())) / 2;
-        ctx.put(nx, wb_y + 1, item.glyph, rarity_color(item.rarity));
+        ctx.put(nx, wb_y + 1, bench_vis.glyph, rarity_color(item.rarity));
         ctx.text(nx + 2, wb_y + 1, item.name, rarity_color(item.rarity));
     } else {
         std::string msg = "[Space] to place item";

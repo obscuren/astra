@@ -1,5 +1,6 @@
 #include "astra/ui.h"
 #include "astra/item.h"
+#include "terminal_theme.h"
 
 #include <algorithm>
 #include <string>
@@ -635,7 +636,8 @@ DrawContext Panel::content() const {
 void draw_item_info(DrawContext& ctx, const Item& item) {
     int y = 0;
 
-    ctx.put(0, y, item.glyph, item.color);
+    auto vis = item_visual(item.item_def_id);
+    ctx.put(0, y, vis.glyph, vis.fg);
     ctx.text(2, y, rarity_name(item.rarity), rarity_color(item.rarity));
     y++;
 
