@@ -661,16 +661,16 @@ void Game::render_play() {
 
     render_tabs();
 
-    DrawContext sep_ctx(renderer_.get(), separator_rect_);
-    sep_ctx.vline(0, BoxDraw::V, Color::DarkGray);
+    UIContext sep_ctx(renderer_.get(), separator_rect_);
+    sep_ctx.separator({.vertical = true});
 
     render_map({renderer_.get(), map_rect_, world_, player_, combat_, input_, camera_x_, camera_y_, &animations_});
 
     if (panel_visible_) {
         render_side_panel();
     }
-    DrawContext bottom_sep(renderer_.get(), bottom_sep_rect_);
-    bottom_sep.hline(0, BoxDraw::H, Color::DarkGray);
+    UIContext bottom_sep(renderer_.get(), bottom_sep_rect_);
+    bottom_sep.separator({});
 
     render_effects_bar();
     render_abilities_bar();
@@ -1161,25 +1161,38 @@ void Game::render_item_inspect() {
 }
 
 void Game::render_effects_bar() {
-    DrawContext ctx(renderer_.get(), effects_rect_);
-    int x = 1;
-    ctx.text(x, 0, "EFFECTS:", Color::DarkGray);
-    x += 9;
+    UIContext ctx(renderer_.get(), effects_rect_);
+
+    // EFFECTS label + items — effects use per-effect Color, so we keep them
+    // on the old text() API. Only the label and [none] use styled_text().
+    std::vector<TextSegment> eff_segs;
+    eff_segs.push_back({"EFFECTS: ", UITag::TextDim});
+
     bool any_effect = false;
     for (const auto& e : player_.effects) {
         if (!e.show_in_bar) continue;
         any_effect = true;
-        std::string label = e.name;
-        if (e.remaining > 0) {
-            label += "(" + std::to_string(e.remaining) + ")";
-        }
-        ctx.text(x, 0, label, e.color);
-        x += static_cast<int>(label.size()) + 1;
     }
     if (!any_effect) {
-        ctx.text(x, 0, "[none]", Color::DarkGray);
+        eff_segs.push_back({"[none]", UITag::TextDim});
+    }
+    ctx.styled_text({.x = 1, .y = 0, .segments = eff_segs});
+
+    // Per-effect items use raw Color (e.color varies per effect)
+    if (any_effect) {
+        int x = 1 + 9; // after "EFFECTS: "
+        for (const auto& e : player_.effects) {
+            if (!e.show_in_bar) continue;
+            std::string label = e.name;
+            if (e.remaining > 0) {
+                label += "(" + std::to_string(e.remaining) + ")";
+            }
+            ctx.text(x, 0, label, e.color);
+            x += static_cast<int>(label.size()) + 1;
+        }
     }
 
+    // TARGET section — uses NPC disposition color, stays on old API
     int mid = ctx.width() / 3;
     ctx.text(mid, 0, "TARGET:", Color::DarkGray);
     if (combat_.target_npc() && combat_.target_npc()->alive()) {
@@ -1197,7 +1210,7 @@ void Game::render_effects_bar() {
         ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
     }
 
-    // Ranged weapon hints (right-aligned)
+    // Ranged weapon hints (right-aligned) — uses dynamic charge color, stays on old API
     const auto& rw = player_.equipment.missile;
     if (rw && rw->ranged) {
         const auto& rd = *rw->ranged;
@@ -1214,30 +1227,33 @@ void Game::render_effects_bar() {
 }
 
 void Game::render_abilities_bar() {
-    DrawContext ctx(renderer_.get(), abilities_rect_);
-    ctx.text(1, 0, "ABILITIES:", Color::DarkGray);
+    UIContext ctx(renderer_.get(), abilities_rect_);
+
+    std::vector<TextSegment> segs;
+    segs.push_back({"ABILITIES: ", UITag::TextDim});
 
     auto bar = get_ability_bar(player_);
-    int x = 12;
-    for (int i = 0; i < 5; ++i) {
-        if (i < static_cast<int>(bar.size())) {
+    if (bar.empty()) {
+        segs.push_back({"[none]", UITag::TextDim});
+    } else {
+        for (int i = 0; i < 5 && i < static_cast<int>(bar.size()); ++i) {
             const auto* ab = find_ability(bar[i]);
             if (!ab) continue;
             bool on_cd = has_effect(player_.effects, ab->cooldown_effect);
             const auto* cd_eff = find_effect(player_.effects, ab->cooldown_effect);
-            Color c = on_cd ? Color::DarkGray : Color::Yellow;
 
             std::string label = "[" + std::to_string(i + 1) + "] " + ab->name;
             if (on_cd && cd_eff && cd_eff->remaining > 0) {
                 label += "(" + std::to_string(cd_eff->remaining) + ")";
             }
-            ctx.text(x, 0, label, c);
-            x += static_cast<int>(label.size()) + 2;
+            label += "  ";
+
+            UITag tag = on_cd ? UITag::TextDim : UITag::TextWarning;
+            segs.push_back({label, tag});
         }
     }
-    if (bar.empty()) {
-        ctx.text(x, 0, "[none]", Color::DarkGray);
-    }
+
+    ctx.styled_text({.x = 1, .y = 0, .segments = segs});
 }
 
 void Game::render_gameover() {

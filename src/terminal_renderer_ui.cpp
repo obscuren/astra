@@ -26,6 +26,7 @@ static constexpr const char* BAR_EMPTY = "\xe2\x96\xb1"; // ▱
 
 // Separator glyph
 static constexpr const char* HLINE = "\xe2\x94\x80"; // ─
+static constexpr const char* VLINE = "\xe2\x94\x82"; // │
 
 // Render a UTF-8 string using draw_glyph for multi-byte and draw_char for ASCII.
 static void render_utf8_string(Renderer* r, int x, int y,
@@ -281,8 +282,12 @@ void TerminalRenderer::draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) 
 
 void TerminalRenderer::draw_separator(const Rect& bounds, const SeparatorDesc& desc) {
     UIStyle style = resolve_ui_tag(desc.tag);
-    for (int x = 0; x < bounds.w; ++x) {
-        draw_glyph(bounds.x + x, bounds.y, HLINE, style.fg);
+    if (desc.vertical) {
+        for (int y = bounds.y; y < bounds.y + bounds.h; ++y)
+            draw_glyph(bounds.x, y, VLINE, style.fg);
+    } else {
+        for (int x = bounds.x; x < bounds.x + bounds.w; ++x)
+            draw_glyph(x, bounds.y, HLINE, style.fg);
     }
 }
 

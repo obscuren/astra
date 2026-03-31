@@ -124,6 +124,7 @@ struct TabBarDesc {
 
 struct SeparatorDesc {
     UITag tag = UITag::Separator;
+    bool vertical = false;  // false = horizontal (─), true = vertical (│)
 };
 
 struct LabelValueDesc {
