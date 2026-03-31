@@ -400,10 +400,14 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
             }
             case Biome::Sandy: {
                 static const ResolvedVisual variants[] = {
-                    {',', nullptr, Color::Yellow, Color::Default},           // sand ripple
-                    {'.', nullptr, static_cast<Color>(180), Color::Default}, // pebble
+                    {',', nullptr, Color::Yellow, Color::Default},                        // sand ripple
+                    {'.', nullptr, static_cast<Color>(180), Color::Default},              // pebble
+                    {'~', nullptr, Color::Yellow, Color::Default},                        // dune crest
+                    {'\'', nullptr, static_cast<Color>(180), Color::Default},             // sand wisp
+                    {'-', "\xe2\x96\x81", Color::Yellow, Color::Default},                // ▁ low dune
+                    {'.', "\xc2\xb7", static_cast<Color>(137), Color::Default},          // · dry scrub
                 };
-                return variants[variant % 2];
+                return variants[variant % 6];
             }
             case Biome::Ice: {
                 static const ResolvedVisual variants[] = {
