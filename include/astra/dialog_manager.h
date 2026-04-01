@@ -3,6 +3,7 @@
 #include "astra/interaction.h"
 #include "astra/npc.h"
 #include "astra/ui.h"
+#include "astra/ui_types.h"
 
 #include <string>
 #include <vector>
@@ -49,6 +50,7 @@ private:
     int selected_ = 0;                   // cursor position
     float max_width_frac_ = 0.45f;       // panel width as fraction of screen
     std::string footer_;
+    EntityRef entity_;                    // NPC/fixture identity — renderer resolves glyph+color
 
     // Helper: reset dialog content for a new screen
     void reset_content(const std::string& title, float width_frac = 0.45f);

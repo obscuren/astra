@@ -19,6 +19,7 @@ void DialogManager::reset_content(const std::string& title, float width_frac) {
     selected_ = 0;
     footer_.clear();
     max_width_frac_ = width_frac;
+    entity_ = {};  // clear entity ref
 }
 
 void DialogManager::add_option(char key, const std::string& label) {
@@ -173,6 +174,13 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     // Measure content height
     int content_h = 0;
     std::vector<std::string> body_lines;
+
+    bool has_entity = entity_.has_value();
+    if (has_entity) {
+        content_h += 1;  // glyph row
+        content_h += 1;  // name row
+        content_h += 1;  // separator after header
+    }
     if (!body_.empty()) {
         body_lines = word_wrap(body_, wrap_w);
         content_h += 1;  // blank line before body
@@ -184,11 +192,11 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     content_h += static_cast<int>(options_.size());
     content_h += 1;  // padding after options
 
-    // Panel chrome: title row + title separator + footer separator + footer row = ~4-6 rows
-    bool has_title = !title_.empty();
-    bool has_footer = true; // always have footer
+    // Panel chrome: when entity header is shown, panel has no title (entity replaces it)
+    bool use_panel_title = !has_entity && !title_.empty();
+    bool has_footer = true;
     int chrome_h = 2; // top + bottom border
-    if (has_title) chrome_h += 2; // title row + separator
+    if (use_panel_title) chrome_h += 2; // title row + separator
     if (has_footer) chrome_h += 2; // footer separator + footer row
 
     int win_h = content_h + chrome_h;
@@ -201,28 +209,48 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     int wy = (screen_h - win_h) / 2;
 
     UIContext full(renderer, Rect{wx, wy, win_w, win_h});
-    auto content = full.panel({
-        .title = title_,
+    auto panel_content = full.panel({
+        .title = use_panel_title ? title_ : "",
         .footer = footer_.empty() ? "[Space] Select  [Esc] Close" : footer_,
     });
 
-    int cw = content.width();
-    int ch = content.height();
+    int cw = panel_content.width();
+    int ch = panel_content.height();
     int y = 0;
+
+    // Entity header: glyph centered, name centered, separator
+    if (has_entity) {
+        // Glyph centered — rendered by the renderer from EntityRef
+        int glyph_x = cw / 2;
+        panel_content.styled_text({.x = glyph_x, .y = y, .segments = {
+            {"?", UITag::TextDefault, entity_},  // renderer resolves glyph+color from entity
+        }});
+        y++;
+
+        // Name centered
+        int name_x = (cw - static_cast<int>(title_.size())) / 2;
+        if (name_x < 1) name_x = 1;
+        panel_content.text({.x = name_x, .y = y, .content = title_, .tag = UITag::TextBright});
+        y++;
+
+        // Separator
+        panel_content.sub(Rect{0, y, cw, 1}).separator({});
+        y++;
+    }
 
     // Body text with word-wrap and COLOR_BEGIN/COLOR_END support
     if (!body_.empty()) {
         y++; // blank line before body
         for (const auto& line : body_lines) {
             if (y >= ch) break;
-            content.text_rich(1, y, line, Color::White);
+            panel_content.text_rich(1, y, line, Color::White);
             y++;
         }
         y++; // blank line after body
 
         // Separator between body and options
         if (y < ch) {
-            content.sub(Rect{0, y, cw, 1}).separator({});
+            panel_content.sub(Rect{0, y, cw, 1}).separator({});
             y++;
         }
     }
@@ -242,7 +270,7 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
         int scroll = 0;
         if (selected_ >= list_h) scroll = selected_ - list_h + 1;
 
-        auto list_area = content.sub(Rect{0, y, cw, list_h});
+        auto list_area = panel_content.sub(Rect{0, y, cw, list_h});
         list_area.list({.items = items, .scroll_offset = scroll, .selected_tag = UITag::OptionSelected});
     }
 }
@@ -517,6 +545,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
 
     const auto& data = npc.interactions;
     reset_content(npc.display_name());
+    entity_ = EntityRef{EntityRef::Kind::Npc, static_cast<uint16_t>(npc.npc_role), static_cast<uint8_t>(npc.race)};
 
     // Faction gate: Hated NPCs refuse all interaction
     if (!npc.faction.empty()) {
