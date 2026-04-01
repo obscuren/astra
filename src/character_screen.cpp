@@ -194,9 +194,43 @@ bool CharacterScreen::handle_input(int key) {
 
     // Tab-specific input
     if (active_tab_ == CharTab::Attributes) {
-        int max_cursor = 13;
-        if (key == KEY_UP && cursor_ > 0) --cursor_;
-        if (key == KEY_DOWN && cursor_ < max_cursor) ++cursor_;
+        // 2D grid navigation for attribute boxes
+        // Row 0: STR(0) AGI(1) TOU(2) INT(3) WIL(4) LUK(5)   — 6 primary
+        // Row 1: QCK(6) SPD(7) DEF(8) DDG(9)                  — 4 secondary
+        // Row 2: ACD(10) ELC(11) CLD(12) HET(13)              — 4 resistances
+        static constexpr int row_start[] = {0, 6, 10};
+        static constexpr int row_size[]  = {6, 4, 4};
+        static constexpr int num_rows = 3;
+
+        auto cur_row = [&]() -> int {
+            if (cursor_ < 6) return 0;
+            if (cursor_ < 10) return 1;
+            return 2;
+        };
+        auto col_in_row = [&]() -> int {
+            return cursor_ - row_start[cur_row()];
+        };
+
+        if (key == KEY_LEFT) {
+            int r = cur_row();
+            int col = col_in_row();
+            cursor_ = row_start[r] + (col > 0 ? col - 1 : row_size[r] - 1);
+        }
+        if (key == KEY_RIGHT) {
+            int r = cur_row();
+            int col = col_in_row();
+            cursor_ = row_start[r] + (col < row_size[r] - 1 ? col + 1 : 0);
+        }
+        if (key == KEY_UP) {
+            int r = (cur_row() + num_rows - 1) % num_rows;
+            int col = std::min(col_in_row(), row_size[r] - 1);
+            cursor_ = row_start[r] + col;
+        }
+        if (key == KEY_DOWN) {
+            int r = (cur_row() + 1) % num_rows;
+            int col = std::min(col_in_row(), row_size[r] - 1);
+            cursor_ = row_start[r] + col;
+        }
 
         // +/- to allocate/deallocate points on primary attributes (cursor 0-5)
         if (cursor_ < 6) {
