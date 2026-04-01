@@ -23,7 +23,7 @@ bool DevConsole::handle_input(int key, Game& game) {
     if (!open_) return false;
 
     switch (key) {
-        case '`': case 27:
+        case 27: // Esc
             open_ = false;
             return true;
         case '\n': case '\r':
@@ -377,17 +377,22 @@ void DevConsole::draw(Renderer* renderer, int screen_w, int screen_h) {
     int con_h = std::min(20, screen_h / 2);
     if (con_h < 10) con_h = 10;
     Rect bounds{0, screen_h - con_h, screen_w, con_h};
-    Panel console(renderer, bounds, "Console");
-    console.set_footer("[`] Close  [Enter] Execute  [Up/Down] History  [PgUp/PgDn] Scroll");
-    console.draw();
-    DrawContext ctx = console.content();
+    UIContext outer(renderer, bounds);
+    auto ctx = outer.panel({
+        .title = "Console",
+        .footer = "[Esc] Close  [Enter] Execute  [Up/Down] History  [PgUp/PgDn] Scroll",
+    });
 
     int content_h = ctx.height();
     int input_row = content_h - 1;
 
-    std::string prompt = "> " + input_ + "_";
-    ctx.text(0, input_row, prompt, Color::Cyan);
+    // Input prompt
+    ctx.styled_text({.x = 0, .y = input_row, .segments = {
+        {"> ", UITag::TextAccent},
+        {input_ + "_", UITag::TextBright},
+    }});
 
+    // Scrollable output
     int out_rows = input_row;
     int total = static_cast<int>(output_.size());
 
@@ -402,9 +407,9 @@ void DevConsole::draw(Renderer* renderer, int screen_w, int screen_h) {
     int row = 0;
     for (int i = start; i < end && row < out_rows; ++i, ++row) {
         const auto& line = output_[i];
-        Color c = Color::DarkGray;
-        if (line.size() >= 2 && line[0] == '>') c = Color::White;
-        ctx.text(0, row, line, c);
+        // Echo lines (starting with >) show bright, output shows dim
+        UITag tag = (line.size() >= 2 && line[0] == '>') ? UITag::TextBright : UITag::TextDim;
+        ctx.text({.x = 0, .y = row, .content = line, .tag = tag});
     }
 }
 
