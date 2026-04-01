@@ -113,7 +113,6 @@ private:
     int ship_inv_cursor_ = 0;
     bool on_ship_ = false;  // set in open(), controls interactivity
 
-    void draw_tab_bar(DrawContext& ctx);
     void draw_attributes(DrawContext& ctx);
     void draw_skills(DrawContext& ctx);
     void draw_equipment(DrawContext& ctx);
