@@ -912,8 +912,11 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
                        || (active_tab_ == CharTab::Journal && !player_->journal.empty()));
     if (needs_divider) {
         int divider_x = content.width() / 2;
+        // The ┬ on the separator row needs to align with the │ in the content area.
+        // content is offset by pad from tab_area, so add pad for layout[1] coordinates.
+        int sep_divider_x = divider_x + pad;
         int last = content.height() - 1;
-        layout[1].put(divider_x, 0, BoxDraw::TT, Color::DarkGray);  // ┬ connects to tab separator
+        layout[1].put(sep_divider_x, 0, BoxDraw::TT, Color::DarkGray);  // ┬ connects to tab separator
         for (int vy = 0; vy < last; ++vy) {
             content.put(divider_x, vy, BoxDraw::V, Color::DarkGray);
         }
