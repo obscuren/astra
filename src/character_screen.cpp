@@ -759,6 +759,8 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth";
     } else if (active_tab_ == CharTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
+    } else if (active_tab_ == CharTab::Equipment) {
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [l] Look";
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
     } else {
