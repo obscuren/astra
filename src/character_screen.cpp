@@ -663,48 +663,69 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
     if (!context_menu_.is_open()) return;
 
     const auto& opts = context_menu_.options();
-    const auto& title = context_menu_.title();
     int sel = context_menu_.selected();
 
-    // Compute dimensions
+    // Get the item being acted on for entity header
+    const Item* ctx_item = nullptr;
+    if (player_ && equip_focus_ == EquipFocus::Inventory && cursor_ >= 0 &&
+        cursor_ < static_cast<int>(player_->inventory.items.size())) {
+        ctx_item = &player_->inventory.items[cursor_];
+    }
+
+    // Compute dimensions — wider with padding
     int max_label = 0;
     for (const auto& o : opts) {
-        int len = static_cast<int>(o.label.size()) + 4; // "[x] label"
+        int len = static_cast<int>(o.label.size()) + 6; // "  [x] label  "
         if (len > max_label) max_label = len;
     }
-    int win_w = std::max(max_label + 4, static_cast<int>(title.size()) + 4);
-    if (win_w < 20) win_w = 20;
-    int content_rows = static_cast<int>(opts.size());
-    if (!title.empty()) content_rows += 2; // title + separator
+    int win_w = std::max(max_label + 6, 30);
+
+    // Height: entity header(3) + blank + options with spacing + blank + chrome
+    int content_h = 0;
+    if (ctx_item) content_h += 3; // glyph + name + separator
+    content_h += 1; // blank before options
+    content_h += static_cast<int>(opts.size()) * 2 - 1; // options with blank lines between
+    content_h += 1; // blank after options
     int chrome_h = 2 + 1; // borders + footer
-    int win_h = content_rows + chrome_h;
+    int win_h = content_h + chrome_h;
 
     int mx = (screen_w - win_w) / 2;
     int my = (screen_h - win_h) / 2;
 
     UIContext full(renderer_, Rect{mx, my, win_w, win_h});
-    auto panel_content = full.panel({.footer = "[Esc] Cancel"});
+    auto pc = full.panel({.footer = "[Esc] Cancel"});
 
-    int cw = panel_content.width();
+    int cw = pc.width();
     int y = 0;
 
-    // Title
-    if (!title.empty()) {
-        int tx = (cw - static_cast<int>(title.size())) / 2;
-        if (tx < 0) tx = 0;
-        panel_content.text({.x = tx, .y = y, .content = title, .tag = UITag::Title});
+    // Entity header
+    if (ctx_item) {
+        EntityRef entity{EntityRef::Kind::Item, ctx_item->item_def_id};
+        int glyph_x = cw / 2;
+        pc.styled_text({.x = glyph_x, .y = y, .segments = {
+            {"?", UITag::TextDefault, entity},
+        }});
         y++;
-        panel_content.sub(Rect{0, y, cw, 1}).separator({});
+
+        int name_x = (cw - static_cast<int>(ctx_item->name.size())) / 2;
+        if (name_x < 1) name_x = 1;
+        pc.text({.x = name_x, .y = y, .content = ctx_item->name, .tag = rarity_tag(ctx_item->rarity)});
+        y++;
+
+        pc.sub(Rect{0, y, cw, 1}).separator({});
         y++;
     }
 
-    // Options
+    y++; // blank before options
+
+    // Options with conversation-style spacing
     for (int i = 0; i < static_cast<int>(opts.size()); ++i) {
         bool is_sel = (i == sel);
+        std::string prefix = is_sel ? "> " : "  ";
         UITag tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
-        std::string line = std::string("[") + opts[i].key + "] " + opts[i].label;
-        panel_content.text({.x = 1, .y = y, .content = line, .tag = tag});
-        y++;
+        std::string line = prefix + "[" + opts[i].key + "] " + opts[i].label;
+        pc.text({.x = 2, .y = y, .content = line, .tag = tag});
+        y += 2; // blank line between options
     }
 }
 
@@ -745,8 +766,9 @@ void CharacterScreen::draw_look_overlay(DrawContext& ctx) {
     panel_content.sub(Rect{0, y, cw, 1}).separator({});
     y++;
 
-    // Item info in remaining space
-    auto info_area = panel_content.sub(Rect{0, y, cw, panel_content.height() - y});
+    // Item info in remaining space — with left/right padding
+    int pad = 2;
+    auto info_area = panel_content.sub(Rect{pad, y, cw - pad * 2, panel_content.height() - y});
     draw_item_info(info_area, item);
 }
 
