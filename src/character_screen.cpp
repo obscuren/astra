@@ -1363,43 +1363,40 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
             for (auto sid : player_->learned_skills)
                 if (sid == cat.unlock_id) { unlocked = true; break; }
 
-            // Category header: ──┤ [+] Name ├──────── cost
-            if (selected) {
-                ctx.put(0, y, '>', Color::Yellow);
-                selected_cat_idx = ve.ci;
-            }
+            // Category header: solid background-color bar
+            if (selected) selected_cat_idx = ve.ci;
 
-            // Build: ──┤ [+/-] Name ├────
+            Color bar_bg = selected ? static_cast<Color>(235) : static_cast<Color>(233);
+            Color arrow_fg = Color::DarkGray;
+            Color name_fg;
+            if (selected) name_fg = Color::Yellow;
+            else if (unlocked) name_fg = Color::Green;
+            else name_fg = Color::White;
+
+            // Fill entire row with background
+            for (int fx = 0; fx < half; ++fx)
+                ctx.put(fx, y, ' ', bar_bg, bar_bg);
+
+            // Expand/collapse triangle
+            const char* triangle = skill_cat_expanded_[ve.ci]
+                ? "\xe2\x96\xbe" : "\xe2\x96\xb8"; // ▾ or ▸
             int lx = 1;
-            ctx.put(lx, y, BoxDraw::H, Color::DarkGray);
-            ctx.put(lx + 1, y, BoxDraw::RT, Color::DarkGray);
+            ctx.put(lx, y, triangle, arrow_fg);
             lx += 2;
+            ctx.put(lx++, y, BoxDraw::V, Color::Black);
+            lx++; // space before name (bg already filled)
 
-            std::string toggle = skill_cat_expanded_[ve.ci] ? " [-] " : " [+] ";
-            ctx.text({.x = lx, .y = y, .content = toggle, .tag = UITag::TextBright});
-            lx += static_cast<int>(toggle.size());
-
-            UITag name_tag = unlocked ? UITag::TextSuccess : UITag::TextDim;
-            if (selected) name_tag = UITag::TextBright;
-            ctx.text({.x = lx, .y = y, .content = cat.name, .tag = name_tag});
-            lx += static_cast<int>(cat.name.size());
-
-            ctx.put(lx, y, ' ');
-            ctx.put(lx + 1, y, BoxDraw::LT, Color::DarkGray);
-            int trail_start = lx + 2;
+            // Category name
+            for (char ch : cat.name)
+                ctx.put(lx++, y, ch, name_fg, bar_bg);
 
             // Cost right-aligned (only for locked categories)
-            int cost_end = half - 1;
             if (!unlocked) {
                 std::string cost = std::to_string(cat.sp_cost) + " SP";
-                int cx_pos = cost_end - static_cast<int>(cost.size());
-                ctx.text({.x = cx_pos, .y = y, .content = cost, .tag = UITag::TextWarning});
-                cost_end = cx_pos - 1;
+                int cx_pos = half - 1 - static_cast<int>(cost.size());
+                for (int ci = 0; ci < static_cast<int>(cost.size()); ++ci)
+                    ctx.put(cx_pos + ci, y, cost[ci], Color::Yellow, bar_bg);
             }
-
-            // Fill ── between ├ and cost/divider
-            for (int fx = trail_start; fx <= cost_end; ++fx)
-                ctx.put(fx, y, BoxDraw::H, Color::DarkGray);
         } else {
             // Skill entry
             const auto& sk = catalog[ve.ci].skills[ve.si];
@@ -1408,15 +1405,7 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
                 if (sid == sk.id) { learned = true; break; }
             }
 
-            if (selected) {
-                ctx.put(3, y, '>', Color::Yellow);
-                selected_skill = &sk;
-            }
-
-            // Learned marker
-            if (learned) {
-                ctx.put(5, y, '*', Color::Green);
-            }
+            if (selected) selected_skill = &sk;
 
             // Check if affordable/meets requirements
             bool can_afford = player_->skill_points >= sk.sp_cost;
@@ -1434,13 +1423,20 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
                 if (val < sk.attribute_req) meets_req = false;
             }
 
+            // Cursor
+            if (selected) ctx.put(3, y, '>', Color::Yellow);
+
+            // : prefix + skill name
+            Color colon_color = learned ? Color::Green : Color::DarkGray;
+            ctx.put(5, y, ':', colon_color);
+
             UITag name_tag;
             if (learned) name_tag = UITag::TextSuccess;
             else if (selected) name_tag = UITag::TextBright;
             else if (!can_afford || !meets_req) name_tag = UITag::TextDim;
             else name_tag = UITag::TextDefault;
 
-            ctx.text({.x = 7, .y = y, .content = sk.name, .tag = name_tag});
+            ctx.text({.x = 6, .y = y, .content = sk.name, .tag = name_tag});
 
             // SP cost right-aligned
             std::string cost = std::to_string(sk.sp_cost) + " SP";
