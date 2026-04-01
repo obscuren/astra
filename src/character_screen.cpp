@@ -667,9 +667,24 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
 
     // Get the item being acted on for entity header
     const Item* ctx_item = nullptr;
-    if (player_ && equip_focus_ == EquipFocus::Inventory && cursor_ >= 0 &&
-        cursor_ < static_cast<int>(player_->inventory.items.size())) {
-        ctx_item = &player_->inventory.items[cursor_];
+    if (player_ && active_tab_ == CharTab::Equipment) {
+        if (equip_focus_ == EquipFocus::Inventory &&
+            inv_cursor_ >= 0 && inv_cursor_ < static_cast<int>(player_->inventory.items.size())) {
+            ctx_item = &player_->inventory.items[inv_cursor_];
+        } else if (equip_focus_ == EquipFocus::PaperDoll) {
+            auto slot = static_cast<EquipSlot>(equip_cursor_);
+            const auto& equipped = player_->equipment.slot_ref(slot);
+            if (equipped) ctx_item = &(*equipped);
+        }
+    } else if (player_ && active_tab_ == CharTab::Ship) {
+        if (ship_focus_ == ShipFocus::Inventory &&
+            ship_inv_cursor_ >= 0 && ship_inv_cursor_ < static_cast<int>(player_->ship.cargo.size())) {
+            ctx_item = &player_->ship.cargo[ship_inv_cursor_];
+        } else if (ship_focus_ == ShipFocus::Equipment) {
+            auto slot = static_cast<ShipSlot>(ship_equip_cursor_);
+            const auto& installed = player_->ship.slot_ref(slot);
+            if (installed) ctx_item = &(*installed);
+        }
     }
 
     // Compute dimensions — wider with padding
@@ -680,9 +695,13 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
     }
     int win_w = std::max(max_label + 6, 30);
 
-    // Height: entity header(3) + blank + options with spacing + blank + chrome
+    // Height: header + blank + options with spacing + blank + chrome
     int content_h = 0;
-    if (ctx_item) content_h += 3; // glyph + name + separator
+    if (ctx_item) {
+        content_h += 3; // glyph + name + separator
+    } else if (!context_menu_.title().empty()) {
+        content_h += 2; // title + separator
+    }
     content_h += 1; // blank before options
     content_h += static_cast<int>(opts.size()) * 2 - 1; // options with blank lines between
     content_h += 1; // blank after options
@@ -698,7 +717,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
     int cw = pc.width();
     int y = 0;
 
-    // Entity header
+    // Header: entity header for items, title for other menus
     if (ctx_item) {
         EntityRef entity{EntityRef::Kind::Item, ctx_item->item_def_id};
         int glyph_x = cw / 2;
@@ -714,6 +733,18 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
 
         pc.sub(Rect{0, y, cw, 1}).separator({});
         y++;
+    } else {
+        // Title header for non-item menus (tinkering: Place Item, Select Material, etc.)
+        const auto& title = context_menu_.title();
+        if (!title.empty()) {
+            int tx = (cw - static_cast<int>(title.size())) / 2;
+            if (tx < 1) tx = 1;
+            pc.text({.x = tx, .y = y, .content = title, .tag = UITag::TextBright});
+            y++;
+
+            pc.sub(Rect{0, y, cw, 1}).separator({});
+            y++;
+        }
     }
 
     y++; // blank before options
