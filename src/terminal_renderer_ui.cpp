@@ -5,6 +5,8 @@
 #include "astra/ui_types.h"
 #include "astra/rect.h"
 #include "terminal_ui_theme.h"
+#include "terminal_theme.h"        // resolve() for world entities, item_visual(), npc_glyph()
+#include "astra/render_descriptor.h"
 
 #include <algorithm>
 
@@ -13,6 +15,30 @@ namespace astra {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// Resolve EntityRef to terminal visual (glyph + color) using the world entity theme
+static ResolvedVisual resolve_entity_visual(const EntityRef& ref) {
+    switch (ref.kind) {
+        case EntityRef::Kind::Npc: {
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Npc;
+            desc.type_id = ref.id;
+            desc.seed = ref.seed;
+            return resolve(desc);
+        }
+        case EntityRef::Kind::Item:
+            return item_visual(ref.id);
+        case EntityRef::Kind::Fixture: {
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Fixture;
+            desc.type_id = ref.id;
+            desc.seed = ref.seed;
+            return resolve(desc);
+        }
+        default:
+            return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+}
 
 // Half-block border glyphs (matching Panel::draw() style)
 static constexpr const char* BORDER_LEFT   = "\xe2\x96\x90"; // ▐
@@ -127,38 +153,82 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
     // Footer separator + text
     bool has_footer = !desc.footer.empty();
     if (has_footer) {
+        // Footer is embedded in the separator line: ──┤footer text├──
         UIStyle sep_style = resolve_ui_tag(UITag::Separator);
-        int sep_y = bounds.y + h - 3;
-        for (int x = 1; x < w - 1; ++x)
-            draw_glyph(bounds.x + x, sep_y, HLINE, sep_style.fg);
-
+        int fy = bounds.y + h - 2;  // one row above bottom border
+        int inner_w = w - 2;        // inside left/right borders
         int footer_len = utf8_display_len(desc.footer);
-        int fx = bounds.x + (w - footer_len) / 2;
-        if (fx < bounds.x + 1) fx = bounds.x + 1;
-        int fy = bounds.y + h - 2;
+        int text_w = footer_len + 2; // +2 for ┤ and ├
+        constexpr int pad = 3;       // minimum ─── padding on each side
 
-        // Render footer with [key] highlighting (matching Panel::draw)
-        const std::string& footer = desc.footer;
-        int col = fx;
-        for (size_t i = 0; i < footer.size(); ++i) {
-            if (footer[i] == '[') {
-                draw_char(col++, fy, '[', Color::White);
-                size_t end = footer.find(']', i + 1);
-                if (end != std::string::npos) {
-                    for (size_t j = i + 1; j < end; ++j)
-                        draw_char(col++, fy, footer[j], Color::Yellow);
-                    draw_char(col++, fy, ']', Color::White);
-                    i = end;
-                }
+        // Compute footer text start position based on alignment
+        int text_start; // offset from left border (inner coords)
+        if (desc.footer_align == TextAlign::Left) {
+            text_start = pad;
+        } else if (desc.footer_align == TextAlign::Right) {
+            text_start = inner_w - pad - text_w;
+        } else { // Center
+            text_start = (inner_w - text_w) / 2;
+        }
+        if (text_start < pad) text_start = pad;
+        if (text_start + text_w > inner_w - pad) text_start = inner_w - pad - text_w;
+        if (text_start < 1) text_start = 1;
+
+        // Draw the full line with T-junctions framing the text
+        int bx = bounds.x + 1; // first inner cell
+        for (int x = 0; x < inner_w; ++x) {
+            int ax = bx + x;
+            if (x == text_start) {
+                draw_glyph(ax, fy, "\xe2\x94\xa4", sep_style.fg); // ┤
+            } else if (x == text_start + text_w - 1) {
+                draw_glyph(ax, fy, "\xe2\x94\x9c", sep_style.fg); // ├
+            } else if (x > text_start && x < text_start + text_w - 1) {
+                // Footer text area — will be overwritten below
+                draw_char(ax, fy, ' ');
             } else {
-                draw_char(col++, fy, footer[i], Color::DarkGray);
+                draw_glyph(ax, fy, HLINE, sep_style.fg);
             }
+        }
+
+        // Render footer text with [key] highlighting inside the ┤...├ area
+        UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+        UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
+        UIStyle footer_style = resolve_ui_tag(UITag::Footer);
+        int col = bx + text_start + 1; // after ┤
+        const std::string& footer = desc.footer;
+        size_t pos = 0;
+        while (pos < footer.size()) {
+            size_t bracket = footer.find('[', pos);
+            if (bracket == std::string::npos) {
+                std::string rest = footer.substr(pos);
+                render_utf8_string(this, col, fy, rest, footer_style.fg);
+                col += utf8_display_len(rest);
+                break;
+            }
+            if (bracket > pos) {
+                std::string plain = footer.substr(pos, bracket - pos);
+                render_utf8_string(this, col, fy, plain, footer_style.fg);
+                col += utf8_display_len(plain);
+            }
+            size_t close = footer.find(']', bracket + 1);
+            if (close == std::string::npos) {
+                std::string rest = footer.substr(bracket);
+                render_utf8_string(this, col, fy, rest, footer_style.fg);
+                col += utf8_display_len(rest);
+                break;
+            }
+            draw_char(col++, fy, '[', bracket_style.fg);
+            std::string key_text = footer.substr(bracket + 1, close - bracket - 1);
+            render_utf8_string(this, col, fy, key_text, key_style.fg);
+            col += utf8_display_len(key_text);
+            draw_char(col++, fy, ']', bracket_style.fg);
+            pos = close + 1;
         }
     }
 
     // Compute content rect
     int top = has_title ? 3 : 1;
-    int bottom = has_footer ? 3 : 1;
+    int bottom = has_footer ? 2 : 1; // footer is 1 row (embedded in separator) + bottom border
     return Rect{
         bounds.x + 1,
         bounds.y + top,
@@ -207,9 +277,19 @@ void TerminalRenderer::draw_ui_text(int x, int y, const TextDesc& desc) {
 void TerminalRenderer::draw_styled_text(int x, int y, const StyledTextDesc& desc) {
     int col = x;
     for (const auto& seg : desc.segments) {
-        UIStyle style = resolve_ui_tag(seg.tag);
-        render_utf8_string(this, col, y, seg.text, style.fg);
-        col += utf8_display_len(seg.text);
+        if (seg.entity.has_value()) {
+            // Resolve glyph+color from entity identity
+            auto vis = resolve_entity_visual(seg.entity);
+            if (vis.utf8)
+                draw_glyph(col, y, vis.utf8, vis.fg);
+            else
+                draw_char(col, y, vis.glyph, vis.fg);
+            col += 1; // entity glyph is always 1 display cell
+        } else {
+            UIStyle style = resolve_ui_tag(seg.tag);
+            render_utf8_string(this, col, y, seg.text, style.fg);
+            col += utf8_display_len(seg.text);
+        }
     }
 }
 
@@ -221,12 +301,16 @@ void TerminalRenderer::draw_list(const Rect& bounds, const ListDesc& desc) {
     int visible_h = bounds.h;
     if (visible_h <= 0) return;
 
+    bool conversation = (desc.tag == UITag::ConversationOption);
+    int row_stride = conversation ? 2 : 1; // extra blank line between conversation options
+
     int total = static_cast<int>(desc.items.size());
-    int start = std::min(desc.scroll_offset, std::max(0, total - visible_h));
+    int visible_items = conversation ? (visible_h + 1) / 2 : visible_h; // account for spacing
+    int start = std::min(desc.scroll_offset, std::max(0, total - visible_items));
     if (start < 0) start = 0;
 
     int row = 0;
-    for (int i = start; i < total && row < visible_h; ++i, ++row) {
+    for (int i = start; i < total && row < visible_h; ++i, row += row_stride) {
         const auto& item = desc.items[i];
         UIStyle style = resolve_ui_tag(item.selected ? desc.selected_tag : item.tag);
 
@@ -238,7 +322,39 @@ void TerminalRenderer::draw_list(const Rect& bounds, const ListDesc& desc) {
             draw_char(col, bounds.y + row, ' ');
             draw_char(col + 1, bounds.y + row, ' ');
         }
-        render_utf8_string(this, col + 2, bounds.y + row, item.label, style.fg);
+        // Render label with [key] highlighting
+        UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+        UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
+        int lx = col + 2;
+        const std::string& label = item.label;
+        size_t pos = 0;
+        while (pos < label.size()) {
+            size_t bracket = label.find('[', pos);
+            if (bracket == std::string::npos) {
+                std::string rest = label.substr(pos);
+                render_utf8_string(this, lx, bounds.y + row, rest, style.fg);
+                lx += utf8_display_len(rest);
+                break;
+            }
+            if (bracket > pos) {
+                std::string plain = label.substr(pos, bracket - pos);
+                render_utf8_string(this, lx, bounds.y + row, plain, style.fg);
+                lx += utf8_display_len(plain);
+            }
+            size_t close = label.find(']', bracket + 1);
+            if (close == std::string::npos) {
+                std::string rest = label.substr(bracket);
+                render_utf8_string(this, lx, bounds.y + row, rest, style.fg);
+                lx += utf8_display_len(rest);
+                break;
+            }
+            draw_char(lx++, bounds.y + row, '[', bracket_style.fg);
+            std::string key_text = label.substr(bracket + 1, close - bracket - 1);
+            render_utf8_string(this, lx, bounds.y + row, key_text, key_style.fg);
+            lx += utf8_display_len(key_text);
+            draw_char(lx++, bounds.y + row, ']', bracket_style.fg);
+            pos = close + 1;
+        }
     }
 }
 
@@ -247,32 +363,67 @@ void TerminalRenderer::draw_list(const Rect& bounds, const ListDesc& desc) {
 // ---------------------------------------------------------------------------
 
 void TerminalRenderer::draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) {
+    UIStyle nav_style = resolve_ui_tag(UITag::NavKey);
+    UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+
+    // Measure total width for alignment
+    int total_w = 0;
+    if (desc.show_nav) total_w += 4; // "[Q] "
+    for (int i = 0; i < static_cast<int>(desc.tabs.size()); ++i) {
+        bool active = (i == desc.active);
+        total_w += static_cast<int>(desc.tabs[i].size()) + 2; // brackets/spaces + text
+        if (i < static_cast<int>(desc.tabs.size()) - 1) total_w += 1; // space between
+    }
+    if (desc.show_nav) total_w += 4; // " [E]"
+
+    // Compute start x based on alignment
     int col = bounds.x;
+    if (desc.align == TextAlign::Center) {
+        col = bounds.x + (bounds.w - total_w) / 2;
+        if (col < bounds.x) col = bounds.x;
+    } else if (desc.align == TextAlign::Right) {
+        col = bounds.x + bounds.w - total_w;
+        if (col < bounds.x) col = bounds.x;
+    }
+
+    // Left nav key
+    if (desc.show_nav) {
+        draw_char(col++, bounds.y, '[', bracket_style.fg);
+        for (char c : desc.nav_left_label)
+            draw_char(col++, bounds.y, c, nav_style.fg);
+        draw_char(col++, bounds.y, ']', bracket_style.fg);
+        draw_char(col++, bounds.y, ' ');
+    }
+
+    // Tabs
     for (int i = 0; i < static_cast<int>(desc.tabs.size()); ++i) {
         const auto& tab = desc.tabs[i];
         bool active = (i == desc.active);
         UIStyle style = resolve_ui_tag(active ? desc.active_tag : desc.inactive_tag);
 
         if (active) {
-            draw_char(col, bounds.y, '[', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, '[', bracket_style.fg);
             render_utf8_string(this, col, bounds.y, tab, style.fg);
             col += utf8_display_len(tab);
-            draw_char(col, bounds.y, ']', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, ']', bracket_style.fg);
         } else {
-            draw_char(col, bounds.y, ' ', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, ' ', style.fg);
             render_utf8_string(this, col, bounds.y, tab, style.fg);
             col += utf8_display_len(tab);
-            draw_char(col, bounds.y, ' ', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, ' ', style.fg);
         }
-        // Space between tabs
         if (i < static_cast<int>(desc.tabs.size()) - 1) {
-            draw_char(col, bounds.y, ' ');
-            ++col;
+            draw_char(col++, bounds.y, ' ');
         }
+    }
+
+    // Right nav key
+    if (desc.show_nav) {
+        draw_char(col++, bounds.y, ' ');
+        draw_char(col++, bounds.y, '[', bracket_style.fg);
+        for (char c : desc.nav_right_label)
+            draw_char(col++, bounds.y, c, nav_style.fg);
+        draw_char(col++, bounds.y, ']', bracket_style.fg);
     }
 }
 

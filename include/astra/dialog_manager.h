@@ -3,6 +3,7 @@
 #include "astra/interaction.h"
 #include "astra/npc.h"
 #include "astra/ui.h"
+#include "astra/ui_types.h"
 
 #include <string>
 #include <vector>
@@ -15,7 +16,7 @@ class DialogManager {
 public:
     DialogManager() = default;
 
-    bool is_open() const { return npc_dialog_.is_open(); }
+    bool is_open() const { return open_; }
     void close();
 
     // NPC interaction
@@ -37,11 +38,27 @@ public:
 
     // State queries
     Npc* interacting_npc() const { return interacting_npc_; }
-    const std::string& body() const { return npc_dialog_body_; }
+    const std::string& body() const { return body_; }
 
 private:
-    PopupMenu npc_dialog_;
-    std::string npc_dialog_body_;
+    // Dialog state — persistent across conversation steps, no destroy/recreate
+    bool open_ = false;
+    std::string title_;
+    std::string body_;                    // may contain COLOR_BEGIN/COLOR_END markers
+    std::vector<std::string> options_;    // option labels
+    std::vector<char> hotkeys_;           // per-option hotkeys
+    int selected_ = 0;                   // cursor position
+    float max_width_frac_ = 0.45f;       // panel width as fraction of screen
+    std::string footer_;
+    EntityRef entity_;                    // NPC/fixture identity — renderer resolves glyph+color
+
+    // Helper: reset dialog content for a new screen
+    void reset_content(const std::string& title, float width_frac = 0.45f);
+    void add_option(char key, const std::string& label);
+
+    // Word-wrap body text respecting COLOR_BEGIN/COLOR_END markers
+    static std::vector<std::string> word_wrap(const std::string& text, int width);
+
     Npc* interacting_npc_ = nullptr;
     const std::vector<DialogNode>* dialog_tree_ = nullptr;
     int dialog_node_ = -1;

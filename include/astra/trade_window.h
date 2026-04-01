@@ -27,11 +27,9 @@ private:
 
     void buy_selected();
     void sell_selected();
-    void draw_item_list(DrawContext& ctx, const std::vector<Item>& items,
-                        int cursor, int scroll, bool active, bool show_buy_price);
-    void draw_sell_list(DrawContext& ctx,
-                        const std::vector<std::pair<const Item*, bool>>& items,
-                        int cursor, int scroll, bool active);
+    void draw_buy_items(UIContext& area, int list_w);
+    void draw_sell_items(UIContext& area, int list_w);
+    int compute_price(const Item& item, bool buy) const;
 
     Npc* merchant_ = nullptr;
     Player* player_ = nullptr;

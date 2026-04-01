@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/renderer.h"
+#include "astra/ui_types.h"
 
 #include <cstdint>
 #include <optional>
@@ -96,6 +97,17 @@ inline Color rarity_color(Rarity r) {
         case Rarity::Legendary: return static_cast<Color>(208); // xterm orange
     }
     return Color::White;
+}
+
+inline UITag rarity_tag(Rarity r) {
+    switch (r) {
+        case Rarity::Common:    return UITag::RarityCommon;
+        case Rarity::Uncommon:  return UITag::RarityUncommon;
+        case Rarity::Rare:      return UITag::RarityRare;
+        case Rarity::Epic:      return UITag::RarityEpic;
+        case Rarity::Legendary: return UITag::RarityLegendary;
+    }
+    return UITag::RarityCommon;
 }
 
 inline const char* rarity_name(Rarity r) {

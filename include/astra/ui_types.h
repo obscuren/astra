@@ -25,8 +25,8 @@ enum class UITag : uint16_t {
     TextDanger, TextSuccess, TextWarning, TextAccent,
 
     // Interactive
-    TabActive, TabInactive,
-    OptionSelected, OptionNormal,
+    TabActive, TabInactive, NavKey, KeyLabel,
+    OptionSelected, OptionNormal, ConversationOption,
 
     // Game stats
     StatAttack, StatDefense, StatHealth, StatVision, StatSpeed,
@@ -46,6 +46,12 @@ struct EntityRef {
 
     bool has_value() const { return kind != Kind::None; }
 };
+
+// ---------------------------------------------------------------------------
+// Text alignment
+// ---------------------------------------------------------------------------
+
+enum class TextAlign : uint8_t { Left, Center, Right };
 
 // ---------------------------------------------------------------------------
 // Layout sizing — logical units (terminal: 1 unit = 1 cell, SDL: renderer-defined)
@@ -68,6 +74,7 @@ inline Size fraction(float f) { return {Size::Fraction, f}; }
 struct PanelDesc {
     std::string title;
     std::string footer;
+    TextAlign footer_align = TextAlign::Center;
     UITag tag = UITag::Border;
 };
 
@@ -95,6 +102,25 @@ struct TextSegment {
     EntityRef entity;
 };
 
+// Helper: build segments for a shortcut key display: [Key] → [ white, Key yellow, ] white
+inline std::vector<TextSegment> key_segments(const std::string& key) {
+    return {
+        {"[", UITag::TextBright},
+        {key, UITag::KeyLabel},
+        {"]", UITag::TextBright},
+    };
+}
+
+// Helper: build segments for "key action" pair: [Key] Action
+inline std::vector<TextSegment> key_action_segments(const std::string& key, const std::string& action) {
+    return {
+        {"[", UITag::TextBright},
+        {key, UITag::KeyLabel},
+        {"] ", UITag::TextBright},
+        {action, UITag::TextDim},
+    };
+}
+
 struct StyledTextDesc {
     int x = 0;
     int y = 0;
@@ -120,6 +146,10 @@ struct TabBarDesc {
     int active = 0;
     UITag active_tag = UITag::TabActive;
     UITag inactive_tag = UITag::TabInactive;
+    TextAlign align = TextAlign::Left;
+    bool show_nav = false;
+    std::string nav_left_label = "Q";
+    std::string nav_right_label = "E";
 };
 
 struct SeparatorDesc {

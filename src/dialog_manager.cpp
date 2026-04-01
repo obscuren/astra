@@ -7,46 +7,279 @@
 
 namespace astra {
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+void DialogManager::reset_content(const std::string& title, float width_frac) {
+    title_ = title;
+    body_.clear();
+    options_.clear();
+    hotkeys_.clear();
+    selected_ = 0;
+    footer_.clear();
+    max_width_frac_ = width_frac;
+    entity_ = {};  // clear entity ref
+}
+
+void DialogManager::add_option(char key, const std::string& label) {
+    hotkeys_.push_back(key);
+    options_.push_back(label);
+}
+
+std::vector<std::string> DialogManager::word_wrap(const std::string& text, int width) {
+    std::vector<std::string> lines;
+    if (width < 4) width = 4;
+
+    std::string line;
+    int vis_len = 0;
+    int last_space_pos = -1;
+
+    for (size_t i = 0; i < text.size(); ++i) {
+        char ch = text[i];
+        if (ch == '\n') {
+            lines.push_back(line);
+            line.clear();
+            vis_len = 0;
+            last_space_pos = -1;
+            continue;
+        }
+        if (ch == COLOR_BEGIN && i + 1 < text.size()) {
+            line += ch;
+            line += text[++i];
+            continue;
+        }
+        if (ch == COLOR_END) {
+            line += ch;
+            continue;
+        }
+        if (static_cast<unsigned char>(ch) >= 0x80 &&
+            (static_cast<unsigned char>(ch) & 0xC0) == 0x80) {
+            // UTF-8 continuation byte
+            line += ch;
+        } else {
+            line += ch;
+            ++vis_len;
+            if (ch == ' ') {
+                last_space_pos = static_cast<int>(line.size()) - 1;
+            }
+        }
+        if (vis_len >= width) {
+            if (last_space_pos > 0) {
+                std::string remainder = line.substr(last_space_pos + 1);
+                line.resize(last_space_pos);
+                lines.push_back(line);
+                line = remainder;
+                // Recount visible chars in remainder
+                vis_len = 0;
+                for (size_t j = 0; j < line.size(); ++j) {
+                    if (line[j] == COLOR_BEGIN && j + 1 < line.size()) { ++j; continue; }
+                    if (line[j] == COLOR_END) continue;
+                    unsigned char uc = static_cast<unsigned char>(line[j]);
+                    if (uc >= 0x80 && (uc & 0xC0) == 0x80) continue;
+                    ++vis_len;
+                }
+            } else {
+                lines.push_back(line);
+                line.clear();
+                vis_len = 0;
+            }
+            last_space_pos = -1;
+        }
+    }
+    if (!line.empty()) lines.push_back(line);
+    return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Close
+// ---------------------------------------------------------------------------
+
 void DialogManager::close() {
-    npc_dialog_.close();
+    open_ = false;
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
     dialog_node_ = -1;
 }
 
+// ---------------------------------------------------------------------------
+// Input
+// ---------------------------------------------------------------------------
+
 bool DialogManager::handle_input(int key, Game& game) {
-    if (!npc_dialog_.is_open()) return false;
+    if (!open_) return false;
 
     // Tab = trade shortcut
     if (key == '\t') {
         if (interacting_npc_ && interacting_npc_->interactions.shop) {
-            npc_dialog_.close();
+            open_ = false;
             game.trade_window().open(interacting_npc_, &game.player(), game.renderer());
         } else {
             game.log("They have nothing to sell.");
         }
         return true;
     }
-    // [l] Look — enter look mode focused on NPC
+    // [l] Look -- enter look mode focused on NPC
     if (key == 'l' && interacting_npc_) {
-        npc_dialog_.close();
-        // Can't call input_.begin_look_at directly — Game handles this
-        // Store NPC position for Game to pick up
         close();
         return true; // Game checks and starts look mode
     }
-    MenuResult result = npc_dialog_.handle_input(key);
-    if (result == MenuResult::Selected) {
-        advance_dialog(npc_dialog_.selected(), game);
-    } else if (result == MenuResult::Closed) {
-        close();
+
+    switch (key) {
+        case 27: // Esc
+            close();
+            return true;
+        case KEY_UP: case 'k':
+            if (selected_ > 0) selected_--;
+            else selected_ = static_cast<int>(options_.size()) - 1; // wrap to last
+            return true;
+        case KEY_DOWN: case 'j':
+            if (selected_ < static_cast<int>(options_.size()) - 1) selected_++;
+            else selected_ = 0; // wrap to first
+            return true;
+        case ' ': case '\r': case '\n':
+            advance_dialog(selected_, game);
+            return true;
+        default:
+            // Check hotkeys
+            for (int i = 0; i < static_cast<int>(hotkeys_.size()); ++i) {
+                if (key == hotkeys_[i]) {
+                    selected_ = i;
+                    advance_dialog(i, game);
+                    return true;
+                }
+            }
+            break;
     }
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Draw — semantic UI rendering
+// ---------------------------------------------------------------------------
+
 void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
-    npc_dialog_.draw(renderer, screen_w, screen_h);
+    if (!open_ || options_.empty()) return;
+
+    int margin = 4;
+    int max_w = static_cast<int>(screen_w * max_width_frac_);
+    if (max_w < 30) max_w = 30;
+    int win_w = max_w;
+
+    // Compute inner width for word-wrap measurement
+    // Panel border = 1 each side, so inner = win_w - 2
+    // Body has 1 char padding each side, so wrap_w = inner - 2
+    int inner_w = win_w - 2;
+    int wrap_w = inner_w - 2;
+    if (wrap_w < 10) wrap_w = 10;
+
+    // Measure content height
+    int content_h = 0;
+    std::vector<std::string> body_lines;
+
+    bool has_entity = entity_.has_value();
+    if (has_entity) {
+        content_h += 1;  // glyph row
+        content_h += 1;  // name row
+        content_h += 1;  // separator after header
+    }
+    if (!body_.empty()) {
+        body_lines = word_wrap(body_, wrap_w);
+        content_h += 1;  // blank line before body
+        content_h += static_cast<int>(body_lines.size());
+        content_h += 1;  // blank line after body
+        content_h += 1;  // separator
+    }
+    content_h += 1;  // blank line before options
+    content_h += static_cast<int>(options_.size()) * 2 - 1; // conversation spacing: blank line between options
+    content_h += 1;  // padding after options
+
+    // Panel chrome: when entity header is shown, panel has no title (entity replaces it)
+    bool use_panel_title = !has_entity && !title_.empty();
+    bool has_footer = true;
+    int chrome_h = 2; // top + bottom border
+    if (use_panel_title) chrome_h += 2; // title row + separator
+    if (has_footer) chrome_h += 1; // footer embedded in separator line
+
+    int win_h = content_h + chrome_h;
+    int max_h = screen_h - margin * 2;
+    if (win_h > max_h) win_h = max_h;
+    if (win_h < 10) win_h = 10;
+
+    // Center on screen
+    int wx = (screen_w - win_w) / 2;
+    int wy = (screen_h - win_h) / 2;
+
+    UIContext full(renderer, Rect{wx, wy, win_w, win_h});
+    auto panel_content = full.panel({
+        .title = use_panel_title ? title_ : "",
+        .footer = footer_.empty() ? "[Space] Select  [Esc] Close" : footer_,
+    });
+
+    int cw = panel_content.width();
+    int ch = panel_content.height();
+    int y = 0;
+
+    // Entity header: glyph centered, name centered, separator
+    if (has_entity) {
+        // Glyph centered — rendered by the renderer from EntityRef
+        int glyph_x = cw / 2;
+        panel_content.styled_text({.x = glyph_x, .y = y, .segments = {
+            {"?", UITag::TextDefault, entity_},  // renderer resolves glyph+color from entity
+        }});
+        y++;
+
+        // Name centered
+        int name_x = (cw - static_cast<int>(title_.size())) / 2;
+        if (name_x < 1) name_x = 1;
+        panel_content.text({.x = name_x, .y = y, .content = title_, .tag = UITag::TextBright});
+        y++;
+
+        // Separator
+        panel_content.sub(Rect{0, y, cw, 1}).separator({});
+        y++;
+    }
+
+    // Body text with word-wrap and COLOR_BEGIN/COLOR_END support
+    if (!body_.empty()) {
+        y++; // blank line before body
+        for (const auto& line : body_lines) {
+            if (y >= ch) break;
+            panel_content.text_rich(1, y, line, Color::White);
+            y++;
+        }
+        y++; // blank line after body
+
+        // Separator between body and options
+        if (y < ch) {
+            panel_content.sub(Rect{0, y, cw, 1}).separator({});
+            y++;
+        }
+    }
+
+    y++; // blank line before options
+
+    // Build list items from options
+    std::vector<ListItem> items;
+    for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
+        std::string label = "[" + std::string(1, hotkeys_[i]) + "] " + options_[i];
+        items.push_back({label, UITag::OptionNormal, i == selected_});
+    }
+
+    // Calculate how much vertical space the list gets
+    int list_h = ch - y;
+    if (list_h > 0) {
+        int scroll = 0;
+        if (selected_ >= list_h) scroll = selected_ - list_h + 1;
+
+        auto list_area = panel_content.sub(Rect{0, y, cw, list_h});
+        list_area.list({.items = items, .scroll_offset = scroll, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
 }
+
+// ---------------------------------------------------------------------------
+// Fixture interaction
+// ---------------------------------------------------------------------------
 
 void DialogManager::interact_fixture(int fid, Game& game) {
     auto& f = game.world().map().fixture_mut(fid);
@@ -73,10 +306,8 @@ void DialogManager::interact_fixture(int fid, Game& game) {
         }
         case FixtureType::FoodTerminal: {
             auto menu = food_terminal_menu();
-            npc_dialog_.close();
-            npc_dialog_.set_title("Food Terminal");
-            npc_dialog_body_ = "What'll it be?";
-            npc_dialog_.set_body("\"What'll it be?\"");
+            reset_content("Food Terminal", 0.45f);
+            body_ = "\"What'll it be?\"";
             game.log("Food Terminal: What'll it be?");
             char fkey = '1';
             for (const auto& entry : menu) {
@@ -90,11 +321,11 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                     label += ", +" + std::to_string(entry.heal) + " HP";
                 }
                 label += ")";
-                npc_dialog_.add_option(fkey++, label);
+                add_option(fkey++, label);
             }
-            npc_dialog_.add_option('q', "Leave");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+            add_option('q', "Leave");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -2; // sentinel: food terminal mode
@@ -121,15 +352,15 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::SupplyLocker: {
-            npc_dialog_.close();
-            npc_dialog_.set_title("Supply Locker");
-            npc_dialog_body_ = "Stash (" + std::to_string(game.world().stash().size()) + "/" +
+            reset_content("Supply Locker");
+            body_ = "Stash (" + std::to_string(game.world().stash().size()) + "/" +
                 std::to_string(WorldManager::max_stash_size) + ")";
-            game.log(npc_dialog_body_);
-            npc_dialog_.add_option('s', "Store an item");
-            npc_dialog_.add_option('r', "Retrieve an item");
-            npc_dialog_.add_option('c', "Close");
-            npc_dialog_.open();
+            game.log(body_);
+            add_option('s', "Store an item");
+            add_option('r', "Retrieve an item");
+            add_option('c', "Close");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -3; // sentinel: stash main menu
@@ -146,7 +377,6 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::StairsUp: {
-            // General dungeon exit — return to previous location
             if (game.world().map().location_name() == "Maintenance Tunnels") {
                 game.exit_maintenance_tunnels();
             } else {
@@ -155,12 +385,10 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::DungeonHatch: {
-            // If we're in the tunnels, go back up
             if (game.world().map().location_name() == "Maintenance Tunnels") {
                 game.exit_maintenance_tunnels();
                 break;
             }
-            // Gated by tutorial quest
             if (game.quests().has_active_quest("story_getting_airborne")) {
                 game.enter_maintenance_tunnels();
             } else {
@@ -188,26 +416,23 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 game.log(reward_msg);
 
                 // Show completion dialog
-                npc_dialog_.close();
-                npc_dialog_.set_title("ARIA");
-                npc_dialog_.set_body(
+                reset_content("ARIA", 0.5f);
+                body_ =
                     "\"All primary systems restored. We're flight-ready, "
                     "commander.\n\n"
                     "The galaxy awaits. Plot a course from the " +
                     colored("Star Chart", Color::Cyan) +
-                    " whenever you're ready. I'll be here.\"");
-                npc_dialog_.add_option('f', "Let's fly.");
-                npc_dialog_.set_footer("[Space] Continue");
-                npc_dialog_.set_max_width_frac(0.5f);
-                npc_dialog_.open();
+                    " whenever you're ready. I'll be here.\"";
+                add_option('f', "Let's fly.");
+                footer_ = "[Space] Continue";
+                open_ = true;
                 interacting_npc_ = nullptr;
                 dialog_tree_ = nullptr;
                 dialog_node_ = -1;
                 return;
             }
 
-            npc_dialog_.close();
-            npc_dialog_.set_title("ARIA");
+            reset_content("ARIA", 0.45f);
             // Greeting varies by ship state
             auto& ship = game.player().ship;
             bool has_engine = ship.operational();
@@ -220,31 +445,29 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 greeting = "All systems nominal. Where to, commander?";
             else
                 greeting = "Systems partially restored. We're getting there, commander.";
-            npc_dialog_.set_body("\"" + greeting + "\"");
+            body_ = "\"" + greeting + "\"";
             game.log("ARIA: \"" + greeting + "\"");
             char hotkey = '1';
-            npc_dialog_.add_option(hotkey++, "Ship Systems");
-            npc_dialog_.add_option(hotkey++, "Star Chart");
+            add_option(hotkey++, "Ship Systems");
+            add_option(hotkey++, "Star Chart");
             if (game.world().navigation().at_station)
-                npc_dialog_.add_option(hotkey++, "Disembark");
-            npc_dialog_.add_option('f', "Close");
-            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+                add_option(hotkey++, "Disembark");
+            add_option('f', "Close");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -10; // sentinel: ARIA terminal
             break;
         }
         case FixtureType::ShipTerminal: {
-            npc_dialog_.close();
-            npc_dialog_.set_title("Shipping Terminal");
-            npc_dialog_body_ = "Your starship is docked and ready.";
-            npc_dialog_.set_body("\"" + npc_dialog_body_ + "\"");
-            game.log(npc_dialog_body_);
-            npc_dialog_.add_option('b', "Board ship");
-            npc_dialog_.add_option('c', "Cancel");
-            npc_dialog_.open();
+            reset_content("Shipping Terminal");
+            body_ = "\"Your starship is docked and ready.\"";
+            game.log("Your starship is docked and ready.");
+            add_option('b', "Board ship");
+            add_option('c', "Cancel");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -6; // sentinel: ship terminal
@@ -272,27 +495,28 @@ void DialogManager::interact_fixture(int fid, Game& game) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Tutorial
+// ---------------------------------------------------------------------------
+
 void DialogManager::show_tutorial_choice(Game& game) {
-    npc_dialog_.close();
-    npc_dialog_.set_title("ARIA");
-    npc_dialog_.set_body(
+    reset_content("ARIA", 0.5f);
+    body_ =
         "\"Systems critical. Multiple component failures detected. "
         "Engine, hull plating, and navigation computer are offline. "
-        "We're grounded until repairs are complete, commander.\"");
-    npc_dialog_.add_option('1', "I need to find parts to fix this ship. (Begin tutorial)");
-    npc_dialog_.add_option('2', "I know what I'm doing. (Skip tutorial)");
-    npc_dialog_.set_footer("[Space] Select");
-    npc_dialog_.set_max_width_frac(0.5f);
-    npc_dialog_.open();
+        "We're grounded until repairs are complete, commander.\"";
+    add_option('1', "I need to find parts to fix this ship. (Begin tutorial)");
+    add_option('2', "I know what I'm doing. (Skip tutorial)");
+    footer_ = "[Space] Select";
+    open_ = true;
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
     dialog_node_ = -11; // sentinel: tutorial choice
 }
 
 void DialogManager::show_tutorial_followup() {
-    npc_dialog_.close();
-    npc_dialog_.set_title("ARIA");
-    npc_dialog_.set_body(
+    reset_content("ARIA", 0.5f);
+    body_ =
         "\"Understood. Let's get to work.\n\n"
         "I'd start with the " +
         colored("Station Keeper", Color::White) + " " +
@@ -302,15 +526,18 @@ void DialogManager::show_tutorial_followup() {
         "Check your " +
         colored("Datapad", Color::Cyan) + " (" +
         colored("c", Color::Yellow) +
-        ") to track your objectives.\"");
-    npc_dialog_.add_option('f', "Got it, I'll check my Datapad.");
-    npc_dialog_.set_footer("[Space] Continue");
-    npc_dialog_.set_max_width_frac(0.5f);
-    npc_dialog_.open();
+        ") to track your objectives.\"";
+    add_option('f', "Got it, I'll check my Datapad.");
+    footer_ = "[Space] Continue";
+    open_ = true;
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
-    dialog_node_ = -12; // sentinel: tutorial followup — opens datapad on dismiss
+    dialog_node_ = -12; // sentinel: tutorial followup -- opens datapad on dismiss
 }
+
+// ---------------------------------------------------------------------------
+// Open NPC dialog
+// ---------------------------------------------------------------------------
 
 void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     interacting_npc_ = &npc;
@@ -319,37 +546,36 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     interact_options_.clear();
 
     const auto& data = npc.interactions;
-    npc_dialog_.close();
-    npc_dialog_.set_title(npc.display_name());
+    reset_content(npc.display_name());
+    entity_ = EntityRef{EntityRef::Kind::Npc, static_cast<uint16_t>(npc.npc_role), static_cast<uint8_t>(npc.race)};
 
     // Faction gate: Hated NPCs refuse all interaction
     if (!npc.faction.empty()) {
         int rep = reputation_for(game.player(), npc.faction);
         if (reputation_tier(rep) == ReputationTier::Hated) {
-            npc_dialog_.set_body("\"I have nothing to say to you. Get lost.\"");
+            body_ = "\"I have nothing to say to you. Get lost.\"";
             game.log(npc.display_name() + " refuses to speak with you.");
-            npc_dialog_.add_option('f', "Leave");
+            add_option('f', "Leave");
             interact_options_.push_back(InteractOption::Farewell);
-            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             return;
         }
     }
 
-    npc_dialog_body_ = data.talk ? data.talk->greeting : "";
-    if (!npc_dialog_body_.empty()) {
-        npc_dialog_.set_body("\"" + npc_dialog_body_ + "\"");
-        game.log(npc.display_name() + ": \"" + npc_dialog_body_ + "\"");
+    std::string greeting = data.talk ? data.talk->greeting : "";
+    if (!greeting.empty()) {
+        body_ = "\"" + greeting + "\"";
+        game.log(npc.display_name() + ": \"" + greeting + "\"");
     }
 
     char hotkey = '1';
     if (data.talk && !data.talk->nodes.empty()) {
-        npc_dialog_.add_option(hotkey++, "Talk");
+        add_option(hotkey++, "Talk");
         interact_options_.push_back(InteractOption::Talk);
     }
     if (data.shop) {
-        npc_dialog_.add_option(hotkey++, "Trade");
+        add_option(hotkey++, "Trade");
         interact_options_.push_back(InteractOption::Shop);
     }
 
@@ -362,7 +588,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
         }
     }
     if (has_turnin) {
-        npc_dialog_.add_option(hotkey++, "I have news about the job.");
+        add_option(hotkey++, "I have news about the job.");
         interact_options_.push_back(InteractOption::QuestTurnIn);
     }
 
@@ -375,18 +601,21 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
         int rep = reputation_for(game.player(), npc.faction);
         bool rep_ok = npc.faction.empty() || reputation_tier(rep) >= ReputationTier::Neutral;
         if (!has_active_from_npc && rep_ok) {
-            npc_dialog_.add_option(hotkey++, data.quest->quest_intro);
+            add_option(hotkey++, data.quest->quest_intro);
             interact_options_.push_back(InteractOption::Quest);
         }
     }
 
-    npc_dialog_.add_option('f', "Farewell");
+    add_option('f', "Farewell");
     interact_options_.push_back(InteractOption::Farewell);
 
-    npc_dialog_.set_footer("[Space] Select  [Tab] Trade  [l] Look  [Esc] Close");
-    npc_dialog_.set_max_width_frac(0.45f);
-    npc_dialog_.open();
+    footer_ = "[Space] Select  [Tab] Trade  [l] Look  [Esc] Close";
+    open_ = true;
 }
+
+// ---------------------------------------------------------------------------
+// Advance dialog
+// ---------------------------------------------------------------------------
 
 void DialogManager::advance_dialog(int selected, Game& game) {
     // Food terminal dialog (no NPC involved)
@@ -398,6 +627,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             auto result = buy_food_item(game.player(), menu[selected]);
             game.log(result.message);
         }
+        open_ = false;
         // last option or out of range: Leave
         return;
     }
@@ -405,59 +635,61 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     // Stash main menu
     if (dialog_node_ == -3) {
         if (selected == 0) {
-            // Store mode — show player inventory
+            // Store mode -- show player inventory
             if (game.player().inventory.items.empty()) {
                 game.log("You have nothing to store.");
                 dialog_node_ = -1;
+                open_ = false;
                 return;
             }
             if (static_cast<int>(game.world().stash().size()) >= WorldManager::max_stash_size) {
                 game.log("Stash is full! (" + std::to_string(WorldManager::max_stash_size) +
                     "/" + std::to_string(WorldManager::max_stash_size) + ")");
                 dialog_node_ = -1;
+                open_ = false;
                 return;
             }
-            npc_dialog_.close();
-            npc_dialog_.set_title("Store Item");
+            reset_content("Store Item");
             game.log("Select item to store (" + std::to_string(game.world().stash().size()) +
                 "/" + std::to_string(WorldManager::max_stash_size) + "):");
             { char sk = '1';
             for (const auto& item : game.player().inventory.items) {
-                npc_dialog_.add_option(sk++, item.name);
+                add_option(sk++, item.name);
                 if (sk > '9') sk = 'a';
             } }
-            npc_dialog_.add_option('c', "Cancel");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+            add_option('c', "Cancel");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             dialog_node_ = -4; // sentinel: store mode
         } else if (selected == 1) {
-            // Retrieve mode — show stash contents
+            // Retrieve mode -- show stash contents
             if (game.world().stash().empty()) {
                 game.log("The stash is empty.");
                 dialog_node_ = -1;
+                open_ = false;
                 return;
             }
-            npc_dialog_.close();
-            npc_dialog_.set_title("Retrieve Item");
+            reset_content("Retrieve Item");
             game.log("Select item to retrieve (" + std::to_string(game.world().stash().size()) +
                 "/" + std::to_string(WorldManager::max_stash_size) + "):");
             { char rk = '1';
             for (const auto& item : game.world().stash()) {
-                npc_dialog_.add_option(rk++, item.name);
+                add_option(rk++, item.name);
                 if (rk > '9') rk = 'a';
             } }
-            npc_dialog_.add_option('c', "Cancel");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+            add_option('c', "Cancel");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             dialog_node_ = -5; // sentinel: retrieve mode
         } else {
             // Close
             dialog_node_ = -1;
+            open_ = false;
         }
         return;
     }
 
-    // Stash store mode — player selected an inventory item to store
+    // Stash store mode -- player selected an inventory item to store
     if (dialog_node_ == -4) {
         dialog_node_ = -1;
         int item_count = static_cast<int>(game.player().inventory.items.size());
@@ -468,10 +700,11 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             game.log("Stored " + stored.name + " in the stash.");
             game.world().stash().push_back(std::move(stored));
         }
+        open_ = false;
         return;
     }
 
-    // Stash retrieve mode — player selected a stash item to retrieve
+    // Stash retrieve mode -- player selected a stash item to retrieve
     if (dialog_node_ == -5) {
         dialog_node_ = -1;
         int stash_count = static_cast<int>(game.world().stash().size());
@@ -486,46 +719,51 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.player().inventory.items.push_back(std::move(retrieved));
             }
         }
+        open_ = false;
         return;
     }
 
-    // Dev menu — main
+    // Dev menu -- main
     if (dialog_node_ == -7) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
         if (selected == 0) {
             game.dev_command_warp_random();
+            open_ = false;
         } else if (selected == 1) {
             // POI Stamp Test submenu
-            npc_dialog_.close();
-            npc_dialog_.set_title("[DEV] POI Stamp Test");
-            npc_dialog_.add_option('1', "Ruins");
-            npc_dialog_.add_option('2', "Crashed Ship");
-            npc_dialog_.add_option('3', "Outpost");
-            npc_dialog_.add_option('4', "Cave Entrance");
-            npc_dialog_.add_option('5', "Settlement");
-            npc_dialog_.add_option('6', "Landing Pad");
-            npc_dialog_.add_option('b', "Back");
-            npc_dialog_.open();
+            reset_content("[DEV] POI Stamp Test");
+            add_option('1', "Ruins");
+            add_option('2', "Crashed Ship");
+            add_option('3', "Outpost");
+            add_option('4', "Cave Entrance");
+            add_option('5', "Settlement");
+            add_option('6', "Landing Pad");
+            add_option('b', "Back");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             dialog_node_ = -9; // sentinel: stamp test menu
         } else if (selected == 2) {
             // Open character stats submenu
-            npc_dialog_.close();
-            npc_dialog_.set_title("[DEV] Character Stats");
-            npc_dialog_.add_option('i', std::string("Invulnerability: ") +
-                                   (has_effect(game.player().effects, EffectId::Invulnerable) ? "ON" : "OFF"));
-            npc_dialog_.add_option('b', "Back");
-            npc_dialog_.open();
+            reset_content("[DEV] Character Stats");
+            add_option('i', std::string("Invulnerability: ") +
+                               (has_effect(game.player().effects, EffectId::Invulnerable) ? "ON" : "OFF"));
+            add_option('b', "Back");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             dialog_node_ = -8; // sentinel: dev stats
         } else if (selected == 3) {
             // Force level up
             game.player().xp = game.player().max_xp;
             game.dev_command_level_up();
+            open_ = false;
+        } else {
+            open_ = false;
         }
         return;
     }
 
-    // Dev menu — character stats
+    // Dev menu -- character stats
     if (dialog_node_ == -8) {
         if (selected == 0) {
             if (has_effect(game.player().effects, EffectId::Invulnerable))
@@ -535,21 +773,22 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             bool inv = has_effect(game.player().effects, EffectId::Invulnerable);
             game.log(std::string("[DEV] Invulnerability: ") + (inv ? "ON" : "OFF"));
             // Re-open the menu with updated label
-            npc_dialog_.close();
-            npc_dialog_.set_title("[DEV] Character Stats");
-            npc_dialog_.add_option('i', std::string("Invulnerability: ") +
-                                   (inv ? "ON" : "OFF"));
-            npc_dialog_.add_option('b', "Back");
-            npc_dialog_.open();
+            reset_content("[DEV] Character Stats");
+            add_option('i', std::string("Invulnerability: ") +
+                               (inv ? "ON" : "OFF"));
+            add_option('b', "Back");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             dialog_node_ = -8;
         } else {
             dialog_node_ = -1;
             dialog_tree_ = nullptr;
+            open_ = false;
         }
         return;
     }
 
-    // Dev menu — POI stamp test
+    // Dev menu -- POI stamp test
     if (dialog_node_ == -9) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
@@ -569,26 +808,26 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             game.dev_command_warp_stamp(poi_types[selected]);
             game.log(std::string("[DEV] Stamp Test: ") + poi_names[selected]);
         }
+        open_ = false;
         return;
     }
 
-    // Tutorial followup — "Got it, I'll check my Datapad" opens character screen
+    // Tutorial followup -- "Got it, I'll check my Datapad" opens character screen
     if (dialog_node_ == -12) {
-        npc_dialog_.close();
+        open_ = false;
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
         aria_open_datapad_ = true;
         return;
     }
 
-    // Ship terminal dialog
     // Tutorial choice
     if (dialog_node_ == -11) {
-        npc_dialog_.close();
+        open_ = false;
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
         if (selected == 0) {
-            // Play tutorial — accept quest, ship stays empty
+            // Play tutorial -- accept quest, ship stays empty
             auto* sq = find_story_quest("story_getting_airborne");
             if (sq) {
                 auto q = sq->create_quest();
@@ -598,13 +837,13 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             game.log("ARIA: \"Understood. Let's get to work.\"");
             game.log("ARIA: \"I'd start with the " + colored("Station Keeper", Color::White)
                 + " " + colored("(K)", Color::Green)
-                + ". He's been here since before the Collapse — he'll know where to find parts.\"");
+                + ". He's been here since before the Collapse -- he'll know where to find parts.\"");
             game.log("ARIA: \"Check your " + colored("Datapad", Color::Cyan) + " ("
                 + colored("c", Color::Yellow) + ") to track your objectives.\"");
             // Queue follow-up dialog for next frame
             aria_tutorial_followup_ = true;
         } else {
-            // Skip tutorial — equip ship with starter components
+            // Skip tutorial -- equip ship with starter components
             game.player().ship.engine = build_engine_coil_mk1();
             game.player().ship.hull = build_hull_plate();
             game.player().ship.navi_computer = build_navi_computer_mk2();
@@ -617,8 +856,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     if (dialog_node_ == -10) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
+        open_ = false;
         if (selected == 0) {
-            // Ship Systems → open character screen on Ship tab
+            // Ship Systems -> open character screen on Ship tab
             aria_open_ship_tab_ = true;
         } else if (selected == 1) {
             // Star Chart
@@ -628,7 +868,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.log("ARIA: \"I need an engine to plot routes. I'm an AI, not a fortune teller.\"");
             }
         } else if (selected == 2) {
-            // Disembark — exit ship to station
+            // Disembark -- exit ship to station
             aria_disembark_ = true;
         }
         return;
@@ -637,6 +877,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     if (dialog_node_ == -6) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
+        open_ = false;
         if (selected == 0) {
             game.enter_ship();
         }
@@ -653,12 +894,13 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -1;
+            open_ = false;
             return;
         }
 
         int next = node.choices[selected].next_node;
         if (next < 0 || next >= static_cast<int>(dialog_tree_->size())) {
-            // End of conversation — return to top-level menu
+            // End of conversation -- return to top-level menu
             dialog_tree_ = nullptr;
             dialog_node_ = -1;
             open_npc_dialog(*interacting_npc_, game);
@@ -677,9 +919,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.log("The Commander hands you a " +
                     colored("Navi Computer Mk2", Color::White) + ".");
                 game.log("Stored in ship cargo.");
-                // Don't accept a quest — this is a direct reward
+                // Don't accept a quest -- this is a direct reward
             }
-            // Try story quest (Station Keeper) — only after tutorial
+            // Try story quest (Station Keeper) -- only after tutorial
             else if (auto* sq = find_story_quest("story_missing_hauler");
                 sq && interacting_npc_->role == "Station Keeper" &&
                 !game.quests().has_active_quest("story_missing_hauler") &&
@@ -713,24 +955,22 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         // Advance to next node
         dialog_node_ = next;
         const auto& next_node = (*dialog_tree_)[dialog_node_];
-        npc_dialog_.close();
-        npc_dialog_.set_title(interacting_npc_->display_name());
-        npc_dialog_body_ = next_node.text;
-        npc_dialog_.set_body("\"" + next_node.text + "\"");
+        reset_content(interacting_npc_->display_name());
+        body_ = "\"" + next_node.text + "\"";
         game.log(interacting_npc_->display_name() + ": \"" + next_node.text + "\"");
         { char hk = '1';
         for (const auto& choice : next_node.choices) {
-            npc_dialog_.add_option(hk++, choice.label);
+            add_option(hk++, choice.label);
         } }
-        npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-        npc_dialog_.set_max_width_frac(0.45f);
-        npc_dialog_.open();
+        footer_ = "[Space] Select  [Esc] Close";
+        open_ = true;
         return;
     }
 
     // Top-level menu selection
     if (selected < 0 || selected >= static_cast<int>(interact_options_.size())) {
         interacting_npc_ = nullptr;
+        open_ = false;
         return;
     }
 
@@ -739,41 +979,35 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             dialog_tree_ = &interacting_npc_->interactions.talk->nodes;
             dialog_node_ = 0;
             const auto& node = (*dialog_tree_)[0];
-            npc_dialog_.close();
-            npc_dialog_.set_title(interacting_npc_->display_name());
-            npc_dialog_body_ = node.text;
-            npc_dialog_.set_body("\"" + node.text + "\"");
+            reset_content(interacting_npc_->display_name());
+            body_ = "\"" + node.text + "\"";
             game.log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
             { char hk = '1';
             for (const auto& choice : node.choices) {
-                npc_dialog_.add_option(hk++, choice.label);
+                add_option(hk++, choice.label);
             } }
-            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             break;
         }
         case InteractOption::Shop:
             game.trade_window().open(interacting_npc_, &game.player(), game.renderer());
-            npc_dialog_.close();
+            open_ = false;
             break;
 
         case InteractOption::Quest: {
             dialog_tree_ = &interacting_npc_->interactions.quest->nodes;
             dialog_node_ = 0;
             const auto& node = (*dialog_tree_)[0];
-            npc_dialog_.close();
-            npc_dialog_.set_title(interacting_npc_->display_name());
-            npc_dialog_body_ = node.text;
-            npc_dialog_.set_body("\"" + node.text + "\"");
+            reset_content(interacting_npc_->display_name());
+            body_ = "\"" + node.text + "\"";
             game.log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
             { char hk = '1';
             for (const auto& choice : node.choices) {
-                npc_dialog_.add_option(hk++, choice.label);
+                add_option(hk++, choice.label);
             } }
-            npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-            npc_dialog_.set_max_width_frac(0.45f);
-            npc_dialog_.open();
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
             break;
         }
         case InteractOption::QuestTurnIn: {
@@ -823,15 +1057,13 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 }
 
                 // Show NPC response
-                npc_dialog_.close();
-                npc_dialog_.set_title(interacting_npc_->display_name());
+                reset_content(interacting_npc_->display_name());
                 std::string reply = "Well done, commander. You've earned your pay.";
-                npc_dialog_.set_body("\"" + reply + "\"");
+                body_ = "\"" + reply + "\"";
                 game.log(interacting_npc_->display_name() + ": \"" + reply + "\"");
-                npc_dialog_.add_option('1', "Thanks.");
-                npc_dialog_.set_footer("[Space] Select  [Esc] Close");
-                npc_dialog_.set_max_width_frac(0.45f);
-                npc_dialog_.open();
+                add_option('1', "Thanks.");
+                footer_ = "[Space] Select  [Esc] Close";
+                open_ = true;
                 // Set dialog to return to top-level on next selection
                 dialog_tree_ = nullptr;
                 dialog_node_ = -1;
@@ -843,6 +1075,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             interacting_npc_ = nullptr;
             dialog_tree_ = nullptr;
             dialog_node_ = -1;
+            open_ = false;
             break;
     }
 }
