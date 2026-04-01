@@ -5,6 +5,8 @@
 #include "astra/ui_types.h"
 #include "astra/rect.h"
 #include "terminal_ui_theme.h"
+#include "terminal_theme.h"        // resolve() for world entities, item_visual(), npc_glyph()
+#include "astra/render_descriptor.h"
 
 #include <algorithm>
 
@@ -13,6 +15,30 @@ namespace astra {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// Resolve EntityRef to terminal visual (glyph + color) using the world entity theme
+static ResolvedVisual resolve_entity_visual(const EntityRef& ref) {
+    switch (ref.kind) {
+        case EntityRef::Kind::Npc: {
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Npc;
+            desc.type_id = ref.id;
+            desc.seed = ref.seed;
+            return resolve(desc);
+        }
+        case EntityRef::Kind::Item:
+            return item_visual(ref.id);
+        case EntityRef::Kind::Fixture: {
+            RenderDescriptor desc;
+            desc.category = RenderCategory::Fixture;
+            desc.type_id = ref.id;
+            desc.seed = ref.seed;
+            return resolve(desc);
+        }
+        default:
+            return {'?', nullptr, Color::Magenta, Color::Default};
+    }
+}
 
 // Half-block border glyphs (matching Panel::draw() style)
 static constexpr const char* BORDER_LEFT   = "\xe2\x96\x90"; // ▐
@@ -229,9 +255,19 @@ void TerminalRenderer::draw_ui_text(int x, int y, const TextDesc& desc) {
 void TerminalRenderer::draw_styled_text(int x, int y, const StyledTextDesc& desc) {
     int col = x;
     for (const auto& seg : desc.segments) {
-        UIStyle style = resolve_ui_tag(seg.tag);
-        render_utf8_string(this, col, y, seg.text, style.fg);
-        col += utf8_display_len(seg.text);
+        if (seg.entity.has_value()) {
+            // Resolve glyph+color from entity identity
+            auto vis = resolve_entity_visual(seg.entity);
+            if (vis.utf8)
+                draw_glyph(col, y, vis.utf8, vis.fg);
+            else
+                draw_char(col, y, vis.glyph, vis.fg);
+            col += 1; // entity glyph is always 1 display cell
+        } else {
+            UIStyle style = resolve_ui_tag(seg.tag);
+            render_utf8_string(this, col, y, seg.text, style.fg);
+            col += utf8_display_len(seg.text);
+        }
     }
 }
 
