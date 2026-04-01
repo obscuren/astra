@@ -646,7 +646,7 @@ void Game::render_menu() {
     }
 
     // Quit confirm overlay on menu
-    quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
+    render_quit_confirm();
 }
 
 void Game::render_play() {
@@ -679,8 +679,8 @@ void Game::render_play() {
     if (inspecting_item_) render_item_inspect();
     render_look_popup();
     dialog_.draw(renderer_.get(), screen_w_, screen_h_);
-    pause_menu_.draw(renderer_.get(), screen_w_, screen_h_);
-    quit_confirm_.draw(renderer_.get(), screen_w_, screen_h_);
+    render_pause_menu();
+    render_quit_confirm();
     console_.draw(renderer_.get(), screen_w_, screen_h_);
     help_screen_.draw(renderer_.get(), screen_w_, screen_h_);
     repair_bench_.draw(screen_w_, screen_h_);
@@ -691,58 +691,7 @@ void Game::render_play() {
 
     // Welcome screen overlay
     if (show_welcome_) {
-        int ww = 60;
-        int wh = 28;
-        if (ww > screen_w_ - 8) ww = screen_w_ - 8;
-        if (wh > screen_h_ - 6) wh = screen_h_ - 6;
-        int wx = (screen_w_ - ww) / 2;
-        int wy = (screen_h_ - wh) / 2;
-
-        Panel welcome(renderer_.get(), Rect{wx, wy, ww, wh}, "A S T R A");
-        welcome.set_footer("[Space] Continue");
-        welcome.draw();
-
-        DrawContext wctx = welcome.content();
-        int y = 1;
-
-        wctx.text_center(y, "Welcome, " + player_.name + ".", Color::White);
-        y += 2;
-        wctx.text_center(y, "Your journey to the center of the galaxy begins.", Color::DarkGray);
-        y++;
-        wctx.text_center(y, "The supermassive black hole Sagittarius A* awaits.", Color::DarkGray);
-        y++;
-        wctx.text_center(y, "But first, you must survive.", Color::DarkGray);
-        y += 2;
-
-        wctx.text_center(y, "You are docked at The Heavens Above,", Color::Cyan);
-        y++;
-        wctx.text_center(y, "a space station orbiting Jupiter.", Color::Cyan);
-        y += 3;
-
-        // Key bindings
-        int kx = 6;
-        wctx.text(kx, y, "CONTROLS", Color::White);
-        y += 2;
-        wctx.text(kx, y, "Arrow keys", Color::Yellow);
-        wctx.text(kx + 22, y, "Move", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "Space", Color::Yellow);
-        wctx.text(kx + 22, y, "Use / interact", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "l", Color::Yellow);
-        wctx.text(kx + 22, y, "Look / examine", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "c", Color::Yellow);
-        wctx.text(kx + 22, y, "Character screen", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "t / s", Color::Yellow);
-        wctx.text(kx + 22, y, "Target / shoot", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "> / <", Color::Yellow);
-        wctx.text(kx + 22, y, "Enter / exit", Color::DarkGray);
-        y++;
-        wctx.text(kx, y, "ESC", Color::Yellow);
-        wctx.text(kx + 22, y, "Pause menu", Color::DarkGray);
+        render_welcome_screen();
     }
 }
 
@@ -1346,5 +1295,179 @@ void Game::render_hall_of_fame() {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Welcome screen — semantic UI
+// ---------------------------------------------------------------------------
+
+void Game::render_welcome_screen() {
+    int margin = 4;
+    int win_w = 60;
+    if (win_w > screen_w_ - margin * 2) win_w = screen_w_ - margin * 2;
+
+    // Content: greeting(1) + blank(1) + lore(3) + blank(1) + location(2) + blank(2) +
+    //          controls heading(1) + blank(1) + 7 key rows = 19
+    int content_h = 19;
+    int chrome_h = 2 + 2 + 1; // border(2) + title+sep(2) + footer(1)
+    int win_h = content_h + chrome_h;
+    if (win_h > screen_h_ - margin * 2) win_h = screen_h_ - margin * 2;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = "A S T R A", .footer = "[Space] Continue"});
+    int cw = ctx.width();
+    int y = 0;
+
+    // Greeting
+    std::string greeting = "Welcome, " + player_.name + ".";
+    int gx = (cw - static_cast<int>(greeting.size())) / 2;
+    if (gx < 1) gx = 1;
+    ctx.text({.x = gx, .y = y, .content = greeting, .tag = UITag::TextBright});
+    y += 2;
+
+    // Lore text
+    auto center_dim = [&](const std::string& s) {
+        int tx = (cw - static_cast<int>(s.size())) / 2;
+        if (tx < 1) tx = 1;
+        ctx.text({.x = tx, .y = y, .content = s, .tag = UITag::TextDim});
+        y++;
+    };
+    center_dim("Your journey to the center of the galaxy begins.");
+    center_dim("The supermassive black hole Sagittarius A* awaits.");
+    center_dim("But first, you must survive.");
+    y++;
+
+    // Location
+    auto center_accent = [&](const std::string& s) {
+        int tx = (cw - static_cast<int>(s.size())) / 2;
+        if (tx < 1) tx = 1;
+        ctx.text({.x = tx, .y = y, .content = s, .tag = UITag::TextAccent});
+        y++;
+    };
+    center_accent("You are docked at The Heavens Above,");
+    center_accent("a space station orbiting Jupiter.");
+    y += 2;
+
+    // Controls heading
+    int kx = 5;
+    ctx.text({.x = kx, .y = y, .content = "CONTROLS", .tag = UITag::TextBright});
+    y += 2;
+
+    // Key bindings
+    auto key_row = [&](const std::string& key, const std::string& action) {
+        ctx.styled_text({.x = kx, .y = y, .segments = {
+            {key, UITag::KeyLabel},
+        }});
+        ctx.text({.x = kx + 22, .y = y, .content = action, .tag = UITag::TextDim});
+        y++;
+    };
+    key_row("Arrow keys", "Move");
+    key_row("Space",      "Use / interact");
+    key_row("l",          "Look / examine");
+    key_row("c",          "Character screen");
+    key_row("t / s",      "Target / shoot");
+    key_row("> / <",      "Enter / exit");
+    key_row("ESC",        "Pause menu");
+}
+
+// ---------------------------------------------------------------------------
+// Pause menu — semantic UI
+// ---------------------------------------------------------------------------
+
+void Game::render_pause_menu() {
+    if (!pause_menu_.is_open()) return;
+
+    // Build option list from the PopupMenu state
+    // We need to reconstruct options — read them by trying each known key
+    struct PauseOpt { char key; std::string label; };
+    std::vector<PauseOpt> opts;
+
+    // The pause menu options are set up in handle_play_input with fixed keys
+    // We'll re-read from the PopupMenu by matching the selection index
+    // Since PopupMenu doesn't expose options, render using the known set
+    opts.push_back({'r', "Return to game"});
+    opts.push_back({'o', "Options"});
+    opts.push_back({'h', "Help"});
+    opts.push_back({'s', "Save game"});
+    opts.push_back({'l', "Load game"});
+    if (!dev_mode_) {
+        opts.push_back({'q', "Save and quit"});
+    }
+    opts.push_back({'x', "Quit without saving"});
+
+    int margin = 4;
+    int content_w = 0;
+    for (const auto& o : opts) {
+        int w = 6 + static_cast<int>(o.label.size()); // "[X] " + label
+        if (w > content_w) content_w = w;
+    }
+    int win_w = content_w + 6; // padding
+    if (win_w < 30) win_w = 30;
+
+    int content_h = 1; // blank before options
+    content_h += static_cast<int>(opts.size()) * 2 - 1; // options with spacing
+    content_h += 1; // padding after
+    int chrome_h = 2 + 2 + 1; // border + title+sep + footer
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = "Game Menu", .footer = "[Esc] Close"});
+    int cw = ctx.width();
+    int y = 1;
+
+    // Build list items
+    std::vector<ListItem> items;
+    int sel = pause_menu_.selected();
+    for (int i = 0; i < static_cast<int>(opts.size()); ++i) {
+        std::string label = "[" + std::string(1, opts[i].key) + "] " + opts[i].label;
+        items.push_back({label, UITag::OptionNormal, i == sel});
+    }
+
+    int list_h = ctx.height() - y;
+    if (list_h > 0) {
+        int scroll = 0;
+        if (sel >= list_h) scroll = sel - list_h + 1;
+        auto list_area = ctx.sub(Rect{0, y, cw, list_h});
+        list_area.list({.items = items, .scroll_offset = scroll,
+                        .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Quit confirm — semantic UI
+// ---------------------------------------------------------------------------
+
+void Game::render_quit_confirm() {
+    if (!quit_confirm_.is_open()) return;
+
+    int win_w = 36;
+    int content_h = 5; // blank + 2 options with spacing + blank
+    int chrome_h = 2 + 2 + 1; // border + title+sep + footer
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = "Quit without saving?", .footer = "[Esc] Cancel"});
+    int cw = ctx.width();
+    int y = 1;
+
+    int sel = quit_confirm_.selected();
+    std::vector<ListItem> items;
+    items.push_back({"[Y] Yes, quit", UITag::OptionNormal, sel == 0});
+    items.push_back({"[N] No, keep playing", UITag::OptionNormal, sel == 1});
+
+    int list_h = ctx.height() - y;
+    if (list_h > 0) {
+        auto list_area = ctx.sub(Rect{0, y, cw, list_h});
+        list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
+}
 
 } // namespace astra

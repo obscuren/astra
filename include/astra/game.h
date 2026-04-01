@@ -183,6 +183,9 @@ private:
     void render_item_inspect();
     void render_effects_bar();
     void render_abilities_bar();
+    void render_welcome_screen();
+    void render_pause_menu();
+    void render_quit_confirm();
 
     // Layout
     void compute_layout();
