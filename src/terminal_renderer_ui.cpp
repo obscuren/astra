@@ -260,7 +260,39 @@ void TerminalRenderer::draw_list(const Rect& bounds, const ListDesc& desc) {
             draw_char(col, bounds.y + row, ' ');
             draw_char(col + 1, bounds.y + row, ' ');
         }
-        render_utf8_string(this, col + 2, bounds.y + row, item.label, style.fg);
+        // Render label with [key] highlighting
+        UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+        UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
+        int lx = col + 2;
+        const std::string& label = item.label;
+        size_t pos = 0;
+        while (pos < label.size()) {
+            size_t bracket = label.find('[', pos);
+            if (bracket == std::string::npos) {
+                std::string rest = label.substr(pos);
+                render_utf8_string(this, lx, bounds.y + row, rest, style.fg);
+                lx += utf8_display_len(rest);
+                break;
+            }
+            if (bracket > pos) {
+                std::string plain = label.substr(pos, bracket - pos);
+                render_utf8_string(this, lx, bounds.y + row, plain, style.fg);
+                lx += utf8_display_len(plain);
+            }
+            size_t close = label.find(']', bracket + 1);
+            if (close == std::string::npos) {
+                std::string rest = label.substr(bracket);
+                render_utf8_string(this, lx, bounds.y + row, rest, style.fg);
+                lx += utf8_display_len(rest);
+                break;
+            }
+            draw_char(lx++, bounds.y + row, '[', bracket_style.fg);
+            std::string key_text = label.substr(bracket + 1, close - bracket - 1);
+            render_utf8_string(this, lx, bounds.y + row, key_text, key_style.fg);
+            lx += utf8_display_len(key_text);
+            draw_char(lx++, bounds.y + row, ']', bracket_style.fg);
+            pos = close + 1;
+        }
     }
 }
 

@@ -215,7 +215,7 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
         y++; // blank line before body
         for (const auto& line : body_lines) {
             if (y >= ch) break;
-            content.text_rich(1, y, line, Color::Cyan);
+            content.text_rich(1, y, line, Color::White);
             y++;
         }
         y++; // blank line after body
