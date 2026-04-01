@@ -399,10 +399,11 @@ int TerminalRenderer::wait_input() {
         ssize_t n = read(STDIN_FILENO, &ch, 1);
         if (n == 1) break;
         // Interrupted by signal (SIGWINCH, SIGINT, SIGCONT, etc.)
+        bool was_resize = s_resized;
         check_resize();
         if (s_quit_requested) return -1;
         if (s_needs_redraw) { s_needs_redraw = 0; return -1; }
-        // Otherwise retry (SIGWINCH resize case)
+        if (was_resize) return -1; // trigger redraw after resize
     }
 
     // Switch to non-blocking for escape sequence reads
