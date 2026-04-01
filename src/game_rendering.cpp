@@ -1306,8 +1306,8 @@ void Game::render_welcome_screen() {
     if (win_w > screen_w_ - margin * 2) win_w = screen_w_ - margin * 2;
 
     // Content: greeting(1) + blank(1) + lore(3) + blank(1) + location(2) + blank(2) +
-    //          controls heading(1) + blank(1) + 7 key rows = 19
-    int content_h = 19;
+    //          controls heading(1) + blank(1) + 7 key rows + blank(1) padding = 20
+    int content_h = 20;
     int chrome_h = 2 + 2 + 1; // border(2) + title+sep(2) + footer(1)
     int win_h = content_h + chrome_h;
     if (win_h > screen_h_ - margin * 2) win_h = screen_h_ - margin * 2;
@@ -1339,15 +1339,27 @@ void Game::render_welcome_screen() {
     center_dim("But first, you must survive.");
     y++;
 
-    // Location
-    auto center_accent = [&](const std::string& s) {
-        int tx = (cw - static_cast<int>(s.size())) / 2;
+    // Location — names in white, rest in accent
+    {
+        std::string line1 = "You are docked at The Heavens Above,";
+        int tx = (cw - static_cast<int>(line1.size())) / 2;
         if (tx < 1) tx = 1;
-        ctx.text({.x = tx, .y = y, .content = s, .tag = UITag::TextAccent});
+        ctx.styled_text({.x = tx, .y = y, .segments = {
+            {"You are docked at ", UITag::TextAccent},
+            {"The Heavens Above", UITag::TextBright},
+            {",", UITag::TextAccent},
+        }});
         y++;
-    };
-    center_accent("You are docked at The Heavens Above,");
-    center_accent("a space station orbiting Jupiter.");
+        std::string line2 = "a space station orbiting Jupiter.";
+        tx = (cw - static_cast<int>(line2.size())) / 2;
+        if (tx < 1) tx = 1;
+        ctx.styled_text({.x = tx, .y = y, .segments = {
+            {"a space station orbiting ", UITag::TextAccent},
+            {"Jupiter", UITag::TextBright},
+            {".", UITag::TextAccent},
+        }});
+        y++;
+    }
     y += 2;
 
     // Controls heading
