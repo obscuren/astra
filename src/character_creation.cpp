@@ -346,7 +346,7 @@ static int content_height_for_step(CreationStep step) {
     case CreationStep::Attributes: return 7 + 17;
     case CreationStep::Name:       return 7 + 10;
     case CreationStep::Location:   return 7 + 13;
-    case CreationStep::Summary:    return 7 + 18;
+    case CreationStep::Summary:    return 7 + 17;
     }
     return 24;
 }
@@ -412,31 +412,61 @@ void CharacterCreation::draw_breadcrumbs(DrawContext& ctx) {
     int x = (w - total_w) / 2;
 
     for (int i = 0; i < creation_step_count; ++i) {
-        Color c = (i < current)  ? Color::Green
-                : (i == current) ? Color::Yellow
-                                 : Color::DarkGray;
-        ctx.text(x, 0, step_names[i], c);
+        UITag tag = (i < current)  ? UITag::TextSuccess
+                  : (i == current) ? UITag::TextWarning
+                                   : UITag::TextDim;
+        ctx.text({.x = x, .y = 0, .content = std::string(step_names[i]), .tag = tag});
         x += static_cast<int>(std::strlen(step_names[i]));
         if (i < creation_step_count - 1) {
-            ctx.text(x, 0, " > ", Color::DarkGray);
+            ctx.text({.x = x, .y = 0, .content = " > ", .tag = UITag::TextDim});
             x += 3;
         }
     }
 }
 
 void CharacterCreation::draw_title(DrawContext& ctx, const char* subtitle) {
-    ctx.text_center(2, "CHARACTER CREATION", Color::Cyan);
-    ctx.text_center(3, subtitle, Color::DarkGray);
+    int w = ctx.width();
+    std::string title = "CHARACTER CREATION";
+    ctx.text({.x = (w - (int)title.size()) / 2, .y = 2, .content = title, .tag = UITag::TextAccent});
+    std::string sub(subtitle);
+    ctx.text({.x = (w - (int)sub.size()) / 2, .y = 3, .content = sub, .tag = UITag::TextDim});
 }
 
 void CharacterCreation::draw_footer(DrawContext& ctx, const char* extra) {
     int y = ctx.height() - 1;
-    std::string footer = "[Esc] Back    [R] Randomize";
+    std::vector<TextSegment> segs;
+    auto append_key_action = [&](const std::string& key, const std::string& action) {
+        auto ka = key_action_segments(key, action);
+        segs.insert(segs.end(), ka.begin(), ka.end());
+    };
+    append_key_action("Esc", "Back");
+    segs.push_back({"    ", UITag::TextDim});
+    append_key_action("R", "Randomize");
     if (extra) {
-        footer += "    ";
-        footer += extra;
+        // Parse extra string for [Key] Action pairs
+        std::string ex(extra);
+        size_t pos = 0;
+        while (pos < ex.size()) {
+            size_t bracket = ex.find('[', pos);
+            if (bracket == std::string::npos) break;
+            size_t close = ex.find(']', bracket + 1);
+            if (close == std::string::npos) break;
+            segs.push_back({"    ", UITag::TextDim});
+            std::string key = ex.substr(bracket + 1, close - bracket - 1);
+            // Find action text after "] "
+            size_t action_start = close + 1;
+            if (action_start < ex.size() && ex[action_start] == ' ') action_start++;
+            size_t action_end = ex.find('[', action_start);
+            if (action_end == std::string::npos) action_end = ex.size();
+            // Trim trailing spaces from action
+            while (action_end > action_start && ex[action_end - 1] == ' ') action_end--;
+            std::string action = ex.substr(action_start, action_end - action_start);
+            append_key_action(key, action);
+            pos = (ex.find('[', close + 1) != std::string::npos) ? ex.find('[', close + 1) : ex.size();
+        }
     }
-    ctx.text_center(y, footer, Color::DarkGray);
+    int w = ctx.width();
+    ctx.styled_text({.x = w / 2, .y = y, .segments = segs, .align = TextAlign::Center});
 }
 
 void CharacterCreation::draw_card(DrawContext& ctx, int x, int y, int w, int h,
@@ -481,7 +511,8 @@ void CharacterCreation::draw_card(DrawContext& ctx, int x, int y, int w, int h,
 
     int name_len = static_cast<int>(std::strlen(name));
     int name_x = x + (w - name_len) / 2;
-    ctx.text(name_x, y + 4, name, name_c);
+    UITag name_tag = selected ? UITag::TextBright : UITag::TextDim;
+    ctx.text({.x = name_x, .y = y + 4, .content = std::string(name), .tag = name_tag});
 }
 
 // ── Step: Race ──────────────────────────────────────────────────────
@@ -510,15 +541,19 @@ void CharacterCreation::draw_type_step(DrawContext& ctx) {
 
     // Description
     int desc_y = card_y + card_h + 2;
+    int cw = ctx.width();
+    auto center_text = [&](int cy, const std::string& s, UITag tag) {
+        ctx.text({.x = (cw - (int)s.size()) / 2, .y = cy, .content = s, .tag = tag});
+    };
     if (type_cursor_ == 0) {
-        ctx.text_center(desc_y, "Pick from several preset characters.", Color::White);
-        ctx.text_center(desc_y + 1, "Race, class, and attributes are pre-configured.", Color::DarkGray);
+        center_text(desc_y, "Pick from several preset characters.", UITag::TextBright);
+        center_text(desc_y + 1, "Race, class, and attributes are pre-configured.", UITag::TextDim);
     } else if (type_cursor_ == 1) {
-        ctx.text_center(desc_y, "Build a character from scratch.", Color::DarkGray);
-        ctx.text_center(desc_y + 1, "(Coming soon)", Color::DarkGray);
+        center_text(desc_y, "Build a character from scratch.", UITag::TextDim);
+        center_text(desc_y + 1, "(Coming soon)", UITag::TextDim);
     } else {
-        ctx.text_center(desc_y, "Generate a completely random character.", Color::White);
-        ctx.text_center(desc_y + 1, "Race, class, attributes, and name — all randomized.", Color::DarkGray);
+        center_text(desc_y, "Generate a completely random character.", UITag::TextBright);
+        center_text(desc_y + 1, "Race, class, attributes, and name — all randomized.", UITag::TextDim);
     }
 }
 
@@ -541,13 +576,15 @@ void CharacterCreation::draw_race_step(DrawContext& ctx) {
     // Description area below cards
     const auto& sel = races[race_cursor_];
     int desc_y = card_y + card_h + 2;
+    int rw = ctx.width();
 
-    ctx.text_center(desc_y, sel.tagline, Color::White);
+    std::string tagline(sel.tagline);
+    ctx.text({.x = (rw - (int)tagline.size()) / 2, .y = desc_y, .content = tagline, .tag = UITag::TextBright});
     desc_y += 2;
 
     for (int i = 0; i < 4 && sel.bullets[i]; ++i) {
         std::string line = std::string("  * ") + sel.bullets[i];
-        ctx.text_center(desc_y + i, line, Color::DarkGray);
+        ctx.text({.x = (rw - (int)line.size()) / 2, .y = desc_y + i, .content = line, .tag = UITag::TextDim});
     }
 
     // Stat modifiers
@@ -559,7 +596,7 @@ void CharacterCreation::draw_race_step(DrawContext& ctx) {
         mods += (sel.attr_mods[i] >= 0) ? " +" : " ";
         mods += std::to_string(sel.attr_mods[i]);
     }
-    ctx.text_center(desc_y, mods, Color::Cyan);
+    ctx.text({.x = (rw - (int)mods.size()) / 2, .y = desc_y, .content = mods, .tag = UITag::TextAccent});
 }
 
 // ── Step: Class ─────────────────────────────────────────────────────
@@ -586,8 +623,10 @@ void CharacterCreation::draw_class_step(DrawContext& ctx) {
     // Description
     const auto& tmpl = class_template(classes[class_cursor_]);
     int desc_y = card_y + card_h + 2;
+    int clw = ctx.width();
 
-    ctx.text_center(desc_y, tmpl.description, Color::White);
+    std::string desc(tmpl.description);
+    ctx.text({.x = (clw - (int)desc.size()) / 2, .y = desc_y, .content = desc, .tag = UITag::TextBright});
     desc_y += 3;
 
     // Base attributes
@@ -600,7 +639,7 @@ void CharacterCreation::draw_class_step(DrawContext& ctx) {
         stats += " ";
         stats += std::to_string(vals[i]);
     }
-    ctx.text_center(desc_y, stats, Color::Cyan);
+    ctx.text({.x = (clw - (int)stats.size()) / 2, .y = desc_y, .content = stats, .tag = UITag::TextAccent});
     desc_y += 2;
 
     // Starting skills
@@ -613,16 +652,16 @@ void CharacterCreation::draw_class_step(DrawContext& ctx) {
         }
     }
     // Truncate if too long
-    if ((int)skills.size() > ctx.width() - 4) {
-        skills = skills.substr(0, ctx.width() - 7) + "...";
+    if ((int)skills.size() > clw - 4) {
+        skills = skills.substr(0, clw - 7) + "...";
     }
-    ctx.text_center(desc_y, skills, Color::DarkGray);
+    ctx.text({.x = (clw - (int)skills.size()) / 2, .y = desc_y, .content = skills, .tag = UITag::TextDim});
     desc_y += 1;
 
     std::string extras = "SP: " + std::to_string(tmpl.starting_sp)
                        + "  Credits: " + std::to_string(tmpl.starting_money)
                        + "  Bonus HP: +" + std::to_string(tmpl.bonus_hp);
-    ctx.text_center(desc_y, extras, Color::DarkGray);
+    ctx.text({.x = (clw - (int)extras.size()) / 2, .y = desc_y, .content = extras, .tag = UITag::TextDim});
 }
 
 // ── Step: Attributes ────────────────────────────────────────────────
@@ -632,8 +671,9 @@ void CharacterCreation::draw_attributes_step(DrawContext& ctx) {
 
     // Points remaining
     std::string pts = "Points remaining: " + std::to_string(attr_points_remaining_);
-    Color pts_c = (attr_points_remaining_ > 0) ? Color::Yellow : Color::Green;
-    ctx.text_center(y, pts, pts_c);
+    UITag pts_tag = (attr_points_remaining_ > 0) ? UITag::TextWarning : UITag::TextSuccess;
+    int aw = ctx.width();
+    ctx.text({.x = (aw - (int)pts.size()) / 2, .y = y, .content = pts, .tag = pts_tag});
     y += 2;
 
     // Get race and class data
@@ -677,17 +717,22 @@ void CharacterCreation::draw_attributes_step(DrawContext& ctx) {
 
             // Label
             int label_len = static_cast<int>(std::strlen(attr_names[idx]));
-            ctx.text(bx + (box_w - label_len) / 2, by, attr_names[idx], border_c);
+            UITag label_tag = sel ? UITag::TextAccent : UITag::TextDim;
+            ctx.text({.x = bx + (box_w - label_len) / 2, .y = by,
+                      .content = std::string(attr_names[idx]), .tag = label_tag});
 
             // Final value
             int final_val = class_vals[idx] + rt.attr_mods[idx] + attr_alloc_[idx];
             std::string val_str = std::to_string(final_val);
-            ctx.text(bx + (box_w - (int)val_str.size()) / 2, by + 1, val_str, val_c);
+            UITag val_tag = sel ? UITag::TextWarning : UITag::TextBright;
+            ctx.text({.x = bx + (box_w - (int)val_str.size()) / 2, .y = by + 1,
+                      .content = val_str, .tag = val_tag});
 
             // Allocation indicator
             if (attr_alloc_[idx] > 0) {
                 std::string alloc = "(+" + std::to_string(attr_alloc_[idx]) + ")";
-                ctx.text(bx + (box_w - (int)alloc.size()) / 2, by + 2, alloc, Color::Green);
+                ctx.text({.x = bx + (box_w - (int)alloc.size()) / 2, .y = by + 2,
+                          .content = alloc, .tag = UITag::TextSuccess});
             }
 
             // Selection arrows
@@ -710,18 +755,27 @@ void CharacterCreation::draw_attributes_step(DrawContext& ctx) {
         + " + Race(" + (race_mod >= 0 ? "+" : "") + std::to_string(race_mod) + ")"
         + " + You(+" + std::to_string(alloc) + ")"
         + " = " + std::to_string(total);
-    ctx.text_center(breakdown_y, breakdown, Color::DarkGray);
+    ctx.text({.x = (aw - (int)breakdown.size()) / 2, .y = breakdown_y,
+              .content = breakdown, .tag = UITag::TextDim});
 
     // Navigation hint
-    ctx.text_center(breakdown_y + 2, "[Up/Down] adjust    [Left/Right] select attribute", Color::DarkGray);
+    std::vector<TextSegment> nav_segs;
+    auto ka1 = key_action_segments("Up/Down", "adjust");
+    nav_segs.insert(nav_segs.end(), ka1.begin(), ka1.end());
+    nav_segs.push_back({"    ", UITag::TextDim});
+    auto ka2 = key_action_segments("Left/Right", "select attribute");
+    nav_segs.insert(nav_segs.end(), ka2.begin(), ka2.end());
+    ctx.styled_text({.x = aw / 2, .y = breakdown_y + 2, .segments = nav_segs, .align = TextAlign::Center});
 }
 
 // ── Step: Name ──────────────────────────────────────────────────────
 
 void CharacterCreation::draw_name_step(DrawContext& ctx) {
     int y = 5;
+    int nw = ctx.width();
 
-    ctx.text_center(y, "Enter your name, commander.", Color::White);
+    std::string prompt = "Enter your name, commander.";
+    ctx.text({.x = (nw - (int)prompt.size()) / 2, .y = y, .content = prompt, .tag = UITag::TextBright});
     y += 2;
 
     // Input box
@@ -744,13 +798,23 @@ void CharacterCreation::draw_name_step(DrawContext& ctx) {
 
     // Text + cursor
     std::string display = name_buffer_ + "_";
-    ctx.text(box_x + 2, box_y + 1, display, Color::Yellow);
+    ctx.text({.x = box_x + 2, .y = box_y + 1, .content = display, .tag = UITag::TextWarning});
 
     // Hints
-    ctx.text_center(box_y + 4, "[R] Random name    [Backspace] Delete    [Enter] Confirm", Color::DarkGray);
+    std::vector<TextSegment> hint_segs;
+    auto h1 = key_action_segments("R", "Random name");
+    hint_segs.insert(hint_segs.end(), h1.begin(), h1.end());
+    hint_segs.push_back({"    ", UITag::TextDim});
+    auto h2 = key_action_segments("Backspace", "Delete");
+    hint_segs.insert(hint_segs.end(), h2.begin(), h2.end());
+    hint_segs.push_back({"    ", UITag::TextDim});
+    auto h3 = key_action_segments("Enter", "Confirm");
+    hint_segs.insert(hint_segs.end(), h3.begin(), h3.end());
+    ctx.styled_text({.x = nw / 2, .y = box_y + 4, .segments = hint_segs, .align = TextAlign::Center});
 
     if (name_buffer_.empty()) {
-        ctx.text_center(box_y + 6, "Press [R] for a random name, or just type.", Color::DarkGray);
+        std::string hint2 = "Press [R] for a random name, or just type.";
+        ctx.text({.x = (nw - (int)hint2.size()) / 2, .y = box_y + 6, .content = hint2, .tag = UITag::TextDim});
     }
 }
 
@@ -767,79 +831,126 @@ void CharacterCreation::draw_location_step(DrawContext& ctx) {
               'H', "The Heavens Above", location_cursor_ == 0);
 
     int desc_y = card_y + card_h + 2;
-    ctx.text_center(desc_y, "Space station orbiting Jupiter.", Color::White);
-    ctx.text_center(desc_y + 1, "A bustling hub of trade and travelers.", Color::DarkGray);
-    ctx.text_center(desc_y + 2, "Recommended for new players.", Color::Green);
+    int lw = ctx.width();
+    std::string loc1 = "Space station orbiting Jupiter.";
+    std::string loc2 = "A bustling hub of trade and travelers.";
+    std::string loc3 = "Recommended for new players.";
+    ctx.text({.x = (lw - (int)loc1.size()) / 2, .y = desc_y, .content = loc1, .tag = UITag::TextBright});
+    ctx.text({.x = (lw - (int)loc2.size()) / 2, .y = desc_y + 1, .content = loc2, .tag = UITag::TextDim});
+    ctx.text({.x = (lw - (int)loc3.size()) / 2, .y = desc_y + 2, .content = loc3, .tag = UITag::TextSuccess});
 }
 
 void CharacterCreation::draw_summary_step(DrawContext& ctx) {
+    using namespace BoxDraw;
     int w = ctx.width();
     int col_w = 22;
-    int gap = 4;
-    int total_w = col_w * 3 + gap * 2;
+    int gap_w = 2;
+    int total_w = col_w * 3 + gap_w * 2;
     int start_x = (w - total_w) / 2;
     int y = 5;
+    int box_h = 16;  // height of each box
 
     auto final_attr = compute_final_attributes();
     auto final_resist = compute_final_resistances();
     const auto& ct = class_template(result_.player_class);
 
-    // Left column: Attributes
-    int lx = start_x;
-    ctx.text(lx + 1, y, "Attributes", Color::Cyan);
-    ctx.text(lx, y + 1, "----------------------", Color::DarkGray);
-    ctx.text(lx + 1, y + 2, std::string("STR  ") + std::to_string(final_attr.strength), Color::White);
-    ctx.text(lx + 1, y + 3, std::string("AGI  ") + std::to_string(final_attr.agility), Color::White);
-    ctx.text(lx + 1, y + 4, std::string("TOU  ") + std::to_string(final_attr.toughness), Color::White);
-    ctx.text(lx + 1, y + 5, std::string("INT  ") + std::to_string(final_attr.intelligence), Color::White);
-    ctx.text(lx + 1, y + 6, std::string("WIL  ") + std::to_string(final_attr.willpower), Color::White);
-    ctx.text(lx + 1, y + 7, std::string("LUC  ") + std::to_string(final_attr.luck), Color::White);
-    ctx.text(lx + 1, y + 9, "Resistances", Color::Cyan);
-    ctx.text(lx, y + 10, "----------------------", Color::DarkGray);
-    if (final_resist.acid > 0)
-        ctx.text(lx + 1, y + 11, std::string("Acid  +") + std::to_string(final_resist.acid), Color::Green);
-    if (final_resist.electrical > 0)
-        ctx.text(lx + 1, y + 12, std::string("Elec  +") + std::to_string(final_resist.electrical), Color::Green);
-    if (final_resist.cold > 0)
-        ctx.text(lx + 1, y + 13, std::string("Cold  +") + std::to_string(final_resist.cold), Color::Green);
-    if (final_resist.heat > 0)
-        ctx.text(lx + 1, y + 14, std::string("Heat  +") + std::to_string(final_resist.heat), Color::Green);
+    // Helper: draw a titled box frame at (bx, by) with width bw and height bh
+    auto draw_titled_box = [&](int bx, int by, int bw, int bh, const std::string& title) {
+        // Top border with embedded title: ┌─ Title ─────┐
+        ctx.put(bx, by, TL, Color::DarkGray);
+        ctx.put(bx + 1, by, H, Color::DarkGray);
+        ctx.text({.x = bx + 2, .y = by, .content = " " + title + " ", .tag = UITag::TextAccent});
+        int title_end = bx + 2 + (int)title.size() + 2;
+        for (int i = title_end; i < bx + bw - 1; ++i) ctx.put(i, by, H, Color::DarkGray);
+        ctx.put(bx + bw - 1, by, TR, Color::DarkGray);
 
-    // Center column: Character identity
-    int cx = start_x + col_w + gap;
-    ctx.text(cx + (col_w - (int)result_.name.size()) / 2, y, result_.name, Color::Yellow);
-    ctx.text(cx, y + 1, "----------------------", Color::DarkGray);
+        // Side borders + clear interior
+        for (int row = 1; row < bh - 1; ++row) {
+            ctx.put(bx, by + row, V, Color::DarkGray);
+            for (int i = 1; i < bw - 1; ++i) ctx.put(bx + i, by + row, ' ');
+            ctx.put(bx + bw - 1, by + row, V, Color::DarkGray);
+        }
+
+        // Bottom border
+        ctx.put(bx, by + bh - 1, BL, Color::DarkGray);
+        for (int i = 1; i < bw - 1; ++i) ctx.put(bx + i, by + bh - 1, H, Color::DarkGray);
+        ctx.put(bx + bw - 1, by + bh - 1, BR, Color::DarkGray);
+    };
+
+    // ── Left column: Attributes ──
+    int lx = start_x;
+    draw_titled_box(lx, y, col_w, box_h, "Attributes");
+
+    ctx.text({.x = lx + 2, .y = y + 1, .content = std::string("STR  ") + std::to_string(final_attr.strength), .tag = UITag::TextBright});
+    ctx.text({.x = lx + 2, .y = y + 2, .content = std::string("AGI  ") + std::to_string(final_attr.agility), .tag = UITag::TextBright});
+    ctx.text({.x = lx + 2, .y = y + 3, .content = std::string("TOU  ") + std::to_string(final_attr.toughness), .tag = UITag::TextBright});
+    ctx.text({.x = lx + 2, .y = y + 4, .content = std::string("INT  ") + std::to_string(final_attr.intelligence), .tag = UITag::TextBright});
+    ctx.text({.x = lx + 2, .y = y + 5, .content = std::string("WIL  ") + std::to_string(final_attr.willpower), .tag = UITag::TextBright});
+    ctx.text({.x = lx + 2, .y = y + 6, .content = std::string("LUC  ") + std::to_string(final_attr.luck), .tag = UITag::TextBright});
+
+    ctx.text({.x = lx + 2, .y = y + 8, .content = "Resistances", .tag = UITag::TextAccent});
+    int ry = y + 9;
+    if (final_resist.acid > 0) {
+        ctx.text({.x = lx + 3, .y = ry, .content = std::string("Acid  +") + std::to_string(final_resist.acid), .tag = UITag::TextSuccess});
+        ry++;
+    }
+    if (final_resist.electrical > 0) {
+        ctx.text({.x = lx + 3, .y = ry, .content = std::string("Elec  +") + std::to_string(final_resist.electrical), .tag = UITag::TextSuccess});
+        ry++;
+    }
+    if (final_resist.cold > 0) {
+        ctx.text({.x = lx + 3, .y = ry, .content = std::string("Cold  +") + std::to_string(final_resist.cold), .tag = UITag::TextSuccess});
+        ry++;
+    }
+    if (final_resist.heat > 0) {
+        ctx.text({.x = lx + 3, .y = ry, .content = std::string("Heat  +") + std::to_string(final_resist.heat), .tag = UITag::TextSuccess});
+        ry++;
+    }
+
+    // ── Center column: Character identity ──
+    int cx = start_x + col_w + gap_w;
+    draw_titled_box(cx, y, col_w, box_h, "Character");
+
+    // Name centered in the box
+    int name_x = cx + (col_w - (int)result_.name.size()) / 2;
+    ctx.text({.x = name_x, .y = y + 1, .content = result_.name, .tag = UITag::TextWarning});
+
+    // Glyph centered
     ctx.put(cx + col_w / 2, y + 3, '@', Color::Yellow);
-    ctx.text_center(y + 5, race_name(result_.race), Color::White);
-    ctx.text_center(y + 6, class_name(result_.player_class), Color::Cyan);
+
+    // Race and class centered in box
+    std::string race_str(race_name(result_.race));
+    std::string class_str(class_name(result_.player_class));
+    ctx.text({.x = cx + (col_w - (int)race_str.size()) / 2, .y = y + 5, .content = race_str, .tag = UITag::TextBright});
+    ctx.text({.x = cx + (col_w - (int)class_str.size()) / 2, .y = y + 6, .content = class_str, .tag = UITag::TextAccent});
 
     // Derived stats
     int hp = 10 + ct.bonus_hp + (final_attr.toughness - 10) * 2;
     int dodge = 3 + (final_attr.agility - 10) / 3;
     int defense = 5 + (final_attr.toughness - 10) / 3;
     int attack = 1 + (final_attr.strength - 10) / 2;
-    ctx.text(cx + 1, y + 8, std::string("HP: ") + std::to_string(hp), Color::White);
-    ctx.text(cx + 1, y + 9, std::string("Dodge: ") + std::to_string(dodge), Color::White);
-    ctx.text(cx + 1, y + 10, std::string("Defense: ") + std::to_string(defense), Color::White);
-    ctx.text(cx + 1, y + 11, std::string("Attack: ") + std::to_string(attack), Color::White);
+    ctx.text({.x = cx + 2, .y = y + 8, .content = std::string("HP: ") + std::to_string(hp), .tag = UITag::TextBright});
+    ctx.text({.x = cx + 2, .y = y + 9, .content = std::string("Dodge: ") + std::to_string(dodge), .tag = UITag::TextBright});
+    ctx.text({.x = cx + 2, .y = y + 10, .content = std::string("Defense: ") + std::to_string(defense), .tag = UITag::TextBright});
+    ctx.text({.x = cx + 2, .y = y + 11, .content = std::string("Attack: ") + std::to_string(attack), .tag = UITag::TextBright});
 
-    // Right column: Class info
-    int rx = start_x + 2 * (col_w + gap);
-    ctx.text(rx + 1, y, class_name(result_.player_class), Color::Cyan);
-    ctx.text(rx, y + 1, "----------------------", Color::DarkGray);
-    ctx.text(rx + 1, y + 2, "Starting skills:", Color::DarkGray);
-    int sy = y + 3;
+    // ── Right column: Class info ──
+    int rx = start_x + 2 * (col_w + gap_w);
+    draw_titled_box(rx, y, col_w, box_h, class_name(result_.player_class));
+
+    ctx.text({.x = rx + 2, .y = y + 1, .content = "Starting skills:", .tag = UITag::TextDim});
+    int sy = y + 2;
     for (const auto& sid : ct.starting_skills) {
         const auto* sk = find_skill(sid);
         if (sk) {
-            ctx.text(rx + 2, sy, sk->name, Color::White);
+            ctx.text({.x = rx + 3, .y = sy, .content = std::string(sk->name), .tag = UITag::TextBright});
             sy++;
         }
     }
     sy++;
-    ctx.text(rx + 1, sy, std::string("SP: ") + std::to_string(ct.starting_sp), Color::DarkGray);
-    ctx.text(rx + 1, sy + 1, std::string("Credits: ") + std::to_string(ct.starting_money), Color::DarkGray);
-    ctx.text(rx + 1, sy + 2, std::string("Bonus HP: +") + std::to_string(ct.bonus_hp), Color::DarkGray);
+    ctx.text({.x = rx + 2, .y = sy, .content = std::string("SP: ") + std::to_string(ct.starting_sp), .tag = UITag::TextDim});
+    ctx.text({.x = rx + 2, .y = sy + 1, .content = std::string("Credits: ") + std::to_string(ct.starting_money), .tag = UITag::TextDim});
+    ctx.text({.x = rx + 2, .y = sy + 2, .content = std::string("Bonus HP: +") + std::to_string(ct.bonus_hp), .tag = UITag::TextDim});
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
