@@ -583,9 +583,9 @@ static char star_at(int x, int y) {
     unsigned h = static_cast<unsigned>(x * 374761393 + y * 668265263);
     h = (h ^ (h >> 13)) * 1274126177;
     h ^= h >> 16;
-    if ((h % 100) >= 3) return '\0'; // ~3% chance of a star
+    if ((h % 200) >= 2) return '\0'; // ~1% chance of a star
     unsigned st = (h >> 8) % 10;
-    if (st < 6) return '.';
+    if (st < 7) return '.';
     if (st < 9) return '*';
     return '+';
 }
@@ -599,24 +599,30 @@ void Game::render_menu() {
 
     DrawContext ctx(renderer_.get(), screen_rect_);
 
-    // Starfield backdrop
-    for (int sy = 0; sy < screen_h_; ++sy) {
-        for (int sx = 0; sx < screen_w_; ++sx) {
-            char star = star_at(sx, sy);
-            if (star) {
-                Color c = (star == '+') ? Color::Yellow
-                        : (star == '*') ? Color::White
-                                        : Color::Cyan;
-                ctx.put(sx, sy, star, c);
-            }
-        }
-    }
-
-    // Block-letter ASTRA logo
+    // Compute logo/menu layout first (needed for clear zone)
     int logo_w = title_letter_count * title_letter_width
                + (title_letter_count - 1) * title_letter_gap;
     int logo_x = (screen_w_ - logo_w) / 2;
     int art_start_y = screen_h_ / 2 - title_letter_height - 2;
+    int menu_y = art_start_y + title_letter_height + 4;
+
+    // Sparse, dim starfield backdrop — clear zone around logo and menu
+    int clear_x0 = logo_x - 4;
+    int clear_x1 = logo_x + logo_w + 4;
+    int clear_y0 = art_start_y - 3;
+    int clear_y1 = menu_y + menu_item_count_ * 2 + 1;
+    for (int sy = 0; sy < screen_h_; ++sy) {
+        for (int sx = 0; sx < screen_w_; ++sx) {
+            if (sx >= clear_x0 && sx < clear_x1 && sy >= clear_y0 && sy < clear_y1)
+                continue;
+            char star = star_at(sx, sy);
+            if (star) {
+                Color c = Color::DarkGray;
+                if (star == '*' || star == '+') c = Color::White;
+                ctx.put(sx, sy, star, c);
+            }
+        }
+    }
 
     // Per-letter gradient: A(dark) → S → T → R → A(bright)
     static const uint8_t letter_colors[] = {25, 31, 38, 44, 51};
@@ -692,7 +698,6 @@ void Game::render_menu() {
     }
 
     // Menu options — centered with spacing
-    int menu_y = art_start_y + title_letter_height + 4;
     for (int i = 0; i < menu_item_count_; ++i) {
         std::string label = menu_items[i];
         bool selected = (i == menu_selection_);
