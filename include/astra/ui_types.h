@@ -26,7 +26,7 @@ enum class UITag : uint16_t {
 
     // Interactive
     TabActive, TabInactive, NavKey, KeyLabel,
-    OptionSelected, OptionNormal,
+    OptionSelected, OptionNormal, ConversationOption,
 
     // Game stats
     StatAttack, StatDefense, StatHealth, StatVision, StatSpeed,

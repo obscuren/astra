@@ -131,9 +131,11 @@ bool DialogManager::handle_input(int key, Game& game) {
             return true;
         case KEY_UP: case 'k':
             if (selected_ > 0) selected_--;
+            else selected_ = static_cast<int>(options_.size()) - 1; // wrap to last
             return true;
         case KEY_DOWN: case 'j':
             if (selected_ < static_cast<int>(options_.size()) - 1) selected_++;
+            else selected_ = 0; // wrap to first
             return true;
         case ' ': case '\r': case '\n':
             advance_dialog(selected_, game);
@@ -189,7 +191,7 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
         content_h += 1;  // separator
     }
     content_h += 1;  // blank line before options
-    content_h += static_cast<int>(options_.size());
+    content_h += static_cast<int>(options_.size()) * 2 - 1; // conversation spacing: blank line between options
     content_h += 1;  // padding after options
 
     // Panel chrome: when entity header is shown, panel has no title (entity replaces it)
@@ -271,7 +273,7 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
         if (selected_ >= list_h) scroll = selected_ - list_h + 1;
 
         auto list_area = panel_content.sub(Rect{0, y, cw, list_h});
-        list_area.list({.items = items, .scroll_offset = scroll, .selected_tag = UITag::OptionSelected});
+        list_area.list({.items = items, .scroll_offset = scroll, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
     }
 }
 

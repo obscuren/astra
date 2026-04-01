@@ -301,12 +301,16 @@ void TerminalRenderer::draw_list(const Rect& bounds, const ListDesc& desc) {
     int visible_h = bounds.h;
     if (visible_h <= 0) return;
 
+    bool conversation = (desc.tag == UITag::ConversationOption);
+    int row_stride = conversation ? 2 : 1; // extra blank line between conversation options
+
     int total = static_cast<int>(desc.items.size());
-    int start = std::min(desc.scroll_offset, std::max(0, total - visible_h));
+    int visible_items = conversation ? (visible_h + 1) / 2 : visible_h; // account for spacing
+    int start = std::min(desc.scroll_offset, std::max(0, total - visible_items));
     if (start < 0) start = 0;
 
     int row = 0;
-    for (int i = start; i < total && row < visible_h; ++i, ++row) {
+    for (int i = start; i < total && row < visible_h; ++i, row += row_stride) {
         const auto& item = desc.items[i];
         UIStyle style = resolve_ui_tag(item.selected ? desc.selected_tag : item.tag);
 
