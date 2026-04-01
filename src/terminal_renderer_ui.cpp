@@ -138,43 +138,43 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
         int fy = bounds.y + h - 2;
 
         // Render footer with [key] highlighting via UITags
-        // UTF-8 aware: detect multi-byte sequences and render with draw_glyph
+        // Split footer into segments at bracket boundaries, render each with proper color
         UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
         UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
         UIStyle footer_style = resolve_ui_tag(UITag::Footer);
         const std::string& footer = desc.footer;
-        bool in_key = false;
         int col = fx;
-        for (size_t i = 0; i < footer.size(); ) {
-            unsigned char c = footer[i];
-            if (c == '[') {
-                draw_char(col++, fy, '[', bracket_style.fg);
-                in_key = true;
-                ++i;
-            } else if (c == ']') {
-                draw_char(col++, fy, ']', bracket_style.fg);
-                in_key = false;
-                ++i;
-            } else if ((c & 0x80) == 0) {
-                // ASCII byte
-                Color fg = in_key ? key_style.fg : footer_style.fg;
-                draw_char(col++, fy, static_cast<char>(c), fg);
-                ++i;
-            } else {
-                // UTF-8 multi-byte sequence
-                int seq_len = 1;
-                if ((c & 0xE0) == 0xC0) seq_len = 2;
-                else if ((c & 0xF0) == 0xE0) seq_len = 3;
-                else if ((c & 0xF8) == 0xF0) seq_len = 4;
-                if (i + seq_len <= footer.size()) {
-                    char buf[5] = {};
-                    for (int b = 0; b < seq_len; ++b)
-                        buf[b] = footer[i + b];
-                    Color fg = in_key ? key_style.fg : footer_style.fg;
-                    draw_glyph(col++, fy, buf, fg);
-                }
-                i += seq_len;
+        size_t pos = 0;
+        while (pos < footer.size()) {
+            size_t bracket = footer.find('[', pos);
+            // Render plain text before bracket
+            if (bracket == std::string::npos) {
+                std::string rest = footer.substr(pos);
+                render_utf8_string(this, col, fy, rest, footer_style.fg);
+                col += utf8_display_len(rest);
+                break;
             }
+            if (bracket > pos) {
+                std::string plain = footer.substr(pos, bracket - pos);
+                render_utf8_string(this, col, fy, plain, footer_style.fg);
+                col += utf8_display_len(plain);
+            }
+            // Find matching close bracket
+            size_t close = footer.find(']', bracket + 1);
+            if (close == std::string::npos) {
+                // No close bracket — render rest as plain
+                std::string rest = footer.substr(bracket);
+                render_utf8_string(this, col, fy, rest, footer_style.fg);
+                col += utf8_display_len(rest);
+                break;
+            }
+            // Render [key] with styling
+            draw_char(col++, fy, '[', bracket_style.fg);
+            std::string key_text = footer.substr(bracket + 1, close - bracket - 1);
+            render_utf8_string(this, col, fy, key_text, key_style.fg);
+            col += utf8_display_len(key_text);
+            draw_char(col++, fy, ']', bracket_style.fg);
+            pos = close + 1;
         }
     }
 
