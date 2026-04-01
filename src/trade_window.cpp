@@ -86,10 +86,7 @@ void TradeWindow::buy_selected() {
     if (merchant_cursor_ < 0 || merchant_cursor_ >= static_cast<int>(inv.size())) return;
 
     auto& item = inv[merchant_cursor_];
-    int effect_mod = effect_buy_price_pct(player_->effects);
-    int faction_mod = reputation_price_pct(reputation_for(*player_, merchant_->faction));
-    int cost = item.buy_value + (item.buy_value * (effect_mod + faction_mod) / 100);
-    if (cost < 1) cost = 1;
+    int cost = compute_price(item, true);
 
     if (player_->money < cost) {
         status_msg_ = "Not enough credits. (Need " + std::to_string(cost) + "$)";
@@ -155,10 +152,7 @@ void TradeWindow::sell_selected() {
     bool from_cargo = (player_cursor_ >= inv_count);
     Item& item = from_cargo ? cargo[player_cursor_ - inv_count] : inv[player_cursor_];
 
-    int effect_mod = effect_sell_price_pct(player_->effects);
-    int faction_mod = -reputation_price_pct(reputation_for(*player_, merchant_->faction));
-    int price = item.sell_value + (item.sell_value * (effect_mod + faction_mod) / 100);
-    if (price < 0) price = 0;
+    int price = compute_price(item, false);
 
     player_->money += price;
 
@@ -203,178 +197,245 @@ void TradeWindow::sell_selected() {
     status_timer_ = 3;
 }
 
+int TradeWindow::compute_price(const Item& item, bool buy) const {
+    int base = buy ? item.buy_value : item.sell_value;
+    int effect_pct = buy ? effect_buy_price_pct(player_->effects)
+                         : effect_sell_price_pct(player_->effects);
+    int faction_pct = reputation_price_pct(reputation_for(*player_, merchant_->faction));
+    if (!buy) faction_pct = -faction_pct;
+    int price = base + (base * (effect_pct + faction_pct) / 100);
+    if (price < (buy ? 1 : 0)) price = buy ? 1 : 0;
+    return price;
+}
+
 void TradeWindow::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
-    Window win(renderer_, Rect{0, 0, screen_w, screen_h}, "Trade");
-    win.set_footer("ESC Close  TAB Switch  \xe2\x86\x91\xe2\x86\x93 Move  SPACE Buy/Sell");
-    win.draw();
+    // Outer panel
+    UIContext full(renderer_, Rect{0, 0, screen_w, screen_h});
+    auto content = full.panel({
+        .title = "Trade",
+        .footer = "ESC Close  TAB Switch  \xe2\x86\x91\xe2\x86\x93 Move  SPACE Buy/Sell",
+    });
 
-    DrawContext ctx = win.content();
-    int w = ctx.width();
-    int h = ctx.height();
-    int half = w / 2;
+    int w = content.width();
+    int h = content.height();
 
-    // Vertical divider
-    DrawContext left_ctx = ctx.sub(Rect{0, 0, half - 1, h});
-    DrawContext right_ctx = ctx.sub(Rect{half, 0, w - half, h});
+    // Two columns with vertical divider
+    auto cols = content.columns({fill(), fixed(1), fill()});
+    auto& buy_col = cols[0];
+    auto& divider = cols[1];
+    auto& sell_col = cols[2];
 
-    // Draw divider line
-    for (int y = 0; y < h; ++y) {
-        ctx.put(half - 1, y, BoxDraw::V, Color::DarkGray);
-    }
+    divider.separator({.vertical = true});
 
-    // Headers
     bool merchant_active = (active_side_ == Side::Merchant);
-    std::string merchant_title = merchant_->interactions.shop->shop_name;
-    std::string player_title = "Your Inventory";
 
-    left_ctx.text_center(0, merchant_title,
-        merchant_active ? Color::White : Color::DarkGray);
-    right_ctx.text_center(0, player_title,
-        !merchant_active ? Color::White : Color::DarkGray);
-
-    // Separators
-    left_ctx.hline(1, BoxDraw::H, Color::DarkGray);
-    right_ctx.hline(1, BoxDraw::H, Color::DarkGray);
-
-    // Item list area
-    int list_h = h - 5; // header(1) + sep(1) + items + sep(1) + info(1) + status(1)
-    if (list_h < 1) list_h = 1;
-
-    // Adjust scroll for merchant side
-    if (merchant_cursor_ < merchant_scroll_) merchant_scroll_ = merchant_cursor_;
-    if (merchant_cursor_ >= merchant_scroll_ + list_h) merchant_scroll_ = merchant_cursor_ - list_h + 1;
-
-    // Adjust scroll for player side
-    if (player_cursor_ < player_scroll_) player_scroll_ = player_cursor_;
-    if (player_cursor_ >= player_scroll_ + list_h) player_scroll_ = player_cursor_ - list_h + 1;
-
-    DrawContext left_list = left_ctx.sub(Rect{0, 2, left_ctx.width(), list_h});
-    DrawContext right_list = right_ctx.sub(Rect{0, 2, right_ctx.width(), list_h});
-
-    draw_item_list(left_list, merchant_->interactions.shop->inventory,
-                   merchant_cursor_, merchant_scroll_, merchant_active, true);
-    // Build combined player + cargo view for the sell side
-    std::vector<std::pair<const Item*, bool>> sell_items; // {item, is_cargo}
-    for (const auto& it : player_->inventory.items) sell_items.push_back({&it, false});
-    for (const auto& it : player_->ship.cargo) sell_items.push_back({&it, true});
-    draw_sell_list(right_list, sell_items,
-                   player_cursor_, player_scroll_, !merchant_active);
-
-    // Bottom separator
-    int info_y = 2 + list_h;
-    left_ctx.hline(info_y, BoxDraw::H, Color::DarkGray);
-    right_ctx.hline(info_y, BoxDraw::H, Color::DarkGray);
-
-    // Info lines
-    int credits_y = info_y + 1;
-    std::string credits_str = "Credits: " + std::to_string(player_->money) + "$";
-    left_ctx.text_center(credits_y, credits_str, Color::Yellow);
-
-    // Faction standing indicator
+    // --- Buy column layout: header, sep, items, sep, info ---
     int faction_pct = reputation_price_pct(reputation_for(*player_, merchant_->faction));
+    int buy_info_rows = (faction_pct != 0) ? 2 : 1;
+    auto buy_rows = buy_col.rows({fixed(1), fixed(1), fill(), fixed(1), fixed(buy_info_rows)});
+    auto& buy_header = buy_rows[0];
+    auto& buy_hsep   = buy_rows[1];
+    auto& buy_list   = buy_rows[2];
+    auto& buy_bsep   = buy_rows[3];
+    auto& buy_info   = buy_rows[4];
+
+    std::string shop_name = merchant_->interactions.shop->shop_name;
+    buy_header.text({
+        .x = std::max(0, (buy_header.width() - static_cast<int>(shop_name.size())) / 2),
+        .y = 0,
+        .content = shop_name,
+        .tag = merchant_active ? UITag::TextBright : UITag::TextDim,
+    });
+    buy_hsep.separator({});
+
+    draw_buy_items(buy_list, buy_list.width());
+
+    buy_bsep.separator({});
+
+    // Credits display centered
+    std::string credits_str = std::to_string(player_->money) + "$";
+    buy_info.label_value({
+        .x = std::max(0, (buy_info.width() - static_cast<int>(credits_str.size()) - 9) / 2),
+        .y = 0,
+        .label = "Credits: ",
+        .label_tag = UITag::TextDim,
+        .value = credits_str,
+        .value_tag = UITag::TextWarning,
+    });
+
     if (faction_pct != 0) {
         std::string faction_str = merchant_->faction + ": ";
         if (faction_pct > 0) faction_str += "+" + std::to_string(faction_pct) + "% markup";
         else faction_str += std::to_string(faction_pct) + "% discount";
-        Color fc = faction_pct > 0 ? Color::Red : Color::Green;
-        left_ctx.text_center(credits_y + 1, faction_str, fc);
+        UITag fc = faction_pct > 0 ? UITag::TextDanger : UITag::TextSuccess;
+        buy_info.text({
+            .x = std::max(0, (buy_info.width() - static_cast<int>(faction_str.size())) / 2),
+            .y = 1,
+            .content = faction_str,
+            .tag = fc,
+        });
     }
 
+    // --- Sell column layout: header, sep, items, sep, info ---
+    auto sell_rows = sell_col.rows({fixed(1), fixed(1), fill(), fixed(1), fixed(1)});
+    auto& sell_header = sell_rows[0];
+    auto& sell_hsep   = sell_rows[1];
+    auto& sell_list   = sell_rows[2];
+    auto& sell_bsep   = sell_rows[3];
+    auto& sell_info   = sell_rows[4];
+
+    std::string player_title = "Your Inventory";
+    sell_header.text({
+        .x = std::max(0, (sell_header.width() - static_cast<int>(player_title.size())) / 2),
+        .y = 0,
+        .content = player_title,
+        .tag = !merchant_active ? UITag::TextBright : UITag::TextDim,
+    });
+    sell_hsep.separator({});
+
+    draw_sell_items(sell_list, sell_list.width());
+
+    sell_bsep.separator({});
+
+    // Weight display centered
     int total_w = player_->inventory.total_weight();
     int max_w = player_->inventory.max_carry_weight;
-    std::string weight_str = "Weight: " + std::to_string(total_w) + "/" + std::to_string(max_w);
-    right_ctx.text_center(credits_y, weight_str, Color::Cyan);
+    std::string weight_str = std::to_string(total_w) + "/" + std::to_string(max_w);
+    UITag weight_tag = (total_w > max_w) ? UITag::TextDanger : UITag::TextAccent;
+    sell_info.label_value({
+        .x = std::max(0, (sell_info.width() - static_cast<int>(weight_str.size()) - 8) / 2),
+        .y = 0,
+        .label = "Weight: ",
+        .label_tag = UITag::TextDim,
+        .value = weight_str,
+        .value_tag = weight_tag,
+    });
 
-    // Status message
-    int status_y = credits_y + (faction_pct != 0 ? 2 : 1);
+    // Status message (overlaid at bottom of content area)
     if (status_timer_ > 0 && !status_msg_.empty()) {
-        ctx.text_center(status_y, status_msg_, Color::Green);
+        int sy = h - 1;
+        content.text({
+            .x = std::max(0, (w - static_cast<int>(status_msg_.size())) / 2),
+            .y = sy,
+            .content = status_msg_,
+            .tag = UITag::TextSuccess,
+        });
     }
 }
 
-void TradeWindow::draw_item_list(DrawContext& ctx, const std::vector<Item>& items,
-                                  int cursor, int scroll, bool active, bool show_buy_price) {
-    int w = ctx.width();
-    int h = ctx.height();
+void TradeWindow::draw_buy_items(UIContext& area, int list_w) {
+    auto& items = merchant_->interactions.shop->inventory;
+    int list_h = area.height();
+    bool active = (active_side_ == Side::Merchant);
 
-    for (int i = 0; i < h; ++i) {
-        int idx = scroll + i;
+    // Adjust scroll
+    if (merchant_cursor_ < merchant_scroll_) merchant_scroll_ = merchant_cursor_;
+    if (merchant_cursor_ >= merchant_scroll_ + list_h) merchant_scroll_ = merchant_cursor_ - list_h + 1;
+
+    for (int i = 0; i < list_h; ++i) {
+        int idx = merchant_scroll_ + i;
         if (idx >= static_cast<int>(items.size())) break;
 
         const auto& item = items[idx];
-        bool selected = active && (idx == cursor);
-        int x = 1;
-
-        // Cursor
-        if (selected) {
-            ctx.put(0, i, '>', Color::Yellow);
-        }
-
-        // Glyph via theme
-        auto vis = item_visual(item.item_def_id);
-        ctx.put(x, i, vis.glyph, rarity_color(item.rarity));
-        x += 2;
-
-        // Name (rarity color) + stack count (white)
-        draw_item_name(ctx, x, i, item, selected);
-
-        // Price right-aligned (with Haggle + faction modifier)
-        int base_price = show_buy_price ? item.buy_value : item.sell_value;
-        int effect_pct = show_buy_price ? effect_buy_price_pct(player_->effects)
-                                        : effect_sell_price_pct(player_->effects);
-        int faction_pct = reputation_price_pct(reputation_for(*player_, merchant_->faction));
-        if (!show_buy_price) faction_pct = -faction_pct;
-        int price = base_price + (base_price * (effect_pct + faction_pct) / 100);
-        if (price < (show_buy_price ? 1 : 0)) price = show_buy_price ? 1 : 0;
+        bool selected = active && (idx == merchant_cursor_);
+        int price = compute_price(item, true);
         std::string price_str = std::to_string(price) + "$";
-        int px = w - static_cast<int>(price_str.size()) - 1;
-        if (px > x + static_cast<int>(item.name.size()) + 2) {
-            ctx.text(px, i, price_str, Color::Yellow);
+
+        auto vis = item_visual(item.item_def_id);
+
+        // Build name with optional stack count
+        std::string name = item.name;
+        if (item.stackable && item.stack_count > 1)
+            name += " x" + std::to_string(item.stack_count);
+
+        // Pad between name and price
+        int prefix_len = 3; // "> G " or "  G "
+        int used = prefix_len + static_cast<int>(name.size());
+        int price_len = static_cast<int>(price_str.size());
+        int gap = list_w - used - price_len - 1; // 1 for trailing margin
+        std::string padding;
+        if (gap > 0) padding.assign(gap, ' ');
+
+        std::vector<TextSegment> segs;
+        // Cursor prefix
+        segs.push_back({selected ? "> " : "  ",
+                         selected ? UITag::OptionSelected : UITag::TextDefault});
+        // Glyph
+        segs.push_back({std::string(1, vis.glyph), rarity_tag(item.rarity),
+                         EntityRef{EntityRef::Kind::Item, item.item_def_id}});
+        segs.push_back({" ", UITag::TextDefault});
+        // Name
+        segs.push_back({name, selected ? UITag::OptionSelected : rarity_tag(item.rarity)});
+        // Padding + price
+        if (gap > 0) {
+            segs.push_back({padding + price_str, UITag::TextWarning});
         }
+
+        area.styled_text({.x = 0, .y = i, .segments = std::move(segs)});
     }
 }
 
-void TradeWindow::draw_sell_list(DrawContext& ctx,
-                                 const std::vector<std::pair<const Item*, bool>>& items,
-                                 int cursor, int scroll, bool active) {
-    int w = ctx.width();
-    int h = ctx.height();
-    int inv_count = static_cast<int>(player_->inventory.items.size());
+void TradeWindow::draw_sell_items(UIContext& area, int list_w) {
+    // Build combined sell list
+    auto& inv = player_->inventory.items;
+    auto& cargo = player_->ship.cargo;
+    int inv_count = static_cast<int>(inv.size());
+    int list_h = area.height();
+    bool active = (active_side_ == Side::Player);
 
-    for (int i = 0; i < h; ++i) {
-        int idx = scroll + i;
-        if (idx >= static_cast<int>(items.size())) break;
+    // Total items
+    int total = inv_count + static_cast<int>(cargo.size());
 
-        const auto& [item_ptr, is_cargo] = items[idx];
-        const auto& item = *item_ptr;
-        bool selected = active && (idx == cursor);
-        int x = 1;
+    // Adjust scroll
+    if (player_cursor_ < player_scroll_) player_scroll_ = player_cursor_;
+    if (player_cursor_ >= player_scroll_ + list_h) player_scroll_ = player_cursor_ - list_h + 1;
 
-        // Separator between player inventory and cargo
-        if (idx == inv_count && inv_count > 0 && idx > scroll) {
-            ctx.text(1, i, "-- Ship Cargo --", Color::DarkGray);
-            continue;  // skip this row for items — but this shifts indices...
+    for (int i = 0; i < list_h; ++i) {
+        int idx = player_scroll_ + i;
+        if (idx >= total) break;
+
+        // Cargo separator label
+        if (idx == inv_count && inv_count > 0) {
+            area.text({.x = 1, .y = i, .content = "-- Ship Cargo --", .tag = UITag::TextDim});
+            continue;
         }
 
-        if (selected) ctx.put(0, i, '>', Color::Yellow);
-        auto vis = item_visual(item.item_def_id);
-        ctx.put(x, i, vis.glyph, rarity_color(item.rarity));
-        x += 2;
-
-        draw_item_name(ctx, x, i, item, selected);
-
-        // Sell price
-        int effect_pct = effect_sell_price_pct(player_->effects);
-        int faction_pct = -reputation_price_pct(reputation_for(*player_, merchant_->faction));
-        int price = item.sell_value + (item.sell_value * (effect_pct + faction_pct) / 100);
-        if (price < 0) price = 0;
+        bool from_cargo = (idx >= inv_count);
+        const Item& item = from_cargo ? cargo[idx - inv_count] : inv[idx];
+        bool selected = active && (idx == player_cursor_);
+        int price = compute_price(item, false);
         std::string price_str = std::to_string(price) + "$";
-        int px = w - static_cast<int>(price_str.size()) - 1;
-        if (px > x + static_cast<int>(item.name.size()) + 2) {
-            ctx.text(px, i, price_str, Color::Yellow);
+
+        auto vis = item_visual(item.item_def_id);
+
+        std::string name = item.name;
+        if (item.stackable && item.stack_count > 1)
+            name += " x" + std::to_string(item.stack_count);
+
+        // Tag cargo items
+        if (from_cargo) name += " [cargo]";
+
+        int prefix_len = 3;
+        int used = prefix_len + static_cast<int>(name.size());
+        int price_len = static_cast<int>(price_str.size());
+        int gap = list_w - used - price_len - 1;
+        std::string padding;
+        if (gap > 0) padding.assign(gap, ' ');
+
+        std::vector<TextSegment> segs;
+        segs.push_back({selected ? "> " : "  ",
+                         selected ? UITag::OptionSelected : UITag::TextDefault});
+        segs.push_back({std::string(1, vis.glyph), rarity_tag(item.rarity),
+                         EntityRef{EntityRef::Kind::Item, item.item_def_id}});
+        segs.push_back({" ", UITag::TextDefault});
+        segs.push_back({name, selected ? UITag::OptionSelected : rarity_tag(item.rarity)});
+        if (gap > 0) {
+            segs.push_back({padding + price_str, UITag::TextWarning});
         }
+
+        area.styled_text({.x = 0, .y = i, .segments = std::move(segs)});
     }
 }
 
