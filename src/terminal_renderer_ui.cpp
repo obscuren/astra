@@ -247,32 +247,67 @@ void TerminalRenderer::draw_list(const Rect& bounds, const ListDesc& desc) {
 // ---------------------------------------------------------------------------
 
 void TerminalRenderer::draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) {
+    UIStyle nav_style = resolve_ui_tag(UITag::NavKey);
+    UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+
+    // Measure total width for alignment
+    int total_w = 0;
+    if (desc.show_nav) total_w += 4; // "[Q] "
+    for (int i = 0; i < static_cast<int>(desc.tabs.size()); ++i) {
+        bool active = (i == desc.active);
+        total_w += static_cast<int>(desc.tabs[i].size()) + 2; // brackets/spaces + text
+        if (i < static_cast<int>(desc.tabs.size()) - 1) total_w += 1; // space between
+    }
+    if (desc.show_nav) total_w += 4; // " [E]"
+
+    // Compute start x based on alignment
     int col = bounds.x;
+    if (desc.align == TextAlign::Center) {
+        col = bounds.x + (bounds.w - total_w) / 2;
+        if (col < bounds.x) col = bounds.x;
+    } else if (desc.align == TextAlign::Right) {
+        col = bounds.x + bounds.w - total_w;
+        if (col < bounds.x) col = bounds.x;
+    }
+
+    // Left nav key
+    if (desc.show_nav) {
+        draw_char(col++, bounds.y, '[', bracket_style.fg);
+        for (char c : desc.nav_left_label)
+            draw_char(col++, bounds.y, c, nav_style.fg);
+        draw_char(col++, bounds.y, ']', bracket_style.fg);
+        draw_char(col++, bounds.y, ' ');
+    }
+
+    // Tabs
     for (int i = 0; i < static_cast<int>(desc.tabs.size()); ++i) {
         const auto& tab = desc.tabs[i];
         bool active = (i == desc.active);
         UIStyle style = resolve_ui_tag(active ? desc.active_tag : desc.inactive_tag);
 
         if (active) {
-            draw_char(col, bounds.y, '[', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, '[', bracket_style.fg);
             render_utf8_string(this, col, bounds.y, tab, style.fg);
             col += utf8_display_len(tab);
-            draw_char(col, bounds.y, ']', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, ']', bracket_style.fg);
         } else {
-            draw_char(col, bounds.y, ' ', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, ' ', style.fg);
             render_utf8_string(this, col, bounds.y, tab, style.fg);
             col += utf8_display_len(tab);
-            draw_char(col, bounds.y, ' ', style.fg);
-            ++col;
+            draw_char(col++, bounds.y, ' ', style.fg);
         }
-        // Space between tabs
         if (i < static_cast<int>(desc.tabs.size()) - 1) {
-            draw_char(col, bounds.y, ' ');
-            ++col;
+            draw_char(col++, bounds.y, ' ');
         }
+    }
+
+    // Right nav key
+    if (desc.show_nav) {
+        draw_char(col++, bounds.y, ' ');
+        draw_char(col++, bounds.y, '[', bracket_style.fg);
+        for (char c : desc.nav_right_label)
+            draw_char(col++, bounds.y, c, nav_style.fg);
+        draw_char(col++, bounds.y, ']', bracket_style.fg);
     }
 }
 

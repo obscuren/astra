@@ -25,7 +25,7 @@ enum class UITag : uint16_t {
     TextDanger, TextSuccess, TextWarning, TextAccent,
 
     // Interactive
-    TabActive, TabInactive,
+    TabActive, TabInactive, NavKey,
     OptionSelected, OptionNormal,
 
     // Game stats
@@ -46,6 +46,12 @@ struct EntityRef {
 
     bool has_value() const { return kind != Kind::None; }
 };
+
+// ---------------------------------------------------------------------------
+// Text alignment
+// ---------------------------------------------------------------------------
+
+enum class TextAlign : uint8_t { Left, Center, Right };
 
 // ---------------------------------------------------------------------------
 // Layout sizing — logical units (terminal: 1 unit = 1 cell, SDL: renderer-defined)
@@ -120,6 +126,10 @@ struct TabBarDesc {
     int active = 0;
     UITag active_tag = UITag::TabActive;
     UITag inactive_tag = UITag::TabInactive;
+    TextAlign align = TextAlign::Left;
+    bool show_nav = false;
+    std::string nav_left_label = "Q";
+    std::string nav_right_label = "E";
 };
 
 struct SeparatorDesc {
