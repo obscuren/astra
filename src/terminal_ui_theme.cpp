@@ -32,6 +32,7 @@ UIStyle resolve_ui_tag(UITag tag) {
         case UITag::TabActive:      return {Color::Yellow, Color::Default};
         case UITag::TabInactive:    return {Color::DarkGray, Color::Default};
         case UITag::NavKey:         return {Color::Green, Color::Default};
+        case UITag::KeyLabel:       return {Color::Yellow, Color::Default};
         case UITag::OptionSelected: return {Color::Yellow, Color::Default};
         case UITag::OptionNormal:   return {Color::Cyan, Color::Default};
 

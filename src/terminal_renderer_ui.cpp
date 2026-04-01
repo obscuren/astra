@@ -137,21 +137,24 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
         if (fx < bounds.x + 1) fx = bounds.x + 1;
         int fy = bounds.y + h - 2;
 
-        // Render footer with [key] highlighting (matching Panel::draw)
+        // Render footer with [key] highlighting via UITags
+        UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+        UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
+        UIStyle footer_style = resolve_ui_tag(UITag::Footer);
         const std::string& footer = desc.footer;
         int col = fx;
         for (size_t i = 0; i < footer.size(); ++i) {
             if (footer[i] == '[') {
-                draw_char(col++, fy, '[', Color::White);
+                draw_char(col++, fy, '[', bracket_style.fg);
                 size_t end = footer.find(']', i + 1);
                 if (end != std::string::npos) {
                     for (size_t j = i + 1; j < end; ++j)
-                        draw_char(col++, fy, footer[j], Color::Yellow);
-                    draw_char(col++, fy, ']', Color::White);
+                        draw_char(col++, fy, footer[j], key_style.fg);
+                    draw_char(col++, fy, ']', bracket_style.fg);
                     i = end;
                 }
             } else {
-                draw_char(col++, fy, footer[i], Color::DarkGray);
+                draw_char(col++, fy, footer[i], footer_style.fg);
             }
         }
     }

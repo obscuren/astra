@@ -25,7 +25,7 @@ enum class UITag : uint16_t {
     TextDanger, TextSuccess, TextWarning, TextAccent,
 
     // Interactive
-    TabActive, TabInactive, NavKey,
+    TabActive, TabInactive, NavKey, KeyLabel,
     OptionSelected, OptionNormal,
 
     // Game stats
@@ -100,6 +100,25 @@ struct TextSegment {
     UITag tag = UITag::TextDefault;
     EntityRef entity;
 };
+
+// Helper: build segments for a shortcut key display: [Key] → [ white, Key yellow, ] white
+inline std::vector<TextSegment> key_segments(const std::string& key) {
+    return {
+        {"[", UITag::TextBright},
+        {key, UITag::KeyLabel},
+        {"]", UITag::TextBright},
+    };
+}
+
+// Helper: build segments for "key action" pair: [Key] Action
+inline std::vector<TextSegment> key_action_segments(const std::string& key, const std::string& action) {
+    return {
+        {"[", UITag::TextBright},
+        {key, UITag::KeyLabel},
+        {"] ", UITag::TextBright},
+        {action, UITag::TextDim},
+    };
+}
 
 struct StyledTextDesc {
     int x = 0;
