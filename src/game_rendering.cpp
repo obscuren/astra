@@ -618,25 +618,94 @@ void Game::render_menu() {
     int logo_x = (screen_w_ - logo_w) / 2;
     int art_start_y = screen_h_ / 2 - title_letter_height - 2;
 
+    // Per-letter gradient: A(dark) → S → T → R → A(bright)
+    static const uint8_t letter_colors[] = {25, 31, 38, 44, 51};
+
     for (int row = 0; row < title_letter_height; ++row) {
         int lx = logo_x;
         for (int li = 0; li < title_letter_count; ++li) {
-            ctx.text(lx, art_start_y + row, title_letters[li][row], Color::White);
+            Color lc = static_cast<Color>(letter_colors[li]);
+            const char* p = title_letters[li][row];
+            int col = 0;
+            while (*p && col < title_letter_width) {
+                auto c = static_cast<unsigned char>(*p);
+                if (c < 0x80) {
+                    if (*p != ' ')
+                        ctx.put(lx + col, art_start_y + row, *p, lc);
+                    ++p; ++col;
+                } else {
+                    char utf8[5] = {};
+                    int len = (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+                    for (int b = 0; b < len && p[b]; ++b) utf8[b] = p[b];
+                    ctx.put(lx + col, art_start_y + row, utf8, lc);
+                    p += len; ++col;
+                }
+            }
             lx += title_letter_width + title_letter_gap;
         }
     }
 
-    // Menu options — semantic list
-    int menu_y = art_start_y + title_letter_height + 2;
-    std::vector<ListItem> items;
-    for (int i = 0; i < menu_item_count_; ++i) {
-        items.push_back({menu_items[i], UITag::OptionNormal, i == menu_selection_});
+    // Version string — right-aligned with the logo
+    {
+        std::string version = ASTRA_VERSION;
+        if (!version.empty()) {
+            int vx = logo_x + logo_w - static_cast<int>(version.size());
+            ctx.text(vx, art_start_y + title_letter_height, version, Color::DarkGray);
+        }
     }
 
-    int list_w = 30;
-    int list_x = (screen_w_ - list_w) / 2;
-    UIContext menu_area(renderer_.get(), Rect{list_x, menu_y, list_w, menu_item_count_});
-    menu_area.list({.items = items, .tag = UITag::OptionNormal, .selected_tag = UITag::OptionSelected});
+    // Separator between logo and menu
+    {
+        std::string sep = "\xc2\xb7 \xc2\xb7 \xc2\xb7"; // · · ·
+        int sx = (screen_w_ - 9) / 2;
+        ctx.text(sx, art_start_y + title_letter_height + 2, sep, Color::DarkGray);
+    }
+
+    // Rotating flavor text at bottom of screen
+    {
+        static const char* flavor_lines[] = {
+            "Journey to the Heart of the Galaxy",
+            "The ancients left stations across the galaxy...",
+            "Every black hole is a doorway",
+            "Sagittarius A* awaits the brave",
+            "The Heavens Above — humanity's last outpost near Jupiter",
+            "Upgrade your Navi Computer for longer jumps",
+            "Some station keepers don't speak your language",
+            "Asteroid belts hide dungeons worth crawling",
+            "Binary star systems burn twice as bright",
+            "The deeper you go, the stranger it gets",
+            "Your starship is your lifeline between the stars",
+            "Derelict stations hold secrets — and dangers",
+            "Not all who wander are lost. Some are just underpowered.",
+            "The galaxy is procedurally generated from a single seed",
+        };
+        static constexpr int flavor_count = sizeof(flavor_lines) / sizeof(flavor_lines[0]);
+        // Pick one based on a simple hash of time (changes each launch)
+        static int flavor_idx = -1;
+        if (flavor_idx < 0) {
+            flavor_idx = static_cast<int>(std::time(nullptr)) % flavor_count;
+        }
+        const char* line = flavor_lines[flavor_idx];
+        int tlen = static_cast<int>(std::strlen(line));
+        int tx = (screen_w_ - tlen) / 2;
+        ctx.text(tx, screen_h_ - 2, line, Color::DarkGray);
+    }
+
+    // Menu options — centered with spacing
+    int menu_y = art_start_y + title_letter_height + 4;
+    for (int i = 0; i < menu_item_count_; ++i) {
+        std::string label = menu_items[i];
+        bool selected = (i == menu_selection_);
+
+        if (selected) {
+            std::string display = "\xe2\x96\xb8 " + label + " \xe2\x97\x82"; // ▸ Label ◂
+            int tx = (screen_w_ - static_cast<int>(label.size()) - 4) / 2;
+            ctx.text(tx, menu_y + i * 2, display, Color::Yellow);
+        } else {
+            int tx = (screen_w_ - static_cast<int>(label.size())) / 2;
+            ctx.text(tx, menu_y + i * 2, label, Color::DarkGray);
+        }
+    }
 
     // Quit confirm overlay on menu
     render_quit_confirm();

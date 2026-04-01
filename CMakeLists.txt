@@ -115,6 +115,15 @@ if(DEV)
     target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_DEV_MODE=1)
 endif()
 
+# Version string: release builds pass -DASTRA_RELEASE_VERSION=v0.4.0 from CI
+if(ASTRA_RELEASE_VERSION)
+    target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_VERSION="${ASTRA_RELEASE_VERSION}")
+elseif(DEV)
+    target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_VERSION="dev build")
+else()
+    target_compile_definitions(${ASTRA_BIN} PRIVATE ASTRA_VERSION="")
+endif()
+
 # Static link on MinGW so the exe is self-contained (no DLL dependencies)
 if(MINGW)
     target_link_options(${ASTRA_BIN} PRIVATE -static -static-libgcc -static-libstdc++)
