@@ -139,8 +139,11 @@ void RepairBench::draw(int screen_w, int screen_h) {
             {" " + item.name, rarity_tag(item.rarity)},
         }});
     } else {
-        wb_content.text({.x = 0, .y = 0,
-            .content = "[Space] to place item",
+        std::string msg = "[Space] to place item";
+        int cx = (wb_content.width() - static_cast<int>(msg.size())) / 2;
+        if (cx < 0) cx = 0;
+        wb_content.text({.x = cx, .y = 0,
+            .content = msg,
             .tag = UITag::TextDim});
     }
 
