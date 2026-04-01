@@ -44,6 +44,12 @@ UIStyle resolve_ui_tag(UITag tag) {
         case UITag::StatVision:  return {Color::Cyan, Color::Default};
         case UITag::StatSpeed:   return {Color::Yellow, Color::Default};
 
+        // Time phases
+        case UITag::PhaseDawn:  return {Color::Yellow, Color::Default};
+        case UITag::PhaseDay:   return {Color::Yellow, Color::Default};
+        case UITag::PhaseDusk:  return {static_cast<Color>(130), Color::Default};
+        case UITag::PhaseNight: return {Color::Blue, Color::Default};
+
         // Rarity
         case UITag::RarityCommon:    return {Color::White, Color::Default};
         case UITag::RarityUncommon:  return {Color::Green, Color::Default};

@@ -698,125 +698,90 @@ void Game::render_play() {
 void Game::render_stats_bar() {
     DrawContext ctx(renderer_.get(), stats_bar_rect_);
 
-    // Dev mode indicator
-    int lx = 1;
-    if (dev_mode_) {
-        ctx.text(lx, 0, "[DEV]", Color::Red);
-        lx += 6;
-    }
+    // --- Left side: [DEV] LVL:5 :: T:32~ :: Hungry :: 450$ ---
+    std::vector<TextSegment> left;
+    if (dev_mode_) left.push_back({"[DEV] ", UITag::TextDanger});
+    left.push_back({"LVL:", UITag::TextDim});
+    left.push_back({std::to_string(player_.level), UITag::TextBright});
+    left.push_back({" :: ", UITag::TextDim});
+    left.push_back({"T:", UITag::TextDim});
+    left.push_back({std::to_string(player_.temperature) + "~", UITag::TextBright});
 
-    // Left side: level :: temp :: hunger :: money
-    lx = ctx.label_value(lx, 0, "LVL:", Color::DarkGray,
-        std::to_string(player_.level), Color::White);
-
-    ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
-    lx = ctx.label_value(lx, 0, "T:", Color::DarkGray,
-        std::to_string(player_.temperature) + "~", Color::White);
-
+    // Hunger — map state to semantic tag
     const char* hname = hunger_name(player_.hunger);
     if (hname[0] != '\0') {
-        ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
-        ctx.text(lx, 0, hname, hunger_color());
-        lx += static_cast<int>(std::string_view(hname).size());
+        UITag hunger_tag = UITag::TextDefault;
+        switch (player_.hunger) {
+            case HungerState::Satiated: hunger_tag = UITag::TextSuccess; break;
+            case HungerState::Normal:   hunger_tag = UITag::TextDefault; break;
+            case HungerState::Hungry:   hunger_tag = UITag::TextWarning; break;
+            case HungerState::Starving: hunger_tag = UITag::TextDanger;  break;
+        }
+        left.push_back({" :: ", UITag::TextDim});
+        left.push_back({hname, hunger_tag});
     }
 
-    ctx.text(lx, 0, " :: ", Color::DarkGray); lx += 4;
-    lx = ctx.label_value(lx, 0, "", Color::DarkGray,
-        std::to_string(player_.money) + "$", Color::Yellow);
+    left.push_back({" :: ", UITag::TextDim});
+    left.push_back({std::to_string(player_.money) + "$", UITag::TextWarning});
 
-    // Build calendar string for width measurement: "C1 D3 [▓▓▓▒░░░░] ☀"
-    // Progress bar is 8 chars + brackets = 10, icon = 1
-    std::string cal = format_calendar(world_.world_tick());
-    cal += " [--------] "; // placeholder for width calc (8-char bar + brackets + space)
-    cal += phase_icon(world_.day_clock().phase());
+    ctx.styled_text({.x = 1, .y = 0, .segments = left});
 
-    // Right side: stats, calendar, location — measure total width for right-alignment
-    std::string right;
+    // --- Right side (right-aligned): QN:5 :: MS:10 :: AV:15 :: DV:8 :: C1 D3 [▓▓▓▒░░░░] ☀ :: Location ---
+    std::vector<TextSegment> right;
+
     int eff_qn = player_.quickness + player_.equipment.total_modifiers().quickness;
-    right += " QN:";  right += std::to_string(eff_qn);
-    right += " :: MS:"; right += std::to_string(player_.move_speed);
-    right += " :: AV:"; right += std::to_string(player_.effective_attack());
-    right += " :: DV:"; right += std::to_string(player_.effective_dodge());
-    right += " :: ";    right += cal;
-    right += " :: ";    right += world_.map().location_name();
-    right += " ";
+    right.push_back({"QN:", UITag::TextDim});
+    right.push_back({std::to_string(eff_qn), UITag::TextBright});
+    right.push_back({" :: ", UITag::TextDim});
+    right.push_back({"MS:", UITag::TextDim});
+    right.push_back({std::to_string(player_.move_speed), UITag::TextBright});
+    right.push_back({" :: ", UITag::TextDim});
+    right.push_back({"AV:", UITag::TextDim});
+    right.push_back({std::to_string(player_.effective_attack()), UITag::StatDefense});
+    right.push_back({" :: ", UITag::TextDim});
+    right.push_back({"DV:", UITag::TextDim});
+    right.push_back({std::to_string(player_.effective_dodge()), UITag::StatDefense});
+    right.push_back({" :: ", UITag::TextDim});
 
-    int rx = ctx.width() - static_cast<int>(right.size());
-    if (rx < lx + 2) rx = lx + 2;
+    // Calendar text
+    right.push_back({format_calendar(world_.world_tick()) + " ", UITag::TextDim});
 
-    // Fill gap between left items and right items with repeating <<>>
-    {
-        const char pattern[] = "<<>>";
-        int gap_start = lx + 1;
-        int gap_end = rx - 1;
-        for (int i = gap_start; i < gap_end; ++i) {
-            ctx.put(i, 0, pattern[(i - gap_start) % 4], Color::Cyan);
-        }
+    // Phase tag
+    UITag phase_tag = UITag::PhaseDay;
+    switch (world_.day_clock().phase()) {
+        case TimePhase::Dawn:  phase_tag = UITag::PhaseDawn;  break;
+        case TimePhase::Day:   phase_tag = UITag::PhaseDay;   break;
+        case TimePhase::Dusk:  phase_tag = UITag::PhaseDusk;  break;
+        case TimePhase::Night: phase_tag = UITag::PhaseNight; break;
     }
 
-    // Render right side with per-segment colors
-    int x = rx;
-    x = ctx.label_value(x, 0, "QN:", Color::DarkGray,
-        std::to_string(player_.quickness + player_.equipment.total_modifiers().quickness), Color::White);
+    // Day progress bar: [▓▓▓▒░░░░]
+    constexpr int bar_len = 8;
+    float frac = world_.day_clock().day_fraction();
+    int filled = static_cast<int>(frac * bar_len);
+    if (filled > bar_len) filled = bar_len;
 
-    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    x = ctx.label_value(x, 0, "MS:", Color::DarkGray,
-        std::to_string(player_.move_speed), Color::White);
-
-    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    x = ctx.label_value(x, 0, "AV:", Color::DarkGray,
-        std::to_string(player_.effective_attack()), Color::Blue);
-
-    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    x = ctx.label_value(x, 0, "DV:", Color::DarkGray,
-        std::to_string(player_.effective_dodge()), Color::Blue);
-
-    // Calendar + day progress bar + phase icon
-    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    {
-        std::string cal_text = format_calendar(world_.world_tick()) + " ";
-        ctx.text(x, 0, cal_text, Color::DarkGray);
-        x += static_cast<int>(cal_text.size());
-
-        // Phase color
-        Color phase_col;
-        switch (world_.day_clock().phase()) {
-            case TimePhase::Dawn: phase_col = Color::Yellow; break;
-            case TimePhase::Day:  phase_col = Color::Yellow; break;
-            case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
-            case TimePhase::Night:phase_col = Color::Blue; break;
-        }
-
-        // Day progress bar: [▓▓▓▒░░░░]
-        constexpr int bar_len = 8;
-        float frac = world_.day_clock().day_fraction();
-        int filled = static_cast<int>(frac * bar_len);
-        if (filled > bar_len) filled = bar_len;
-
-        ctx.put(x, 0, '[', Color::DarkGray); ++x;
-        for (int i = 0; i < bar_len; ++i) {
-            if (i < filled) {
-                // ▓ filled
-                ctx.text(x, 0, "\xe2\x96\x93", phase_col);
-            } else if (i == filled) {
-                // ▒ current position
-                ctx.text(x, 0, "\xe2\x96\x92", phase_col);
-            } else {
-                // ░ empty
-                ctx.text(x, 0, "\xe2\x96\x91", Color::DarkGray);
-            }
-            ++x;
-        }
-        ctx.put(x, 0, ']', Color::DarkGray); ++x;
-
-        // Phase icon
-        ctx.text(x, 0, " ", Color::Default); ++x;
-        ctx.text(x, 0, phase_icon(world_.day_clock().phase()), phase_col);
-        x += 1;
+    right.push_back({"[", UITag::TextDim});
+    std::string filled_str, current_str, empty_str;
+    for (int i = 0; i < bar_len; ++i) {
+        if (i < filled) filled_str += "\xe2\x96\x93";
+        else if (i == filled) current_str += "\xe2\x96\x92";
+        else empty_str += "\xe2\x96\x91";
     }
+    if (!filled_str.empty()) right.push_back({filled_str, phase_tag});
+    if (!current_str.empty()) right.push_back({current_str, phase_tag});
+    if (!empty_str.empty()) right.push_back({empty_str, UITag::TextDim});
+    right.push_back({"]", UITag::TextDim});
 
-    ctx.text(x, 0, " :: ", Color::DarkGray); x += 4;
-    ctx.text(x, 0, world_.map().location_name(), Color::White);
+    // Phase icon
+    right.push_back({" ", UITag::TextDefault});
+    right.push_back({phase_icon(world_.day_clock().phase()), phase_tag});
+
+    right.push_back({" :: ", UITag::TextDim});
+    right.push_back({world_.map().location_name(), UITag::TextBright});
+    right.push_back({" ", UITag::TextDefault});
+
+    ctx.styled_text({.x = ctx.width() - 1, .y = 0, .segments = right, .align = TextAlign::Right});
 }
 
 void Game::render_bars() {

@@ -31,6 +31,9 @@ enum class UITag : uint16_t {
     // Game stats
     StatAttack, StatDefense, StatHealth, StatVision, StatSpeed,
 
+    // Time phases
+    PhaseDawn, PhaseDay, PhaseDusk, PhaseNight,
+
     // Rarity
     RarityCommon, RarityUncommon, RarityRare, RarityEpic, RarityLegendary,
 };
@@ -125,6 +128,7 @@ struct StyledTextDesc {
     int x = 0;
     int y = 0;
     std::vector<TextSegment> segments;
+    TextAlign align = TextAlign::Left;
 };
 
 struct ListItem {
