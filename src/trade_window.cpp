@@ -215,7 +215,7 @@ void TradeWindow::draw(int screen_w, int screen_h) {
     UIContext full(renderer_, Rect{0, 0, screen_w, screen_h});
     auto content = full.panel({
         .title = "Trade",
-        .footer = "ESC Close  TAB Switch  \xe2\x86\x91\xe2\x86\x93 Move  SPACE Buy/Sell",
+        .footer = "[ESC] Close  [TAB] Switch  [\xe2\x86\x91\xe2\x86\x93] Move  [SPACE] Buy/Sell",
     });
 
     int w = content.width();
