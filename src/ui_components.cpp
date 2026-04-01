@@ -39,4 +39,8 @@ void UIContext::label_value(const LabelValueDesc& desc) {
     renderer_->draw_label_value(bounds_.x + desc.x, bounds_.y + desc.y, desc);
 }
 
+void UIContext::galaxy_map(const GalaxyMapDesc& desc) {
+    renderer_->draw_galaxy_map(bounds_, desc);
+}
+
 } // namespace astra

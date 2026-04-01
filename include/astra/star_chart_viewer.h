@@ -2,13 +2,14 @@
 
 #include "astra/renderer.h"
 #include "astra/star_chart.h"
+#include "astra/galaxy_map_desc.h"
 #include "astra/ui.h"
 
 namespace astra {
 
 class WorldManager;
 
-enum class ChartZoom { Galaxy, Region, Local, System };
+enum class ChartZoom : uint8_t { Galaxy, Region, Local, System };
 
 enum class ChartActionType { None, WarpToSystem, TravelToBody, TravelToStation };
 
@@ -57,21 +58,15 @@ private:
     // Sub-item cursor within a body (-1 = body itself, 0+ = sub-item like station/moon)
     int sub_cursor_ = -1;
 
-    // Rendering
-    void draw_galaxy_view(DrawContext& map_ctx, DrawContext& info_ctx);
-    void draw_region_view(DrawContext& map_ctx, DrawContext& info_ctx);
-    void draw_local_view(DrawContext& map_ctx, DrawContext& info_ctx);
-    void draw_system_view(DrawContext& map_ctx, DrawContext& info_ctx);
-    void draw_system_info(DrawContext& ctx, const StarSystem& sys, int start_y, int max_h = 100);
-    void draw_body_info(DrawContext& ctx, const CelestialBody& body, const StarSystem& sys, int start_y);
-    void draw_station_detail(DrawContext& ctx, const StarSystem& sys, int start_y);
+    // Semantic rendering
+    GalaxyMapDesc build_map_desc() const;
+    void draw_info_panel(DrawContext& ctx);
+    void draw_system_info_text(DrawContext& ctx, const StarSystem& sys, int start_y, int max_h = 100);
+    void draw_body_info_text(DrawContext& ctx, const CelestialBody& body, const StarSystem& sys, int start_y);
+    void draw_station_info_text(DrawContext& ctx, const StarSystem& sys, int start_y);
 
     // Find which body index the station orbits (first gas giant, or -1)
     int station_host_body(const StarSystem& sys) const;
-
-    // Map projection helpers
-    int to_screen_x(float gx, float view_left, float view_width, int screen_w) const;
-    int to_screen_y(float gy, float view_top, float view_height, int screen_h) const;
 
     // Cursor navigation
     void move_cursor_direction(int dx, int dy);

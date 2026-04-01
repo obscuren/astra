@@ -189,6 +189,9 @@ void SdlRenderer::draw_list(const Rect& /*bounds*/, const ListDesc& /*desc*/) {}
 void SdlRenderer::draw_tab_bar(const Rect& /*bounds*/, const TabBarDesc& /*desc*/) {}
 void SdlRenderer::draw_separator(const Rect& /*bounds*/, const SeparatorDesc& /*desc*/) {}
 void SdlRenderer::draw_label_value(int /*x*/, int /*y*/, const LabelValueDesc& /*desc*/) {}
+void SdlRenderer::draw_galaxy_map(const Rect& /*bounds*/, const GalaxyMapDesc& /*desc*/) {
+    // TODO: SDL galaxy map rendering
+}
 
 } // namespace astra
 
