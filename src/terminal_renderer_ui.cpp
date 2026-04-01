@@ -276,6 +276,22 @@ void TerminalRenderer::draw_ui_text(int x, int y, const TextDesc& desc) {
 
 void TerminalRenderer::draw_styled_text(int x, int y, const StyledTextDesc& desc) {
     int col = x;
+
+    // For right/center alignment, compute total display width first
+    if (desc.align == TextAlign::Right || desc.align == TextAlign::Center) {
+        int total_w = 0;
+        for (const auto& seg : desc.segments) {
+            if (seg.entity.has_value())
+                total_w += 1;
+            else
+                total_w += utf8_display_len(seg.text);
+        }
+        if (desc.align == TextAlign::Right)
+            col = x - total_w;
+        else
+            col = x - total_w / 2;
+    }
+
     for (const auto& seg : desc.segments) {
         if (seg.entity.has_value()) {
             // Resolve glyph+color from entity identity

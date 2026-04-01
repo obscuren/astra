@@ -90,6 +90,7 @@ private:
     void open_context_menu();
     void execute_context_action(char key);
     void draw_look_overlay(DrawContext& ctx);
+    void draw_context_menu(int screen_w, int screen_h);
 
     // Drop output — Game reads this after handle_input
     bool has_dropped_item_ = false;
@@ -113,7 +114,6 @@ private:
     int ship_inv_cursor_ = 0;
     bool on_ship_ = false;  // set in open(), controls interactivity
 
-    void draw_tab_bar(DrawContext& ctx);
     void draw_attributes(DrawContext& ctx);
     void draw_skills(DrawContext& ctx);
     void draw_equipment(DrawContext& ctx);

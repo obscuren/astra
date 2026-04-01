@@ -8,6 +8,7 @@
 #include "terminal_theme.h"
 
 #include <algorithm>
+#include <iterator>
 #include <string>
 
 namespace astra {
@@ -658,53 +659,192 @@ void CharacterScreen::execute_context_action(char key) {
 }
 
 
+void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
+    if (!context_menu_.is_open()) return;
+
+    const auto& opts = context_menu_.options();
+    int sel = context_menu_.selected();
+
+    // Get the item being acted on for entity header
+    const Item* ctx_item = nullptr;
+    if (player_ && active_tab_ == CharTab::Equipment) {
+        if (equip_focus_ == EquipFocus::Inventory &&
+            inv_cursor_ >= 0 && inv_cursor_ < static_cast<int>(player_->inventory.items.size())) {
+            ctx_item = &player_->inventory.items[inv_cursor_];
+        } else if (equip_focus_ == EquipFocus::PaperDoll) {
+            auto slot = static_cast<EquipSlot>(equip_cursor_);
+            const auto& equipped = player_->equipment.slot_ref(slot);
+            if (equipped) ctx_item = &(*equipped);
+        }
+    } else if (player_ && active_tab_ == CharTab::Ship) {
+        if (ship_focus_ == ShipFocus::Inventory &&
+            ship_inv_cursor_ >= 0 && ship_inv_cursor_ < static_cast<int>(player_->ship.cargo.size())) {
+            ctx_item = &player_->ship.cargo[ship_inv_cursor_];
+        } else if (ship_focus_ == ShipFocus::Equipment) {
+            auto slot = static_cast<ShipSlot>(ship_equip_cursor_);
+            const auto& installed = player_->ship.slot_ref(slot);
+            if (installed) ctx_item = &(*installed);
+        }
+    }
+
+    // Compute dimensions — wider with padding
+    int max_label = 0;
+    for (const auto& o : opts) {
+        int len = static_cast<int>(o.label.size()) + 6; // "  [x] label  "
+        if (len > max_label) max_label = len;
+    }
+    int win_w = std::max(max_label + 6, 30);
+
+    // Height: header + blank + options with spacing + blank + chrome
+    int content_h = 0;
+    if (ctx_item) {
+        content_h += 3; // glyph + name + separator
+    } else if (!context_menu_.title().empty()) {
+        content_h += 2; // title + separator
+    }
+    content_h += 1; // blank before options
+    content_h += static_cast<int>(opts.size()) * 2 - 1; // options with blank lines between
+    content_h += 1; // blank after options
+    int chrome_h = 2 + 1; // borders + footer
+    int win_h = content_h + chrome_h;
+
+    int mx = (screen_w - win_w) / 2;
+    int my = (screen_h - win_h) / 2;
+
+    UIContext full(renderer_, Rect{mx, my, win_w, win_h});
+    auto pc = full.panel({.footer = "[Esc] Cancel"});
+
+    int cw = pc.width();
+    int y = 0;
+
+    // Header: entity header for items, title for other menus
+    if (ctx_item) {
+        EntityRef entity{EntityRef::Kind::Item, ctx_item->item_def_id};
+        int glyph_x = cw / 2;
+        pc.styled_text({.x = glyph_x, .y = y, .segments = {
+            {"?", UITag::TextDefault, entity},
+        }});
+        y++;
+
+        int name_x = (cw - static_cast<int>(ctx_item->name.size())) / 2;
+        if (name_x < 1) name_x = 1;
+        pc.text({.x = name_x, .y = y, .content = ctx_item->name, .tag = rarity_tag(ctx_item->rarity)});
+        y++;
+
+        pc.sub(Rect{0, y, cw, 1}).separator({});
+        y++;
+    } else {
+        // Title header for non-item menus (tinkering: Place Item, Select Material, etc.)
+        const auto& title = context_menu_.title();
+        if (!title.empty()) {
+            int tx = (cw - static_cast<int>(title.size())) / 2;
+            if (tx < 1) tx = 1;
+            pc.text({.x = tx, .y = y, .content = title, .tag = UITag::TextBright});
+            y++;
+
+            pc.sub(Rect{0, y, cw, 1}).separator({});
+            y++;
+        }
+    }
+
+    y++; // blank before options
+
+    // Options with conversation-style spacing
+    for (int i = 0; i < static_cast<int>(opts.size()); ++i) {
+        bool is_sel = (i == sel);
+        std::string prefix = is_sel ? "> " : "  ";
+        UITag tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
+        std::string line = prefix + "[" + opts[i].key + "] " + opts[i].label;
+        pc.text({.x = 2, .y = y, .content = line, .tag = tag});
+        y += 2; // blank line between options
+    }
+}
+
 void CharacterScreen::draw_look_overlay(DrawContext& ctx) {
     if (!look_open_ || !look_item_) return;
-
     const auto& item = *look_item_;
 
     int win_w = 44;
-    int win_h = 18;
+    int content_h = 20;
+    int chrome_h = 2 + 1; // borders + footer
+    int win_h = content_h + chrome_h + 3; // +3 for entity header
+    if (win_h > ctx.height() - 4) win_h = ctx.height() - 4;
+
     int mx = (ctx.width() - win_w) / 2;
     int my = (ctx.height() - win_h) / 2;
 
-    Window win(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h}, item.name);
-    win.set_footer("[any key] Close");
-    win.draw();
+    UIContext full(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h});
+    auto panel_content = full.panel({.footer = "[any key] Close"});
 
-    DrawContext lc = win.content();
-    draw_item_info(lc, item);
+    int cw = panel_content.width();
+    int y = 0;
+
+    // Entity header: glyph centered
+    EntityRef entity{EntityRef::Kind::Item, item.item_def_id};
+    int glyph_x = cw / 2;
+    panel_content.styled_text({.x = glyph_x, .y = y, .segments = {
+        {"?", UITag::TextDefault, entity},
+    }});
+    y++;
+
+    // Item name centered, colored by rarity
+    int name_x = (cw - static_cast<int>(item.name.size())) / 2;
+    if (name_x < 1) name_x = 1;
+    panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
+    y++;
+
+    // Separator between header and content
+    panel_content.sub(Rect{0, y, cw, 1}).separator({});
+    y++;
+
+    // Item info in remaining space — with left/right padding
+    int pad = 2;
+    auto info_area = panel_content.sub(Rect{pad, y, cw - pad * 2, panel_content.height() - y});
+    draw_item_info(info_area, item);
 }
 
 void CharacterScreen::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
-    // Inset from screen edges
+    // Compute footer text based on active tab
+    std::string footer_text;
+    if (active_tab_ == CharTab::Tinkering) {
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth";
+    } else if (active_tab_ == CharTab::Skills) {
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
+    } else if (active_tab_ == CharTab::Equipment) {
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [l] Look";
+    } else if (has_pending()) {
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
+    } else {
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate";
+    }
+
+    // Outer panel via semantic UI
     int pad_x = 2;
     int pad_y = 2;
     int win_w = screen_w - pad_x * 2;
     int win_h = screen_h - pad_y * 2;
-    Panel panel(renderer_, Rect{pad_x, pad_y, win_w, win_h});
-    if (active_tab_ == CharTab::Tinkering) {
-        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth");
-    } else if (active_tab_ == CharTab::Skills) {
-        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn");
-    } else if (has_pending()) {
-        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit");
-    } else {
-        panel.set_footer("[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate");
-    }
-    panel.draw();
+    UIContext outer(renderer_, Rect{pad_x, pad_y, win_w, win_h});
+    auto ctx = outer.panel({.footer = footer_text});
 
-    DrawContext ctx = panel.content();
+    // Tab bar + separator + content via semantic layout
+    std::vector<std::string> tabs(std::begin(tab_names), std::end(tab_names));
+    auto layout = ctx.rows({fixed(1), fixed(1), fill()});
+    layout[0].tab_bar({
+        .tabs = tabs,
+        .active = static_cast<int>(active_tab_),
+        .align = TextAlign::Center,
+        .show_nav = true,
+    });
+    layout[1].separator({});
+    auto& tab_area = layout[2];
 
-    draw_tab_bar(ctx);
-
-    // Full-width area below tab bar (for section headers that span full width)
-    DrawContext full = ctx.sub(Rect{0, 2, ctx.width(), ctx.height() - 2});
+    // Full-width area for section headers that span full width
+    DrawContext full = tab_area;
     // Padded content area for tab content
     int pad = 3;
-    DrawContext content = ctx.sub(Rect{pad, 2, ctx.width() - pad * 2, ctx.height() - 2});
+    DrawContext content = tab_area.sub(Rect{pad, 0, tab_area.width() - pad * 2, tab_area.height()});
 
     switch (active_tab_) {
         case CharTab::Attributes: draw_attributes(content); break;
@@ -721,17 +861,18 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
                 // Active quests
                 for (const auto& q : quests_->active_quests()) {
                     if (y >= content.height() - 1) break;
-                    content.text(1, y, q.title, Color::Yellow);
+                    content.text({.x = 1, .y = y, .content = q.title, .tag = UITag::TextWarning});
                     y++;
-                    content.text(2, y, q.description, Color::DarkGray);
+                    content.text({.x = 2, .y = y, .content = q.description, .tag = UITag::TextDim});
                     y++;
                     for (const auto& obj : q.objectives) {
                         if (y >= content.height() - 1) break;
                         std::string status = obj.complete() ? "[x] " : "[ ] ";
                         std::string progress = " (" + std::to_string(obj.current_count) + "/" +
                                               std::to_string(obj.target_count) + ")";
-                        Color c = obj.complete() ? Color::Green : Color::White;
-                        content.text(3, y, status + obj.description + progress, c);
+                        UITag obj_tag = obj.complete() ? UITag::TextSuccess : UITag::TextBright;
+                        content.text({.x = 3, .y = y, .content = status + obj.description + progress,
+                                      .tag = obj_tag});
                         y++;
                     }
                     // Reward summary
@@ -740,19 +881,19 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
                         if (q.reward.xp > 0) rew += " " + std::to_string(q.reward.xp) + " XP";
                         if (q.reward.credits > 0) rew += " " + std::to_string(q.reward.credits) + "$";
                         if (q.reward.skill_points > 0) rew += " " + std::to_string(q.reward.skill_points) + " SP";
-                        content.text(2, y, rew, Color::Cyan);
+                        content.text({.x = 2, .y = y, .content = rew, .tag = UITag::TextAccent});
                         y++;
                     }
                     y++; // blank line between quests
                 }
                 // Completed quests
                 if (!quests_->completed_quests().empty() && y < content.height() - 1) {
-                    content.text(1, y, "Completed:", Color::DarkGray);
+                    content.text({.x = 1, .y = y, .content = "Completed:", .tag = UITag::TextDim});
                     y++;
                     for (const auto& q : quests_->completed_quests()) {
                         if (y >= content.height() - 1) break;
-                        Color c = q.status == QuestStatus::Completed ? Color::Green : Color::Red;
-                        content.text(2, y, q.title, c);
+                        UITag q_tag = q.status == QuestStatus::Completed ? UITag::TextSuccess : UITag::TextDanger;
+                        content.text({.x = 2, .y = y, .content = q.title, .tag = q_tag});
                         y++;
                     }
                 }
@@ -771,8 +912,11 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
                        || (active_tab_ == CharTab::Journal && !player_->journal.empty()));
     if (needs_divider) {
         int divider_x = content.width() / 2;
+        // The ┬ on the separator row needs to align with the │ in the content area.
+        // content is offset by pad from tab_area, so add pad for layout[1] coordinates.
+        int sep_divider_x = divider_x + pad;
         int last = content.height() - 1;
-        ctx.put(divider_x, 1, BoxDraw::TT, Color::DarkGray);  // ┬ connects to tab separator
+        layout[1].put(sep_divider_x, 0, BoxDraw::TT, Color::DarkGray);  // ┬ connects to tab separator
         for (int vy = 0; vy < last; ++vy) {
             content.put(divider_x, vy, BoxDraw::V, Color::DarkGray);
         }
@@ -780,14 +924,16 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     }
 
     // Context menu overlay (equipment tab)
-    context_menu_.draw(renderer_, screen_w, screen_h);
+    draw_context_menu(screen_w, screen_h);
 
     // Look overlay
     draw_look_overlay(content);
 
     // Status message at bottom of content
     if (context_msg_timer_ > 0 && !context_message_.empty()) {
-        content.text_center(content.height() - 1, context_message_, Color::Green);
+        int msg_x = content.width() / 2 - static_cast<int>(context_message_.size()) / 2;
+        content.text({.x = msg_x, .y = content.height() - 1,
+                      .content = context_message_, .tag = UITag::TextSuccess});
     }
 
     // Tab help overlay (shown once per tab for non-dev players)
@@ -796,48 +942,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Tab bar
-// ─────────────────────────────────────────────────────────────────
-
-void CharacterScreen::draw_tab_bar(DrawContext& ctx) {
-    // Calculate total width: [Q] + space + tab labels with gaps + space + [E]
-    int total_w = 4 + 1; // "[Q] "
-    for (int i = 0; i < char_tab_count; ++i) {
-        std::string label = tab_names[i];
-        bool active = (static_cast<int>(active_tab_) == i);
-        total_w += (active ? static_cast<int>(label.size()) + 2 : static_cast<int>(label.size()));
-        if (i < char_tab_count - 1) total_w += 2; // gap
-    }
-    total_w += 1 + 3; // " [E]"
-
-    int x = (ctx.width() - total_w) / 2;
-    if (x < 0) x = 0;
-
-    // [Q]
-    ctx.put(x, 0, '[', Color::White);
-    ctx.put(x + 1, 0, 'Q', Color::Green);
-    ctx.put(x + 2, 0, ']', Color::White);
-    x += 4;
-
-    // Tab labels
-    for (int i = 0; i < char_tab_count; ++i) {
-        bool active = (static_cast<int>(active_tab_) == i);
-        std::string label = tab_names[i];
-        if (active) label = "[" + label + "]";
-
-        Color fg = active ? Color::White : Color::DarkGray;
-        ctx.text(x, 0, label, fg);
-        x += static_cast<int>(label.size()) + 2;
-    }
-
-    // [E]
-    ctx.put(x - 1, 0, '[', Color::White);
-    ctx.put(x, 0, 'E', Color::Green);
-    ctx.put(x + 1, 0, ']', Color::White);
-
-    ctx.hline(1, BoxDraw::H, Color::DarkGray);
-}
+// (Tab bar drawing now handled by semantic UIContext::tab_bar in draw())
 
 // ─────────────────────────────────────────────────────────────────
 // Stat box drawing helper
@@ -861,34 +966,35 @@ void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
     ctx.put(x, y + 1, BoxDraw::V, border_color);
     std::string lbl(label);
     int pad = static_cast<int>(5 - lbl.size()) / 2;
-    ctx.text(x + 1 + pad, y + 1, lbl, selected ? Color::Yellow : Color::Cyan);
+    ctx.text({.x = x + 1 + pad, .y = y + 1, .content = lbl,
+              .tag = selected ? UITag::TextWarning : UITag::TextAccent});
     ctx.put(x + 6, y + 1, BoxDraw::V, border_color);
 
     // Value row — green if has pending points
     ctx.put(x, y + 2, BoxDraw::V, border_color);
     std::string val = std::to_string(value);
     int vpad = static_cast<int>(5 - val.size()) / 2;
-    Color val_color = (pending > 0) ? Color::Green : Color::White;
-    ctx.text(x + 1 + vpad, y + 2, val, val_color);
+    UITag val_tag = (pending > 0) ? UITag::TextSuccess : UITag::TextBright;
+    ctx.text({.x = x + 1 + vpad, .y = y + 2, .content = val, .tag = val_tag});
     ctx.put(x + 6, y + 2, BoxDraw::V, border_color);
 
     // Modifier row (primary attributes only)
     if (has_mod) {
         ctx.put(x, y + 3, BoxDraw::V, border_color);
         std::string mod_str;
-        Color mod_color;
+        UITag mod_tag;
         if (modifier > 0) {
             mod_str = "[+" + std::to_string(modifier) + "]";
-            mod_color = Color::Green;
+            mod_tag = UITag::TextSuccess;
         } else if (modifier < 0) {
             mod_str = "[" + std::to_string(modifier) + "]";
-            mod_color = Color::Red;
+            mod_tag = UITag::TextDanger;
         } else {
             mod_str = "[ 0]";
-            mod_color = Color::DarkGray;
+            mod_tag = UITag::TextDim;
         }
         int mpad = static_cast<int>(5 - mod_str.size()) / 2;
-        ctx.text(x + 1 + mpad, y + 3, mod_str, mod_color);
+        ctx.text({.x = x + 1 + mpad, .y = y + 3, .content = mod_str, .tag = mod_tag});
         ctx.put(x + 6, y + 3, BoxDraw::V, border_color);
     }
 
@@ -898,9 +1004,9 @@ void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
     bool show_hint = (pending > 0) || (selected && can_allocate);
     if (show_hint) {
         ctx.put(x + 1, bot, BoxDraw::H, border_color);
-        ctx.put(x + 2, bot, '-', Color::Yellow);
-        ctx.put(x + 3, bot, '/', Color::DarkGray);
-        ctx.put(x + 4, bot, '+', Color::Yellow);
+        ctx.styled_text({.x = x + 2, .y = bot, .segments = {
+            {"-", UITag::KeyLabel}, {"/", UITag::TextDim}, {"+", UITag::KeyLabel}
+        }});
         ctx.put(x + 5, bot, BoxDraw::H, border_color);
     } else {
         for (int i = 1; i < 6; ++i) ctx.put(x + i, bot, BoxDraw::H, border_color);
@@ -919,7 +1025,7 @@ void CharacterScreen::draw_section_header(DrawContext& ctx, int y,
     ctx.put(left_margin + 2, y, BoxDraw::RT, Color::DarkGray);
     // space + TITLE + space
     ctx.put(left_margin + 3, y, ' ');
-    ctx.text(left_margin + 4, y, title, Color::White);
+    ctx.text({.x = left_margin + 4, .y = y, .content = title, .tag = UITag::TextBright});
     int after_title = left_margin + 4 + static_cast<int>(std::string(title).size());
     ctx.put(after_title, y, ' ');
     // ├
@@ -970,16 +1076,16 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
     // Character identity header
     int y = 1;
     ctx.put(2, y, '@', Color::White);
-    ctx.text(4, y, player_->name, Color::White);
+    ctx.text({.x = 4, .y = y, .content = player_->name, .tag = UITag::TextBright});
     y++;
     std::string subtitle = std::string(race_name(player_->race)) + " "
                          + class_name(player_->player_class);
-    ctx.text(4, y, subtitle, Color::DarkGray);
+    ctx.text({.x = 4, .y = y, .content = subtitle, .tag = UITag::TextDim});
     y++;
     std::string info = "Level: " + std::to_string(player_->level)
         + " \xc2\xb7 HP: " + std::to_string(player_->hp) + "/" + std::to_string(player_->effective_max_hp())
         + " \xc2\xb7 XP: " + std::to_string(player_->xp) + "/" + std::to_string(player_->max_xp);
-    ctx.text(4, y, info, Color::DarkGray);
+    ctx.text({.x = 4, .y = y, .content = info, .tag = UITag::TextDim});
     y += 2;
 
 
@@ -993,13 +1099,13 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
         std::string pts = std::to_string(remaining);
         std::string label = " Attribute Points: ";
         // Position: ──┤ label N ├──  ending at divider_x
-        int total_len = 2 + 1 + static_cast<int>(label.size()) + static_cast<int>(pts.size()) + 1 + 1; // ──┤labelN├─
+        int total_len = 2 + 1 + static_cast<int>(label.size()) + static_cast<int>(pts.size()) + 1 + 1;
         int start_x = divider_x - total_len;
         if (start_x > 0) {
             ctx.put(start_x, y, BoxDraw::RT, Color::DarkGray);
-            ctx.text(start_x + 1, y, label, Color::White);
+            ctx.text({.x = start_x + 1, .y = y, .content = label, .tag = UITag::TextBright});
             int num_x = start_x + 1 + static_cast<int>(label.size());
-            ctx.text(num_x, y, pts, Color::Green);
+            ctx.text({.x = num_x, .y = y, .content = pts, .tag = UITag::TextSuccess});
             ctx.put(num_x + static_cast<int>(pts.size()), y, ' ');
             ctx.put(num_x + static_cast<int>(pts.size()) + 1, y, BoxDraw::LT, Color::DarkGray);
         }
@@ -1032,9 +1138,9 @@ void CharacterScreen::draw_attributes(DrawContext& ctx) {
         int dx = 2;
         // Draw attribute name in yellow
         std::string name_str(attr_name);
-        ctx.text(dx, dy, name_str, Color::Yellow);
+        ctx.text({.x = dx, .y = dy, .content = name_str, .tag = UITag::TextWarning});
         dx += static_cast<int>(name_str.size()) + 1;
-        // Draw rest of description in DarkGray, with simple word wrap
+        // Draw rest of description in dim, with simple word wrap
         std::string desc(desc_text);
         int max_w = half - 4;
         int line_x = dx;
@@ -1147,27 +1253,20 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
         const char* labels[] = {"STR", "AGI", "TOU", "INT", "WIL", "LUC"};
         int vals[] = {a.strength, a.agility, a.toughness,
                       a.intelligence, a.willpower, a.luck};
-        std::string attr_str;
-        for (int i = 0; i < 6; ++i) {
-            if (i > 0) attr_str += " ";
-            attr_str += labels[i];
-            attr_str += ":";
-            attr_str += std::to_string(vals[i]);
-        }
 
         int lx = 1;
         ctx.put(lx, 0, BoxDraw::H, Color::DarkGray);
         ctx.put(lx + 1, 0, BoxDraw::RT, Color::DarkGray);
         ctx.put(lx + 2, 0, ' ');
-        // Draw attribute overview with labels in DarkGray, values in White
+        // Draw attribute overview with semantic styled_text
         int ax = lx + 3;
         for (int i = 0; i < 6; ++i) {
             if (i > 0) { ctx.put(ax, 0, ' '); ax++; }
             std::string lbl = std::string(labels[i]) + ":";
-            ctx.text(ax, 0, lbl, Color::DarkGray);
+            ctx.text({.x = ax, .y = 0, .content = lbl, .tag = UITag::TextDim});
             ax += static_cast<int>(lbl.size());
             std::string val = std::to_string(vals[i]);
-            ctx.text(ax, 0, val, Color::White);
+            ctx.text({.x = ax, .y = 0, .content = val, .tag = UITag::TextBright});
             ax += static_cast<int>(val.size());
         }
         ctx.put(ax, 0, ' ');
@@ -1180,9 +1279,9 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
         int sp_x = divider_x - sp_len;
         if (sp_x > ax + 2) {
             ctx.put(sp_x, 0, BoxDraw::RT, Color::DarkGray);
-            ctx.text(sp_x + 1, 0, sp_label, Color::White);
+            ctx.text({.x = sp_x + 1, .y = 0, .content = sp_label, .tag = UITag::TextBright});
             int num_x = sp_x + 1 + static_cast<int>(sp_label.size());
-            ctx.text(num_x, 0, pts, Color::Green);
+            ctx.text({.x = num_x, .y = 0, .content = pts, .tag = UITag::TextSuccess});
             ctx.put(num_x + static_cast<int>(pts.size()), 0, ' ');
             ctx.put(num_x + static_cast<int>(pts.size()) + 1, 0, BoxDraw::LT, Color::DarkGray);
         }
@@ -1225,12 +1324,12 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
             lx += 2;
 
             std::string toggle = skill_cat_expanded_[ve.ci] ? " [-] " : " [+] ";
-            ctx.text(lx, y, toggle, Color::White);
+            ctx.text({.x = lx, .y = y, .content = toggle, .tag = UITag::TextBright});
             lx += static_cast<int>(toggle.size());
 
-            Color name_color = unlocked ? Color::Green : Color::DarkGray;
-            if (selected) name_color = Color::White;
-            ctx.text(lx, y, cat.name, name_color);
+            UITag name_tag = unlocked ? UITag::TextSuccess : UITag::TextDim;
+            if (selected) name_tag = UITag::TextBright;
+            ctx.text({.x = lx, .y = y, .content = cat.name, .tag = name_tag});
             lx += static_cast<int>(cat.name.size());
 
             ctx.put(lx, y, ' ');
@@ -1242,7 +1341,7 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
             if (!unlocked) {
                 std::string cost = std::to_string(cat.sp_cost) + " SP";
                 int cx_pos = cost_end - static_cast<int>(cost.size());
-                ctx.text(cx_pos, y, cost, Color::Yellow);
+                ctx.text({.x = cx_pos, .y = y, .content = cost, .tag = UITag::TextWarning});
                 cost_end = cx_pos - 1;
             }
 
@@ -1283,13 +1382,13 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
                 if (val < sk.attribute_req) meets_req = false;
             }
 
-            Color name_color;
-            if (learned) name_color = Color::Green;
-            else if (selected) name_color = Color::White;
-            else if (!can_afford || !meets_req) name_color = Color::DarkGray;
-            else name_color = Color::Default;
+            UITag name_tag;
+            if (learned) name_tag = UITag::TextSuccess;
+            else if (selected) name_tag = UITag::TextBright;
+            else if (!can_afford || !meets_req) name_tag = UITag::TextDim;
+            else name_tag = UITag::TextDefault;
 
-            ctx.text(7, y, sk.name, name_color);
+            ctx.text({.x = 7, .y = y, .content = sk.name, .tag = name_tag});
 
             // SP cost right-aligned
             std::string cost = std::to_string(sk.sp_cost) + " SP";
@@ -1297,10 +1396,11 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
             if (sk.attribute_req > 0 && sk.attribute_name) {
                 std::string req = std::to_string(sk.attribute_req)
                                 + std::string(sk.attribute_name).substr(0, 3);
-                ctx.text(cx - static_cast<int>(req.size()) - 1, y, req,
-                         meets_req ? Color::DarkGray : Color::Red);
+                ctx.text({.x = cx - static_cast<int>(req.size()) - 1, .y = y, .content = req,
+                          .tag = meets_req ? UITag::TextDim : UITag::TextDanger});
             }
-            ctx.text(cx, y, cost, learned ? Color::DarkGray : (can_afford ? Color::Yellow : Color::Red));
+            UITag cost_tag = learned ? UITag::TextDim : (can_afford ? UITag::TextWarning : UITag::TextDanger);
+            ctx.text({.x = cx, .y = y, .content = cost, .tag = cost_tag});
         }
         y++;
     }
@@ -1336,12 +1436,12 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
         for (auto sid : player_->learned_skills)
             if (sid == cat.unlock_id) { unlocked = true; break; }
 
-        ctx.text(rx, 2, cat.name, Color::White);
-        ctx.text(rx, 3, unlocked ? "[Learned]" : "[Unlearned]",
-                 unlocked ? Color::Green : Color::Red);
+        ctx.text({.x = rx, .y = 2, .content = cat.name, .tag = UITag::TextBright});
+        ctx.text({.x = rx, .y = 3, .content = unlocked ? "[Learned]" : "[Unlearned]",
+                  .tag = unlocked ? UITag::TextSuccess : UITag::TextDanger});
 
         std::string cost_str = ":: " + std::to_string(cat.sp_cost) + " SP ::";
-        ctx.text(rx, 5, cost_str, Color::Yellow);
+        ctx.text({.x = rx, .y = 5, .content = cost_str, .tag = UITag::TextWarning});
 
         wrap_text(7, cat.description, Color::DarkGray);
     } else if (selected_skill) {
@@ -1351,21 +1451,23 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
             if (sid == sk.id) { learned = true; break; }
         }
 
-        ctx.text(rx, 2, sk.name, Color::White);
-        ctx.text(rx, 3, sk.passive ? "[Passive]" : "[Active]", Color::Cyan);
-        ctx.text(rx, 4, "Cost: " + std::to_string(sk.sp_cost) + " SP", Color::Yellow);
+        ctx.text({.x = rx, .y = 2, .content = sk.name, .tag = UITag::TextBright});
+        ctx.text({.x = rx, .y = 3, .content = sk.passive ? "[Passive]" : "[Active]",
+                  .tag = UITag::TextAccent});
+        ctx.text({.x = rx, .y = 4, .content = "Cost: " + std::to_string(sk.sp_cost) + " SP",
+                  .tag = UITag::TextWarning});
 
         int dy = 5;
         if (sk.attribute_req > 0 && sk.attribute_name) {
             std::string req = "Requires: " + std::to_string(sk.attribute_req)
                             + " " + sk.attribute_name;
-            ctx.text(rx, dy, req, Color::DarkGray);
+            ctx.text({.x = rx, .y = dy, .content = req, .tag = UITag::TextDim});
             dy++;
         }
         dy++;
 
         if (learned) {
-            ctx.text(rx, dy, "LEARNED", Color::Green);
+            ctx.text({.x = rx, .y = dy, .content = "LEARNED", .tag = UITag::TextSuccess});
             dy += 2;
         }
 
@@ -1387,9 +1489,10 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
     std::string money_str = std::to_string(player_->money) + "$";
     std::string weight_str = std::to_string(player_->inventory.total_weight())
                            + "/" + std::to_string(player_->inventory.max_carry_weight) + " lb";
-    ctx.text(w - 1 - static_cast<int>(weight_str.size()), 0, weight_str, Color::Cyan);
-    ctx.text(w - 1 - static_cast<int>(weight_str.size()) - 3 - static_cast<int>(money_str.size()),
-             0, money_str, Color::Yellow);
+    ctx.text({.x = w - 1 - static_cast<int>(weight_str.size()), .y = 0,
+              .content = weight_str, .tag = UITag::TextAccent});
+    ctx.text({.x = w - 1 - static_cast<int>(weight_str.size()) - 3 - static_cast<int>(money_str.size()),
+              .y = 0, .content = money_str, .tag = UITag::TextWarning});
 
     // Paper doll on the left — CoQ-style with connector lines
     // Each box: 7 wide × 3 tall (border + item glyph centered)
@@ -1501,7 +1604,8 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
         // Label centered below box
         std::string label(sp.label);
         int label_x = bx + (bw - static_cast<int>(label.size())) / 2;
-        ctx.text(label_x, by + 3, label, selected ? Color::Yellow : Color::Cyan);
+        ctx.text({.x = label_x, .y = by + 3, .content = label,
+                  .tag = selected ? UITag::TextWarning : UITag::TextAccent});
     }
 
     // Bonuses at the bottom of left side
@@ -1509,13 +1613,15 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
     if (bonus_y < ctx.height() - 3) {
         draw_section_header(ctx, bonus_y, "BONUSES");
         auto mods = player_->equipment.total_modifiers();
-        std::string line1 = "ATK +" + std::to_string(mods.attack)
-                          + "  DEF +" + std::to_string(mods.defense)
-                          + "  HP +" + std::to_string(mods.max_hp);
-        std::string line2 = "VIS +" + std::to_string(mods.view_radius)
-                          + "  QCK +" + std::to_string(mods.quickness);
-        ctx.text(2, bonus_y + 1, line1, Color::DarkGray);
-        ctx.text(2, bonus_y + 2, line2, Color::DarkGray);
+        ctx.styled_text({.x = 2, .y = bonus_y + 1, .segments = {
+            {"ATK +", UITag::StatAttack}, {std::to_string(mods.attack), UITag::StatAttack},
+            {"  DEF +", UITag::StatDefense}, {std::to_string(mods.defense), UITag::StatDefense},
+            {"  HP +", UITag::StatHealth}, {std::to_string(mods.max_hp), UITag::StatHealth},
+        }});
+        ctx.styled_text({.x = 2, .y = bonus_y + 2, .segments = {
+            {"VIS +", UITag::StatVision}, {std::to_string(mods.view_radius), UITag::StatVision},
+            {"  QCK +", UITag::StatSpeed}, {std::to_string(mods.quickness), UITag::StatSpeed},
+        }});
     }
 
     // Right side: categorized inventory
@@ -1525,7 +1631,7 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 
     auto& items = player_->inventory.items;
     if (items.empty()) {
-        ctx.text(rx, ry, "Inventory empty.", Color::DarkGray);
+        ctx.text({.x = rx, .y = ry, .content = "Inventory empty.", .tag = UITag::TextDim});
         return;
     }
 
@@ -1542,7 +1648,7 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 
         std::string price = std::to_string(item.sell_value) + "$";
         int px = half + rw - static_cast<int>(price.size());
-        ctx.text(px, ry, price, Color::Yellow);
+        ctx.text({.x = px, .y = ry, .content = price, .tag = UITag::TextWarning});
 
         ry++;
     }
@@ -1559,8 +1665,9 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 void CharacterScreen::draw_tinkering(DrawContext& ctx) {
     // Gate: require Tinkering category unlocked
     if (!player_has_skill(*player_, SkillId::Cat_Tinkering)) {
-        ctx.text_center(ctx.height() / 2 - 1, "Tinkering workbench unavailable.", Color::DarkGray);
-        ctx.text_center(ctx.height() / 2 + 1, "Learn the Tinkering skill to use this station.", Color::DarkGray);
+        draw_stub(ctx, "Tinkering workbench unavailable.");
+        ctx.text({.x = ctx.width() / 2 - 23, .y = ctx.height() / 2 + 1,
+                  .content = "Learn the Tinkering skill to use this station.", .tag = UITag::TextDim});
         return;
     }
 
@@ -1596,12 +1703,13 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         if (static_cast<int>(display.size()) > wb_w - 4) display = display.substr(0, wb_w - 4);
         int nx = wb_x + (wb_w - static_cast<int>(display.size())) / 2;
         ctx.put(nx, wb_y + 1, wb_vis.glyph, rarity_color(workbench_item_->rarity));
-        ctx.text(nx + 2, wb_y + 1, workbench_item_->name, rarity_color(workbench_item_->rarity));
+        ctx.text({.x = nx + 2, .y = wb_y + 1, .content = workbench_item_->name,
+                  .tag = rarity_tag(workbench_item_->rarity)});
     } else {
     {
         std::string empty_msg = "Empty, no item";
         int emx = wb_x + (wb_w - static_cast<int>(empty_msg.size())) / 2;
-        ctx.text(emx, wb_y + 1, empty_msg, Color::DarkGray);
+        ctx.text({.x = emx, .y = wb_y + 1, .content = empty_msg, .tag = UITag::TextDim});
     }
     }
 
@@ -1658,13 +1766,14 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
         // Slot label
         std::string label = "SLOT " + std::to_string(si + 1);
         int lx = sx + (slot_w - static_cast<int>(label.size())) / 2;
-        ctx.text(lx, sy + 3, label, selected ? Color::Yellow : Color::DarkGray);
+        ctx.text({.x = lx, .y = sy + 3, .content = label,
+                  .tag = selected ? UITag::TextWarning : UITag::TextDim});
 
         // Content
         if (locked) {
         {
-            int lpad = (slot_w - 2 - 6) / 2; // center "locked" (6 chars) in inner width
-            ctx.text(sx + 1 + lpad, sy + 1, "locked", Color::DarkGray);
+            int lpad = (slot_w - 2 - 6) / 2;
+            ctx.text({.x = sx + 1 + lpad, .y = sy + 1, .content = "locked", .tag = UITag::TextDim});
         }
         } else if (workbench_item_ && si < static_cast<int>(workbench_item_->enhancements.size())
                    && workbench_item_->enhancements[si].filled) {
@@ -1673,15 +1782,15 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             if (enh.bonus.attack) bonus = "+" + std::to_string(enh.bonus.attack) + "ATK";
             else if (enh.bonus.defense) bonus = "+" + std::to_string(enh.bonus.defense) + "DEF";
             else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
-            Color enh_color = enh.committed ? Color::Green : Color::Yellow;
+            UITag enh_tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning;
         {
             int bpad = (slot_w - 2 - static_cast<int>(bonus.size())) / 2;
-            ctx.text(sx + 1 + bpad, sy + 1, bonus, enh_color);
+            ctx.text({.x = sx + 1 + bpad, .y = sy + 1, .content = bonus, .tag = enh_tag});
         }
         } else {
         {
-            int epad = (slot_w - 2 - 5) / 2; // center "empty" (5 chars)
-            ctx.text(sx + 1 + epad, sy + 1, "empty", Color::DarkGray);
+            int epad = (slot_w - 2 - 5) / 2;
+            ctx.text({.x = sx + 1 + epad, .y = sy + 1, .content = "empty", .tag = UITag::TextDim});
         }
         }
     }
@@ -1693,7 +1802,7 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
     bool has_synthesize = player_has_skill(*player_, SkillId::Synthesize);
     if (!has_synthesize) {
-        ctx.text(3, synth_y, "Requires Synthesize skill to use.", Color::DarkGray);
+        ctx.text({.x = 3, .y = synth_y, .content = "Requires Synthesize skill to use.", .tag = UITag::TextDim});
         synth_y += 2;
     } else if (player_->learned_blueprints.size() >= 2) {
         // Two blueprint boxes side by side
@@ -1724,12 +1833,12 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
                 std::string name = player_->learned_blueprints[bp_idx].name;
                 if (static_cast<int>(name.size()) > bp_w - 2) name = name.substr(0, bp_w - 2);
                 int nx = bx + (bp_w - static_cast<int>(name.size())) / 2;
-                ctx.text(nx, by + 1, name, Color::Cyan);
+                ctx.text({.x = nx, .y = by + 1, .content = name, .tag = UITag::TextAccent});
             } else {
             {
                 std::string placeholder = (bi == 0) ? "Blueprint 1" : "Blueprint 2";
                 int px = bx + (bp_w - static_cast<int>(placeholder.size())) / 2;
-                ctx.text(px, by + 1, placeholder, Color::DarkGray);
+                ctx.text({.x = px, .y = by + 1, .content = placeholder, .tag = UITag::TextDim});
             }
             }
         }
@@ -1744,8 +1853,8 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             const auto& bp2 = player_->learned_blueprints[synth_bp2_].name;
             const auto* recipe = find_recipe(bp1, bp2);
             if (recipe) {
-                ctx.text(3, synth_y, "Result: ", Color::DarkGray);
-                ctx.text(11, synth_y, recipe->result_name, Color::Green);
+                ctx.label_value({.x = 3, .y = synth_y, .label = "Result: ", .label_tag = UITag::TextDim,
+                                 .value = recipe->result_name, .value_tag = UITag::TextSuccess});
                 synth_y++;
 
                 // Show cost
@@ -1756,16 +1865,17 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
                     const char* names[] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
                     cost += std::to_string(recipe->material_cost[m]) + "x " + names[m];
                 }
-                ctx.text(3, synth_y, "Cost: " + cost, Color::DarkGray);
+                ctx.label_value({.x = 3, .y = synth_y, .label = "Cost: ", .label_tag = UITag::TextDim,
+                                 .value = cost, .value_tag = UITag::TextDim});
                 synth_y++;
-                ctx.text(3, synth_y, "[y] Synthesize", Color::Yellow);
+                ctx.styled_text({.x = 3, .y = synth_y, .segments = key_action_segments("y", "Synthesize")});
             } else {
-                ctx.text(3, synth_y, "No known recipe.", Color::DarkGray);
+                ctx.text({.x = 3, .y = synth_y, .content = "No known recipe.", .tag = UITag::TextDim});
             }
         }
         synth_y += 2;
     } else {
-        ctx.text(3, synth_y, "Learn 2+ blueprints to synthesize.", Color::DarkGray);
+        ctx.text({.x = 3, .y = synth_y, .content = "Learn 2+ blueprints to synthesize.", .tag = UITag::TextDim});
         synth_y += 2;
     }
 
@@ -1779,12 +1889,12 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             std::string label = item.name + " x" + std::to_string(item.stack_count);
             auto mat_vis = item_visual(item.item_def_id);
             ctx.put(mx, mat_y, mat_vis.glyph, mat_vis.fg);
-            ctx.text(mx + 2, mat_y, label, Color::DarkGray);
+            ctx.text({.x = mx + 2, .y = mat_y, .content = label, .tag = UITag::TextDim});
             mat_y++;
         }
     }
     if (mat_y == slot_y + 7) {
-        ctx.text(3, mat_y, "No crafting materials.", Color::DarkGray);
+        ctx.text({.x = 3, .y = mat_y, .content = "No crafting materials.", .tag = UITag::TextDim});
     }
 
     // Right panel — split into upper (detail/actions) and lower (catalog)
@@ -1809,26 +1919,30 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
     if (workbench_item_) {
         const auto& item = *workbench_item_;
-        ctx.text(rx, ry, item.name, rarity_color(item.rarity));
+        ctx.text({.x = rx, .y = ry, .content = item.name, .tag = rarity_tag(item.rarity)});
         ry++;
-        ctx.text(rx, ry, rarity_name(item.rarity), rarity_color(item.rarity));
+        ctx.text({.x = rx, .y = ry, .content = std::string(rarity_name(item.rarity)),
+                  .tag = rarity_tag(item.rarity)});
         ry += 2;
 
         if (item.modifiers.attack)
-            ctx.text(rx, ry++, "ATK: +" + std::to_string(item.modifiers.attack), Color::Red);
+            ctx.label_value({.x = rx, .y = ry++, .label = "ATK: +", .label_tag = UITag::StatAttack,
+                             .value = std::to_string(item.modifiers.attack), .value_tag = UITag::StatAttack});
         if (item.modifiers.defense)
-            ctx.text(rx, ry++, "DEF: +" + std::to_string(item.modifiers.defense), Color::Blue);
+            ctx.label_value({.x = rx, .y = ry++, .label = "DEF: +", .label_tag = UITag::StatDefense,
+                             .value = std::to_string(item.modifiers.defense), .value_tag = UITag::StatDefense});
 
         if (item.max_durability > 0) {
             ry++;
-            ctx.text(rx, ry, "Durabl: ", Color::DarkGray);
+            ctx.text({.x = rx, .y = ry, .content = "Durabl: ", .tag = UITag::TextDim});
             int bar_w = std::min(14, rw_avail - 14);
             if (bar_w > 0) {
-                Color dur_color = (item.durability * 3 > item.max_durability) ? Color::Green : Color::Red;
-                ctx.bar(rx + 8, ry, bar_w, item.durability, item.max_durability, dur_color);
+                ctx.progress_bar({.x = rx + 8, .y = ry, .width = bar_w,
+                                  .value = item.durability, .max = item.max_durability,
+                                  .tag = UITag::DurabilityBar});
             }
             std::string dur = std::to_string(item.durability) + "/" + std::to_string(item.max_durability);
-            ctx.text(rx + 8 + bar_w + 1, ry, dur, Color::Green);
+            ctx.text({.x = rx + 8 + bar_w + 1, .y = ry, .content = dur, .tag = UITag::TextSuccess});
             ry++;
         }
 
@@ -1838,16 +1952,17 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             for (int si = 0; si < 3; ++si) {
                 bool locked = (si >= item.enhancement_slots);
                 std::string slot_label = "[" + std::to_string(si + 1) + "] ";
-                ctx.text(rx, ry, slot_label, Color::White);
-                if (locked) ctx.text(rx + 4, ry, "locked", Color::DarkGray);
+                ctx.text({.x = rx, .y = ry, .content = slot_label, .tag = UITag::TextBright});
+                if (locked) ctx.text({.x = rx + 4, .y = ry, .content = "locked", .tag = UITag::TextDim});
                 else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled)
                 {
                     const auto& enh = item.enhancements[si];
                     std::string label = enh.material_name;
                     if (!enh.committed) label += " (pending)";
-                    ctx.text(rx + 4, ry, label, enh.committed ? Color::Green : Color::Yellow);
+                    ctx.text({.x = rx + 4, .y = ry, .content = label,
+                              .tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning});
                 }
-                else ctx.text(rx + 4, ry, "empty", Color::DarkGray);
+                else ctx.text({.x = rx + 4, .y = ry, .content = "empty", .tag = UITag::TextDim});
                 ry++;
             }
         }
@@ -1862,21 +1977,25 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
             int cost = repair_cost(item);
             std::string repair_label = "[r] Repair";
             if (cost > 0) repair_label += "  (" + std::to_string(cost) + " Nano-Fiber)";
-            ctx.text(rx, ry++, repair_label, has_repair ? Color::White : Color::DarkGray);
-            ctx.text(rx, ry++, "[a] Analyze", has_analyze ? Color::White : Color::DarkGray);
-            ctx.text(rx, ry++, "[s] Salvage", has_salvage ? Color::White : Color::DarkGray);
+            ctx.text({.x = rx, .y = ry++, .content = repair_label,
+                      .tag = has_repair ? UITag::TextBright : UITag::TextDim});
+            ctx.text({.x = rx, .y = ry++, .content = "[a] Analyze",
+                      .tag = has_analyze ? UITag::TextBright : UITag::TextDim});
+            ctx.text({.x = rx, .y = ry++, .content = "[s] Salvage",
+                      .tag = has_salvage ? UITag::TextBright : UITag::TextDim});
 
             bool pending = has_pending_enhancements(item);
-            ctx.text(rx, ry++, "[f] Assemble", pending ? Color::Yellow : Color::DarkGray);
-            ctx.text(rx, ry++, "[x] Clear slot", Color::DarkGray);
+            ctx.text({.x = rx, .y = ry++, .content = "[f] Assemble",
+                      .tag = pending ? UITag::TextWarning : UITag::TextDim});
+            ctx.text({.x = rx, .y = ry++, .content = "[x] Clear slot", .tag = UITag::TextDim});
         }
     } else {
-        ctx.text(rx, 3, "Place an item on the", Color::DarkGray);
-        ctx.text(rx, 4, "workbench to begin.", Color::DarkGray);
-        ctx.text(rx, 6, "1. Select workbench", Color::DarkGray);
-        ctx.text(rx, 7, "2. Press [Space] to place", Color::DarkGray);
-        ctx.text(rx, 8, "3. Use [r] [a] [s] actions", Color::DarkGray);
-        ctx.text(rx, 9, "4. Select slots to enhance", Color::DarkGray);
+        ctx.text({.x = rx, .y = 3, .content = "Place an item on the", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 4, .content = "workbench to begin.", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 6, .content = "1. Select workbench", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 7, .content = "2. Press [Space] to place", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 8, .content = "3. Use [r] [a] [s] actions", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 9, .content = "4. Select slots to enhance", .tag = UITag::TextDim});
     }
 
     // --- Horizontal separator ---
@@ -1885,16 +2004,17 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 
     // --- Lower pane: Blueprint Catalog (always visible) ---
     int cy = split_y + 1;
-    ctx.text(rx, cy, "BLUEPRINT CATALOG", Color::White);
+    ctx.text({.x = rx, .y = cy, .content = "BLUEPRINT CATALOG", .tag = UITag::TextBright});
     cy += 2;
 
     if (player_->learned_blueprints.empty()) {
-        ctx.text(rx, cy, "No blueprints learned.", Color::DarkGray);
+        ctx.text({.x = rx, .y = cy, .content = "No blueprints learned.", .tag = UITag::TextDim});
     } else {
         for (const auto& bp : player_->learned_blueprints) {
             if (cy >= ctx.height() - 1) break;
-            ctx.put(rx, cy, '+', Color::Cyan);
-            ctx.text(rx + 2, cy, bp.name, Color::Cyan);
+            ctx.styled_text({.x = rx, .y = cy, .segments = {
+                {"+", UITag::TextAccent}, {" ", UITag::TextDefault}, {bp.name, UITag::TextAccent},
+            }});
             cy++;
 
             for (const auto& recipe : synthesis_recipes()) {
@@ -1907,7 +2027,8 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
                         if (obp.name == other) { has_other = true; break; }
 
                     std::string line = "  + " + std::string(other) + " = " + recipe.result_name;
-                    ctx.text(rx, cy, line, has_other ? Color::Green : Color::DarkGray);
+                    ctx.text({.x = rx, .y = cy, .content = line,
+                              .tag = has_other ? UITag::TextSuccess : UITag::TextDim});
                     cy++;
                 }
             }
@@ -1925,7 +2046,7 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
     int half = w / 2;
 
     if (player_->journal.empty()) {
-        ctx.text_center(ctx.height() / 2, "No entries yet.", Color::DarkGray);
+        draw_stub(ctx, "No entries yet.");
         return;
     }
 
@@ -1941,32 +2062,35 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
         const auto& entry = player_->journal[i];
         bool selected = (journal_cursor_ == i);
 
-        if (selected) ctx.put(0, y, '>', Color::Yellow);
+        if (selected) ctx.put(1, y, '>', Color::Yellow);
 
         // Category icon
-        Color cat_color;
+        UITag cat_tag;
         char cat_icon;
         switch (entry.category) {
-            case JournalCategory::Blueprint:  cat_icon = '+'; cat_color = Color::Cyan; break;
-            case JournalCategory::Discovery:  cat_icon = '*'; cat_color = Color::Green; break;
-            case JournalCategory::Encounter:  cat_icon = '!'; cat_color = Color::Red; break;
-            case JournalCategory::Event:      cat_icon = '.'; cat_color = Color::White; break;
-            case JournalCategory::Quest:      cat_icon = '?'; cat_color = Color::Yellow; break;
+            case JournalCategory::Blueprint:  cat_icon = '+'; cat_tag = UITag::TextAccent; break;
+            case JournalCategory::Discovery:  cat_icon = '*'; cat_tag = UITag::TextSuccess; break;
+            case JournalCategory::Encounter:  cat_icon = '!'; cat_tag = UITag::TextDanger; break;
+            case JournalCategory::Event:      cat_icon = '.'; cat_tag = UITag::TextBright; break;
+            case JournalCategory::Quest:      cat_icon = '?'; cat_tag = UITag::TextWarning; break;
         }
-        ctx.put(2, y, cat_icon, cat_color);
+        ctx.styled_text({.x = 2, .y = y, .segments = {
+            {std::string(1, cat_icon), cat_tag},
+        }});
 
         // Title (truncated to fit left half)
         std::string title = entry.title;
         int max_title = half - 5;
         if (static_cast<int>(title.size()) > max_title)
             title = title.substr(0, max_title);
-        ctx.text(4, y, title, selected ? Color::White : Color::DarkGray);
+        ctx.text({.x = 4, .y = y, .content = title,
+                  .tag = selected ? UITag::TextBright : UITag::TextDim});
 
         y++;
 
         // Timestamp below title
         if (y < ctx.height() - 1) {
-            ctx.text(4, y, entry.timestamp, Color::DarkGray);
+            ctx.text({.x = 4, .y = y, .content = entry.timestamp, .tag = UITag::TextDim});
             y += 2; // extra gap between entries
         }
     }
@@ -1979,11 +2103,11 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
         int ry = 1;
 
         // Timestamp
-        ctx.text(rx, ry, entry.timestamp, Color::DarkGray);
+        ctx.text({.x = rx, .y = ry, .content = entry.timestamp, .tag = UITag::TextDim});
         ry += 2;
 
         // Title
-        ctx.text(rx, ry, entry.title, Color::White);
+        ctx.text({.x = rx, .y = ry, .content = entry.title, .tag = UITag::TextBright});
         ry += 2;
 
         // Technical section
@@ -2013,7 +2137,7 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
 
         // Separator
         if (ry < ctx.height() - 4) {
-            ctx.text(rx, ry, "--- Commander's Notes ---", Color::DarkGray);
+            ctx.text({.x = rx, .y = ry, .content = "--- Commander's Notes ---", .tag = UITag::TextDim});
             ry += 2;
         }
 
@@ -2050,12 +2174,13 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
     // Header: ship name + type
     std::string title = ship.name;
     if (!ship.type.empty()) title += " (" + ship.type + ")";
-    ctx.text(2, 0, title, Color::Cyan);
+    ctx.text({.x = 2, .y = 0, .content = title, .tag = UITag::TextAccent});
 
     // Status
     std::string status = ship.operational() ? "Operational" : "GROUNDED";
-    Color status_color = ship.operational() ? Color::Green : Color::Red;
-    ctx.text(w - 2 - static_cast<int>(status.size()), 0, status, status_color);
+    UITag status_tag = ship.operational() ? UITag::TextSuccess : UITag::TextDanger;
+    ctx.text({.x = w - 2 - static_cast<int>(status.size()), .y = 0,
+              .content = status, .tag = status_tag});
 
     int y = 2;
 
@@ -2074,18 +2199,19 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
         if (selected) ctx.put(1, y, '>', Color::Yellow);
 
         std::string slot_label = std::string(ship_slot_name(slot)) + ": ";
-        ctx.text(3, y, slot_label, selected ? Color::Yellow : Color::White);
+        ctx.text({.x = 3, .y = y, .content = slot_label,
+                  .tag = selected ? UITag::TextWarning : UITag::TextBright});
 
         int name_x = 3 + static_cast<int>(slot_label.size());
         if (item) {
             auto ship_vis = item_visual(item->item_def_id);
             ctx.put(name_x, y, ship_vis.glyph, rarity_color(item->rarity));
-            ctx.text(name_x + 2, y, item->name,
-                     selected ? Color::White : Color::Default);
+            ctx.text({.x = name_x + 2, .y = y, .content = item->name,
+                      .tag = selected ? UITag::TextBright : UITag::TextDefault});
         } else {
             std::string empty_label = is_critical ? "OFFLINE" : "(empty)";
-            Color empty_color = is_critical ? Color::Red : Color::DarkGray;
-            ctx.text(name_x, y, empty_label, empty_color);
+            UITag empty_tag = is_critical ? UITag::TextDanger : UITag::TextDim;
+            ctx.text({.x = name_x, .y = y, .content = empty_label, .tag = empty_tag});
         }
         y++;
     }
@@ -2096,26 +2222,30 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
     y += 2;
     auto mods = ship.total_modifiers();
     if (mods.hull_hp > 0) {
-        ctx.text(3, y, "Hull: " + std::to_string(mods.hull_hp) + " HP", Color::DarkGray);
+        ctx.label_value({.x = 3, .y = y, .label = "Hull: ", .label_tag = UITag::TextDim,
+                         .value = std::to_string(mods.hull_hp) + " HP", .value_tag = UITag::StatHealth});
         y++;
     }
     if (mods.shield_hp > 0) {
-        ctx.text(3, y, "Shield: " + std::to_string(mods.shield_hp) + " HP", Color::DarkGray);
+        ctx.label_value({.x = 3, .y = y, .label = "Shield: ", .label_tag = UITag::TextDim,
+                         .value = std::to_string(mods.shield_hp) + " HP", .value_tag = UITag::StatDefense});
         y++;
     }
     if (mods.warp_range > 0) {
-        ctx.text(3, y, "Warp Range: +" + std::to_string(mods.warp_range), Color::DarkGray);
+        ctx.label_value({.x = 3, .y = y, .label = "Warp Range: ", .label_tag = UITag::TextDim,
+                         .value = "+" + std::to_string(mods.warp_range), .value_tag = UITag::TextAccent});
         y++;
     }
     if (mods.hull_hp == 0 && mods.shield_hp == 0 && mods.warp_range == 0) {
-        ctx.text(3, y, "No active systems.", Color::DarkGray);
+        ctx.text({.x = 3, .y = y, .content = "No active systems.", .tag = UITag::TextDim});
         y++;
     }
 
     // Footer for interaction hint
     if (!on_ship_) {
         int footer_y = ctx.height() - 1;
-        ctx.text(2, footer_y, "Board your ship to manage equipment.", Color::DarkGray);
+        ctx.text({.x = 2, .y = footer_y, .content = "Board your ship to manage equipment.",
+                  .tag = UITag::TextDim});
     }
 
     // Right side: ship cargo hold
@@ -2125,7 +2255,7 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
 
     auto& cargo = player_->ship.cargo;
     if (cargo.empty()) {
-        ctx.text(rx, ry, "Cargo hold empty.", Color::DarkGray);
+        ctx.text({.x = rx, .y = ry, .content = "Cargo hold empty.", .tag = UITag::TextDim});
     } else {
         for (int si = 0; si < static_cast<int>(cargo.size()); ++si) {
             if (ry >= ctx.height() - 1) break;
@@ -2140,11 +2270,12 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
             if (item.ship_slot) {
                 name += " [" + std::string(ship_slot_name(*item.ship_slot)) + "]";
             }
-            ctx.text(rx + 2, ry, name, selected ? Color::White : Color::Default);
+            ctx.text({.x = rx + 2, .y = ry, .content = name,
+                      .tag = selected ? UITag::TextBright : UITag::TextDefault});
 
             std::string price = std::to_string(item.sell_value) + "$";
             int px = half + rw - static_cast<int>(price.size());
-            ctx.text(px, ry, price, Color::Yellow);
+            ctx.text({.x = px, .y = ry, .content = price, .tag = UITag::TextWarning});
 
             ry++;
         }
@@ -2153,7 +2284,7 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
 
 void CharacterScreen::draw_reputation(DrawContext& ctx) {
     if (player_->reputation.empty()) {
-        ctx.text(2, 2, "No faction standings.", Color::DarkGray);
+        ctx.text({.x = 2, .y = 2, .content = "No faction standings.", .tag = UITag::TextDim});
         return;
     }
 
@@ -2164,15 +2295,17 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
         bool selected = (cursor_ == i);
 
         if (selected) ctx.put(1, y, '>', Color::Yellow);
-        ctx.text(3, y, f.faction_name, selected ? Color::White : Color::Default);
+        ctx.text({.x = 3, .y = y, .content = f.faction_name,
+                  .tag = selected ? UITag::TextBright : UITag::TextDefault});
 
         auto tier = reputation_tier(f.reputation);
         std::string rep = std::string(reputation_tier_name(tier)) +
                           " (" + std::to_string(f.reputation) + ")";
-        Color rep_color = f.reputation > 0 ? Color::Green
-                        : f.reputation < 0 ? Color::Red
-                        : Color::DarkGray;
-        ctx.text(ctx.width() - 2 - static_cast<int>(rep.size()), y, rep, rep_color);
+        UITag rep_tag = f.reputation > 0 ? UITag::TextSuccess
+                      : f.reputation < 0 ? UITag::TextDanger
+                      : UITag::TextDim;
+        ctx.text({.x = ctx.width() - 2 - static_cast<int>(rep.size()), .y = y,
+                  .content = rep, .tag = rep_tag});
 
         // Flavor text
         y++;
@@ -2184,7 +2317,7 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
             case ReputationTier::Disliked: flavor = "They are wary of you."; break;
             case ReputationTier::Hated:    flavor = "They are hostile toward you."; break;
         }
-        ctx.text(5, y, flavor, Color::DarkGray);
+        ctx.text({.x = 5, .y = y, .content = flavor, .tag = UITag::TextDim});
         y += 2;
     }
 }
@@ -2194,7 +2327,8 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
 // ─────────────────────────────────────────────────────────────────
 
 void CharacterScreen::draw_stub(DrawContext& ctx, const char* message) {
-    ctx.text_center(ctx.height() / 2, message, Color::DarkGray);
+    ctx.text({.x = ctx.width() / 2 - static_cast<int>(std::string(message).size()) / 2,
+              .y = ctx.height() / 2, .content = message, .tag = UITag::TextDim});
 }
 
 // ─────────────────────────────────────────────────────────────────
