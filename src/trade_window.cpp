@@ -211,8 +211,10 @@ int TradeWindow::compute_price(const Item& item, bool buy) const {
 void TradeWindow::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
-    // Outer panel
-    UIContext full(renderer_, Rect{0, 0, screen_w, screen_h});
+    // Outer panel (centered with margin)
+    int margin = 4;
+    Rect bounds{margin, margin, screen_w - margin * 2, screen_h - margin * 2};
+    UIContext full(renderer_, bounds);
     auto content = full.panel({
         .title = "Trade",
         .footer = "[ESC] Close  [TAB] Switch  [\xe2\x86\x91\xe2\x86\x93] Move  [SPACE] Buy/Sell",
