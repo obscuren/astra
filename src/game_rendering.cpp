@@ -626,24 +626,17 @@ void Game::render_menu() {
         }
     }
 
+    // Menu options — semantic list
     int menu_y = art_start_y + title_letter_height + 2;
+    std::vector<ListItem> items;
     for (int i = 0; i < menu_item_count_; ++i) {
-        if (i == menu_selection_) {
-            // ·::|  Label  |::·
-            std::string item = menu_items[i];
-            std::string padded = "  " + item + "  ";
-            std::string full = ".::|" + padded + "|::.";
-            int x = (screen_w_ - static_cast<int>(full.size())) / 2;
-            ctx.text(x, menu_y + i, ".::", Color::Red);
-            ctx.put(x + 3, menu_y + i, BoxDraw::V, Color::Cyan);
-            ctx.text(x + 4, menu_y + i, padded, Color::Yellow);
-            ctx.put(x + 4 + static_cast<int>(padded.size()), menu_y + i, BoxDraw::V, Color::Cyan);
-            ctx.text(x + 5 + static_cast<int>(padded.size()), menu_y + i, "::.", Color::Red);
-        } else {
-            std::string label = "     " + std::string(menu_items[i]) + "     ";
-            ctx.text_center(menu_y + i, label, Color::DarkGray);
-        }
+        items.push_back({menu_items[i], UITag::OptionNormal, i == menu_selection_});
     }
+
+    int list_w = 30;
+    int list_x = (screen_w_ - list_w) / 2;
+    UIContext menu_area(renderer_.get(), Rect{list_x, menu_y, list_w, menu_item_count_});
+    menu_area.list({.items = items, .tag = UITag::OptionNormal, .selected_tag = UITag::OptionSelected});
 
     // Quit confirm overlay on menu
     render_quit_confirm();
@@ -1187,76 +1180,86 @@ void Game::render_gameover() {
 }
 
 void Game::render_load_menu() {
-    int win_w = std::min(screen_w_ - 4, 60);
-    int win_h = std::min(screen_h_ - 4, static_cast<int>(save_slots_.size()) + 6);
-    if (win_h < 8) win_h = 8;
+    int margin = 4;
+    int win_w = std::min(screen_w_ - margin * 2, 60);
+    int win_h = std::min(screen_h_ - margin * 2, 20);
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
 
-    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, "Load Game");
-    win.set_footer("[Enter] Load  [Esc] Back");
-    win.draw();
-    DrawContext ctx = win.content();
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto content = full.panel({.title = "Load Game", .footer = "[Enter] Load  [Esc] Back"});
 
     if (save_slots_.empty()) {
-        ctx.text_center(ctx.height() / 2, "No saved games found.", Color::DarkGray);
+        content.text({.x = content.width() / 2 - 10, .y = content.height() / 2,
+                      .content = "No saved games found.", .tag = UITag::TextDim});
         return;
     }
 
+    // Split: save list left, details right
+    auto cols = content.columns({fill(), fixed(1), fill()});
+    cols[1].separator({.vertical = true});
+
+    // Left: save slot list
+    std::vector<ListItem> items;
     for (int i = 0; i < static_cast<int>(save_slots_.size()); ++i) {
-        if (i >= ctx.height()) break;
-        const auto& slot = save_slots_[i];
-        bool selected = (i == load_selection_);
+        items.push_back({save_slots_[i].location, UITag::OptionNormal, i == load_selection_});
+    }
+    cols[0].list({.items = items, .selected_tag = UITag::OptionSelected});
 
-        std::string line;
-        if (selected) line += "> "; else line += "  ";
-        line += slot.location;
-        line += "  LVL:" + std::to_string(slot.player_level);
-        line += "  T:" + std::to_string(slot.world_tick);
-
-        Color fg = selected ? Color::Yellow : Color::Default;
-        ctx.text(0, i, line, fg);
+    // Right: details for selected save
+    if (load_selection_ >= 0 && load_selection_ < static_cast<int>(save_slots_.size())) {
+        auto& slot = save_slots_[load_selection_];
+        auto& detail = cols[2];
+        int y = 1;
+        detail.label_value({.x = 1, .y = y++, .label = "Location: ", .label_tag = UITag::TextDim, .value = slot.location, .value_tag = UITag::TextBright});
+        detail.label_value({.x = 1, .y = y++, .label = "Level: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.player_level), .value_tag = UITag::TextBright});
+        detail.label_value({.x = 1, .y = y++, .label = "Time: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.world_tick) + " ticks", .value_tag = UITag::TextBright});
     }
 }
 
 void Game::render_hall_of_fame() {
-    int win_w = std::min(screen_w_ - 4, 70);
-    int win_h = std::min(screen_h_ - 4, static_cast<int>(save_slots_.size()) + 6);
-    if (win_h < 8) win_h = 8;
+    int margin = 4;
+    int win_w = std::min(screen_w_ - margin * 2, 70);
+    int win_h = std::min(screen_h_ - margin * 2, 20);
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
 
-    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, "Hall of Fame");
-    if (confirm_delete_) {
-        win.set_footer("Delete this entry? [Y] Yes  [N] No", Color::Red);
-    } else {
-        win.set_footer("[D] Delete  [Esc] Back");
-    }
-    win.draw();
-    DrawContext ctx = win.content();
+    std::string footer = confirm_delete_
+        ? "[Y] Yes  [N] No  [Esc] Cancel"
+        : "[D] Delete  [Esc] Back";
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto content = full.panel({.title = "Hall of Fame", .footer = footer});
 
     if (save_slots_.empty()) {
-        ctx.text_center(ctx.height() / 2, "No fallen heroes yet.", Color::DarkGray);
+        content.text({.x = content.width() / 2 - 11, .y = content.height() / 2,
+                      .content = "No fallen heroes yet.", .tag = UITag::TextDim});
         return;
     }
 
+    // Split: death list left, stats right
+    auto cols = content.columns({fill(), fixed(1), fill()});
+    cols[1].separator({.vertical = true});
+
+    // Left: death message list
+    std::vector<ListItem> items;
     for (int i = 0; i < static_cast<int>(save_slots_.size()); ++i) {
-        if (i >= ctx.height()) break;
         const auto& slot = save_slots_[i];
-        bool selected = (i == load_selection_);
+        std::string label = slot.death_message.empty() ? "Unknown cause" : slot.death_message;
+        items.push_back({label, UITag::OptionNormal, i == load_selection_});
+    }
+    cols[0].list({.items = items, .selected_tag = UITag::OptionSelected});
 
-        std::string line;
-        if (selected) line += "> "; else line += "  ";
-
-        if (!slot.death_message.empty()) {
-            line += slot.death_message;
-        } else {
-            line += "Unknown cause";
-        }
-        line += "  LVL:" + std::to_string(slot.player_level);
-        line += "  T:" + std::to_string(slot.world_tick);
-        line += "  XP:" + std::to_string(slot.xp);
-        line += "  $" + std::to_string(slot.money);
-        line += "  K:" + std::to_string(slot.kills);
-
-        Color fg = selected ? Color::Yellow : Color::DarkGray;
-        ctx.text(0, i, line, fg);
+    // Right: stats for selected entry
+    if (load_selection_ >= 0 && load_selection_ < static_cast<int>(save_slots_.size())) {
+        auto& slot = save_slots_[load_selection_];
+        auto& detail = cols[2];
+        int y = 1;
+        detail.label_value({.x = 1, .y = y++, .label = "Level: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.player_level), .value_tag = UITag::TextBright});
+        detail.label_value({.x = 1, .y = y++, .label = "Time: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.world_tick) + " ticks", .value_tag = UITag::TextBright});
+        detail.label_value({.x = 1, .y = y++, .label = "XP: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.xp), .value_tag = UITag::TextBright});
+        detail.label_value({.x = 1, .y = y++, .label = "Credits: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.money), .value_tag = UITag::TextBright});
+        detail.label_value({.x = 1, .y = y++, .label = "Kills: ", .label_tag = UITag::TextDim, .value = std::to_string(slot.kills), .value_tag = UITag::TextBright});
     }
 }
 
