@@ -69,6 +69,7 @@ struct ListDesc;
 struct TabBarDesc;
 struct SeparatorDesc;
 struct LabelValueDesc;
+struct GalaxyMapDesc;
 
 // Abstract rendering interface.
 // Terminal now, SDL later — game logic never touches this directly.
@@ -114,6 +115,10 @@ public:
     virtual void draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) = 0;
     virtual void draw_separator(const Rect& bounds, const SeparatorDesc& desc) = 0;
     virtual void draw_label_value(int x, int y, const LabelValueDesc& desc) = 0;
+
+    // Semantic galaxy map — star field, orbital diagrams, labels.
+    // Renders into the given bounds rect; no panel chrome or info sidebar.
+    virtual void draw_galaxy_map(const Rect& bounds, const GalaxyMapDesc& desc) = 0;
 
     // Returns true if the user requested quit (e.g. Ctrl+C), and clears the flag.
     virtual bool consume_quit_request() { return false; }

@@ -85,6 +85,7 @@ public:
     void tab_bar(const TabBarDesc& desc);
     void separator(const SeparatorDesc& desc);
     void label_value(const LabelValueDesc& desc);
+    void galaxy_map(const GalaxyMapDesc& desc);
 
     // Layout — split this context into sub-regions
     std::vector<UIContext> rows(const std::vector<Size>& sizes) const;
