@@ -138,23 +138,42 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
         int fy = bounds.y + h - 2;
 
         // Render footer with [key] highlighting via UITags
+        // UTF-8 aware: detect multi-byte sequences and render with draw_glyph
         UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
         UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
         UIStyle footer_style = resolve_ui_tag(UITag::Footer);
         const std::string& footer = desc.footer;
+        bool in_key = false;
         int col = fx;
-        for (size_t i = 0; i < footer.size(); ++i) {
-            if (footer[i] == '[') {
+        for (size_t i = 0; i < footer.size(); ) {
+            unsigned char c = footer[i];
+            if (c == '[') {
                 draw_char(col++, fy, '[', bracket_style.fg);
-                size_t end = footer.find(']', i + 1);
-                if (end != std::string::npos) {
-                    for (size_t j = i + 1; j < end; ++j)
-                        draw_char(col++, fy, footer[j], key_style.fg);
-                    draw_char(col++, fy, ']', bracket_style.fg);
-                    i = end;
-                }
+                in_key = true;
+                ++i;
+            } else if (c == ']') {
+                draw_char(col++, fy, ']', bracket_style.fg);
+                in_key = false;
+                ++i;
+            } else if ((c & 0x80) == 0) {
+                // ASCII byte
+                Color fg = in_key ? key_style.fg : footer_style.fg;
+                draw_char(col++, fy, static_cast<char>(c), fg);
+                ++i;
             } else {
-                draw_char(col++, fy, footer[i], footer_style.fg);
+                // UTF-8 multi-byte sequence
+                int seq_len = 1;
+                if ((c & 0xE0) == 0xC0) seq_len = 2;
+                else if ((c & 0xF0) == 0xE0) seq_len = 3;
+                else if ((c & 0xF8) == 0xF0) seq_len = 4;
+                if (i + seq_len <= footer.size()) {
+                    char buf[5] = {};
+                    for (int b = 0; b < seq_len; ++b)
+                        buf[b] = footer[i + b];
+                    Color fg = in_key ? key_style.fg : footer_style.fg;
+                    draw_glyph(col++, fy, buf, fg);
+                }
+                i += seq_len;
             }
         }
     }
