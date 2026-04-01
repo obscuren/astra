@@ -90,6 +90,7 @@ private:
     void open_context_menu();
     void execute_context_action(char key);
     void draw_look_overlay(DrawContext& ctx);
+    void draw_context_menu(int screen_w, int screen_h);
 
     // Drop output — Game reads this after handle_input
     bool has_dropped_item_ = false;

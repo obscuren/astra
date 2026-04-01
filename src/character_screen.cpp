@@ -659,22 +659,95 @@ void CharacterScreen::execute_context_action(char key) {
 }
 
 
+void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
+    if (!context_menu_.is_open()) return;
+
+    const auto& opts = context_menu_.options();
+    const auto& title = context_menu_.title();
+    int sel = context_menu_.selected();
+
+    // Compute dimensions
+    int max_label = 0;
+    for (const auto& o : opts) {
+        int len = static_cast<int>(o.label.size()) + 4; // "[x] label"
+        if (len > max_label) max_label = len;
+    }
+    int win_w = std::max(max_label + 4, static_cast<int>(title.size()) + 4);
+    if (win_w < 20) win_w = 20;
+    int content_rows = static_cast<int>(opts.size());
+    if (!title.empty()) content_rows += 2; // title + separator
+    int chrome_h = 2 + 1; // borders + footer
+    int win_h = content_rows + chrome_h;
+
+    int mx = (screen_w - win_w) / 2;
+    int my = (screen_h - win_h) / 2;
+
+    UIContext full(renderer_, Rect{mx, my, win_w, win_h});
+    auto panel_content = full.panel({.footer = "[Esc] Cancel"});
+
+    int cw = panel_content.width();
+    int y = 0;
+
+    // Title
+    if (!title.empty()) {
+        int tx = (cw - static_cast<int>(title.size())) / 2;
+        if (tx < 0) tx = 0;
+        panel_content.text({.x = tx, .y = y, .content = title, .tag = UITag::Title});
+        y++;
+        panel_content.sub(Rect{0, y, cw, 1}).separator({});
+        y++;
+    }
+
+    // Options
+    for (int i = 0; i < static_cast<int>(opts.size()); ++i) {
+        bool is_sel = (i == sel);
+        UITag tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
+        std::string line = std::string("[") + opts[i].key + "] " + opts[i].label;
+        panel_content.text({.x = 1, .y = y, .content = line, .tag = tag});
+        y++;
+    }
+}
+
 void CharacterScreen::draw_look_overlay(DrawContext& ctx) {
     if (!look_open_ || !look_item_) return;
-
     const auto& item = *look_item_;
 
     int win_w = 44;
-    int win_h = 18;
+    int content_h = 20;
+    int chrome_h = 2 + 1; // borders + footer
+    int win_h = content_h + chrome_h + 3; // +3 for entity header
+    if (win_h > ctx.height() - 4) win_h = ctx.height() - 4;
+
     int mx = (ctx.width() - win_w) / 2;
     int my = (ctx.height() - win_h) / 2;
 
-    Window win(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h}, item.name);
-    win.set_footer("[any key] Close");
-    win.draw();
+    UIContext full(renderer_, Rect{ctx.bounds().x + mx, ctx.bounds().y + my, win_w, win_h});
+    auto panel_content = full.panel({.footer = "[any key] Close"});
 
-    DrawContext lc = win.content();
-    draw_item_info(lc, item);
+    int cw = panel_content.width();
+    int y = 0;
+
+    // Entity header: glyph centered
+    EntityRef entity{EntityRef::Kind::Item, item.item_def_id};
+    int glyph_x = cw / 2;
+    panel_content.styled_text({.x = glyph_x, .y = y, .segments = {
+        {"?", UITag::TextDefault, entity},
+    }});
+    y++;
+
+    // Item name centered, colored by rarity
+    int name_x = (cw - static_cast<int>(item.name.size())) / 2;
+    if (name_x < 1) name_x = 1;
+    panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
+    y++;
+
+    // Separator between header and content
+    panel_content.sub(Rect{0, y, cw, 1}).separator({});
+    y++;
+
+    // Item info in remaining space
+    auto info_area = panel_content.sub(Rect{0, y, cw, panel_content.height() - y});
+    draw_item_info(info_area, item);
 }
 
 void CharacterScreen::draw(int screen_w, int screen_h) {
@@ -793,7 +866,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     }
 
     // Context menu overlay (equipment tab)
-    context_menu_.draw(renderer_, screen_w, screen_h);
+    draw_context_menu(screen_w, screen_h);
 
     // Look overlay
     draw_look_overlay(content);

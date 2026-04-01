@@ -246,6 +246,11 @@ public:
     int selected() const { return selection_; }
     char selected_key() const;
 
+    // Read-only access for custom rendering
+    const std::string& title() const { return title_; }
+    const std::vector<MenuOption>& options() const { return options_; }
+    const std::string& footer() const { return footer_; }
+
 private:
     std::string title_;
     std::string body_;
