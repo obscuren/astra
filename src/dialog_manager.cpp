@@ -162,9 +162,43 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     int max_w = static_cast<int>(screen_w * max_width_frac_);
     if (max_w < 30) max_w = 30;
     int win_w = max_w;
-    int win_h = screen_h - margin * 2;
+
+    // Compute inner width for word-wrap measurement
+    // Panel border = 1 each side, so inner = win_w - 2
+    // Body has 1 char padding each side, so wrap_w = inner - 2
+    int inner_w = win_w - 2;
+    int wrap_w = inner_w - 2;
+    if (wrap_w < 10) wrap_w = 10;
+
+    // Measure content height
+    int content_h = 0;
+    std::vector<std::string> body_lines;
+    if (!body_.empty()) {
+        body_lines = word_wrap(body_, wrap_w);
+        content_h += 1;  // blank line before body
+        content_h += static_cast<int>(body_lines.size());
+        content_h += 1;  // blank line after body
+        content_h += 1;  // separator
+    }
+    content_h += 1;  // blank line before options
+    content_h += static_cast<int>(options_.size());
+    content_h += 1;  // padding after options
+
+    // Panel chrome: title row + title separator + footer separator + footer row = ~4-6 rows
+    bool has_title = !title_.empty();
+    bool has_footer = true; // always have footer
+    int chrome_h = 2; // top + bottom border
+    if (has_title) chrome_h += 2; // title row + separator
+    if (has_footer) chrome_h += 2; // footer separator + footer row
+
+    int win_h = content_h + chrome_h;
+    int max_h = screen_h - margin * 2;
+    if (win_h > max_h) win_h = max_h;
+    if (win_h < 10) win_h = 10;
+
+    // Center on screen
     int wx = (screen_w - win_w) / 2;
-    int wy = margin;
+    int wy = (screen_h - win_h) / 2;
 
     UIContext full(renderer, Rect{wx, wy, win_w, win_h});
     auto content = full.panel({
@@ -178,11 +212,8 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
 
     // Body text with word-wrap and COLOR_BEGIN/COLOR_END support
     if (!body_.empty()) {
-        int wrap_w = cw - 2; // 1 char padding on each side
-        if (wrap_w < 10) wrap_w = 10;
-        auto lines = word_wrap(body_, wrap_w);
         y++; // blank line before body
-        for (const auto& line : lines) {
+        for (const auto& line : body_lines) {
             if (y >= ch) break;
             content.text_rich(1, y, line, Color::Cyan);
             y++;
@@ -208,7 +239,6 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     // Calculate how much vertical space the list gets
     int list_h = ch - y;
     if (list_h > 0) {
-        // Compute scroll offset to keep selected item visible
         int scroll = 0;
         if (selected_ >= list_h) scroll = selected_ - list_h + 1;
 
