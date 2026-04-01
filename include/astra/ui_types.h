@@ -74,6 +74,7 @@ inline Size fraction(float f) { return {Size::Fraction, f}; }
 struct PanelDesc {
     std::string title;
     std::string footer;
+    TextAlign footer_align = TextAlign::Center;
     UITag tag = UITag::Border;
 };
 

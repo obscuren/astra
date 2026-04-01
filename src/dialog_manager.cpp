@@ -197,7 +197,7 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     bool has_footer = true;
     int chrome_h = 2; // top + bottom border
     if (use_panel_title) chrome_h += 2; // title row + separator
-    if (has_footer) chrome_h += 2; // footer separator + footer row
+    if (has_footer) chrome_h += 1; // footer embedded in separator line
 
     int win_h = content_h + chrome_h;
     int max_h = screen_h - margin * 2;

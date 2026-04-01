@@ -153,27 +153,52 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
     // Footer separator + text
     bool has_footer = !desc.footer.empty();
     if (has_footer) {
+        // Footer is embedded in the separator line: ──┤footer text├──
         UIStyle sep_style = resolve_ui_tag(UITag::Separator);
-        int sep_y = bounds.y + h - 3;
-        for (int x = 1; x < w - 1; ++x)
-            draw_glyph(bounds.x + x, sep_y, HLINE, sep_style.fg);
-
+        int fy = bounds.y + h - 2;  // one row above bottom border
+        int inner_w = w - 2;        // inside left/right borders
         int footer_len = utf8_display_len(desc.footer);
-        int fx = bounds.x + (w - footer_len) / 2;
-        if (fx < bounds.x + 1) fx = bounds.x + 1;
-        int fy = bounds.y + h - 2;
+        int text_w = footer_len + 2; // +2 for ┤ and ├
+        constexpr int pad = 3;       // minimum ─── padding on each side
 
-        // Render footer with [key] highlighting via UITags
-        // Split footer into segments at bracket boundaries, render each with proper color
+        // Compute footer text start position based on alignment
+        int text_start; // offset from left border (inner coords)
+        if (desc.footer_align == TextAlign::Left) {
+            text_start = pad;
+        } else if (desc.footer_align == TextAlign::Right) {
+            text_start = inner_w - pad - text_w;
+        } else { // Center
+            text_start = (inner_w - text_w) / 2;
+        }
+        if (text_start < pad) text_start = pad;
+        if (text_start + text_w > inner_w - pad) text_start = inner_w - pad - text_w;
+        if (text_start < 1) text_start = 1;
+
+        // Draw the full line with T-junctions framing the text
+        int bx = bounds.x + 1; // first inner cell
+        for (int x = 0; x < inner_w; ++x) {
+            int ax = bx + x;
+            if (x == text_start) {
+                draw_glyph(ax, fy, "\xe2\x94\xa4", sep_style.fg); // ┤
+            } else if (x == text_start + text_w - 1) {
+                draw_glyph(ax, fy, "\xe2\x94\x9c", sep_style.fg); // ├
+            } else if (x > text_start && x < text_start + text_w - 1) {
+                // Footer text area — will be overwritten below
+                draw_char(ax, fy, ' ');
+            } else {
+                draw_glyph(ax, fy, HLINE, sep_style.fg);
+            }
+        }
+
+        // Render footer text with [key] highlighting inside the ┤...├ area
         UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
         UIStyle key_style = resolve_ui_tag(UITag::KeyLabel);
         UIStyle footer_style = resolve_ui_tag(UITag::Footer);
+        int col = bx + text_start + 1; // after ┤
         const std::string& footer = desc.footer;
-        int col = fx;
         size_t pos = 0;
         while (pos < footer.size()) {
             size_t bracket = footer.find('[', pos);
-            // Render plain text before bracket
             if (bracket == std::string::npos) {
                 std::string rest = footer.substr(pos);
                 render_utf8_string(this, col, fy, rest, footer_style.fg);
@@ -185,16 +210,13 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
                 render_utf8_string(this, col, fy, plain, footer_style.fg);
                 col += utf8_display_len(plain);
             }
-            // Find matching close bracket
             size_t close = footer.find(']', bracket + 1);
             if (close == std::string::npos) {
-                // No close bracket — render rest as plain
                 std::string rest = footer.substr(bracket);
                 render_utf8_string(this, col, fy, rest, footer_style.fg);
                 col += utf8_display_len(rest);
                 break;
             }
-            // Render [key] with styling
             draw_char(col++, fy, '[', bracket_style.fg);
             std::string key_text = footer.substr(bracket + 1, close - bracket - 1);
             render_utf8_string(this, col, fy, key_text, key_style.fg);
@@ -206,7 +228,7 @@ Rect TerminalRenderer::draw_panel(const Rect& bounds, const PanelDesc& desc) {
 
     // Compute content rect
     int top = has_title ? 3 : 1;
-    int bottom = has_footer ? 3 : 1;
+    int bottom = has_footer ? 2 : 1; // footer is 1 row (embedded in separator) + bottom border
     return Rect{
         bounds.x + 1,
         bounds.y + top,
