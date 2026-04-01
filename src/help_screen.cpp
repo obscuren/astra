@@ -142,39 +142,45 @@ void HelpScreen::draw(Renderer* renderer, int screen_w, int screen_h) {
     };
 
     static const HelpLine* tabs[] = { tab_controls, tab_movement, tab_combat, tab_systems };
-    static const char* tab_names[] = { "Controls", "Movement", "Combat", "Systems" };
+    static const std::string tab_names[] = { "Controls", "Movement", "Combat", "Systems" };
 
+    // Outer panel
     int margin = 2;
     Rect bounds{margin, margin, screen_w - margin * 2, screen_h - margin * 2};
-    Panel help(renderer, bounds, "Help");
-    help.set_footer("[ESC] Close  [q/e] Prev/Next Tab  [Up/Down] Scroll");
-    help.draw();
-    DrawContext ctx = help.content();
+    UIContext full(renderer, bounds);
+    auto content = full.panel({
+        .title = "Help",
+        .footer = "[ESC] Close  [Q/E] Tabs  [Up/Down] Scroll",
+    });
 
-    // Tab bar
-    int tx = 1;
-    for (int i = 0; i < tab_count_; ++i) {
-        Color c = (i == tab_) ? Color::Yellow : Color::DarkGray;
-        std::string label = (i == tab_)
-            ? std::string("[") + tab_names[i] + "]"
-            : std::string(" ") + tab_names[i] + " ";
-        ctx.text(tx, 0, label, c);
-        tx += static_cast<int>(label.size()) + 1;
-    }
+    // Layout: tab bar (1 row) + separator (1 row) + scrollable content (fill)
+    auto layout = content.rows({fixed(1), fixed(1), fill()});
+    auto& tab_row = layout[0];
+    auto& sep_row = layout[1];
+    auto& content_area = layout[2];
+
+    // Tab bar with centered nav keys
+    std::vector<std::string> tab_vec(tab_names, tab_names + tab_count_);
+    tab_row.tab_bar({
+        .tabs = tab_vec,
+        .active = tab_,
+        .align = TextAlign::Center,
+        .show_nav = true,
+        .nav_left_label = "Q",
+        .nav_right_label = "E",
+    });
 
     // Separator
-    for (int x = 0; x < ctx.width(); ++x)
-        ctx.put(x, 1, BoxDraw::H, Color::DarkGray);
+    sep_row.separator({});
 
-    // Content
+    // Content — render help text for active tab with scrolling
     const HelpLine* lines = tabs[tab_];
-    int content_y = 3;
-    int visible_h = ctx.height() - content_y;
 
     int total_lines = 0;
     for (const HelpLine* l = lines; l->key != nullptr || l->desc != nullptr; ++l)
         ++total_lines;
 
+    int visible_h = content_area.height();
     int max_scroll = total_lines - visible_h;
     if (max_scroll < 0) max_scroll = 0;
     if (scroll_ > max_scroll) scroll_ = max_scroll;
@@ -185,16 +191,24 @@ void HelpScreen::draw(Renderer* renderer, int screen_w, int screen_h) {
         if (row < scroll_) { ++row; continue; }
         if (drawn >= visible_h) break;
 
-        int y = content_y + drawn;
+        int y = drawn;
         if (l->key == nullptr) {
-            ctx.text(2, y, l->desc, Color::DarkGray);
+            // Description-only line (dim)
+            content_area.text({.x = 2, .y = y, .content = l->desc, .tag = UITag::TextDim});
         } else if (l->key[0] == '\0' && l->desc[0] != '\0') {
-            ctx.text(1, y, l->desc, Color::White);
+            // Category header (bright)
+            content_area.text({.x = 1, .y = y, .content = l->desc, .tag = UITag::TextBright});
         } else if (l->key[0] == '\0') {
-            // Blank line
+            // Blank line — nothing to draw
         } else {
-            ctx.text(3, y, l->key, Color::Yellow);
-            ctx.text(19, y, l->desc, Color::DarkGray);
+            // Key-description pair
+            content_area.label_value({
+                .x = 3, .y = y,
+                .label = l->key,
+                .label_tag = UITag::TextWarning,
+                .value = std::string(std::max(0, 16 - static_cast<int>(std::string(l->key).size())), ' ') + l->desc,
+                .value_tag = UITag::TextDim,
+            });
         }
         ++row;
         ++drawn;
