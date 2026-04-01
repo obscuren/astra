@@ -219,8 +219,26 @@ bool CharacterScreen::handle_input(int key) {
             return true;
         }
         if (equip_focus_ == EquipFocus::PaperDoll) {
-            if (key == KEY_UP && equip_cursor_ > 0) --equip_cursor_;
-            if (key == KEY_DOWN && equip_cursor_ < equip_slot_count - 1) ++equip_cursor_;
+            // 2D grid navigation for paper doll slots
+            // Layout:  row0: Face(0)
+            //          row1: Head(1)
+            //          row2: LHand(2) LArm(3) Body(4) RArm(5) RHand(6)
+            //          row3: Back(7)
+            //          row4: Feet(8)
+            //          row5: Thrown(9) Missile(10)
+            //
+            // Navigation tables: -1 = no movement
+            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8,  8};
+            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1};
+            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, -1, -1, -1,  9};
+            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, -1, -1, 10, -1};
+
+            int next = -1;
+            if (key == KEY_UP)    next = nav_up[equip_cursor_];
+            if (key == KEY_DOWN)  next = nav_down[equip_cursor_];
+            if (key == KEY_LEFT)  next = nav_left[equip_cursor_];
+            if (key == KEY_RIGHT) next = nav_right[equip_cursor_];
+            if (next >= 0) equip_cursor_ = next;
         } else {
             int count = static_cast<int>(player_->inventory.items.size());
             if (key == KEY_UP && inv_cursor_ > 0) --inv_cursor_;
