@@ -27,7 +27,7 @@ private:
     int cursor_ = 0;           // inventory cursor for item selection
     int bench_item_ = -1;      // inventory index of item on bench, -1 = empty
     bool picking_ = false;     // true = showing item picker popup
-    PopupMenu picker_;
+    MenuState picker_;
 
     int repair_cost() const;
     std::vector<int> damaged_items() const;

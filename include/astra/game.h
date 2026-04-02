@@ -180,10 +180,10 @@ private:
     void render_tabs();
     // render_map extracted to map_renderer.h
     void render_side_panel();
-    void render_item_inspect();
     void render_effects_bar();
     void render_abilities_bar();
     void render_welcome_screen();
+    void render_lost_popup();
     void render_pause_menu();
     void render_quit_confirm();
 
@@ -262,14 +262,11 @@ private:
     Npc* target_npc_ = nullptr;
     int inventory_cursor_ = 0;
     int wait_cursor_ = 0;
-    bool inspecting_item_ = false;
-    Item inspected_item_;
-
     // Lost mechanic — getting lost on the overworld
     bool lost_ = false;
     bool lost_pending_ = false;  // popup shown, awaiting dismiss before entering detail
     int lost_moves_ = 0;  // moves since getting lost (ramps regain chance)
-    PopupMenu lost_popup_;
+    MenuState lost_popup_;
     void check_get_lost();
     void enter_lost_detail();    // called when lost popup is dismissed
     void check_regain_bearings();
@@ -278,8 +275,8 @@ private:
 
     // Dialogs
     DialogManager dialog_;
-    PopupMenu pause_menu_;
-    PopupMenu quit_confirm_;
+    MenuState pause_menu_;
+    MenuState quit_confirm_;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

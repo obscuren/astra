@@ -82,10 +82,10 @@ bool CharacterScreen::handle_input(int key) {
     if (!open_) return false;
 
     // Tab help popup — intercepts input when showing
-    if (showing_tab_help_ && tab_help_menu_.is_open()) {
+    if (showing_tab_help_ && tab_help_menu_.open) {
         MenuResult r = tab_help_menu_.handle_input(key);
         if (r == MenuResult::Selected || r == MenuResult::Closed) {
-            tab_help_menu_.close();
+            tab_help_menu_.reset();
             showing_tab_help_ = false;
             player_->tab_help_seen |= (1 << static_cast<int>(active_tab_));
         }
@@ -99,8 +99,8 @@ bool CharacterScreen::handle_input(int key) {
             look_item_ = nullptr;
             return true;
         }
-        if (context_menu_.is_open()) {
-            context_menu_.close();
+        if (context_menu_.open) {
+            context_menu_.reset();
             return true;
         }
         close();
@@ -136,12 +136,12 @@ bool CharacterScreen::handle_input(int key) {
     }
 
     // Context menu intercepts input when open
-    if (context_menu_.is_open()) {
+    if (context_menu_.open) {
         MenuResult mr = context_menu_.handle_input(key);
         if (mr == MenuResult::Selected) {
             if (active_tab_ == CharTab::Tinkering) {
                 // Tinkering item/material picker result
-                int sel = context_menu_.selected();
+                int sel = context_menu_.selection;
                 if (tinker_focus_ == TinkerFocus::Workbench && !workbench_item_) {
                     // Find the sel-th equippable/repairable item in inventory
                     int count = 0;
@@ -396,8 +396,8 @@ bool CharacterScreen::handle_input(int key) {
                     context_msg_timer_ = 2;
                 } else {
                     // Open item picker
-                    context_menu_.close();
-                    context_menu_.set_title("Place Item");
+                    context_menu_.reset();
+                    context_menu_.title = "Place Item";
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
                         if (it.slot.has_value() || it.max_durability > 0) {
@@ -405,8 +405,8 @@ bool CharacterScreen::handle_input(int key) {
                             context_menu_.add_option(key_ch, it.name);
                         }
                     }
-                    if (context_menu_.is_open()) {} // already has options
-                    context_menu_.open();
+                    context_menu_.selection = 0;
+                    context_menu_.open = true;
                 }
             } else if (tinker_focus_ == TinkerFocus::Slots && workbench_item_) {
                 int si = tinker_slot_cursor_;
@@ -416,8 +416,8 @@ bool CharacterScreen::handle_input(int key) {
                         workbench_item_->enhancements.push_back({});
                     if (!workbench_item_->enhancements[si].filled) {
                         // Open material picker
-                        context_menu_.close();
-                        context_menu_.set_title("Select Material");
+                        context_menu_.reset();
+                        context_menu_.title = "Select Material";
                         for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                             const auto& it = player_->inventory.items[i];
                             if (it.type == ItemType::CraftingMaterial && it.id != 7001) {
@@ -425,7 +425,8 @@ bool CharacterScreen::handle_input(int key) {
                                 context_menu_.add_option(key_ch, it.name);
                             }
                         }
-                        context_menu_.open();
+                        context_menu_.selection = 0;
+                        context_menu_.open = true;
                     }
                 }
             }
@@ -436,13 +437,14 @@ bool CharacterScreen::handle_input(int key) {
             if (key == KEY_LEFT) synth_bp_cursor_ = 0;
             if (key == KEY_RIGHT) synth_bp_cursor_ = 1;
             if (key == ' ' && !player_->learned_blueprints.empty()) {
-                context_menu_.close();
-                context_menu_.set_title("Select Blueprint");
+                context_menu_.reset();
+                context_menu_.title = "Select Blueprint";
                 for (int i = 0; i < static_cast<int>(player_->learned_blueprints.size()); ++i) {
                     char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
                     context_menu_.add_option(key_ch, player_->learned_blueprints[i].name);
                 }
-                context_menu_.open();
+                context_menu_.selection = 0;
+                context_menu_.open = true;
             }
             if (key == 'y' && synth_bp1_ >= 0 && synth_bp2_ >= 0 &&
                 player_has_skill(*player_, SkillId::Synthesize)) {
@@ -540,7 +542,7 @@ bool CharacterScreen::handle_input(int key) {
 // ─────────────────────────────────────────────────────────────────
 
 void CharacterScreen::open_context_menu() {
-    context_menu_.close(); // reset
+    context_menu_.reset(); // reset
 
     if (active_tab_ == CharTab::Ship) {
         if (ship_focus_ == ShipFocus::Equipment) {
@@ -557,7 +559,8 @@ void CharacterScreen::open_context_menu() {
             if (cargo[ship_inv_cursor_].ship_slot.has_value())
                 context_menu_.add_option('e', "install");
         }
-        context_menu_.open();
+        context_menu_.selection = 0;
+        context_menu_.open = true;
         return;
     }
 
@@ -591,7 +594,8 @@ void CharacterScreen::open_context_menu() {
         context_menu_.add_option('d', "drop");
     }
 
-    context_menu_.open();
+    context_menu_.selection = 0;
+    context_menu_.open = true;
 }
 
 void CharacterScreen::execute_context_action(char key) {
@@ -712,10 +716,10 @@ void CharacterScreen::execute_context_action(char key) {
 
 
 void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
-    if (!context_menu_.is_open()) return;
+    if (!context_menu_.open) return;
 
-    const auto& opts = context_menu_.options();
-    int sel = context_menu_.selected();
+    const auto& opts = context_menu_.options;
+    int sel = context_menu_.selection;
 
     // Get the item being acted on for entity header
     const Item* ctx_item = nullptr;
@@ -751,7 +755,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
     int content_h = 0;
     if (ctx_item) {
         content_h += 3; // glyph + name + separator
-    } else if (!context_menu_.title().empty()) {
+    } else if (!context_menu_.title.empty()) {
         content_h += 2; // title + separator
     }
     content_h += 1; // blank before options
@@ -787,7 +791,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
         y++;
     } else {
         // Title header for non-item menus (tinkering: Place Item, Select Material, etc.)
-        const auto& title = context_menu_.title();
+        const auto& title = context_menu_.title;
         if (!title.empty()) {
             int tx = (cw - static_cast<int>(title.size())) / 2;
             if (tx < 1) tx = 1;
@@ -812,7 +816,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
     }
 }
 
-void CharacterScreen::draw_look_overlay(DrawContext& ctx) {
+void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     if (!look_open_ || !look_item_) return;
     const auto& item = *look_item_;
 
@@ -893,10 +897,10 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     auto& tab_area = layout[2];
 
     // Full-width area for section headers that span full width
-    DrawContext full = tab_area;
+    UIContext full = tab_area;
     // Padded content area for tab content
     int pad = 3;
-    DrawContext content = tab_area.sub(Rect{pad, 0, tab_area.width() - pad * 2, tab_area.height()});
+    UIContext content = tab_area.sub(Rect{pad, 0, tab_area.width() - pad * 2, tab_area.height()});
 
     switch (active_tab_) {
         case CharTab::Attributes: draw_attributes(content); break;
@@ -990,7 +994,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
 
     // Tab help overlay (shown once per tab for non-dev players)
     if (showing_tab_help_) {
-        tab_help_menu_.draw(renderer_, screen_w, screen_h);
+        draw_tab_help(screen_w, screen_h);
     }
 }
 
@@ -1000,7 +1004,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
 // Stat box drawing helper
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
+void CharacterScreen::draw_stat_box(UIContext& ctx, int x, int y,
                                      const char* label, int value,
                                      bool selected, int modifier,
                                      int pending, bool can_allocate) {
@@ -1066,7 +1070,7 @@ void CharacterScreen::draw_stat_box(DrawContext& ctx, int x, int y,
     ctx.put(x + 6, bot, BoxDraw::BR, border_color);
 }
 
-void CharacterScreen::draw_section_header(DrawContext& ctx, int y,
+void CharacterScreen::draw_section_header(UIContext& ctx, int y,
                                            const char* title, int left_margin) {
     // ──┤ TITLE ├──────── (stops before the vertical divider)
     int divider_x = ctx.width() / 2;
@@ -1121,7 +1125,7 @@ static const char* res_descriptions[] = {
     "reduces damage from heat, fire, and plasma.",
 };
 
-void CharacterScreen::draw_attributes(DrawContext& ctx) {
+void CharacterScreen::draw_attributes(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
@@ -1286,7 +1290,7 @@ std::vector<CharacterScreen::SkillVisItem> CharacterScreen::build_skill_vis() co
     return vis;
 }
 
-void CharacterScreen::draw_skills(DrawContext& ctx) {
+void CharacterScreen::draw_skills(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
     const auto& catalog = skill_catalog();
@@ -1527,7 +1531,7 @@ void CharacterScreen::draw_skills(DrawContext& ctx) {
 // Equipment tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_equipment(DrawContext& ctx) {
+void CharacterScreen::draw_equipment(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
@@ -1710,7 +1714,7 @@ void CharacterScreen::draw_equipment(DrawContext& ctx) {
 // Tinkering tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_tinkering(DrawContext& ctx) {
+void CharacterScreen::draw_tinkering(UIContext& ctx) {
     // Gate: require Tinkering category unlocked
     if (!player_has_skill(*player_, SkillId::Cat_Tinkering)) {
         draw_stub(ctx, "Tinkering workbench unavailable.");
@@ -2089,7 +2093,7 @@ void CharacterScreen::draw_tinkering(DrawContext& ctx) {
 // Journal tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_journal(DrawContext& ctx) {
+void CharacterScreen::draw_journal(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
@@ -2214,7 +2218,7 @@ void CharacterScreen::draw_journal(DrawContext& ctx) {
     }
 }
 
-void CharacterScreen::draw_ship(DrawContext& ctx) {
+void CharacterScreen::draw_ship(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
     auto& ship = player_->ship;
@@ -2330,7 +2334,7 @@ void CharacterScreen::draw_ship(DrawContext& ctx) {
     }
 }
 
-void CharacterScreen::draw_reputation(DrawContext& ctx) {
+void CharacterScreen::draw_reputation(UIContext& ctx) {
     if (player_->reputation.empty()) {
         ctx.text({.x = 2, .y = 2, .content = "No faction standings.", .tag = UITag::TextDim});
         return;
@@ -2374,7 +2378,7 @@ void CharacterScreen::draw_reputation(DrawContext& ctx) {
 // Stub tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_stub(DrawContext& ctx, const char* message) {
+void CharacterScreen::draw_stub(UIContext& ctx, const char* message) {
     ctx.text({.x = ctx.width() / 2 - static_cast<int>(std::string(message).size()) / 2,
               .y = ctx.height() / 2, .content = message, .tag = UITag::TextDim});
 }
@@ -2461,18 +2465,87 @@ static const char* tab_help_title(CharTab tab) {
     return "";
 }
 
+void CharacterScreen::draw_tab_help(int screen_w, int screen_h) {
+    if (!tab_help_menu_.open) return;
+
+    int win_w = static_cast<int>(screen_w * 0.45f);
+    if (win_w < 30) win_w = 30;
+
+    // Word-wrap body
+    int inner_w = win_w - 4;
+    std::vector<std::string> body_lines;
+    if (!tab_help_menu_.body.empty()) {
+        std::string line;
+        int vis_len = 0;
+        for (char ch : tab_help_menu_.body) {
+            if (ch == '\n') {
+                body_lines.push_back(line);
+                line.clear();
+                vis_len = 0;
+                continue;
+            }
+            line += ch;
+            ++vis_len;
+            if (vis_len >= inner_w) {
+                auto sp = line.rfind(' ');
+                if (sp != std::string::npos && sp > 0) {
+                    body_lines.push_back(line.substr(0, sp));
+                    line = line.substr(sp + 1);
+                    vis_len = static_cast<int>(line.size());
+                } else {
+                    body_lines.push_back(line);
+                    line.clear();
+                    vis_len = 0;
+                }
+            }
+        }
+        if (!line.empty()) body_lines.push_back(line);
+    }
+
+    int option_count = static_cast<int>(tab_help_menu_.options.size());
+    int body_h = tab_help_menu_.body.empty() ? 0 : static_cast<int>(body_lines.size()) + 2;
+    int content_h = body_h + 1 + option_count * 2 - 1 + 1;
+    int chrome_h = 2 + 2 + (tab_help_menu_.footer.empty() ? 0 : 1);
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w - win_w) / 2;
+    int wy = (screen_h - win_h) / 2;
+
+    UIContext full(renderer_, Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = tab_help_menu_.title, .footer = tab_help_menu_.footer});
+
+    int y = 0;
+    for (const auto& bl : body_lines) {
+        ctx.text(1, y, bl, Color::Cyan);
+        y++;
+    }
+    if (!body_lines.empty()) y++;
+
+    std::vector<ListItem> items;
+    int sel = tab_help_menu_.selection;
+    for (int i = 0; i < option_count; ++i) {
+        std::string label = "[" + std::string(1, tab_help_menu_.options[i].key) + "] " + tab_help_menu_.options[i].label;
+        items.push_back({label, UITag::OptionNormal, i == sel});
+    }
+    int list_h = ctx.height() - y;
+    if (list_h > 0) {
+        auto list_area = ctx.sub(Rect{0, y, ctx.width(), list_h});
+        list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
+}
+
 void CharacterScreen::show_tab_help() {
     int tab_bit = 1 << static_cast<int>(active_tab_);
     if (player_->player_class == PlayerClass::DevCommander) return;
     if (player_->tab_help_seen & tab_bit) return;
 
-    tab_help_menu_.close();
-    tab_help_menu_.set_title(tab_help_title(active_tab_));
-    tab_help_menu_.set_body(tab_help_body(active_tab_));
+    tab_help_menu_.reset();
+    tab_help_menu_.title = tab_help_title(active_tab_);
+    tab_help_menu_.body = tab_help_body(active_tab_);
     tab_help_menu_.add_option('f', "Got it");
-    tab_help_menu_.set_footer("[Space] Dismiss");
-    tab_help_menu_.set_max_width_frac(0.45f);
-    tab_help_menu_.open();
+    tab_help_menu_.footer = "[Space] Dismiss";
+    tab_help_menu_.selection = 0;
+    tab_help_menu_.open = true;
     showing_tab_help_ = true;
 }
 

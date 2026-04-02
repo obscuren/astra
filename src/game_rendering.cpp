@@ -289,7 +289,7 @@ void Game::render_look_popup() {
 
     // Draw Panel-style popup
     Rect bounds{px, py, popup_w, popup_h};
-    DrawContext ctx(renderer_.get(), bounds);
+    UIContext ctx(renderer_.get(), bounds);
     ctx.fill(' ');
 
     Color border = Color::White;
@@ -597,7 +597,7 @@ void Game::render_menu() {
         return;
     }
 
-    DrawContext ctx(renderer_.get(), screen_rect_);
+    UIContext ctx(renderer_.get(), screen_rect_);
 
     // Compute logo/menu layout first (needed for clear zone)
     int logo_w = title_letter_count * title_letter_width
@@ -743,7 +743,6 @@ void Game::render_play() {
     render_abilities_bar();
 
     // Overlay windows
-    if (inspecting_item_) render_item_inspect();
     render_look_popup();
     dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     render_pause_menu();
@@ -754,7 +753,7 @@ void Game::render_play() {
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
-    lost_popup_.draw(renderer_.get(), screen_w_, screen_h_);
+    render_lost_popup();
 
     // Welcome screen overlay
     if (show_welcome_) {
@@ -763,7 +762,7 @@ void Game::render_play() {
 }
 
 void Game::render_stats_bar() {
-    DrawContext ctx(renderer_.get(), stats_bar_rect_);
+    UIContext ctx(renderer_.get(), stats_bar_rect_);
 
     // --- Left side: [DEV] LVL:5 :: T:32~ :: Hungry :: 450$ ---
     std::vector<TextSegment> left;
@@ -869,7 +868,7 @@ void Game::render_bars() {
     // but UITag::StatHealth is fixed green, so we keep hp_color() for the
     // value text via raw ctx.text() while using semantic progress_bar().
     {
-        DrawContext ctx(renderer_.get(), hp_bar_rect_);
+        UIContext ctx(renderer_.get(), hp_bar_rect_);
         ctx.text(1, 0, "HP:", Color::DarkGray);
         ctx.text(4, 0, hp_val, hp_color());
         int bar_w = ctx.width() - bar_start - 2;
@@ -882,7 +881,7 @@ void Game::render_bars() {
 
     // XP bar
     {
-        DrawContext ctx(renderer_.get(), xp_bar_rect_);
+        UIContext ctx(renderer_.get(), xp_bar_rect_);
         ctx.label_value({.x=1, .y=0, .label="XP:", .label_tag=UITag::TextDim,
                          .value=xp_val, .value_tag=UITag::XpBar});
         int bar_w = ctx.width() - bar_start - 2;
@@ -911,7 +910,7 @@ void Game::render_tabs() {
 
 
 void Game::render_side_panel() {
-    DrawContext ctx(renderer_.get(), side_panel_rect_);
+    UIContext ctx(renderer_.get(), side_panel_rect_);
 
     switch (static_cast<PanelTab>(active_tab_)) {
         case PanelTab::Messages: {
@@ -1125,22 +1124,6 @@ void Game::render_side_panel() {
     }
 }
 
-void Game::render_item_inspect() {
-    const auto& item = inspected_item_;
-
-    int win_w = 44;
-    int win_h = 18;
-    if (win_w > screen_w_ - 4) win_w = screen_w_ - 4;
-    if (win_h > screen_h_ - 4) win_h = screen_h_ - 4;
-
-    Window win(renderer_.get(), screen_w_, screen_h_, win_w, win_h, item.name);
-    win.set_footer("[any key] Close");
-    win.draw();
-
-    DrawContext ctx = win.content();
-    draw_item_info(ctx, item);
-}
-
 void Game::render_effects_bar() {
     UIContext ctx(renderer_.get(), effects_rect_);
 
@@ -1238,7 +1221,7 @@ void Game::render_abilities_bar() {
 }
 
 void Game::render_gameover() {
-    DrawContext ctx(renderer_.get(), screen_rect_);
+    UIContext ctx(renderer_.get(), screen_rect_);
 
     int cy = screen_h_ / 2 - 4;
     ctx.text_center(cy,     "YOU HAVE DIED", Color::Red);
@@ -1427,20 +1410,90 @@ void Game::render_welcome_screen() {
 }
 
 // ---------------------------------------------------------------------------
+// Lost popup — semantic UI
+// ---------------------------------------------------------------------------
+
+void Game::render_lost_popup() {
+    if (!lost_popup_.open) return;
+
+    int win_w = static_cast<int>(screen_w_ * 0.4f);
+    if (win_w < 30) win_w = 30;
+
+    // Word-wrap body for height calculation
+    int inner_w = win_w - 4;
+    std::vector<std::string> body_lines;
+    if (!lost_popup_.body.empty()) {
+        std::string line;
+        int vis_len = 0;
+        for (char ch : lost_popup_.body) {
+            if (ch == '\n') {
+                body_lines.push_back(line);
+                line.clear();
+                vis_len = 0;
+                continue;
+            }
+            line += ch;
+            ++vis_len;
+            if (vis_len >= inner_w) {
+                auto sp = line.rfind(' ');
+                if (sp != std::string::npos && sp > 0) {
+                    body_lines.push_back(line.substr(0, sp));
+                    line = line.substr(sp + 1);
+                    vis_len = static_cast<int>(line.size());
+                } else {
+                    body_lines.push_back(line);
+                    line.clear();
+                    vis_len = 0;
+                }
+            }
+        }
+        if (!line.empty()) body_lines.push_back(line);
+    }
+
+    int option_count = static_cast<int>(lost_popup_.options.size());
+    int body_h = lost_popup_.body.empty() ? 0 : static_cast<int>(body_lines.size()) + 2;
+    int content_h = body_h + 1 + option_count * 2 - 1 + 1;
+    int chrome_h = 2 + 2 + (lost_popup_.footer.empty() ? 0 : 1);
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = lost_popup_.title, .footer = lost_popup_.footer});
+
+    int y = 0;
+    // Body text
+    for (const auto& bl : body_lines) {
+        ctx.text(1, y, bl, Color::Cyan);
+        y++;
+    }
+    if (!body_lines.empty()) y++; // blank after body
+
+    // Options as list
+    std::vector<ListItem> items;
+    int sel = lost_popup_.selection;
+    for (int i = 0; i < option_count; ++i) {
+        std::string label = "[" + std::string(1, lost_popup_.options[i].key) + "] " + lost_popup_.options[i].label;
+        items.push_back({label, UITag::OptionNormal, i == sel});
+    }
+    int list_h = ctx.height() - y;
+    if (list_h > 0) {
+        auto list_area = ctx.sub(Rect{0, y, ctx.width(), list_h});
+        list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Pause menu — semantic UI
 // ---------------------------------------------------------------------------
 
 void Game::render_pause_menu() {
-    if (!pause_menu_.is_open()) return;
+    if (!pause_menu_.open) return;
 
-    // Build option list from the PopupMenu state
-    // We need to reconstruct options — read them by trying each known key
+    // Duplicate option list for rendering (pause menu has dev-mode-dependent options)
     struct PauseOpt { char key; std::string label; };
     std::vector<PauseOpt> opts;
-
-    // The pause menu options are set up in handle_play_input with fixed keys
-    // We'll re-read from the PopupMenu by matching the selection index
-    // Since PopupMenu doesn't expose options, render using the known set
     opts.push_back({'r', "Return to game"});
     opts.push_back({'o', "Options"});
     opts.push_back({'h', "Help"});
@@ -1476,7 +1529,7 @@ void Game::render_pause_menu() {
 
     // Build list items
     std::vector<ListItem> items;
-    int sel = pause_menu_.selected();
+    int sel = pause_menu_.selection;
     for (int i = 0; i < static_cast<int>(opts.size()); ++i) {
         std::string label = "[" + std::string(1, opts[i].key) + "] " + opts[i].label;
         items.push_back({label, UITag::OptionNormal, i == sel});
@@ -1497,7 +1550,7 @@ void Game::render_pause_menu() {
 // ---------------------------------------------------------------------------
 
 void Game::render_quit_confirm() {
-    if (!quit_confirm_.is_open()) return;
+    if (!quit_confirm_.open) return;
 
     int win_w = 36;
     int content_h = 5; // blank + 2 options with spacing + blank
@@ -1512,7 +1565,7 @@ void Game::render_quit_confirm() {
     int cw = ctx.width();
     int y = 1;
 
-    int sel = quit_confirm_.selected();
+    int sel = quit_confirm_.selection;
     std::vector<ListItem> items;
     items.push_back({"[Y] Yes, quit", UITag::OptionNormal, sel == 0});
     items.push_back({"[N] No, keep playing", UITag::OptionNormal, sel == 1});

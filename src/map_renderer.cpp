@@ -45,7 +45,7 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
 
 void render_map(const MapRenderContext& rc) {
     WorldContext wctx(rc.renderer, rc.map_rect);
-    DrawContext ctx(rc.renderer, rc.map_rect);  // kept for non-tile rendering
+    UIContext ctx(rc.renderer, rc.map_rect);  // kept for non-tile rendering
 
     for (int sy = 0; sy < rc.map_rect.h; ++sy) {
         for (int sx = 0; sx < rc.map_rect.w; ++sx) {
@@ -75,7 +75,7 @@ void render_map(const MapRenderContext& rc) {
             if (rc.world.map().map_type() == MapType::Overworld) {
                 uint8_t gov = rc.world.map().glyph_override(mx, my);
 
-                // Stamp glyph overrides (non-quest) stay on old DrawContext path
+                // Stamp glyph overrides (non-quest) stay on old UIContext path
                 // because stamp_glyph() returns custom per-cell glyphs
                 bool has_stamp = (gov != 0 && gov != SG_QuestMarker);
                 const char* stamp_og = has_stamp ? stamp_glyph(gov) : nullptr;

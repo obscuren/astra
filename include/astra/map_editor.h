@@ -80,7 +80,7 @@ private:
     static constexpr int max_undo_ = 20;
 
     // Popups
-    PopupMenu popup_;
+    MenuState popup_;
     bool pending_generate_ = false;
     int pending_biome_ = -1;  // biome index for generate
 
@@ -130,10 +130,10 @@ private:
     void compute_editor_camera(int map_w, int map_h, int viewport_w, int viewport_h);
 
     // Drawing
-    void draw_viewport(DrawContext& ctx);
-    void draw_palette(DrawContext& ctx);
-    void draw_zone_minimap(DrawContext& ctx);
-    void draw_status(DrawContext& ctx, int full_w);
+    void draw_viewport(UIContext& ctx);
+    void draw_palette(UIContext& ctx);
+    void draw_zone_minimap(UIContext& ctx);
+    void draw_status(UIContext& ctx, int full_w);
 
     // Helpers
     TileMap& active_map();

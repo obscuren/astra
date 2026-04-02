@@ -44,17 +44,17 @@ bool RepairBench::handle_input(int key) {
     if (!open_) return false;
 
     // Item picker popup active
-    if (picker_.is_open()) {
+    if (picker_.open) {
         auto result = picker_.handle_input(key);
         if (result == MenuResult::Selected) {
             auto damaged = damaged_items();
-            int sel = picker_.selected();
+            int sel = picker_.selection;
             if (sel >= 0 && sel < static_cast<int>(damaged.size())) {
                 bench_item_ = damaged[sel];
             }
-            picker_.close();
+            picker_.reset();
         } else if (result == MenuResult::Closed) {
-            picker_.close();
+            picker_.reset();
         }
         return true;
     }
@@ -66,8 +66,8 @@ bool RepairBench::handle_input(int key) {
         case ' ': { // Place/swap item on bench
             auto damaged = damaged_items();
             if (damaged.empty()) return true;
-            picker_.close();
-            picker_.set_title("Select Item to Repair");
+            picker_.reset();
+            picker_.title = "Select Item to Repair";
             char hk = '1';
             for (int idx : damaged) {
                 const auto& item = player_->inventory.items[idx];
@@ -77,8 +77,8 @@ bool RepairBench::handle_input(int key) {
                 picker_.add_option(hk++, label);
                 if (hk > '9') hk = 'a';
             }
-            picker_.set_max_width_frac(0.4f);
-            picker_.open();
+            picker_.selection = 0;
+            picker_.open = true;
             return true;
         }
         case 'r': { // Repair
@@ -222,8 +222,38 @@ void RepairBench::draw(int screen_w, int screen_h) {
         }
     }
 
-    // Draw item picker popup on top (stays on old API)
-    picker_.draw(renderer_, screen_w, screen_h);
+    // Draw item picker popup on top
+    if (picker_.open && !picker_.options.empty()) {
+        int option_count = static_cast<int>(picker_.options.size());
+        int content_w = 0;
+        for (const auto& opt : picker_.options) {
+            int w = 6 + static_cast<int>(opt.label.size());
+            if (w > content_w) content_w = w;
+        }
+        int win_w = content_w + 6;
+        if (win_w < 30) win_w = 30;
+        int max_w = static_cast<int>(screen_w * 0.4f);
+        if (win_w > max_w) win_w = max_w;
+
+        int content_h = 1 + option_count * 2 - 1 + 1;
+        int chrome_h = 2 + 2;
+        int win_h = content_h + chrome_h;
+
+        int wx = (screen_w - win_w) / 2;
+        int wy = (screen_h - win_h) / 2;
+
+        UIContext full(renderer_, Rect{wx, wy, win_w, win_h});
+        auto ctx = full.panel({.title = picker_.title});
+
+        std::vector<ListItem> items;
+        int sel = picker_.selection;
+        for (int i = 0; i < option_count; ++i) {
+            std::string label = "[" + std::string(1, picker_.options[i].key) + "] " + picker_.options[i].label;
+            items.push_back({label, UITag::OptionNormal, i == sel});
+        }
+        auto list_area = ctx.sub(Rect{0, 1, ctx.width(), ctx.height() - 1});
+        list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
 }
 
 } // namespace astra

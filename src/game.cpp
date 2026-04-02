@@ -34,7 +34,7 @@ void Game::run() {
 
     while (running_) {
         bool needs_timeout = combat_.targeting() || input_.looking()
-                           || quit_confirm_.is_open()
+                           || quit_confirm_.open
                            || auto_walking_ || auto_exploring_
                            || animations_.has_any();
         int timeout_ms = (auto_walking_ || auto_exploring_) ? 50
@@ -46,12 +46,13 @@ void Game::run() {
 
         // Check for Ctrl+C quit request (signal fires during read, returning -1)
         if (renderer_->consume_quit_request()) {
-            if (!quit_confirm_.is_open()) {
-                quit_confirm_.close();
-                quit_confirm_.set_title("Quit without saving?");
+            if (!quit_confirm_.open) {
+                quit_confirm_.reset();
+                quit_confirm_.title = "Quit without saving?";
                 quit_confirm_.add_option('y', "Yes, quit");
                 quit_confirm_.add_option('n', "No, keep playing");
-                quit_confirm_.open();
+                quit_confirm_.selection = 0;
+                quit_confirm_.open = true;
             }
             // Skip normal input handling — fall through to render
         } else if (key == -1) {
@@ -146,12 +147,12 @@ void Game::handle_input(int key) {
     switch (state_) {
         case GameState::MainMenu:
             // Quit confirm intercepts on menu too
-            if (quit_confirm_.is_open()) {
+            if (quit_confirm_.open) {
                 auto qr = quit_confirm_.handle_input(key);
                 if (qr == MenuResult::Selected && quit_confirm_.selected_key() == 'y') {
                     running_ = false;
                 } else if (qr == MenuResult::Selected || qr == MenuResult::Closed) {
-                    quit_confirm_.close();
+                    quit_confirm_.reset();
                 }
                 break;
             }
@@ -159,12 +160,12 @@ void Game::handle_input(int key) {
             break;
         case GameState::Playing:
             // Quit confirm takes priority
-            if (quit_confirm_.is_open()) {
+            if (quit_confirm_.open) {
                 auto qr = quit_confirm_.handle_input(key);
                 if (qr == MenuResult::Selected && quit_confirm_.selected_key() == 'y') {
                     running_ = false;
                 } else if (qr == MenuResult::Selected || qr == MenuResult::Closed) {
-                    quit_confirm_.close();
+                    quit_confirm_.reset();
                 }
                 break;
             }
@@ -445,7 +446,6 @@ void Game::new_game() {
     input_.cancel_look();
     ;
     inventory_cursor_ = 0;
-    inspecting_item_ = false;
     world_.current_region() = -1;
     active_tab_ = 0; // Start on Messages tab
     world_.set_surface_mode(SurfaceMode::Dungeon);
@@ -607,7 +607,6 @@ void Game::new_game(const CreationResult& cr) {
     input_.cancel_look();
     ;
     inventory_cursor_ = 0;
-    inspecting_item_ = false;
     world_.current_region() = -1;
     active_tab_ = 0;
     world_.set_surface_mode(SurfaceMode::Dungeon);
@@ -689,9 +688,8 @@ void Game::reset_interaction_state() {
     combat_.reset();
     ;
     inventory_cursor_ = 0;
-    inspecting_item_ = false;
     dialog_.close();
-    pause_menu_.close();
+    pause_menu_.reset();
 }
 
 void Game::post_load() {

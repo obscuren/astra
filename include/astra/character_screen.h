@@ -63,8 +63,8 @@ private:
     int total_pending() const;
     void commit_pending();
 
-    // Context menu (reusable PopupMenu)
-    PopupMenu context_menu_;
+    // Context menu (reusable MenuState)
+    MenuState context_menu_;
     std::string context_message_;
     int context_msg_timer_ = 0;
 
@@ -82,14 +82,14 @@ private:
     Item* workbench_item_ = nullptr; // pointer into player inventory or equipment
     int workbench_inv_idx_ = -1;     // index in player inventory, or -1 if from equipment
 
-    void draw_tinkering(DrawContext& ctx);
-    void draw_journal(DrawContext& ctx);
+    void draw_tinkering(UIContext& ctx);
+    void draw_journal(UIContext& ctx);
     int journal_cursor_ = 0;
     int journal_scroll_ = 0;
 
     void open_context_menu();
     void execute_context_action(char key);
-    void draw_look_overlay(DrawContext& ctx);
+    void draw_look_overlay(UIContext& ctx);
     void draw_context_menu(int screen_w, int screen_h);
 
     // Drop output — Game reads this after handle_input
@@ -114,23 +114,24 @@ private:
     int ship_inv_cursor_ = 0;
     bool on_ship_ = false;  // set in open(), controls interactivity
 
-    void draw_attributes(DrawContext& ctx);
-    void draw_skills(DrawContext& ctx);
-    void draw_equipment(DrawContext& ctx);
-    void draw_ship(DrawContext& ctx);
-    void draw_stub(DrawContext& ctx, const char* message);
-    void draw_reputation(DrawContext& ctx);
+    void draw_attributes(UIContext& ctx);
+    void draw_skills(UIContext& ctx);
+    void draw_equipment(UIContext& ctx);
+    void draw_ship(UIContext& ctx);
+    void draw_stub(UIContext& ctx, const char* message);
+    void draw_reputation(UIContext& ctx);
+    void draw_tab_help(int screen_w, int screen_h);
     void show_tab_help();
 
     // Tab help overlay
-    PopupMenu tab_help_menu_;
+    MenuState tab_help_menu_;
     bool showing_tab_help_ = false;
 
-    void draw_stat_box(DrawContext& ctx, int x, int y,
+    void draw_stat_box(UIContext& ctx, int x, int y,
                        const char* label, int value,
                        bool selected, int modifier = -999,
                        int pending = 0, bool can_allocate = false);
-    void draw_section_header(DrawContext& ctx, int y,
+    void draw_section_header(UIContext& ctx, int y,
                              const char* title, int left_margin = 1);
 };
 

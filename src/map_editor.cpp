@@ -649,9 +649,9 @@ void MapEditor::stop_play(Game& game) {
 // Generate
 // ─────────────────────────────────────────────────────────────────
 
-static void show_biome_picker(PopupMenu& popup, MapEditor::Mode mode) {
-    popup.close();
-    popup.set_title("Generate — Select Type");
+static void show_biome_picker(MenuState& popup, MapEditor::Mode mode) {
+    popup.reset();
+    popup.title = "Generate — Select Type";
     if (mode == MapEditor::Mode::Overworld) {
         popup.add_option('1', "Rocky Planet");
         popup.add_option('2', "Grassland Planet");
@@ -672,9 +672,9 @@ static void show_biome_picker(PopupMenu& popup, MapEditor::Mode mode) {
         popup.add_option('3', "Station Interior");
         popup.add_option('4', "Derelict Station");
     }
-    popup.set_footer("[Space] Select  [Esc] Cancel");
-    popup.set_max_width_frac(0.3f);
-    popup.open();
+    popup.footer = "[Space] Select  [Esc] Cancel";
+    popup.selection = 0;
+    popup.open = true;
 }
 
 void MapEditor::generate_zone([[maybe_unused]] Game& game) {
@@ -689,14 +689,14 @@ void MapEditor::generate_zone([[maybe_unused]] Game& game) {
     }
 
     if (has_content) {
-        popup_.close();
-        popup_.set_title("Generate");
-        popup_.set_body("This will overwrite the current map. Continue?");
+        popup_.reset();
+        popup_.title = "Generate";
+        popup_.body = "This will overwrite the current map. Continue?";
         popup_.add_option('y', "Yes, generate");
         popup_.add_option('n', "No, cancel");
-        popup_.set_footer("[Space] Select");
-        popup_.set_max_width_frac(0.35f);
-        popup_.open();
+        popup_.footer = "[Space] Select";
+        popup_.selection = 0;
+        popup_.open = true;
         pending_generate_ = true;
         pending_biome_ = -1;
     } else {
@@ -730,11 +730,11 @@ bool MapEditor::handle_input(int key, Game& game) {
     if (!open_) return false;
 
     // Popup intercept
-    if (popup_.is_open()) {
+    if (popup_.open) {
         MenuResult r = popup_.handle_input(key);
         if (r == MenuResult::Selected) {
             char k = popup_.selected_key();
-            popup_.close();
+            popup_.reset();
             if (pending_generate_ && pending_biome_ < 0) {
                 if (k == 'y') {
                     // Confirmed — show biome picker
@@ -822,7 +822,7 @@ bool MapEditor::handle_input(int key, Game& game) {
                 pending_biome_ = -1;
             }
         } else if (r == MenuResult::Closed) {
-            popup_.close();
+            popup_.reset();
             pending_generate_ = false;
             pending_biome_ = -1;
         }
@@ -1018,7 +1018,7 @@ void MapEditor::draw(int screen_w, int screen_h) {
     compute_editor_camera(map.width(), map.height(), viewport_w, viewport_h);
 
     // Full screen clear
-    DrawContext full(renderer_, {0, 0, screen_w, screen_h});
+    UIContext full(renderer_, {0, 0, screen_w, screen_h});
     full.fill(' ');
 
     // Header
@@ -1040,11 +1040,11 @@ void MapEditor::draw(int screen_w, int screen_h) {
         full.put(viewport_w, y, BoxDraw::V, Color::DarkGray);
 
     // Viewport
-    DrawContext viewport(renderer_, {0, header_h, viewport_w, viewport_h});
+    UIContext viewport(renderer_, {0, header_h, viewport_w, viewport_h});
     draw_viewport(viewport);
 
     // Palette panel
-    DrawContext panel(renderer_, {viewport_w + 1, header_h, panel_w, viewport_h});
+    UIContext panel(renderer_, {viewport_w + 1, header_h, panel_w, viewport_h});
     draw_palette(panel);
 
     // Zone minimap (detail/dungeon mode)
@@ -1057,10 +1057,66 @@ void MapEditor::draw(int screen_w, int screen_h) {
     draw_status(full, screen_w);
 
     // Popup overlay
-    popup_.draw(renderer_, screen_w, screen_h);
+    if (popup_.open && !popup_.options.empty()) {
+        int option_count = static_cast<int>(popup_.options.size());
+
+        int win_w = static_cast<int>(screen_w * 0.35f);
+        if (win_w < 30) win_w = 30;
+
+        // Word-wrap body
+        int inner_w = win_w - 4;
+        std::vector<std::string> body_lines;
+        if (!popup_.body.empty()) {
+            std::string line;
+            int vis_len = 0;
+            for (char ch : popup_.body) {
+                if (ch == '\n') { body_lines.push_back(line); line.clear(); vis_len = 0; continue; }
+                line += ch; ++vis_len;
+                if (vis_len >= inner_w) {
+                    auto sp = line.rfind(' ');
+                    if (sp != std::string::npos && sp > 0) {
+                        body_lines.push_back(line.substr(0, sp));
+                        line = line.substr(sp + 1);
+                        vis_len = static_cast<int>(line.size());
+                    } else { body_lines.push_back(line); line.clear(); vis_len = 0; }
+                }
+            }
+            if (!line.empty()) body_lines.push_back(line);
+        }
+
+        int body_h = popup_.body.empty() ? 0 : static_cast<int>(body_lines.size()) + 2;
+        int content_h = body_h + 1 + option_count * 2 - 1 + 1;
+        int chrome_h = 2 + 2 + (popup_.footer.empty() ? 0 : 1);
+        int win_h = content_h + chrome_h;
+
+        int wx = (screen_w - win_w) / 2;
+        int wy = (screen_h - win_h) / 2;
+
+        UIContext full(renderer_, Rect{wx, wy, win_w, win_h});
+        auto ctx = full.panel({.title = popup_.title, .footer = popup_.footer});
+
+        int y = 0;
+        for (const auto& bl : body_lines) {
+            ctx.text(1, y, bl, Color::Cyan);
+            y++;
+        }
+        if (!body_lines.empty()) y++;
+
+        std::vector<ListItem> items;
+        int sel = popup_.selection;
+        for (int i = 0; i < option_count; ++i) {
+            std::string label = "[" + std::string(1, popup_.options[i].key) + "] " + popup_.options[i].label;
+            items.push_back({label, UITag::OptionNormal, i == sel});
+        }
+        int list_h = ctx.height() - y;
+        if (list_h > 0) {
+            auto list_area = ctx.sub(Rect{0, y, ctx.width(), list_h});
+            list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+        }
+    }
 }
 
-void MapEditor::draw_viewport(DrawContext& ctx) {
+void MapEditor::draw_viewport(UIContext& ctx) {
     auto& map = active_map();
     bool is_ow = (mode_ == Mode::Overworld);
     WorldContext wctx(renderer_, ctx.bounds());
@@ -1140,7 +1196,7 @@ void MapEditor::draw_viewport(DrawContext& ctx) {
     }
 }
 
-void MapEditor::draw_palette(DrawContext& ctx) {
+void MapEditor::draw_palette(UIContext& ctx) {
     int y = 0;
 
     const char* mode_label = "TILES";
@@ -1177,7 +1233,7 @@ void MapEditor::draw_palette(DrawContext& ctx) {
     }
 }
 
-void MapEditor::draw_zone_minimap(DrawContext& ctx) {
+void MapEditor::draw_zone_minimap(UIContext& ctx) {
     int y = ctx.height() - 8;
     if (y < 5) return;
 
@@ -1197,7 +1253,7 @@ void MapEditor::draw_zone_minimap(DrawContext& ctx) {
     }
 }
 
-void MapEditor::draw_status(DrawContext& ctx, int full_w) {
+void MapEditor::draw_status(UIContext& ctx, int full_w) {
     int y = ctx.height() - 1;
     auto& map = active_map();
     Tile under = map.get(cursor_x_, cursor_y_);

@@ -42,7 +42,7 @@ static bool is_quest_body(const GalaxyMapDesc& desc, int body_index) {
 // Galaxy zoom
 // ---------------------------------------------------------------------------
 
-static void render_galaxy_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
+static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     int mw = ctx.width();
     int mh = ctx.height();
     if (mw <= 0 || mh <= 0) return;
@@ -140,7 +140,7 @@ static void render_galaxy_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
 // Region zoom
 // ---------------------------------------------------------------------------
 
-static void render_region_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
+static void render_region_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     int mw = ctx.width();
     int mh = ctx.height();
     if (mw <= 0 || mh <= 0) return;
@@ -219,7 +219,7 @@ static void render_region_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
 // Local zoom
 // ---------------------------------------------------------------------------
 
-static void render_local_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
+static void render_local_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     int mw = ctx.width();
     int mh = ctx.height();
     if (mw <= 0 || mh <= 0) return;
@@ -295,7 +295,7 @@ static void render_local_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
 // System zoom — orbital diagram with body selection
 // ---------------------------------------------------------------------------
 
-static void render_system_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
+static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     if (desc.cursor_system_index < 0 ||
         desc.cursor_system_index >= static_cast<int>(desc.systems.size())) return;
     const auto& sys = desc.systems[desc.cursor_system_index];
@@ -538,7 +538,7 @@ static void render_system_zoom(DrawContext& ctx, const GalaxyMapDesc& desc) {
 // ---------------------------------------------------------------------------
 
 void TerminalRenderer::draw_galaxy_map(const Rect& bounds, const GalaxyMapDesc& desc) {
-    DrawContext ctx(this, bounds);
+    UIContext ctx(this, bounds);
     switch (desc.zoom) {
         case ChartZoom::Galaxy: render_galaxy_zoom(ctx, desc); break;
         case ChartZoom::Region: render_region_zoom(ctx, desc); break;

@@ -504,7 +504,7 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
     }
 
     // Full-screen context with inset padding
-    DrawContext screen(renderer_, Rect{2, 2, screen_w - 4, screen_h - 4});
+    UIContext screen(renderer_, Rect{2, 2, screen_w - 4, screen_h - 4});
     auto content = screen.panel({.title = title, .footer = footer});
 
     // Split: map | separator | info
@@ -604,7 +604,7 @@ GalaxyMapDesc StarChartViewer::build_map_desc() const {
 // Info panel
 // ---------------------------------------------------------------------------
 
-void StarChartViewer::draw_info_panel(DrawContext& ctx) {
+void StarChartViewer::draw_info_panel(UIContext& ctx) {
     int y = 0;
 
     switch (zoom_) {
@@ -768,7 +768,7 @@ void StarChartViewer::draw_info_panel(DrawContext& ctx) {
 // Info text helpers
 // ---------------------------------------------------------------------------
 
-void StarChartViewer::draw_system_info_text(DrawContext& ctx, const StarSystem& sys, int start_y, int max_h) {
+void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sys, int start_y, int max_h) {
     int y = start_y;
     ctx.text(1, y++, sys.name, Color::White);
     ctx.hline(y++, '~');
@@ -852,7 +852,7 @@ void StarChartViewer::draw_system_info_text(DrawContext& ctx, const StarSystem& 
     }
 }
 
-void StarChartViewer::draw_body_info_text(DrawContext& ctx, const CelestialBody& body,
+void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& body,
                                           const StarSystem& sys, int start_y) {
     int y = start_y;
 
@@ -939,7 +939,7 @@ void StarChartViewer::draw_body_info_text(DrawContext& ctx, const CelestialBody&
     }
 }
 
-void StarChartViewer::draw_station_info_text(DrawContext& ctx, const StarSystem& sys, int start_y) {
+void StarChartViewer::draw_station_info_text(UIContext& ctx, const StarSystem& sys, int start_y) {
     int y = start_y;
 
     char glyph = sys.station.derelict ? '#' : 'H';

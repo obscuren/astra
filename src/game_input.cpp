@@ -55,7 +55,7 @@ void Game::handle_play_input(int key) {
     }
 
     // Pause menu intercepts all input when open
-    if (pause_menu_.is_open()) {
+    if (pause_menu_.open) {
         MenuResult result = pause_menu_.handle_input(key);
         if (result == MenuResult::Selected) {
             char k = pause_menu_.selected_key();
@@ -88,11 +88,12 @@ void Game::handle_play_input(int key) {
                     running_ = false;
                 } else {
                     // Confirm quit without saving
-                    quit_confirm_.close();
-                    quit_confirm_.set_title("Quit without saving?");
+                    quit_confirm_.reset();
+                    quit_confirm_.title = "Quit without saving?";
                     quit_confirm_.add_option('y', "Yes, quit without saving");
                     quit_confirm_.add_option('n', "No, keep playing");
-                    quit_confirm_.open();
+                    quit_confirm_.selection = 0;
+                    quit_confirm_.open = true;
                 }
             }
         }
@@ -151,10 +152,10 @@ void Game::handle_play_input(int key) {
     }
 
     // Lost popup intercepts when open
-    if (lost_popup_.is_open()) {
+    if (lost_popup_.open) {
         MenuResult r = lost_popup_.handle_input(key);
         if (r == MenuResult::Selected || r == MenuResult::Closed) {
-            lost_popup_.close();
+            lost_popup_.reset();
             if (lost_pending_) {
                 enter_lost_detail();
             }
@@ -188,11 +189,6 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Item inspect overlay — any key closes
-    if (inspecting_item_) {
-        inspecting_item_ = false;
-        return;
-    }
 
     // Look mode intercept
     if (input_.looking()) {
@@ -260,8 +256,8 @@ void Game::handle_play_input(int key) {
 
     switch (key) {
         case '\033':
-            pause_menu_.close();
-            pause_menu_.set_title("Game Menu");
+            pause_menu_.reset();
+            pause_menu_.title = "Game Menu";
             pause_menu_.add_option('r', "return to game");
             pause_menu_.add_option('o', "options");
             pause_menu_.add_option('h', "help");
@@ -271,7 +267,8 @@ void Game::handle_play_input(int key) {
                 pause_menu_.add_option('q', "save and quit");
             }
             pause_menu_.add_option('x', "quit without saving");
-            pause_menu_.open();
+            pause_menu_.selection = 0;
+            pause_menu_.open = true;
             break;
         case ' ':
             if (world_.on_overworld()) {

@@ -359,7 +359,7 @@ void CharacterCreation::draw(int screen_w, int screen_h) {
     int oy = std::max(0, (screen_h - content_h) / 2);
 
     Rect content_rect{0, oy, screen_w, content_h};
-    DrawContext ctx(renderer_, content_rect);
+    UIContext ctx(renderer_, content_rect);
 
     // Header: breadcrumbs + title
     draw_breadcrumbs(ctx);
@@ -399,7 +399,7 @@ void CharacterCreation::draw(int screen_w, int screen_h) {
     }
 }
 
-void CharacterCreation::draw_breadcrumbs(DrawContext& ctx) {
+void CharacterCreation::draw_breadcrumbs(UIContext& ctx) {
     static const char* step_names[] = {"Type", "Race", "Class", "Attributes", "Name", "Location", "Summary"};
     int current = static_cast<int>(step_);
     int w = ctx.width();
@@ -424,7 +424,7 @@ void CharacterCreation::draw_breadcrumbs(DrawContext& ctx) {
     }
 }
 
-void CharacterCreation::draw_title(DrawContext& ctx, const char* subtitle) {
+void CharacterCreation::draw_title(UIContext& ctx, const char* subtitle) {
     int w = ctx.width();
     std::string title = "CHARACTER CREATION";
     ctx.text({.x = (w - (int)title.size()) / 2, .y = 2, .content = title, .tag = UITag::TextAccent});
@@ -432,7 +432,7 @@ void CharacterCreation::draw_title(DrawContext& ctx, const char* subtitle) {
     ctx.text({.x = (w - (int)sub.size()) / 2, .y = 3, .content = sub, .tag = UITag::TextDim});
 }
 
-void CharacterCreation::draw_footer(DrawContext& ctx, const char* extra) {
+void CharacterCreation::draw_footer(UIContext& ctx, const char* extra) {
     int y = ctx.height() - 1;
     std::vector<TextSegment> segs;
     auto append_key_action = [&](const std::string& key, const std::string& action) {
@@ -469,7 +469,7 @@ void CharacterCreation::draw_footer(DrawContext& ctx, const char* extra) {
     ctx.styled_text({.x = w / 2, .y = y, .segments = segs, .align = TextAlign::Center});
 }
 
-void CharacterCreation::draw_card(DrawContext& ctx, int x, int y, int w, int h,
+void CharacterCreation::draw_card(UIContext& ctx, int x, int y, int w, int h,
                                    char glyph, const char* name, bool selected) {
     using namespace BoxDraw;
     Color bc = selected ? Color::Yellow : Color::DarkGray;
@@ -517,7 +517,7 @@ void CharacterCreation::draw_card(DrawContext& ctx, int x, int y, int w, int h,
 
 // ── Step: Race ──────────────────────────────────────────────────────
 
-void CharacterCreation::draw_type_step(DrawContext& ctx) {
+void CharacterCreation::draw_type_step(UIContext& ctx) {
     int card_w = 16;
     int card_h = 7;
     int gap = 3;
@@ -557,7 +557,7 @@ void CharacterCreation::draw_type_step(DrawContext& ctx) {
     }
 }
 
-void CharacterCreation::draw_race_step(DrawContext& ctx) {
+void CharacterCreation::draw_race_step(UIContext& ctx) {
     const auto& races = playable_race_templates();
     int count = static_cast<int>(races.size());
     int card_w = 14;
@@ -601,7 +601,7 @@ void CharacterCreation::draw_race_step(DrawContext& ctx) {
 
 // ── Step: Class ─────────────────────────────────────────────────────
 
-void CharacterCreation::draw_class_step(DrawContext& ctx) {
+void CharacterCreation::draw_class_step(UIContext& ctx) {
     const auto& classes = gameplay_classes();
     int count = static_cast<int>(classes.size());
     int card_w = 16;
@@ -666,7 +666,7 @@ void CharacterCreation::draw_class_step(DrawContext& ctx) {
 
 // ── Step: Attributes ────────────────────────────────────────────────
 
-void CharacterCreation::draw_attributes_step(DrawContext& ctx) {
+void CharacterCreation::draw_attributes_step(UIContext& ctx) {
     int y = 5;
 
     // Points remaining
@@ -770,7 +770,7 @@ void CharacterCreation::draw_attributes_step(DrawContext& ctx) {
 
 // ── Step: Name ──────────────────────────────────────────────────────
 
-void CharacterCreation::draw_name_step(DrawContext& ctx) {
+void CharacterCreation::draw_name_step(UIContext& ctx) {
     int y = 5;
     int nw = ctx.width();
 
@@ -820,7 +820,7 @@ void CharacterCreation::draw_name_step(DrawContext& ctx) {
 
 // ── Step: Summary ───────────────────────────────────────────────────
 
-void CharacterCreation::draw_location_step(DrawContext& ctx) {
+void CharacterCreation::draw_location_step(UIContext& ctx) {
     int card_w = 20;
     int card_h = 7;
     int start_x = (ctx.width() - card_w) / 2;
@@ -840,7 +840,7 @@ void CharacterCreation::draw_location_step(DrawContext& ctx) {
     ctx.text({.x = (lw - (int)loc3.size()) / 2, .y = desc_y + 2, .content = loc3, .tag = UITag::TextSuccess});
 }
 
-void CharacterCreation::draw_summary_step(DrawContext& ctx) {
+void CharacterCreation::draw_summary_step(UIContext& ctx) {
     using namespace BoxDraw;
     int w = ctx.width();
     int col_w = 22;

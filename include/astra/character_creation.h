@@ -93,18 +93,18 @@ private:
     void retreat_step();
 
     // Rendering
-    void draw_breadcrumbs(DrawContext& ctx);
-    void draw_title(DrawContext& ctx, const char* subtitle);
-    void draw_footer(DrawContext& ctx, const char* extra = nullptr);
-    void draw_type_step(DrawContext& ctx);
-    void draw_race_step(DrawContext& ctx);
-    void draw_class_step(DrawContext& ctx);
-    void draw_attributes_step(DrawContext& ctx);
-    void draw_name_step(DrawContext& ctx);
-    void draw_location_step(DrawContext& ctx);
-    void draw_summary_step(DrawContext& ctx);
+    void draw_breadcrumbs(UIContext& ctx);
+    void draw_title(UIContext& ctx, const char* subtitle);
+    void draw_footer(UIContext& ctx, const char* extra = nullptr);
+    void draw_type_step(UIContext& ctx);
+    void draw_race_step(UIContext& ctx);
+    void draw_class_step(UIContext& ctx);
+    void draw_attributes_step(UIContext& ctx);
+    void draw_name_step(UIContext& ctx);
+    void draw_location_step(UIContext& ctx);
+    void draw_summary_step(UIContext& ctx);
 
-    void draw_card(DrawContext& ctx, int x, int y, int w, int h,
+    void draw_card(UIContext& ctx, int x, int y, int w, int h,
                    char glyph, const char* name, bool selected);
 
     PrimaryAttributes compute_final_attributes() const;

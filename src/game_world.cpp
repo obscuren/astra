@@ -1372,16 +1372,16 @@ void Game::check_get_lost() {
     lost_pending_ = true;
     lost_moves_ = 0;
 
-    lost_popup_.close();
-    lost_popup_.set_title("Lost!");
-    lost_popup_.set_body(
+    lost_popup_.reset();
+    lost_popup_.title = "Lost!";
+    lost_popup_.body =
         "The terrain all looks the same. You've lost your bearings "
         "and can't find your way back to the surface view.\n\n"
-        "Keep moving to regain your sense of direction.");
+        "Keep moving to regain your sense of direction.";
     lost_popup_.add_option('f', "Press on");
-    lost_popup_.set_footer("[Space] Continue");
-    lost_popup_.set_max_width_frac(0.4f);
-    lost_popup_.open();
+    lost_popup_.footer = "[Space] Continue";
+    lost_popup_.selection = 0;
+    lost_popup_.open = true;
 }
 
 void Game::enter_lost_detail() {
@@ -1455,15 +1455,15 @@ void Game::check_regain_bearings() {
     lost_ = false;
     lost_moves_ = 0;
 
-    lost_popup_.close();
-    lost_popup_.set_title("Bearings Regained");
-    lost_popup_.set_body(
+    lost_popup_.reset();
+    lost_popup_.title = "Bearings Regained";
+    lost_popup_.body =
         "You recognize a landmark and regain your sense of direction. "
-        "You can now return to the surface view.");
+        "You can now return to the surface view.";
     lost_popup_.add_option('f', "Continue");
-    lost_popup_.set_footer("[Space] Continue");
-    lost_popup_.set_max_width_frac(0.4f);
-    lost_popup_.open();
+    lost_popup_.footer = "[Space] Continue";
+    lost_popup_.selection = 0;
+    lost_popup_.open = true;
 }
 
 } // namespace astra
