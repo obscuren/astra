@@ -19,7 +19,8 @@ static SaveData build_save_data(Game& game, bool dead) {
     data.death_message = game.death_message();
 
     if (!dead) {
-        data.active_tab = game.active_tab();
+        data.active_widgets = game.active_widgets();
+        data.focused_widget = static_cast<uint8_t>(game.focused_widget());
         data.panel_visible = game.panel_visible();
         data.messages = game.messages();
         data.stash = world.stash();
@@ -77,7 +78,8 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     player = data.player;
     game.set_death_message(data.death_message);
     world.current_region() = data.current_region;
-    game.set_active_tab(data.active_tab);
+    game.set_active_widgets(data.active_widgets);
+    game.set_focused_widget(data.focused_widget);
     game.set_panel_visible(data.panel_visible);
     game.messages() = data.messages;
     world.stash() = data.stash;

@@ -18,6 +18,7 @@ enum Key {
     KEY_DELETE,
     KEY_F1,
     KEY_F2,
+    KEY_F3,
 };
 
 // 256-color palette indices stored directly in the enum.
@@ -67,6 +68,7 @@ struct TextDesc;
 struct StyledTextDesc;
 struct ListDesc;
 struct TabBarDesc;
+struct WidgetBarDesc;
 struct SeparatorDesc;
 struct LabelValueDesc;
 struct GalaxyMapDesc;
@@ -113,6 +115,7 @@ public:
     virtual void draw_styled_text(int x, int y, const StyledTextDesc& desc) = 0;
     virtual void draw_list(const Rect& bounds, const ListDesc& desc) = 0;
     virtual void draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) = 0;
+    virtual void draw_widget_bar(const Rect& bounds, const WidgetBarDesc& desc) = 0;
     virtual void draw_separator(const Rect& bounds, const SeparatorDesc& desc) = 0;
     virtual void draw_label_value(int x, int y, const LabelValueDesc& desc) = 0;
 

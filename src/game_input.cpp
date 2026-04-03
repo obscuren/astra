@@ -282,24 +282,60 @@ void Game::handle_play_input(int key) {
             }
             use_action();
             break;
+        case KEY_F1: case KEY_F2: case KEY_F3: {
+            // Toggle widget on/off via configurable F-keys
+            for (int i = 0; i < widget_count; ++i) {
+                if (key == widget_keys_.keys[i]) {
+                    widget_toggle(active_widgets_, static_cast<Widget>(i));
+                    // Track enable order
+                    if (widget_active(active_widgets_, static_cast<Widget>(i)))
+                        widget_order_[i] = ++widget_order_seq_;
+                    else
+                        widget_order_[i] = 0;
+                    // If we toggled off the focused widget, advance focus
+                    if (!widget_active(active_widgets_, static_cast<Widget>(focused_widget_))) {
+                        for (int step = 0; step < widget_count; ++step) {
+                            focused_widget_ = (focused_widget_ + 1) % widget_count;
+                            if (widget_active(active_widgets_, static_cast<Widget>(focused_widget_)))
+                                break;
+                        }
+                    }
+                    // Auto-show/hide panel based on active widgets
+                    if (widget_active(active_widgets_, static_cast<Widget>(i)) && !panel_visible_) {
+                        panel_visible_ = true;
+                        compute_layout();
+                        compute_camera();
+                    } else if (active_widgets_ == 0 && panel_visible_) {
+                        panel_visible_ = false;
+                        compute_layout();
+                        compute_camera();
+                    }
+                    break;
+                }
+            }
+            break;
+        }
         case 8: // Ctrl+H
             panel_visible_ = !panel_visible_;
             compute_layout();
             compute_camera();
             break;
         case '\t':
-        case KEY_SHIFT_TAB:
+        case KEY_SHIFT_TAB: {
             if (!panel_visible_) {
                 panel_visible_ = true;
                 compute_layout();
                 compute_camera();
             }
-            if (key == KEY_SHIFT_TAB)
-                active_tab_ = (active_tab_ - 1 + panel_tab_count) % panel_tab_count;
-            else
-                active_tab_ = (active_tab_ + 1) % panel_tab_count;
-            inventory_cursor_ = 0;
+            // Cycle focus among active widgets
+            int dir = (key == KEY_SHIFT_TAB) ? -1 : 1;
+            for (int step = 0; step < widget_count; ++step) {
+                focused_widget_ = (focused_widget_ + dir + widget_count) % widget_count;
+                if (widget_active(active_widgets_, static_cast<Widget>(focused_widget_)))
+                    break;
+            }
             break;
+        }
         case '.':
             log("You wait...");
             advance_world(ActionCost::wait);
@@ -326,19 +362,20 @@ void Game::handle_play_input(int key) {
             }
             break;
         case '+': case '=': {
-            auto tab = static_cast<PanelTab>(active_tab_);
-            if (tab == PanelTab::Wait) {
+            auto fw = static_cast<Widget>(focused_widget_);
+            if (fw == Widget::Wait && widget_active(active_widgets_, Widget::Wait)) {
                 if (wait_cursor_ < 5) ++wait_cursor_;
-            } else if (tab == PanelTab::Messages && message_scroll_ > 0) {
+            } else if (fw == Widget::Messages && widget_active(active_widgets_, Widget::Messages)
+                       && message_scroll_ > 0) {
                 message_scroll_--;
             }
             break;
         }
         case '-': {
-            auto tab = static_cast<PanelTab>(active_tab_);
-            if (tab == PanelTab::Wait) {
+            auto fw = static_cast<Widget>(focused_widget_);
+            if (fw == Widget::Wait && widget_active(active_widgets_, Widget::Wait)) {
                 if (wait_cursor_ > 0) --wait_cursor_;
-            } else if (tab == PanelTab::Messages) {
+            } else if (fw == Widget::Messages && widget_active(active_widgets_, Widget::Messages)) {
                 message_scroll_++;
             }
             break;
@@ -375,13 +412,14 @@ void Game::handle_play_input(int key) {
         }
         case '\n': case '\r':
         case '1': case '2': case '3': case '4': case '5': case '6': {
-            auto tab = static_cast<PanelTab>(active_tab_);
-            // Number keys 1-5: abilities (unless on Wait tab)
-            if (key >= '1' && key <= '5' && tab != PanelTab::Wait) {
+            bool wait_focused = static_cast<Widget>(focused_widget_) == Widget::Wait
+                                && widget_active(active_widgets_, Widget::Wait);
+            // Number keys 1-5: abilities (unless Wait widget is focused)
+            if (key >= '1' && key <= '5' && !wait_focused) {
                 use_ability(key - '1', *this);
                 break;
             }
-            if (key == '6' && tab != PanelTab::Wait) break;
+            if (key == '6' && !wait_focused) break;
             // Overworld: enter detail map for the tile underneath the player
             if (world_.on_overworld() && (key == '\n' || key == '\r')) {
                 Tile t = world_.map().get(player_.x, player_.y);
@@ -392,7 +430,7 @@ void Game::handle_play_input(int key) {
                 }
                 break;
             }
-            if (tab == PanelTab::Wait && (key == '\n' || key == '\r' || (key >= '1' && key <= '6'))) {
+            if (wait_focused && (key == '\n' || key == '\r' || (key >= '1' && key <= '6'))) {
                 if (key >= '1' && key <= '6') wait_cursor_ = key - '1';
                 int old_hp = player_.hp;
                 int turns = 0;

@@ -440,6 +440,7 @@ int TerminalRenderer::wait_input() {
                         read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
                         if (c3 == '1') return KEY_F1;
                         if (c3 == '2') return KEY_F2;
+                        if (c3 == '3') return KEY_F3;
                     }
                     break;
                 }
@@ -448,6 +449,7 @@ int TerminalRenderer::wait_input() {
         if (seq[0] == 'O') {
             if (seq[1] == 'P') return KEY_F1;
             if (seq[1] == 'Q') return KEY_F2;
+            if (seq[1] == 'R') return KEY_F3;
         }
         return '\033';
     }
@@ -503,6 +505,7 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
                         read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
                         if (c3 == '1') return KEY_F1;
                         if (c3 == '2') return KEY_F2;
+                        if (c3 == '3') return KEY_F3;
                     }
                     break;
                 }
@@ -511,6 +514,7 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
         if (seq[0] == 'O') {
             if (seq[1] == 'P') return KEY_F1;
             if (seq[1] == 'Q') return KEY_F2;
+            if (seq[1] == 'R') return KEY_F3;
         }
         return '\033';
     }

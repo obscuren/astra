@@ -31,6 +31,10 @@ void UIContext::tab_bar(const TabBarDesc& desc) {
     renderer_->draw_tab_bar(bounds_, desc);
 }
 
+void UIContext::widget_bar(const WidgetBarDesc& desc) {
+    renderer_->draw_widget_bar(bounds_, desc);
+}
+
 void UIContext::separator(const SeparatorDesc& desc) {
     renderer_->draw_separator(bounds_, desc);
 }

@@ -65,11 +65,10 @@ static const char* menu_items[] = {
     "Quit",
 };
 
-static const char* tab_names[] = {
+static const char* widget_names[] = {
     "Messages",
-    "Equipment",
-    "Ship",
     "Wait",
+    "Minimap",
 };
 
 static const char* fixture_type_name(FixtureType type) {
@@ -726,7 +725,7 @@ void Game::render_play() {
     render_stats_bar();
     render_bars();
 
-    render_tabs();
+    render_widget_bar();
 
     UIContext sep_ctx(renderer_.get(), separator_rect_);
     sep_ctx.separator({.vertical = true});
@@ -893,235 +892,221 @@ void Game::render_bars() {
     }
 }
 
-void Game::render_tabs() {
+void Game::render_widget_bar() {
     UIContext ctx(renderer_.get(), tabs_rect_);
 
-    // Build tab names vector from the static array
-    std::vector<std::string> tabs;
-    for (int i = 0; i < panel_tab_count; ++i)
-        tabs.push_back(tab_names[i]);
+    WidgetBarDesc desc;
+    for (int i = 0; i < widget_count; ++i) {
+        auto w = static_cast<Widget>(i);
+        desc.entries.push_back({
+            .name = widget_names[i],
+            .hotkey = widget_keys_.labels[i],
+            .active = widget_active(active_widgets_, w),
+            .focused = (i == focused_widget_ && widget_active(active_widgets_, w)),
+        });
+    }
+    ctx.widget_bar(desc);
 
-    ctx.tab_bar({.tabs = tabs, .active = active_tab_});
-
-    // Separator below tabs
+    // Separator below widget bar
     UIContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
     sep.separator({});
 }
 
 
+// Desired height for non-Messages widgets (auto-sized).
+// Messages always fills remaining space.
+static int widget_desired_height(Widget w) {
+    switch (w) {
+        case Widget::Wait:    return 10; // time + calendar + blank + 6 options + hints
+        case Widget::Minimap: return 8;  // stub for now; will grow with real minimap
+        default:              return 0;
+    }
+}
+
 void Game::render_side_panel() {
-    UIContext ctx(renderer_.get(), side_panel_rect_);
+    // Collect active widgets ordered by enable-time; Messages always last
+    std::vector<Widget> active;
+    for (int i = 0; i < widget_count; ++i) {
+        auto w = static_cast<Widget>(i);
+        if (w != Widget::Messages && widget_active(active_widgets_, w))
+            active.push_back(w);
+    }
+    // Sort non-Messages widgets by enable order (most recent at top)
+    std::sort(active.begin(), active.end(), [this](Widget a, Widget b) {
+        return widget_order_[static_cast<int>(a)] > widget_order_[static_cast<int>(b)];
+    });
+    if (widget_active(active_widgets_, Widget::Messages))
+        active.push_back(Widget::Messages);
 
-    switch (static_cast<PanelTab>(active_tab_)) {
-        case PanelTab::Messages: {
-            int max_w = ctx.width();
-            int visible = ctx.height();
-            if (max_w <= 0 || visible <= 0) break;
+    if (active.empty()) return;
 
-            // Word-wrap all messages into display lines
-            // Continuation lines are indented to align past the ":: " prefix
-            static constexpr int indent = 3; // matches ":: " prefix
-            // Count visible (non-marker) characters in a string
-            auto visible_len = [](std::string_view s) {
-                int len = 0;
-                for (size_t i = 0; i < s.size(); ++i) {
-                    if (s[i] == COLOR_BEGIN) { ++i; continue; } // skip color byte
-                    if (s[i] == COLOR_END) continue;
-                    ++len;
-                }
-                return len;
-            };
-
-            struct WrappedLine {
-                std::string_view text;
-                int x; // 0 for first line, indent for continuations
-            };
-            std::vector<WrappedLine> lines;
-
-            for (const auto& msg : messages_) {
-                std::string_view remaining = msg;
-                bool first = true;
-                while (!remaining.empty()) {
-                    int line_w = first ? max_w : max_w - indent;
-                    if (line_w <= 0) line_w = 1;
-                    int x = first ? 0 : indent;
-                    first = false;
-
-                    if (visible_len(remaining) <= line_w) {
-                        lines.push_back({remaining, x});
-                        break;
-                    }
-                    // Find cut point at line_w visible chars, preferring word boundaries
-                    int vis = 0;
-                    int cut = 0;
-                    int last_space = -1;
-                    for (size_t i = 0; i < remaining.size() && vis < line_w; ++i) {
-                        if (remaining[i] == COLOR_BEGIN) { ++i; continue; }
-                        if (remaining[i] == COLOR_END) continue;
-                        if (remaining[i] == ' ') last_space = static_cast<int>(i);
-                        ++vis;
-                        cut = static_cast<int>(i) + 1;
-                    }
-                    if (last_space > 0) cut = last_space;
-                    if (cut <= 0) cut = static_cast<int>(remaining.size());
-                    lines.push_back({remaining.substr(0, cut), x});
-                    remaining = remaining.substr(cut);
-                    if (!remaining.empty() && remaining[0] == ' ')
-                        remaining = remaining.substr(1);
-                }
-            }
-
-            // Scrollback: message_scroll_ = 0 means latest, >0 means scrolled up
-            int total = static_cast<int>(lines.size());
-            int max_scroll = (total > visible) ? total - visible : 0;
-            if (message_scroll_ > max_scroll) message_scroll_ = max_scroll;
-            int start = (total > visible) ? total - visible - message_scroll_ : 0;
-            if (start < 0) start = 0;
-
-            // Scroll indicator when scrolled back
-            if (message_scroll_ > 0) {
-                std::string indicator = "-- scrolled (" + std::to_string(message_scroll_) + ") [-/+] --";
-                int ix = (max_w - static_cast<int>(indicator.size())) / 2;
-                if (ix < 0) ix = 0;
-                ctx.text(ix, 0, indicator, Color::Yellow);
-                // Shift content down by 1 to make room for indicator
-                start++;
-                visible--;
-            }
-
-            int y = message_scroll_ > 0 ? 1 : 0;
-            for (int i = start; i < start + visible && i < total; ++i, ++y) {
-                // Render with inline color markers
-                int px = lines[i].x;
-                Color cur = Color::Default;
-                for (size_t ci = 0; ci < lines[i].text.size(); ++ci) {
-                    char ch = lines[i].text[ci];
-                    if (ch == COLOR_BEGIN && ci + 1 < lines[i].text.size()) {
-                        cur = static_cast<Color>(
-                            static_cast<uint8_t>(lines[i].text[ci + 1]));
-                        ++ci;
-                        continue;
-                    }
-                    if (ch == COLOR_END) {
-                        cur = Color::Default;
-                        continue;
-                    }
-                    ctx.put(px, y, ch, cur);
-                    ++px;
-                }
-            }
-            break;
-        }
-        case PanelTab::Equipment: {
-            const auto& eq = player_.equipment;
-            int y = 0;
-            auto draw_slot = [&](const char* label, const std::optional<Item>& slot) {
-                if (y >= ctx.height() - 1) return;
-                ctx.text(1, y, label, Color::DarkGray);
-                int lx = 1 + static_cast<int>(std::string_view(label).size());
-                if (slot) {
-                    auto sv = item_visual(slot->item_def_id);
-                    ctx.put(lx, y, sv.glyph, rarity_color(slot->rarity));
-                    ctx.text(lx + 1, y, " " + slot->name, rarity_color(slot->rarity));
-                } else {
-                    ctx.text(lx, y, "---", Color::DarkGray);
-                }
-                ++y;
-            };
-            draw_slot("Face:    ", eq.face);
-            draw_slot("Head:    ", eq.head);
-            draw_slot("Body:    ", eq.body);
-            draw_slot("L.Arm:   ", eq.left_arm);
-            draw_slot("R.Arm:   ", eq.right_arm);
-            draw_slot("L.Hand:  ", eq.left_hand);
-            draw_slot("R.Hand:  ", eq.right_hand);
-            draw_slot("Back:    ", eq.back);
-            draw_slot("Feet:    ", eq.feet);
-            draw_slot("Thrown:  ", eq.thrown);
-            draw_slot("Missile: ", eq.missile);
-
-            // Stat bonuses summary
-            y++;
-            if (y < ctx.height() - 1) {
-                auto mods = eq.total_modifiers();
-                ctx.text(1, y, "Bonuses:", Color::DarkGray);
-                ++y;
-                if (mods.attack && y < ctx.height() - 1) {
-                    ctx.text(2, y, "ATK +" + std::to_string(mods.attack), Color::Red);
-                    ++y;
-                }
-                if (mods.defense && y < ctx.height() - 1) {
-                    ctx.text(2, y, "DEF +" + std::to_string(mods.defense), Color::Blue);
-                    ++y;
-                }
-                if (mods.max_hp && y < ctx.height() - 1) {
-                    ctx.text(2, y, "HP  +" + std::to_string(mods.max_hp), Color::Green);
-                    ++y;
-                }
-                if (mods.view_radius && y < ctx.height() - 1) {
-                    ctx.text(2, y, "VIS +" + std::to_string(mods.view_radius), Color::Cyan);
-                    ++y;
-                }
-                if (mods.quickness && y < ctx.height() - 1) {
-                    std::string sign = mods.quickness > 0 ? "+" : "";
-                    ctx.text(2, y, "QCK " + sign + std::to_string(mods.quickness), Color::Yellow);
-                    ++y;
-                }
-            }
-            // Read-only — manage equipment via character screen (c)
-            ctx.text(1, ctx.height() - 1, "[c] manage equipment", Color::DarkGray);
-            break;
-        }
-        case PanelTab::Ship:
-            ctx.text(1, 1, "Ship: Docked", Color::DarkGray);
-            ctx.text(1, 2, "Hull: 100%", Color::DarkGray);
-            break;
-        case PanelTab::Wait: {
-            // Time info header
-            int y = 0;
-            {
-                Color phase_col;
-                switch (world_.day_clock().phase()) {
-                    case TimePhase::Dawn: phase_col = Color::Yellow; break;
-                    case TimePhase::Day:  phase_col = Color::Yellow; break;
-                    case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
-                    case TimePhase::Night:phase_col = Color::Blue; break;
-                }
-                std::string time_info = std::string(phase_icon(world_.day_clock().phase()))
-                    + " " + phase_name(world_.day_clock().phase());
-                ctx.text(1, y, time_info, phase_col);
-                ++y;
-                ctx.text(1, y, format_calendar(world_.world_tick()), Color::DarkGray);
-                y += 2;
-            }
-
-            // Wait options
-            static const char* wait_options[] = {
-                "Wait 1 turn",
-                "Wait 10 turns",
-                "Wait 50 turns",
-                "Wait 100 turns",
-                "Wait until healed",
-                "Wait until morning",
-            };
-            static constexpr int wait_option_count = 6;
-            for (int i = 0; i < wait_option_count && y < ctx.height() - 1; ++i) {
-                bool selected = (i == wait_cursor_);
-                std::string label = std::string("[") + std::to_string(i + 1) + "] " + wait_options[i];
-                if (i == 5 && world_.day_clock().phase() == TimePhase::Day) {
-                    // "Wait until morning" greyed out during day
-                    ctx.text(1, y, label, Color::DarkGray);
-                } else {
-                    if (selected) ctx.text(0, y, ">", Color::Yellow);
-                    ctx.text(1, y, label, selected ? Color::White : Color::Default);
-                }
-                ++y;
-            }
-            // Hints
-            ctx.text(1, ctx.height() - 1, "+/- [Enter]wait [1-6]quick", Color::DarkGray);
-            break;
+    // Non-Messages widgets get fixed height; Messages fills the rest
+    std::vector<Size> sizes;
+    for (size_t i = 0; i < active.size(); ++i) {
+        if (i > 0) sizes.push_back(fixed(1)); // separator
+        if (active[i] == Widget::Messages) {
+            sizes.push_back(fill());
+        } else {
+            sizes.push_back(fixed(widget_desired_height(active[i])));
         }
     }
+
+    UIContext panel(renderer_.get(), side_panel_rect_);
+    auto regions = panel.rows(sizes);
+
+    int region_idx = 0;
+    for (size_t i = 0; i < active.size(); ++i) {
+        if (i > 0) {
+            regions[region_idx].separator({});
+            ++region_idx;
+        }
+        switch (active[i]) {
+            case Widget::Messages: render_messages_widget(regions[region_idx]); break;
+            case Widget::Wait:     render_wait_widget(regions[region_idx]); break;
+            case Widget::Minimap:  render_minimap_widget(regions[region_idx]); break;
+        }
+        ++region_idx;
+    }
+}
+
+void Game::render_messages_widget(UIContext& ctx) {
+    int max_w = ctx.width();
+    int visible = ctx.height();
+    if (max_w <= 0 || visible <= 0) return;
+
+    // Word-wrap all messages into display lines
+    // Continuation lines are indented to align past the ":: " prefix
+    static constexpr int indent = 3;
+    auto visible_len = [](std::string_view s) {
+        int len = 0;
+        for (size_t i = 0; i < s.size(); ++i) {
+            if (s[i] == COLOR_BEGIN) { ++i; continue; }
+            if (s[i] == COLOR_END) continue;
+            ++len;
+        }
+        return len;
+    };
+
+    struct WrappedLine {
+        std::string_view text;
+        int x;
+    };
+    std::vector<WrappedLine> lines;
+
+    for (const auto& msg : messages_) {
+        std::string_view remaining = msg;
+        bool first = true;
+        while (!remaining.empty()) {
+            int line_w = first ? max_w : max_w - indent;
+            if (line_w <= 0) line_w = 1;
+            int x = first ? 0 : indent;
+            first = false;
+
+            if (visible_len(remaining) <= line_w) {
+                lines.push_back({remaining, x});
+                break;
+            }
+            int vis = 0;
+            int cut = 0;
+            int last_space = -1;
+            for (size_t i = 0; i < remaining.size() && vis < line_w; ++i) {
+                if (remaining[i] == COLOR_BEGIN) { ++i; continue; }
+                if (remaining[i] == COLOR_END) continue;
+                if (remaining[i] == ' ') last_space = static_cast<int>(i);
+                ++vis;
+                cut = static_cast<int>(i) + 1;
+            }
+            if (last_space > 0) cut = last_space;
+            if (cut <= 0) cut = static_cast<int>(remaining.size());
+            lines.push_back({remaining.substr(0, cut), x});
+            remaining = remaining.substr(cut);
+            if (!remaining.empty() && remaining[0] == ' ')
+                remaining = remaining.substr(1);
+        }
+    }
+
+    // Scrollback
+    int total = static_cast<int>(lines.size());
+    int max_scroll = (total > visible) ? total - visible : 0;
+    if (message_scroll_ > max_scroll) message_scroll_ = max_scroll;
+    int start = (total > visible) ? total - visible - message_scroll_ : 0;
+    if (start < 0) start = 0;
+
+    if (message_scroll_ > 0) {
+        std::string indicator = "-- scrolled (" + std::to_string(message_scroll_) + ") [-/+] --";
+        int ix = (max_w - static_cast<int>(indicator.size())) / 2;
+        if (ix < 0) ix = 0;
+        ctx.text(ix, 0, indicator, Color::Yellow);
+        start++;
+        visible--;
+    }
+
+    int y = message_scroll_ > 0 ? 1 : 0;
+    for (int i = start; i < start + visible && i < total; ++i, ++y) {
+        int px = lines[i].x;
+        Color cur = Color::Default;
+        for (size_t ci = 0; ci < lines[i].text.size(); ++ci) {
+            char ch = lines[i].text[ci];
+            if (ch == COLOR_BEGIN && ci + 1 < lines[i].text.size()) {
+                cur = static_cast<Color>(
+                    static_cast<uint8_t>(lines[i].text[ci + 1]));
+                ++ci;
+                continue;
+            }
+            if (ch == COLOR_END) {
+                cur = Color::Default;
+                continue;
+            }
+            ctx.put(px, y, ch, cur);
+            ++px;
+        }
+    }
+}
+
+void Game::render_wait_widget(UIContext& ctx) {
+    int y = 0;
+    {
+        Color phase_col;
+        switch (world_.day_clock().phase()) {
+            case TimePhase::Dawn: phase_col = Color::Yellow; break;
+            case TimePhase::Day:  phase_col = Color::Yellow; break;
+            case TimePhase::Dusk: phase_col = static_cast<Color>(130); break;
+            case TimePhase::Night:phase_col = Color::Blue; break;
+        }
+        std::string time_info = std::string(phase_icon(world_.day_clock().phase()))
+            + " " + phase_name(world_.day_clock().phase());
+        ctx.text(1, y, time_info, phase_col);
+        ++y;
+        ctx.text(1, y, format_calendar(world_.world_tick()), Color::DarkGray);
+        y += 2;
+    }
+
+    static const char* wait_options[] = {
+        "Wait 1 turn",
+        "Wait 10 turns",
+        "Wait 50 turns",
+        "Wait 100 turns",
+        "Wait until healed",
+        "Wait until morning",
+    };
+    static constexpr int wait_option_count = 6;
+    for (int i = 0; i < wait_option_count && y < ctx.height() - 1; ++i) {
+        bool selected = (i == wait_cursor_);
+        std::string label = std::string("[") + std::to_string(i + 1) + "] " + wait_options[i];
+        if (i == 5 && world_.day_clock().phase() == TimePhase::Day) {
+            ctx.text(1, y, label, Color::DarkGray);
+        } else {
+            if (selected) ctx.text(0, y, ">", Color::Yellow);
+            ctx.text(1, y, label, selected ? Color::White : Color::Default);
+        }
+        ++y;
+    }
+    ctx.text(1, ctx.height() - 1, "+/- [Enter]wait [1-6]quick", Color::DarkGray);
+}
+
+void Game::render_minimap_widget(UIContext& ctx) {
+    ctx.text(1, 0, "Minimap", Color::DarkGray);
+    ctx.text(1, 1, "(coming soon)", Color::DarkGray);
 }
 
 void Game::render_effects_bar() {

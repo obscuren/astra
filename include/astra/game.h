@@ -48,14 +48,27 @@ enum class GameState {
 
 // SurfaceMode moved to world_manager.h
 
-enum class PanelTab : uint8_t {
-    Messages,
-    Equipment,
-    Ship,
-    Wait,
+// Side-panel widgets — multiple can be active simultaneously (bitfield).
+enum class Widget : uint8_t {
+    Messages = 0,
+    Wait     = 1,
+    Minimap  = 2,
 };
+static constexpr int widget_count = 3;
+static constexpr uint8_t widget_default = (1 << static_cast<uint8_t>(Widget::Messages));
 
-static constexpr int panel_tab_count = 4;
+inline bool widget_active(uint8_t mask, Widget w) {
+    return (mask >> static_cast<uint8_t>(w)) & 1;
+}
+inline void widget_toggle(uint8_t& mask, Widget w) {
+    mask ^= (1 << static_cast<uint8_t>(w));
+}
+
+// Configurable toggle keys for each widget (indexed by Widget enum value).
+struct WidgetKeys {
+    int keys[widget_count] = { KEY_F1, KEY_F2, KEY_F3 };
+    const char* labels[widget_count] = { "F1", "F2", "F3" };
+};
 
 class Game {
 public:
@@ -81,8 +94,10 @@ public:
     // Save system accessors
     const std::string& death_message() const { return death_message_; }
     void set_death_message(const std::string& msg) { death_message_ = msg; }
-    int active_tab() const { return active_tab_; }
-    void set_active_tab(int t) { active_tab_ = t; }
+    uint8_t active_widgets() const { return active_widgets_; }
+    void set_active_widgets(uint8_t w) { active_widgets_ = w; }
+    int focused_widget() const { return focused_widget_; }
+    void set_focused_widget(int w) { focused_widget_ = w; }
     bool panel_visible() const { return panel_visible_; }
     void set_panel_visible(bool v) { panel_visible_ = v; }
     std::deque<std::string>& messages() { return messages_; }
@@ -177,9 +192,12 @@ private:
     void render_hall_of_fame();
     void render_stats_bar();
     void render_bars();
-    void render_tabs();
+    void render_widget_bar();
     // render_map extracted to map_renderer.h
     void render_side_panel();
+    void render_messages_widget(UIContext& ctx);
+    void render_wait_widget(UIContext& ctx);
+    void render_minimap_widget(UIContext& ctx);
     void render_effects_bar();
     void render_abilities_bar();
     void render_welcome_screen();
@@ -240,10 +258,14 @@ private:
 
     SaveSystem save_system_;
 
-    // Tabs
-    int active_tab_ = 0;
+    // Widgets
+    uint8_t active_widgets_ = widget_default;
+    int focused_widget_ = 0;  // index into Widget enum — receives +/- input
+    int widget_order_[widget_count] = {1, 0, 0}; // enable-order counter per widget (Messages starts at 1)
+    int widget_order_seq_ = 1; // next sequence number
     bool panel_visible_ = true;
     int message_scroll_ = 0;  // 0 = latest, >0 = scrolled back
+    WidgetKeys widget_keys_;
 
     // Input subsystem (look mode)
     InputManager input_;

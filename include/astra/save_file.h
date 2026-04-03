@@ -39,7 +39,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 19;
+    uint32_t version = 20;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -47,7 +47,8 @@ struct SaveData {
     std::vector<MapState> maps;
     uint32_t current_map_id = 0;
     int current_region = -1;
-    int active_tab = 0;
+    uint8_t active_widgets = 1; // bitfield — Messages on by default
+    uint8_t focused_widget = 0;
     bool panel_visible = true;
     std::deque<std::string> messages;
     std::string death_message;

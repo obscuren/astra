@@ -38,6 +38,7 @@ public:
     void draw_styled_text(int x, int y, const StyledTextDesc& desc) override;
     void draw_list(const Rect& bounds, const ListDesc& desc) override;
     void draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) override;
+    void draw_widget_bar(const Rect& bounds, const WidgetBarDesc& desc) override;
     void draw_separator(const Rect& bounds, const SeparatorDesc& desc) override;
     void draw_label_value(int x, int y, const LabelValueDesc& desc) override;
     void draw_galaxy_map(const Rect& bounds, const GalaxyMapDesc& desc) override;

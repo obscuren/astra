@@ -126,6 +126,9 @@ int SdlRenderer::poll_input() {
                 case SDLK_DOWN:    return KEY_DOWN;
                 case SDLK_LEFT:    return KEY_LEFT;
                 case SDLK_RIGHT:   return KEY_RIGHT;
+                case SDLK_F1:      return KEY_F1;
+                case SDLK_F2:      return KEY_F2;
+                case SDLK_F3:      return KEY_F3;
             }
         }
     }
@@ -187,6 +190,7 @@ void SdlRenderer::draw_ui_text(int /*x*/, int /*y*/, const TextDesc& /*desc*/) {
 void SdlRenderer::draw_styled_text(int /*x*/, int /*y*/, const StyledTextDesc& /*desc*/) {}
 void SdlRenderer::draw_list(const Rect& /*bounds*/, const ListDesc& /*desc*/) {}
 void SdlRenderer::draw_tab_bar(const Rect& /*bounds*/, const TabBarDesc& /*desc*/) {}
+void SdlRenderer::draw_widget_bar(const Rect& /*bounds*/, const WidgetBarDesc& /*desc*/) {}
 void SdlRenderer::draw_separator(const Rect& /*bounds*/, const SeparatorDesc& /*desc*/) {}
 void SdlRenderer::draw_label_value(int /*x*/, int /*y*/, const LabelValueDesc& /*desc*/) {}
 void SdlRenderer::draw_galaxy_map(const Rect& /*bounds*/, const GalaxyMapDesc& /*desc*/) {
