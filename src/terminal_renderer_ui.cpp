@@ -444,6 +444,50 @@ void TerminalRenderer::draw_tab_bar(const Rect& bounds, const TabBarDesc& desc) 
 }
 
 // ---------------------------------------------------------------------------
+// draw_widget_bar
+// ---------------------------------------------------------------------------
+
+void TerminalRenderer::draw_widget_bar(const Rect& bounds, const WidgetBarDesc& desc) {
+    UIStyle active_style = resolve_ui_tag(UITag::TabActive);
+    UIStyle inactive_style = resolve_ui_tag(UITag::TabInactive);
+    UIStyle bracket_style = resolve_ui_tag(UITag::TextBright);
+    UIStyle key_style = resolve_ui_tag(UITag::NavKey);
+
+    int col = bounds.x;
+    for (size_t i = 0; i < desc.entries.size(); ++i) {
+        const auto& e = desc.entries[i];
+        UIStyle style = e.active ? active_style : inactive_style;
+        Color name_fg = e.focused ? active_style.fg : style.fg;
+
+        if (e.active) {
+            draw_char(col++, bounds.y, '[', bracket_style.fg);
+            for (char c : e.hotkey)
+                draw_char(col++, bounds.y, c, key_style.fg);
+            draw_char(col++, bounds.y, ']', bracket_style.fg);
+            render_utf8_string(this, col, bounds.y, e.name, name_fg);
+            col += utf8_display_len(e.name);
+        } else {
+            draw_char(col++, bounds.y, ' ', inactive_style.fg);
+            for (char c : e.hotkey)
+                draw_char(col++, bounds.y, c, key_style.fg);
+            draw_char(col++, bounds.y, ' ', inactive_style.fg);
+            render_utf8_string(this, col, bounds.y, e.name, inactive_style.fg);
+            col += utf8_display_len(e.name);
+        }
+
+        // Focused indicator: underline the name area
+        if (e.focused && e.active) {
+            // Draw a small marker after the name
+            draw_char(col++, bounds.y, '*', active_style.fg);
+        }
+
+        if (i < desc.entries.size() - 1) {
+            draw_char(col++, bounds.y, ' ');
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // draw_separator
 // ---------------------------------------------------------------------------
 

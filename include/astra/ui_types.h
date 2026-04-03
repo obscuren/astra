@@ -156,6 +156,17 @@ struct TabBarDesc {
     std::string nav_right_label = "E";
 };
 
+struct WidgetBarEntry {
+    std::string name;
+    std::string hotkey;  // e.g. "F1"
+    bool active = false;
+    bool focused = false;
+};
+
+struct WidgetBarDesc {
+    std::vector<WidgetBarEntry> entries;
+};
+
 struct SeparatorDesc {
     UITag tag = UITag::Separator;
     bool vertical = false;  // false = horizontal (─), true = vertical (│)

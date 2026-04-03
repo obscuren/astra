@@ -83,6 +83,7 @@ public:
     void styled_text(const StyledTextDesc& desc);
     void list(const ListDesc& desc);
     void tab_bar(const TabBarDesc& desc);
+    void widget_bar(const WidgetBarDesc& desc);
     void separator(const SeparatorDesc& desc);
     void label_value(const LabelValueDesc& desc);
     void galaxy_map(const GalaxyMapDesc& desc);

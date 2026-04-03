@@ -447,7 +447,8 @@ void Game::new_game() {
     ;
     inventory_cursor_ = 0;
     world_.current_region() = -1;
-    active_tab_ = 0; // Start on Messages tab
+    active_widgets_ = widget_default;
+    focused_widget_ = 0; // Start on Messages tab
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.overworld_x() = 0;
     world_.overworld_y() = 0;
@@ -608,7 +609,8 @@ void Game::new_game(const CreationResult& cr) {
     ;
     inventory_cursor_ = 0;
     world_.current_region() = -1;
-    active_tab_ = 0;
+    active_widgets_ = widget_default;
+    focused_widget_ = 0;
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.overworld_x() = 0;
     world_.overworld_y() = 0;

@@ -914,7 +914,9 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
 static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     auto pos = w.begin_section("GSTA");
     w.write_i32(data.current_region);
-    w.write_i32(data.active_tab);
+    // v20: widget bitfield replaces active_tab
+    w.write_u8(data.active_widgets);
+    w.write_u8(data.focused_widget);
     w.write_u8(data.panel_visible ? 1 : 0);
     w.write_string(data.death_message);
     // v7/v9: surface mode (was on_overworld bool)
@@ -1314,7 +1316,17 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
 
 static void read_game_state_section(BinaryReader& r, SaveData& data) {
     data.current_region = r.read_i32();
-    data.active_tab = r.read_i32();
+    // v20: widget bitfield replaces active_tab (was i32)
+    if (data.version >= 20) {
+        data.active_widgets = r.read_u8();
+        data.focused_widget = r.read_u8();
+    } else {
+        // Migrate: old active_tab was i32 (0=Messages,1=Equip,2=Ship,3=Wait)
+        int old_tab = r.read_i32();
+        data.active_widgets = 1; // Messages on
+        if (old_tab == 3) data.active_widgets |= (1 << 1); // Wait was active
+        data.focused_widget = (old_tab == 3) ? 1 : 0;
+    }
     data.panel_visible = r.read_u8() != 0;
     data.death_message = r.read_string();
     // v7/v9: surface mode (v7-8 stored bool on_overworld, v9+ stores surface_mode u8)
