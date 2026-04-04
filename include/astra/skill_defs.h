@@ -8,6 +8,8 @@
 
 namespace astra {
 
+struct Player; // forward declare for player_has_skill
+
 enum class SkillId : uint32_t {
     // Category unlocks (1-99)
     Cat_Acrobatics = 1,
@@ -81,8 +83,10 @@ const std::vector<SkillCategory>& skill_catalog();
 // Look up a skill definition by ID. Returns nullptr if not found.
 const SkillDef* find_skill(SkillId id);
 
+// Check if the player has learned a specific skill.
+bool player_has_skill(const Player& player, SkillId id);
+
 // Check if the player has the terrain lore skill matching the given overworld tile.
-// Requires player.learned_skills to be checked via player_has_skill().
 SkillId terrain_lore_for(Tile terrain);
 
 } // namespace astra

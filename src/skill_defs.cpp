@@ -1,6 +1,13 @@
 #include "astra/skill_defs.h"
+#include "astra/player.h"
 
 namespace astra {
+
+bool player_has_skill(const Player& player, SkillId id) {
+    for (auto sid : player.learned_skills)
+        if (sid == id) return true;
+    return false;
+}
 
 const std::vector<SkillCategory>& skill_catalog() {
     static const std::vector<SkillCategory> catalog = {

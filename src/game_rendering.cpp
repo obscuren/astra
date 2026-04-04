@@ -1,7 +1,7 @@
 #include "astra/ability.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
-#include "astra/tinkering.h"
+#include "astra/skill_defs.h"
 #include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
