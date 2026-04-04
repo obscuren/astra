@@ -127,6 +127,35 @@ enum class ArtifactCategory : uint8_t {
     Anomaly,
 };
 
+// ── Narrative styles ──
+enum class RecordStyle : uint8_t {
+    Official,       // dry, authoritative third-person
+    Personal,       // first-person, emotional
+    Legend,         // poetic, mythic third-person
+    Scientific,     // clinical, precise
+    Transmission,   // urgent, fragmented
+};
+
+enum class RecordReliability : uint8_t {
+    Verified,
+    Disputed,
+    Myth,
+    Propaganda,
+};
+
+// ── A discoverable lore text ──
+struct LoreRecord {
+    std::string title;
+    std::string body;           // multi-sentence generated narrative
+    RecordStyle style;
+    RecordReliability reliability;
+    std::string source;         // who wrote/recorded it
+    int event_index = -1;       // which event this references
+    int figure_index = -1;
+    int artifact_index = -1;
+    uint32_t system_id = 0;     // where this can be found
+};
+
 // ── A single event in the timeline ──
 struct LoreEvent {
     LoreEventType type;
@@ -177,6 +206,7 @@ struct Civilization {
     std::vector<LoreEvent> events;
     std::vector<KeyFigure> figures;
     std::vector<LoreArtifact> artifacts;
+    std::vector<LoreRecord> records;
 };
 
 // ── Human epoch ──
@@ -186,6 +216,7 @@ struct HumanHistory {
     float fracture_bya;
     std::vector<LoreEvent> events;
     std::vector<std::string> faction_names;
+    std::vector<LoreRecord> records;
 };
 
 // ── The complete world lore ──

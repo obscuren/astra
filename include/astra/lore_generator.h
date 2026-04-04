@@ -41,6 +41,11 @@ private:
         Civilization& civ,
         const NameGenerator& namer);
 
+    static void generate_records(
+        std::mt19937& rng,
+        Civilization& civ,
+        const NameGenerator& namer);
+
     static HumanHistory generate_human_epoch(
         std::mt19937& rng,
         const std::vector<Civilization>& civilizations);
