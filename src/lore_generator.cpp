@@ -164,8 +164,10 @@ WorldLore LoreGenerator::generate(unsigned game_seed) {
 
     std::mt19937 rng(game_seed ^ 0x4C4F5245u);
 
-    int civ_count = 2 + static_cast<int>(rng() % 4);
-    float cursor_bya = uniform(rng, 4.0f, 6.0f);
+    // 4-8 precursor civilizations across billions of years
+    int civ_count = 4 + static_cast<int>(rng() % 5);
+    // Start deep — 5-8 billion years ago to fit 4-8 civilizations
+    float cursor_bya = uniform(rng, 5.0f, 8.0f);
 
     // Track used phoneme pools to avoid duplicates.
     std::vector<int> used_pools;
@@ -206,8 +208,22 @@ WorldLore LoreGenerator::generate(unsigned game_seed) {
         generate_figures(rng, civ, namer);
         generate_artifacts(rng, civ, namer);
 
-        // Advance cursor past this civ + silence gap.
-        cursor_bya = civ.epoch_end_bya - uniform(rng, 0.1f, 0.6f);
+        // Advance cursor: sometimes silence gap, sometimes overlap (contemporaneous)
+        // 25% chance of overlap with previous civilization
+        if (rng() % 4 == 0 && i > 0) {
+            // Overlap: next civ starts during this civ's late period
+            cursor_bya = civ.epoch_start_bya - (civ.epoch_start_bya - civ.epoch_end_bya) * 0.6f;
+            // Add first contact event to the previous civilization
+            auto& prev = lore.civilizations.back();
+            prev.events.push_back({
+                LoreEventType::FirstContact,
+                cursor_bya,
+                prev.short_name + " detects signals from a younger species emerging nearby"
+            });
+        } else {
+            // Normal silence gap
+            cursor_bya = civ.epoch_end_bya - uniform(rng, 0.05f, 0.4f);
+        }
 
         lore.civilizations.push_back(std::move(civ));
     }
