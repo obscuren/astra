@@ -3,6 +3,7 @@
 #include "astra/action.h"
 #include "astra/animation.h"
 #include "astra/map_editor.h"
+#include "astra/minimap.h"
 #include "astra/fov.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -253,6 +254,7 @@ private:
     RepairBench repair_bench_;
     AnimationManager animations_;
     MapEditor map_editor_;
+    Minimap minimap_;
     int camera_x_ = 0;
     int camera_y_ = 0;
 
