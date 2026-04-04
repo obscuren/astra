@@ -159,39 +159,95 @@ Extend the role-to-quest-type mapping in `generate_quest_for_role()`. Each new r
 
 ---
 
-## Recommendation 5: Quest Chains & Prerequisites
+## Recommendation 5: Story Quest Chains
 
-**Priority:** Medium  
+**Priority:** High  
 **Effort:** Medium  
-**Impact:** Progression depth, recurring NPCs
+**Impact:** Narrative depth, the backbone of Astra's story progression
 
 ### Concept
 
-Add a `prerequisite_quest_id` field to Quest. Some quests only become available after completing a prior quest. This enables:
+The most important quests in Astra should be hand-tailored multi-quest story lines. Quest A completes and unlocks Quest B, which unlocks Quest C, and so on. Each quest in a chain builds on the previous — same characters, escalating stakes, evolving narrative.
 
-- **Story arcs:** The Missing Hauler could lead to "Track the Pirate Signal" which leads to "Raid the Pirate Base"
-- **NPC relationships:** Completing quests for a Drifter unlocks their "real" quest — something personal
-- **Escalation:** Kill 3 Xytomorphs → Scout the nest → Clear the hive queen
+These are always hand-authored. They are the primary vehicle for telling Astra's story, revealing world lore, and driving the player toward Sgr A*. Random quests fill the gaps, but story chains are the spine.
 
-### Data Model Addition
+### Examples
+
+**The Hauler Arc (extending the existing quest):**
+1. The Missing Hauler — investigate derelict, find cargo manifest
+2. Track the Signal — the manifest reveals a pirate transmission source
+3. The Pirate Outpost — assault the base, discover they're excavating ancient ruins
+4. What They Found — descend into the ruins, encounter precursor technology
+
+**The ARIA Arc (ship AI storyline):**
+1. Getting Airborne — repair ship systems (existing tutorial)
+2. ARIA's Memory — ARIA recovers fragmented data about her origin
+3. The Ghost Ship — track down the vessel ARIA was originally installed on
+4. Core Directive — ARIA reveals her true purpose, player makes a choice
+
+**The Beacon Arc (main story toward Sgr A*):**
+1. The First Beacon — discover an ancient navigation beacon
+2. The Network — find connecting beacons, learn the pattern
+3. ... (escalating toward galactic center)
+
+### Data Model
 
 ```cpp
 struct Quest {
     // ... existing fields ...
-    std::string prerequisite_quest_id;  // empty = no prereq
-    int chain_index = 0;                // position in chain (for UI: "Part 2 of 3")
-    std::string chain_id;               // groups related quests
+    std::string chain_id;               // groups quests in a storyline (e.g. "hauler_arc")
+    int chain_index = 0;                // position in chain (1, 2, 3...)
+    int chain_length = 0;               // total quests in chain (for UI: "Part 2 of 4")
+    std::string prerequisite_quest_id;  // must be completed before this quest appears
+    std::string next_quest_id;          // quest to make available on completion
 };
 ```
 
-### Random Chain Generation
+### StoryQuest Chain Pattern
 
-The generator could occasionally produce 2-3 step chains:
-1. Generate step 1 quest normally
-2. On completion, flag that a follow-up is available from the same NPC
-3. Generate step 2 using the outcome of step 1 as context (same location, escalated threat)
+The existing `StoryQuest` base class needs a small extension:
 
-This doesn't require hand-authoring — the chain is procedural but feels authored because it references the same world state.
+```cpp
+class StoryQuest {
+public:
+    virtual Quest create_quest() = 0;
+    virtual void on_accepted(Game& game) {}
+    virtual void on_completed(Game& game) {}
+    virtual void on_failed(Game& game) {}
+    
+    // Chain support
+    virtual std::string chain_id() const { return ""; }
+    virtual std::string next_quest_id() const { return ""; }
+};
+```
+
+When a chained story quest completes, the system automatically makes the next quest in the chain available — either immediately offered by the same NPC, or discoverable at a new location set up by `on_completed()`.
+
+### Chain Lifecycle
+
+```
+Quest A available (no prereq, or game start)
+  → Player accepts and completes Quest A
+  → on_completed() sets up the world for Quest B
+  → Quest B becomes available (from same NPC, or new NPC, or location-triggered)
+  → Player accepts and completes Quest B
+  → on_completed() sets up Quest C
+  → ... continues until chain ends
+```
+
+### UI Integration
+
+- Quest log shows chain context: "The Missing Hauler (Part 1 of 4 — The Hauler Arc)"
+- Completed chain quests remain visible in journal under the chain heading
+- Star chart markers show the next chain quest's location when available
+
+### Key Design Rule
+
+Story chains are never procedurally generated. Every quest in a chain is a hand-written `StoryQuest` subclass with authored dialog, custom world modifications, and deliberate narrative beats. The randomness comes from *which* systems and bodies the chain uses (selected during `on_accepted()`), not from the story itself.
+
+### Secondary: Procedural Mini-Chains
+
+As a separate, lower-priority feature, the random quest generator could occasionally produce 2-3 step mini-chains (kill → scout → clear). These are not story quests — they're procedural content that mimics chain structure. This is nice-to-have, not essential.
 
 ---
 
@@ -271,12 +327,12 @@ The dialog system already has trade/give mechanics. The callback just needs to b
 
 If implementing these, this order maximizes value at each step:
 
-1. **World-Driven Generation (Rec 1)** — biggest bang for buck. Immediately makes every quest feel unique because targets and locations are real.
-2. **NPC Role Expansion (Rec 4)** — low effort, more quest sources. Works with existing generation.
-3. **Contextual Flavor (Rec 3)** — low effort, narrative variety. String arrays.
-4. **Quest Composition (Rec 2)** — multi-step quests feel more substantial. Builds on Rec 1.
-5. **Quest Chains (Rec 5)** — adds depth and progression. Builds on Rec 2.
-6. **Reward Variety (Rec 7)** — more interesting motivation.
+1. **Story Quest Chains (Rec 5)** — the narrative backbone. Enables multi-quest story arcs that drive the player forward. Must be in place before writing more story content.
+2. **World-Driven Generation (Rec 1)** — biggest bang for random quests. Makes every procedural quest feel unique because targets and locations are real.
+3. **NPC Role Expansion (Rec 4)** — low effort, more quest sources. Works with existing generation.
+4. **Contextual Flavor (Rec 3)** — low effort, narrative variety. String arrays.
+5. **Quest Composition (Rec 2)** — multi-step random quests feel more substantial. Builds on Rec 1.
+6. **Reward Variety (Rec 7)** — more interesting motivation, unique items for chain endings.
 7. **Quest Failure (Rec 6)** — adds stakes once there are enough quests to lose.
 8. **DeliverItem (Rec 8)** — wire up existing dead code.
 
