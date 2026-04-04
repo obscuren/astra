@@ -369,15 +369,117 @@ Next playthrough — completely different civilizations, different events, diffe
 
 ---
 
+## Developer History Log
+
+In dev mode, a full history viewer is accessible from the developer menu. This dumps the entire generated timeline in readable form — essential for debugging, tuning, and appreciating what the generator produces.
+
+### Contents
+
+The dev history log displays:
+
+**Header:**
+- World seed
+- Number of epochs / civilizations generated
+- Total timeline span (billions of years)
+
+**Per Epoch:**
+```
+═══════════════════════════════════════════════════
+EPOCH 0: The Aelithae Convergence
+    Span: 4.2 - 3.8 billion years ago (400M years)
+    Phoneme pool: B (flowing/ancient)
+    Aesthetic: crystalline architecture, light-woven technology
+    Philosophy: contemplative
+    Collapse: voluntary transcendence via Sgr A*
+═══════════════════════════════════════════════════
+
+  TIMELINE:
+    4.2 Bya  Emergence — first Aelithae consciousness on Lerimund Prime (Sys #4471)
+    4.1 Bya  Discovery — Aelithae detect Sgr A* gravitational anomaly
+    4.0 Bya  Expansion — first hyperspace route established
+    3.95 Bya Construction — Beacon Alpha placed at Sys #2208
+    3.9 Bya  Construction — Spire of Vynosar built at Sys #891
+    3.85 Bya Discovery — convergence pattern recognized
+    3.8 Bya  Transcendence — Archon Ithaemund leads the Convergence into Sgr A*
+
+  KEY FIGURES:
+    Archon Ithaemund (The Founder) — established the Convergence
+      Location: Sys #4471 (Lerimund Prime)
+      Artifact: The Ithaemund Lens
+      Fate: entered Sgr A* with the last wave
+
+    Vynosar the Builder — chief architect of the beacon network
+      Location: Sys #891 (Vynosar's Spire)
+      Artifact: Beacon Resonance Key
+      Fate: remained behind, died at the Spire
+
+  ARTIFACTS:
+    The Ithaemund Lens — navigation device, reveals beacon locations
+      Origin: Archon Ithaemund, crafted before transcendence
+      Location: sealed vault on Lerimund Prime (Sys #4471, Body 2)
+      Effect: +3 view radius, beacon network visible on star chart
+
+    Beacon Resonance Key — activates dormant beacons
+      Origin: Vynosar the Builder
+      Location: Vynosar's Spire (Sys #891, Body 0)
+      Effect: unlocks beacon fast-travel network
+
+  GALAXY IMPACT:
+    Sys #4471 — Tier 3 (Primordial homeworld), unique biome
+    Sys #891  — Tier 3 (Spire), megastructure dungeon
+    Sys #2208 — Tier 2 (first beacon), navigation node
+    12 additional Tier 1 systems with minor ruins
+
+[... repeats for each epoch ...]
+
+═══════════════════════════════════════════════════
+PRESENT DAY: Humanity
+═══════════════════════════════════════════════════
+
+  FACTIONS:
+    Stellari Conclave — descended from first wave colonists
+    Kreth Mining Guild — formed during resource wars
+    [... generated factions ...]
+
+  BEACON NETWORK:
+    Total beacons placed: 14 (across 3 civilizations)
+    Active: 2  Dormant: 9  Destroyed: 3
+    Path coverage: rim → ~40% toward core
+
+  SYSTEM SIGNIFICANCE:
+    Tier 3 (pivotal):      7 systems
+    Tier 2 (significant): 31 systems
+    Tier 1 (touched):     84 systems
+    Tier 0 (mundane):    remaining
+```
+
+### Access
+
+- Dev menu option: "View World History" (or dev console command: `history`)
+- Outputs to a scrollable full-screen view (reusing the existing help screen / journal pattern)
+- Optionally also dumps to a text file in the save directory for easy reading outside the game
+
+### Why This Matters
+
+The history log serves multiple purposes:
+- **Debugging:** verify the generator produces coherent, non-contradictory timelines
+- **Tuning:** see if epoch durations, event density, and artifact counts feel right
+- **Content review:** read through generated history to catch nonsensical combinations
+- **Fun:** it's genuinely interesting to read what the generator comes up with
+- **Documentation:** auto-generated world bible for each playthrough
+
+---
+
 ## Implementation Priority
 
 1. **Epoch & civilization generator** — the core simulation that produces the timeline
 2. **Phoneme-based naming system** — gives everything identity
-3. **Galaxy integration** — lore shapes system generation
-4. **Lore fragment system** — player discovery mechanism
-5. **Legendary artifact generation** — items tied to history
-6. **Archaeology skill tree** — player interaction with lore
-7. **NPC dialog integration** — NPCs reference history
-8. **Quest hooks** — lore-driven quests
+3. **Developer history log** — dump the full timeline in dev mode for debugging and review
+4. **Galaxy integration** — lore shapes system generation
+5. **Lore fragment system** — player discovery mechanism
+6. **Legendary artifact generation** — items tied to history
+7. **Archaeology skill tree** — player interaction with lore
+8. **NPC dialog integration** — NPCs reference history
+9. **Quest hooks** — lore-driven quests
 
 This is a large feature but highly modular — each piece adds value independently.
