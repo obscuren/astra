@@ -26,6 +26,13 @@
 - [ ] **SuppressingFire** — cone AoE, apply slow, 8 turn cooldown
 - [ ] **Tumble** — reactive dodge on melee hit (complex)
 
+### Wayfinding Skills
+- [x] **Scout's Eye** — show NPCs on minimap (75 SP, INT 13)
+- [x] **Cartographer** — show items and POIs on minimap (100 SP, INT 14)
+
+### Archaeology Skills (planned)
+- [ ] **Archaeology skill category** — ruin identification, artifact ID, excavation, precursor linguist, beacon sense
+
 ### NPC Combat
 - [ ] **Ranged NPC attacks** — NPCs with ranged weapons shoot instead of chase
 - [x] **Flee behavior** — Intimidate causes NPCs to flee (move away from player)
@@ -51,11 +58,20 @@
 - [x] **Random quest generation** — kill/fetch/deliver/scout templates, NPC role-based offering
 - [x] **Quest save/load** — full quest state persistence (active, completed, quest locations)
 - [x] **Faction reputation effects** — pricing, dialog gates, quest availability, tiered shop stock
+- [ ] **Story quest chains** — hand-tailored multi-quest arcs (A → B → C), prerequisite system
+- [ ] **World-driven random quests** — generate quests from actual world state instead of hardcoded arrays
+- [ ] **Quest failure mechanics** — expiration, consequences, reputation loss
 
 ### Gameplay
 - [x] **Auto-walk/explore** — `w` + direction = walk straight, `ww` = BFS auto-explore
 
 ### World Generation
+- [ ] **Procedural world lore** — billions of years of layered history, precursor civilizations, beacon network toward Sgr A*
+- [ ] **Phoneme-based naming** — procedural civilization/figure/artifact names from curated syllable pools
+- [ ] **Lore-driven galaxy shaping** — history determines system significance tiers, POI placement, dungeon theming
+- [ ] **Legendary artifact generation** — unique items tied to historical figures and events
+- [ ] **Lore fragment system** — discoverable history pieces, progressive revelation
+- [ ] **Developer history log** — full timeline dump in dev mode
 - [ ] New dungeon generator types / biomes
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] Derelict station expansion — more room types
@@ -80,9 +96,9 @@
 ## UI/UX
 
 - [x] **Conversation dialog in contextual menu** — NPC speech shown as body text in PopupMenu
-- [ ] **Minimap** — small overview in corner
+- [x] **Minimap** — half-block pixel minimap widget (F3), 3x3 downsampling, player-centered, all map types
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)
-- [ ] **Message log scrollback** — scroll through message history
+- [x] **Message log scrollback** — scroll through message history
 - [ ] **Item comparison** — show stat diff when hovering equipment
 - [x] **Equipment tab read-only** — side panel equipment is display-only
 - [x] **Remove inventory from side panel** — inventory management via character screen only
