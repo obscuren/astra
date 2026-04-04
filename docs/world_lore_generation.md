@@ -232,7 +232,7 @@ Artifacts are placed during galaxy generation:
 - **Tier 2 (significant):** ~8% of systems. Major historical sites. Unique dungeon types, named stations, quest-relevant locations.
 - **Tier 3 (pivotal):** ~2% of systems. Civilization homeworlds, great battle sites, beacon network nodes. Unique biomes, legendary artifacts, major quest chains.
 
-**Physical effects of history:**
+**Physical effects of history on systems:**
 - Ancient wars leave asteroid fields, debris rings, irradiated planets
 - Megastructure remnants create unique stellar phenomena
 - Beacon network nodes glow on the star chart (once discovered)
@@ -240,11 +240,33 @@ Artifacts are placed during galaxy generation:
 - Terraformed worlds retain alien biomes millions of years later
 - Binary systems might result from stellar engineering gone wrong
 
+**Effects on planetary surfaces (overworld + detail maps):**
+
+History shapes what the player finds when they land on a body. The lore system annotates bodies with historical metadata that the overworld and detail map generators consume:
+
+- **POI placement** — historically significant bodies get lore-driven POIs on their overworld. A civilization's homeworld has dense ruins (`OW_Ruins`), settlements built on ancient foundations (`OW_Settlement`), and cave systems leading to buried vaults (`OW_CaveEntrance`). A battle site has crashed ships (`OW_CrashedShip`) and outposts (`OW_Outpost`) built by scavengers. Beacon nodes have a unique POI type (new: `OW_Beacon` or reuse `OW_Ruins` with beacon flavor).
+- **POI density** — Tier 0 bodies get normal random POI scatter. Tier 1 gets 1-2 extra lore POIs. Tier 2 gets a cluster of related POIs (ruin complex, battle debris field). Tier 3 gets a dominant lore feature that defines the body's character.
+- **Dungeon theming** — when the player enters a ruin POI, the dungeon generator uses the originating civilization's aesthetic: tile palette, fixture types, room flavors, NPC guardians. A Primordial ruin looks and feels different from a Second Wave ruin. This means the same POI type (`OW_Ruins`) produces visually distinct dungeons depending on which civilization built it.
+- **Overworld terrain influence** — civilizations that terraformed leave alien biomes. A Primordial homeworld might have biome tiles that don't appear anywhere else (crystalline plains, light-forests). Detail maps on these bodies use unique terrain colors and decoration sets.
+- **Station flavor** — stations on significant bodies reflect their history. Named after key figures, described with era-appropriate text, stocked with era-appropriate lore items.
+- **Ground items** — historically significant locations have lore fragments as ground pickups (inscribed tablets, data crystals, corroded star charts). These feed the progressive revelation system.
+- **NPC placement** — ruin sites may have guardian NPCs (ancient automatons, creatures nesting in ruins) or scholar NPCs studying the site. The NPC type depends on the civilization and how long ago it fell.
+
+**Detail map specifics:**
+
+When the player enters a detail zone on a lore-significant overworld tile:
+- Structures reflect the originating civilization (wall types, room layouts, fixture styles)
+- Lore inscriptions appear on certain wall tiles (readable with Precursor Linguist skill)
+- Hidden chambers may exist (discoverable with Excavation skill)
+- Sealed vaults require specific artifacts or skills to open
+- The deeper the dungeon beneath the detail zone, the older the civilization layer (literal archaeological strata — surface ruins from Epoch 2, deeper levels from Epoch 1, deepest from Primordials)
+
 **The path to Sgr A*:**
 - The beacon network traces a rough route from the galactic rim toward the center
 - Each civilization extended the path further inward
 - The player must follow and reactivate this network
 - Systems along the path are disproportionately significant (Tier 2-3)
+- Beacon systems have a unique POI on their primary body — the beacon structure itself
 
 ### Generation Order
 
