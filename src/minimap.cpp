@@ -122,35 +122,36 @@ void Minimap::draw(UIContext& ctx,
     vx = std::clamp(vx, 0, std::max(0, map_w - view_w));
     vy = std::clamp(vy, 0, std::max(0, map_h - view_h));
 
+    // Resolve a map cell to its minimap color (visibility-aware)
+    auto cell_color = [&](int mx2, int my2) -> Color {
+        if (mx2 < 0 || mx2 >= map_w || my2 < 0 || my2 >= map_h)
+            return Color::Black;
+
+        Visibility v = vis.get(mx2, my2);
+        if (v == Visibility::Unexplored) {
+            if (schematic) {
+                Tile t = map.get(mx2, my2);
+                if (t == Tile::Wall || t == Tile::StructuralWall)
+                    return static_cast<Color>(236);
+            }
+            return Color::Black;
+        }
+
+        Tile t = map.get(mx2, my2);
+        Color c = tile_color(t, map_type);
+        if (c == Color::Default) return Color::Black;
+
+        if (v == Visibility::Explored)
+            return dim_color(c);
+        return c;
+    };
+
     // Render half-block cells
     for (int ty = 0; ty < panel_h; ++ty) {
         for (int tx = 0; tx < panel_w; ++tx) {
             int mx = vx + tx;
             int my_top = vy + ty * 2;
             int my_bot = vy + ty * 2 + 1;
-
-            auto cell_color = [&](int mx2, int my2) -> Color {
-                if (mx2 < 0 || mx2 >= map_w || my2 < 0 || my2 >= map_h)
-                    return Color::Black;
-
-                Visibility v = vis.get(mx2, my2);
-                if (v == Visibility::Unexplored) {
-                    if (schematic) {
-                        Tile t = map.get(mx2, my2);
-                        if (t == Tile::Wall || t == Tile::StructuralWall)
-                            return static_cast<Color>(236);
-                    }
-                    return Color::Black;
-                }
-
-                Tile t = map.get(mx2, my2);
-                Color c = tile_color(t, map_type);
-                if (c == Color::Default) return Color::Black;
-
-                if (v == Visibility::Explored)
-                    return dim_color(c);
-                return c;
-            };
 
             Color top = cell_color(mx, my_top);
             Color bot = cell_color(mx, my_bot);
@@ -183,8 +184,9 @@ void Minimap::draw(UIContext& ctx,
             Color exit_color = Color::Magenta;
             Color exit_dim = dim_color(Color::Magenta);
 
-            Color top_c = top_exit ? exit_color : Color::Black;
-            Color bot_c = bot_exit ? exit_color : Color::Black;
+            // Preserve terrain color for non-exit half
+            Color top_c = top_exit ? exit_color : cell_color(mx, my_top);
+            Color bot_c = bot_exit ? exit_color : cell_color(mx, my_bot);
 
             if (top_exit && my_top < map_h && vis.get(mx, my_top) == Visibility::Explored)
                 top_c = exit_dim;
