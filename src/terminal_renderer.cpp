@@ -321,6 +321,39 @@ void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
     }
 }
 
+void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg, Color bg) {
+    if (x >= 0 && x < width_ && y >= 0 && y < height_) {
+        auto& cell = buffer_[y][x];
+        if (cell.wide && x + 1 < width_) {
+            auto& old_next = buffer_[y][x + 1];
+            old_next.continuation = false;
+            old_next.ch[0] = ' ';
+            old_next.ch[1] = '\0';
+        }
+        int i = 0;
+        while (i < 4 && utf8[i]) {
+            cell.ch[i] = utf8[i];
+            ++i;
+        }
+        cell.ch[i] = '\0';
+        cell.fg = fg;
+        cell.bg = bg;
+        cell.continuation = false;
+
+        int w = utf8_cell_width(utf8);
+        cell.wide = (w > 1);
+
+        if (cell.wide) {
+            for (int dx = 1; dx < w && x + dx < width_; ++dx) {
+                auto& next = buffer_[y][x + dx];
+                next.ch[0] = '\0';
+                next.continuation = true;
+                next.wide = false;
+            }
+        }
+    }
+}
+
 void TerminalRenderer::draw_string(int x, int y, const std::string& text) {
     for (size_t i = 0; i < text.size(); ++i) {
         draw_char(x + static_cast<int>(i), y, text[i]);

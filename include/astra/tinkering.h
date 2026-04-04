@@ -65,9 +65,6 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng);
 // Salvage: destroy item, receive crafting materials
 TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng);
 
-// Check if player has a specific skill
-bool player_has_skill(const Player& player, SkillId id);
-
 // Initialize enhancement_slots based on rarity (call on item creation)
 void init_enhancement_slots(Item& item);
 

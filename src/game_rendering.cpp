@@ -1,6 +1,7 @@
 #include "astra/ability.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
+#include "astra/skill_defs.h"
 #include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
@@ -918,7 +919,7 @@ void Game::render_widget_bar() {
 static int widget_desired_height(Widget w) {
     switch (w) {
         case Widget::Wait:    return 10; // time + calendar + blank + 6 options + hints
-        case Widget::Minimap: return 8;  // stub for now; will grow with real minimap
+        case Widget::Minimap: return 10;
         default:              return 0;
     }
 }
@@ -1105,8 +1106,11 @@ void Game::render_wait_widget(UIContext& ctx) {
 }
 
 void Game::render_minimap_widget(UIContext& ctx) {
-    ctx.text(1, 0, "Minimap", Color::DarkGray);
-    ctx.text(1, 1, "(coming soon)", Color::DarkGray);
+    MinimapFlags flags;
+    flags.scouts_eye = player_has_skill(player_, SkillId::ScoutsEye);
+    flags.cartographer = player_has_skill(player_, SkillId::Cartographer);
+    minimap_.draw(ctx, world_.map(), world_.visibility(),
+                  player_.x, player_.y, world_.npcs(), flags);
 }
 
 void Game::render_effects_bar() {

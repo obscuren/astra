@@ -92,6 +92,14 @@ void UIContext::put(int x, int y, const char* utf8, Color fg) {
     }
 }
 
+void UIContext::put(int x, int y, const char* utf8, Color fg, Color bg) {
+    int ax = bounds_.x + x;
+    int ay = bounds_.y + y;
+    if (bounds_.contains(ax, ay)) {
+        renderer_->draw_glyph(ax, ay, utf8, fg, bg);
+    }
+}
+
 void UIContext::text(int x, int y, std::string_view s, Color fg) {
     int col = 0;
     int i = 0;

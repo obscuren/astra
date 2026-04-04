@@ -46,6 +46,7 @@ set(ASTRA_SOURCES
     src/item.cpp
     src/animation.cpp
     src/map_editor.cpp
+    src/minimap.cpp
     src/item_defs.cpp
     src/item_gen.cpp
     src/journal.cpp

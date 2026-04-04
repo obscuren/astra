@@ -21,6 +21,7 @@ public:
     void draw_char(int x, int y, char ch, Color fg) override;
     void draw_char(int x, int y, char ch, Color fg, Color bg) override;
     void draw_glyph(int x, int y, const char* utf8, Color fg) override;
+    void draw_glyph(int x, int y, const char* utf8, Color fg, Color bg) override;
     void draw_string(int x, int y, const std::string& text) override;
 
     bool consume_quit_request() override;

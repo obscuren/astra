@@ -65,16 +65,6 @@ const std::vector<BlueprintEntry>& blueprint_catalog() {
 }
 
 // ---------------------------------------------------------------------------
-// Skill check helper
-// ---------------------------------------------------------------------------
-
-bool player_has_skill(const Player& player, SkillId id) {
-    for (auto sid : player.learned_skills)
-        if (sid == id) return true;
-    return false;
-}
-
-// ---------------------------------------------------------------------------
 // Init enhancement slots
 // ---------------------------------------------------------------------------
 

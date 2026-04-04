@@ -91,6 +91,9 @@ public:
         (void)bg;
     }
     virtual void draw_glyph(int x, int y, const char* utf8, Color fg) = 0;
+    virtual void draw_glyph(int x, int y, const char* utf8, Color fg, Color bg) {
+        draw_glyph(x, y, utf8, fg); // default: ignore bg
+    }
     virtual void draw_string(int x, int y, const std::string& text) = 0;
 
     // Read back the glyph and color at a screen position.
