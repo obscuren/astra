@@ -12,10 +12,8 @@ namespace astra {
 
 // Feature flags toggled by the Wayfinding skill tree.
 struct MinimapFlags {
-    bool show_enemies = false;
-    bool show_npcs = false;
-    bool show_items = false;
-    bool show_pois = false;
+    bool scouts_eye = false;    // Scout's Eye: show all NPCs (hostile + friendly)
+    bool cartographer = false;  // Cartographer: show items + POIs
 };
 
 class Minimap {

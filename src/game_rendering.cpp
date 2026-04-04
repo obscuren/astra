@@ -1,6 +1,7 @@
 #include "astra/ability.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
+#include "astra/tinkering.h"
 #include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
@@ -1106,7 +1107,8 @@ void Game::render_wait_widget(UIContext& ctx) {
 
 void Game::render_minimap_widget(UIContext& ctx) {
     MinimapFlags flags;
-    // TODO: populate flags from player's Wayfinding skills
+    flags.scouts_eye = player_has_skill(player_, SkillId::ScoutsEye);
+    flags.cartographer = player_has_skill(player_, SkillId::Cartographer);
     minimap_.draw(ctx, world_.map(), world_.visibility(),
                   player_.x, player_.y, world_.npcs(), flags);
 }

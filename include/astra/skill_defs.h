@@ -53,6 +53,8 @@ enum class SkillId : uint32_t {
     LoreWetlands = 904,
     LoreMountains = 905,
     LoreTundra = 906,
+    ScoutsEye = 907,
+    Cartographer = 908,
 };
 
 struct SkillDef {

@@ -121,6 +121,14 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Survival knowledge for extreme environments. 50% less likely to "
              "get lost on ice fields and volcanic terrain. Travel time halved.",
              true, 75, 15, "Intelligence"},
+            {SkillId::ScoutsEye, "Scout's Eye",
+             "Your keen awareness reveals nearby creatures on the minimap. "
+             "Hostile and friendly NPCs appear as colored markers.",
+             true, 75, 13, "Intelligence"},
+            {SkillId::Cartographer, "Cartographer",
+             "Your trained eye spots points of interest and valuables. "
+             "Items and landmarks appear on the minimap.",
+             true, 100, 14, "Intelligence"},
         }},
     };
     return catalog;

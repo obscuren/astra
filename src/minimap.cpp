@@ -203,16 +203,14 @@ void Minimap::draw(UIContext& ctx,
         }
     }
 
-    // Draw NPCs (gated by MinimapFlags)
-    if (flags.show_enemies || flags.show_npcs) {
+    // Draw NPCs (requires Scout's Eye skill)
+    if (flags.scouts_eye) {
         for (const auto& npc : npcs) {
             if (!npc.alive()) continue;
             if (npc.x < 0 || npc.x >= map_w || npc.y < 0 || npc.y >= map_h) continue;
             if (vis.get(npc.x, npc.y) == Visibility::Unexplored) continue;
 
             bool hostile = (npc.disposition == Disposition::Hostile);
-            if (hostile && !flags.show_enemies) continue;
-            if (!hostile && !flags.show_npcs) continue;
 
             int sx = (npc.x - vx) / SCALE;
             int sy = (npc.y - vy) / SCALE;
