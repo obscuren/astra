@@ -112,17 +112,22 @@ void Minimap::draw(UIContext& ctx,
     bool schematic = (map_type == MapType::SpaceStation ||
                       map_type == MapType::Starship);
 
-    // Each terminal row shows 2 map rows via half-blocks.
-    int view_w = panel_w;
-    int view_h = panel_h * 2;
+    // Each minimap cell covers a 3x3 block of map tiles.
+    // Each terminal row covers 2 such blocks vertically (half-blocks),
+    // so one terminal cell = 3 wide x 6 tall map tiles.
+    static constexpr int SCALE = 3;
+    int view_w = panel_w * SCALE;       // map tiles visible horizontally
+    int view_h = panel_h * 2 * SCALE;   // map tiles visible vertically
 
-    // Player-centered viewport origin, clamped to edges
+    // Player-centered viewport origin (map coords), clamped to edges
     int vx = player_x - view_w / 2;
     int vy = player_y - view_h / 2;
     vx = std::clamp(vx, 0, std::max(0, map_w - view_w));
     vy = std::clamp(vy, 0, std::max(0, map_h - view_h));
 
-    // Resolve a map cell to its minimap color (visibility-aware)
+    // Resolve a map cell to its minimap color.
+    // No FOV distinction — all explored tiles use dim colors.
+    // The center tile of each 3x3 block is sampled.
     auto cell_color = [&](int mx2, int my2) -> Color {
         if (mx2 < 0 || mx2 >= map_w || my2 < 0 || my2 >= map_h)
             return Color::Black;
@@ -137,21 +142,20 @@ void Minimap::draw(UIContext& ctx,
             return Color::Black;
         }
 
+        // All explored/visible tiles rendered at dim — no FOV on minimap
         Tile t = map.get(mx2, my2);
         Color c = tile_color(t, map_type);
         if (c == Color::Default) return Color::Black;
-
-        if (v == Visibility::Explored)
-            return dim_color(c);
-        return c;
+        return dim_color(c);
     };
 
-    // Render half-block cells
+    // Render half-block cells — each cell samples the center of a 3x3 block
     for (int ty = 0; ty < panel_h; ++ty) {
         for (int tx = 0; tx < panel_w; ++tx) {
-            int mx = vx + tx;
-            int my_top = vy + ty * 2;
-            int my_bot = vy + ty * 2 + 1;
+            // Center of each 3x3 block (offset by 1 into the block)
+            int mx = vx + tx * SCALE + SCALE / 2;
+            int my_top = vy + (ty * 2) * SCALE + SCALE / 2;
+            int my_bot = vy + (ty * 2 + 1) * SCALE + SCALE / 2;
 
             Color top = cell_color(mx, my_top);
             Color bot = cell_color(mx, my_bot);
@@ -163,35 +167,37 @@ void Minimap::draw(UIContext& ctx,
         }
     }
 
-    // Draw exits/portals — always visible (base feature)
+    // Draw exits/portals — scan each 3x3 block for any exit tile
     for (int ty = 0; ty < panel_h; ++ty) {
         for (int tx = 0; tx < panel_w; ++tx) {
-            int mx = vx + tx;
-            int my_top = vy + ty * 2;
-            int my_bot = vy + ty * 2 + 1;
+            int bx = vx + tx * SCALE;
+            int by_top = vy + (ty * 2) * SCALE;
+            int by_bot = vy + (ty * 2 + 1) * SCALE;
 
-            auto check_exit = [&](int ex, int ey) -> bool {
-                if (ex < 0 || ex >= map_w || ey < 0 || ey >= map_h) return false;
-                Visibility v = vis.get(ex, ey);
-                if (v == Visibility::Unexplored) return false;
-                return is_exit_tile(map.get(ex, ey), map, ex, ey);
+            auto block_has_exit = [&](int bx0, int by0) -> bool {
+                for (int dy = 0; dy < SCALE; ++dy) {
+                    for (int dx = 0; dx < SCALE; ++dx) {
+                        int ex = bx0 + dx, ey = by0 + dy;
+                        if (ex < 0 || ex >= map_w || ey < 0 || ey >= map_h) continue;
+                        if (vis.get(ex, ey) == Visibility::Unexplored) continue;
+                        if (is_exit_tile(map.get(ex, ey), map, ex, ey)) return true;
+                    }
+                }
+                return false;
             };
 
-            bool top_exit = check_exit(mx, my_top);
-            bool bot_exit = check_exit(mx, my_bot);
+            bool top_exit = block_has_exit(bx, by_top);
+            bool bot_exit = block_has_exit(bx, by_bot);
             if (!top_exit && !bot_exit) continue;
 
-            Color exit_color = Color::Magenta;
-            Color exit_dim = dim_color(Color::Magenta);
+            // Use dim exit color (no FOV distinction on minimap)
+            Color exit_color = dim_color(Color::Magenta);
+            int mx = vx + tx * SCALE + SCALE / 2;
+            int my_top = vy + (ty * 2) * SCALE + SCALE / 2;
+            int my_bot = vy + (ty * 2 + 1) * SCALE + SCALE / 2;
 
-            // Preserve terrain color for non-exit half
             Color top_c = top_exit ? exit_color : cell_color(mx, my_top);
             Color bot_c = bot_exit ? exit_color : cell_color(mx, my_bot);
-
-            if (top_exit && my_top < map_h && vis.get(mx, my_top) == Visibility::Explored)
-                top_c = exit_dim;
-            if (bot_exit && my_bot < map_h && vis.get(mx, my_bot) == Visibility::Explored)
-                bot_c = exit_dim;
 
             ctx.put(tx, ty, UPPER_HALF, top_c, bot_c);
         }
@@ -202,15 +208,16 @@ void Minimap::draw(UIContext& ctx,
         for (const auto& npc : npcs) {
             if (!npc.alive()) continue;
             if (npc.x < 0 || npc.x >= map_w || npc.y < 0 || npc.y >= map_h) continue;
-            if (vis.get(npc.x, npc.y) != Visibility::Visible) continue;
+            if (vis.get(npc.x, npc.y) == Visibility::Unexplored) continue;
 
             bool hostile = (npc.disposition == Disposition::Hostile);
             if (hostile && !flags.show_enemies) continue;
             if (!hostile && !flags.show_npcs) continue;
 
-            int sx = npc.x - vx;
-            int sy_cell = (npc.y - vy) / 2;
-            bool top_half = ((npc.y - vy) % 2 == 0);
+            int sx = (npc.x - vx) / SCALE;
+            int sy = (npc.y - vy) / SCALE;
+            int sy_cell = sy / 2;
+            bool top_half = (sy % 2 == 0);
 
             if (sx < 0 || sx >= panel_w || sy_cell < 0 || sy_cell >= panel_h)
                 continue;
@@ -225,9 +232,10 @@ void Minimap::draw(UIContext& ctx,
 
     // Draw player — always on top, bright yellow
     {
-        int px = player_x - vx;
-        int py_cell = (player_y - vy) / 2;
-        bool top_half = ((player_y - vy) % 2 == 0);
+        int px = (player_x - vx) / SCALE;
+        int py = (player_y - vy) / SCALE;
+        int py_cell = py / 2;
+        bool top_half = (py % 2 == 0);
 
         if (px >= 0 && px < panel_w && py_cell >= 0 && py_cell < panel_h) {
             if (top_half)
