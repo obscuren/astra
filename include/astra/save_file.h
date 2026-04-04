@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/lore_types.h"
 #include "astra/npc.h"
 #include "astra/player.h"
 #include "astra/quest.h"
@@ -68,6 +69,9 @@ struct SaveData {
     std::vector<Quest> active_quests;
     std::vector<Quest> completed_quests;
     std::map<LocationKey, QuestLocationMeta> quest_locations;
+
+    // v20: world lore
+    WorldLore lore;
 };
 
 std::filesystem::path save_directory();
