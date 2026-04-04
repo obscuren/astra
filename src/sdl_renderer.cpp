@@ -98,6 +98,10 @@ void SdlRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
     if (utf8 && utf8[0]) draw_char(x, y, utf8[0], fg);
 }
 
+void SdlRenderer::draw_glyph(int x, int y, const char* utf8, Color fg, Color bg) {
+    draw_glyph(x, y, utf8, fg);
+}
+
 void SdlRenderer::draw_string(int x, int y, const std::string& text) {
     for (size_t i = 0; i < text.size(); ++i) {
         draw_char(x + static_cast<int>(i), y, text[i]);
