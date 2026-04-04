@@ -48,6 +48,7 @@ set(ASTRA_SOURCES
     src/map_editor.cpp
     src/minimap.cpp
     src/name_generator.cpp
+    src/lore_generator.cpp
     src/item_defs.cpp
     src/item_gen.cpp
     src/journal.cpp
