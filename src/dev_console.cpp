@@ -375,12 +375,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("No world lore generated yet.");
             return;
         }
-        std::string history = LoreGenerator::format_history(game.world().lore());
-        std::istringstream stream(history);
-        std::string line;
-        while (std::getline(stream, line)) {
-            log(line);
-        }
+        // Close console and open the lore viewer
+        open_ = false;
+        game.open_lore_viewer();
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");

@@ -4,6 +4,7 @@
 #include "astra/animation.h"
 #include "astra/map_editor.h"
 #include "astra/minimap.h"
+#include "astra/lore_viewer.h"
 #include "astra/fov.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -116,6 +117,7 @@ public:
     std::pair<int,int> bfs_explore_goal() const;
     std::pair<int,int> bfs_step_toward(int gx, int gy) const;
     void open_repair_bench();
+    void open_lore_viewer() { lore_viewer_.open(world_.lore()); }
     void rebuild_star_chart_viewer();
     void reset_interaction_state();
     void post_load();
@@ -255,6 +257,7 @@ private:
     AnimationManager animations_;
     MapEditor map_editor_;
     Minimap minimap_;
+    LoreViewer lore_viewer_;
     int camera_x_ = 0;
     int camera_y_ = 0;
 
