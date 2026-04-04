@@ -28,7 +28,8 @@ private:
         Civilization& civ,
         int epoch_index,
         bool has_predecessors,
-        const std::vector<Civilization>& predecessors);
+        const std::vector<Civilization>& predecessors,
+        const NameGenerator& namer);
 
     static void generate_figures(
         std::mt19937& rng,

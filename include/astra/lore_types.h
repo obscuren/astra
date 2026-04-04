@@ -57,6 +57,7 @@ enum class SgrARelation : uint8_t {
 
 // ── Event types ──
 enum class LoreEventType : uint8_t {
+    // Galactic-scale
     Emergence,
     RuinDiscovery,
     Decipherment,
@@ -82,6 +83,28 @@ enum class LoreEventType : uint8_t {
     GuardianCreated,
     ArtifactScattered,
     WarningEncoded,
+    // System-scale
+    ColonyFounded,
+    Terraforming,
+    OrbitalConstruction,
+    SystemBattle,
+    Plague,
+    ScientificBreakthrough,
+    CulturalRenaissance,
+    FactionSchism,
+    TradeRoute,
+    MiningDisaster,
+    // Planet-scale
+    VaultDiscovered,
+    UndergroundCity,
+    WeaponTestSite,
+    SacredSite,
+    PrisonColony,
+    LastStand,
+    AlienBiology,
+    SurfaceScared,
+    AbandonedOutpost,
+    CrashSite,
 };
 
 // ── Key figure archetypes ──

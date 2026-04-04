@@ -102,6 +102,28 @@ static const char* event_type_name(LoreEventType t) {
     case LoreEventType::GuardianCreated:        return "Guardian Created";
     case LoreEventType::ArtifactScattered:      return "Artifact Scattered";
     case LoreEventType::WarningEncoded:         return "Warning Encoded";
+    // System-scale
+    case LoreEventType::ColonyFounded:          return "Colony Founded";
+    case LoreEventType::Terraforming:           return "Terraforming";
+    case LoreEventType::OrbitalConstruction:    return "Orbital Construction";
+    case LoreEventType::SystemBattle:           return "System Battle";
+    case LoreEventType::Plague:                 return "Plague";
+    case LoreEventType::ScientificBreakthrough: return "Breakthrough";
+    case LoreEventType::CulturalRenaissance:    return "Renaissance";
+    case LoreEventType::FactionSchism:          return "Faction Schism";
+    case LoreEventType::TradeRoute:             return "Trade Route";
+    case LoreEventType::MiningDisaster:         return "Mining Disaster";
+    // Planet-scale
+    case LoreEventType::VaultDiscovered:        return "Vault Discovered";
+    case LoreEventType::UndergroundCity:        return "Underground City";
+    case LoreEventType::WeaponTestSite:         return "Weapon Test";
+    case LoreEventType::SacredSite:             return "Sacred Site";
+    case LoreEventType::PrisonColony:           return "Prison Colony";
+    case LoreEventType::LastStand:              return "Last Stand";
+    case LoreEventType::AlienBiology:           return "Alien Biology";
+    case LoreEventType::SurfaceScared:          return "Surface Scarred";
+    case LoreEventType::AbandonedOutpost:       return "Abandoned Outpost";
+    case LoreEventType::CrashSite:              return "Crash Site";
     }
     return "unknown";
 }
@@ -204,7 +226,7 @@ WorldLore LoreGenerator::generate(unsigned game_seed) {
             }
         }
 
-        generate_events(rng, civ, i, i > 0, lore.civilizations);
+        generate_events(rng, civ, i, i > 0, lore.civilizations, namer);
         generate_figures(rng, civ, namer);
         generate_artifacts(rng, civ, namer);
 
@@ -297,7 +319,8 @@ void LoreGenerator::generate_events(
     Civilization& civ,
     int epoch_index,
     bool has_predecessors,
-    const std::vector<Civilization>& predecessors)
+    const std::vector<Civilization>& predecessors,
+    const NameGenerator& namer)
 {
     float start = civ.epoch_start_bya;
     float end   = civ.epoch_end_bya;
@@ -531,6 +554,214 @@ void LoreGenerator::generate_events(
             default: inter_desc = civ.short_name + " engineers accidentally activate a " + pred_short + " weapon, sterilizing an entire moon"; break;
         }
         push(LoreEventType::PrecursorBreakthrough, uniform(rng, cursor, 0.80f), inter_desc);
+    }
+
+    // ── System-scale events (8-12) — things that happen at specific star systems ──
+    int sys_count = uniform_int(rng, 8, 12);
+    for (int i = 0; i < sys_count; ++i) {
+        float frac = uniform(rng, 0.15f, 0.85f);
+        std::string place = namer.place(rng);
+        uint32_t sys_id = rng(); // placeholder for real system mapping
+
+        LoreEventType type;
+        std::string desc;
+        switch (rng() % 10) {
+        case 0:
+            type = LoreEventType::ColonyFounded;
+            desc = "Colony established on " + place + " — becomes a major " + civ.short_name + " settlement";
+            break;
+        case 1:
+            type = LoreEventType::Terraforming;
+            switch (rng() % 3) {
+                case 0: desc = place + " terraformed into a garden world — oceans and forests bloom on a barren rock"; break;
+                case 1: desc = "Centuries-long terraforming project transforms " + place + " into a habitable paradise"; break;
+                default: desc = civ.short_name + " engineers reshape " + place + "'s atmosphere — the first children are born under open sky"; break;
+            }
+            break;
+        case 2:
+            type = LoreEventType::OrbitalConstruction;
+            switch (rng() % 3) {
+                case 0: desc = "Orbital shipyards above " + place + " begin constructing the " + civ.short_name + " fleet"; break;
+                case 1: desc = "A ring station is assembled around " + place + " — population reaches millions"; break;
+                default: desc = "Defense platforms deployed in orbit of " + place + " after border tensions escalate"; break;
+            }
+            break;
+        case 3:
+            type = LoreEventType::SystemBattle;
+            switch (rng() % 4) {
+                case 0: desc = "The Battle of " + place + " — " + std::to_string(uniform_int(rng, 20, 200)) + " ships destroyed in the largest engagement of the epoch"; break;
+                case 1: desc = "Rebel fleet ambushes loyalist forces above " + place + " — the system changes hands"; break;
+                case 2: desc = "Siege of " + place + " lasts " + std::to_string(uniform_int(rng, 3, 50)) + " years before the defenders surrender"; break;
+                default: desc = place + " system ravaged by running battles — debris field makes navigation hazardous for millennia"; break;
+            }
+            break;
+        case 4:
+            type = LoreEventType::Plague;
+            switch (rng() % 3) {
+                case 0: desc = "A pathogen from " + place + "'s biosphere devastates three neighboring colonies"; break;
+                case 1: desc = "Quarantine declared across the " + place + " system — millions perish before a cure is found"; break;
+                default: desc = "Biological contamination from a breached " + pred_short + " facility on " + place + " triggers a pandemic"; break;
+            }
+            break;
+        case 5:
+            type = LoreEventType::ScientificBreakthrough;
+            switch (rng() % 4) {
+                case 0: desc = "Researchers on " + place + " achieve controlled singularity containment — power generation leaps forward"; break;
+                case 1: desc = "A " + civ.short_name + " physicist on " + place + " proves faster-than-light communication is possible"; break;
+                case 2: desc = "The " + place + " Observatory detects structured signals from deep within Sgr A*"; break;
+                default: desc = std::string("Breakthrough in ") + tech_name(civ.tech_style) + " technology at " + place + " research station"; break;
+            }
+            break;
+        case 6:
+            type = LoreEventType::CulturalRenaissance;
+            switch (rng() % 3) {
+                case 0: desc = place + " becomes the cultural heart of " + civ.short_name + " civilization — artists, philosophers, and dreamers gather"; break;
+                case 1: desc = "The " + place + " Renaissance — a flowering of art, science, and exploration that defines the era"; break;
+                default: desc = "A new philosophical movement on " + place + " redefines " + civ.short_name + "'s relationship with the void"; break;
+            }
+            break;
+        case 7:
+            type = LoreEventType::FactionSchism;
+            switch (rng() % 3) {
+                case 0: desc = "The " + place + " Secession — an entire sector declares independence from " + civ.short_name + " central authority"; break;
+                case 1: desc = "Rival factions on " + place + " establish competing governments — the system becomes a divided world"; break;
+                default: desc = "Religious movement on " + place + " rejects " + civ.short_name + " orthodoxy, founding a breakaway sect"; break;
+            }
+            break;
+        case 8:
+            type = LoreEventType::TradeRoute;
+            {
+                std::string place2 = namer.place(rng);
+                switch (rng() % 2) {
+                    case 0: desc = "The " + place + "-" + place2 + " corridor becomes the most vital trade route in " + civ.short_name + " space"; break;
+                    default: desc = "Merchant guilds establish the " + place + " Exchange — rare materials from " + std::to_string(uniform_int(rng, 5, 30)) + " systems pass through"; break;
+                }
+            }
+            break;
+        default:
+            type = LoreEventType::MiningDisaster;
+            switch (rng() % 3) {
+                case 0: desc = "Deep core mining on " + place + " triggers seismic collapse — thousands trapped"; break;
+                case 1: desc = "Asteroid mining accident near " + place + " scatters debris across shipping lanes"; break;
+                default: desc = "Excavation on " + place + " breaches a " + pred_short + " containment chamber — unknown substance released"; break;
+            }
+            break;
+        }
+        LoreEvent ev{type, 0.0f, desc, sys_id};
+        ev.time_bya = 0.0f; // assigned later from fraction
+        raw.push_back({type, frac, desc});
+    }
+
+    // ── Planet-scale events (4-8) — things tied to specific worlds ──
+    int planet_count = uniform_int(rng, 4, 8);
+    for (int i = 0; i < planet_count; ++i) {
+        float frac = uniform(rng, 0.20f, 0.88f);
+        std::string place = namer.place(rng);
+
+        LoreEventType type;
+        std::string desc;
+        switch (rng() % 10) {
+        case 0:
+            type = LoreEventType::VaultDiscovered;
+            desc = "A sealed vault is discovered deep beneath " + place + "'s surface — its contents reshape " + civ.short_name + " understanding";
+            break;
+        case 1:
+            type = LoreEventType::UndergroundCity;
+            desc = "An immense underground city is carved into " + place + "'s mantle — it houses " + std::to_string(uniform_int(rng, 1, 50)) + " million souls";
+            break;
+        case 2:
+            type = LoreEventType::WeaponTestSite;
+            desc = civ.short_name + " tests a devastating weapon on " + place + "'s far side — the crater is visible from orbit for eternity";
+            break;
+        case 3:
+            type = LoreEventType::SacredSite;
+            desc = place + " is declared sacred ground after a " + civ.short_name + " mystic experiences a vision of the convergence";
+            break;
+        case 4:
+            type = LoreEventType::PrisonColony;
+            desc = place + " is converted into an exile world — dissidents and war criminals are marooned on its surface";
+            break;
+        case 5:
+            type = LoreEventType::LastStand;
+            desc = "The last loyalist garrison makes their stand on " + place + " — they hold for " + std::to_string(uniform_int(rng, 1, 20)) + " years before falling";
+            break;
+        case 6:
+            type = LoreEventType::AlienBiology;
+            desc = "Expedition to " + place + " discovers alien organisms unlike anything in " + civ.short_name + " biology — silicon-based, possibly sentient";
+            break;
+        case 7:
+            type = LoreEventType::SurfaceScared;
+            desc = "Orbital bombardment during the civil war leaves " + place + "'s surface scarred with vitrified craters";
+            break;
+        case 8:
+            type = LoreEventType::AbandonedOutpost;
+            desc = "A " + civ.short_name + " research outpost on " + place + " is abandoned after contact is lost — rescue teams find only silence";
+            break;
+        default:
+            type = LoreEventType::CrashSite;
+            desc = "A " + civ.short_name + " capital ship crashes on " + place + " during a hyperspace malfunction — wreckage spans kilometers";
+            break;
+        }
+        raw.push_back({type, frac, desc});
+    }
+
+    // ── Contemporaneous civilization interactions ──
+    // Check if any predecessor's epoch overlaps with ours
+    for (size_t pi = 0; pi < predecessors.size(); ++pi) {
+        const auto& other = predecessors[pi];
+        // Overlap: other.epoch_end_bya < civ.epoch_start_bya AND other.epoch_end_bya > civ.epoch_end_bya
+        if (other.epoch_end_bya < civ.epoch_start_bya &&
+            other.epoch_end_bya > civ.epoch_end_bya) {
+            // These civilizations coexisted — generate interaction events
+            float overlap_start = std::min(civ.epoch_start_bya, other.epoch_start_bya);
+            float overlap_end = std::max(civ.epoch_end_bya, other.epoch_end_bya);
+            float overlap_frac_start = (start - overlap_start) / span;
+            float overlap_frac_end = (start - overlap_end) / span;
+            if (overlap_frac_start < 0.0f) overlap_frac_start = 0.1f;
+            if (overlap_frac_end > 0.9f) overlap_frac_end = 0.85f;
+
+            int interaction_count = uniform_int(rng, 1, 3);
+            for (int ic = 0; ic < interaction_count; ++ic) {
+                float frac = uniform(rng, overlap_frac_start, overlap_frac_end);
+                std::string desc;
+                switch (rng() % 8) {
+                    case 0:
+                        desc = "First contact between " + civ.short_name + " and " + other.short_name + " — cautious diplomatic exchanges begin";
+                        push(LoreEventType::FirstContact, frac, desc);
+                        break;
+                    case 1:
+                        desc = civ.short_name + " and " + other.short_name + " forge a trade alliance — technology and culture flow between species";
+                        push(LoreEventType::TradeRoute, frac, desc);
+                        break;
+                    case 2:
+                        desc = "Border skirmish between " + civ.short_name + " and " + other.short_name + " fleets in a contested system";
+                        push(LoreEventType::BorderConflict, frac, desc);
+                        break;
+                    case 3: {
+                        std::string place = namer.place(rng);
+                        desc = "The " + place + " Accords — " + civ.short_name + " and " + other.short_name + " establish a shared research station";
+                        push(LoreEventType::ScientificBreakthrough, frac, desc);
+                        break;
+                    }
+                    case 4:
+                        desc = "War erupts between " + civ.short_name + " and " + other.short_name + " over a " + pred_short + " artifact cache";
+                        push(LoreEventType::ArtifactWar, frac, desc);
+                        break;
+                    case 5:
+                        desc = civ.short_name + " missionaries attempt to convert " + other.short_name + " populations — met with fascination and resistance";
+                        push(LoreEventType::CulturalRenaissance, frac, desc);
+                        break;
+                    case 6:
+                        desc = "Joint " + civ.short_name + "-" + other.short_name + " expedition reaches deeper toward Sgr A* than either could alone";
+                        push(LoreEventType::ConvergenceDiscovery, frac, desc);
+                        break;
+                    default:
+                        desc = other.short_name + " refugees flee to " + civ.short_name + " space as their civilization fragments";
+                        push(LoreEventType::ColonyFounded, frac, desc);
+                        break;
+                }
+            }
+        }
     }
 
     // Collapse — richer descriptions
