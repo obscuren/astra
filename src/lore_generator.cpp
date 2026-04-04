@@ -202,7 +202,7 @@ WorldLore LoreGenerator::generate(unsigned game_seed) {
             }
         }
 
-        generate_events(rng, civ, i, i > 0);
+        generate_events(rng, civ, i, i > 0, lore.civilizations);
         generate_figures(rng, civ, namer);
         generate_artifacts(rng, civ, namer);
 
@@ -280,7 +280,8 @@ void LoreGenerator::generate_events(
     std::mt19937& rng,
     Civilization& civ,
     int epoch_index,
-    bool has_predecessors)
+    bool has_predecessors,
+    const std::vector<Civilization>& predecessors)
 {
     float start = civ.epoch_start_bya;
     float end   = civ.epoch_end_bya;
@@ -298,40 +299,138 @@ void LoreGenerator::generate_events(
         raw.push_back({t, frac, d});
     };
 
-    // Emergence always first.
+    // Get predecessor name for cross-references
+    std::string pred_name = "an ancient species";
+    std::string pred_short = "precursor";
+    if (!predecessors.empty()) {
+        const auto& prev = predecessors.back();
+        pred_name = prev.name;
+        pred_short = prev.short_name;
+    }
+
+    // Emergence — varies by philosophy
+    static const char* emergence_contemplative[] = {
+        " consciousness stirs in the deep voids",
+        " awakens to the whisper of starlight",
+        " achieves collective awareness across a single world",
+    };
+    static const char* emergence_predatory[] = {
+        " claws its way to sentience through ruthless competition",
+        " emerges as the apex predator of a hostile world",
+        " achieves dominance, then curiosity, then ambition",
+    };
+    static const char* emergence_default[] = {
+        " consciousness emerges on their homeworld",
+        " achieves sentience and begins to question the stars",
+        " takes its first steps toward the void",
+    };
+
+    const char** emer_pool;
+    int emer_count = 3;
+    switch (civ.philosophy) {
+        case Philosophy::Contemplative:
+        case Philosophy::Transcendent:
+            emer_pool = emergence_contemplative; break;
+        case Philosophy::Predatory:
+        case Philosophy::Expansionist:
+            emer_pool = emergence_predatory; break;
+        default:
+            emer_pool = emergence_default; break;
+    }
     push(LoreEventType::Emergence, 0.0f,
-         civ.short_name + " consciousness emerges");
+         civ.short_name + emer_pool[rng() % emer_count]);
 
     float cursor = 0.05f;
 
-    // Predecessor discovery.
+    // Predecessor discovery — references actual predecessor by name
     if (has_predecessors) {
-        push(LoreEventType::RuinDiscovery, cursor,
-             "Ancient ruins discovered by " + civ.short_name + " explorers");
+        static const char* ruin_templates[] = {
+            "Explorers unearth the shattered spires of %s on a barren moon",
+            "A mining expedition breaches a sealed %s vault deep underground",
+            "%s ruins discovered beneath the ice of a frozen world",
+            "An expedition stumbles upon %s structures, impossibly ancient",
+            "The unmistakable geometry of %s architecture found on three worlds simultaneously",
+        };
+        std::string ruin_desc = ruin_templates[rng() % 5];
+        // Replace %s with predecessor short name
+        auto pos = ruin_desc.find("%s");
+        if (pos != std::string::npos)
+            ruin_desc.replace(pos, 2, pred_short);
+        push(LoreEventType::RuinDiscovery, cursor, ruin_desc);
         cursor += 0.05f;
 
         if (rng() % 2 == 0) {
-            push(LoreEventType::Decipherment, cursor,
-                 "Precursor inscriptions partially decoded");
+            static const char* decipher_templates[] = {
+                "Partial translation of %s data crystals reveals star charts pointing inward",
+                "%s inscriptions decoded — references to a 'convergence' at the galactic heart",
+                "A %s beacon activates when touched, broadcasting coordinates toward Sgr A*",
+            };
+            std::string dec_desc = decipher_templates[rng() % 3];
+            pos = dec_desc.find("%s");
+            if (pos != std::string::npos)
+                dec_desc.replace(pos, 2, pred_short);
+            push(LoreEventType::Decipherment, cursor, dec_desc);
             cursor += 0.05f;
         }
 
-        push(LoreEventType::ReverseEngineering, cursor,
-             "Precursor technology reverse-engineered");
+        // Relationship colors the reverse-engineering description
+        std::string re_desc;
+        switch (civ.predecessor_relation) {
+            case PredecessorRelation::Revered:
+                re_desc = "Following " + pred_short + " designs with reverence, " +
+                    civ.short_name + " rebuilds their technology";
+                break;
+            case PredecessorRelation::Exploited:
+                re_desc = civ.short_name + " strip-mines " + pred_short +
+                    " ruins, extracting technology without understanding its purpose";
+                break;
+            case PredecessorRelation::Feared:
+                re_desc = "Despite the unsettling nature of " + pred_short +
+                    " tech, " + civ.short_name + " cautiously reverse-engineers key systems";
+                break;
+            default:
+                re_desc = pred_short + " technology adapted for " + civ.short_name + " use";
+                break;
+        }
+        push(LoreEventType::ReverseEngineering, cursor, re_desc);
         cursor += 0.05f;
     }
 
-    // Expansion.
-    push(LoreEventType::Colonization, cursor + 0.05f,
-         civ.short_name + " expands to nearby systems");
+    // Expansion
+    static const char* expansion_templates[] = {
+        "%s colonies established across %d nearby star systems",
+        "The first %s generation ships depart, seeding %d systems",
+        "%s expansion wave reaches %d systems within a millennium",
+    };
+    {
+        int sys_count = 5 + uniform_int(rng, 0, 30);
+        std::string exp_desc = expansion_templates[rng() % 3];
+        auto pos = exp_desc.find("%s");
+        if (pos != std::string::npos) exp_desc.replace(pos, 2, civ.short_name);
+        pos = exp_desc.find("%d");
+        if (pos != std::string::npos) exp_desc.replace(pos, 2, std::to_string(sys_count));
+        push(LoreEventType::Colonization, cursor + 0.05f, exp_desc);
+    }
     cursor += 0.10f;
 
-    push(LoreEventType::HyperspaceRoute, cursor + 0.05f,
-         "First hyperspace route established");
+    static const char* hyperspace_templates[] = {
+        "First stable hyperspace conduit links the inner colonies",
+        "The %s hyperspace network connects %d systems, enabling rapid expansion",
+        "A breakthrough in void-folding allows instantaneous transit between key worlds",
+    };
+    {
+        int net_count = 3 + uniform_int(rng, 0, 15);
+        std::string hs_desc = hyperspace_templates[rng() % 3];
+        auto pos = hs_desc.find("%s");
+        if (pos != std::string::npos) hs_desc.replace(pos, 2, civ.short_name);
+        pos = hs_desc.find("%d");
+        if (pos != std::string::npos) hs_desc.replace(pos, 2, std::to_string(net_count));
+        push(LoreEventType::HyperspaceRoute, cursor + 0.05f, hs_desc);
+    }
     cursor += 0.10f;
 
-    // Mid-epoch events (1-3 random).
-    int mid_count = uniform_int(rng, 1, 3);
+    // Mid-epoch events (2-4 random) — richer descriptions
+    int mid_count = uniform_int(rng, 2, 4);
     static const LoreEventType mid_types[] = {
         LoreEventType::MegastructureBuilt,
         LoreEventType::SgrADetection,
@@ -345,24 +444,60 @@ void LoreGenerator::generate_events(
         float frac = uniform(rng, cursor, 0.75f);
         std::string desc;
         switch (t) {
-        case LoreEventType::MegastructureBuilt:
-            desc = "Megastructure constructed in deep space";
+        case LoreEventType::MegastructureBuilt: {
+            static const char* mega_templates[] = {
+                "A void-gate large enough to swallow moons is constructed at the galactic rim",
+                "An orbital ring encircles a gas giant — the largest structure ever built",
+                "A beacon array spanning three systems begins broadcasting toward the core",
+                "Construction of a Dyson lattice begins around a dying star",
+                "A space station the size of a small world is completed after centuries of work",
+            };
+            desc = mega_templates[rng() % 5];
             break;
-        case LoreEventType::SgrADetection:
-            desc = "Anomalous signals detected from Sgr A*";
+        }
+        case LoreEventType::SgrADetection: {
+            switch (rng() % 4) {
+                case 0: desc = "Deep-space sensors detect anomalous gravitational waves from the galactic center"; break;
+                case 1: desc = "A " + pred_short + " beacon fragment reveals coordinates pointing to Sgr A*"; break;
+                case 2: desc = "Astronomers observe impossible light patterns emanating from Sgr A*"; break;
+                default: desc = civ.short_name + " physicists prove that Sgr A* is not merely a black hole"; break;
+            }
             break;
-        case LoreEventType::CivilWar:
-            desc = "Internal factions fracture " + civ.short_name + " unity";
+        }
+        case LoreEventType::CivilWar: {
+            switch (rng() % 4) {
+                case 0: desc = "The outer colonies declare independence — the " + civ.short_name + " civil war begins"; break;
+                case 1: desc = "Ideological schism splits " + civ.short_name + " into two hostile factions"; break;
+                case 2: desc = "A dispute over " + pred_short + " artifacts escalates into open warfare"; break;
+                default: desc = "The " + civ.short_name + " leadership fractures over the question of Sgr A*"; break;
+            }
             break;
-        case LoreEventType::ResourceWar:
-            desc = "War erupts over dwindling resources";
+        }
+        case LoreEventType::ResourceWar: {
+            switch (rng() % 3) {
+                case 0: desc = "Rare element deposits trigger conflict between " + civ.short_name + " factions"; break;
+                case 1: desc = "Control of hyperspace fuel sources becomes the defining struggle of the era"; break;
+                default: desc = "Wars over " + pred_short + " technology caches devastate entire systems"; break;
+            }
             break;
-        case LoreEventType::ArtifactCreation:
-            desc = "Legendary artifact forged";
+        }
+        case LoreEventType::ArtifactCreation: {
+            switch (rng() % 4) {
+                case 0: desc = "The greatest " + civ.short_name + " artificers forge a weapon of terrible power"; break;
+                case 1: desc = "A navigation device is created that can sense the beacon network across light-years"; break;
+                case 2: desc = "A knowledge crystal is encoded with the sum of " + civ.short_name + " understanding"; break;
+                default: desc = "An artifact of unknown purpose is constructed — it hums when pointed at the core"; break;
+            }
             break;
-        case LoreEventType::ConvergenceDiscovery:
-            desc = "Convergence point discovered near galactic core";
+        }
+        case LoreEventType::ConvergenceDiscovery: {
+            switch (rng() % 3) {
+                case 0: desc = civ.short_name + " scholars realize all precursor beacon paths converge at Sgr A*"; break;
+                case 1: desc = "Analysis of " + pred_short + " records reveals the convergence pattern — everything points inward"; break;
+                default: desc = "The mathematical proof is undeniable: every civilization's journey ends at the center"; break;
+            }
             break;
+        }
         default:
             desc = "Unknown event";
             break;
@@ -370,18 +505,59 @@ void LoreGenerator::generate_events(
         push(t, frac, desc);
     }
 
-    // Collapse.
-    push(collapse_event_type(civ.collapse_cause), 0.90f,
-         civ.short_name + " civilization collapses — " + collapse_name(civ.collapse_cause));
+    // Inter-civilization interaction (30% chance if predecessors exist)
+    if (has_predecessors && rng() % 10 < 3) {
+        std::string inter_desc;
+        switch (rng() % 4) {
+            case 0: inter_desc = "A dormant " + pred_short + " defense system awakens, destroying two " + civ.short_name + " colony ships"; break;
+            case 1: inter_desc = civ.short_name + " expedition finds a sealed " + pred_short + " vault containing a dire warning about Sgr A*"; break;
+            case 2: inter_desc = "A " + pred_short + " guardian construct is captured alive — it speaks of the convergence in a dead language"; break;
+            default: inter_desc = civ.short_name + " engineers accidentally activate a " + pred_short + " weapon, sterilizing an entire moon"; break;
+        }
+        push(LoreEventType::PrecursorBreakthrough, uniform(rng, cursor, 0.80f), inter_desc);
+    }
 
-    // Legacy events.
+    // Collapse — richer descriptions
+    std::string collapse_desc;
+    switch (civ.collapse_cause) {
+        case CollapseCause::Transcendence:
+            collapse_desc = "In a single galactic heartbeat, " + civ.short_name +
+                " abandons physical form and streams toward Sgr A* as pure energy";
+            break;
+        case CollapseCause::War:
+            collapse_desc = "The final " + civ.short_name +
+                " war consumes everything — worlds burn, stations fall silent, the void reclaims all";
+            break;
+        case CollapseCause::Plague:
+            collapse_desc = "A pathogen — perhaps released from a " + pred_short +
+                " vault — sweeps through " + civ.short_name + " space, leaving only empty cities";
+            break;
+        case CollapseCause::ResourceExhaustion:
+            collapse_desc = civ.short_name +
+                " expansion outpaces supply — worlds are stripped bare, colonies wither, the network fragments";
+            break;
+        case CollapseCause::SgrAObsession:
+            collapse_desc = "Consumed by the mystery of Sgr A*, " + civ.short_name +
+                " pours everything into reaching the center — and in reaching, is unmade";
+            break;
+        default:
+            collapse_desc = civ.short_name +
+                " vanishes from the galaxy. No records survive to explain why. Only ruins remain.";
+            break;
+    }
+    push(collapse_event_type(civ.collapse_cause), 0.90f, collapse_desc);
+
+    // Legacy events
     if (rng() % 2 == 0) {
         push(LoreEventType::VaultSealed, 0.95f,
-             "Knowledge vaults sealed against the coming silence");
+             "In their final days, " + civ.short_name +
+             " seals knowledge vaults across " + std::to_string(2 + rng() % 8) +
+             " systems — a message to whoever comes next");
     }
     if (rng() % 3 == 0) {
         push(LoreEventType::GuardianCreated, 0.97f,
-             "Autonomous guardians activated to protect relics");
+             "Autonomous " + civ.short_name +
+             " guardians are activated with a single directive: protect the path to the center");
     }
 
     // Sort by fraction and assign real times.

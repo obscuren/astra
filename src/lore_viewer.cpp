@@ -58,7 +58,7 @@ void LoreViewer::draw(Renderer* renderer, int screen_w, int screen_h) {
 
     // Content area (inside the box)
     int content_w = bounds.w - 2;
-    int content_h = bounds.h - 3; // box top + title + box bottom + footer
+    int content_h = bounds.h - 2; // box top + box bottom (footer overlaps bottom)
     if (content_h <= 0) return;
 
     // Clamp scroll

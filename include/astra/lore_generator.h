@@ -27,7 +27,8 @@ private:
         std::mt19937& rng,
         Civilization& civ,
         int epoch_index,
-        bool has_predecessors);
+        bool has_predecessors,
+        const std::vector<Civilization>& predecessors);
 
     static void generate_figures(
         std::mt19937& rng,
