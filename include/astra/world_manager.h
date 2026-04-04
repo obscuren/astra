@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/item.h"
+#include "astra/lore_types.h"
 #include "astra/npc.h"
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
@@ -92,6 +93,9 @@ public:
     unsigned seed() const { return seed_; }
     std::mt19937& rng() { return rng_; }
 
+    WorldLore& lore() { return lore_; }
+    const WorldLore& lore() const { return lore_; }
+
     NavigationData& navigation() { return navigation_; }
     const NavigationData& navigation() const { return navigation_; }
 
@@ -149,6 +153,7 @@ private:
     unsigned seed_ = 0;
     std::mt19937 rng_;
     NavigationData navigation_;
+    WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;
     std::map<LocationKey, QuestLocationMeta> quest_locations_;
 };
