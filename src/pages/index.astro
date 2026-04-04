@@ -1,6 +1,25 @@
 ---
+import { getCollection } from 'astro:content';
+
 const title = "ASTRA — Sci-Fi Roguelike";
 const description = "A sci-fi roguelike dungeon crawler. Command a starship, explore the unknown, navigate through black holes, and reach Sagittarius A* at the heart of the galaxy.";
+
+const allPosts = (await getCollection('news')).sort(
+  (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+);
+const latestPosts = allPosts.slice(0, 3);
+
+const tagColors: Record<string, string> = {
+  update: 'news-tag',
+  feature: 'news-tag feature',
+  release: 'news-tag release',
+};
+
+function formatDate(d: string) {
+  const dt = new Date(d);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${dt.getFullYear()} \u00b7 ${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, '0')}`;
+}
 ---
 
 <!DOCTYPE html>
@@ -373,6 +392,7 @@ section {
 .section-tag.amber { background: var(--amber); }
 .section-tag.green { background: var(--green); }
 .section-tag.magenta { background: var(--magenta); }
+.section-tag.cyan { background: var(--cyan); }
 
 .section-title {
   font-family: var(--display);
@@ -498,6 +518,86 @@ section {
   font-size: 0.8rem;
   line-height: 1.7;
   color: var(--text);
+}
+
+/* ── News section ── */
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .news-grid { grid-template-columns: 1fr; }
+}
+
+.news-card {
+  background: var(--deep);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  position: relative;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.news-card:hover {
+  border-color: var(--dim);
+  transform: translateY(-2px);
+}
+
+.news-date {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+
+.news-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--white);
+  letter-spacing: 0.03em;
+  margin-bottom: 0.6rem;
+}
+
+.news-body {
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.news-tag {
+  display: inline-block;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  margin-bottom: 0.8rem;
+  border: 1px solid var(--cyan-dim);
+  color: var(--cyan);
+}
+
+.news-tag.release { border-color: var(--green-dim); color: var(--green); }
+.news-tag.feature { border-color: var(--amber-dim); color: var(--amber); }
+
+.news-footer {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.news-footer a {
+  font-family: var(--display);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+
+.news-footer a:hover {
+  color: var(--cyan);
 }
 
 /* ── Lore section ── */
@@ -770,6 +870,29 @@ footer {
     </div>
     <div class="hero-release" id="heroRelease"></div>
     <div class="scroll-indicator" id="scrollIndicator">Descend</div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- News -->
+  <section>
+    <div class="section-header">
+      <span class="section-tag cyan">COMMS</span>
+      <h2 class="section-title">Transmissions</h2>
+    </div>
+    <div class="news-grid">
+      {latestPosts.map((post) => (
+        <a href={`/astra/news/${post.id}`} class="news-card reveal" style="text-decoration: none; color: inherit;">
+          <div class="news-date">{formatDate(post.data.date)}</div>
+          <span class={tagColors[post.data.tag] || 'news-tag'}>{post.data.tag}</span>
+          <div class="news-title">{post.data.title}</div>
+          <div class="news-body">{post.data.summary}</div>
+        </a>
+      ))}
+    </div>
+    <div class="news-footer">
+      <a href="/astra/news/">All transmissions &rarr;</a>
+    </div>
   </section>
 
   <hr class="section-divider">
@@ -1081,6 +1204,14 @@ footer {
 
 // ── Boot sequence ──
 (() => {
+  // Skip boot with ?noboot in URL (for dev)
+  if (new URLSearchParams(window.location.search).has('noboot')) {
+    document.getElementById('bootScreen').classList.add('done');
+    document.body.classList.add('booted');
+    revealHero();
+    return;
+  }
+
   const lines = [
     { text: 'ASTRA SYSTEMS v0.1.0', cls: '' },
     { text: 'Initializing subsystems...', cls: 'label' },

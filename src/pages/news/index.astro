@@ -1,0 +1,242 @@
+---
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('news')).sort(
+  (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+);
+
+const tagColors: Record<string, { border: string; color: string }> = {
+  update: { border: 'var(--cyan-dim)', color: 'var(--cyan)' },
+  feature: { border: 'var(--amber-dim)', color: 'var(--amber)' },
+  release: { border: 'var(--green-dim)', color: 'var(--green)' },
+};
+
+function formatDate(d: string) {
+  const dt = new Date(d);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${dt.getFullYear()} \u00b7 ${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, '0')}`;
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transmissions — ASTRA</title>
+<link rel="icon" type="image/svg+xml" href="/astra/favicon.svg" />
+<link rel="icon" href="/astra/favicon.ico" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style is:inline>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --void: #050508;
+  --deep: #0a0a10;
+  --border: #1a1a2e;
+  --dim: #2a2a3e;
+  --muted: #4a4a6a;
+  --text: #8888aa;
+  --light: #c0c0d8;
+  --white: #e8e8f0;
+  --cyan: #00e5ff;
+  --cyan-dim: #00e5ff33;
+  --amber: #ffb300;
+  --amber-dim: #ffb30033;
+  --green: #00e676;
+  --green-dim: #00e67633;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.site-logo {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--white);
+  text-decoration: none;
+  text-shadow: 0 0 30px var(--cyan-dim);
+  transition: text-shadow 0.3s ease;
+}
+
+.site-logo:hover {
+  text-shadow: 0 0 40px var(--cyan-dim), 0 0 80px rgba(0, 229, 255, 0.1);
+}
+
+.site-nav {
+  font-family: var(--display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.site-nav a:hover { color: var(--cyan); }
+
+.container {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+}
+
+.back {
+  font-family: var(--display);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+  display: inline-block;
+  margin-bottom: 2rem;
+}
+
+.back:hover { color: var(--cyan); }
+
+.page-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 2rem;
+  color: var(--white);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+.post-item {
+  display: block;
+  text-decoration: none;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s ease;
+}
+
+.post-item:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.post-item:hover {
+  background: var(--deep);
+}
+
+.post-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.post-date {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.post-tag {
+  display: inline-block;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+  min-width: 55px;
+  text-align: center;
+}
+
+.post-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--white);
+  letter-spacing: 0.03em;
+  flex: 1;
+}
+
+.post-summary {
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text);
+  margin-top: 0.5rem;
+  padding-left: calc(110px + 55px + 2rem);
+}
+
+@media (max-width: 600px) {
+  .post-row { flex-wrap: wrap; }
+  .post-summary { padding-left: 0; }
+}
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/astra/?noboot" class="site-logo">ASTRA</a>
+    <nav class="site-nav">
+      <a href="/astra/news/">Transmissions</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h1 class="page-title">Transmissions</h1>
+    <p class="page-subtitle">Development updates, releases, and feature announcements.</p>
+
+    {posts.map((post) => {
+      const tc = tagColors[post.data.tag] || tagColors.update;
+      return (
+        <a href={`/astra/news/${post.id}`} class="post-item">
+          <div class="post-row">
+            <span class="post-date">{formatDate(post.data.date)}</span>
+            <span class="post-tag" style={`border: 1px solid ${tc.border}; color: ${tc.color};`}>{post.data.tag}</span>
+            <span class="post-title">{post.data.title}</span>
+          </div>
+          <div class="post-summary">{post.data.summary}</div>
+        </a>
+      );
+    })}
+  </div>
+</body>
+</html>

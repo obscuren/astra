@@ -1,0 +1,250 @@
+---
+const { title, date, tag } = Astro.props;
+const tagColors: Record<string, { border: string; color: string }> = {
+  update: { border: 'var(--cyan-dim)', color: 'var(--cyan)' },
+  feature: { border: 'var(--amber-dim)', color: 'var(--amber)' },
+  release: { border: 'var(--green-dim)', color: 'var(--green)' },
+};
+const tc = tagColors[tag] || tagColors.update;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title} — ASTRA</title>
+<link rel="icon" type="image/svg+xml" href="/astra/favicon.svg" />
+<link rel="icon" href="/astra/favicon.ico" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style is:inline>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --void: #050508;
+  --deep: #0a0a10;
+  --panel: #0c0c14;
+  --border: #1a1a2e;
+  --dim: #2a2a3e;
+  --muted: #4a4a6a;
+  --text: #8888aa;
+  --light: #c0c0d8;
+  --white: #e8e8f0;
+  --cyan: #00e5ff;
+  --cyan-dim: #00e5ff33;
+  --amber: #ffb300;
+  --amber-dim: #ffb30033;
+  --green: #00e676;
+  --green-dim: #00e67633;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.site-logo {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--white);
+  text-decoration: none;
+  text-shadow: 0 0 30px var(--cyan-dim);
+  transition: text-shadow 0.3s ease;
+}
+
+.site-logo:hover {
+  text-shadow: 0 0 40px var(--cyan-dim), 0 0 80px rgba(0, 229, 255, 0.1);
+}
+
+.site-nav {
+  font-family: var(--display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.site-nav a:hover { color: var(--cyan); }
+
+.site-nav .sep { color: var(--dim); margin: 0 0.5rem; }
+
+.post-container {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+}
+
+.post-back {
+  font-family: var(--display);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+  display: inline-block;
+  margin-bottom: 2rem;
+}
+
+.post-back:hover { color: var(--cyan); }
+
+.post-meta {
+  margin-bottom: 1.5rem;
+}
+
+.post-date {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.post-tag {
+  display: inline-block;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+}
+
+.post-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 2rem;
+  color: var(--white);
+  letter-spacing: 0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.post-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+.post-content {
+  font-size: 0.85rem;
+  line-height: 1.9;
+  color: var(--light);
+}
+
+.post-content h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--white);
+  letter-spacing: 0.05em;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.post-content h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--white);
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+}
+
+.post-content p {
+  margin-bottom: 1.2rem;
+}
+
+.post-content ul, .post-content ol {
+  margin-bottom: 1.2rem;
+  padding-left: 1.5rem;
+}
+
+.post-content li {
+  margin-bottom: 0.4rem;
+}
+
+.post-content strong {
+  color: var(--white);
+}
+
+.post-content em {
+  color: var(--cyan);
+  font-style: normal;
+}
+
+.post-content code {
+  background: var(--deep);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+.post-content pre {
+  background: var(--deep);
+  border: 1px solid var(--border);
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1.2rem;
+}
+
+.post-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/astra/?noboot" class="site-logo">ASTRA</a>
+    <nav class="site-nav">
+      <a href="/astra/news/">Transmissions</a>
+    </nav>
+  </header>
+
+  <div class="post-container">
+    <div class="post-meta">
+      <div class="post-date">{date}</div>
+      <span class="post-tag" style={`border: 1px solid ${tc.border}; color: ${tc.color};`}>{tag}</span>
+    </div>
+
+    <h1 class="post-title">{title}</h1>
+
+    <hr class="post-divider">
+
+    <div class="post-content">
+      <slot />
+    </div>
+  </div>
+</body>
+</html>
