@@ -1391,6 +1391,161 @@ std::vector<SaveSlot> list_saves() {
     return slots;
 }
 
+// ---------------------------------------------------------------------------
+// Lore serialization
+// ---------------------------------------------------------------------------
+
+static void write_lore_section(BinaryWriter& w, const WorldLore& lore) {
+    auto pos = w.begin_section("LORE");
+
+    w.write_u32(lore.seed);
+    w.write_u8(lore.generated ? 1 : 0);
+
+    w.write_u32(static_cast<uint32_t>(lore.civilizations.size()));
+    for (const auto& civ : lore.civilizations) {
+        w.write_string(civ.name);
+        w.write_string(civ.short_name);
+        w.write_u8(static_cast<uint8_t>(civ.phoneme_pool));
+        w.write_u8(static_cast<uint8_t>(civ.architecture));
+        w.write_u8(static_cast<uint8_t>(civ.tech_style));
+        w.write_u8(static_cast<uint8_t>(civ.philosophy));
+        w.write_u8(static_cast<uint8_t>(civ.predecessor_relation));
+        w.write_u8(static_cast<uint8_t>(civ.sgra_relation));
+        w.write_u8(static_cast<uint8_t>(civ.collapse_cause));
+        w.write_f32(civ.epoch_start_bya);
+        w.write_f32(civ.epoch_end_bya);
+        w.write_u32(civ.homeworld_system_id);
+
+        w.write_u32(static_cast<uint32_t>(civ.events.size()));
+        for (const auto& e : civ.events) {
+            w.write_u8(static_cast<uint8_t>(e.type));
+            w.write_f32(e.time_bya);
+            w.write_string(e.description);
+            w.write_u32(e.system_id);
+        }
+
+        w.write_u32(static_cast<uint32_t>(civ.figures.size()));
+        for (const auto& f : civ.figures) {
+            w.write_string(f.name);
+            w.write_string(f.title);
+            w.write_u8(static_cast<uint8_t>(f.archetype));
+            w.write_string(f.achievement);
+            w.write_u32(f.system_id);
+            w.write_i32(f.artifact_index);
+            w.write_string(f.fate);
+        }
+
+        w.write_u32(static_cast<uint32_t>(civ.artifacts.size()));
+        for (const auto& a : civ.artifacts) {
+            w.write_string(a.name);
+            w.write_u8(static_cast<uint8_t>(a.category));
+            w.write_string(a.origin_text);
+            w.write_string(a.effect_text);
+            w.write_u32(a.system_id);
+            w.write_i32(a.body_index);
+            w.write_i32(a.figure_index);
+        }
+    }
+
+    // Human history
+    w.write_f32(lore.humanity.arrival_bya);
+    w.write_f32(lore.humanity.golden_age_start);
+    w.write_f32(lore.humanity.fracture_bya);
+
+    w.write_u32(static_cast<uint32_t>(lore.humanity.events.size()));
+    for (const auto& e : lore.humanity.events) {
+        w.write_u8(static_cast<uint8_t>(e.type));
+        w.write_f32(e.time_bya);
+        w.write_string(e.description);
+        w.write_u32(e.system_id);
+    }
+
+    w.write_u32(static_cast<uint32_t>(lore.humanity.faction_names.size()));
+    for (const auto& f : lore.humanity.faction_names)
+        w.write_string(f);
+
+    w.write_i32(lore.total_beacons);
+    w.write_i32(lore.active_beacons);
+
+    w.end_section(pos);
+}
+
+static void read_lore_section(BinaryReader& r, WorldLore& lore) {
+    lore.seed = r.read_u32();
+    lore.generated = r.read_u8() != 0;
+
+    uint32_t civ_count = r.read_u32();
+    lore.civilizations.resize(civ_count);
+    for (auto& civ : lore.civilizations) {
+        civ.name = r.read_string();
+        civ.short_name = r.read_string();
+        civ.phoneme_pool = static_cast<PhonemePool>(r.read_u8());
+        civ.architecture = static_cast<Architecture>(r.read_u8());
+        civ.tech_style = static_cast<TechStyle>(r.read_u8());
+        civ.philosophy = static_cast<Philosophy>(r.read_u8());
+        civ.predecessor_relation = static_cast<PredecessorRelation>(r.read_u8());
+        civ.sgra_relation = static_cast<SgrARelation>(r.read_u8());
+        civ.collapse_cause = static_cast<CollapseCause>(r.read_u8());
+        civ.epoch_start_bya = r.read_f32();
+        civ.epoch_end_bya = r.read_f32();
+        civ.homeworld_system_id = r.read_u32();
+
+        uint32_t event_count = r.read_u32();
+        civ.events.resize(event_count);
+        for (auto& e : civ.events) {
+            e.type = static_cast<LoreEventType>(r.read_u8());
+            e.time_bya = r.read_f32();
+            e.description = r.read_string();
+            e.system_id = r.read_u32();
+        }
+
+        uint32_t fig_count = r.read_u32();
+        civ.figures.resize(fig_count);
+        for (auto& f : civ.figures) {
+            f.name = r.read_string();
+            f.title = r.read_string();
+            f.archetype = static_cast<FigureArchetype>(r.read_u8());
+            f.achievement = r.read_string();
+            f.system_id = r.read_u32();
+            f.artifact_index = r.read_i32();
+            f.fate = r.read_string();
+        }
+
+        uint32_t art_count = r.read_u32();
+        civ.artifacts.resize(art_count);
+        for (auto& a : civ.artifacts) {
+            a.name = r.read_string();
+            a.category = static_cast<ArtifactCategory>(r.read_u8());
+            a.origin_text = r.read_string();
+            a.effect_text = r.read_string();
+            a.system_id = r.read_u32();
+            a.body_index = r.read_i32();
+            a.figure_index = r.read_i32();
+        }
+    }
+
+    lore.humanity.arrival_bya = r.read_f32();
+    lore.humanity.golden_age_start = r.read_f32();
+    lore.humanity.fracture_bya = r.read_f32();
+
+    uint32_t h_event_count = r.read_u32();
+    lore.humanity.events.resize(h_event_count);
+    for (auto& e : lore.humanity.events) {
+        e.type = static_cast<LoreEventType>(r.read_u8());
+        e.time_bya = r.read_f32();
+        e.description = r.read_string();
+        e.system_id = r.read_u32();
+    }
+
+    uint32_t faction_count = r.read_u32();
+    lore.humanity.faction_names.resize(faction_count);
+    for (auto& f : lore.humanity.faction_names)
+        f = r.read_string();
+
+    lore.total_beacons = r.read_i32();
+    lore.active_beacons = r.read_i32();
+}
+
 bool write_save(const std::string& name, const SaveData& data) {
     auto dir = save_directory();
     std::filesystem::create_directories(dir);
@@ -1417,6 +1572,9 @@ bool write_save(const std::string& name, const SaveData& data) {
     if (!data.active_quests.empty() || !data.completed_quests.empty() ||
         !data.quest_locations.empty()) {
         write_quest_section(w, data);
+    }
+    if (data.lore.generated) {
+        write_lore_section(w, data.lore);
     }
 
     // Sentinel
@@ -1469,6 +1627,8 @@ bool read_save(const std::string& name, SaveData& data) {
             read_navigation_section(r, data.navigation, data.version);
         } else if (std::memcmp(tag, "QUST", 4) == 0) {
             read_quest_section(r, data);
+        } else if (std::memcmp(tag, "LORE", 4) == 0) {
+            read_lore_section(r, data.lore);
         } else {
             // Unknown section — skip
             r.skip(size);

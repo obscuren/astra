@@ -39,6 +39,7 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.active_quests = game.quests().active_quests();
         data.completed_quests = game.quests().completed_quests();
         data.quest_locations = world.quest_locations();
+        data.lore = world.lore();
     }
 
     MapState ms;
@@ -101,6 +102,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     game.quests().restore(std::move(data.active_quests),
                           std::move(data.completed_quests));
     world.quest_locations() = std::move(data.quest_locations);
+    world.lore() = std::move(data.lore);
 
     game.rebuild_star_chart_viewer();
 

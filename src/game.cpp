@@ -4,6 +4,7 @@
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
 #include "astra/journal.h"
+#include "astra/lore_generator.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
 #include "astra/overworld_stamps.h"
@@ -538,6 +539,7 @@ void Game::new_game() {
     player_.inventory.items.push_back(battery);
 
     // Generate the galaxy
+    world_.lore() = LoreGenerator::generate(world_.seed());
     world_.navigation() = generate_galaxy(world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
@@ -644,6 +646,7 @@ void Game::new_game(const CreationResult& cr) {
     player_.inventory.items.push_back(battery);
 
     // Generate the galaxy
+    world_.lore() = LoreGenerator::generate(world_.seed());
     world_.navigation() = generate_galaxy(world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;

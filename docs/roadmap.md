@@ -66,12 +66,13 @@
 - [x] **Auto-walk/explore** — `w` + direction = walk straight, `ww` = BFS auto-explore
 
 ### World Generation
-- [ ] **Procedural world lore** — billions of years of layered history, precursor civilizations, beacon network toward Sgr A*
-- [ ] **Phoneme-based naming** — procedural civilization/figure/artifact names from curated syllable pools
+- [x] **Procedural world lore** — billions of years of layered history, 2-5 precursor civilizations, beacon network toward Sgr A*
+- [x] **Phoneme-based naming** — 6 syllable pools, procedural civilization/figure/artifact names
+- [x] **Developer history log** — `history` dev console command dumps full timeline
+- [x] **Lore save/load** — WorldLore persisted via tagged LORE section
 - [ ] **Lore-driven galaxy shaping** — history determines system significance tiers, POI placement, dungeon theming
 - [ ] **Legendary artifact generation** — unique items tied to historical figures and events
 - [ ] **Lore fragment system** — discoverable history pieces, progressive revelation
-- [ ] **Developer history log** — full timeline dump in dev mode
 - [ ] New dungeon generator types / biomes
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] Derelict station expansion — more room types
