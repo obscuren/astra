@@ -51,6 +51,7 @@ set(ASTRA_SOURCES
     src/lore_generator.cpp
     src/lore_viewer.cpp
     src/narrative_templates.cpp
+    src/galaxy_sim.cpp
     src/item_defs.cpp
     src/item_gen.cpp
     src/journal.cpp
