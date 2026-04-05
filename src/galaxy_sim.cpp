@@ -104,10 +104,54 @@ bool GalaxySim::territories_adjacent(const CivState& a, const CivState& b,
 
 CivState GalaxySim::spawn_civilization(std::mt19937& rng, int civ_id,
                                         std::vector<SimSystem>& systems,
-                                        Philosophy philosophy) {
+                                        Philosophy /*hint*/) {
     CivState civ;
     civ.id = civ_id;
-    civ.philosophy = philosophy;
+
+    // ── Allocate 100 trait points randomly with bias ──
+    // Give each trait a random base (1-5), then distribute remaining points
+    int* trait_arr[] = {
+        &civ.traits.aggression, &civ.traits.curiosity, &civ.traits.industriousness,
+        &civ.traits.cohesion, &civ.traits.spirituality, &civ.traits.adaptability,
+        &civ.traits.diplomacy, &civ.traits.creativity, &civ.traits.technology
+    };
+    int remaining = CivTraits::total_points;
+    for (int i = 0; i < CivTraits::trait_count; ++i) {
+        *trait_arr[i] = randi(rng, 2, 8);
+        remaining -= *trait_arr[i];
+    }
+    // Distribute remaining points randomly
+    while (remaining > 0) {
+        int idx = randi(rng, 0, CivTraits::trait_count - 1);
+        int add = std::min(remaining, randi(rng, 1, 5));
+        *trait_arr[idx] += add;
+        remaining -= add;
+    }
+    // If we went negative from initial allocation, steal from highest
+    while (remaining < 0) {
+        int highest_idx = 0;
+        for (int i = 1; i < CivTraits::trait_count; ++i) {
+            if (*trait_arr[i] > *trait_arr[highest_idx]) highest_idx = i;
+        }
+        int steal = std::min(-remaining, *trait_arr[highest_idx] - 1);
+        *trait_arr[highest_idx] -= steal;
+        remaining += steal;
+        if (steal == 0) break; // safety
+    }
+
+    // ── Derive philosophy from dominant traits ──
+    struct { int val; Philosophy phil; } mapping[] = {
+        {civ.traits.aggression + civ.traits.industriousness, Philosophy::Expansionist},
+        {civ.traits.curiosity + civ.traits.creativity, Philosophy::Contemplative},
+        {civ.traits.aggression * 2, Philosophy::Predatory},
+        {civ.traits.diplomacy + civ.traits.cohesion + civ.traits.adaptability, Philosophy::Symbiotic},
+        {civ.traits.spirituality + civ.traits.curiosity, Philosophy::Transcendent},
+    };
+    int best = 0;
+    for (int i = 1; i < 5; ++i) {
+        if (mapping[i].val > mapping[best].val) best = i;
+    }
+    civ.philosophy = mapping[best].phil;
 
     // Pick a random unclaimed system as homeworld
     std::vector<int> unclaimed;
@@ -123,13 +167,13 @@ CivState GalaxySim::spawn_civilization(std::mt19937& rng, int civ_id,
     civ.territory.insert(systems[idx].id);
     systems[idx].owner_civ = civ_id;
 
-    // Initial state
+    // Initial state (influenced by traits)
     civ.population = randf(rng, 8.0f, 15.0f);
-    civ.resources = randf(rng, 40.0f, 80.0f);
-    civ.knowledge = randf(rng, 3.0f, 8.0f);
-    civ.stability = randf(rng, 60.0f, 80.0f);
-    civ.military = 0.0f;
-    civ.sgra_awareness = 0.0f;
+    civ.resources = randf(rng, 40.0f, 80.0f) + civ.traits.industriousness * 2.0f;
+    civ.knowledge = randf(rng, 3.0f, 8.0f) + civ.traits.technology * 0.5f;
+    civ.stability = randf(rng, 50.0f, 70.0f) + civ.traits.cohesion * 1.0f;
+    civ.military = civ.traits.aggression * 2.0f;
+    civ.sgra_awareness = civ.traits.spirituality * 0.5f;
     civ.weapon_tech = 0;
     civ.faction_tension = 0.0f;
 
@@ -159,34 +203,14 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     float territory_size = static_cast<float>(civ.territory.size());
     float capacity = territory_size * 120.0f;
 
-    // ── Philosophy modifiers ──
-    float pop_growth_mult = 1.0f, consumption_mult = 1.0f;
-    float research_mult = 1.0f, military_growth = 0.0f;
-    float stability_drift = 0.0f, sgra_mult = 1.0f;
-
-    switch (civ.philosophy) {
-    case Philosophy::Expansionist:
-        pop_growth_mult = 1.5f; consumption_mult = 1.2f;
-        military_growth = 0.3f; stability_drift = -0.05f;
-        break;
-    case Philosophy::Contemplative:
-        pop_growth_mult = 0.7f; consumption_mult = 0.5f;
-        research_mult = 2.0f; stability_drift = 0.1f;
-        break;
-    case Philosophy::Predatory:
-        pop_growth_mult = 1.3f; consumption_mult = 1.5f;
-        military_growth = 0.8f; stability_drift = -0.1f;
-        break;
-    case Philosophy::Symbiotic:
-        pop_growth_mult = 1.0f; consumption_mult = 0.8f;
-        research_mult = 1.3f; stability_drift = 0.15f;
-        break;
-    case Philosophy::Transcendent:
-        pop_growth_mult = 0.8f; consumption_mult = 0.6f;
-        research_mult = 2.5f; sgra_mult = 2.0f;
-        stability_drift = 0.05f;
-        break;
-    }
+    // ── Trait-derived modifiers (each trait 0-30ish, normalized to multipliers) ──
+    const auto& t = civ.traits;
+    float pop_growth_mult = 0.7f + t.industriousness * 0.03f + t.adaptability * 0.02f;
+    float consumption_mult = 0.8f + t.aggression * 0.02f + t.industriousness * 0.01f;
+    float research_mult = 0.5f + t.curiosity * 0.05f + t.technology * 0.05f + t.creativity * 0.03f;
+    float military_growth = t.aggression * 0.04f + t.technology * 0.02f;
+    float stability_drift = (t.cohesion - 10.0f) * 0.01f + t.diplomacy * 0.005f - t.aggression * 0.005f;
+    float sgra_mult = 0.5f + t.spirituality * 0.05f + t.curiosity * 0.02f;
 
     // ── 1. Growth ──
     float pop_need = civ.population * 0.1f * consumption_mult;
@@ -471,7 +495,7 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
 
     // ── 5. Sgr A* endgame ──
     if (civ.sgra_awareness > 85.0f) {
-        if (civ.philosophy == Philosophy::Transcendent || rng() % 50 == 0) {
+        if (civ.traits.spirituality > 15 || rng() % 50 == 0) {
             // Transcendence attempt
             civ.transcended = true;
             civ.alive = false;
@@ -553,10 +577,10 @@ void GalaxySim::check_interactions(std::mt19937& rng,
             }
 
             // Interaction based on philosophies
-            bool a_aggressive = (a.philosophy == Philosophy::Predatory || a.philosophy == Philosophy::Expansionist);
-            bool b_aggressive = (b.philosophy == Philosophy::Predatory || b.philosophy == Philosophy::Expansionist);
-            bool a_peaceful = (a.philosophy == Philosophy::Symbiotic || a.philosophy == Philosophy::Contemplative);
-            bool b_peaceful = (b.philosophy == Philosophy::Symbiotic || b.philosophy == Philosophy::Contemplative);
+            bool a_aggressive = a.traits.aggression > 15;
+            bool b_aggressive = b.traits.aggression > 15;
+            bool a_peaceful = a.traits.diplomacy > 12 && a.traits.aggression < 10;
+            bool b_peaceful = b.traits.diplomacy > 12 && b.traits.aggression < 10;
 
             if (a_peaceful && b_peaceful && rng() % 200 == 0) {
                 // Trade alliance
@@ -747,6 +771,17 @@ WorldLore GalaxySim::build_lore(unsigned seed, std::mt19937& rng,
         civ.architecture = static_cast<Architecture>(rng() % 5);
         civ.tech_style = static_cast<TechStyle>(rng() % 5);
         civ.homeworld_system_id = cs.homeworld;
+
+        // Store trait summary for display
+        {
+            const auto& tr = cs.traits;
+            char buf[256];
+            std::snprintf(buf, sizeof(buf),
+                "AGG:%d CUR:%d IND:%d COH:%d SPI:%d ADP:%d DIP:%d CRE:%d TEC:%d",
+                tr.aggression, tr.curiosity, tr.industriousness, tr.cohesion,
+                tr.spirituality, tr.adaptability, tr.diplomacy, tr.creativity, tr.technology);
+            civ.trait_summary = buf;
+        }
 
         // Determine collapse cause from how they died
         if (cs.transcended) {

@@ -13,10 +13,29 @@ namespace astra {
 
 // ── Simulated civilization state ──
 
+// ── Civilization traits (100 points distributed) ──
+struct CivTraits {
+    int aggression = 0;     // war frequency, conquest, military growth
+    int curiosity = 0;      // research rate, exploration, ruin investigation
+    int industriousness = 0;// resource extraction, construction, expansion
+    int cohesion = 0;       // stability baseline, schism resistance
+    int spirituality = 0;   // Sgr A* awareness, sacred sites, transcendence
+    int adaptability = 0;   // terraforming, plague resistance, survival
+    int diplomacy = 0;      // trade, alliances, first contact outcomes
+    int creativity = 0;     // artifacts, renaissance, breakthroughs
+    int technology = 0;     // tech advancement rate, weapon breakthroughs, megastructures
+
+    static constexpr int total_points = 100;
+    static constexpr int trait_count = 9;
+};
+
 struct CivState {
     int id = 0;                     // index into WorldLore::civilizations
     bool alive = true;
     bool transcended = false;
+
+    // Traits (allocated at spawn, immutable)
+    CivTraits traits;
 
     // Core state
     float population = 10.0f;       // abstract units (0-1000+)
@@ -53,7 +72,7 @@ struct CivState {
     bool discovered_convergence = false;
     bool found_predecessor_ruins = false;
 
-    // Philosophy (copied from Civilization for easy access)
+    // Philosophy (derived label from dominant traits)
     Philosophy philosophy = Philosophy::Expansionist;
 };
 

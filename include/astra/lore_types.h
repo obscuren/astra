@@ -195,6 +195,8 @@ struct Civilization {
     TechStyle tech_style;
     Philosophy philosophy;
 
+    std::string trait_summary;  // e.g. "AGG:15 CUR:8 IND:20 ..."
+
     PredecessorRelation predecessor_relation;
     SgrARelation sgra_relation;
     CollapseCause collapse_cause;
