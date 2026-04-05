@@ -387,7 +387,11 @@ void Game::enter_overworld_tile() {
     recompute_fov();
     compute_camera();
     check_region_change();
-    log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
+    // Archaeology skill: show civilization origin in entry message
+    if (player_has_skill(player_, SkillId::Cat_Archaeology))
+        log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
+    else
+        log(enter_msg);
 }
 
 void Game::exit_to_overworld() {
@@ -756,7 +760,10 @@ void Game::enter_dungeon_from_detail() {
     recompute_fov();
     compute_camera();
     check_region_change();
-    log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
+    if (player_has_skill(player_, SkillId::Cat_Archaeology))
+        log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
+    else
+        log(enter_msg);
 }
 
 void Game::exit_dungeon_to_detail() {

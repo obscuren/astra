@@ -57,6 +57,14 @@ enum class SkillId : uint32_t {
     LoreTundra = 906,
     ScoutsEye = 907,
     Cartographer = 908,
+    // Archaeology
+    Cat_Archaeology = 10,
+    RuinReader = 1000,
+    ArtifactIdentification = 1001,
+    Excavation = 1002,
+    CulturalAttunement = 1003,
+    PrecursorLinguist = 1004,
+    BeaconSense = 1005,
 };
 
 struct SkillDef {
