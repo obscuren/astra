@@ -3,9 +3,9 @@
 #include "astra/lore_types.h"
 #include "astra/name_generator.h"
 
+#include <functional>
 #include <random>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -122,10 +122,25 @@ struct SimSystem {
 
 // ── The galaxy simulation ──
 
+// ── Progress callback for visual generation screen ──
+struct SimProgress {
+    int tick = 0;
+    int total_ticks = 0;
+    int active_civs = 0;
+    int dead_civs = 0;
+    std::string event_text;     // latest event description (empty = tick update only)
+    std::string civ_name;       // which civ the event belongs to
+    bool phase_complete = false; // true when a major phase finishes
+    std::string phase_name;     // "Simulating deep time", "Compiling history", etc.
+};
+
+using SimCallback = std::function<void(const SimProgress&)>;
+
 class GalaxySim {
 public:
     // Run the full simulation and produce a WorldLore.
-    static WorldLore run(unsigned game_seed);
+    // Optional callback for progress display.
+    static WorldLore run(unsigned game_seed, SimCallback on_progress = nullptr);
 
 private:
     // Simulation phases

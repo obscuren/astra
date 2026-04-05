@@ -761,9 +761,19 @@ void GalaxySim::check_interactions(std::mt19937& rng,
 
 // ── Main simulation loop ──────────────────────────────────────────────────
 
-WorldLore GalaxySim::run(unsigned game_seed) {
+WorldLore GalaxySim::run(unsigned game_seed, SimCallback on_progress) {
     std::mt19937 rng(game_seed ^ 0x53494D55u); // "SIMU"
 
+    // Phase notification helper
+    auto notify_phase = [&](const std::string& phase) {
+        if (!on_progress) return;
+        SimProgress p;
+        p.phase_complete = true;
+        p.phase_name = phase;
+        on_progress(p);
+    };
+
+    notify_phase("Initializing star systems...");
     auto systems = generate_systems(rng);
     std::vector<CivState> civs;
     std::vector<SimEvent> events;
@@ -789,6 +799,9 @@ WorldLore GalaxySim::run(unsigned game_seed) {
         Philosophy::Expansionist, Philosophy::Contemplative, Philosophy::Predatory,
         Philosophy::Symbiotic, Philosophy::Transcendent
     };
+
+    // Track event count for callback throttling
+    size_t last_event_count = 0;
 
     // ── Simulation loop ──
     int next_civ = 0;
@@ -821,10 +834,39 @@ WorldLore GalaxySim::run(unsigned game_seed) {
         if (tick % 10 == 0) { // every 10M years
             check_interactions(rng, civs, systems, events, tick);
         }
+
+        // Progress callback — on new events or every 100 ticks
+        if (on_progress && (events.size() > last_event_count || tick % 100 == 0)) {
+            SimProgress p;
+            p.tick = tick;
+            p.total_ticks = total_ticks;
+            p.active_civs = 0;
+            p.dead_civs = 0;
+            for (const auto& c : civs) {
+                if (c.alive) p.active_civs++;
+                else p.dead_civs++;
+            }
+            // Report latest event if any
+            if (events.size() > last_event_count) {
+                const auto& ev = events.back();
+                p.event_text = ev.description;
+                if (ev.civ_id >= 0 && ev.civ_id < static_cast<int>(civs.size())) {
+                    // Will be named later; use civ index for now
+                    p.civ_name = "Civ #" + std::to_string(ev.civ_id);
+                }
+            }
+            last_event_count = events.size();
+            on_progress(p);
+        }
     }
 
+    notify_phase("Compiling galactic history...");
+
     // Build WorldLore from simulation results
-    return build_lore(game_seed, rng, civs, events, systems);
+    auto lore = build_lore(game_seed, rng, civs, events, systems);
+
+    notify_phase("Generation complete");
+    return lore;
 }
 
 // ── Convert simulation results into WorldLore ─────────────────────────────
