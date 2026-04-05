@@ -47,6 +47,7 @@ struct CivState {
 
     // Weapon tech level — breakthroughs give decisive advantages
     int weapon_tech = 0;            // 0-5, each level is a generational leap
+    int age = 0;                    // ticks since emergence
 
     // Territory
     std::unordered_set<uint32_t> territory; // claimed system IDs

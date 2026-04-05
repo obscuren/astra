@@ -251,16 +251,46 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     civ.sgra_awareness = clampf(civ.sgra_awareness, 0.0f, 100.0f);
 
     // ── 2. Stability ──
+    civ.age++;
+
     float target_stability = 55.0f + stability_drift * 50.0f;
-    // Stability recovers slowly toward target (civilizations tend to stabilize)
+    // Stability recovers slowly toward target
     civ.stability += (target_stability - civ.stability) * 0.02f;
-    // Penalties for bad conditions (but less severe)
+    // Penalties for bad conditions
     if (civ.resources <= 0.0f) civ.stability -= 0.5f; // famine
     if (territory_size > civ.stability * 0.5f) civ.stability -= 0.2f; // overextension
     if (civ.knowledge > 500.0f && civ.stability < 40.0f) civ.stability -= 0.2f; // existential crisis
     if (civ.faction_count > 1) civ.stability -= 0.1f * civ.faction_count;
     // Recovery bonus from adaptability trait
     if (civ.stability < 30.0f) civ.stability += civ.traits.adaptability * 0.02f;
+
+    // ── Entropy: civilizations face increasing pressure over time ──
+    // After 500M years, stability ceiling slowly drops (institutional decay)
+    // After 1B years, resource efficiency declines (depletion)
+    // After 2B years, existential fatigue sets in
+    // ── Entropy: nothing lasts forever ──
+    // Civilizations face accelerating decay. Average lifespan target: 0.5-2 Bya
+    // Exceptional civs (high cohesion + adaptability) can last longer
+    float age_bya = civ.age / 1000.0f;
+    float resilience = (civ.traits.cohesion + civ.traits.adaptability) * 0.01f; // 0-0.5ish
+    float decay_start = 0.2f + resilience; // 0.2 - 0.7 Bya before decay kicks in
+
+    if (age_bya > decay_start) {
+        float t = age_bya - decay_start;
+        // Stability erodes: slow at first, then accelerating
+        float stability_decay = t * t * 0.3f;
+        civ.stability -= stability_decay;
+
+        // Resources deplete
+        float res_decay = t * 0.1f * territory_size;
+        civ.resources -= res_decay;
+
+        // Population stagnates then declines
+        if (t > 0.5f) {
+            civ.population -= (t - 0.5f) * 0.3f;
+        }
+    }
+
     civ.stability = clampf(civ.stability, 0.0f, 100.0f);
 
     // Faction tension builds when stability is low
