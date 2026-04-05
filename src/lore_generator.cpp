@@ -1387,15 +1387,122 @@ std::string LoreGenerator::format_history(const WorldLore& lore) {
     out << "=== WORLD LORE (seed " << lore.seed << ") ===\n";
     out << "Civilizations: " << lore.civilizations.size() << "\n";
 
+    float timeline_start = 0.0f;
+    float timeline_end = 0.0f;
     if (!lore.civilizations.empty()) {
-        out << "Timeline: "
-            << lore.civilizations.front().epoch_start_bya << " Bya -> "
-            << lore.civilizations.back().epoch_end_bya << " Bya\n";
+        timeline_start = lore.civilizations.front().epoch_start_bya;
+        timeline_end = lore.civilizations.back().epoch_end_bya;
+        out << "Timeline: " << timeline_start << " Bya -> present\n";
     }
 
     out << "Beacons: " << lore.active_beacons << " active / "
         << lore.total_beacons << " total\n";
 
+    // ── Species Relations Diagram ──
+    out << "\n" << std::string(50, '=') << "\n";
+    out << "  SPECIES RELATIONS\n";
+    out << std::string(50, '=') << "\n\n";
+
+    // Build predecessor chain
+    for (size_t i = 0; i < lore.civilizations.size(); ++i) {
+        const auto& civ = lore.civilizations[i];
+        out << "  [" << i << "] " << civ.short_name;
+        if (i > 0) {
+            out << " (" << predecessor_name(civ.predecessor_relation)
+                << " " << lore.civilizations[i-1].short_name << ")";
+        } else {
+            out << " (Primordials)";
+        }
+        out << "\n";
+
+        // Show race descendants
+        for (const auto& ro : lore.race_origins) {
+            if (ro.ancestor_civ_index == static_cast<int>(i)) {
+                out << "      " << "\xe2\x94\x94\xe2\x94\x80\xe2\x94\x80\xe2\x96\xb6 "
+                    << ro.race_name;
+                if (ro.race_name == "Stellari") out << " (luminous descendants)";
+                else if (ro.race_name == "Sylphari") out << " (terraforming experiment)";
+                else if (ro.race_name == "Xytomorph") out << " (escaped bioweapon)";
+                out << "\n";
+            }
+        }
+        // Show connecting line to next civ
+        if (i < lore.civilizations.size() - 1) {
+            out << "      " << "\xe2\x94\x82" << "\n";
+        }
+    }
+
+    // Non-precursor races
+    out << "      " << "\xe2\x94\x82" << "\n";
+    out << "  [H] Humanity, Veldrani, Kreth (current epoch)\n";
+    out << "\n";
+
+    // ── Timeline Bar ──
+    out << std::string(50, '=') << "\n";
+    out << "  TIMELINE\n";
+    out << std::string(50, '=') << "\n\n";
+
+    if (timeline_start > 0.0f) {
+        int bar_width = 40;
+
+        for (size_t i = 0; i < lore.civilizations.size(); ++i) {
+            const auto& civ = lore.civilizations[i];
+            // Map epoch to bar positions
+            int start_pos = static_cast<int>((1.0f - civ.epoch_start_bya / timeline_start) * bar_width);
+            int end_pos = static_cast<int>((1.0f - civ.epoch_end_bya / timeline_start) * bar_width);
+            if (start_pos < 0) start_pos = 0;
+            if (end_pos >= bar_width) end_pos = bar_width - 1;
+            if (start_pos > end_pos) std::swap(start_pos, end_pos);
+
+            // Format time label
+            char label[32];
+            std::snprintf(label, sizeof(label), "%5.2f Bya ", civ.epoch_start_bya);
+            out << "  " << label;
+
+            // Draw bar
+            for (int b = 0; b < bar_width; ++b) {
+                if (b >= start_pos && b <= end_pos)
+                    out << "\xe2\x96\x93"; // ▓
+                else
+                    out << "\xe2\x96\x91"; // ░
+            }
+            out << " " << civ.short_name;
+
+            // Show race emergence on this bar
+            for (const auto& ro : lore.race_origins) {
+                if (ro.ancestor_civ_index == static_cast<int>(i)) {
+                    out << " -> " << ro.race_name;
+                }
+            }
+            out << "\n";
+        }
+
+        // Human epoch bar
+        {
+            char label[32];
+            std::snprintf(label, sizeof(label), "%5.3f Bya ", lore.humanity.arrival_bya);
+            out << "  " << label;
+            // Humans are at the very end
+            for (int b = 0; b < bar_width - 1; ++b)
+                out << "\xe2\x96\x91"; // ░
+            out << "\xe2\x96\x93"; // ▓
+            out << " Humanity\n";
+        }
+
+        // "You are here" marker
+        out << "           ";
+        for (int b = 0; b < bar_width - 1; ++b)
+            out << " ";
+        out << "\xe2\x96\xb2\n"; // ▲
+        out << "           ";
+        for (int b = 0; b < bar_width - 6; ++b)
+            out << " ";
+        out << "You are here\n";
+    }
+
+    out << "\n";
+
+    // ── Per-epoch details ──
     for (size_t i = 0; i < lore.civilizations.size(); ++i) {
         auto& civ = lore.civilizations[i];
         out << "\n--- Epoch " << i << ": " << civ.name << " ---\n";
