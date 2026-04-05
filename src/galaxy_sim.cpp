@@ -245,7 +245,7 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     civ.population = clampf(civ.population, 0.0f, 5000.0f);
 
     // Knowledge grows steadily — civilizations always learn
-    civ.knowledge += 0.05f * research_mult * (0.5f + stability_factor * 0.5f);
+    civ.knowledge += 0.1f * research_mult * (0.5f + stability_factor * 0.5f);
     civ.military += military_growth * 0.05f;
     civ.sgra_awareness += 0.003f * sgra_mult * (civ.knowledge / 200.0f);
     civ.sgra_awareness = clampf(civ.sgra_awareness, 0.0f, 100.0f);
@@ -276,8 +276,8 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
 
     // Crisis roll: chance of a major destabilizing event increases with age
     // At 0.3 Bya: ~0.1% per tick. At 1 Bya: ~1% per tick. At 3 Bya: ~5% per tick.
-    float crisis_chance = age_bya * age_bya * 0.5f; // quadratic growth
-    crisis_chance = std::max(0.0f, crisis_chance - resilience * 0.02f); // resilience reduces chance
+    float crisis_chance = age_bya * age_bya * 0.3f; // quadratic, gentler
+    crisis_chance = std::max(0.0f, crisis_chance - resilience * 0.03f); // resilience reduces chance more
 
     if (crisis_chance > 0.0f && randf(rng, 0.0f, 100.0f) < crisis_chance) {
         // Random crisis — severity varies
@@ -363,15 +363,19 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     }
 
     // Expansion (population pressure)
-    if (civ.cd_expansion == 0 && civ.population > capacity * 0.8f) {
+    // Expansion: driven by population pressure OR knowledge/industriousness
+    bool expansion_pressure = civ.population > capacity * 0.5f;
+    bool expansion_ambition = civ.knowledge > 30.0f && civ.resources > 50.0f &&
+                              rng() % 100 < (civ.traits.industriousness + civ.traits.curiosity);
+    if (civ.cd_expansion == 0 && (expansion_pressure || expansion_ambition)) {
         uint32_t target = find_nearest_unclaimed(civ, systems);
         if (target != 0) {
             civ.territory.insert(target);
             for (auto& s : systems) {
                 if (s.id == target) { s.owner_civ = civ.id; break; }
             }
-            civ.resources -= 20.0f;
-            civ.cd_expansion = 30 + randi(rng, 0, 20);
+            civ.resources -= 15.0f;
+            civ.cd_expansion = 15 + randi(rng, 0, 15);
             emit(LoreEventType::ColonyFounded, "COLONY", target);
         } else {
             // No room — pressure builds
@@ -412,8 +416,8 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     }
 
     // Megastructure (high stability + high resources + high knowledge)
-    if (civ.cd_megastructure == 0 && civ.stability > 75.0f &&
-        civ.resources > 400.0f && civ.knowledge > 300.0f) {
+    if (civ.cd_megastructure == 0 && civ.stability > 60.0f &&
+        civ.resources > 200.0f && civ.knowledge > 150.0f) {
         civ.cd_megastructure = 200 + randi(rng, 0, 100);
         civ.resources -= 200.0f;
         civ.knowledge += 20.0f;
