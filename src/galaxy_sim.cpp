@@ -269,26 +269,48 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     // After 1B years, resource efficiency declines (depletion)
     // After 2B years, existential fatigue sets in
     // ── Entropy: nothing lasts forever ──
-    // Civilizations face accelerating decay. Average lifespan target: 0.5-2 Bya
-    // Exceptional civs (high cohesion + adaptability) can last longer
+    // Instead of deterministic decay, use random catastrophic "crisis rolls"
+    // that become more likely with age. Creates varied lifespans.
     float age_bya = civ.age / 1000.0f;
-    float resilience = (civ.traits.cohesion + civ.traits.adaptability) * 0.01f; // 0-0.5ish
-    float decay_start = 0.2f + resilience; // 0.2 - 0.7 Bya before decay kicks in
+    float resilience = (civ.traits.cohesion + civ.traits.adaptability) * 0.5f; // 0-30ish
 
-    if (age_bya > decay_start) {
-        float t = age_bya - decay_start;
-        // Stability erodes: slow at first, then accelerating
-        float stability_decay = t * t * 0.3f;
-        civ.stability -= stability_decay;
+    // Crisis roll: chance of a major destabilizing event increases with age
+    // At 0.3 Bya: ~0.1% per tick. At 1 Bya: ~1% per tick. At 3 Bya: ~5% per tick.
+    float crisis_chance = age_bya * age_bya * 0.5f; // quadratic growth
+    crisis_chance = std::max(0.0f, crisis_chance - resilience * 0.02f); // resilience reduces chance
 
-        // Resources deplete
-        float res_decay = t * 0.1f * territory_size;
-        civ.resources -= res_decay;
+    if (crisis_chance > 0.0f && randf(rng, 0.0f, 100.0f) < crisis_chance) {
+        // Random crisis — severity varies
+        float severity = randf(rng, 0.3f, 1.0f);
+        civ.stability -= severity * 15.0f;
+        civ.population *= (1.0f - severity * 0.15f);
+        civ.resources *= (1.0f - severity * 0.2f);
 
-        // Population stagnates then declines
-        if (t > 0.5f) {
-            civ.population -= (t - 0.5f) * 0.3f;
+        // Pick a crisis type for flavor
+        int crisis_type = randi(rng, 0, 4);
+        switch (crisis_type) {
+        case 0: // Societal decay
+            civ.faction_tension += 20.0f * severity;
+            break;
+        case 1: // Resource collapse
+            civ.resources *= (1.0f - severity * 0.3f);
+            break;
+        case 2: // Military coup / internal conflict
+            civ.military *= (1.0f - severity * 0.2f);
+            civ.stability -= severity * 10.0f;
+            break;
+        case 3: // Knowledge stagnation (dark age)
+            civ.knowledge *= (1.0f - severity * 0.1f);
+            break;
+        case 4: // Population crisis
+            civ.population *= (1.0f - severity * 0.2f);
+            break;
         }
+    }
+
+    // Gentle background resource depletion over very long timescales
+    if (age_bya > 1.0f) {
+        civ.resources -= (age_bya - 1.0f) * 0.02f * territory_size;
     }
 
     civ.stability = clampf(civ.stability, 0.0f, 100.0f);
