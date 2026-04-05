@@ -213,38 +213,54 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     float sgra_mult = 0.5f + t.spirituality * 0.05f + t.curiosity * 0.02f;
 
     // ── 1. Growth ──
-    float pop_need = civ.population * 0.1f * consumption_mult;
+    // Resource consumption scales sub-linearly with population (efficiency gains)
+    float pop_need = std::sqrt(civ.population) * 0.3f * consumption_mult;
     float resource_income = 0.0f;
     for (uint32_t sid : civ.territory) {
         for (const auto& s : systems) {
             if (s.id == sid) {
-                float extraction = s.resource_richness * (1.0f + civ.knowledge * 0.002f);
+                // Each system produces more with higher knowledge (tech improves extraction)
+                float extraction = s.resource_richness * (2.0f + civ.knowledge * 0.005f);
                 resource_income += extraction;
                 break;
             }
         }
     }
     civ.resources += resource_income - pop_need;
-    civ.resources = clampf(civ.resources, 0.0f, 2000.0f);
+    civ.resources = clampf(civ.resources, 0.0f, 5000.0f);
 
-    float growth = pop_growth_mult * 0.5f * (civ.resources / (civ.population + 1.0f))
-                   * (civ.stability / 100.0f);
-    if (civ.resources < pop_need * 0.5f) growth = -0.5f; // starvation
+    // Population growth: slow and steady, capped by carrying capacity
+    float growth_rate = pop_growth_mult * 0.2f;
+    float resource_factor = clampf(civ.resources / (pop_need * 3.0f + 1.0f), 0.0f, 2.0f);
+    float stability_factor = civ.stability / 100.0f;
+    float growth = growth_rate * resource_factor * stability_factor;
+    // Soft cap: growth slows as population approaches capacity
+    if (civ.population > capacity * 0.8f) growth *= 0.3f;
+    // Starvation: gradual decline, not instant death
+    if (civ.resources <= 0.0f) {
+        growth = -0.1f * (1.0f + civ.population * 0.001f); // slow bleed
+        civ.resources = 0.0f;
+    }
     civ.population += growth;
     civ.population = clampf(civ.population, 0.0f, 5000.0f);
 
-    civ.knowledge += 0.1f * research_mult * (civ.stability / 100.0f);
-    civ.military += military_growth * 0.1f;
-    civ.sgra_awareness += 0.005f * sgra_mult * (civ.knowledge / 100.0f);
+    // Knowledge grows steadily — civilizations always learn
+    civ.knowledge += 0.05f * research_mult * (0.5f + stability_factor * 0.5f);
+    civ.military += military_growth * 0.05f;
+    civ.sgra_awareness += 0.003f * sgra_mult * (civ.knowledge / 200.0f);
     civ.sgra_awareness = clampf(civ.sgra_awareness, 0.0f, 100.0f);
 
     // ── 2. Stability ──
-    float target_stability = 50.0f + stability_drift * 100.0f;
-    civ.stability += (target_stability - civ.stability) * 0.01f;
-    if (civ.resources < pop_need * 0.5f) civ.stability -= 2.0f; // famine
-    if (territory_size > civ.stability) civ.stability -= 0.5f; // overextension
-    if (civ.knowledge > 500.0f && civ.stability < 50.0f) civ.stability -= 0.5f; // existential crisis
-    if (civ.faction_count > 1) civ.stability -= 0.3f * civ.faction_count;
+    float target_stability = 55.0f + stability_drift * 50.0f;
+    // Stability recovers slowly toward target (civilizations tend to stabilize)
+    civ.stability += (target_stability - civ.stability) * 0.02f;
+    // Penalties for bad conditions (but less severe)
+    if (civ.resources <= 0.0f) civ.stability -= 0.5f; // famine
+    if (territory_size > civ.stability * 0.5f) civ.stability -= 0.2f; // overextension
+    if (civ.knowledge > 500.0f && civ.stability < 40.0f) civ.stability -= 0.2f; // existential crisis
+    if (civ.faction_count > 1) civ.stability -= 0.1f * civ.faction_count;
+    // Recovery bonus from adaptability trait
+    if (civ.stability < 30.0f) civ.stability += civ.traits.adaptability * 0.02f;
     civ.stability = clampf(civ.stability, 0.0f, 100.0f);
 
     // Faction tension builds when stability is low
