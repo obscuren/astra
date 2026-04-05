@@ -73,7 +73,13 @@
 - [x] **Lore-driven galaxy shaping** — system tiers, lore annotations, star chart markers, dungeon entry text
 - [x] **Galaxy simulation engine** — state-driven civ sim with traits, inter-species interactions, visual generation screen
 - [ ] **Legendary artifact generation** — unique items tied to historical figures and events
-- [ ] **Lore fragment system** — discoverable history pieces, progressive revelation
+- [ ] **Lore fragment items** — data crystals, memory engrams as ground pickups in lore-significant ruins
+- [ ] **Lore fragment system** — discoverable history pieces, progressive revelation via journal codex
+- [ ] **Starting lore fragment** — player receives a race-specific lore record at game start
+- [ ] **Terrain shaping from lore** — megastructures as orbital POIs, beacons as unique landmarks, terraforming alters biome, weapon tests scar terrain
+- [ ] **Archaeology skill effects** — Excavation active ability, Precursor Linguist sealed doors, Beacon Sense on star chart, Cultural Attunement stat bonuses
+- [ ] **Civilization-themed dungeon aesthetics** — tile palette, fixture types, room flavors per precursor civilization
+- [ ] **Archaeological strata** — deeper dungeon levels = older civilization layers
 - [ ] New dungeon generator types / biomes
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] Derelict station expansion — more room types
