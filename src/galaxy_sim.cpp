@@ -953,6 +953,37 @@ WorldLore GalaxySim::build_lore(unsigned seed, std::mt19937& rng,
         if (s.has_megastructure) lore.total_beacons++;
     }
 
+    // Store sim system snapshots for galaxy mapping
+    lore.sim_systems.reserve(systems.size());
+    for (const auto& s : systems) {
+        // Only store systems that have lore significance
+        if (s.ruin_layers.empty() && !s.has_megastructure && !s.beacon &&
+            !s.battle_site && !s.weapon_test_site && !s.terraformed && !s.plague_origin)
+            continue;
+
+        LoreSystemData lsd;
+        lsd.sim_id = s.id;
+        lsd.gx = s.gx;
+        lsd.gy = s.gy;
+        lsd.ruin_civ_ids = s.ruin_layers;
+        lsd.has_megastructure = s.has_megastructure;
+        lsd.megastructure_builder = s.megastructure_builder;
+        lsd.beacon = s.beacon;
+        lsd.battle_site = s.battle_site;
+        lsd.weapon_test_site = s.weapon_test_site;
+        lsd.plague_origin = s.plague_origin;
+        lsd.terraformed = s.terraformed;
+        lsd.terraformed_by = s.terraformed_by;
+
+        // Compute tier
+        if (s.beacon || s.has_megastructure) lsd.lore_tier = 3;
+        else if (s.battle_site || s.weapon_test_site || s.ruin_layers.size() > 2) lsd.lore_tier = 2;
+        else if (!s.ruin_layers.empty()) lsd.lore_tier = 1;
+        else lsd.lore_tier = 0;
+
+        lore.sim_systems.push_back(std::move(lsd));
+    }
+
     lore.generated = true;
     return lore;
 }

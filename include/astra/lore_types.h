@@ -230,12 +230,29 @@ struct RaceOrigin {
     LoreRecord starting_fragment;    // lore record the player starts with if playing this race
 };
 
+// ── Sim system snapshot (for galaxy integration) ──
+struct LoreSystemData {
+    uint32_t sim_id = 0;            // ID in the simulation
+    float gx = 0, gy = 0;          // simulated position
+    std::vector<int> ruin_civ_ids;  // civ indices that left ruins
+    bool has_megastructure = false;
+    int megastructure_builder = -1;
+    bool beacon = false;
+    bool battle_site = false;
+    bool weapon_test_site = false;
+    bool plague_origin = false;
+    bool terraformed = false;
+    int terraformed_by = -1;
+    int lore_tier = 0;
+};
+
 // ── The complete world lore ──
 struct WorldLore {
     unsigned seed = 0;
     std::vector<Civilization> civilizations;  // index 0 = Primordials
     HumanHistory humanity;
     std::vector<RaceOrigin> race_origins;     // origin stories for playable races
+    std::vector<LoreSystemData> sim_systems;  // simulation system snapshots for galaxy mapping
 
     int total_beacons = 0;
     int active_beacons = 0;

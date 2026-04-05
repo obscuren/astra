@@ -539,9 +539,10 @@ void Game::new_game() {
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
-    // Generate the galaxy
+    // Generate the galaxy — lore first, then star chart, then map lore onto systems
     world_.lore() = GalaxySim::run(world_.seed());
     world_.navigation() = generate_galaxy(world_.seed());
+    apply_lore_to_galaxy(world_.navigation(), world_.lore());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
@@ -646,9 +647,10 @@ void Game::new_game(const CreationResult& cr) {
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
-    // Generate the galaxy
+    // Generate the galaxy — lore first, then star chart, then map lore onto systems
     world_.lore() = GalaxySim::run(world_.seed());
     world_.navigation() = generate_galaxy(world_.seed());
+    apply_lore_to_galaxy(world_.navigation(), world_.lore());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
