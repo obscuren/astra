@@ -585,6 +585,13 @@ GalaxyMapDesc StarChartViewer::build_map_desc() const {
         }
     }
 
+    // Lore markers — discovered systems with tier 2+
+    for (const auto& sys : nav_->systems) {
+        if (sys.discovered && sys.lore.lore_tier >= 2) {
+            desc.lore_system_ids.push_back(sys.id);
+        }
+    }
+
     // Navigation
     desc.navi_range = static_cast<float>(nav_->navi_range);
 

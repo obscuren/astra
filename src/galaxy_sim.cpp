@@ -245,7 +245,7 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     civ.population = clampf(civ.population, 0.0f, 5000.0f);
 
     // Knowledge grows steadily — civilizations always learn
-    civ.knowledge += 0.05f * research_mult * (0.5f + stability_factor * 0.5f);
+    civ.knowledge += 0.1f * research_mult * (0.5f + stability_factor * 0.5f);
     civ.military += military_growth * 0.05f;
     civ.sgra_awareness += 0.003f * sgra_mult * (civ.knowledge / 200.0f);
     civ.sgra_awareness = clampf(civ.sgra_awareness, 0.0f, 100.0f);
@@ -276,8 +276,8 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
 
     // Crisis roll: chance of a major destabilizing event increases with age
     // At 0.3 Bya: ~0.1% per tick. At 1 Bya: ~1% per tick. At 3 Bya: ~5% per tick.
-    float crisis_chance = age_bya * age_bya * 0.5f; // quadratic growth
-    crisis_chance = std::max(0.0f, crisis_chance - resilience * 0.02f); // resilience reduces chance
+    float crisis_chance = age_bya * age_bya * 0.3f; // quadratic, gentler
+    crisis_chance = std::max(0.0f, crisis_chance - resilience * 0.03f); // resilience reduces chance more
 
     if (crisis_chance > 0.0f && randf(rng, 0.0f, 100.0f) < crisis_chance) {
         // Random crisis — severity varies
@@ -363,15 +363,19 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     }
 
     // Expansion (population pressure)
-    if (civ.cd_expansion == 0 && civ.population > capacity * 0.8f) {
+    // Expansion: driven by population pressure OR knowledge/industriousness
+    bool expansion_pressure = civ.population > capacity * 0.5f;
+    bool expansion_ambition = civ.knowledge > 30.0f && civ.resources > 50.0f &&
+                              rng() % 100 < (civ.traits.industriousness + civ.traits.curiosity);
+    if (civ.cd_expansion == 0 && (expansion_pressure || expansion_ambition)) {
         uint32_t target = find_nearest_unclaimed(civ, systems);
         if (target != 0) {
             civ.territory.insert(target);
             for (auto& s : systems) {
                 if (s.id == target) { s.owner_civ = civ.id; break; }
             }
-            civ.resources -= 20.0f;
-            civ.cd_expansion = 30 + randi(rng, 0, 20);
+            civ.resources -= 15.0f;
+            civ.cd_expansion = 15 + randi(rng, 0, 15);
             emit(LoreEventType::ColonyFounded, "COLONY", target);
         } else {
             // No room — pressure builds
@@ -412,8 +416,8 @@ void GalaxySim::tick_civilization(std::mt19937& rng, CivState& civ,
     }
 
     // Megastructure (high stability + high resources + high knowledge)
-    if (civ.cd_megastructure == 0 && civ.stability > 75.0f &&
-        civ.resources > 400.0f && civ.knowledge > 300.0f) {
+    if (civ.cd_megastructure == 0 && civ.stability > 60.0f &&
+        civ.resources > 200.0f && civ.knowledge > 150.0f) {
         civ.cd_megastructure = 200 + randi(rng, 0, 100);
         civ.resources -= 200.0f;
         civ.knowledge += 20.0f;
@@ -757,9 +761,19 @@ void GalaxySim::check_interactions(std::mt19937& rng,
 
 // ── Main simulation loop ──────────────────────────────────────────────────
 
-WorldLore GalaxySim::run(unsigned game_seed) {
+WorldLore GalaxySim::run(unsigned game_seed, SimCallback on_progress) {
     std::mt19937 rng(game_seed ^ 0x53494D55u); // "SIMU"
 
+    // Phase notification helper
+    auto notify_phase = [&](const std::string& phase) {
+        if (!on_progress) return;
+        SimProgress p;
+        p.phase_complete = true;
+        p.phase_name = phase;
+        on_progress(p);
+    };
+
+    notify_phase("Initializing star systems...");
     auto systems = generate_systems(rng);
     std::vector<CivState> civs;
     std::vector<SimEvent> events;
@@ -785,6 +799,9 @@ WorldLore GalaxySim::run(unsigned game_seed) {
         Philosophy::Expansionist, Philosophy::Contemplative, Philosophy::Predatory,
         Philosophy::Symbiotic, Philosophy::Transcendent
     };
+
+    // Track event count for callback throttling
+    size_t last_event_count = 0;
 
     // ── Simulation loop ──
     int next_civ = 0;
@@ -817,10 +834,39 @@ WorldLore GalaxySim::run(unsigned game_seed) {
         if (tick % 10 == 0) { // every 10M years
             check_interactions(rng, civs, systems, events, tick);
         }
+
+        // Progress callback — on new events or every 100 ticks
+        if (on_progress && (events.size() > last_event_count || tick % 100 == 0)) {
+            SimProgress p;
+            p.tick = tick;
+            p.total_ticks = total_ticks;
+            p.active_civs = 0;
+            p.dead_civs = 0;
+            for (const auto& c : civs) {
+                if (c.alive) p.active_civs++;
+                else p.dead_civs++;
+            }
+            // Report latest event if any
+            if (events.size() > last_event_count) {
+                const auto& ev = events.back();
+                p.event_text = ev.description;
+                if (ev.civ_id >= 0 && ev.civ_id < static_cast<int>(civs.size())) {
+                    // Will be named later; use civ index for now
+                    p.civ_name = "Civ #" + std::to_string(ev.civ_id);
+                }
+            }
+            last_event_count = events.size();
+            on_progress(p);
+        }
     }
 
+    notify_phase("Compiling galactic history...");
+
     // Build WorldLore from simulation results
-    return build_lore(game_seed, rng, civs, events, systems);
+    auto lore = build_lore(game_seed, rng, civs, events, systems);
+
+    notify_phase("Generation complete");
+    return lore;
 }
 
 // ── Convert simulation results into WorldLore ─────────────────────────────
@@ -951,6 +997,37 @@ WorldLore GalaxySim::build_lore(unsigned seed, std::mt19937& rng,
             if (rng() % 3 != 0) lore.active_beacons++;
         }
         if (s.has_megastructure) lore.total_beacons++;
+    }
+
+    // Store sim system snapshots for galaxy mapping
+    lore.sim_systems.reserve(systems.size());
+    for (const auto& s : systems) {
+        // Only store systems that have lore significance
+        if (s.ruin_layers.empty() && !s.has_megastructure && !s.beacon &&
+            !s.battle_site && !s.weapon_test_site && !s.terraformed && !s.plague_origin)
+            continue;
+
+        LoreSystemData lsd;
+        lsd.sim_id = s.id;
+        lsd.gx = s.gx;
+        lsd.gy = s.gy;
+        lsd.ruin_civ_ids = s.ruin_layers;
+        lsd.has_megastructure = s.has_megastructure;
+        lsd.megastructure_builder = s.megastructure_builder;
+        lsd.beacon = s.beacon;
+        lsd.battle_site = s.battle_site;
+        lsd.weapon_test_site = s.weapon_test_site;
+        lsd.plague_origin = s.plague_origin;
+        lsd.terraformed = s.terraformed;
+        lsd.terraformed_by = s.terraformed_by;
+
+        // Compute tier
+        if (s.beacon || s.has_megastructure) lsd.lore_tier = 3;
+        else if (s.battle_site || s.weapon_test_site || s.ruin_layers.size() > 2) lsd.lore_tier = 2;
+        else if (!s.ruin_layers.empty()) lsd.lore_tier = 1;
+        else lsd.lore_tier = 0;
+
+        lore.sim_systems.push_back(std::move(lsd));
     }
 
     lore.generated = true;

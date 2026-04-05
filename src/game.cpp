@@ -539,9 +539,114 @@ void Game::new_game() {
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
-    // Generate the galaxy
-    world_.lore() = GalaxySim::run(world_.seed());
+    // Generate the galaxy — lore first, then star chart, then map lore onto systems
+    // Show visual progress during generation
+    {
+        int sw = renderer_->get_width();
+        int sh = renderer_->get_height();
+        std::vector<std::string> event_log;
+        std::string current_phase = "Initializing...";
+        int bar_progress = 0;
+
+        auto render_progress = [&]() {
+            renderer_->clear();
+            int margin = 4;
+            int y = margin;
+
+            // Title
+            auto put_text = [&](int x, int yi, const std::string& s, Color c) {
+                for (int ci = 0; ci < static_cast<int>(s.size()) && x + ci < sw; ++ci)
+                    renderer_->draw_char(x + ci, yi, s[ci], c);
+            };
+
+            put_text(margin, y, "GENERATING UNIVERSE", Color::Cyan);
+            y += 2;
+
+            // Progress bar
+            int bar_w = std::min(40, sw - margin * 2 - 10);
+            std::string bar = "[";
+            int filled = bar_progress * bar_w / 8000;
+            for (int i = 0; i < bar_w; ++i)
+                bar += (i < filled) ? "\xe2\x96\x88" : "\xe2\x96\x91";
+            bar += "]";
+            float bya = static_cast<float>(8000 - bar_progress) / 1000.0f;
+            char time_str[32];
+            std::snprintf(time_str, sizeof(time_str), " %.1f Bya", bya);
+
+            // Draw bar character by character (mix of UTF-8)
+            int bx = margin;
+            renderer_->draw_char(bx++, y, '[', Color::DarkGray);
+            for (int i = 0; i < bar_w; ++i) {
+                if (i < filled)
+                    renderer_->draw_glyph(bx++, y, "\xe2\x96\x88", Color::Cyan);
+                else
+                    renderer_->draw_glyph(bx++, y, "\xe2\x96\x91", Color::DarkGray);
+            }
+            renderer_->draw_char(bx++, y, ']', Color::DarkGray);
+            put_text(bx + 1, y, time_str, Color::DarkGray);
+            y += 2;
+
+            // Current phase
+            put_text(margin, y, current_phase, Color::Yellow);
+            y += 2;
+
+            // Event log — show last N events that fit
+            int log_space = sh - y - 2;
+            int start = std::max(0, static_cast<int>(event_log.size()) - log_space);
+            for (int i = start; i < static_cast<int>(event_log.size()); ++i) {
+                Color c = Color::DarkGray;
+                const auto& line = event_log[i];
+                if (line.find("EMERGED") != std::string::npos) c = Color::Green;
+                else if (line.find("COLLAPSED") != std::string::npos ||
+                         line.find("TRANSCENDED") != std::string::npos) c = Color::Red;
+                else if (line.find("BATTLE") != std::string::npos ||
+                         line.find("WAR") != std::string::npos) c = Color::Yellow;
+                else if (line.find("BEACON") != std::string::npos ||
+                         line.find("MEGASTRUCTURE") != std::string::npos) c = Color::Cyan;
+                else if (line.find("BREAKTHROUGH") != std::string::npos) c = Color::Magenta;
+
+                std::string display = line;
+                if (static_cast<int>(display.size()) > sw - margin * 2)
+                    display = display.substr(0, sw - margin * 2);
+                put_text(margin + 1, y++, display, c);
+            }
+
+            renderer_->present();
+        };
+
+        world_.lore() = GalaxySim::run(world_.seed(), [&](const SimProgress& p) {
+            bar_progress = p.tick;
+
+            if (p.phase_complete) {
+                current_phase = p.phase_name;
+                render_progress();
+                return;
+            }
+
+            // Log significant events
+            if (!p.event_text.empty()) {
+                float bya_f = static_cast<float>(8000 - p.tick) / 1000.0f;
+                char prefix[32];
+                std::snprintf(prefix, sizeof(prefix), "%.2f Bya ", bya_f);
+                std::string line = prefix + p.civ_name + ": " + p.event_text;
+                event_log.push_back(line);
+            }
+
+            // Render every 50 ticks to keep it smooth but not too slow
+            if (p.tick % 50 == 0 || p.phase_complete) {
+                current_phase = "Simulating deep time... (" +
+                    std::to_string(p.active_civs) + " active, " +
+                    std::to_string(p.dead_civs) + " fallen)";
+                render_progress();
+            }
+        });
+
+        // Show final phase
+        current_phase = "Generating star chart...";
+        render_progress();
+    }
     world_.navigation() = generate_galaxy(world_.seed());
+    apply_lore_to_galaxy(world_.navigation(), world_.lore());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
@@ -646,9 +751,114 @@ void Game::new_game(const CreationResult& cr) {
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
-    // Generate the galaxy
-    world_.lore() = GalaxySim::run(world_.seed());
+    // Generate the galaxy — lore first, then star chart, then map lore onto systems
+    // Show visual progress during generation
+    {
+        int sw = renderer_->get_width();
+        int sh = renderer_->get_height();
+        std::vector<std::string> event_log;
+        std::string current_phase = "Initializing...";
+        int bar_progress = 0;
+
+        auto render_progress = [&]() {
+            renderer_->clear();
+            int margin = 4;
+            int y = margin;
+
+            // Title
+            auto put_text = [&](int x, int yi, const std::string& s, Color c) {
+                for (int ci = 0; ci < static_cast<int>(s.size()) && x + ci < sw; ++ci)
+                    renderer_->draw_char(x + ci, yi, s[ci], c);
+            };
+
+            put_text(margin, y, "GENERATING UNIVERSE", Color::Cyan);
+            y += 2;
+
+            // Progress bar
+            int bar_w = std::min(40, sw - margin * 2 - 10);
+            std::string bar = "[";
+            int filled = bar_progress * bar_w / 8000;
+            for (int i = 0; i < bar_w; ++i)
+                bar += (i < filled) ? "\xe2\x96\x88" : "\xe2\x96\x91";
+            bar += "]";
+            float bya = static_cast<float>(8000 - bar_progress) / 1000.0f;
+            char time_str[32];
+            std::snprintf(time_str, sizeof(time_str), " %.1f Bya", bya);
+
+            // Draw bar character by character (mix of UTF-8)
+            int bx = margin;
+            renderer_->draw_char(bx++, y, '[', Color::DarkGray);
+            for (int i = 0; i < bar_w; ++i) {
+                if (i < filled)
+                    renderer_->draw_glyph(bx++, y, "\xe2\x96\x88", Color::Cyan);
+                else
+                    renderer_->draw_glyph(bx++, y, "\xe2\x96\x91", Color::DarkGray);
+            }
+            renderer_->draw_char(bx++, y, ']', Color::DarkGray);
+            put_text(bx + 1, y, time_str, Color::DarkGray);
+            y += 2;
+
+            // Current phase
+            put_text(margin, y, current_phase, Color::Yellow);
+            y += 2;
+
+            // Event log — show last N events that fit
+            int log_space = sh - y - 2;
+            int start = std::max(0, static_cast<int>(event_log.size()) - log_space);
+            for (int i = start; i < static_cast<int>(event_log.size()); ++i) {
+                Color c = Color::DarkGray;
+                const auto& line = event_log[i];
+                if (line.find("EMERGED") != std::string::npos) c = Color::Green;
+                else if (line.find("COLLAPSED") != std::string::npos ||
+                         line.find("TRANSCENDED") != std::string::npos) c = Color::Red;
+                else if (line.find("BATTLE") != std::string::npos ||
+                         line.find("WAR") != std::string::npos) c = Color::Yellow;
+                else if (line.find("BEACON") != std::string::npos ||
+                         line.find("MEGASTRUCTURE") != std::string::npos) c = Color::Cyan;
+                else if (line.find("BREAKTHROUGH") != std::string::npos) c = Color::Magenta;
+
+                std::string display = line;
+                if (static_cast<int>(display.size()) > sw - margin * 2)
+                    display = display.substr(0, sw - margin * 2);
+                put_text(margin + 1, y++, display, c);
+            }
+
+            renderer_->present();
+        };
+
+        world_.lore() = GalaxySim::run(world_.seed(), [&](const SimProgress& p) {
+            bar_progress = p.tick;
+
+            if (p.phase_complete) {
+                current_phase = p.phase_name;
+                render_progress();
+                return;
+            }
+
+            // Log significant events
+            if (!p.event_text.empty()) {
+                float bya_f = static_cast<float>(8000 - p.tick) / 1000.0f;
+                char prefix[32];
+                std::snprintf(prefix, sizeof(prefix), "%.2f Bya ", bya_f);
+                std::string line = prefix + p.civ_name + ": " + p.event_text;
+                event_log.push_back(line);
+            }
+
+            // Render every 50 ticks to keep it smooth but not too slow
+            if (p.tick % 50 == 0 || p.phase_complete) {
+                current_phase = "Simulating deep time... (" +
+                    std::to_string(p.active_civs) + " active, " +
+                    std::to_string(p.dead_civs) + " fallen)";
+                render_progress();
+            }
+        });
+
+        // Show final phase
+        current_phase = "Generating star chart...";
+        render_progress();
+    }
     world_.navigation() = generate_galaxy(world_.seed());
+    apply_lore_to_galaxy(world_.navigation(), world_.lore());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);

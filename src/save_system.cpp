@@ -103,6 +103,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
                           std::move(data.completed_quests));
     world.quest_locations() = std::move(data.quest_locations);
     world.lore() = std::move(data.lore);
+    apply_lore_to_galaxy(world.navigation(), world.lore());
 
     game.rebuild_star_chart_viewer();
 
