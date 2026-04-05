@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/debug_spawn.h"
+#include "astra/lore_types.h"
 #include "astra/tinkering.h"
 #include "astra/item_defs.h"
 #include "astra/map_generator.h"
@@ -224,6 +225,40 @@ void Game::exit_maintenance_tunnels() {
     log("You climb back up to the station.");
 }
 
+// Enrich a dungeon/ruin entry message with lore context if the system has annotations.
+static std::string lore_entry_message(const std::string& base_msg,
+                                       const NavigationData& nav,
+                                       const WorldLore& lore) {
+    // Find current system
+    for (const auto& sys : nav.systems) {
+        if (sys.id == nav.current_system_id && sys.lore.lore_tier > 0) {
+            const auto& ann = sys.lore;
+            if (!ann.primary_civ_name.empty()) {
+                std::string enriched = base_msg;
+                // Remove trailing period if present
+                if (!enriched.empty() && enriched.back() == '.')
+                    enriched.pop_back();
+                enriched += " — ruins of " + ann.primary_civ_name + " origin";
+
+                // Find the civilization's epoch for dating
+                for (const auto& civ : lore.civilizations) {
+                    if (civ.short_name == ann.primary_civ_name) {
+                        char buf[64];
+                        std::snprintf(buf, sizeof(buf), ", dating to %.1f billion years ago.",
+                                      civ.epoch_start_bya);
+                        enriched += buf;
+                        return enriched;
+                    }
+                }
+                enriched += ".";
+                return enriched;
+            }
+            break;
+        }
+    }
+    return base_msg;
+}
+
 void Game::enter_overworld_tile() {
     Tile tile = world_.map().get(player_.x, player_.y);
     world_.overworld_x() = player_.x;
@@ -352,7 +387,7 @@ void Game::enter_overworld_tile() {
     recompute_fov();
     compute_camera();
     check_region_change();
-    log(enter_msg);
+    log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
 }
 
 void Game::exit_to_overworld() {
@@ -721,7 +756,7 @@ void Game::enter_dungeon_from_detail() {
     recompute_fov();
     compute_camera();
     check_region_change();
-    log(enter_msg);
+    log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
 }
 
 void Game::exit_dungeon_to_detail() {
