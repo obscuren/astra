@@ -656,7 +656,7 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
         }
     }
 
-    // --- Ruins ---
+    // --- Ruins (boosted by lore tier) ---
     {
         int count = 0;
         if (props_->body_danger_level >= 3) {
@@ -664,25 +664,52 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
         } else if (pct(rng) < 30) {
             count = std::uniform_int_distribution<int>(1, 2)(rng);
         }
+        // Lore tier boosts: Tier 1: +1-2, Tier 2: +2-4, Tier 3: +4-6
+        if (props_->lore_tier >= 3)
+            count += std::uniform_int_distribution<int>(4, 6)(rng);
+        else if (props_->lore_tier >= 2)
+            count += std::uniform_int_distribution<int>(2, 4)(rng);
+        else if (props_->lore_tier >= 1)
+            count += std::uniform_int_distribution<int>(1, 2)(rng);
+
         if (count > 0) {
-            // On asteroids/airless, only 1x1 stamps
             int max_idx = (asteroid || airless) ? 1 : -1;
             place_n(ruin_stamps, ruin_stamp_count, count, max_idx);
         }
     }
 
-    // --- Crashed ships ---
-    if (pct(rng) < 20 + props_->body_danger_level * 10) {
-        int count = std::uniform_int_distribution<int>(1, 3)(rng);
-        int max_idx = (asteroid) ? 1 : -1;
-        place_n(crashed_ship_stamps, crashed_ship_stamp_count, count, max_idx);
+    // --- Crashed ships (more on battle sites) ---
+    {
+        int base_chance = 20 + props_->body_danger_level * 10;
+        if (props_->lore_battle_site) base_chance = 100; // guaranteed on battle sites
+        if (pct(rng) < base_chance) {
+            int count = std::uniform_int_distribution<int>(1, 3)(rng);
+            if (props_->lore_battle_site)
+                count += std::uniform_int_distribution<int>(2, 4)(rng); // debris field
+            int max_idx = (asteroid) ? 1 : -1;
+            place_n(crashed_ship_stamps, crashed_ship_stamp_count, count, max_idx);
+        }
     }
 
-    // --- Outposts ---
-    if (pct(rng) < 30) {
-        int count = std::uniform_int_distribution<int>(1, 2)(rng);
-        int max_idx = (asteroid) ? 0 : -1;
-        place_n(outpost_stamps, outpost_stamp_count, count, max_idx);
+    // --- Outposts (more on significant worlds, abandoned on plague worlds) ---
+    {
+        int chance = 30;
+        if (props_->lore_tier >= 2) chance = 70;
+        if (props_->lore_plague_origin) chance = 80; // abandoned outposts
+        if (pct(rng) < chance) {
+            int count = std::uniform_int_distribution<int>(1, 2)(rng);
+            if (props_->lore_tier >= 2)
+                count += std::uniform_int_distribution<int>(1, 2)(rng);
+            int max_idx = (asteroid) ? 0 : -1;
+            place_n(outpost_stamps, outpost_stamp_count, count, max_idx);
+        }
+    }
+
+    // --- Lore-specific POIs ---
+    // Weapon test sites: extra caves (craters from orbital bombardment)
+    if (props_->lore_weapon_test && props_->body_has_dungeon) {
+        int count = std::uniform_int_distribution<int>(2, 4)(rng);
+        place_n(cave_stamps, cave_stamp_count, count);
     }
 }
 

@@ -1099,6 +1099,16 @@ void Game::travel_to_destination(const ChartAction& action) {
                 props.body_danger_level = body.danger_level;
             }
 
+            // Apply lore annotations to overworld properties
+            const auto& la = target_sys.lore;
+            props.lore_tier = la.lore_tier;
+            props.lore_battle_site = la.battle_site;
+            props.lore_weapon_test = la.weapon_test_site;
+            props.lore_megastructure = la.has_megastructure;
+            props.lore_beacon = la.beacon;
+            props.lore_terraformed = la.terraformed;
+            props.lore_plague_origin = la.plague_origin;
+
             unsigned ow_seed = world_.seed() ^ (target_sys.id * 7919u)
                              ^ (static_cast<unsigned>(action.body_index) * 6271u)
                              ^ (static_cast<unsigned>(action.moon_index + 1) * 3571u);
