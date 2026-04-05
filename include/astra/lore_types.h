@@ -219,11 +219,21 @@ struct HumanHistory {
     std::vector<LoreRecord> records;
 };
 
+// ── Race origin in the lore ──
+struct RaceOrigin {
+    std::string race_name;
+    int ancestor_civ_index = -1;     // which civilization they descend from (-1 = no precursor link)
+    std::string origin_text;         // narrative description of their origin
+    float origin_bya = 0.0f;         // when they emerged/split off
+    LoreRecord starting_fragment;    // lore record the player starts with if playing this race
+};
+
 // ── The complete world lore ──
 struct WorldLore {
     unsigned seed = 0;
     std::vector<Civilization> civilizations;  // index 0 = Primordials
     HumanHistory humanity;
+    std::vector<RaceOrigin> race_origins;     // origin stories for playable races
 
     int total_beacons = 0;
     int active_beacons = 0;

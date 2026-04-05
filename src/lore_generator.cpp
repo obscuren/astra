@@ -276,6 +276,9 @@ WorldLore LoreGenerator::generate(unsigned game_seed) {
     // Human epoch.
     lore.humanity = generate_human_epoch(rng, lore.civilizations);
 
+    // Generate race origins.
+    generate_race_origins(rng, lore);
+
     // Count beacons from megastructure and hyperspace events.
     int total = 0;
     int active = 0;
@@ -1127,7 +1130,256 @@ HumanHistory LoreGenerator::generate_human_epoch(
     return h;
 }
 
-// ── format_history ──────────────────────────────────────────────────────────
+// ── generate_race_origins ──────────────────────────────────────────────────
+
+void LoreGenerator::generate_race_origins(std::mt19937& rng, WorldLore& lore) {
+    if (lore.civilizations.size() < 2) return;
+
+    // ── Stellari — descendants of one of the first two precursor civilizations ──
+    {
+        RaceOrigin origin;
+        origin.race_name = "Stellari";
+        // Always from epoch 0 or 1 (the earliest civilizations)
+        origin.ancestor_civ_index = (lore.civilizations.size() > 1 && rng() % 2 == 0) ? 1 : 0;
+        const auto& ancestor = lore.civilizations[origin.ancestor_civ_index];
+
+        // They split off during the ancestor's late period or survived the collapse
+        origin.origin_bya = ancestor.epoch_end_bya + uniform(rng, 0.01f, 0.1f);
+
+        static const char* stellari_origins[] = {
+            "When %s fell, a splinter colony survived in the deep void between stars. "
+            "Over billions of years they evolved, their bodies drinking starlight, their minds expanding beyond flesh. "
+            "They became the Stellari — luminous inheritors of the oldest knowledge in the galaxy.",
+
+            "A faction of %s refused to follow their civilization into collapse. "
+            "They retreated to a hidden system near a stable star and waited. "
+            "Generations became epochs. Epochs became eons. They forgot their name but not their purpose — "
+            "to tend the beacon network, to keep the path open. The galaxy calls them Stellari now.",
+
+            "The Stellari do not speak of their origins to outsiders. But their genetic markers "
+            "are unmistakable — they carry sequences identical to %s biological samples found in the deepest ruins. "
+            "They are what remains of the first great civilization, changed beyond recognition but still carrying the flame.",
+        };
+
+        std::string text = stellari_origins[rng() % 3];
+        auto pos = text.find("%s");
+        if (pos != std::string::npos) text.replace(pos, 2, ancestor.short_name);
+        pos = text.find("%s");
+        if (pos != std::string::npos) text.replace(pos, 2, ancestor.short_name);
+        origin.origin_text = text;
+
+        // Starting lore fragment
+        origin.starting_fragment.title = "Fragment of the Old Memory";
+        origin.starting_fragment.style = RecordStyle::Legend;
+        origin.starting_fragment.reliability = RecordReliability::Myth;
+        origin.starting_fragment.source = "Stellari oral tradition";
+        origin.starting_fragment.body =
+            "Before the silence, before the long dark, we were part of something greater. "
+            "The " + ancestor.name + " built the first roads between stars. "
+            "We walked those roads. We remember their songs, though the words have changed. "
+            "The beacons still call to us — a hum in our luminescence, a pull toward the center. "
+            "We are the last thread of a tapestry woven across billions of years. "
+            "Whatever waits at Sgr A*, our ancestors knew its name.";
+
+        lore.race_origins.push_back(std::move(origin));
+    }
+
+    // ── Sylphari — emerged during a silence, possibly from precursor terraforming ──
+    {
+        RaceOrigin origin;
+        origin.race_name = "Sylphari";
+
+        // Pick a mid-era civilization whose terraforming might have produced them
+        int mid = static_cast<int>(lore.civilizations.size()) / 2;
+        if (mid < 1) mid = 1;
+        origin.ancestor_civ_index = mid;
+        const auto& ancestor = lore.civilizations[mid];
+
+        // They emerged in the silence after that civilization
+        origin.origin_bya = ancestor.epoch_end_bya - uniform(rng, 0.1f, 0.5f);
+
+        static const char* sylphari_origins[] = {
+            "On a world terraformed by %s engineers and then abandoned, life took an unexpected path. "
+            "The luminescent organisms left in the modified biosphere evolved sentience over millions of years. "
+            "The Sylphari emerged — wispy, ethereal, made of light as much as matter — "
+            "carrying fragments of %s bioengineering in every cell.",
+
+            "The Sylphari have no creation myth because they remember their own beginning. "
+            "They awoke in a garden world shaped by %s hands, long after those hands had turned to dust. "
+            "They grew among the ruins, their bioluminescence feeding on the residual energy of %s technology. "
+            "To the Sylphari, the precursor ruins are not alien — they are the nursery where their species was born.",
+
+            "Whether the %s intended to create the Sylphari is a matter of debate. "
+            "Their terraforming records suggest a world-scale biological experiment — "
+            "adaptive organisms designed to maintain ecosystem balance after the builders departed. "
+            "The Sylphari evolved far beyond that original purpose, developing consciousness, culture, and a deep "
+            "affinity for the living worlds their creators left behind.",
+        };
+
+        std::string text = sylphari_origins[rng() % 3];
+        // Replace all %s
+        for (;;) {
+            auto pos = text.find("%s");
+            if (pos == std::string::npos) break;
+            text.replace(pos, 2, ancestor.short_name);
+        }
+        origin.origin_text = text;
+
+        origin.starting_fragment.title = "The Garden and the Silence";
+        origin.starting_fragment.style = RecordStyle::Personal;
+        origin.starting_fragment.reliability = RecordReliability::Verified;
+        origin.starting_fragment.source = "Sylphari ancestral memory";
+        origin.starting_fragment.body =
+            "We were born in a garden that someone else planted. "
+            "The " + ancestor.short_name + " shaped our world — the luminescent groves, the singing rivers, "
+            "the air that tastes of ozone and possibility. They left before we opened our eyes. "
+            "But we feel them in the soil, in the hum of the old machines buried beneath the roots. "
+            "When we wander the stars now, we are looking for the gardeners. We want to understand why they left. "
+            "And perhaps, if we follow the beacons far enough inward, we will find them waiting.";
+
+        lore.race_origins.push_back(std::move(origin));
+    }
+
+    // ── Veldrani — contemporaneous with humans, traders and diplomats ──
+    {
+        RaceOrigin origin;
+        origin.race_name = "Veldrani";
+        origin.ancestor_civ_index = -1; // no precursor link
+        origin.origin_bya = 0.012f; // slightly before humans
+
+        origin.origin_text =
+            "The Veldrani evolved on a water-rich world in the outer rim, developing spaceflight "
+            "roughly two millennia before humanity. Their tall, blue-skinned physiology adapted to "
+            "a high-gravity aquatic environment. First contact with humans was peaceful — the Veldrani "
+            "had already established trade networks across a dozen systems and welcomed new partners. "
+            "Their diplomatic traditions and mercantile culture made them natural intermediaries "
+            "in the fractured post-Fracture galaxy.";
+
+        origin.starting_fragment.title = "The Trader's Creed";
+        origin.starting_fragment.style = RecordStyle::Official;
+        origin.starting_fragment.reliability = RecordReliability::Verified;
+        origin.starting_fragment.source = "Veldrani Merchant Guild Charter";
+        origin.starting_fragment.body =
+            "We sail between the stars as our ancestors sailed between the islands — with an open hold "
+            "and an open hand. Every species we meet is a new port, every culture a new cargo. "
+            "The Veldrani do not conquer. We trade. We connect. We remember every debt and every kindness. "
+            "In a galaxy of ruins and silence, we are the thread that binds what remains.";
+
+        lore.race_origins.push_back(std::move(origin));
+    }
+
+    // ── Kreth — contemporaneous with humans, engineers and miners ──
+    {
+        RaceOrigin origin;
+        origin.race_name = "Kreth";
+        origin.ancestor_civ_index = -1;
+        origin.origin_bya = 0.008f; // slightly after humans
+
+        origin.origin_text =
+            "The Kreth evolved deep underground on a mineral-rich world, their rocky, dense bodies "
+            "adapted to crushing pressures and toxic atmospheres. They reached the surface only after "
+            "millennia of tunneling, and the stars were a revelation. Their engineering prowess — "
+            "honed by generations of building in the deep — made them invaluable allies when the "
+            "galactic factions began rebuilding after the Fracture. Kreth-built stations are renowned "
+            "for their durability, and Kreth mining operations extract resources others cannot reach.";
+
+        origin.starting_fragment.title = "The Deep Remembers";
+        origin.starting_fragment.style = RecordStyle::Personal;
+        origin.starting_fragment.reliability = RecordReliability::Verified;
+        origin.starting_fragment.source = "Kreth oral history";
+        origin.starting_fragment.body =
+            "We came from the deep. Not the deep of space — the deep of stone, of pressure, of darkness "
+            "so complete that light was a legend. When we finally broke through to the surface and saw "
+            "the sky for the first time, our elders wept. Not from beauty — from vertigo. "
+            "So much emptiness above us, where there should have been rock. "
+            "We've learned to love the void since then. But we still build like we're underground — "
+            "thick walls, strong joints, nothing wasted. The stars are just another tunnel to dig through.";
+
+        lore.race_origins.push_back(std::move(origin));
+    }
+
+    // ── Xytomorph — bioweapon or containment breach from a precursor era ──
+    {
+        RaceOrigin origin;
+        origin.race_name = "Xytomorph";
+
+        // Pick a mid-to-late precursor civilization as the source
+        int source_idx = std::min(static_cast<int>(lore.civilizations.size()) - 1,
+                                  1 + static_cast<int>(rng() % (lore.civilizations.size() - 1)));
+        origin.ancestor_civ_index = source_idx;
+        const auto& source = lore.civilizations[source_idx];
+        origin.origin_bya = source.epoch_end_bya;
+
+        static const char* xyto_origins[] = {
+            "The Xytomorphs were never meant to exist. Deep in %s weapons laboratories, "
+            "bioengineers designed an adaptive predator — a living weapon that could survive any environment "
+            "and consume any organic matter. When %s collapsed, the containment protocols failed. "
+            "The Xytomorphs spread through the ruins like a plague, evolving, adapting, breeding in the dark. "
+            "Billions of years later, they infest every derelict station and abandoned ruin in the galaxy.",
+
+            "Whether the %s created the Xytomorphs deliberately or accidentally is debated by xenobiologists. "
+            "Their chitinous bodies contain trace elements of %s biotechnology — engineered enzymes, "
+            "synthetic neural pathways, adaptive camouflage that no natural evolution could produce. "
+            "They were designed to be perfect survivors. They succeeded beyond any specification.",
+
+            "The first Xytomorph specimens were found in a sealed %s laboratory complex, "
+            "dormant in stasis pods that had maintained power for billions of years. "
+            "When the pods were breached by explorers, the creatures awakened hungry. "
+            "They have been spreading ever since, nesting in ruins, breeding in the dark places "
+            "where %s technology still hums with residual energy.",
+        };
+
+        std::string text = xyto_origins[rng() % 3];
+        for (;;) {
+            auto pos = text.find("%s");
+            if (pos == std::string::npos) break;
+            text.replace(pos, 2, source.short_name);
+        }
+        origin.origin_text = text;
+
+        // Xytomorphs don't get a starting fragment (hostile, not playable in standard mode)
+        origin.starting_fragment.title = "Xenobiology Report: Xytomorph";
+        origin.starting_fragment.style = RecordStyle::Scientific;
+        origin.starting_fragment.reliability = RecordReliability::Verified;
+        origin.starting_fragment.source = "Galactic Xenobiology Institute";
+        origin.starting_fragment.body =
+            "Classification: Xytomorph (common designation). Highly aggressive chitinous predator. "
+            "Traces of " + source.short_name + " bioengineering confirmed in genome analysis. "
+            "Adaptive physiology allows survival in vacuum, extreme temperature, and toxic atmospheres. "
+            "Exercise extreme caution. Do not approach nesting sites without military escort.";
+
+        lore.race_origins.push_back(std::move(origin));
+    }
+
+    // ── Human — no precursor link, standard origin ──
+    {
+        RaceOrigin origin;
+        origin.race_name = "Human";
+        origin.ancestor_civ_index = -1;
+        origin.origin_bya = lore.humanity.arrival_bya;
+
+        origin.origin_text =
+            "Humanity arrived among the stars ten thousand years ago, the latest species to look up "
+            "and wonder. They found a galaxy littered with ruins, haunted by the echoes of civilizations "
+            "that had risen and fallen before Earth's sun was born. Humans reverse-engineered hyperspace "
+            "technology from precursor wreckage and expanded rapidly — too rapidly. The golden age ended "
+            "in the Fracture, and now the scattered human factions pick through the bones of giants.";
+
+        origin.starting_fragment.title = "Orientation Brief: New Recruits";
+        origin.starting_fragment.style = RecordStyle::Official;
+        origin.starting_fragment.reliability = RecordReliability::Verified;
+        origin.starting_fragment.source = "Stellari Conclave Orientation Office";
+        origin.starting_fragment.body =
+            "Welcome to The Heavens Above. You are standing on a station orbiting Jupiter, "
+            "built by a species that vanished before our sun ignited. Let that sink in. "
+            "The galaxy is old, and we are very, very young. "
+            "Your starship is docked at Bay 7. Your mission: survive, explore, and maybe — "
+            "just maybe — figure out what all those ancient civilizations were pointing at "
+            "when they aimed their beacons toward the center of the galaxy. Good luck, commander.";
+
+        lore.race_origins.push_back(std::move(origin));
+    }
+}
 
 std::string LoreGenerator::format_history(const WorldLore& lore) {
     std::ostringstream out;
@@ -1223,6 +1475,33 @@ std::string LoreGenerator::format_history(const WorldLore& lore) {
         out << "  Factions:\n";
         for (auto& f : lore.humanity.faction_names) {
             out << "    - " << f << "\n";
+        }
+    }
+
+    // Race origins
+    if (!lore.race_origins.empty()) {
+        out << "\n--- Race Origins ---\n\n";
+        for (const auto& ro : lore.race_origins) {
+            out << "  " << ro.race_name;
+            if (ro.ancestor_civ_index >= 0 &&
+                ro.ancestor_civ_index < static_cast<int>(lore.civilizations.size())) {
+                out << " (descended from " << lore.civilizations[ro.ancestor_civ_index].short_name << ")";
+            }
+            out << "  [" << ro.origin_bya << " Bya]\n";
+            // Word-wrap origin text
+            std::string text = ro.origin_text;
+            size_t pos = 0;
+            while (pos < text.size()) {
+                size_t end = std::min(pos + 70, text.size());
+                if (end < text.size()) {
+                    size_t space = text.rfind(' ', end);
+                    if (space > pos) end = space;
+                }
+                out << "    " << text.substr(pos, end - pos) << "\n";
+                pos = end;
+                if (pos < text.size() && text[pos] == ' ') ++pos;
+            }
+            out << "\n";
         }
     }
 

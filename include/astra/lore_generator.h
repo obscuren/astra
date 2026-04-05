@@ -44,6 +44,10 @@ private:
     static HumanHistory generate_human_epoch(
         std::mt19937& rng,
         const std::vector<Civilization>& civilizations);
+
+    static void generate_race_origins(
+        std::mt19937& rng,
+        WorldLore& lore);
 };
 
 } // namespace astra
