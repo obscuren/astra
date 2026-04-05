@@ -1509,6 +1509,8 @@ std::string LoreGenerator::format_history(const WorldLore& lore) {
         out << "  Architecture: " << architecture_name(civ.architecture) << "\n";
         out << "  Tech style:   " << tech_name(civ.tech_style) << "\n";
         out << "  Philosophy:   " << philosophy_name(civ.philosophy) << "\n";
+        if (!civ.trait_summary.empty())
+            out << "  Traits:       " << civ.trait_summary << "\n";
         out << "  Collapse:     " << collapse_name(civ.collapse_cause) << "\n";
         out << "  Sgr A*:       " << sgra_name(civ.sgra_relation) << "\n";
 

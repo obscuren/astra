@@ -16,21 +16,7 @@ public:
     // Format the lore as a human-readable string (for dev log).
     static std::string format_history(const WorldLore& lore);
 
-private:
-    static Civilization generate_civilization(
-        std::mt19937& rng,
-        int epoch_index,
-        float epoch_start_bya,
-        const std::vector<Civilization>& predecessors);
-
-    static void generate_events(
-        std::mt19937& rng,
-        Civilization& civ,
-        int epoch_index,
-        bool has_predecessors,
-        const std::vector<Civilization>& predecessors,
-        const NameGenerator& namer);
-
+    // Shared helpers (used by GalaxySim::build_lore)
     static void generate_figures(
         std::mt19937& rng,
         Civilization& civ,
@@ -48,6 +34,21 @@ private:
     static void generate_race_origins(
         std::mt19937& rng,
         WorldLore& lore);
+
+private:
+    static Civilization generate_civilization(
+        std::mt19937& rng,
+        int epoch_index,
+        float epoch_start_bya,
+        const std::vector<Civilization>& predecessors);
+
+    static void generate_events(
+        std::mt19937& rng,
+        Civilization& civ,
+        int epoch_index,
+        bool has_predecessors,
+        const std::vector<Civilization>& predecessors,
+        const NameGenerator& namer);
 };
 
 } // namespace astra

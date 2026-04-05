@@ -242,3 +242,102 @@ Walls still block line of sight — no seeing around corners.
 | Lore: Wetlands | Swamp, River, Lake |
 | Lore: Mountains | Mountains, Crater |
 | Lore: Tundra | Ice Field, Lava Flow |
+
+## Galaxy Simulation (Lore Generation)
+
+### Civilization Traits
+
+Each civilization allocates **100 points** across 9 traits:
+
+| Trait | Drives |
+|-------|--------|
+| Aggression | War frequency, conquest, military growth rate |
+| Curiosity | Research rate, exploration, ruin investigation |
+| Industriousness | Resource extraction, construction, expansion speed |
+| Cohesion | Stability baseline, schism resistance |
+| Spirituality | Sgr A* awareness growth, sacred sites, transcendence |
+| Adaptability | Terraforming success, plague resistance, crisis recovery |
+| Diplomacy | Trade likelihood, alliance formation, peaceful outcomes |
+| Creativity | Artifact creation, cultural renaissance, breakthroughs |
+| Technology | Tech advancement rate, weapon breakthroughs, megastructures |
+
+### Trait-Derived Multipliers
+
+- **Pop growth**: `0.7 + industriousness * 0.03 + adaptability * 0.02`
+- **Consumption**: `0.8 + aggression * 0.02 + industriousness * 0.01`
+- **Research**: `0.5 + curiosity * 0.05 + technology * 0.05 + creativity * 0.03`
+- **Military growth**: `aggression * 0.04 + technology * 0.02`
+- **Stability drift**: `(cohesion - 10) * 0.01 + diplomacy * 0.005 - aggression * 0.005`
+- **Sgr A* mult**: `0.5 + spirituality * 0.05 + curiosity * 0.02`
+
+### Philosophy Derivation
+
+Philosophy label assigned from highest combined traits:
+- **Expansionist**: aggression + industriousness
+- **Contemplative**: curiosity + creativity
+- **Predatory**: aggression * 2
+- **Symbiotic**: diplomacy + cohesion + adaptability
+- **Transcendent**: spirituality + curiosity
+
+### Per-Tick Economy (1 tick = 1 million years)
+
+- **Resource need**: `sqrt(population) * 0.3 * consumption_mult`
+- **Resource income per system**: `richness * (2.0 + knowledge * 0.005)`
+- **Net resources**: `income - need` (clamped 0-5000)
+- **Carrying capacity**: `territory_count * 120`
+
+### Population Growth
+
+```
+growth_rate = pop_growth_mult * 0.2
+resource_factor = clamp(resources / (pop_need * 3 + 1), 0, 2)
+stability_factor = stability / 100
+growth = growth_rate * resource_factor * stability_factor
+if population > capacity * 0.8: growth *= 0.3 (soft cap)
+if resources <= 0: growth = -0.1 * (1 + population * 0.001) (starvation)
+```
+
+### Knowledge & Military Growth
+
+- **Knowledge**: `+0.05 * research_mult * (0.5 + stability/200)`
+- **Military**: `+military_growth * 0.05`
+- **Sgr A* awareness**: `+0.003 * sgra_mult * (knowledge / 200)`
+
+### Stability
+
+```
+target = 55 + stability_drift * 50
+stability += (target - stability) * 0.02  (drift toward target)
+if resources <= 0: stability -= 0.5       (famine)
+if territory > stability * 0.5: stability -= 0.2  (overextension)
+if knowledge > 500 && stability < 40: stability -= 0.2  (existential crisis)
+if faction_count > 1: stability -= 0.1 * faction_count
+if stability < 30: stability += adaptability * 0.02  (recovery)
+```
+
+### Faction Tension
+
+```
+if stability < 40: tension += (40 - stability) * 0.02
+else: tension -= 0.1 (decay)
+if tension > 80: faction_count++, tension = 0, stability -= 15
+```
+
+### Weapon Technology
+
+- Breakthrough at: `knowledge > (weapon_tech + 1) * 150`
+- Effect: `military += 50 * weapon_tech` (decisive advantage)
+
+### Inter-Civ Interaction Conditions
+
+- **Adjacent**: territories within 30 galaxy units
+- **Aggressive**: `aggression > 15`
+- **Peaceful**: `diplomacy > 12 && aggression < 10`
+- **Conquest**: aggressive + `military > target * 1.5`
+- **Trade**: both peaceful, `1/200` per interaction check
+- **Border clash**: both aggressive, `~3%` per check
+- **Transcendence**: `spirituality > 15 || 1/50 chance` when sgra > 85
+
+### Collapse
+
+Civilization dies when `population < 3`. Territory released, systems marked with ruin layers.
