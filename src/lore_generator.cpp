@@ -1,4 +1,5 @@
 #include "astra/lore_generator.h"
+#include "astra/narrative_templates.h"
 
 #include <algorithm>
 #include <cassert>
@@ -250,7 +251,7 @@ WorldLore LoreGenerator::generate(unsigned game_seed) {
         generate_events(rng, civ, i, i > 0, lore.civilizations, namer);
         generate_figures(rng, civ, namer);
         generate_artifacts(rng, civ, namer);
-        generate_records(rng, civ, namer);
+        NarrativeGenerator::generate(rng, civ, namer, lore.civilizations);
 
         // Advance cursor: sometimes silence gap, sometimes overlap (contemporaneous)
         // 25% chance of overlap with previous civilization
@@ -1078,73 +1079,7 @@ void LoreGenerator::generate_artifacts(
     }
 }
 
-// ── generate_records (placeholder) ──────────────────────────────────────────
-
-void LoreGenerator::generate_records(
-    std::mt19937& rng,
-    Civilization& civ,
-    const NameGenerator& namer)
-{
-    if (civ.events.empty()) return;
-
-    int count = uniform_int(rng, 3, 5);
-    civ.records.reserve(count);
-
-    for (int i = 0; i < count; ++i) {
-        LoreRecord rec;
-
-        // Pick a random event to base the record on
-        int ev_idx = uniform_int(rng, 0, static_cast<int>(civ.events.size()) - 1);
-        const auto& ev = civ.events[ev_idx];
-        rec.event_index = ev_idx;
-
-        rec.style = static_cast<RecordStyle>(rng() % 5);
-        rec.reliability = static_cast<RecordReliability>(rng() % 4);
-        rec.system_id = ev.system_id;
-
-        // Generate a source name
-        if (!civ.figures.empty() && rng() % 3 == 0) {
-            int fig_idx = uniform_int(rng, 0, static_cast<int>(civ.figures.size()) - 1);
-            rec.source = civ.figures[fig_idx].name;
-            rec.figure_index = fig_idx;
-        } else {
-            static const char* source_templates[] = {
-                "Anonymous %s chronicler",
-                "%s Historical Archive",
-                "Unnamed %s scribe",
-                "%s Central Records",
-                "A %s survivor",
-            };
-            std::string src = source_templates[rng() % 5];
-            auto pos = src.find("%s");
-            if (pos != std::string::npos)
-                src.replace(pos, 2, civ.short_name);
-            rec.source = src;
-        }
-
-        // Title based on event type
-        rec.title = std::string(event_type_name(ev.type)) + " at " +
-                    std::to_string(ev.time_bya) + " Bya";
-
-        // Placeholder body: event description + a context sentence
-        static const char* context_sentences[] = {
-            "This event shaped the course of %s history for millennia.",
-            "The consequences of this moment echoed through %s space.",
-            "Few who witnessed this survived to record their account.",
-            "Later scholars would debate the true significance of these events.",
-            "The full impact would not be understood until much later.",
-            "This marked a turning point from which there was no return.",
-        };
-        std::string ctx = context_sentences[rng() % 6];
-        auto pos = ctx.find("%s");
-        if (pos != std::string::npos)
-            ctx.replace(pos, 2, civ.short_name);
-
-        rec.body = ev.description + ". " + ctx;
-
-        civ.records.push_back(std::move(rec));
-    }
-}
+// generate_records replaced by NarrativeGenerator::generate()
 
 // ── generate_human_epoch ────────────────────────────────────────────────────
 
