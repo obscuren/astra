@@ -131,6 +131,7 @@ public:
     // Dev commands
     void dev_command_warp_random();
     void dev_command_warp_stamp(Tile poi);
+    void dev_command_warp_to_system(uint32_t system_id);
     void dev_command_level_up();
     void dev_command_kill_hostiles();
 

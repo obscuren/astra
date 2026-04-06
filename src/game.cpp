@@ -368,6 +368,47 @@ void Game::dev_command_warp_stamp(Tile poi) {
     dev_warp_stamp_test();
 }
 
+void Game::dev_command_warp_to_system(uint32_t system_id) {
+    // Find the target system
+    const StarSystem* target = nullptr;
+    for (const auto& sys : world_.navigation().systems) {
+        if (sys.id == system_id) { target = &sys; break; }
+    }
+    if (!target) return;
+
+    // Reuse the same logic as WarpToSystem in game_world.cpp
+    save_current_location();
+    world_.navigation().current_system_id = target->id;
+    discover_nearby(world_.navigation(), target->id, 20.0f);
+    world_.navigation().on_ship = true;
+    world_.navigation().at_station = false;
+    world_.navigation().current_body_index = -1;
+    world_.navigation().current_moon_index = -1;
+
+    if (world_.location_cache().count(WorldManager::ship_key)) {
+        restore_location(WorldManager::ship_key);
+    } else {
+        unsigned ship_seed = world_.seed() ^ 0x5B1Bu;
+        auto props = default_properties(MapType::Starship);
+        world_.map() = TileMap(props.width, props.height, MapType::Starship);
+        auto gen = create_starship_generator();
+        gen->generate(world_.map(), props, ship_seed);
+        world_.map().set_location_name("Your Starship");
+        world_.npcs().clear();
+        world_.ground_items().clear();
+        if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+            world_.map().find_open_spot(player_.x, player_.y);
+        }
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    }
+
+    world_.visibility().reveal_all();
+    world_.current_region() = -1;
+    recompute_fov();
+    compute_camera();
+    check_region_change();
+}
+
 void Game::dev_command_level_up() {
     player_.xp = player_.max_xp;
     combat_.check_level_up(*this);

@@ -4,7 +4,6 @@
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/lore_generator.h"
-#include "astra/star_chart.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
@@ -431,12 +430,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             // Find first matching system
             for (const auto& sys : nav.systems) {
                 if (match_system(feature, sys.lore)) {
-                    game.save_current_location();
-                    nav.current_system_id = sys.id;
-                    discover_nearby(nav, sys.id, 20.0f);
-                    nav.on_ship = true;
-                    nav.at_station = false;
-                    game.enter_ship();
+                    game.dev_command_warp_to_system(sys.id);
 
                     std::string flags;
                     if (sys.lore.beacon) flags += " beacon";
