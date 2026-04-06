@@ -442,6 +442,12 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     props.detail_terrain = ow_map->get(ow_x, ow_y);
     props.biome = detail_biome_for_terrain(props.detail_terrain, ow_map->biome());
 
+    // Alien terrain: override detail biome with civ-specific alien biome
+    if (props.detail_terrain == Tile::OW_AlienTerrain &&
+        ow_map->alien_biome() != Biome::Station) {
+        props.biome = ow_map->alien_biome();
+    }
+
     // Zone coordinates for shared edge seeding
     props.zone_x = world_.zone_x();
     props.zone_y = world_.zone_y();
