@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/celestial_body.h"
+#include "astra/lore_types.h"
 #include "astra/renderer.h"
 
 #include <cstdint>
@@ -37,6 +38,9 @@ struct LoreAnnotation {
     bool plague_origin = false;
     bool terraformed = false;
     int terraformed_by_civ = -1;        // civ index
+    int scar_count = 0;
+    int primary_civ_index = -1;
+    Architecture primary_civ_architecture = Architecture::Geometric;
 };
 
 struct StarSystem {

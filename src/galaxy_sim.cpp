@@ -1021,6 +1021,16 @@ WorldLore GalaxySim::build_lore(unsigned seed, std::mt19937& rng,
         lsd.terraformed = s.terraformed;
         lsd.terraformed_by = s.terraformed_by;
 
+        lsd.scar_count = static_cast<int>(s.scars.size());
+
+        // Determine primary civ: megastructure builder > terraformer > most recent ruin layer
+        if (s.has_megastructure && s.megastructure_builder >= 0)
+            lsd.primary_civ_index = s.megastructure_builder;
+        else if (s.terraformed && s.terraformed_by >= 0)
+            lsd.primary_civ_index = s.terraformed_by;
+        else if (!s.ruin_layers.empty())
+            lsd.primary_civ_index = s.ruin_layers.back();
+
         // Compute tier
         if (s.beacon || s.has_megastructure) lsd.lore_tier = 3;
         else if (s.battle_site || s.weapon_test_site || s.ruin_layers.size() > 2) lsd.lore_tier = 2;

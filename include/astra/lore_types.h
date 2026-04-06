@@ -244,6 +244,12 @@ struct LoreSystemData {
     bool terraformed = false;
     int terraformed_by = -1;
     int lore_tier = 0;
+    int scar_count = 0;          // number of PlanetScar events
+    int primary_civ_index = -1;  // most significant civ index:
+                                 //   1. megastructure_builder (if has_megastructure)
+                                 //   2. terraformed_by (if terraformed)
+                                 //   3. last entry in ruin_civ_ids (most recent occupant)
+                                 //   4. -1 (no lore presence)
 };
 
 // ── The complete world lore ──

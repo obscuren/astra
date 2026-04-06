@@ -655,6 +655,13 @@ void apply_lore_to_galaxy(NavigationData& nav, const WorldLore& lore) {
         sys.lore.plague_origin = ls.plague_origin;
         sys.lore.terraformed = ls.terraformed;
         sys.lore.terraformed_by_civ = ls.terraformed_by;
+        sys.lore.scar_count = ls.scar_count;
+        sys.lore.primary_civ_index = ls.primary_civ_index;
+        if (ls.primary_civ_index >= 0 &&
+            ls.primary_civ_index < static_cast<int>(lore.civilizations.size())) {
+            sys.lore.primary_civ_architecture =
+                lore.civilizations[ls.primary_civ_index].architecture;
+        }
 
         // Set primary civilization name from the most recent ruin layer
         if (!ls.ruin_civ_ids.empty()) {
