@@ -4,6 +4,7 @@
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/lore_generator.h"
+#include "astra/star_chart.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
@@ -122,6 +123,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest story        - The Missing Hauler");
         log("  heal               - full heal");
         log("  bearings           - regain bearings if lost");
+        log("  lore list           - list lore-annotated systems");
+        log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
         log("  history             - show world lore history");
         log("  editor             - open map editor");
         log("  clear              - clear console");
@@ -378,6 +381,81 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         // Close console and open the lore viewer
         open_ = false;
         game.open_lore_viewer();
+    }
+    else if (verb == "lore" && args.size() >= 2) {
+        if (!game.world().lore().generated) {
+            log("No world lore generated yet.");
+            return;
+        }
+        auto& nav = game.world().navigation();
+
+        // Match a lore feature name to a system predicate
+        auto match_system = [](const std::string& feature, const LoreAnnotation& la) -> bool {
+            if (feature == "beacon")         return la.beacon;
+            if (feature == "megastructure")  return la.has_megastructure;
+            if (feature == "terraformed")    return la.terraformed;
+            if (feature == "scarred" || feature == "scar")
+                return la.battle_site || la.weapon_test_site;
+            if (feature == "battle")         return la.battle_site;
+            if (feature == "weapon")         return la.weapon_test_site;
+            if (feature == "plague")         return la.plague_origin;
+            if (feature == "tier3")          return la.lore_tier >= 3;
+            if (feature == "tier2")          return la.lore_tier >= 2;
+            if (feature == "tier1")          return la.lore_tier >= 1;
+            return false;
+        };
+
+        if (args[1] == "list") {
+            // List all systems with lore features
+            int count = 0;
+            for (const auto& sys : nav.systems) {
+                const auto& la = sys.lore;
+                if (la.lore_tier == 0) continue;
+                std::string flags;
+                if (la.beacon)          flags += " [beacon]";
+                if (la.has_megastructure) flags += " [mega]";
+                if (la.terraformed)     flags += " [terraform]";
+                if (la.battle_site)     flags += " [battle]";
+                if (la.weapon_test_site) flags += " [weapon]";
+                if (la.plague_origin)   flags += " [plague]";
+                if (la.scar_count > 0)  flags += " [scars:" + std::to_string(la.scar_count) + "]";
+                log("  #" + std::to_string(sys.id) + " " + sys.name +
+                    " (tier " + std::to_string(la.lore_tier) + ")" + flags);
+                if (++count >= 30) { log("  ... (truncated)"); break; }
+            }
+            if (count == 0) log("No lore-annotated systems found.");
+            else log(std::to_string(count) + " systems shown.");
+        }
+        else if (args[1] == "warp" && args.size() >= 3) {
+            const std::string& feature = args[2];
+            // Find first matching system
+            for (const auto& sys : nav.systems) {
+                if (match_system(feature, sys.lore)) {
+                    game.save_current_location();
+                    nav.current_system_id = sys.id;
+                    discover_nearby(nav, sys.id, 20.0f);
+                    nav.on_ship = true;
+                    nav.at_station = false;
+                    game.enter_ship();
+
+                    std::string flags;
+                    if (sys.lore.beacon) flags += " beacon";
+                    if (sys.lore.has_megastructure) flags += " mega";
+                    if (sys.lore.terraformed) flags += " terraform";
+                    if (sys.lore.battle_site) flags += " battle";
+                    if (sys.lore.weapon_test_site) flags += " weapon";
+                    if (sys.lore.scar_count > 0) flags += " scars:" + std::to_string(sys.lore.scar_count);
+                    log("Warped to " + sys.name + " (#" + std::to_string(sys.id) +
+                        ", tier " + std::to_string(sys.lore.lore_tier) + ")" + flags);
+                    return;
+                }
+            }
+            log("No system found with feature: " + feature);
+        }
+        else {
+            log("Usage: lore list | lore warp <feature>");
+            log("Features: beacon, megastructure, terraformed, scarred, battle, weapon, plague, tier1, tier2, tier3");
+        }
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
