@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace astra {
 
@@ -99,6 +100,55 @@ static float terrain_water_density(Tile t) {
     }
 }
 
+// --- Shared edge seeding ---
+
+// Compute a deterministic seed for the shared edge between two zones.
+// Both zones sharing this edge produce the same seed for matching terrain.
+// edge_dir: 0=North, 1=South, 2=West, 3=East
+static unsigned shared_edge_seed(unsigned base_seed, int ow_x, int ow_y,
+                                  int zone_x, int zone_y, int edge_dir) {
+    int edge_ow_x = ow_x, edge_ow_y = ow_y;
+    int edge_zx = zone_x, edge_zy = zone_y;
+
+    // Normalize: for a north edge, use the zone above's south edge coords
+    // For a west edge, use the zone left's east edge coords
+    // This ensures both sides compute the same seed
+    if (edge_dir == 0) { // North
+        edge_zy = zone_y - 1;
+        if (edge_zy < 0) { edge_ow_y -= 1; edge_zy = 2; }
+    } else if (edge_dir == 2) { // West
+        edge_zx = zone_x - 1;
+        if (edge_zx < 0) { edge_ow_x -= 1; edge_zx = 2; }
+    }
+    // South and East are already the "canonical" position
+
+    return base_seed
+        ^ (static_cast<unsigned>(edge_ow_x + 1000) * 7919u)
+        ^ (static_cast<unsigned>(edge_ow_y + 1000) * 6271u)
+        ^ (static_cast<unsigned>(edge_zx) * 3571u)
+        ^ (static_cast<unsigned>(edge_zy) * 4517u)
+        ^ (static_cast<unsigned>(edge_dir & 1) * 8831u);
+}
+
+struct EdgeStrip {
+    std::vector<float> wall_density;
+    std::vector<float> water_density;
+};
+
+// Generate deterministic terrain strip for a shared edge
+static EdgeStrip generate_edge_strip(unsigned seed, int length,
+                                     float base_wall, float base_water) {
+    EdgeStrip strip;
+    strip.wall_density.resize(length);
+    strip.water_density.resize(length);
+    for (int i = 0; i < length; ++i) {
+        float n = fbm(static_cast<float>(i), 0.0f, seed, 0.1f, 3);
+        strip.wall_density[i]  = base_wall  * (0.5f + n);
+        strip.water_density[i] = base_water * (0.3f + 0.7f * n);
+    }
+    return strip;
+}
+
 // --- Edge blending ---
 
 // For a cell at (x,y), compute how much influence each edge neighbor has.
@@ -178,7 +228,7 @@ void DetailMapGenerator::generate_layout(std::mt19937& rng) {
     Tile ne = props_->detail_neighbor_e;
     Tile nw = props_->detail_neighbor_w;
 
-    // Check if ANY neighbor differs from center (optimization)
+    // Check if ANY neighbor differs from center (for overworld tile boundary blending)
     bool has_different_neighbor =
         (nn != Tile::Empty && nn != terrain) ||
         (ns != Tile::Empty && ns != terrain) ||
@@ -189,6 +239,22 @@ void DetailMapGenerator::generate_layout(std::mt19937& rng) {
     float center_wall = terrain_wall_density(terrain);
     float center_water = terrain_water_density(terrain);
 
+    // Shared edge strips for zone connectivity
+    unsigned edge_base_seed = seed ^ 0xED6Eu;
+    int zx = props_->zone_x;
+    int zy = props_->zone_y;
+    int owx = props_->overworld_x;
+    int owy = props_->overworld_y;
+
+    auto north_strip = generate_edge_strip(
+        shared_edge_seed(edge_base_seed, owx, owy, zx, zy, 0), w, center_wall, center_water);
+    auto south_strip = generate_edge_strip(
+        shared_edge_seed(edge_base_seed, owx, owy, zx, zy, 1), w, center_wall, center_water);
+    auto west_strip = generate_edge_strip(
+        shared_edge_seed(edge_base_seed, owx, owy, zx, zy, 2), h, center_wall, center_water);
+    auto east_strip = generate_edge_strip(
+        shared_edge_seed(edge_base_seed, owx, owy, zx, zy, 3), h, center_wall, center_water);
+
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             // Base noise value (shared across all terrain decisions)
@@ -198,15 +264,33 @@ void DetailMapGenerator::generate_layout(std::mt19937& rng) {
             float wall_threshold = center_wall;
             float water_threshold = center_water;
 
-            // Blend toward neighbor densities near edges
+            // Always compute edge weights for shared edge blending
+            EdgeWeights ew = compute_edge_weights(x, y, w, h, seed);
+
+            auto blend = [](float base, float target, float weight) {
+                return base + (target - base) * weight;
+            };
+
+            // Shared edge blending (always applies for zone-to-zone continuity)
+            if (ew.north > 0.0f) {
+                wall_threshold  = blend(wall_threshold,  north_strip.wall_density[x],  ew.north);
+                water_threshold = blend(water_threshold, north_strip.water_density[x], ew.north);
+            }
+            if (ew.south > 0.0f) {
+                wall_threshold  = blend(wall_threshold,  south_strip.wall_density[x],  ew.south);
+                water_threshold = blend(water_threshold, south_strip.water_density[x], ew.south);
+            }
+            if (ew.west > 0.0f) {
+                wall_threshold  = blend(wall_threshold,  west_strip.wall_density[y],  ew.west);
+                water_threshold = blend(water_threshold, west_strip.water_density[y], ew.west);
+            }
+            if (ew.east > 0.0f) {
+                wall_threshold  = blend(wall_threshold,  east_strip.wall_density[y],  ew.east);
+                water_threshold = blend(water_threshold, east_strip.water_density[y], ew.east);
+            }
+
+            // Overworld tile boundary blending (on top of shared edge, only for edge zones)
             if (has_different_neighbor) {
-                EdgeWeights ew = compute_edge_weights(x, y, w, h, seed);
-
-                // Each edge weight blends the threshold toward that neighbor's density
-                auto blend = [](float base, float target, float weight) {
-                    return base + (target - base) * weight;
-                };
-
                 if (nn != Tile::Empty && ew.north > 0.0f) {
                     wall_threshold  = blend(wall_threshold,  terrain_wall_density(nn),  ew.north);
                     water_threshold = blend(water_threshold, terrain_water_density(nn), ew.north);

@@ -441,6 +441,12 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     props.detail_terrain = ow_map->get(ow_x, ow_y);
     props.biome = detail_biome_for_terrain(props.detail_terrain, ow_map->biome());
 
+    // Zone coordinates for shared edge seeding
+    props.zone_x = world_.zone_x();
+    props.zone_y = world_.zone_y();
+    props.overworld_x = ow_x;
+    props.overworld_y = ow_y;
+
     // Sample overworld neighbors — only at outer edges of the 3x3 zone grid.
     // Interior zone edges border the same overworld tile, so no terrain blending.
     int zx = world_.zone_x();

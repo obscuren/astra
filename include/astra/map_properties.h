@@ -67,6 +67,12 @@ struct MapProperties {
     Architecture lore_alien_architecture = Architecture::Geometric;
     float lore_scar_intensity = 0.0f;
 
+    // Zone position within the 3x3 grid (for shared edge seeding)
+    int zone_x = 1;
+    int zone_y = 1;
+    int overworld_x = 0;
+    int overworld_y = 0;
+
     // Detail map generation context (only used for MapType::DetailMap)
     Tile detail_terrain = Tile::OW_Plains;
     Tile detail_neighbor_n = Tile::Empty;
