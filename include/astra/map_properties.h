@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/celestial_body.h"
+#include "astra/lore_types.h"
 #include "astra/tilemap.h"
 
 #include <cstdint>
@@ -52,6 +53,14 @@ struct MapProperties {
     bool lore_beacon = false;       // Sgr A* beacon POI
     bool lore_terraformed = false;  // altered biome
     bool lore_plague_origin = false;// abandoned settlements
+    int lore_scar_count = 0;
+    Architecture lore_civ_architecture = Architecture::Geometric;
+    int lore_primary_civ_index = -1;
+
+    // Detail map lore context (populated from influence map at overworld cell)
+    float lore_alien_strength = 0.0f;
+    Architecture lore_alien_architecture = Architecture::Geometric;
+    float lore_scar_intensity = 0.0f;
 
     // Detail map generation context (only used for MapType::DetailMap)
     Tile detail_terrain = Tile::OW_Plains;

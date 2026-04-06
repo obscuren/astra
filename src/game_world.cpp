@@ -1108,6 +1108,9 @@ void Game::travel_to_destination(const ChartAction& action) {
             props.lore_beacon = la.beacon;
             props.lore_terraformed = la.terraformed;
             props.lore_plague_origin = la.plague_origin;
+            props.lore_scar_count = la.scar_count;
+            props.lore_civ_architecture = la.primary_civ_architecture;
+            props.lore_primary_civ_index = la.primary_civ_index;
 
             unsigned ow_seed = world_.seed() ^ (target_sys.id * 7919u)
                              ^ (static_cast<unsigned>(action.body_index) * 6271u)
