@@ -390,6 +390,8 @@ public:
     MapType map_type() const { return map_type_; }
     Biome biome() const { return biome_; }
     void set_biome(Biome b) { biome_ = b; }
+    Biome alien_biome() const { return alien_biome_; }
+    void set_alien_biome(Biome b) { alien_biome_ = b; }
     char backdrop(int x, int y) const;
 
     Tile get(int x, int y) const;
@@ -475,6 +477,7 @@ public:
 private:
     MapType map_type_ = MapType::SpaceStation;
     Biome biome_ = Biome::Station;
+    Biome alien_biome_ = Biome::Station;  // set for terraformed worlds
     int width_ = 0;
     int height_ = 0;
     std::string location_name_ = "Unknown";

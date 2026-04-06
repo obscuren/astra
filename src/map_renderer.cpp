@@ -107,6 +107,9 @@ void render_map(const MapRenderContext& rc) {
                         desc.seed     = position_seed(mx, my);
                         desc.flags    = RF_None;
                         desc.biome    = rc.world.map().biome();
+                        if (tile_at == Tile::OW_AlienTerrain &&
+                            rc.world.map().alien_biome() != Biome::Station)
+                            desc.biome = rc.world.map().alien_biome();
                         if (gov == SG_QuestMarker) desc.flags |= RF_Interactable;
                         wctx.put(sx, sy, desc);
                     }

@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/civ_aesthetics.h"
 #include "astra/debug_spawn.h"
 #include "astra/lore_influence_map.h"
 #include "astra/lore_types.h"
@@ -1144,6 +1145,9 @@ void Game::travel_to_destination(const ChartAction& action) {
             auto gen = create_generator(MapType::Overworld);
             gen->generate(world_.map(), props, ow_seed);
             world_.map().set_biome(dest_biome);
+            if (props.lore_terraformed)
+                world_.map().set_alien_biome(
+                    alien_biome_for_architecture(props.lore_civ_architecture));
             world_.map().set_location_name(location_name);
 
             // Store influence map for detail map generation

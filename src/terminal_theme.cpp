@@ -980,17 +980,34 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         Color c = ow_tile_color(tile, biome);
         const char* utf8 = ow_glyph(tile, seed);
 
-        // Alien terrain: position-varied colors within a magenta/purple palette
+        // Alien terrain: architecture-specific color palette
         if (tile == Tile::OW_AlienTerrain) {
-            static const Color alien_palette[] = {
-                Color::BrightMagenta,
-                Color::Magenta,
-                static_cast<Color>(133),  // medium purple
-                static_cast<Color>(170),  // light magenta
-                static_cast<Color>(176),  // pink-ish
-                Color::BrightMagenta,
-            };
-            c = alien_palette[seed % 6];
+            switch (biome) {
+                case Biome::AlienCrystalline: {
+                    static const Color p[] = {Color::Cyan, static_cast<Color>(51), static_cast<Color>(37), Color::White};
+                    c = p[seed % 4]; break;
+                }
+                case Biome::AlienOrganic: {
+                    static const Color p[] = {Color::Red, Color::Magenta, static_cast<Color>(52), static_cast<Color>(88)};
+                    c = p[seed % 4]; break;
+                }
+                case Biome::AlienGeometric: {
+                    static const Color p[] = {Color::Yellow, static_cast<Color>(136), Color::White, static_cast<Color>(178)};
+                    c = p[seed % 4]; break;
+                }
+                case Biome::AlienVoid: {
+                    static const Color p[] = {static_cast<Color>(90), Color::DarkGray, Color::Magenta, static_cast<Color>(54)};
+                    c = p[seed % 4]; break;
+                }
+                case Biome::AlienLight: {
+                    static const Color p[] = {static_cast<Color>(228), Color::Yellow, Color::White, static_cast<Color>(230)};
+                    c = p[seed % 4]; break;
+                }
+                default: {
+                    static const Color p[] = {Color::BrightMagenta, Color::Magenta, static_cast<Color>(133), static_cast<Color>(170)};
+                    c = p[seed % 4]; break;
+                }
+            }
         }
         // Scorched earth: orange/red variation
         if (tile == Tile::OW_ScorchedEarth) {
