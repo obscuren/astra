@@ -961,6 +961,20 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     if (tile >= Tile::OW_Plains && tile <= Tile::OW_Landing) {
         Color c = ow_tile_color(tile, biome);
         const char* utf8 = ow_glyph(tile, seed);
+
+        // Alien terrain: position-varied colors within a magenta/purple palette
+        if (tile == Tile::OW_AlienTerrain) {
+            static const Color alien_palette[] = {
+                Color::BrightMagenta,
+                Color::Magenta,
+                static_cast<Color>(133),  // medium purple
+                static_cast<Color>(170),  // light magenta
+                static_cast<Color>(176),  // pink-ish
+                Color::BrightMagenta,
+            };
+            c = alien_palette[seed % 6];
+        }
+
         return {tile_glyph(tile), utf8, c, Color::Default};
     }
 

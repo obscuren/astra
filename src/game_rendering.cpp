@@ -173,6 +173,9 @@ std::string Game::look_tile_name(int mx, int my) const {
         case Tile::OW_Settlement:   return "Settlement";
         case Tile::OW_CrashedShip:  return "Crashed Ship";
         case Tile::OW_Outpost:      return "Outpost";
+        case Tile::OW_Beacon:       return "Beacon Spire";
+        case Tile::OW_Megastructure: return "Megastructure Anchor";
+        case Tile::OW_AlienTerrain: return "Alien Terrain";
         case Tile::OW_Landing:      return "Landing Pad";
         case Tile::Wall: case Tile::StructuralWall: return "Wall";
         case Tile::Floor:           return "";
@@ -232,6 +235,9 @@ std::string Game::look_tile_desc(int mx, int my) const {
         case Tile::OW_Settlement:   return "A small settlement. Signs of habitation are visible.";
         case Tile::OW_CrashedShip:  return "The twisted wreckage of a downed vessel.";
         case Tile::OW_Outpost:      return "A fortified outpost overlooks the terrain.";
+        case Tile::OW_Beacon:       return "A towering spire pulses with ancient energy. It points toward the galactic core.";
+        case Tile::OW_Megastructure: return "The ground anchor of an orbital megastructure. Massive foundations stretch deep underground.";
+        case Tile::OW_AlienTerrain: return "The terrain has been reshaped by ancient terraforming. Alien growths cover the surface.";
         case Tile::OW_Landing:      return "A flat landing pad. Your ship is docked here.";
         case Tile::Wall: case Tile::StructuralWall:
             return "Solid construction blocks the way.";
