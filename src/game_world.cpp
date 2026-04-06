@@ -454,13 +454,24 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     if (zx == zones_per_tile - 1 && ow_x < ow_map->width() - 1)
         props.detail_neighbor_e = ow_map->get(ow_x + 1, ow_y);
 
-    // Check for POI
-    Tile t = props.detail_terrain;
-    if (t == Tile::OW_CaveEntrance || t == Tile::OW_Settlement ||
-        t == Tile::OW_Ruins || t == Tile::OW_CrashedShip ||
-        t == Tile::OW_Outpost || t == Tile::OW_Landing) {
-        props.detail_has_poi = true;
-        props.detail_poi_type = t;
+    // POI only generates in center zone (1,1) — surrounding zones are natural terrain
+    if (zx == 1 && zy == 1) {
+        Tile t = props.detail_terrain;
+        if (t == Tile::OW_CaveEntrance || t == Tile::OW_Settlement ||
+            t == Tile::OW_Ruins || t == Tile::OW_CrashedShip ||
+            t == Tile::OW_Outpost || t == Tile::OW_Landing ||
+            t == Tile::OW_Beacon || t == Tile::OW_Megastructure) {
+            props.detail_has_poi = true;
+            props.detail_poi_type = t;
+        }
+    }
+
+    // Lore influence at this overworld cell
+    const auto& infl = world_.lore_influence();
+    if (!infl.empty()) {
+        props.lore_alien_strength = infl.alien_at(ow_x, ow_y);
+        props.lore_scar_intensity = infl.scar_at(ow_x, ow_y);
+        props.lore_alien_architecture = props.lore_civ_architecture;
     }
 
     return props;

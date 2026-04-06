@@ -818,6 +818,13 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
     else if (sys.danger_level >= 4) danger_color = Color::Yellow;
     ctx.text(10, y++, danger_bar, danger_color);
 
+    if (sys.lore.has_megastructure) {
+        ctx.text(1, y++, " \xe2\x97\x88 Megastructure in orbit", Color::Yellow);
+    }
+    if (sys.lore.beacon) {
+        ctx.text(1, y++, " \xe2\x8c\xbe Sgr A* Beacon detected", Color::Cyan);
+    }
+
     y++;
     for (const auto& s : nav_->systems) {
         if (s.id == nav_->current_system_id) {
