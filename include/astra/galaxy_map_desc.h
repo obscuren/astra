@@ -54,6 +54,9 @@ struct GalaxyMapDesc {
     std::vector<uint32_t> quest_system_ids;
     std::vector<GVBodyQuest> quest_body_targets;
 
+    // Lore markers (systems with lore_tier >= 2)
+    std::vector<uint32_t> lore_system_ids;
+
     // Navigation range (for warp radius display)
     float navi_range = 1.0f;
 

@@ -1,8 +1,10 @@
 #include "astra/star_chart.h"
+#include "astra/lore_types.h"
 #include "astra/time_of_day.h"
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 namespace astra {
 
@@ -607,6 +609,72 @@ NavigationData generate_galaxy(unsigned game_seed) {
     discover_nearby(nav, 1, 20.0f);
 
     return nav;
+}
+
+// ── apply_lore_to_galaxy ───────────────────────────────────────────────────
+// Maps each simulated lore system to the nearest real star system by position.
+// Transfers ruins, scars, beacons, megastructures, tiers onto real systems.
+
+void apply_lore_to_galaxy(NavigationData& nav, const WorldLore& lore) {
+    if (!lore.generated || lore.sim_systems.empty() || nav.systems.empty())
+        return;
+
+    // For each lore system, find the nearest real system and apply annotations
+    std::unordered_set<size_t> claimed; // prevent double-mapping
+
+    for (const auto& ls : lore.sim_systems) {
+        float best_dist = 1e18f;
+        size_t best_idx = 0;
+
+        for (size_t i = 0; i < nav.systems.size(); ++i) {
+            if (claimed.count(i)) continue;
+            // Skip Sgr A* (id=0) and Sol (id=1) — keep them special
+            if (nav.systems[i].id <= 1) continue;
+
+            float dx = nav.systems[i].gx - ls.gx;
+            float dy = nav.systems[i].gy - ls.gy;
+            float d = dx * dx + dy * dy;
+            if (d < best_dist) {
+                best_dist = d;
+                best_idx = i;
+            }
+        }
+
+        if (best_dist > 1e17f) continue; // no system found
+
+        claimed.insert(best_idx);
+        auto& sys = nav.systems[best_idx];
+
+        // Apply lore annotation
+        sys.lore.lore_tier = ls.lore_tier;
+        sys.lore.ruin_civ_ids = ls.ruin_civ_ids;
+        sys.lore.has_megastructure = ls.has_megastructure;
+        sys.lore.beacon = ls.beacon;
+        sys.lore.battle_site = ls.battle_site;
+        sys.lore.weapon_test_site = ls.weapon_test_site;
+        sys.lore.plague_origin = ls.plague_origin;
+        sys.lore.terraformed = ls.terraformed;
+        sys.lore.terraformed_by_civ = ls.terraformed_by;
+
+        // Set primary civilization name from the most recent ruin layer
+        if (!ls.ruin_civ_ids.empty()) {
+            int last_civ = ls.ruin_civ_ids.back();
+            if (last_civ >= 0 && last_civ < static_cast<int>(lore.civilizations.size())) {
+                sys.lore.primary_civ_name = lore.civilizations[last_civ].short_name;
+            }
+        }
+        if (ls.megastructure_builder >= 0 &&
+            ls.megastructure_builder < static_cast<int>(lore.civilizations.size())) {
+            sys.lore.primary_civ_name = lore.civilizations[ls.megastructure_builder].short_name;
+        }
+
+        // Tier 3 systems get higher danger (ancient guardians, etc.)
+        if (ls.lore_tier >= 3 && sys.danger_level < 8) {
+            sys.danger_level = std::max(sys.danger_level, 7);
+        } else if (ls.lore_tier >= 2 && sys.danger_level < 5) {
+            sys.danger_level = std::max(sys.danger_level, 4);
+        }
+    }
 }
 
 } // namespace astra

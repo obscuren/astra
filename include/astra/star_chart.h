@@ -25,6 +25,20 @@ struct StationInfo {
     bool derelict = false;
 };
 
+// ── Lore annotation for a star system ──
+struct LoreAnnotation {
+    int lore_tier = 0;                  // 0=mundane, 1=touched, 2=significant, 3=pivotal
+    std::vector<int> ruin_civ_ids;      // which civilizations left ruins here (indices into WorldLore)
+    std::string primary_civ_name;       // dominant civilization's short name
+    bool has_megastructure = false;
+    bool beacon = false;                // Sgr A* beacon node
+    bool battle_site = false;
+    bool weapon_test_site = false;
+    bool plague_origin = false;
+    bool terraformed = false;
+    int terraformed_by_civ = -1;        // civ index
+};
+
 struct StarSystem {
     uint32_t id = 0;
     std::string name;
@@ -40,6 +54,7 @@ struct StarSystem {
     bool discovered = false;
     std::vector<CelestialBody> bodies;
     bool bodies_generated = false;
+    LoreAnnotation lore;                // populated by apply_lore_to_galaxy()
 };
 
 struct NavigationData {
@@ -54,6 +69,11 @@ struct NavigationData {
 
 // Generate the full galaxy from a seed
 NavigationData generate_galaxy(unsigned game_seed);
+
+// Map simulation lore data onto real star systems.
+// Each LoreSystemData is matched to the nearest real system by position.
+struct WorldLore; // forward declaration
+void apply_lore_to_galaxy(NavigationData& nav, const WorldLore& lore);
 
 // Fill in a system's properties from its seed and position
 void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy);

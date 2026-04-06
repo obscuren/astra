@@ -48,6 +48,12 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Lore viewer intercept
+    if (lore_viewer_.is_open()) {
+        lore_viewer_.handle_input(key);
+        return;
+    }
+
     // Help screen intercept
     if (help_screen_.is_open()) {
         help_screen_.handle_input(key);

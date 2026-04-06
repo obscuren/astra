@@ -3,7 +3,10 @@
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
+#include "astra/lore_generator.h"
 #include "astra/tilemap.h"
+
+#include <sstream>
 
 namespace astra {
 
@@ -119,6 +122,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest story        - The Missing Hauler");
         log("  heal               - full heal");
         log("  bearings           - regain bearings if lost");
+        log("  history             - show world lore history");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -365,6 +369,15 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         } else {
             log("Usage: quest kill|fetch|deliver|scout|story");
         }
+    }
+    else if (verb == "history") {
+        if (!game.world().lore().generated) {
+            log("No world lore generated yet.");
+            return;
+        }
+        // Close console and open the lore viewer
+        open_ = false;
+        game.open_lore_viewer();
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");

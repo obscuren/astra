@@ -137,6 +137,32 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Items and landmarks appear on the minimap.",
              true, 100, 14, "Intelligence"},
         }},
+        {SkillId::Cat_Archaeology, "Archaeology",
+         "The study of ancient civilizations and their remains. "
+         "Identify ruins, decipher inscriptions, and uncover lost knowledge.", 75, {
+            {SkillId::RuinReader, "Ruin Reader",
+             "Lore fragments found in ruins reveal their full text instead of "
+             "partial translations.",
+             true, 50, 12, "Intelligence"},
+            {SkillId::ArtifactIdentification, "Artifact Identification",
+             "Ancient items are automatically identified on pickup.",
+             true, 75, 13, "Intelligence"},
+            {SkillId::Excavation, "Excavation",
+             "Search ruin tiles for hidden caches. Chance to discover lore "
+             "fragments and sealed chambers.",
+             false, 50, 12, "Intelligence"},
+            {SkillId::CulturalAttunement, "Cultural Attunement",
+             "Bonus when using artifacts from civilizations you have studied.",
+             true, 75, 14, "Intelligence"},
+            {SkillId::PrecursorLinguist, "Precursor Linguist",
+             "Read ancient inscriptions. Unlocks sealed doors and reveals "
+             "vault locations.",
+             true, 100, 15, "Intelligence"},
+            {SkillId::BeaconSense, "Beacon Sense",
+             "Sgr A* beacon nodes glow on the star chart before visiting. "
+             "Feel the ancient signal toward the center.",
+             true, 100, 16, "Intelligence"},
+        }},
     };
     return catalog;
 }

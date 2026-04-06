@@ -47,6 +47,11 @@ set(ASTRA_SOURCES
     src/animation.cpp
     src/map_editor.cpp
     src/minimap.cpp
+    src/name_generator.cpp
+    src/lore_generator.cpp
+    src/lore_viewer.cpp
+    src/narrative_templates.cpp
+    src/galaxy_sim.cpp
     src/item_defs.cpp
     src/item_gen.cpp
     src/journal.cpp

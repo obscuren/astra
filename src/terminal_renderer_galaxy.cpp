@@ -32,6 +32,12 @@ static bool is_quest_system(const GalaxyMapDesc& desc, uint32_t sys_id) {
     return false;
 }
 
+static bool is_lore_system(const GalaxyMapDesc& desc, uint32_t sys_id) {
+    for (auto id : desc.lore_system_ids)
+        if (id == sys_id) return true;
+    return false;
+}
+
 static bool is_quest_body(const GalaxyMapDesc& desc, int body_index) {
     for (const auto& qt : desc.quest_body_targets)
         if (qt.body_index == body_index) return true;
@@ -82,6 +88,18 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         int sy = to_screen_y(sys.gy, view_top, view_h, mh);
         if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
         if (sx + 1 < mw) ctx.put(sx + 1, sy, '!', Color::BrightYellow);
+    }
+
+    // Lore markers — significant historical sites
+    for (const auto& sys : desc.systems) {
+        if (!is_lore_system(desc, sys.id)) continue;
+        int sx = to_screen_x(sys.gx, view_left, view_w, mw);
+        int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+        if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
+        // Tier 3: bright cyan star, Tier 2: dim cyan dot
+        Color c = (sys.lore.lore_tier >= 3) ? Color::Cyan : Color::DarkGray;
+        char glyph = (sys.lore.lore_tier >= 3) ? '*' : '.';
+        ctx.put(sx, sy, glyph, c);
     }
 
     // Highlight system marker

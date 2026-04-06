@@ -749,6 +749,7 @@ void Game::render_play() {
     render_quit_confirm();
     console_.draw(renderer_.get(), screen_w_, screen_h_);
     help_screen_.draw(renderer_.get(), screen_w_, screen_h_);
+    lore_viewer_.draw(renderer_.get(), screen_w_, screen_h_);
     repair_bench_.draw(screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);

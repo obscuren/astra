@@ -44,6 +44,15 @@ struct MapProperties {
     bool body_has_dungeon = false;
     int body_danger_level = 1;
 
+    // Lore-driven overworld context (populated from LoreAnnotation)
+    int lore_tier = 0;              // 0-3: affects POI density
+    bool lore_battle_site = false;  // extra crashed ships, debris
+    bool lore_weapon_test = false;  // scarred terrain, craters
+    bool lore_megastructure = false;// orbital structure POI
+    bool lore_beacon = false;       // Sgr A* beacon POI
+    bool lore_terraformed = false;  // altered biome
+    bool lore_plague_origin = false;// abandoned settlements
+
     // Detail map generation context (only used for MapType::DetailMap)
     Tile detail_terrain = Tile::OW_Plains;
     Tile detail_neighbor_n = Tile::Empty;
