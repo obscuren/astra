@@ -37,6 +37,20 @@ ThemeBiomeColors biome_palette(Biome biome) {
             return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
         case Biome::Jungle:
             return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
+        case Biome::AlienCrystalline:
+            return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), Color::Cyan};
+        case Biome::AlienOrganic:
+            return {Color::Red, Color::Magenta, static_cast<Color>(88), Color::Magenta};
+        case Biome::AlienGeometric:
+            return {Color::Yellow, static_cast<Color>(136), Color::Yellow, static_cast<Color>(136)};
+        case Biome::AlienVoid:
+            return {static_cast<Color>(90), Color::DarkGray, Color::Magenta, static_cast<Color>(90)};
+        case Biome::AlienLight:
+            return {static_cast<Color>(228), Color::White, static_cast<Color>(230), Color::Yellow};
+        case Biome::ScarredGlassed:
+            return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(136), static_cast<Color>(94)};
+        case Biome::ScarredScorched:
+            return {Color::DarkGray, static_cast<Color>(52), Color::DarkGray, static_cast<Color>(52)};
     }
     return {Color::White, Color::Default, Color::Blue, Color::Blue};
 }
@@ -678,6 +692,69 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
                         {'o', nullptr, static_cast<Color>(58), Color::Default},            // rusted lump
                     };
                     vis = variants[seed % 3]; break;
+                }
+                case Biome::AlienCrystalline: {
+                    static const ResolvedVisual variants[] = {
+                        {'*', "\xe2\x97\x86", Color::Cyan, Color::Default},            // ◆
+                        {'o', "\xe2\x97\x87", Color::White, Color::Default},            // ◇
+                        {'^', "\xe2\x96\xb3", static_cast<Color>(51), Color::Default},  // △ bright cyan
+                        {'v', "\xe2\x96\xbd", Color::Cyan, Color::Default},             // ▽
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::AlienOrganic: {
+                    static const ResolvedVisual variants[] = {
+                        {'O', "\xce\x98", Color::Red, Color::Default},                  // Θ
+                        {'~', "\xe2\x88\x9e", Color::Magenta, Color::Default},          // ∞
+                        {'S', "\xc2\xa7", static_cast<Color>(52), Color::Default},      // §
+                        {'~', "~", static_cast<Color>(88), Color::Default},             // ~ dark red
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::AlienGeometric: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xe2\x96\xa1", Color::Yellow, Color::Default},            // □
+                        {'*', "\xe2\x96\xaa", Color::White, Color::Default},             // ▪
+                        {'#', "\xe2\x95\xac", static_cast<Color>(136), Color::Default},  // ╬
+                        {'+', "\xe2\x94\xbc", Color::Yellow, Color::Default},            // ┼
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::AlienVoid: {
+                    static const ResolvedVisual variants[] = {
+                        {'O', "\xe2\x97\x8f", static_cast<Color>(90), Color::Default},  // ●
+                        {'o', "\xe2\x97\x8e", Color::DarkGray, Color::Default},          // ◎
+                        {'0', "\xe2\x88\x85", Color::Magenta, Color::Default},           // ∅
+                        {'v', "\xe2\x96\xbc", static_cast<Color>(90), Color::Default},   // ▼
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::AlienLight: {
+                    static const ResolvedVisual variants[] = {
+                        {'*', "\xe2\x9c\xa6", static_cast<Color>(228), Color::Default},  // ✦ bright yellow
+                        {'o', "\xe2\x9c\xa7", Color::White, Color::Default},              // ✧
+                        {'*', "\xe2\x88\x97", Color::Yellow, Color::Default},             // ∗
+                        {'*', "\xe2\x98\x86", static_cast<Color>(230), Color::Default},  // ☆ bright white
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::ScarredGlassed: {
+                    static const ResolvedVisual variants[] = {
+                        {'#', "\xe2\x96\x93", static_cast<Color>(136), Color::Default},  // ▓
+                        {'.', "\xe2\x96\x91", static_cast<Color>(208), Color::Default},  // ░ orange
+                        {'~', "\xe2\x89\x88", Color::DarkGray, Color::Default},          // ≈
+                        {'.', "\xc2\xb7", Color::DarkGray, Color::Default},              // · dim
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+                case Biome::ScarredScorched: {
+                    static const ResolvedVisual variants[] = {
+                        {'!', "\xe2\x89\xa0", Color::DarkGray, Color::Default},          // ≠
+                        {',', ",", static_cast<Color>(52), Color::Default},              // , dark red
+                        {'~', "~", static_cast<Color>(208), Color::Default},             // ~ orange
+                        {'%', "%", Color::DarkGray, Color::Default},                     // % ash
+                    };
+                    vis = variants[seed % 4]; break;
                 }
                 default:
                     vis = {'o', "\xc2\xb0", Color::DarkGray, Color::Default}; break;
