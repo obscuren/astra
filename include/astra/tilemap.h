@@ -40,6 +40,7 @@ enum class Tile : uint8_t {
     OW_Outpost,
     OW_Beacon,          // Sgr A* beacon spire
     OW_Megastructure,   // megastructure ground anchor
+    OW_AlienTerrain,    // terraformed alien biome patch
     // Overworld special
     OW_Landing,
 };
@@ -71,6 +72,7 @@ inline char tile_glyph(Tile t) {
         case Tile::OW_Outpost:     return '+';
         case Tile::OW_Beacon:      return '*';
         case Tile::OW_Megastructure: return '#';
+        case Tile::OW_AlienTerrain: return '~';
         case Tile::OW_Landing:     return '=';
         default:                   return ' ';
     }

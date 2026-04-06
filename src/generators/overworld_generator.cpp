@@ -443,10 +443,10 @@ void OverworldGenerator::generate_layout(std::mt19937& rng) {
                 }
                 // Alien biome (only if not heavily scarred)
                 else if (alien > world::alien_full_replace) {
-                    t = Tile::OW_Plains;  // alien biome replacement
+                    t = Tile::OW_AlienTerrain;
                 } else if (alien > world::alien_strength_threshold) {
                     if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < alien)
-                        t = Tile::OW_Plains;
+                        t = Tile::OW_AlienTerrain;
                 }
             }
 
