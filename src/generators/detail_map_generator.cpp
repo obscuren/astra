@@ -86,6 +86,8 @@ static float terrain_wall_density(Tile t) {
         case Tile::OW_Beacon:      return 0.15f;
         case Tile::OW_Megastructure: return 0.20f;
         case Tile::OW_AlienTerrain: return 0.12f;
+        case Tile::OW_ScorchedEarth: return 0.20f;
+        case Tile::OW_GlassedCrater: return 0.60f;
         default:                   return 0.10f;
     }
 }

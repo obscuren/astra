@@ -437,9 +437,9 @@ void OverworldGenerator::generate_layout(std::mt19937& rng) {
 
                 // Scar overrides (destruction post-dates terraforming)
                 if (scar > world::scar_heavy_threshold) {
-                    t = Tile::Wall;  // crater core
+                    t = Tile::OW_GlassedCrater;
                 } else if (scar > world::scar_medium_threshold) {
-                    t = Tile::OW_Desert;  // scorched earth
+                    t = Tile::OW_ScorchedEarth;
                 }
                 // Alien biome (only if not heavily scarred)
                 else if (alien > world::alien_full_replace) {

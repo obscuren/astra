@@ -37,8 +37,8 @@ bool TileMap::passable(int x, int y) const {
     }
     if (t == Tile::Floor || t == Tile::IndoorFloor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
         return true;
-    // Overworld tiles: all passable except mountains and lakes
-    if (t == Tile::OW_Mountains || t == Tile::OW_Lake) return false;
+    // Overworld tiles: all passable except mountains, lakes, and glassed craters
+    if (t == Tile::OW_Mountains || t == Tile::OW_Lake || t == Tile::OW_GlassedCrater) return false;
     if (t >= Tile::OW_Plains && t <= Tile::OW_Landing) return true;
     return false;
 }

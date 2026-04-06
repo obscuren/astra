@@ -176,6 +176,8 @@ std::string Game::look_tile_name(int mx, int my) const {
         case Tile::OW_Beacon:       return "Beacon Spire";
         case Tile::OW_Megastructure: return "Megastructure Anchor";
         case Tile::OW_AlienTerrain: return "Alien Terrain";
+        case Tile::OW_ScorchedEarth: return "Scorched Earth";
+        case Tile::OW_GlassedCrater: return "Glassed Crater";
         case Tile::OW_Landing:      return "Landing Pad";
         case Tile::Wall: case Tile::StructuralWall: return "Wall";
         case Tile::Floor:           return "";
@@ -238,6 +240,8 @@ std::string Game::look_tile_desc(int mx, int my) const {
         case Tile::OW_Beacon:       return "A towering spire pulses with ancient energy. It points toward the galactic core.";
         case Tile::OW_Megastructure: return "The ground anchor of an orbital megastructure. Massive foundations stretch deep underground.";
         case Tile::OW_AlienTerrain: return "The terrain has been reshaped by ancient terraforming. Alien growths cover the surface.";
+        case Tile::OW_ScorchedEarth: return "Blackened, blasted ground. An ancient weapon scarred this land beyond recovery.";
+        case Tile::OW_GlassedCrater: return "The surface has been fused into dark glass by unimaginable heat. Nothing grows here.";
         case Tile::OW_Landing:      return "A flat landing pad. Your ship is docked here.";
         case Tile::Wall: case Tile::StructuralWall:
             return "Solid construction blocks the way.";

@@ -102,7 +102,9 @@ inline Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
         case Tile::OW_Lake:      return Biome::Aquatic;
         case Tile::OW_Beacon:    return Biome::Rocky;
         case Tile::OW_Megastructure: return Biome::Rocky;
-        case Tile::OW_AlienTerrain: return Biome::Grassland; // lore scatter override picks alien biome
+        case Tile::OW_AlienTerrain: return Biome::Grassland;
+        case Tile::OW_ScorchedEarth: return Biome::Sandy;
+        case Tile::OW_GlassedCrater: return Biome::Rocky;
         default:                 return planet_biome;
     }
 }

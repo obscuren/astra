@@ -107,7 +107,9 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Outpost:     return Color::Green;
         case Tile::OW_Beacon:      return Color::Cyan;
         case Tile::OW_Megastructure: return Color::Yellow;
-        case Tile::OW_AlienTerrain: return Color::BrightMagenta; // default; overridden by architecture
+        case Tile::OW_AlienTerrain: return Color::BrightMagenta;
+        case Tile::OW_ScorchedEarth: return static_cast<Color>(208); // orange
+        case Tile::OW_GlassedCrater: return static_cast<Color>(136); // dark yellow/brown
         case Tile::OW_Landing:     return static_cast<Color>(14); // bright cyan
         default:                   return Color::White;
     }
@@ -233,6 +235,22 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
                 "\xe2\x88\x97",  // ∗
                 "\xc2\xb7",      // ·
                 "\xe2\x97\x87",  // ◇
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_ScorchedEarth: {
+            static const char* g[] = {
+                "\xe2\x89\x88",  // ≈
+                "~",
+                "\xc2\xb7",      // ·
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_GlassedCrater: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "\xe2\x96\x91",  // ░
             };
             return select_variant(g, seed);
         }
@@ -973,6 +991,26 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
                 Color::BrightMagenta,
             };
             c = alien_palette[seed % 6];
+        }
+        // Scorched earth: orange/red variation
+        if (tile == Tile::OW_ScorchedEarth) {
+            static const Color scorch_palette[] = {
+                static_cast<Color>(208),  // orange
+                static_cast<Color>(202),  // bright orange-red
+                static_cast<Color>(166),  // dark orange
+                static_cast<Color>(130),  // brown-orange
+            };
+            c = scorch_palette[seed % 4];
+        }
+        // Glassed crater: dark amber/brown variation
+        if (tile == Tile::OW_GlassedCrater) {
+            static const Color glass_palette[] = {
+                static_cast<Color>(136),  // dark yellow
+                static_cast<Color>(94),   // brown
+                static_cast<Color>(130),  // dark amber
+                static_cast<Color>(172),  // golden brown
+            };
+            c = glass_palette[seed % 4];
         }
 
         return {tile_glyph(tile), utf8, c, Color::Default};

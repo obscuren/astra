@@ -41,6 +41,8 @@ enum class Tile : uint8_t {
     OW_Beacon,          // Sgr A* beacon spire
     OW_Megastructure,   // megastructure ground anchor
     OW_AlienTerrain,    // terraformed alien biome patch
+    OW_ScorchedEarth,   // medium scar — blasted, passable ground
+    OW_GlassedCrater,   // heavy scar — fused crater, impassable
     // Overworld special
     OW_Landing,
 };
@@ -73,6 +75,8 @@ inline char tile_glyph(Tile t) {
         case Tile::OW_Beacon:      return '*';
         case Tile::OW_Megastructure: return '#';
         case Tile::OW_AlienTerrain: return '~';
+        case Tile::OW_ScorchedEarth: return '~';
+        case Tile::OW_GlassedCrater: return '#';
         case Tile::OW_Landing:     return '=';
         default:                   return ' ';
     }
