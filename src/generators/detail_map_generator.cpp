@@ -1,5 +1,7 @@
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/civ_aesthetics.h"
+#include "astra/world_constants.h"
 
 #include <algorithm>
 #include <cmath>
@@ -221,6 +223,13 @@ void DetailMapGenerator::generate_layout(std::mt19937& rng) {
                     wall_threshold  = blend(wall_threshold,  terrain_wall_density(ne),  ew.east);
                     water_threshold = blend(water_threshold, terrain_water_density(ne), ew.east);
                 }
+            }
+
+            // Scar influence: more walls, less water in scarred areas
+            float scar = props_->lore_scar_intensity;
+            if (scar > world::scar_light_threshold) {
+                wall_threshold += scar * 0.3f;
+                water_threshold *= (1.0f - scar * 0.5f);
             }
 
             // Classify this cell using the blended thresholds
@@ -486,6 +495,57 @@ static void scatter_biome_features(TileMap* map, std::mt19937& rng, Biome biome)
             };
             attempts = area / 150;
             break;
+        case Biome::AlienCrystalline:
+            palette = {
+                {3, ScatterStamp::Single,   natural_obstacle()},
+                {1, ScatterStamp::Block2x2, natural_obstacle()},
+                {1, ScatterStamp::Cluster3, natural_obstacle()},
+            };
+            attempts = area / 80;
+            break;
+        case Biome::AlienOrganic:
+            palette = {
+                {3, ScatterStamp::Single,   natural_obstacle()},
+                {2, ScatterStamp::Block2x2, natural_obstacle()},
+            };
+            attempts = area / 70;
+            break;
+        case Biome::AlienGeometric:
+            palette = {
+                {2, ScatterStamp::Single,   natural_obstacle()},
+                {1, ScatterStamp::Line3,    natural_obstacle()},
+            };
+            attempts = area / 100;
+            break;
+        case Biome::AlienVoid:
+            palette = {
+                {2, ScatterStamp::Single,   natural_obstacle()},
+                {1, ScatterStamp::Cluster3, natural_obstacle()},
+            };
+            attempts = area / 100;
+            break;
+        case Biome::AlienLight:
+            palette = {
+                {3, ScatterStamp::Single,   natural_obstacle()},
+                {1, ScatterStamp::Block2x2, natural_obstacle()},
+            };
+            attempts = area / 90;
+            break;
+        case Biome::ScarredGlassed:
+            palette = {
+                {2, ScatterStamp::Single,   natural_obstacle()},
+                {2, ScatterStamp::Block2x2, natural_obstacle()},
+                {1, ScatterStamp::Cluster3, natural_obstacle()},
+            };
+            attempts = area / 70;
+            break;
+        case Biome::ScarredScorched:
+            palette = {
+                {3, ScatterStamp::Single,   natural_obstacle()},
+                {1, ScatterStamp::Block2x2, natural_obstacle()},
+            };
+            attempts = area / 90;
+            break;
         default:
             return;
     }
@@ -616,8 +676,15 @@ static void scatter_settlement_props(TileMap* map, std::mt19937& rng, Biome biom
 }
 
 void DetailMapGenerator::place_features(std::mt19937& rng) {
-    // Always scatter biome-specific decorations
-    scatter_biome_features(map_, rng, props_->biome);
+    // Select scatter biome — lore overrides natural biome
+    Biome scatter_biome = props_->biome;
+    if (props_->lore_scar_intensity > world::scar_medium_threshold) {
+        scatter_biome = props_->lore_scar_intensity > world::scar_heavy_threshold
+            ? Biome::ScarredGlassed : Biome::ScarredScorched;
+    } else if (props_->lore_alien_strength > world::alien_strength_threshold) {
+        scatter_biome = alien_biome_for_architecture(props_->lore_alien_architecture);
+    }
+    scatter_biome_features(map_, rng, scatter_biome);
 
     if (!props_->detail_has_poi) return;
 
@@ -2039,6 +2106,52 @@ void DetailMapGenerator::place_features(std::mt19937& rng) {
                 place_fix_indoor(supply_x + 4, supply_y, FixtureType::Rack);
             }
 
+            break;
+        }
+        case Tile::OW_Beacon: {
+            // Central spire: ring of walls with portal at center
+            int spire_r = 4;
+            for (int dy = -spire_r; dy <= spire_r; ++dy) {
+                for (int dx = -spire_r; dx <= spire_r; ++dx) {
+                    int px = cx + dx, py = cy + dy;
+                    if (px < 0 || px >= w || py < 0 || py >= h) continue;
+                    float dist = std::sqrt(static_cast<float>(dx * dx + dy * dy));
+                    if (dist > static_cast<float>(spire_r) - 1.5f && dist < static_cast<float>(spire_r) - 0.5f)
+                        map_->set(px, py, Tile::Wall);
+                    else if (dist < static_cast<float>(spire_r) - 1.5f)
+                        map_->set(px, py, Tile::Floor);
+                }
+            }
+            map_->set(cx, cy, Tile::Portal);
+
+            // Satellite pylons at cardinal directions
+            for (auto [ddx, ddy] : std::initializer_list<std::pair<int,int>>{{0,-7},{0,7},{-7,0},{7,0}}) {
+                int px = cx + ddx, py = cy + ddy;
+                if (px >= 0 && px < w && py >= 0 && py < h)
+                    map_->set(px, py, Tile::Wall);
+                if (px+1 >= 0 && px+1 < w && py >= 0 && py < h)
+                    map_->set(px+1, py, Tile::Wall);
+            }
+            break;
+        }
+        case Tile::OW_Megastructure: {
+            // Large rectangular foundation
+            int fw = 10, fh = 8;
+            for (int dy = -fh/2; dy <= fh/2; ++dy) {
+                for (int dx = -fw/2; dx <= fw/2; ++dx) {
+                    int px = cx + dx, py = cy + dy;
+                    if (px < 0 || px >= w || py < 0 || py >= h) continue;
+                    if (std::abs(dx) >= fw/2 - 1 || std::abs(dy) >= fh/2 - 1)
+                        map_->set(px, py, Tile::Wall);
+                    else
+                        map_->set(px, py, Tile::Floor);
+                }
+            }
+            auto console_fd = make_fixture(FixtureType::Console);
+            map_->add_fixture(cx - 2, cy, console_fd);
+            map_->add_fixture(cx + 2, cy, console_fd);
+            map_->set(cx, cy - fh/2, Tile::Floor);  // north door
+            map_->set(cx, cy + fh/2, Tile::Floor);  // south door
             break;
         }
         default:
