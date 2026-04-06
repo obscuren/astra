@@ -49,6 +49,7 @@ set(ASTRA_SOURCES
     src/minimap.cpp
     src/name_generator.cpp
     src/lore_generator.cpp
+    src/lore_influence_map.cpp
     src/lore_viewer.cpp
     src/narrative_templates.cpp
     src/galaxy_sim.cpp
