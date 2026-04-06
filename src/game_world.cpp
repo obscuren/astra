@@ -478,7 +478,13 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     if (!infl.empty()) {
         props.lore_alien_strength = infl.alien_at(ow_x, ow_y);
         props.lore_scar_intensity = infl.scar_at(ow_x, ow_y);
-        props.lore_alien_architecture = props.lore_civ_architecture;
+        // Resolve architecture from the overworld's alien_biome
+        Biome ab = ow_map->alien_biome();
+        if (ab == Biome::AlienCrystalline) props.lore_alien_architecture = Architecture::Crystalline;
+        else if (ab == Biome::AlienOrganic) props.lore_alien_architecture = Architecture::Organic;
+        else if (ab == Biome::AlienGeometric) props.lore_alien_architecture = Architecture::Geometric;
+        else if (ab == Biome::AlienVoid) props.lore_alien_architecture = Architecture::VoidCarved;
+        else if (ab == Biome::AlienLight) props.lore_alien_architecture = Architecture::LightWoven;
     }
 
     return props;
