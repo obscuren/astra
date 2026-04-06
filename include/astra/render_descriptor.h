@@ -45,6 +45,7 @@ enum class AnimationType : uint8_t {
     HealPulse,
     Projectile,
     LevelUp,
+    AlienPulse, ScarSmolder, BeaconGlow, MegastructureShift,
 };
 
 // Deterministic position hash for visual variation.

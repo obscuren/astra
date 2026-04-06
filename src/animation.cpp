@@ -57,6 +57,30 @@ const AnimationDef anim_level_up = {
     false
 };
 
+const AnimationDef anim_alien_pulse = {
+    AnimationType::AlienPulse,
+    {{300}, {300}, {300}, {300}},
+    true
+};
+
+const AnimationDef anim_scar_smolder = {
+    AnimationType::ScarSmolder,
+    {{400}, {200}, {400}},
+    true
+};
+
+const AnimationDef anim_beacon_glow = {
+    AnimationType::BeaconGlow,
+    {{300}, {300}, {300}, {300}, {300}, {300}},
+    true
+};
+
+const AnimationDef anim_megastructure_shift = {
+    AnimationType::MegastructureShift,
+    {{500}, {500}, {500}, {500}},
+    true
+};
+
 // ─────────────────────────────────────────────────────────────────
 // AnimationManager
 // ─────────────────────────────────────────────────────────────────
@@ -195,9 +219,10 @@ void AnimationManager::spawn_effect_line(const AnimationDef& def,
 
 static const AnimationDef* fixture_anim_for(FixtureType type) {
     switch (type) {
-        case FixtureType::Console:  return &anim_console_blink;
-        case FixtureType::Viewport: return &anim_viewport_shimmer;
-        case FixtureType::Torch:    return &anim_torch_flicker;
+        case FixtureType::Console:         return &anim_console_blink;
+        case FixtureType::CommandTerminal: return &anim_megastructure_shift;
+        case FixtureType::Viewport:        return &anim_viewport_shimmer;
+        case FixtureType::Torch:           return &anim_torch_flicker;
         default: return nullptr;
     }
 }
@@ -224,6 +249,8 @@ void AnimationManager::spawn_fixture_anims(const TileMap& map, const VisibilityM
                 def = &anim_water_shimmer;
             } else if (map.get(x, y) == Tile::OW_LavaFlow) {
                 def = &anim_torch_flicker;
+            } else if (map.get(x, y) == Tile::Portal) {
+                def = &anim_beacon_glow;
             }
 
             if (def) {

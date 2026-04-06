@@ -1067,6 +1067,43 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
             };
             return frames[frame_index % 3];
         }
+        case AnimationType::AlienPulse: {
+            static const ResolvedVisual frames[] = {
+                {'*', "\xe2\x9c\xa6", Color::Red, Color::Default},
+                {'*', "\xe2\x9c\xa6", static_cast<Color>(52), Color::Default},
+                {'*', "\xe2\x9c\xa6", Color::Magenta, Color::Default},
+                {'*', "\xe2\x9c\xa6", static_cast<Color>(52), Color::Default},
+            };
+            return frames[frame_index % 4];
+        }
+        case AnimationType::ScarSmolder: {
+            static const ResolvedVisual frames[] = {
+                {'.', "\xc2\xb7", Color::DarkGray, Color::Default},
+                {'.', "\xc2\xb7", static_cast<Color>(208), Color::Default},
+                {'.', "\xc2\xb7", Color::DarkGray, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
+        case AnimationType::BeaconGlow: {
+            static const ResolvedVisual frames[] = {
+                {'*', "\xe2\x8c\xbe", Color::Cyan, Color::Default},
+                {'*', "\xe2\x8c\xbe", static_cast<Color>(51), Color::Default},
+                {'*', "\xe2\x8c\xbe", Color::White, Color::Default},
+                {'*', "\xe2\x8c\xbe", static_cast<Color>(51), Color::Default},
+                {'*', "\xe2\x8c\xbe", Color::Cyan, Color::Default},
+                {'*', "\xe2\x8c\xbe", static_cast<Color>(37), Color::Default},
+            };
+            return frames[frame_index % 6];
+        }
+        case AnimationType::MegastructureShift: {
+            static const ResolvedVisual frames[] = {
+                {'#', "\xe2\x97\x88", Color::Yellow, Color::Default},
+                {'#', "\xe2\x97\x88", static_cast<Color>(136), Color::Default},
+                {'#', "\xe2\x96\xa3", Color::Yellow, Color::Default},
+                {'#', "\xe2\x96\xa3", static_cast<Color>(136), Color::Default},
+            };
+            return frames[frame_index % 4];
+        }
     }
     return {'?', nullptr, Color::Magenta, Color::Default};
 }
