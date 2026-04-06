@@ -861,6 +861,19 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
             }
 
             ctx.text(3, y, display_name, color);
+
+            // Show lore feature icons on landable bodies
+            if (body.landable && sys.lore.lore_tier > 0) {
+                int lx = 3 + static_cast<int>(display_name.size()) + 1;
+                if (sys.lore.beacon)
+                    ctx.text(lx++, y, "\xe2\x8c\xbe", Color::Cyan);       // ⌾
+                if (sys.lore.has_megastructure)
+                    ctx.text(lx++, y, "\xe2\x97\x88", Color::Yellow);     // ◈
+                if (sys.lore.terraformed)
+                    ctx.text(lx++, y, "\xe2\x88\x97", Color::Green);      // ∗
+                if (sys.lore.battle_site || sys.lore.weapon_test_site)
+                    ctx.text(lx++, y, "\xe2\x9a\xa0", Color::Red);        // ⚠
+            }
             ++y;
         }
     }
@@ -925,6 +938,22 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
 
     if (body.has_dungeon) {
         ctx.text(1, y++, "Dungeon detected", Color::Yellow);
+    }
+
+    // Lore features (system-level, shown on landable bodies)
+    if (body.landable && sys.lore.lore_tier > 0) {
+        if (sys.lore.beacon)
+            ctx.text(1, y++, "\xe2\x8c\xbe Sgr A* Beacon", Color::Cyan);
+        if (sys.lore.has_megastructure)
+            ctx.text(1, y++, "\xe2\x97\x88 Megastructure", Color::Yellow);
+        if (sys.lore.terraformed)
+            ctx.text(1, y++, "\xe2\x88\x97 Terraformed", Color::Green);
+        if (sys.lore.battle_site)
+            ctx.text(1, y++, "\xe2\x9a\xa0 Battle site", Color::Red);
+        if (sys.lore.weapon_test_site)
+            ctx.text(1, y++, "\xe2\x9a\xa0 Weapon test site", Color::Red);
+        if (sys.lore.plague_origin)
+            ctx.text(1, y++, "\xe2\x9a\xa0 Plague origin", Color::Magenta);
     }
 
     y++;
