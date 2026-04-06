@@ -219,6 +219,15 @@ enum class Biome : uint8_t {
     Forest,
     Grassland,
     Jungle,
+    // Alien terrain (one per Architecture type)
+    AlienCrystalline,
+    AlienOrganic,
+    AlienGeometric,
+    AlienVoid,
+    AlienLight,
+    // Scar terrain
+    ScarredGlassed,
+    ScarredScorched,
 };
 
 struct BiomeColors {

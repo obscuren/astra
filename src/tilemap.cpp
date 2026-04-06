@@ -403,6 +403,20 @@ BiomeColors biome_colors(Biome b) {
             return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
         case Biome::Jungle:
             return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
+        case Biome::AlienCrystalline:
+            return {Color::Cyan, static_cast<Color>(23), Color::White, Color::DarkGray};
+        case Biome::AlienOrganic:
+            return {Color::Red, static_cast<Color>(52), Color::Magenta, Color::DarkGray};
+        case Biome::AlienGeometric:
+            return {Color::Yellow, static_cast<Color>(58), Color::White, Color::DarkGray};
+        case Biome::AlienVoid:
+            return {Color::Magenta, Color::DarkGray, Color::Magenta, Color::DarkGray};
+        case Biome::AlienLight:
+            return {static_cast<Color>(228), Color::Yellow, Color::White, Color::DarkGray};
+        case Biome::ScarredGlassed:
+            return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(58), Color::DarkGray};
+        case Biome::ScarredScorched:
+            return {Color::DarkGray, static_cast<Color>(52), Color::Red, Color::DarkGray};
     }
     return {Color::White, Color::Default, Color::Blue, Color::Blue};
 }
