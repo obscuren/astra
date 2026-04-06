@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/item.h"
+#include "astra/lore_influence_map.h"
 #include "astra/lore_types.h"
 #include "astra/npc.h"
 #include "astra/star_chart.h"
@@ -99,6 +100,9 @@ public:
     NavigationData& navigation() { return navigation_; }
     const NavigationData& navigation() const { return navigation_; }
 
+    const LoreInfluenceMap& lore_influence() const { return lore_influence_; }
+    void set_lore_influence(LoreInfluenceMap m) { lore_influence_ = std::move(m); }
+
     std::map<LocationKey, LocationState>& location_cache() { return location_cache_; }
     const std::map<LocationKey, LocationState>& location_cache() const { return location_cache_; }
     static inline const LocationKey ship_key = {0, -2, -1, false, -1, -1, 0, -1, -1};
@@ -156,6 +160,7 @@ private:
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;
     std::map<LocationKey, QuestLocationMeta> quest_locations_;
+    LoreInfluenceMap lore_influence_;
 };
 
 } // namespace astra

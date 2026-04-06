@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/debug_spawn.h"
+#include "astra/lore_influence_map.h"
 #include "astra/lore_types.h"
 #include "astra/tinkering.h"
 #include "astra/item_defs.h"
@@ -1116,11 +1117,21 @@ void Game::travel_to_destination(const ChartAction& action) {
                              ^ (static_cast<unsigned>(action.body_index) * 6271u)
                              ^ (static_cast<unsigned>(action.moon_index + 1) * 3571u);
 
+            // Generate lore influence map before overworld generation
+            auto lore_infl = generate_lore_influence(props, props.width, props.height,
+                                                     ow_seed ^ 0x1F4Cu);
+            if (!lore_infl.empty())
+                props.lore_influence = &lore_infl;
+
             world_.map() = TileMap(props.width, props.height, MapType::Overworld);
             auto gen = create_generator(MapType::Overworld);
             gen->generate(world_.map(), props, ow_seed);
             world_.map().set_biome(dest_biome);
             world_.map().set_location_name(location_name);
+
+            // Store influence map for detail map generation
+            if (!lore_infl.empty())
+                world_.set_lore_influence(std::move(lore_infl));
 
             world_.npcs().clear();
             world_.ground_items().clear();

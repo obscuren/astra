@@ -80,6 +80,8 @@ static float terrain_wall_density(Tile t) {
         case Tile::OW_CrashedShip: return 0.15f;
         case Tile::OW_Outpost:     return 0.18f;
         case Tile::OW_Settlement:  return 0.05f;
+        case Tile::OW_Beacon:      return 0.15f;
+        case Tile::OW_Megastructure: return 0.20f;
         default:                   return 0.10f;
     }
 }

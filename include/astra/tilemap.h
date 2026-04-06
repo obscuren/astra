@@ -38,6 +38,8 @@ enum class Tile : uint8_t {
     OW_Settlement,
     OW_CrashedShip,
     OW_Outpost,
+    OW_Beacon,          // Sgr A* beacon spire
+    OW_Megastructure,   // megastructure ground anchor
     // Overworld special
     OW_Landing,
 };
@@ -67,6 +69,8 @@ inline char tile_glyph(Tile t) {
         case Tile::OW_Settlement:  return '*';
         case Tile::OW_CrashedShip: return '%';
         case Tile::OW_Outpost:     return '+';
+        case Tile::OW_Beacon:      return '*';
+        case Tile::OW_Megastructure: return '#';
         case Tile::OW_Landing:     return '=';
         default:                   return ' ';
     }
@@ -189,6 +193,8 @@ inline const char* overworld_glyph(Tile t, int x, int y) {
             return g[h % 2];
         }
         case Tile::OW_Outpost:     return "+";
+        case Tile::OW_Beacon:      return "\xe2\x8c\xbe"; // ⌾
+        case Tile::OW_Megastructure: return "\xe2\x97\x88"; // ◈
         case Tile::OW_Landing:     return "\xe2\x89\xa1"; // ≡
         default:                   return " ";
     }

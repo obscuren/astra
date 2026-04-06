@@ -8,6 +8,8 @@
 
 namespace astra {
 
+struct LoreInfluenceMap;  // forward declaration
+
 enum class Environment : uint8_t {
     Station,
     Derelict,
@@ -57,6 +59,9 @@ struct MapProperties {
     Architecture lore_civ_architecture = Architecture::Geometric;
     int lore_primary_civ_index = -1;
 
+    // Lore influence map (set before overworld generation, nullptr if no lore)
+    const LoreInfluenceMap* lore_influence = nullptr;
+
     // Detail map lore context (populated from influence map at overworld cell)
     float lore_alien_strength = 0.0f;
     Architecture lore_alien_architecture = Architecture::Geometric;
@@ -89,6 +94,8 @@ inline Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
         case Tile::OW_Crater:    return Biome::Rocky;
         case Tile::OW_River:     return Biome::Aquatic;
         case Tile::OW_Lake:      return Biome::Aquatic;
+        case Tile::OW_Beacon:    return Biome::Rocky;
+        case Tile::OW_Megastructure: return Biome::Rocky;
         default:                 return planet_biome;
     }
 }

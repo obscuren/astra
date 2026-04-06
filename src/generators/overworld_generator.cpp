@@ -1,6 +1,8 @@
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/lore_influence_map.h"
 #include "astra/overworld_stamps.h"
+#include "astra/world_constants.h"
 
 #include <algorithm>
 #include <cmath>
@@ -428,6 +430,26 @@ void OverworldGenerator::generate_layout(std::mt19937& rng) {
                 t = classify_rocky(e, m);
             }
 
+            // Apply lore influence map (terrain shaping)
+            if (props_->lore_influence) {
+                float scar = props_->lore_influence->scar_at(x, y);
+                float alien = props_->lore_influence->alien_at(x, y);
+
+                // Scar overrides (destruction post-dates terraforming)
+                if (scar > world::scar_heavy_threshold) {
+                    t = Tile::Wall;  // crater core
+                } else if (scar > world::scar_medium_threshold) {
+                    t = Tile::OW_Desert;  // scorched earth
+                }
+                // Alien biome (only if not heavily scarred)
+                else if (alien > world::alien_full_replace) {
+                    t = Tile::OW_Plains;  // alien biome replacement
+                } else if (alien > world::alien_strength_threshold) {
+                    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < alien)
+                        t = Tile::OW_Plains;
+                }
+            }
+
             map_->set(x, y, t);
         }
     }
@@ -472,6 +494,46 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
     int w = map_->width();
     int h = map_->height();
 
+    // Place lore landmarks before other POIs
+    if (props_->lore_influence) {
+        // Find and place beacon
+        if (props_->lore_beacon) {
+            for (int y = 0; y < h; ++y) {
+                for (int x = 0; x < w; ++x) {
+                    if (props_->lore_influence->landmark_at(x, y) == LandmarkType::Beacon) {
+                        bool is_center = true;
+                        for (int d = 1; d <= 2; ++d) {
+                            if (props_->lore_influence->landmark_at(x-d, y) != LandmarkType::Beacon ||
+                                props_->lore_influence->landmark_at(x+d, y) != LandmarkType::Beacon)
+                                is_center = false;
+                        }
+                        if (is_center && map_->get(x, y) != Tile::OW_Beacon) {
+                            map_->set(x, y, Tile::OW_Beacon);
+                        }
+                    }
+                }
+            }
+        }
+        // Same pattern for megastructure
+        if (props_->lore_megastructure) {
+            for (int y = 0; y < h; ++y) {
+                for (int x = 0; x < w; ++x) {
+                    if (props_->lore_influence->landmark_at(x, y) == LandmarkType::Megastructure) {
+                        bool is_center = true;
+                        for (int d = 1; d <= 2; ++d) {
+                            if (props_->lore_influence->landmark_at(x-d, y) != LandmarkType::Megastructure ||
+                                props_->lore_influence->landmark_at(x+d, y) != LandmarkType::Megastructure)
+                                is_center = false;
+                        }
+                        if (is_center && map_->get(x, y) != Tile::OW_Megastructure) {
+                            map_->set(x, y, Tile::OW_Megastructure);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Classify world type
     bool habitable = props_->body_type == BodyType::Terrestrial &&
         (props_->body_atmosphere == Atmosphere::Standard ||
@@ -493,7 +555,12 @@ void OverworldGenerator::place_features(std::mt19937& rng) {
         for (int x = 2; x < w - 2; ++x) {
             Tile t = map_->get(x, y);
             if (t != Tile::OW_Mountains && t != Tile::OW_Lake &&
-                t != Tile::OW_River && t != Tile::OW_Landing) {
+                t != Tile::OW_River && t != Tile::OW_Landing &&
+                t != Tile::OW_Beacon && t != Tile::OW_Megastructure) {
+                // Also skip cells reserved by lore landmarks
+                if (props_->lore_influence &&
+                    props_->lore_influence->landmark_at(x, y) != LandmarkType::None)
+                    continue;
                 candidates.push_back({x, y});
             }
         }

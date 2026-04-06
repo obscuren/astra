@@ -38,6 +38,8 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Settlement:  return Color::Yellow;
         case Tile::OW_CrashedShip: return Color::Cyan;
         case Tile::OW_Outpost:     return Color::Green;
+        case Tile::OW_Beacon:      return Color::Cyan;
+        case Tile::OW_Megastructure: return Color::Yellow;
         case Tile::OW_Landing:     return static_cast<Color>(14); // bright cyan
         default:                   return Color::White;
     }

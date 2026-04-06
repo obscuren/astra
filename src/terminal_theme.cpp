@@ -105,6 +105,8 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Settlement:  return Color::Yellow;
         case Tile::OW_CrashedShip: return Color::Cyan;
         case Tile::OW_Outpost:     return Color::Green;
+        case Tile::OW_Beacon:      return Color::Cyan;
+        case Tile::OW_Megastructure: return Color::Yellow;
         case Tile::OW_Landing:     return static_cast<Color>(14); // bright cyan
         default:                   return Color::White;
     }
@@ -223,6 +225,8 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
             return select_variant(g, seed);
         }
         case Tile::OW_Outpost:     return "+";
+        case Tile::OW_Beacon:      return "\xe2\x8c\xbe"; // ⌾
+        case Tile::OW_Megastructure: return "\xe2\x97\x88"; // ◈
         case Tile::OW_Landing:     return "\xe2\x89\xa1"; // ≡
         default:                   return " ";
     }
