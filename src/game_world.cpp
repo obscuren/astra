@@ -1388,7 +1388,7 @@ void Game::advance_world(int cost) {
     if (player_.hp > 0 && world_.map().get(player_.x, player_.y) == Tile::Water) {
         Biome biome = world_.map().biome();
         bool is_lava = (biome == Biome::Volcanic);
-        int base_dmg = is_lava ? (player_.effective_max_hp() / 2) : 1;
+        int base_dmg = is_lava ? std::max(1, player_.effective_max_hp() / 2) : 1;
         int dmg = apply_damage_effects(player_.effects, base_dmg);
         player_.hp -= dmg;
         if (player_.hp < 0) player_.hp = 0;
