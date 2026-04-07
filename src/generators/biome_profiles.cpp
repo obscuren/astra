@@ -32,7 +32,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Forest",
         elevation_gentle,
         0.03f, 4, 0.88f,
-        moisture_pools, 0.04f, 0.65f, 0.45f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -40,7 +40,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Jungle",
         elevation_gentle,
         0.035f, 4, 0.86f,
-        moisture_pools, 0.05f, 0.55f, 0.5f,
+        moisture_river, 0.03f, 0.7f, 0.5f,
         nullptr, 0.5f,
         {}
     };
@@ -72,7 +72,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Aquatic",
         elevation_flat,
         0.01f, 2, 0.98f,
-        moisture_coastline, 0.03f, 0.5f, 0.95f,
+        moisture_coastline, 0.02f, 0.4f, 0.98f,
         nullptr, 0.5f,
         {}
     };
@@ -80,7 +80,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Ice",
         elevation_flat,
         0.015f, 2, 0.96f,
-        moisture_pools, 0.035f, 0.7f, 0.45f,
+        moisture_none, 0.035f, 0.7f, 0.45f,
         nullptr, 0.5f,
         {}
     };
@@ -88,7 +88,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Fungal",
         elevation_gentle,
         0.025f, 4, 0.90f,
-        moisture_pools, 0.04f, 0.6f, 0.45f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -96,7 +96,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Crystal",
         elevation_ridgeline,
         0.035f, 4, 0.82f,
-        moisture_pools, 0.04f, 0.85f, 0.35f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -114,7 +114,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienCrystalline",
         elevation_ridgeline,
         0.04f, 4, 0.80f,
-        moisture_pools, 0.05f, 0.65f, 0.45f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -122,7 +122,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienOrganic",
         elevation_gentle,
         0.03f, 4, 0.88f,
-        moisture_pools, 0.045f, 0.55f, 0.5f,
+        moisture_pools, 0.045f, 0.65f, 0.5f,
         nullptr, 0.5f,
         {}
     };
@@ -138,7 +138,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienVoid",
         elevation_flat,
         0.02f, 3, 0.94f,
-        moisture_pools, 0.03f, 0.7f, 0.5f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -146,7 +146,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienLight",
         elevation_flat,
         0.015f, 2, 0.97f,
-        moisture_pools, 0.035f, 0.6f, 0.5f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
