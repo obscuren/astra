@@ -45,10 +45,14 @@ bool TileMap::passable(int x, int y) const {
 
 bool TileMap::opaque(int x, int y) const {
     Tile t = get(x, y);
-    // Fixtures are never opaque (they don't block line of sight)
-    // Overworld tiles are never opaque
     if (t >= Tile::OW_Plains && t <= Tile::OW_Landing) return false;
-    return t == Tile::Wall || t == Tile::StructuralWall || t == Tile::Empty;
+    if (t == Tile::Wall || t == Tile::StructuralWall || t == Tile::Empty) return true;
+    // Vision-blocking fixtures (tall trees, large mushrooms)
+    if (t == Tile::Fixture) {
+        int fid = fixture_id(x, y);
+        if (fid >= 0 && fixtures_[fid].blocks_vision) return true;
+    }
+    return false;
 }
 
 int TileMap::fixture_id(int x, int y) const {

@@ -126,6 +126,10 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
         log("  history             - show world lore history");
+        log("  biome_test <biome> - generate v2 detail map for biome");
+        log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
+        log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
+        log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -178,6 +182,10 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         } else {
             log("Usage: warp random | warp stamp <type>");
         }
+    }
+    else if (verb == "biome_test" && args.size() < 2) {
+        log("Usage: biome_test <biome>");
+        log("Type 'help' for biome list.");
     }
     else if (verb == "biome_test" && args.size() >= 2) {
         Biome biome;

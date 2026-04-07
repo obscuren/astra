@@ -34,23 +34,23 @@ const BiomeProfile& biome_profile(Biome b) {
         0.02f, 3, 0.92f,
         moisture_river, 0.03f, 0.85f, 0.4f,
         structure_none, 0.0f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.03f, false}}
     };
     static const BiomeProfile forest {
         "Forest",
         elevation_gentle,
         0.03f, 4, 0.88f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
-        {}
+        structure_none, 0.0f,
+        {{FixtureType::NaturalObstacle, 0.25f, true}}
     };
     static const BiomeProfile jungle {
         "Jungle",
         elevation_gentle,
         0.035f, 4, 0.86f,
         moisture_river, 0.03f, 0.7f, 0.5f,
-        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
-        {}
+        structure_none, 0.0f,
+        {{FixtureType::NaturalObstacle, 0.35f, true}}
     };
     static const BiomeProfile sandy {
         "Sandy",
@@ -58,7 +58,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.015f, 3, 0.95f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_none, 0.0f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.02f, false}}
     };
     static const BiomeProfile rocky {
         "Rocky",
@@ -66,7 +66,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.04f, 5, 0.78f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_formations, 0.4f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.05f, false}}
     };
     static const BiomeProfile volcanic {
         "Volcanic",
@@ -74,7 +74,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.05f, 5, 0.75f,
         moisture_channels, 0.03f, 0.6f, 0.6f,
         structure_craters, 0.5f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.04f, false}}
     };
     static const BiomeProfile aquatic {
         "Aquatic",
@@ -82,7 +82,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.01f, 2, 0.98f,
         moisture_none, 0.04f, 0.7f, 0.4f,  // parked: needs neighbor-aware redesign in Phase 7
         structure_none, 0.0f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.02f, false}}
     };
     static const BiomeProfile ice {
         "Ice",
@@ -90,15 +90,15 @@ const BiomeProfile& biome_profile(Biome b) {
         0.015f, 2, 0.96f,
         moisture_none, 0.035f, 0.7f, 0.45f,
         structure_formations, 0.4f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.03f, false}}
     };
     static const BiomeProfile fungal {
         "Fungal",
         elevation_gentle,
         0.025f, 4, 0.90f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
-        {}
+        structure_none, 0.0f,
+        {{FixtureType::NaturalObstacle, 0.20f, true}}
     };
     static const BiomeProfile crystal {
         "Crystal",
@@ -106,7 +106,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.035f, 4, 0.82f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_formations, 0.5f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.06f, false}}
     };
     static const BiomeProfile corroded {
         "Corroded",
@@ -114,7 +114,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.04f, 4, 0.80f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_none, 0.3f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.04f, false}}
     };
 
     static const BiomeProfile marsh {
@@ -123,7 +123,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.02f, 2, 0.97f,
         moisture_marsh, 0.025f, 0.48f, 0.8f,
         structure_islands, 0.5f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.08f, false}}
     };
 
     // Alien biomes
@@ -133,15 +133,15 @@ const BiomeProfile& biome_profile(Biome b) {
         0.04f, 4, 0.80f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_formations, 0.6f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.06f, false}}
     };
     static const BiomeProfile alien_organic {
         "AlienOrganic",
         elevation_gentle,
         0.03f, 4, 0.88f,
         moisture_pools, 0.045f, 0.65f, 0.5f,
-        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
-        {}
+        structure_none, 0.0f,
+        {{FixtureType::NaturalObstacle, 0.20f, true}}
     };
     static const BiomeProfile alien_geometric {
         "AlienGeometric",
@@ -149,7 +149,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.02f, 2, 0.96f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_formations, 0.7f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.03f, false}}
     };
     static const BiomeProfile alien_void {
         "AlienVoid",
@@ -157,7 +157,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.02f, 3, 0.94f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_none, 0.4f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.02f, false}}
     };
     static const BiomeProfile alien_light {
         "AlienLight",
@@ -165,7 +165,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.015f, 2, 0.97f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_none, 0.0f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.04f, false}}
     };
 
     // Scar biomes
@@ -175,7 +175,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.045f, 4, 0.80f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_none, 0.3f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.06f, false}}
     };
     static const BiomeProfile scarred_glassed {
         "ScarredGlassed",
@@ -183,7 +183,7 @@ const BiomeProfile& biome_profile(Biome b) {
         0.02f, 3, 0.94f,
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_formations, 0.6f,
-        {}
+        {{FixtureType::NaturalObstacle, 0.03f, false}}
     };
 
     // Station (fallback)

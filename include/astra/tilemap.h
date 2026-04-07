@@ -342,6 +342,7 @@ struct FixtureData {
     bool locked = false;        // doors: requires key to open
     bool open = false;          // doors: currently open
     int light_radius = 0;      // FOV extension radius (0 = no light emission)
+    bool blocks_vision = false; // passable but opaque (tall trees, large mushrooms)
 };
 
 FixtureData make_fixture(FixtureType type);
