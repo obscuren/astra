@@ -38,6 +38,11 @@ void DetailMapGeneratorV2::generate_layout(std::mt19937& rng) {
                          channels.elevation.data(), prof);
     }
 
+    if (prof.structure_fn) {
+        prof.structure_fn(channels.structure.data(), w, h, rng,
+                          channels.elevation.data(), channels.moisture.data(), prof);
+    }
+
     apply_neighbor_bleed(channels, rng);
 
     composite_terrain(*map_, channels, prof);

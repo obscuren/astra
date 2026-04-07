@@ -19,6 +19,13 @@ void moisture_coastline(float* grid, int w, int h, std::mt19937& rng, const floa
 void moisture_channels(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
 void moisture_marsh(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
 
+// Forward-declare structure strategies (defined in structure_strategies.cpp)
+void structure_none(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
+void structure_cliffs(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
+void structure_islands(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
+void structure_formations(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
+void structure_craters(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
+
 const BiomeProfile& biome_profile(Biome b) {
     // Natural biomes
     static const BiomeProfile grassland {
@@ -26,7 +33,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_gentle,
         0.02f, 3, 0.92f,
         moisture_river, 0.03f, 0.85f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,
         {}
     };
     static const BiomeProfile forest {
@@ -34,7 +41,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_gentle,
         0.03f, 4, 0.88f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
         {}
     };
     static const BiomeProfile jungle {
@@ -42,7 +49,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_gentle,
         0.035f, 4, 0.86f,
         moisture_river, 0.03f, 0.7f, 0.5f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
         {}
     };
     static const BiomeProfile sandy {
@@ -50,7 +57,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_gentle,
         0.015f, 3, 0.95f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,
         {}
     };
     static const BiomeProfile rocky {
@@ -58,7 +65,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_rugged,
         0.04f, 5, 0.78f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_formations, 0.4f,
         {}
     };
     static const BiomeProfile volcanic {
@@ -66,7 +73,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_rugged,
         0.05f, 5, 0.75f,
         moisture_channels, 0.03f, 0.6f, 0.6f,
-        nullptr, 0.5f,
+        structure_craters, 0.5f,
         {}
     };
     static const BiomeProfile aquatic {
@@ -74,7 +81,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.01f, 2, 0.98f,
         moisture_none, 0.04f, 0.7f, 0.4f,  // parked: needs neighbor-aware redesign in Phase 7
-        nullptr, 0.5f,
+        structure_none, 0.0f,
         {}
     };
     static const BiomeProfile ice {
@@ -82,7 +89,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.015f, 2, 0.96f,
         moisture_none, 0.035f, 0.7f, 0.45f,
-        nullptr, 0.5f,
+        structure_formations, 0.4f,
         {}
     };
     static const BiomeProfile fungal {
@@ -90,7 +97,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_gentle,
         0.025f, 4, 0.90f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
         {}
     };
     static const BiomeProfile crystal {
@@ -98,7 +105,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_ridgeline,
         0.035f, 4, 0.82f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_formations, 0.5f,
         {}
     };
     static const BiomeProfile corroded {
@@ -106,7 +113,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_rugged,
         0.04f, 4, 0.80f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.3f,
         {}
     };
 
@@ -115,7 +122,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.02f, 2, 0.97f,
         moisture_marsh, 0.025f, 0.48f, 0.8f,
-        nullptr, 0.5f,
+        structure_islands, 0.5f,
         {}
     };
 
@@ -125,7 +132,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_ridgeline,
         0.04f, 4, 0.80f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_formations, 0.6f,
         {}
     };
     static const BiomeProfile alien_organic {
@@ -133,7 +140,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_gentle,
         0.03f, 4, 0.88f,
         moisture_pools, 0.045f, 0.65f, 0.5f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,  // identity from vision-blocking scatter (Phase 4)
         {}
     };
     static const BiomeProfile alien_geometric {
@@ -141,7 +148,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.02f, 2, 0.96f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_formations, 0.7f,
         {}
     };
     static const BiomeProfile alien_void {
@@ -149,7 +156,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.02f, 3, 0.94f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.4f,
         {}
     };
     static const BiomeProfile alien_light {
@@ -157,7 +164,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.015f, 2, 0.97f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.0f,
         {}
     };
 
@@ -167,7 +174,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_rugged,
         0.045f, 4, 0.80f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_none, 0.3f,
         {}
     };
     static const BiomeProfile scarred_glassed {
@@ -175,7 +182,7 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.02f, 3, 0.94f,
         moisture_none, 0.04f, 0.7f, 0.4f,
-        nullptr, 0.5f,
+        structure_formations, 0.6f,
         {}
     };
 
