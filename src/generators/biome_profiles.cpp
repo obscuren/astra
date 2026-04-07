@@ -109,6 +109,15 @@ const BiomeProfile& biome_profile(Biome b) {
         {}
     };
 
+    static const BiomeProfile marsh {
+        "Marsh",
+        elevation_flat,
+        0.02f, 2, 0.97f,
+        moisture_pools, 0.03f, 0.45f, 0.6f,
+        nullptr, 0.5f,
+        {}
+    };
+
     // Alien biomes
     static const BiomeProfile alien_crystalline {
         "AlienCrystalline",
@@ -191,6 +200,7 @@ const BiomeProfile& biome_profile(Biome b) {
         case Biome::Fungal:            return fungal;
         case Biome::Crystal:           return crystal;
         case Biome::Corroded:          return corroded;
+        case Biome::Marsh:             return marsh;
         case Biome::AlienCrystalline:  return alien_crystalline;
         case Biome::AlienOrganic:      return alien_organic;
         case Biome::AlienGeometric:    return alien_geometric;
@@ -204,7 +214,7 @@ const BiomeProfile& biome_profile(Biome b) {
 }
 
 bool parse_biome(const std::string& name, Biome& out) {
-    static const std::array<std::pair<const char*, Biome>, 20> table {{
+    static const std::array<std::pair<const char*, Biome>, 22> table {{
         {"grassland",        Biome::Grassland},
         {"forest",           Biome::Forest},
         {"jungle",           Biome::Jungle},
@@ -212,7 +222,8 @@ bool parse_biome(const std::string& name, Biome& out) {
         {"rocky",            Biome::Rocky},
         {"volcanic",         Biome::Volcanic},
         {"aquatic",          Biome::Aquatic},
-        {"swamp",            Biome::Aquatic},
+        {"swamp",            Biome::Marsh},
+        {"marsh",            Biome::Marsh},
         {"ice",              Biome::Ice},
         {"fungal",           Biome::Fungal},
         {"crystal",          Biome::Crystal},

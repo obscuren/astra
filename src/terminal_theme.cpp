@@ -37,6 +37,8 @@ ThemeBiomeColors biome_palette(Biome biome) {
             return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
         case Biome::Jungle:
             return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
+        case Biome::Marsh:
+            return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), static_cast<Color>(23)};
         case Biome::AlienCrystalline:
             return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), Color::Cyan};
         case Biome::AlienOrganic:
@@ -353,6 +355,14 @@ static const char* wall_glyph_for_biome(Biome biome, uint8_t seed) {
             };
             return select_variant(g, seed);
         }
+        case Biome::Marsh: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "#",
+            };
+            return select_variant(g, seed);
+        }
         default:
             return "#";
     }
@@ -409,6 +419,8 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
                 return {'.', nullptr, Color::BrightMagenta, Color::Default}; // crystal circle
             case Biome::Corroded:
                 return {';', nullptr, static_cast<Color>(58), Color::Default}; // acid residue
+            case Biome::Marsh:
+                return {'"', nullptr, static_cast<Color>(29), Color::Default}; // reed clump
             default: break;
         }
     }
@@ -512,6 +524,14 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
                 };
                 return variants[variant % 2];
             }
+            case Biome::Marsh: {
+                static const ResolvedVisual variants[] = {
+                    {'"', nullptr, static_cast<Color>(29), Color::Default},  // reeds
+                    {',', nullptr, static_cast<Color>(23), Color::Default},  // marsh grass
+                    {'~', nullptr, static_cast<Color>(33), Color::Default},  // shallow water
+                };
+                return variants[variant % 3];
+            }
             default: break;
         }
     }
@@ -531,6 +551,7 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
         case Biome::Forest:   s = {15, "\",'", 3}; break;
         case Biome::Grassland:s = {15, ",`.",  3}; break;
         case Biome::Jungle:   s = {15, "\",'", 3}; break;
+        case Biome::Marsh:    s = {15, "\",~", 3}; break;
         default: return {'.', nullptr, floor_color, Color::Default};
     }
 
@@ -723,6 +744,15 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
                         {'o', nullptr, static_cast<Color>(58), Color::Default},            // rusted lump
                     };
                     vis = variants[seed % 3]; break;
+                }
+                case Biome::Marsh: {
+                    static const ResolvedVisual variants[] = {
+                        {'"', "\xcf\x84", static_cast<Color>(29), Color::Default},        // τ tall reeds
+                        {'o', "\xc2\xb0", static_cast<Color>(23), Color::Default},        // ° soggy log
+                        {'#', "\xe2\x96\x92", static_cast<Color>(23), Color::Default},    // ▒ dense reeds
+                        {'~', "\xe2\x89\x88", static_cast<Color>(33), Color::Default},    // ≈ deep pool
+                    };
+                    vis = variants[seed % 4]; break;
                 }
                 case Biome::AlienCrystalline: {
                     static const ResolvedVisual variants[] = {

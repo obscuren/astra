@@ -1408,6 +1408,9 @@ void Game::advance_world(int cost) {
             case Biome::Aquatic:
                 log("The current pulls at you. (-1 HP)");
                 break;
+            case Biome::Marsh:
+                log("The murky swamp water seeps into your boots. (-1 HP)");
+                break;
             default:
                 log("You wade through the water. (-1 HP)");
                 break;

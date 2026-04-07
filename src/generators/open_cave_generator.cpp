@@ -384,6 +384,7 @@ void OpenCaveGenerator::place_features(std::mt19937& rng) {
     int pond_chance;
     switch (biome) {
         case Biome::Aquatic:  pond_chance = 100; break;
+        case Biome::Marsh:    pond_chance = 90; break;
         case Biome::Fungal:   pond_chance = 50; break;
         case Biome::Corroded: pond_chance = 50; break;
         case Biome::Crystal:  pond_chance = 30; break;
