@@ -671,21 +671,28 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
                 case Biome::Forest: {
                     static const ResolvedVisual variants[] = {
                         {'o', "\xc2\xa4", static_cast<Color>(94), Color::Default},        // ¤ brown stump
-                        {'T', "\xce\xa6", static_cast<Color>(22), Color::Default},         // Φ fallen tree
-                        {'#', "\xe2\x96\x92", Color::Green, Color::Default},              // ▒ thicket
-                        {'o', "\xe2\x97\x8b", static_cast<Color>(58), Color::Default},    // ○ mossy rock
-                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ dense bush
+                        {'T', "\xce\xa6", static_cast<Color>(22), Color::Default},         // Φ pine tree (dark green)
+                        {'#', "\xe2\x96\x92", Color::Green, Color::Default},              // ▒ thicket (bright green)
+                        {'o', "\xe2\x97\x8b", static_cast<Color>(58), Color::Default},    // ○ mossy rock (olive)
+                        {'T', "\xce\xa6", static_cast<Color>(28), Color::Default},         // Φ oak tree (green)
+                        {'Y', nullptr, static_cast<Color>(64), Color::Default},             // birch tree (yellow-green)
+                        {'T', "\xce\xa6", static_cast<Color>(34), Color::Default},         // Φ maple (mid green)
+                        {'#', "\xe2\x96\x92", static_cast<Color>(22), Color::Default},    // ▒ underbrush (dark green)
                     };
-                    vis = variants[seed % 5]; break;
+                    vis = variants[seed % 8]; break;
                 }
                 case Biome::Jungle: {
                     static const ResolvedVisual variants[] = {
-                        {'o', "\xc2\xa4", static_cast<Color>(22), Color::Default},        // ¤ thick trunk
-                        {'#', "\xe2\x96\x93", static_cast<Color>(22), Color::Default},    // ▓ root mass
-                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ giant fern
-                        {'#', "\xe2\x96\x92", static_cast<Color>(22), Color::Default},    // ▒ tangled vines
+                        {'o', "\xc2\xa4", static_cast<Color>(22), Color::Default},        // ¤ thick trunk (dark green)
+                        {'#', "\xe2\x96\x93", static_cast<Color>(28), Color::Default},    // ▓ root mass (green)
+                        {'T', "\xce\xa6", Color::Green, Color::Default},                  // Φ giant fern (bright green)
+                        {'#', "\xe2\x96\x92", static_cast<Color>(22), Color::Default},    // ▒ tangled vines (dark green)
+                        {'T', "\xce\xa6", static_cast<Color>(64), Color::Default},         // Φ palm frond (yellow-green)
+                        {'o', "\xc2\xa4", static_cast<Color>(34), Color::Default},         // ¤ tropical tree (mid green)
+                        {'#', "\xe2\x96\x93", static_cast<Color>(29), Color::Default},    // ▓ moss cluster (teal-green)
+                        {'Y', nullptr, static_cast<Color>(70), Color::Default},             // branching palm (light green)
                     };
-                    vis = variants[seed % 4]; break;
+                    vis = variants[seed % 8]; break;
                 }
                 case Biome::Sandy: {
                     static const ResolvedVisual variants[] = {
