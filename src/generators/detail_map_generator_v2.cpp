@@ -180,31 +180,48 @@ void DetailMapGeneratorV2::place_features(std::mt19937& rng) {
         }
     }
 
-    // --- Layer B: Shoreline vegetation ON TOP of shore debris ---
-    // Tall reeds/plants on floor tiles adjacent to water (that didn't get debris).
-    // Vision-blocking — creates the "can't see across the river" effect.
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            if (map_->get(x, y) != Tile::Floor) continue;
-            if (map_->fixture_id(x, y) >= 0) continue;
+    // --- Layer B: Riparian lush zone — vegetation gradient from water ---
+    // Density fades with distance from water. Closest = dense + vision-blocking,
+    // further out = sparser, non-blocking. Creates natural growth gradient.
+    // Skip volcanic (lava doesn't grow plants).
+    bool has_lush_zone = (props_->biome != Biome::Volcanic
+                       && props_->biome != Biome::ScarredScorched
+                       && props_->biome != Biome::ScarredGlassed);
+    if (has_lush_zone) {
+        constexpr int max_lush_dist = 7;
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                if (map_->get(x, y) != Tile::Floor) continue;
+                if (map_->fixture_id(x, y) >= 0) continue;
 
-            // Only adjacent to water (1 tile)
-            bool adj_water = false;
-            if (x > 0     && map_->get(x - 1, y) == Tile::Water) adj_water = true;
-            if (x < w - 1 && map_->get(x + 1, y) == Tile::Water) adj_water = true;
-            if (y > 0     && map_->get(x, y - 1) == Tile::Water) adj_water = true;
-            if (y < h - 1 && map_->get(x, y + 1) == Tile::Water) adj_water = true;
+                // Find distance to nearest water (Chebyshev, up to max_lush_dist)
+                int water_dist = max_lush_dist + 1;
+                int scan = max_lush_dist;
+                for (int dy = -scan; dy <= scan && water_dist > 1; ++dy)
+                    for (int dx = -scan; dx <= scan && water_dist > 1; ++dx) {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h
+                            && map_->get(nx, ny) == Tile::Water) {
+                            int d = std::max(std::abs(dx), std::abs(dy));
+                            water_dist = std::min(water_dist, d);
+                        }
+                    }
 
-            if (!adj_water) continue;
+                if (water_dist > max_lush_dist) continue;
 
-            // ~50% chance for tall shoreline vegetation
-            if (static_cast<int>(rng() % 100) < 50) {
-                FixtureData fd;
-                fd.type = FixtureType::NaturalObstacle;
-                fd.passable = true;
-                fd.interactable = false;
-                fd.blocks_vision = true;
-                map_->add_fixture(x, y, fd);
+                // Density gradient: 40% at dist 1, fading to ~5% at dist 7
+                int chance = 40 - (water_dist - 1) * 6;
+                if (chance < 5) chance = 5;
+
+                if (static_cast<int>(rng() % 100) < chance) {
+                    FixtureData fd;
+                    fd.type = FixtureType::NaturalObstacle;
+                    fd.passable = true;
+                    fd.interactable = false;
+                    // Vision-blocking only for the closest 2 tiles
+                    fd.blocks_vision = (water_dist <= 2);
+                    map_->add_fixture(x, y, fd);
+                }
             }
         }
     }
