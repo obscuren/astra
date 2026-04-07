@@ -134,6 +134,7 @@ public:
     void dev_command_warp_to_system(uint32_t system_id);
     void dev_command_level_up();
     void dev_command_kill_hostiles();
+    void dev_command_biome_test(Biome biome, int layer);
 
 private:
     // LocationKey moved to world_manager.h

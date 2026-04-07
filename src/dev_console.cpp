@@ -1,5 +1,6 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
+#include "astra/biome_profile.h"
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
@@ -177,6 +178,26 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         } else {
             log("Usage: warp random | warp stamp <type>");
         }
+    }
+    else if (verb == "biome_test" && args.size() >= 2) {
+        Biome biome;
+        if (!parse_biome(args[1], biome)) {
+            log("Unknown biome: " + args[1]);
+            log("Options: grassland, forest, jungle, sandy, rocky, volcanic,");
+            log("  aquatic, ice, fungal, crystal, corroded,");
+            log("  alien_crystalline, alien_organic, alien_geometric,");
+            log("  alien_void, alien_light, scarred_scorched, scarred_glassed");
+            return;
+        }
+        int layer = 0;
+        if (args.size() >= 3) {
+            try { layer = std::stoi(args[2]); } catch (...) {
+                log("Invalid layer: " + args[2]);
+                return;
+            }
+        }
+        game.dev_command_biome_test(biome, layer);
+        log("Biome test: " + args[1] + " (360x150, layer " + std::to_string(layer) + ")");
     }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
         Item item;

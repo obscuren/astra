@@ -6,6 +6,7 @@
 #include "astra/journal.h"
 #include "astra/galaxy_sim.h"
 #include "astra/lore_generator.h"
+#include "astra/biome_profile.h"
 #include "astra/map_generator.h"
 #include "astra/map_properties.h"
 #include "astra/overworld_stamps.h"
@@ -421,6 +422,39 @@ void Game::dev_command_kill_hostiles() {
         }
     }
     combat_.remove_dead_npcs(*this);
+}
+
+// Forward declare v2 generator factory
+std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
+
+void Game::dev_command_biome_test(Biome biome, int layer) {
+    (void)layer; // Phase 1: only elevation exists
+    animations_.clear();
+    unsigned seed = static_cast<unsigned>(std::time(nullptr));
+
+    auto props = default_properties(MapType::DetailMap);
+    props.biome = biome;
+    props.width = 360;
+    props.height = 150;
+    props.light_bias = 100;
+
+    world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
+    auto gen = make_detail_map_generator_v2();
+    gen->generate(world_.map(), props, seed);
+    world_.map().set_biome(biome);
+    world_.map().set_location_name("[DEV] Biome Test: " + biome_profile(biome).name);
+
+    world_.map().find_open_spot(player_.x, player_.y);
+    world_.npcs().clear();
+    world_.ground_items().clear();
+
+    world_.visibility() = VisibilityMap(props.width, props.height);
+    recompute_fov();
+    compute_camera();
+    world_.current_region() = -1;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+
+    check_region_change();
 }
 
 void Game::new_game() {
