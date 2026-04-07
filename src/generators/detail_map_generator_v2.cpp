@@ -2,11 +2,7 @@
 #include "astra/biome_profile.h"
 #include "astra/terrain_channels.h"
 #include "astra/terrain_compositor.h"
-#include "astra/noise.h"
 #include "astra/map_properties.h"
-
-#include <algorithm>
-#include <cmath>
 
 namespace astra {
 

@@ -37,6 +37,10 @@ set(ASTRA_SOURCES
     src/generators/starship_generator.cpp
     src/generators/overworld_generator.cpp
     src/generators/detail_map_generator.cpp
+    src/generators/biome_profiles.cpp
+    src/generators/elevation_strategies.cpp
+    src/generators/terrain_compositor.cpp
+    src/generators/detail_map_generator_v2.cpp
     src/overworld_stamps.cpp
     src/visibility_map.cpp
     src/save_file.cpp
