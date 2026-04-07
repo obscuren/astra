@@ -1384,12 +1384,18 @@ void Game::advance_world(int cost) {
         }
     }
 
-    // Water damage
+    // Water/lava damage
     if (player_.hp > 0 && world_.map().get(player_.x, player_.y) == Tile::Water) {
-        int water_dmg = apply_damage_effects(player_.effects, 1);
-        player_.hp -= water_dmg;
+        Biome biome = world_.map().biome();
+        bool is_lava = (biome == Biome::Volcanic);
+        int base_dmg = is_lava ? (player_.effective_max_hp() / 2) : 1;
+        int dmg = apply_damage_effects(player_.effects, base_dmg);
+        player_.hp -= dmg;
         if (player_.hp < 0) player_.hp = 0;
-        switch (world_.map().biome()) {
+        switch (biome) {
+            case Biome::Volcanic:
+                log("Molten lava sears your flesh! (-" + std::to_string(dmg) + " HP)");
+                break;
             case Biome::Fungal:
                 log("Spores sting as you wade through the pool. (-1 HP)");
                 break;
@@ -1400,14 +1406,14 @@ void Game::advance_world(int cost) {
                 log("The toxic sludge burns! (-1 HP)");
                 break;
             case Biome::Aquatic:
-                log("The underground current pulls at you. (-1 HP)");
+                log("The current pulls at you. (-1 HP)");
                 break;
             default:
-                log("The dark water chills you to the bone. (-1 HP)");
+                log("You wade through the water. (-1 HP)");
                 break;
         }
         if (player_.hp <= 0) {
-            death_message_ = "Drowned";
+            death_message_ = is_lava ? "Incinerated" : "Drowned";
         }
         check_player_death();
     }
