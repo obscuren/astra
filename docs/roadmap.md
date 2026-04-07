@@ -82,6 +82,7 @@
 - [ ] **Archaeological strata** — deeper dungeon levels = older civilization layers
 - [ ] New dungeon generator types / biomes
 - [ ] More overworld POI stamps (temples, factories, research labs)
+- [ ] **Interactive shelves** — 3-tile shelf structures (║~║ or ═~═) against walls; middle tile holds lootable item (book, scroll, data crystal); picking up item reverts to empty shelf
 - [ ] Derelict station expansion — more room types
 
 ### Items & Gear
