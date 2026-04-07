@@ -330,6 +330,7 @@ enum class FixtureType : uint8_t {
     StairsUp,       // '<'  — exit dungeon / return to previous location
 
     NaturalObstacle,    // impassable natural feature — renderer resolves from biome + seed
+    ShoreDebris,        // passable shore material (sand, rocks, dirt) — renderer resolves from biome
     SettlementProp,     // impassable settlement prop — renderer resolves from seed
 };
 

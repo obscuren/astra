@@ -145,61 +145,65 @@ void DetailMapGeneratorV2::place_features(std::mt19937& rng) {
         }
     }
 
-    // --- Water-proximity scatter: tall reeds/plants along shorelines ---
-    // Floor tiles adjacent to water get dense vision-blocking vegetation.
-    // Creates natural shoreline effect for any biome with water.
+    // --- Layer A: Shore debris (sand, rocks, dirt) near water ---
+    // Biome-specific ground material in a 3-tile band around water.
+    // This creates the "bedding" — the terrain transition from water to land.
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             if (map_->get(x, y) != Tile::Floor) continue;
             if (map_->fixture_id(x, y) >= 0) continue;
 
-            // Check if adjacent to water (4-connected)
-            bool near_water = false;
-            if (x > 0     && map_->get(x - 1, y) == Tile::Water) near_water = true;
-            if (x < w - 1 && map_->get(x + 1, y) == Tile::Water) near_water = true;
-            if (y > 0     && map_->get(x, y - 1) == Tile::Water) near_water = true;
-            if (y < h - 1 && map_->get(x, y + 1) == Tile::Water) near_water = true;
+            // Compute distance to nearest water (up to 3 tiles)
+            int water_dist = 4; // > 3 = not near water
+            for (int dy = -3; dy <= 3 && water_dist > 0; ++dy)
+                for (int dx = -3; dx <= 3 && water_dist > 0; ++dx) {
+                    int nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h
+                        && map_->get(nx, ny) == Tile::Water) {
+                        int d = std::max(std::abs(dx), std::abs(dy));
+                        water_dist = std::min(water_dist, d);
+                    }
+                }
 
-            if (!near_water) continue;
+            if (water_dist > 3) continue;
 
-            // ~40% chance for shoreline vegetation
-            if (static_cast<int>(rng() % 100) < 40) {
+            // Density falls off with distance: 70% at edge, 50% at 2, 30% at 3
+            int shore_chance = (water_dist == 1) ? 70 : (water_dist == 2) ? 50 : 30;
+            if (static_cast<int>(rng() % 100) < shore_chance) {
                 FixtureData fd;
-                fd.type = FixtureType::NaturalObstacle;
+                fd.type = FixtureType::ShoreDebris;
                 fd.passable = true;
                 fd.interactable = false;
-                fd.blocks_vision = true;
+                fd.blocks_vision = false;
                 map_->add_fixture(x, y, fd);
             }
         }
     }
 
-    // --- Second ring: lighter scatter 2 tiles from water ---
+    // --- Layer B: Shoreline vegetation ON TOP of shore debris ---
+    // Tall reeds/plants on floor tiles adjacent to water (that didn't get debris).
+    // Vision-blocking — creates the "can't see across the river" effect.
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             if (map_->get(x, y) != Tile::Floor) continue;
             if (map_->fixture_id(x, y) >= 0) continue;
 
-            // Check 2-tile range for water
-            bool near_water = false;
-            for (int dy = -2; dy <= 2 && !near_water; ++dy)
-                for (int dx = -2; dx <= 2 && !near_water; ++dx) {
-                    if (dx == 0 && dy == 0) continue;
-                    int nx = x + dx, ny = y + dy;
-                    if (nx >= 0 && nx < w && ny >= 0 && ny < h
-                        && map_->get(nx, ny) == Tile::Water)
-                        near_water = true;
-                }
+            // Only adjacent to water (1 tile)
+            bool adj_water = false;
+            if (x > 0     && map_->get(x - 1, y) == Tile::Water) adj_water = true;
+            if (x < w - 1 && map_->get(x + 1, y) == Tile::Water) adj_water = true;
+            if (y > 0     && map_->get(x, y - 1) == Tile::Water) adj_water = true;
+            if (y < h - 1 && map_->get(x, y + 1) == Tile::Water) adj_water = true;
 
-            if (!near_water) continue;
+            if (!adj_water) continue;
 
-            // ~20% chance for shorter vegetation (not vision-blocking)
-            if (static_cast<int>(rng() % 100) < 20) {
+            // ~50% chance for tall shoreline vegetation
+            if (static_cast<int>(rng() % 100) < 50) {
                 FixtureData fd;
                 fd.type = FixtureType::NaturalObstacle;
                 fd.passable = true;
                 fd.interactable = false;
-                fd.blocks_vision = false;
+                fd.blocks_vision = true;
                 map_->add_fixture(x, y, fd);
             }
         }

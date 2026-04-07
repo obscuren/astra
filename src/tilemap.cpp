@@ -359,6 +359,8 @@ FixtureData make_fixture(FixtureType type) {
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::NaturalObstacle:
             fd.passable = false; fd.interactable = false; break;
+        case FixtureType::ShoreDebris:
+            fd.passable = true; fd.interactable = false; break;
         case FixtureType::SettlementProp:
             fd.passable = false; fd.interactable = false; break;
     }

@@ -829,6 +829,123 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             }
             break;
         }
+        case FixtureType::ShoreDebris: {
+            // Each biome has a mix of sand, dirt, rocks, and biome-specific material.
+            // Ratios differ: grassland is sandy, forest is dirty, jungle is mixed, etc.
+            switch (biome) {
+                case Biome::Grassland: {
+                    // Mostly sand, some gravel, little dirt
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", static_cast<Color>(180), Color::Default},    // · sand
+                        {',', nullptr, static_cast<Color>(180), Color::Default},         // , sand grain
+                        {'.', "\xc2\xb7", static_cast<Color>(137), Color::Default},    // · wet sand
+                        {',', nullptr, static_cast<Color>(180), Color::Default},         // , sand
+                        {':', nullptr, Color::DarkGray, Color::Default},                  // : gravel
+                        {'.', "\xc2\xb7", static_cast<Color>(94), Color::Default},     // · dirt patch
+                        {',', nullptr, static_cast<Color>(180), Color::Default},         // , sand
+                        {'o', "\xc2\xb7", Color::DarkGray, Color::Default},             // · river stone
+                    };
+                    vis = variants[seed % 8]; break;
+                }
+                case Biome::Forest: {
+                    // Mostly dirt and mud, some rocks, little sand
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", static_cast<Color>(94), Color::Default},     // · dirt
+                        {',', nullptr, static_cast<Color>(130), Color::Default},         // , brown mud
+                        {'.', "\xc2\xb7", static_cast<Color>(58), Color::Default},     // · dark earth
+                        {',', nullptr, static_cast<Color>(94), Color::Default},          // , dirt
+                        {':', nullptr, Color::DarkGray, Color::Default},                  // : pebbles
+                        {'.', "\xc2\xb7", static_cast<Color>(130), Color::Default},    // · wet mud
+                        {'.', "\xc2\xb7", static_cast<Color>(180), Color::Default},    // · sand patch
+                        {'o', "\xc2\xb7", Color::DarkGray, Color::Default},             // · stone
+                    };
+                    vis = variants[seed % 8]; break;
+                }
+                case Biome::Jungle: {
+                    // Mix of sand, mud, rocks, exposed roots
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", static_cast<Color>(137), Color::Default},    // · sandy mud
+                        {',', nullptr, static_cast<Color>(94), Color::Default},          // , wet earth
+                        {'.', "\xc2\xb7", static_cast<Color>(180), Color::Default},    // · sand
+                        {':', nullptr, Color::DarkGray, Color::Default},                  // : river stones
+                        {',', nullptr, static_cast<Color>(130), Color::Default},         // , clay
+                        {'.', "\xc2\xb7", static_cast<Color>(94), Color::Default},     // · dirt
+                        {',', nullptr, static_cast<Color>(22), Color::Default},          // , exposed root
+                        {':', nullptr, static_cast<Color>(180), Color::Default},          // : coarse sand
+                    };
+                    vis = variants[seed % 8]; break;
+                }
+                case Biome::Volcanic: {
+                    // Scorched rock, obsidian, basalt, embers
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", Color::DarkGray, Color::Default},             // · scorched rock
+                        {',', nullptr, static_cast<Color>(52), Color::Default},          // , obsidian chip
+                        {':', nullptr, Color::DarkGray, Color::Default},                  // : basalt gravel
+                        {'.', "\xc2\xb7", static_cast<Color>(208), Color::Default},    // · cooling ember
+                        {',', nullptr, Color::DarkGray, Color::Default},                 // , ash
+                        {':', nullptr, static_cast<Color>(52), Color::Default},           // : dark rock
+                    };
+                    vis = variants[seed % 6]; break;
+                }
+                case Biome::Marsh: {
+                    // Soggy mud, peat, wet earth, some sand
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", static_cast<Color>(94), Color::Default},     // · soggy earth
+                        {',', nullptr, static_cast<Color>(130), Color::Default},         // , wet mud
+                        {'.', "\xc2\xb7", static_cast<Color>(58), Color::Default},     // · peat
+                        {',', nullptr, static_cast<Color>(94), Color::Default},          // , muck
+                        {'.', "\xc2\xb7", static_cast<Color>(137), Color::Default},    // · damp sand
+                        {':', nullptr, Color::DarkGray, Color::Default},                  // : clay pebbles
+                    };
+                    vis = variants[seed % 6]; break;
+                }
+                case Biome::Fungal: {
+                    // Spore residue, slime, moss, some dirt
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", static_cast<Color>(22), Color::Default},     // · spore residue
+                        {',', nullptr, Color::Magenta, Color::Default},                  // , fungal film
+                        {'.', "\xc2\xb7", static_cast<Color>(28), Color::Default},     // · moss
+                        {',', nullptr, static_cast<Color>(94), Color::Default},          // , earthy muck
+                        {':', nullptr, static_cast<Color>(22), Color::Default},           // : fungal crust
+                        {'.', "\xc2\xb7", Color::DarkGray, Color::Default},             // · damp rock
+                    };
+                    vis = variants[seed % 6]; break;
+                }
+                case Biome::Ice: {
+                    // Frost, snow, ice chips, some gravel
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", Color::White, Color::Default},                // · frost
+                        {',', nullptr, Color::Cyan, Color::Default},                     // , ice chip
+                        {':', nullptr, Color::White, Color::Default},                     // : snow
+                        {'.', "\xc2\xb7", Color::DarkGray, Color::Default},             // · frozen gravel
+                        {',', nullptr, Color::White, Color::Default},                    // , snow flake
+                    };
+                    vis = variants[seed % 5]; break;
+                }
+                case Biome::Crystal: {
+                    // Crystal dust, shards, fragments, some rock
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", Color::Magenta, Color::Default},              // · crystal dust
+                        {',', nullptr, Color::BrightMagenta, Color::Default},            // , shard
+                        {':', nullptr, static_cast<Color>(54), Color::Default},           // : fragments
+                        {'.', "\xc2\xb7", Color::DarkGray, Color::Default},             // · mineral rock
+                        {',', nullptr, Color::Magenta, Color::Default},                  // , crystal chip
+                    };
+                    vis = variants[seed % 5]; break;
+                }
+                default: {
+                    // Generic: mix of sand, dirt, gravel
+                    static const ResolvedVisual variants[] = {
+                        {'.', "\xc2\xb7", Color::DarkGray, Color::Default},             // · gravel
+                        {',', nullptr, static_cast<Color>(180), Color::Default},         // , sand
+                        {':', nullptr, Color::DarkGray, Color::Default},                  // : stones
+                        {'.', "\xc2\xb7", static_cast<Color>(94), Color::Default},     // · dirt
+                    };
+                    vis = variants[seed % 4]; break;
+                }
+            }
+            break;
+        }
         case FixtureType::SettlementProp: {
             static const ResolvedVisual props[] = {
                 {'T', "\xe2\x94\xb4", Color::Cyan, Color::Default},         // ┴ antenna
@@ -1263,6 +1380,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::DungeonHatch:    return 'v';
         case FixtureType::StairsUp:        return '<';
         case FixtureType::NaturalObstacle: return 'o';
+        case FixtureType::ShoreDebris:     return '.';
         case FixtureType::SettlementProp:  return '*';
     }
     return '?';
