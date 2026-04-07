@@ -56,6 +56,36 @@ void Game::try_move(int dx, int dy) {
     }
 
     if (!world_.map().passable(nx, ny)) {
+        // Fixture-specific bump messages
+        if (world_.map().get(nx, ny) == Tile::Fixture) {
+            int fid = world_.map().fixture_id(nx, ny);
+            if (fid >= 0) {
+                const auto& f = world_.map().fixture(fid);
+                if (!f.passable) {
+                    switch (f.type) {
+                        case FixtureType::Table:          log("A sturdy table blocks your path."); break;
+                        case FixtureType::Console:        log("A terminal hums quietly."); break;
+                        case FixtureType::Crate:          log("A heavy crate. You can't move it."); break;
+                        case FixtureType::Rack:           log("A storage rack stands in your way."); break;
+                        case FixtureType::Shelf:          log("Shelving blocks the way."); break;
+                        case FixtureType::Conduit:        log("Exposed piping hums with energy."); break;
+                        case FixtureType::Window:         log("You peer through the window."); break;
+                        case FixtureType::Door:           log("The door is closed."); break;
+                        case FixtureType::CampStove:      log("A warm stove. Something was cooking here."); break;
+                        case FixtureType::Locker:         log("A locked storage locker."); break;
+                        case FixtureType::BookCabinet:    log("Shelves of worn volumes and data pads."); break;
+                        case FixtureType::DataTerminal:   log("A data terminal flickers with scrolling text."); break;
+                        case FixtureType::Bench:          log("A simple bench."); break;
+                        case FixtureType::Chair:          log("A chair sits here."); break;
+                        case FixtureType::BridgeRail:     log("A sturdy railing. Don't lean too far."); break;
+                        case FixtureType::Planter:        log("Hardy vegetation grows in a container."); break;
+                        case FixtureType::NaturalObstacle:log("A natural formation blocks your path."); break;
+                        default:                          log("Something blocks your way."); break;
+                    }
+                    return;
+                }
+            }
+        }
         auto msg = random_bump_message(world_.map().get(nx, ny), world_.map().map_type(), world_.rng());
         if (!msg.empty()) {
             log(std::string(msg));

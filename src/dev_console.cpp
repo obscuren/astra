@@ -126,10 +126,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
         log("  history             - show world lore history");
-        log("  biome_test <biome> - generate v2 detail map for biome");
+        log("  biome_test <biome> [settlement] - generate v2 detail map for biome");
         log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
         log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
         log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
+        log("    append 'settlement' to include a settlement POI");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -198,14 +199,21 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             return;
         }
         int layer = 0;
-        if (args.size() >= 3) {
-            try { layer = std::stoi(args[2]); } catch (...) {
-                log("Invalid layer: " + args[2]);
-                return;
+        bool settlement = false;
+        for (size_t i = 2; i < args.size(); ++i) {
+            if (args[i] == "settlement") {
+                settlement = true;
+            } else {
+                try { layer = std::stoi(args[i]); } catch (...) {
+                    log("Invalid arg: " + args[i]);
+                    return;
+                }
             }
         }
-        game.dev_command_biome_test(biome, layer);
-        log("Biome test: " + args[1] + " (360x150, layer " + std::to_string(layer) + ")");
+        game.dev_command_biome_test(biome, layer, settlement);
+        std::string msg = "Biome test: " + args[1] + " (360x150, layer " + std::to_string(layer) + ")";
+        if (settlement) msg += " + settlement";
+        log(msg);
     }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
         Item item;

@@ -199,6 +199,7 @@ static const char* tile_name(Tile t) {
         case Tile::Wall:           return "Wall";
         case Tile::StructuralWall: return "Structural Wall";
         case Tile::IndoorFloor:    return "Indoor Floor";
+        case Tile::Path:           return "Path";
         case Tile::Portal:         return "Portal";
         case Tile::Water:          return "Water";
         case Tile::Ice:            return "Ice";
@@ -259,7 +260,20 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::DungeonHatch:   return "Dungeon Hatch";
         case FixtureType::StairsUp:       return "Stairs Up";
         case FixtureType::NaturalObstacle:return "Natural Obstacle";
+        case FixtureType::ShoreDebris:    return "Shore Debris";
         case FixtureType::SettlementProp: return "Settlement Prop";
+        case FixtureType::CampStove:      return "Camp Stove";
+        case FixtureType::Lamp:           return "Lamp";
+        case FixtureType::HoloLight:      return "Holo Light";
+        case FixtureType::Locker:         return "Locker";
+        case FixtureType::BookCabinet:    return "Book Cabinet";
+        case FixtureType::DataTerminal:   return "Data Terminal";
+        case FixtureType::Bench:          return "Bench";
+        case FixtureType::Chair:          return "Chair";
+        case FixtureType::Gate:           return "Gate";
+        case FixtureType::BridgeRail:     return "Bridge Rail";
+        case FixtureType::BridgeFloor:    return "Bridge Floor";
+        case FixtureType::Planter:        return "Planter";
     }
     return "?";
 }

@@ -427,7 +427,7 @@ void Game::dev_command_kill_hostiles() {
 // Forward declare v2 generator factory
 std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
 
-void Game::dev_command_biome_test(Biome biome, int layer) {
+void Game::dev_command_biome_test(Biome biome, int layer, bool settlement) {
     (void)layer; // Phase 1: only elevation exists
     animations_.clear();
     unsigned seed = static_cast<unsigned>(std::time(nullptr));
@@ -438,11 +438,19 @@ void Game::dev_command_biome_test(Biome biome, int layer) {
     props.height = 150;
     props.light_bias = 100;
 
+    if (settlement) {
+        props.detail_has_poi = true;
+        props.detail_poi_type = Tile::OW_Settlement;
+        props.lore_tier = 1;
+    }
+
     world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
     auto gen = make_detail_map_generator_v2();
     gen->generate(world_.map(), props, seed);
     world_.map().set_biome(biome);
-    world_.map().set_location_name("[DEV] Biome Test: " + biome_profile(biome).name);
+    std::string loc_name = "[DEV] Biome Test: " + biome_profile(biome).name;
+    if (settlement) loc_name += " + Settlement";
+    world_.map().set_location_name(loc_name);
 
     world_.map().find_open_spot(player_.x, player_.y);
     world_.npcs().clear();

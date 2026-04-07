@@ -43,6 +43,15 @@ set(ASTRA_SOURCES
     src/generators/structure_strategies.cpp
     src/generators/terrain_compositor.cpp
     src/generators/detail_map_generator_v2.cpp
+    src/generators/civ_styles.cpp
+    src/generators/furniture_palettes.cpp
+    src/generators/placement_scorer.cpp
+    src/generators/settlement_planner.cpp
+    src/generators/building_generator.cpp
+    src/generators/path_router.cpp
+    src/generators/perimeter_builder.cpp
+    src/generators/exterior_decorator.cpp
+    src/generators/poi_phase.cpp
     src/overworld_stamps.cpp
     src/visibility_map.cpp
     src/save_file.cpp

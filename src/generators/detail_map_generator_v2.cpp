@@ -3,6 +3,7 @@
 #include "astra/terrain_channels.h"
 #include "astra/terrain_compositor.h"
 #include "astra/map_properties.h"
+#include "astra/poi_phase.h"
 
 #include <queue>
 
@@ -18,6 +19,8 @@ protected:
 
 private:
     void apply_neighbor_bleed(TerrainChannels& channels, std::mt19937& rng);
+
+    TerrainChannels channels_;
 };
 
 // ---------------------------------------------------------------------------
@@ -29,25 +32,25 @@ void DetailMapGeneratorV2::generate_layout(std::mt19937& rng) {
     const int w = map_->width();
     const int h = map_->height();
 
-    TerrainChannels channels(w, h);
+    channels_ = TerrainChannels(w, h);
 
     if (prof.elevation_fn) {
-        prof.elevation_fn(channels.elevation.data(), w, h, rng, prof);
+        prof.elevation_fn(channels_.elevation.data(), w, h, rng, prof);
     }
 
     if (prof.moisture_fn) {
-        prof.moisture_fn(channels.moisture.data(), w, h, rng,
-                         channels.elevation.data(), prof);
+        prof.moisture_fn(channels_.moisture.data(), w, h, rng,
+                         channels_.elevation.data(), prof);
     }
 
     if (prof.structure_fn) {
-        prof.structure_fn(channels.structure.data(), w, h, rng,
-                          channels.elevation.data(), channels.moisture.data(), prof);
+        prof.structure_fn(channels_.structure.data(), w, h, rng,
+                          channels_.elevation.data(), channels_.moisture.data(), prof);
     }
 
-    apply_neighbor_bleed(channels, rng);
+    apply_neighbor_bleed(channels_, rng);
 
-    composite_terrain(*map_, channels, prof);
+    composite_terrain(*map_, channels_, prof);
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +333,11 @@ void DetailMapGeneratorV2::place_features(std::mt19937& rng) {
                 }
             }
         }
+    }
+
+    // --- POI Phase (Phase 6) ---
+    if (props_->detail_has_poi) {
+        poi_phase(*map_, channels_, *props_, rng);
     }
 }
 

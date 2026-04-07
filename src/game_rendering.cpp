@@ -101,6 +101,19 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::StairsUp:        return "Stairs Up";
         case FixtureType::NaturalObstacle: return "Natural Obstacle";
         case FixtureType::SettlementProp:  return "Settlement Prop";
+        case FixtureType::ShoreDebris:     return "Shore Debris";
+        case FixtureType::CampStove:       return "Camp Stove";
+        case FixtureType::Lamp:            return "Lamp";
+        case FixtureType::HoloLight:       return "Holo Light";
+        case FixtureType::Locker:          return "Locker";
+        case FixtureType::BookCabinet:     return "Book Cabinet";
+        case FixtureType::DataTerminal:    return "Data Terminal";
+        case FixtureType::Bench:           return "Bench";
+        case FixtureType::Chair:           return "Chair";
+        case FixtureType::Gate:            return "Gate";
+        case FixtureType::BridgeRail:      return "Bridge Rail";
+        case FixtureType::BridgeFloor:     return "Bridge Floor";
+        case FixtureType::Planter:         return "Planter";
     }
     return "Unknown";
 }
@@ -134,6 +147,19 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::StairsUp:        return "Stairs leading back up to the surface.";
         case FixtureType::NaturalObstacle: return "A natural formation blocking the path.";
         case FixtureType::SettlementProp:  return "A piece of settlement infrastructure.";
+        case FixtureType::ShoreDebris:     return "Sand, rocks, and debris washed ashore.";
+        case FixtureType::CampStove:       return "A portable cooking stove, still warm.";
+        case FixtureType::Lamp:            return "A warm-glowing lamp illuminates the area.";
+        case FixtureType::HoloLight:       return "A holographic light source casts a cool glow.";
+        case FixtureType::Locker:          return "A secure metal locker.";
+        case FixtureType::BookCabinet:     return "A cabinet filled with worn volumes and data pads.";
+        case FixtureType::DataTerminal:    return "An advanced data terminal hums quietly.";
+        case FixtureType::Bench:           return "A simple bench for resting.";
+        case FixtureType::Chair:           return "A chair positioned near a workstation.";
+        case FixtureType::Gate:            return "A settlement gate, open for passage.";
+        case FixtureType::BridgeRail:      return "A sturdy railing along a bridge.";
+        case FixtureType::BridgeFloor:     return "Worn planking forming a bridge surface.";
+        case FixtureType::Planter:         return "A container filled with hardy vegetation.";
     }
     return "";
 }

@@ -957,6 +957,30 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = props[seed % 5];
             break;
         }
+        case FixtureType::CampStove:
+            vis = {'o', "\xe2\x97\x8b", Color::Red, Color::Default}; break;             // ○ red stove
+        case FixtureType::Lamp:
+            vis = {'*', "\xe2\x9c\xb6", Color::Yellow, Color::Default}; break;          // ✶ warm lamp
+        case FixtureType::HoloLight:
+            vis = {'*', "\xe2\x9c\xb6", Color::Cyan, Color::Default}; break;            // ✶ holo light
+        case FixtureType::Locker:
+            vis = {'=', "\xe2\x96\xa0", Color::White, Color::Default}; break;            // ■ locker
+        case FixtureType::BookCabinet:
+            vis = {'[', "\xe2\x95\x94", static_cast<Color>(137), Color::Default}; break; // ╔ tan cabinet
+        case FixtureType::DataTerminal:
+            vis = {'#', "\xe2\x95\xac", Color::Cyan, Color::Default}; break;            // ╬ data terminal
+        case FixtureType::Bench:
+            vis = {'=', "\xe2\x95\x90", static_cast<Color>(137), Color::Default}; break; // ═ tan bench
+        case FixtureType::Chair:
+            vis = {'h', nullptr, Color::White, Color::Default}; break;
+        case FixtureType::Gate:
+            vis = {'/', nullptr, static_cast<Color>(137), Color::Default}; break;        // tan gate
+        case FixtureType::BridgeRail:
+            vis = {'|', "\xe2\x95\x8f", static_cast<Color>(137), Color::Default}; break; // ╏ tan rail
+        case FixtureType::BridgeFloor:
+            vis = {'.', "\xc2\xb7", static_cast<Color>(137), Color::Default}; break;     // · tan floor
+        case FixtureType::Planter:
+            vis = {'"', nullptr, Color::Green, Color::Default}; break;
     }
 
     if (remembered) {
@@ -1225,6 +1249,17 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         return {'.', utf8, c, Color::Default};
     }
 
+    if (tile == Tile::Path) {
+        // Outdoor settlement path — packed dirt/stone, distinct from natural floor
+        static const char* path_glyphs[] = {
+            "\xc2\xb7",  // ·
+            "\xe2\x80\xa2",  // •
+        };
+        const char* utf8 = path_glyphs[seed % 2];
+        Color c = remembered ? bc.remembered : static_cast<Color>(180); // sandy/tan
+        return {'.', utf8, c, Color::Default};
+    }
+
     if (tile == Tile::Floor) {
         if (remembered) {
             return {'.', nullptr, bc.remembered, Color::Default};
@@ -1382,6 +1417,18 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::NaturalObstacle: return 'o';
         case FixtureType::ShoreDebris:     return '.';
         case FixtureType::SettlementProp:  return '*';
+        case FixtureType::CampStove:       return 'o';
+        case FixtureType::Lamp:            return '*';
+        case FixtureType::HoloLight:       return '*';
+        case FixtureType::Locker:          return '=';
+        case FixtureType::BookCabinet:     return '[';
+        case FixtureType::DataTerminal:    return '#';
+        case FixtureType::Bench:           return '=';
+        case FixtureType::Chair:           return 'h';
+        case FixtureType::Gate:            return '/';
+        case FixtureType::BridgeRail:      return '|';
+        case FixtureType::BridgeFloor:     return '.';
+        case FixtureType::Planter:         return '"';
     }
     return '?';
 }
