@@ -11,13 +11,20 @@ void elevation_rugged(float* grid, int w, int h, std::mt19937& rng, const BiomeP
 void elevation_flat(float* grid, int w, int h, std::mt19937& rng, const BiomeProfile& prof);
 void elevation_ridgeline(float* grid, int w, int h, std::mt19937& rng, const BiomeProfile& prof);
 
+// Forward-declare moisture strategies (defined in moisture_strategies.cpp)
+void moisture_none(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
+void moisture_pools(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
+void moisture_river(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
+void moisture_coastline(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
+void moisture_channels(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
+
 const BiomeProfile& biome_profile(Biome b) {
     // Natural biomes
     static const BiomeProfile grassland {
         "Grassland",
         elevation_gentle,
         0.02f, 3, 0.92f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_river, 0.03f, 0.85f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -25,7 +32,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Forest",
         elevation_gentle,
         0.03f, 4, 0.88f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.04f, 0.65f, 0.45f,
         nullptr, 0.5f,
         {}
     };
@@ -33,7 +40,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Jungle",
         elevation_gentle,
         0.035f, 4, 0.86f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.05f, 0.55f, 0.5f,
         nullptr, 0.5f,
         {}
     };
@@ -41,7 +48,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Sandy",
         elevation_gentle,
         0.015f, 3, 0.95f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -49,7 +56,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Rocky",
         elevation_rugged,
         0.04f, 5, 0.78f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -57,7 +64,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Volcanic",
         elevation_rugged,
         0.05f, 5, 0.75f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_channels, 0.03f, 0.6f, 0.6f,
         nullptr, 0.5f,
         {}
     };
@@ -65,7 +72,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Aquatic",
         elevation_flat,
         0.01f, 2, 0.98f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_coastline, 0.03f, 0.5f, 0.95f,
         nullptr, 0.5f,
         {}
     };
@@ -73,7 +80,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Ice",
         elevation_flat,
         0.015f, 2, 0.96f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.035f, 0.7f, 0.45f,
         nullptr, 0.5f,
         {}
     };
@@ -81,7 +88,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Fungal",
         elevation_gentle,
         0.025f, 4, 0.90f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.04f, 0.6f, 0.45f,
         nullptr, 0.5f,
         {}
     };
@@ -89,7 +96,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Crystal",
         elevation_ridgeline,
         0.035f, 4, 0.82f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.04f, 0.85f, 0.35f,
         nullptr, 0.5f,
         {}
     };
@@ -97,7 +104,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Corroded",
         elevation_rugged,
         0.04f, 4, 0.80f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -107,7 +114,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienCrystalline",
         elevation_ridgeline,
         0.04f, 4, 0.80f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.05f, 0.65f, 0.45f,
         nullptr, 0.5f,
         {}
     };
@@ -115,7 +122,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienOrganic",
         elevation_gentle,
         0.03f, 4, 0.88f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.045f, 0.55f, 0.5f,
         nullptr, 0.5f,
         {}
     };
@@ -123,7 +130,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienGeometric",
         elevation_flat,
         0.02f, 2, 0.96f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -131,7 +138,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienVoid",
         elevation_flat,
         0.02f, 3, 0.94f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.03f, 0.7f, 0.5f,
         nullptr, 0.5f,
         {}
     };
@@ -139,7 +146,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "AlienLight",
         elevation_flat,
         0.015f, 2, 0.97f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_pools, 0.035f, 0.6f, 0.5f,
         nullptr, 0.5f,
         {}
     };
@@ -149,7 +156,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "ScarredScorched",
         elevation_rugged,
         0.045f, 4, 0.80f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -157,7 +164,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "ScarredGlassed",
         elevation_flat,
         0.02f, 3, 0.94f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
@@ -167,7 +174,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Station",
         elevation_flat,
         0.02f, 2, 0.98f,
-        nullptr, 0.04f, 0.7f, 0.4f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
         nullptr, 0.5f,
         {}
     };
