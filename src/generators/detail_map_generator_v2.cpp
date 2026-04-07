@@ -4,12 +4,14 @@
 #include "astra/terrain_compositor.h"
 #include "astra/map_properties.h"
 
+#include <queue>
+
 namespace astra {
 
 class DetailMapGeneratorV2 : public MapGenerator {
 protected:
     void generate_layout(std::mt19937& rng) override;
-    void connect_rooms(std::mt19937& /*rng*/) override {}
+    void connect_rooms(std::mt19937& rng) override;
     void place_features(std::mt19937& rng) override;
     void assign_regions(std::mt19937& rng) override;
     void generate_backdrop(unsigned /*seed*/) override {}
@@ -110,6 +112,110 @@ void DetailMapGeneratorV2::apply_neighbor_bleed(TerrainChannels& channels,
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// connect_rooms — connectivity safety net (Phase 5)
+// Flood-fill from map center to find main walkable region. Any disconnected
+// floor pockets get connected via minimal 1-wide carved paths.
+// ---------------------------------------------------------------------------
+
+void DetailMapGeneratorV2::connect_rooms(std::mt19937& rng) {
+    const int w = map_->width();
+    const int h = map_->height();
+    const int size = w * h;
+
+    // --- Step 1: Find a walkable starting cell near center ---
+    int start_x = w / 2, start_y = h / 2;
+    // Spiral outward from center to find a floor tile
+    for (int r = 0; r < std::max(w, h); ++r) {
+        for (int dy = -r; dy <= r; ++dy) {
+            for (int dx = -r; dx <= r; ++dx) {
+                if (std::abs(dx) != r && std::abs(dy) != r) continue;
+                int nx = w / 2 + dx, ny = h / 2 + dy;
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h
+                    && map_->passable(nx, ny)) {
+                    start_x = nx; start_y = ny;
+                    goto found_start;
+                }
+            }
+        }
+    }
+    found_start:
+
+    // --- Step 2: BFS flood-fill from start to mark main region ---
+    std::vector<bool> visited(size, false);
+    std::queue<std::pair<int,int>> queue;
+    visited[start_y * w + start_x] = true;
+    queue.push({start_x, start_y});
+
+    while (!queue.empty()) {
+        auto [cx, cy] = queue.front();
+        queue.pop();
+        static constexpr int dirs[][2] = {{1,0},{-1,0},{0,1},{0,-1}};
+        for (auto [ddx, ddy] : dirs) {
+            int nx = cx + ddx, ny = cy + ddy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            if (visited[ny * w + nx]) continue;
+            if (!map_->passable(nx, ny)) continue;
+            visited[ny * w + nx] = true;
+            queue.push({nx, ny});
+        }
+    }
+
+    // --- Step 3: Find disconnected floor tiles ---
+    // Collect one representative per disconnected pocket
+    struct Pocket { int x, y; };
+    std::vector<Pocket> pockets;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            if (!map_->passable(x, y)) continue;
+            if (visited[y * w + x]) continue;
+            // Found an unvisited passable tile — new pocket
+            pockets.push_back({x, y});
+            // Flood-fill to mark this pocket as found (so we don't add it again)
+            std::queue<std::pair<int,int>> pq;
+            visited[y * w + x] = true;
+            pq.push({x, y});
+            while (!pq.empty()) {
+                auto [px, py] = pq.front();
+                pq.pop();
+                static constexpr int dirs[][2] = {{1,0},{-1,0},{0,1},{0,-1}};
+                for (auto [ddx, ddy] : dirs) {
+                    int nx2 = px + ddx, ny2 = py + ddy;
+                    if (nx2 < 0 || nx2 >= w || ny2 < 0 || ny2 >= h) continue;
+                    if (visited[ny2 * w + nx2]) continue;
+                    if (!map_->passable(nx2, ny2)) continue;
+                    visited[ny2 * w + nx2] = true;
+                    pq.push({nx2, ny2});
+                }
+            }
+        }
+    }
+
+    if (pockets.empty()) return; // fully connected, nothing to do
+
+    // --- Step 4: Carve 1-wide L-shaped paths from each pocket to start ---
+    for (auto& pocket : pockets) {
+        int ax = pocket.x, ay = pocket.y;
+        int bx = start_x, by = start_y;
+
+        // Horizontal segment from pocket to start's x
+        int dx = (bx > ax) ? 1 : -1;
+        for (int x = ax; x != bx; x += dx) {
+            if (map_->get(x, ay) == Tile::Wall) {
+                map_->set(x, ay, Tile::Floor);
+            }
+        }
+        // Vertical segment from pocket's row to start's y
+        int dy = (by > ay) ? 1 : -1;
+        for (int y = ay; y != by; y += dy) {
+            if (map_->get(bx, y) == Tile::Wall) {
+                map_->set(bx, y, Tile::Floor);
+            }
+        }
+    }
+    (void)rng;
 }
 
 // ---------------------------------------------------------------------------
