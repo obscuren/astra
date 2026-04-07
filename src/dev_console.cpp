@@ -126,11 +126,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
         log("  history             - show world lore history");
-        log("  biome_test <biome> [settlement] - generate v2 detail map for biome");
+        log("  biome_test <biome> [settlement [style]] - generate v2 detail map");
         log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
         log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
         log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
-        log("    append 'settlement' to include a settlement POI");
+        log("    settlement styles: frontier, advanced, ruined (default: frontier)");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -200,9 +200,19 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
         int layer = 0;
         bool settlement = false;
+        int settlement_style = 0;  // 0=frontier, 1=advanced, 2=ruined
         for (size_t i = 2; i < args.size(); ++i) {
             if (args[i] == "settlement") {
                 settlement = true;
+            } else if (args[i] == "frontier") {
+                settlement = true;
+                settlement_style = 0;
+            } else if (args[i] == "advanced") {
+                settlement = true;
+                settlement_style = 1;
+            } else if (args[i] == "ruined") {
+                settlement = true;
+                settlement_style = 2;
             } else {
                 try { layer = std::stoi(args[i]); } catch (...) {
                     log("Invalid arg: " + args[i]);
@@ -210,9 +220,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 }
             }
         }
-        game.dev_command_biome_test(biome, layer, settlement);
-        std::string msg = "Biome test: " + args[1] + " (360x150, layer " + std::to_string(layer) + ")";
-        if (settlement) msg += " + settlement";
+        game.dev_command_biome_test(biome, layer, settlement, settlement_style);
+        std::string msg = "Biome test: " + args[1] + " (360x150)";
+        if (settlement) {
+            static const char* style_names[] = {"frontier", "advanced", "ruined"};
+            msg += " + settlement (" + std::string(style_names[settlement_style]) + ")";
+        }
         log(msg);
     }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {

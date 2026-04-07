@@ -427,8 +427,9 @@ void Game::dev_command_kill_hostiles() {
 // Forward declare v2 generator factory
 std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
 
-void Game::dev_command_biome_test(Biome biome, int layer, bool settlement) {
-    (void)layer; // Phase 1: only elevation exists
+void Game::dev_command_biome_test(Biome biome, int layer, bool settlement,
+                                  int settlement_style) {
+    (void)layer;
     animations_.clear();
     unsigned seed = static_cast<unsigned>(std::time(nullptr));
 
@@ -441,15 +442,29 @@ void Game::dev_command_biome_test(Biome biome, int layer, bool settlement) {
     if (settlement) {
         props.detail_has_poi = true;
         props.detail_poi_type = Tile::OW_Settlement;
-        props.lore_tier = 1;
+        switch (settlement_style) {
+            case 0:  // frontier
+                props.lore_tier = 1;
+                break;
+            case 1:  // advanced
+                props.lore_tier = 2;
+                props.lore_alien_strength = 0.5f;
+                break;
+            case 2:  // ruined
+                props.lore_tier = 1;
+                props.lore_plague_origin = true;
+                break;
+        }
     }
 
     world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
     auto gen = make_detail_map_generator_v2();
     gen->generate(world_.map(), props, seed);
     world_.map().set_biome(biome);
+    static const char* style_names[] = {"Frontier", "Advanced", "Ruined"};
     std::string loc_name = "[DEV] Biome Test: " + biome_profile(biome).name;
-    if (settlement) loc_name += " + Settlement";
+    if (settlement) loc_name += " + " + std::string(style_names[settlement_style])
+                                      + " Settlement";
     world_.map().set_location_name(loc_name);
 
     world_.map().find_open_spot(player_.x, player_.y);
