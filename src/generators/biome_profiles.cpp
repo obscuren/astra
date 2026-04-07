@@ -17,6 +17,7 @@ void moisture_pools(float* grid, int w, int h, std::mt19937& rng, const float* e
 void moisture_river(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
 void moisture_coastline(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
 void moisture_channels(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
+void moisture_marsh(float* grid, int w, int h, std::mt19937& rng, const float* elevation, const BiomeProfile& prof);
 
 const BiomeProfile& biome_profile(Biome b) {
     // Natural biomes
@@ -113,7 +114,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Marsh",
         elevation_flat,
         0.02f, 2, 0.97f,
-        moisture_pools, 0.03f, 0.45f, 0.6f,
+        moisture_marsh, 0.025f, 0.48f, 0.8f,
         nullptr, 0.5f,
         {}
     };
