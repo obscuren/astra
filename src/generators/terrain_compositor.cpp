@@ -1,0 +1,23 @@
+#include "astra/terrain_compositor.h"
+
+namespace astra {
+
+void composite_terrain(TileMap& map, const TerrainChannels& channels,
+                       const BiomeProfile& prof) {
+    int w = channels.width;
+    int h = channels.height;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            float elev = channels.elev(x, y);
+
+            // Phase 1: elevation only
+            if (elev > prof.wall_threshold) {
+                map.set(x, y, Tile::Wall);
+            } else {
+                map.set(x, y, Tile::Floor);
+            }
+        }
+    }
+}
+
+} // namespace astra
