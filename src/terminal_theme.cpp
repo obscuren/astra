@@ -1103,6 +1103,14 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
             };
             return frames[frame_index % 3];
         }
+        case AnimationType::LavaShimmer: {
+            static const ResolvedVisual frames[] = {
+                {'~', nullptr, Color::Red, Color::Default},
+                {'~', "\xe2\x89\x88", Color::Yellow, Color::Default},
+                {'~', nullptr, Color::Red, Color::Default},
+            };
+            return frames[frame_index % 3];
+        }
         case AnimationType::ViewportShimmer: {
             static const ResolvedVisual frames[] = {
                 {'"', nullptr, Color::Cyan, Color::Default},

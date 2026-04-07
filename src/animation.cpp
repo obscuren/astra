@@ -21,6 +21,12 @@ const AnimationDef anim_water_shimmer = {
     true
 };
 
+const AnimationDef anim_lava_shimmer = {
+    AnimationType::LavaShimmer,
+    {{400}, {400}, {400}},
+    true
+};
+
 const AnimationDef anim_viewport_shimmer = {
     AnimationType::ViewportShimmer,
     {{800}, {800}},
@@ -246,7 +252,8 @@ void AnimationManager::spawn_fixture_anims(const TileMap& map, const VisibilityM
                        map.get(x, y) == Tile::OW_River ||
                        map.get(x, y) == Tile::OW_Lake ||
                        map.get(x, y) == Tile::OW_Swamp) {
-                def = &anim_water_shimmer;
+                def = (map.biome() == Biome::Volcanic)
+                    ? &anim_lava_shimmer : &anim_water_shimmer;
             } else if (map.get(x, y) == Tile::OW_LavaFlow) {
                 def = &anim_torch_flicker;
             } else if (map.get(x, y) == Tile::Portal) {
