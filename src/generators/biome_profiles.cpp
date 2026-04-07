@@ -72,7 +72,7 @@ const BiomeProfile& biome_profile(Biome b) {
         "Aquatic",
         elevation_flat,
         0.01f, 2, 0.98f,
-        moisture_coastline, 0.02f, 0.4f, 0.98f,
+        moisture_none, 0.04f, 0.7f, 0.4f,  // parked: needs neighbor-aware redesign in Phase 7
         nullptr, 0.5f,
         {}
     };
