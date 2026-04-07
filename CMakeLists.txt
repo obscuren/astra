@@ -39,6 +39,7 @@ set(ASTRA_SOURCES
     src/generators/detail_map_generator.cpp
     src/generators/biome_profiles.cpp
     src/generators/elevation_strategies.cpp
+    src/generators/moisture_strategies.cpp
     src/generators/terrain_compositor.cpp
     src/generators/detail_map_generator_v2.cpp
     src/overworld_stamps.cpp

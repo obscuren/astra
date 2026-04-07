@@ -9,9 +9,11 @@ void composite_terrain(TileMap& map, const TerrainChannels& channels,
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             float elev = channels.elev(x, y);
+            float moist = channels.moist(x, y);
 
-            // Phase 1: elevation only
-            if (elev > prof.wall_threshold) {
+            if (moist > prof.water_threshold && elev < prof.flood_level) {
+                map.set(x, y, Tile::Water);
+            } else if (elev > prof.wall_threshold) {
                 map.set(x, y, Tile::Wall);
             } else {
                 map.set(x, y, Tile::Floor);
