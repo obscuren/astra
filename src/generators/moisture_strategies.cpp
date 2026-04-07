@@ -310,8 +310,8 @@ void moisture_marsh(float* grid, int w, int h,
             float fx = static_cast<float>(x);
             float fy = static_cast<float>(y);
 
-            // Primary: large basins
-            float large = fbm(fx, fy, seed1, 0.008f, 2);
+            // Primary: basins (~55 tile features)
+            float large = fbm(fx, fy, seed1, 0.018f, 2);
             // Detail: edge irregularity
             float detail = fbm(fx, fy, seed2, 0.04f, 1);
 
