@@ -35,7 +35,7 @@ bool TileMap::passable(int x, int y) const {
         int fid = fixture_id(x, y);
         return fid >= 0 && fixtures_[fid].passable;
     }
-    if (t == Tile::Floor || t == Tile::IndoorFloor || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
+    if (t == Tile::Floor || t == Tile::IndoorFloor || t == Tile::Path || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
         return true;
     // Overworld tiles: all passable except mountains, lakes, and glassed craters
     if (t == Tile::OW_Mountains || t == Tile::OW_Lake || t == Tile::OW_GlassedCrater) return false;
@@ -72,6 +72,16 @@ int TileMap::add_fixture(int x, int y, FixtureData fd) {
     fixture_ids_[y * width_ + x] = id;
     set(x, y, Tile::Fixture);
     return id;
+}
+
+void TileMap::remove_fixture(int x, int y) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    int idx = y * width_ + x;
+    fixture_ids_[idx] = -1;
+    // Restore tile from Fixture back to Floor (add_fixture sets Tile::Fixture)
+    if (tiles_[idx] == Tile::Fixture) {
+        tiles_[idx] = Tile::Floor;
+    }
 }
 
 int TileMap::region_id(int x, int y) const {
@@ -362,6 +372,33 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::ShoreDebris:
             fd.passable = true; fd.interactable = false; break;
         case FixtureType::SettlementProp:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::CampStove:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Lamp:
+            fd.passable = true; fd.interactable = false;
+            fd.light_radius = 6; break;
+        case FixtureType::HoloLight:
+            fd.passable = true; fd.interactable = false;
+            fd.light_radius = 8; break;
+        case FixtureType::Locker:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::BookCabinet:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::DataTerminal:
+            fd.passable = false; fd.interactable = false;
+            fd.light_radius = 2; break;
+        case FixtureType::Bench:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Chair:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Gate:
+            fd.passable = true; fd.interactable = false; break;
+        case FixtureType::BridgeRail:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::BridgeFloor:
+            fd.passable = true; fd.interactable = false; break;
+        case FixtureType::Planter:
             fd.passable = false; fd.interactable = false; break;
     }
     return fd;

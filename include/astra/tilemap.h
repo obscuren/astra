@@ -20,6 +20,7 @@ enum class Tile : uint8_t {
     Fixture,
     StructuralWall,   // Intact building wall — always renders as █
     IndoorFloor,      // Interior flooring — distinct glyph/color from outdoor floor
+    Path,             // Outdoor settlement path — distinct from natural floor
     // Overworld terrain
     OW_Plains,
     OW_Mountains,
@@ -51,6 +52,7 @@ inline char tile_glyph(Tile t) {
     switch (t) {
         case Tile::Floor:          return '.';
         case Tile::IndoorFloor:    return '.';
+        case Tile::Path:           return '.';
         case Tile::Wall:           return '#';
         case Tile::StructuralWall: return '#';
         case Tile::Portal:         return '>';
@@ -332,6 +334,20 @@ enum class FixtureType : uint8_t {
     NaturalObstacle,    // impassable natural feature — renderer resolves from biome + seed
     ShoreDebris,        // passable shore material (sand, rocks, dirt) — renderer resolves from biome
     SettlementProp,     // impassable settlement prop — renderer resolves from seed
+
+    // Settlement furniture (Phase 6)
+    CampStove,          // 'o'  — frontier cooking
+    Lamp,               // '*'  — frontier/advanced lighting
+    HoloLight,          // '*'  — advanced lighting (blue tint)
+    Locker,             // '='  — advanced storage
+    BookCabinet,        // '['  — frontier knowledge storage
+    DataTerminal,       // '#'  — advanced knowledge terminal
+    Bench,              // '='  — outdoor/indoor seating
+    Chair,              // 'h'  — advanced seating
+    Gate,               // '/'  — perimeter gate (passable)
+    BridgeRail,         // '|'  — bridge railing (impassable)
+    BridgeFloor,        // '.'  — bridge surface (passable)
+    Planter,            // '"'  — decorative vegetation
 };
 
 struct FixtureData {
@@ -426,6 +442,7 @@ public:
     const FixtureData& fixture(int id) const { return fixtures_[id]; }
     FixtureData& fixture_mut(int id) { return fixtures_[id]; }
     int add_fixture(int x, int y, FixtureData fd);
+    void remove_fixture(int x, int y);
     int fixture_count() const { return static_cast<int>(fixtures_.size()); }
     const std::vector<FixtureData>& fixtures_vec() const { return fixtures_; }
     const std::vector<int>& fixture_ids() const { return fixture_ids_; }
