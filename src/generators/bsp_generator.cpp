@@ -355,96 +355,94 @@ void BspGenerator::generate_noise_walls(TileMap& map, const RuinPlan& plan,
                                         const std::vector<Rect>& nucleus_zones) const {
     const auto& fp = plan.footprint;
     unsigned seed = static_cast<unsigned>(fp.x * 73856093u ^ fp.y * 19349663u);
+    std::mt19937 rng(seed);
 
-    int base_thick = static_cast<int>(
-        base_thick_for_depth(0) * plan.civ.wall_thickness_bias);
-    base_thick = std::clamp(base_thick, 2, plan.civ.max_wall_thickness);
+    int max_thick = std::clamp(
+        static_cast<int>(base_thick_for_depth(0) * plan.civ.wall_thickness_bias),
+        2, plan.civ.max_wall_thickness);
+    int min_thick = std::clamp(
+        static_cast<int>(base_thick_for_depth(3) * plan.civ.wall_thickness_bias),
+        1, plan.civ.max_wall_thickness);
 
-    // Use two overlapping ridge noise layers at different scales and angles
-    // to create a network of intersecting wall lines
-    float scale1 = 0.02f + plan.civ.split_regularity * 0.01f;
-    float scale2 = 0.015f;
-    float threshold = 0.72f;  // higher = fewer, more distinct walls
+    // Helper: place a straight wall segment
+    auto place_wall_line = [&](int start_x, int start_y, int length,
+                               bool horizontal, int thickness) {
+        for (int i = 0; i < length; ++i) {
+            for (int t = 0; t < thickness; ++t) {
+                int wx = horizontal ? (start_x + i) : (start_x + t);
+                int wy = horizontal ? (start_y + t) : (start_y + i);
+                if (wx < 0 || wx >= map.width() || wy < 0 || wy >= map.height())
+                    continue;
+                if (map.get(wx, wy) == Tile::Water) continue;
 
-    for (int y = fp.y; y < fp.y + fp.h; ++y) {
-        for (int x = fp.x; x < fp.x + fp.w; ++x) {
-            if (x < 0 || x >= map.width() || y < 0 || y >= map.height())
-                continue;
-            if (map.get(x, y) == Tile::Water) continue;
+                // Skip nucleus zones
+                bool in_nz = false;
+                for (const auto& nz : nucleus_zones) {
+                    if (nz.contains(wx, wy)) { in_nz = true; break; }
+                }
+                if (in_nz) continue;
 
-            // Skip nucleus zones — BSP handles those
-            bool in_nucleus = false;
-            for (const auto& nz : nucleus_zones) {
-                if (nz.contains(x, y)) { in_nucleus = true; break; }
-            }
-            if (in_nucleus) continue;
-
-            // Layer 1: horizontal-ish walls
-            float n1 = ridge_noise(static_cast<float>(x), static_cast<float>(y),
-                                   seed, scale1, 4);
-            // Layer 2: vertical-ish walls (rotated coordinates)
-            float n2 = ridge_noise(static_cast<float>(y) * 0.7f,
-                                   static_cast<float>(x) * 0.7f,
-                                   seed + 9973u, scale2, 4);
-
-            // Combine: wall where either layer has a ridge
-            float wall_val = std::max(n1, n2);
-
-            if (wall_val > threshold) {
-                // Thickness modulated by how far above threshold
-                float excess = (wall_val - threshold) / (1.0f - threshold);
-                int thick = std::max(1, static_cast<int>(base_thick * excess));
-
-                // Place wall at this position (thick walls extend in the
-                // direction perpendicular to the dominant ridge)
-                map.set(x, y, Tile::Wall);
-                map.set_custom_flag(x, y, CF_RUIN_TINT);
-                set_ruin_civ(map, x, y, plan.civ.civ_index);
+                map.set(wx, wy, Tile::Wall);
+                map.set_custom_flag(wx, wy, CF_RUIN_TINT);
+                set_ruin_civ(map, wx, wy, plan.civ.civ_index);
             }
         }
+    };
+
+    // Generate 20-40 straight wall segments across the map.
+    // Use noise to pick starting positions (clustered, not uniform random).
+    int num_segments = 20 + std::uniform_int_distribution<int>(0, 20)(rng);
+
+    for (int s = 0; s < num_segments; ++s) {
+        // Use noise to bias position towards certain areas
+        float nx = hash_noise(s, 0, seed) * fp.w + fp.x;
+        float ny = hash_noise(s, 1, seed) * fp.h + fp.y;
+        int sx = static_cast<int>(nx);
+        int sy = static_cast<int>(ny);
+
+        bool horizontal = hash_noise(s, 2, seed) > 0.5f;
+
+        // Length: 20-120 tiles (longer walls are more monumental)
+        int max_len = horizontal ? fp.w : fp.h;
+        float len_noise = hash_noise(s, 3, seed);
+        int length = 20 + static_cast<int>(len_noise * len_noise * (max_len - 20));
+
+        // Thickness: thicker for longer walls
+        float thick_ratio = static_cast<float>(length) / static_cast<float>(max_len);
+        int thickness = min_thick + static_cast<int>(thick_ratio * (max_thick - min_thick));
+        thickness = std::clamp(thickness, min_thick, max_thick);
+
+        // Some walls start from an existing wall (T-junctions)
+        // Offset start position by noise
+        float offset = hash_noise(s, 4, seed);
+        if (horizontal) {
+            sx = fp.x + static_cast<int>(offset * (fp.w - length));
+        } else {
+            sy = fp.y + static_cast<int>(offset * (fp.h - length));
+        }
+
+        place_wall_line(sx, sy, length, horizontal, thickness);
     }
 
-    // Carve passages through the noise walls for navigability.
-    // Place 8-15 random corridor cuts across the map.
-    std::mt19937 gap_rng(seed + 42u);
+    // Carve passageways through walls for navigability
     float dm = plan.decay_modifier;
     int num_corridors = 8 + static_cast<int>(dm * 7.0f);
-    std::uniform_int_distribution<int> x_dist(fp.x, fp.x + fp.w - 1);
-    std::uniform_int_distribution<int> y_dist(fp.y, fp.y + fp.h - 1);
 
     for (int c = 0; c < num_corridors; ++c) {
-        // Random corridor: either horizontal or vertical
-        bool horizontal = std::uniform_int_distribution<int>(0, 1)(gap_rng);
+        bool horizontal = std::uniform_int_distribution<int>(0, 1)(rng);
         int gap_width = 2 + static_cast<int>(dm * 2.0f);
+        int cx = std::uniform_int_distribution<int>(fp.x, fp.x + fp.w - 1)(rng);
+        int cy = std::uniform_int_distribution<int>(fp.y, fp.y + fp.h - 1)(rng);
+        int length = 15 + std::uniform_int_distribution<int>(0, 30)(rng);
 
-        if (horizontal) {
-            int cy = y_dist(gap_rng);
-            int cx_start = x_dist(gap_rng);
-            int length = 15 + std::uniform_int_distribution<int>(0, 30)(gap_rng);
-            for (int dx = 0; dx < length; ++dx) {
-                for (int dy = 0; dy < gap_width; ++dy) {
-                    int gx = cx_start + dx;
-                    int gy = cy + dy;
-                    if (gx < 0 || gx >= map.width() || gy < 0 || gy >= map.height())
-                        continue;
-                    if (map.get(gx, gy) == Tile::Wall) {
-                        map.set(gx, gy, Tile::Floor);
-                    }
-                }
-            }
-        } else {
-            int cx = x_dist(gap_rng);
-            int cy_start = y_dist(gap_rng);
-            int length = 10 + std::uniform_int_distribution<int>(0, 20)(gap_rng);
-            for (int dy = 0; dy < length; ++dy) {
-                for (int dx = 0; dx < gap_width; ++dx) {
-                    int gx = cx + dx;
-                    int gy = cy_start + dy;
-                    if (gx < 0 || gx >= map.width() || gy < 0 || gy >= map.height())
-                        continue;
-                    if (map.get(gx, gy) == Tile::Wall) {
-                        map.set(gx, gy, Tile::Floor);
-                    }
+        for (int i = 0; i < length; ++i) {
+            for (int t = 0; t < gap_width; ++t) {
+                int gx = horizontal ? (cx + i) : (cx + t);
+                int gy = horizontal ? (cy + t) : (cy + i);
+                if (gx < 0 || gx >= map.width() || gy < 0 || gy >= map.height())
+                    continue;
+                if (map.get(gx, gy) == Tile::Wall) {
+                    map.set(gx, gy, Tile::Floor);
                 }
             }
         }
