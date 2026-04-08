@@ -106,7 +106,7 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(58);
         case Tile::OW_CaveEntrance:return Color::Magenta;
-        case Tile::OW_Ruins:       return Color::BrightMagenta;
+        case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;
         case Tile::OW_CrashedShip: return Color::Cyan;
         case Tile::OW_Outpost:     return Color::Green;
@@ -216,13 +216,9 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
             return select_variant(g, seed);
         }
         case Tile::OW_Ruins: {
-            static const char* g[] = {
-                "\xcf\x80",      // π
-                "\xce\xa9",      // Ω
-                "\xc2\xa7",      // §
-                "\xce\xa3",      // Σ
-            };
-            return select_variant(g, seed);
+            // Baroque pipe rendering handled via neighbor mask in resolve();
+            // fallback glyph for legacy path
+            return "\xe2\x96\xa0";  // ■
         }
         case Tile::OW_Settlement:  return "\xe2\x99\xa6"; // ♦
         case Tile::OW_CrashedShip: {
@@ -1167,6 +1163,32 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
     // --- Overworld tiles (OW_*) ---
     if (tile >= Tile::OW_Plains && tile <= Tile::OW_Landing) {
+        // OW_Ruins: seed carries neighbor bitmask for baroque pipe rendering
+        if (tile == Tile::OW_Ruins) {
+            static const char* baroque_conn[] = {
+                "\xe2\x96\xa0",  // 0000 isolated -> ■
+                "\xe2\x95\x91",  // 0001 N        -> ║
+                "\xe2\x95\x91",  // 0010 S        -> ║
+                "\xe2\x95\x91",  // 0011 NS       -> ║
+                "\xe2\x95\x90",  // 0100 E        -> ═
+                "\xe2\x95\x9a",  // 0101 NE       -> ╚
+                "\xe2\x95\x94",  // 0110 SE       -> ╔
+                "\xe2\x95\xa0",  // 0111 NSE      -> ╠
+                "\xe2\x95\x90",  // 1000 W        -> ═
+                "\xe2\x95\x9d",  // 1001 NW       -> ╝
+                "\xe2\x95\x97",  // 1010 SW       -> ╗
+                "\xe2\x95\xa3",  // 1011 NSW      -> ╣
+                "\xe2\x95\x90",  // 1100 EW       -> ═
+                "\xe2\x95\xa9",  // 1101 NEW      -> ╩
+                "\xe2\x95\xa6",  // 1110 SEW      -> ╦
+                "\xe2\x95\xac",  // 1111 NSEW     -> ╬
+            };
+            uint8_t nb = seed & 0x0F;
+            const char* utf8 = baroque_conn[nb];
+            Color c = remembered ? bc.remembered : static_cast<Color>(178);  // warm gold
+            return {'#', utf8, c, Color::Default};
+        }
+
         Color c = ow_tile_color(tile, biome);
         const char* utf8 = ow_glyph(tile, seed);
 

@@ -34,7 +34,7 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(58);
         case Tile::OW_CaveEntrance:return Color::Magenta;
-        case Tile::OW_Ruins:       return Color::BrightMagenta;
+        case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;
         case Tile::OW_CrashedShip: return Color::Cyan;
         case Tile::OW_Outpost:     return Color::Green;
@@ -78,6 +78,25 @@ void render_map(const MapRenderContext& rc) {
 
             // Overworld: no FOV dimming, use overworld colors + UTF-8 glyphs
             if (rc.world.map().map_type() == MapType::Overworld) {
+                // OW_Ruins: encode neighbor mask for baroque pipe rendering
+                if (tile_at == Tile::OW_Ruins) {
+                    uint8_t nb = 0;
+                    auto& map = rc.world.map();
+                    if (my > 0 && map.get(mx, my - 1) == Tile::OW_Ruins) nb |= 0x01;  // N
+                    if (my + 1 < map.height() && map.get(mx, my + 1) == Tile::OW_Ruins) nb |= 0x02;  // S
+                    if (mx + 1 < map.width() && map.get(mx + 1, my) == Tile::OW_Ruins) nb |= 0x04;  // E
+                    if (mx > 0 && map.get(mx - 1, my) == Tile::OW_Ruins) nb |= 0x08;  // W
+
+                    RenderDescriptor desc;
+                    desc.category = RenderCategory::Tile;
+                    desc.type_id = static_cast<uint16_t>(tile_at);
+                    desc.seed = nb;
+                    desc.biome = rc.world.map().biome();
+                    desc.flags = RF_None;
+                    wctx.put(sx, sy, desc);
+                    continue;  // skip normal overworld rendering for this tile
+                }
+
                 uint8_t gov = rc.world.map().glyph_override(mx, my);
 
                 // Stamp glyph overrides (non-quest) stay on old UIContext path
