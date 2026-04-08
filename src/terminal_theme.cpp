@@ -1232,11 +1232,15 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         bool ruin_tint = (seed & 0x80) != 0;
         uint8_t clean_seed = seed & 0x7F;
         if (ruin_tint && !remembered) {
-            // Ruin walls: stone-colored, neutral glyph (not biome)
+            // Ruin walls: stone-colored, block glyphs
             static const char* ruin_glyphs[] = {
-                "#", "\xe2\x96\x93", "\xe2\x96\x91",  // # ▓ ░
+                "\xe2\x96\x88",  // █
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "\xe2\x96\x88",  // █
             };
-            const char* utf8 = ruin_glyphs[clean_seed % 3];
+            const char* utf8 = ruin_glyphs[clean_seed % 5];
             int tint = clean_seed % 5;
             Color c;
             switch (tint) {

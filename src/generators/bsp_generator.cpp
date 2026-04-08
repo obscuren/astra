@@ -168,15 +168,35 @@ void BspGenerator::materialize_walls(TileMap& map,
             * plan.civ.wall_thickness_bias);
         base_thick = std::max(base_thick, 1);
 
+        // For shallow walls: only draw a partial segment (40-80% of span).
+        // This prevents every BSP split from forming a closed rectangle.
+        // Deep walls (nucleus areas) draw full length to form actual rooms.
+        bool partial = (node.depth < 3) && !ca.is_nucleus && !cb.is_nucleus;
+
+        // Determine wall segment seed for consistent partial placement
+        unsigned wall_seed = seed + static_cast<unsigned>(i * 7919u);
+
         if (horiz) {
-            // Horizontal split: wall runs along y = ca.area.y + ca.area.h
             int wall_y = ca.area.y + ca.area.h;
-            int x0 = node.area.x;
-            int x1 = node.area.x + node.area.w;
+            int full_x0 = node.area.x;
+            int full_x1 = node.area.x + node.area.w;
+            int span = full_x1 - full_x0;
+
+            int x0 = full_x0;
+            int x1 = full_x1;
+            if (partial && span > 20) {
+                // Draw 40-80% of the span, offset randomly
+                float coverage = 0.4f + hash_noise(wall_y, 0,
+                    wall_seed) * 0.4f;
+                int seg_len = static_cast<int>(span * coverage);
+                int max_offset = span - seg_len;
+                int offset = static_cast<int>(hash_noise(0, wall_y,
+                    wall_seed + 1u) * max_offset);
+                x0 = full_x0 + offset;
+                x1 = x0 + seg_len;
+            }
 
             for (int x = x0; x < x1; ++x) {
-                // fbm modulates thickness locally
-                // Gentle noise — walls stay close to base thickness
                 float n = fbm(static_cast<float>(x) * 0.08f,
                               static_cast<float>(wall_y) * 0.08f,
                               seed + static_cast<unsigned>(i), 0.2f, 2);
@@ -194,17 +214,30 @@ void BspGenerator::materialize_walls(TileMap& map,
                 }
             }
         } else {
-            // Vertical split: wall runs along x = ca.area.x + ca.area.w
             int wall_x = ca.area.x + ca.area.w;
-            int y0 = node.area.y;
-            int y1 = node.area.y + node.area.h;
+            int full_y0 = node.area.y;
+            int full_y1 = node.area.y + node.area.h;
+            int span = full_y1 - full_y0;
+
+            int y0 = full_y0;
+            int y1 = full_y1;
+            if (partial && span > 20) {
+                float coverage = 0.4f + hash_noise(wall_x, 0,
+                    wall_seed) * 0.4f;
+                int seg_len = static_cast<int>(span * coverage);
+                int max_offset = span - seg_len;
+                int offset = static_cast<int>(hash_noise(0, wall_x,
+                    wall_seed + 1u) * max_offset);
+                y0 = full_y0 + offset;
+                y1 = y0 + seg_len;
+            }
 
             for (int y = y0; y < y1; ++y) {
-                float n = fbm(static_cast<float>(wall_x) * 0.15f,
-                              static_cast<float>(y) * 0.15f,
-                              seed + static_cast<unsigned>(i), 0.3f, 3);
+                float n = fbm(static_cast<float>(wall_x) * 0.08f,
+                              static_cast<float>(y) * 0.08f,
+                              seed + static_cast<unsigned>(i), 0.2f, 2);
                 int thick = std::max(1, static_cast<int>(
-                    static_cast<float>(base_thick) * (0.5f + n)));
+                    static_cast<float>(base_thick) * (0.8f + n * 0.4f)));
 
                 int half = thick / 2;
                 for (int dx = -half; dx < thick - half; ++dx) {
