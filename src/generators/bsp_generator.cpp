@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <queue>
 
 namespace astra {
 
@@ -443,6 +444,84 @@ void BspGenerator::generate_noise_walls(TileMap& map, const RuinPlan& plan,
                     continue;
                 if (map.get(gx, gy) == Tile::Wall) {
                     map.set(gx, gy, Tile::Floor);
+                }
+            }
+        }
+    }
+
+    // Connectivity pass: ensure all walkable areas are reachable.
+    // Flood-fill from center, find disconnected pockets, carve L-shaped
+    // corridors through walls to connect them.
+    {
+        int w = map.width();
+        int h = map.height();
+        std::vector<int> region(w * h, -1);
+
+        auto walkable = [&](int x, int y) {
+            if (x < 0 || x >= w || y < 0 || y >= h) return false;
+            Tile t = map.get(x, y);
+            return t != Tile::Wall && t != Tile::StructuralWall && t != Tile::Water;
+        };
+
+        // BFS flood-fill to label connected regions
+        static constexpr int dx4[] = {0, 0, -1, 1};
+        static constexpr int dy4[] = {-1, 1, 0, 0};
+        int num_regions = 0;
+        std::vector<std::pair<int,int>> region_samples; // one sample point per region
+
+        for (int y = fp.y; y < fp.y + fp.h; ++y) {
+            for (int x = fp.x; x < fp.x + fp.w; ++x) {
+                if (region[y * w + x] >= 0 || !walkable(x, y)) continue;
+
+                int rid = num_regions++;
+                region_samples.push_back({x, y});
+                std::queue<std::pair<int,int>> q;
+                q.push({x, y});
+                region[y * w + x] = rid;
+
+                while (!q.empty()) {
+                    auto [cx, cy] = q.front(); q.pop();
+                    for (int d = 0; d < 4; ++d) {
+                        int nx2 = cx + dx4[d];
+                        int ny2 = cy + dy4[d];
+                        if (nx2 < fp.x || nx2 >= fp.x + fp.w ||
+                            ny2 < fp.y || ny2 >= fp.y + fp.h) continue;
+                        if (region[ny2 * w + nx2] >= 0 || !walkable(nx2, ny2)) continue;
+                        region[ny2 * w + nx2] = rid;
+                        q.push({nx2, ny2});
+                    }
+                }
+            }
+        }
+
+        // Connect all regions to region 0 by carving L-shaped corridors
+        if (num_regions > 1) {
+            for (int r = 1; r < num_regions; ++r) {
+                auto [ax, ay] = region_samples[0];
+                auto [bx, by] = region_samples[r];
+
+                // Carve horizontal then vertical (L-shape), 2 tiles wide
+                int x0 = std::min(ax, bx);
+                int x1 = std::max(ax, bx);
+                for (int x = x0; x <= x1; ++x) {
+                    for (int t = 0; t < 2; ++t) {
+                        int gy = ay + t;
+                        if (x >= 0 && x < w && gy >= 0 && gy < h) {
+                            if (map.get(x, gy) == Tile::Wall)
+                                map.set(x, gy, Tile::Floor);
+                        }
+                    }
+                }
+                int y0 = std::min(ay, by);
+                int y1 = std::max(ay, by);
+                for (int y = y0; y <= y1; ++y) {
+                    for (int t = 0; t < 2; ++t) {
+                        int gx = bx + t;
+                        if (gx >= 0 && gx < w && y >= 0 && y < h) {
+                            if (map.get(gx, y) == Tile::Wall)
+                                map.set(gx, y, Tile::Floor);
+                        }
+                    }
                 }
             }
         }
