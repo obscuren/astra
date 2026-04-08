@@ -819,9 +819,16 @@ void Game::exit_dungeon_to_detail() {
 
         world_.npcs().clear();
         world_.ground_items().clear();
-        world_.map().find_open_spot(player_.x, player_.y);
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
+
+    // Place player in the zone section they entered the dungeon from
+    int zone_w = world_.map().width() / zones_per_tile;
+    int zone_h = world_.map().height() / zones_per_tile;
+    player_.x = world_.zone_x() * zone_w + zone_w / 2;
+    player_.y = world_.zone_y() * zone_h + zone_h / 2;
+    if (!world_.map().passable(player_.x, player_.y))
+        world_.map().find_open_spot(player_.x, player_.y);
 
     world_.current_region() = -1;
     recompute_fov();
@@ -1531,9 +1538,7 @@ void Game::enter_lost_detail() {
             ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
             ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
-            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u)
-            ^ (static_cast<unsigned>(world_.zone_x()) * 4517u)
-            ^ (static_cast<unsigned>(world_.zone_y()) * 5381u);
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
         world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
@@ -1546,11 +1551,19 @@ void Game::enter_lost_detail() {
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    // Random position within the zone
-    player_.x = world_.map().width() / 2;
-    player_.y = world_.map().height() / 2;
-    if (!world_.map().passable(player_.x, player_.y))
-        world_.map().find_open_spot(player_.x, player_.y);
+    // Random position within the selected zone section
+    {
+        int zone_w = world_.map().width() / zones_per_tile;
+        int zone_h = world_.map().height() / zones_per_tile;
+        std::uniform_int_distribution<int> xdist(world_.zone_x() * zone_w,
+                                                  (world_.zone_x() + 1) * zone_w - 1);
+        std::uniform_int_distribution<int> ydist(world_.zone_y() * zone_h,
+                                                  (world_.zone_y() + 1) * zone_h - 1);
+        player_.x = xdist(world_.rng());
+        player_.y = ydist(world_.rng());
+        if (!world_.map().passable(player_.x, player_.y))
+            world_.map().find_open_spot(player_.x, player_.y);
+    }
 
     world_.current_region() = -1;
     recompute_fov();
