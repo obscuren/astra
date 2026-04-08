@@ -1290,14 +1290,17 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
             const char* utf8;
             Color c_primary, c_secondary;
+            // Interior tiles of thick walls → solid fill
+            static const char* solid_fill = "\xe2\x96\x88";  // █
+
             switch (civ) {
                 case 1:  // Baroque — connected double-line pipes
-                    utf8 = baroque_conn[nb];
+                    utf8 = (nb == 0x0F) ? solid_fill : baroque_conn[nb];
                     c_primary = static_cast<Color>(178);   // warm gold
                     c_secondary = static_cast<Color>(172);  // darker gold
                     break;
                 case 2:  // Crystal — connected single-line pipes
-                    utf8 = crystal_conn[nb];
+                    utf8 = (nb == 0x0F) ? solid_fill : crystal_conn[nb];
                     c_primary = static_cast<Color>(51);    // bright cyan
                     c_secondary = static_cast<Color>(45);   // slightly dimmer cyan
                     break;

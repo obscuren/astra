@@ -25,7 +25,6 @@ CivConfig civ_config_baroque() {
     CivConfig c;
     c.name = "Baroque";
     c.civ_index = CIV_BAROQUE;
-    c.max_wall_thickness = 1;  // single-line pipes
     c.wall_glyphs = {"\xe2\x95\x94", "\xe2\x95\x90", "\xe2\x95\x97", "\xe2\x95\x91", "\xe2\x95\xac", "\xe2\x95\xa0", "\xe2\x95\xa3"};
     c.accent_glyphs = {"\xe2\x97\x86", "\xe2\x97\x87"};
     c.color_primary = 178;    // warm gold
@@ -45,7 +44,6 @@ CivConfig civ_config_crystal() {
     CivConfig c;
     c.name = "Crystal";
     c.civ_index = CIV_CRYSTAL;
-    c.max_wall_thickness = 1;  // single-line pipes
     c.wall_glyphs = {"\xe2\x94\x8c", "\xe2\x94\x80", "\xe2\x94\x90", "\xe2\x94\x82", "\xe2\x94\xbc", "\xe2\x94\x9c", "\xe2\x94\xa4"};
     c.accent_glyphs = {"\xe2\x97\x88", "\xe2\x97\x8e", "\xe2\x97\x89"};
     c.color_primary = 51;     // bright cyan

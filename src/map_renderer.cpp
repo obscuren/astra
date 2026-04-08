@@ -193,11 +193,26 @@ void render_map(const MapRenderContext& rc) {
                             return (t == Tile::Wall || t == Tile::StructuralWall) &&
                                    rc.world.map().has_custom_flag(x, y, 0x02);
                         };
+                        bool n = is_ruin_wall(mx, my - 1);
+                        bool so = is_ruin_wall(mx, my + 1);
+                        bool e = is_ruin_wall(mx + 1, my);
+                        bool w = is_ruin_wall(mx - 1, my);
+
+                        // For pipe civs: determine the "edge" neighbor mask.
+                        // Interior tiles of thick walls (all 4 neighbors are walls)
+                        // should render as solid fill, not junctions.
+                        // Edge tiles get the actual directional connections.
                         uint8_t neighbors = 0;
-                        if (is_ruin_wall(mx, my - 1)) neighbors |= 0x01; // N
-                        if (is_ruin_wall(mx, my + 1)) neighbors |= 0x02; // S
-                        if (is_ruin_wall(mx + 1, my)) neighbors |= 0x04; // E
-                        if (is_ruin_wall(mx - 1, my)) neighbors |= 0x08; // W
+                        if (n && so && e && w) {
+                            // Interior: encode as 0x0F (all 4) — theme renders solid
+                            neighbors = 0x0F;
+                        } else {
+                            // Edge tile: only count neighbors along open edges
+                            if (n) neighbors |= 0x01;
+                            if (so) neighbors |= 0x02;
+                            if (e) neighbors |= 0x04;
+                            if (w) neighbors |= 0x08;
+                        }
                         s = (s & 0xF0) | neighbors;
                     }
                     desc.seed = s;
