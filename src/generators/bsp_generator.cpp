@@ -266,10 +266,23 @@ void BspGenerator::materialize_walls(TileMap& map,
             * plan.civ.wall_thickness_bias);
         base_thick = std::max(base_thick, 1);
 
-        // Gap width: just wide enough to walk through
-        int gap_width = (node.depth < 3) ? 2 : 1;
-        // Fewer gaps at shallow depths to preserve wall structure
-        int num_gaps = (node.depth < 2) ? 1 : std::min(2, 1 + (node.depth / 3));
+        // Intentional openings — former doorways and hallways.
+        // Shallow (thick) walls get wide openings like collapsed hallways.
+        // Deep (thin) walls get narrower doorway-sized openings.
+        int gap_width;
+        int num_gaps;
+        if (node.depth < 2) {
+            gap_width = 4 + static_cast<int>(hash_noise(
+                static_cast<int>(i), 0, seed) * 3.0f);  // 4-6 wide
+            num_gaps = 1;
+        } else if (node.depth < 4) {
+            gap_width = 3;  // corridor-sized
+            num_gaps = 1 + static_cast<int>(hash_noise(
+                static_cast<int>(i), 1, seed) * 1.5f);  // 1-2
+        } else {
+            gap_width = 2;  // doorway
+            num_gaps = 1;
+        }
 
         // Seed gap positions deterministically
         unsigned gap_seed = seed + static_cast<unsigned>(i * 997u);
