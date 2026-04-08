@@ -17,7 +17,7 @@ static constexpr Color REMEMBERED_COLOR = static_cast<Color>(60);  // 256-color 
 ThemeBiomeColors biome_palette(Biome biome) {
     switch (biome) {
         case Biome::Station:
-            return {Color::White, Color::Default, Color::Blue, REMEMBERED_COLOR};
+            return {Color::White, Color::Default, Color::Blue, Color::Blue};
         case Biome::Rocky:
             return {Color::White, Color::DarkGray, Color::Blue, REMEMBERED_COLOR};
         case Biome::Volcanic:
@@ -33,7 +33,7 @@ ThemeBiomeColors biome_palette(Biome biome) {
         case Biome::Crystal:
             return {Color::BrightMagenta, Color::Magenta, Color::Magenta, REMEMBERED_COLOR};
         case Biome::Corroded:
-            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), REMEMBERED_COLOR};
+            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), static_cast<Color>(58)};
         case Biome::Forest:
             return {Color::Green, static_cast<Color>(58), Color::Blue, REMEMBERED_COLOR};
         case Biome::Grassland:
