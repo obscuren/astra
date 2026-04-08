@@ -349,6 +349,16 @@ enum class FixtureType : uint8_t {
     BridgeRail,         // '|'  — bridge railing (impassable)
     BridgeFloor,        // '.'  — bridge surface (passable)
     Planter,            // '"'  — decorative vegetation
+
+    // Ground resources (flora/mineral fixtures)
+    FloraFlower,
+    FloraHerb,
+    FloraMushroom,
+    FloraGrass,
+    FloraLichen,
+    MineralOre,
+    MineralCrystal,
+    ScrapComponent,
 };
 
 struct FixtureData {

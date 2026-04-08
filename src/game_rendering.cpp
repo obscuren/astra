@@ -114,6 +114,14 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::BridgeRail:      return "Bridge Rail";
         case FixtureType::BridgeFloor:     return "Bridge Floor";
         case FixtureType::Planter:         return "Planter";
+        case FixtureType::FloraFlower:     return "Wildflower";
+        case FixtureType::FloraHerb:       return "Herb";
+        case FixtureType::FloraMushroom:   return "Mushroom";
+        case FixtureType::FloraGrass:      return "Tall Grass";
+        case FixtureType::FloraLichen:     return "Lichen";
+        case FixtureType::MineralOre:      return "Ore Deposit";
+        case FixtureType::MineralCrystal:  return "Crystal Shard";
+        case FixtureType::ScrapComponent:  return "Salvage";
     }
     return "Unknown";
 }
@@ -160,6 +168,14 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::BridgeRail:      return "A sturdy railing along a bridge.";
         case FixtureType::BridgeFloor:     return "Worn planking forming a bridge surface.";
         case FixtureType::Planter:         return "A container filled with hardy vegetation.";
+        case FixtureType::FloraFlower:     return "Colorful wildflowers sway in the breeze.";
+        case FixtureType::FloraHerb:       return "A patch of useful-looking herbs.";
+        case FixtureType::FloraMushroom:   return "Mushrooms cluster in the damp ground.";
+        case FixtureType::FloraGrass:      return "Tall grass rustles as you pass.";
+        case FixtureType::FloraLichen:     return "Hardy lichen clings to the surface.";
+        case FixtureType::MineralOre:      return "Raw mineral ore exposed at the surface.";
+        case FixtureType::MineralCrystal:  return "A crystalline formation juts from the ground.";
+        case FixtureType::ScrapComponent:  return "Salvageable scrap metal and circuitry.";
     }
     return "";
 }

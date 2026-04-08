@@ -400,6 +400,15 @@ FixtureData make_fixture(FixtureType type) {
             fd.passable = true; fd.interactable = false; break;
         case FixtureType::Planter:
             fd.passable = false; fd.interactable = false; break;
+        case FixtureType::FloraFlower:
+        case FixtureType::FloraHerb:
+        case FixtureType::FloraMushroom:
+        case FixtureType::FloraGrass:
+        case FixtureType::FloraLichen:
+        case FixtureType::MineralOre:
+        case FixtureType::MineralCrystal:
+        case FixtureType::ScrapComponent:
+            fd.passable = true; fd.interactable = false; break;
     }
     return fd;
 }

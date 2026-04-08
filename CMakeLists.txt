@@ -43,6 +43,7 @@ set(ASTRA_SOURCES
     src/generators/elevation_strategies.cpp
     src/generators/moisture_strategies.cpp
     src/generators/structure_strategies.cpp
+    src/generators/flora_strategies.cpp
     src/generators/terrain_compositor.cpp
     src/generators/detail_map_generator_v2.cpp
     src/generators/civ_styles.cpp

@@ -128,6 +128,14 @@ void Game::try_move(int dx, int dy) {
                     case FixtureType::Torch:  log("You pass a torch."); break;
                     case FixtureType::Stool:  log("You step past a stool."); break;
                     case FixtureType::Debris: log("You step over debris."); break;
+                    case FixtureType::FloraFlower:  log("You step through wildflowers."); break;
+                    case FixtureType::FloraHerb:    log("Herbs crunch underfoot."); break;
+                    case FixtureType::FloraMushroom: log("You step past mushrooms."); break;
+                    case FixtureType::FloraGrass:   log("Tall grass brushes your legs."); break;
+                    case FixtureType::FloraLichen:  break;
+                    case FixtureType::MineralOre:   log("You step over exposed ore."); break;
+                    case FixtureType::MineralCrystal: log("Crystal fragments crunch underfoot."); break;
+                    case FixtureType::ScrapComponent: log("You step over scattered scrap."); break;
                     default: break;
                 }
             }

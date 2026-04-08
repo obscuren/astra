@@ -34,59 +34,45 @@ void ExteriorDecorator::decorate(TileMap& map, const SettlementPlan& plan,
         for (int x = x0; x <= x1; ++x) {
             int fid = map.fixture_id(x, y);
             if (fid < 0) continue;
-            auto ftype = map.fixture(fid).type;
-            if (ftype == FixtureType::NaturalObstacle ||
-                ftype == FixtureType::ShoreDebris) {
+            const auto& f = map.fixture(fid);
+            if (f.passable && !f.interactable) {
                 map.remove_fixture(x, y);
             }
         }
     }
 
-    // --- 2. Path lighting — every 5-6 tiles along paths, offset 1 to the side ---
-    std::uniform_int_distribution<int> spacing_dist(5, 6);
-    std::uniform_int_distribution<int> side_dist(0, 1);
-
-    for (auto& p : plan.paths) {
-        int spacing = spacing_dist(rng);
-        int step = 0;
-        int dx = (p.to_x > p.from_x) ? 1 : (p.to_x < p.from_x) ? -1 : 0;
-        int dy = (p.to_y > p.from_y) ? 1 : (p.to_y < p.from_y) ? -1 : 0;
-
-        // Walk horizontal segment
-        if (dx != 0) {
-            for (int x = p.from_x; x != p.to_x + dx; x += dx) {
-                if (step % spacing == 0 && step > 0) {
-                    int offset = side_dist(rng) ? 1 : -1;
-                    int lx = x;
-                    int ly = p.from_y + offset;
-                    if (in_bounds(lx, ly, map) && map.fixture_id(lx, ly) < 0) {
-                        Tile t = map.get(lx, ly);
-                        if (t == Tile::Floor || t == Tile::Path) {
-                            map.add_fixture(lx, ly, make_fixture(style.lighting));
-                        }
-                    }
+    // --- 2. Path lighting — scan actual Path tiles, place lamps beside them ---
+    // Collect all Path tiles in the footprint, then place lamps at intervals
+    // next to the path (on adjacent Floor tiles), not ON the path.
+    {
+        std::vector<std::pair<int,int>> path_tiles;
+        for (int y = 0; y < map.height(); ++y) {
+            for (int x = 0; x < map.width(); ++x) {
+                if (map.get(x, y) == Tile::Path) {
+                    path_tiles.push_back({x, y});
                 }
-                ++step;
             }
         }
 
-        // Walk vertical segment
-        step = 0;
-        spacing = spacing_dist(rng);
-        if (dy != 0) {
-            for (int y = p.from_y; y != p.to_y + dy; y += dy) {
-                if (step % spacing == 0 && step > 0) {
-                    int offset = side_dist(rng) ? 1 : -1;
-                    int lx = p.to_x + offset;
-                    int ly = y;
-                    if (in_bounds(lx, ly, map) && map.fixture_id(lx, ly) < 0) {
-                        Tile t = map.get(lx, ly);
-                        if (t == Tile::Floor || t == Tile::Path) {
-                            map.add_fixture(lx, ly, make_fixture(style.lighting));
-                        }
-                    }
-                }
-                ++step;
+        int spacing = 8;
+        int since_last = 0;
+        for (auto& [px, py] : path_tiles) {
+            ++since_last;
+            if (since_last < spacing) continue;
+
+            // Find an adjacent Floor tile to place the lamp (not on the path itself)
+            static constexpr int ddx[] = {1, -1, 0, 0};
+            static constexpr int ddy[] = {0, 0, 1, -1};
+            for (int d = 0; d < 4; ++d) {
+                int lx = px + ddx[d];
+                int ly = py + ddy[d];
+                if (!in_bounds(lx, ly, map)) continue;
+                Tile t = map.get(lx, ly);
+                if (t != Tile::Floor) continue;
+                if (map.fixture_id(lx, ly) >= 0) continue;
+                map.add_fixture(lx, ly, make_fixture(style.lighting));
+                since_last = 0;
+                break;
             }
         }
     }

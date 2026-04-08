@@ -515,7 +515,7 @@ SettlementPlan SettlementPlanner::plan(const PlacementResult& placement,
         }
     }
 
-    // Entry path: from settlement center to nearest map edge (2-wide)
+    // Entry path: from settlement center to nearest map edge (4-wide, winding)
     if (center) {
         int cx = center->x;
         int cy = center->y;
@@ -533,7 +533,7 @@ SettlementPlan SettlementPlanner::plan(const PlacementResult& placement,
         else if (min_dist == dist_w) ex = 0;
         else                         ex = map.width() - 1;
 
-        result.paths.push_back({cx, cy, ex, ey, 2});
+        result.paths.push_back({cx, cy, ex, ey, 3});
     }
 
     // --- 7. Detect bridges ---

@@ -31,6 +31,56 @@ using StructureStrategy = void(*)(StructureMask* grid, int w, int h,
                                   const float* moisture,
                                   const BiomeProfile& prof);
 
+using FloraStrategy = void(*)(TileMap& map, int w, int h,
+                               std::mt19937& rng,
+                               const float* elevation,
+                               const float* moisture,
+                               const BiomeProfile& prof);
+
+// Flora strategy functions (flora_strategies.cpp)
+void flora_grassland(TileMap& map, int w, int h, std::mt19937& rng,
+                     const float* elevation, const float* moisture,
+                     const BiomeProfile& prof);
+void flora_forest(TileMap& map, int w, int h, std::mt19937& rng,
+                  const float* elevation, const float* moisture,
+                  const BiomeProfile& prof);
+void flora_jungle(TileMap& map, int w, int h, std::mt19937& rng,
+                  const float* elevation, const float* moisture,
+                  const BiomeProfile& prof);
+void flora_rocky(TileMap& map, int w, int h, std::mt19937& rng,
+                 const float* elevation, const float* moisture,
+                 const BiomeProfile& prof);
+void flora_volcanic(TileMap& map, int w, int h, std::mt19937& rng,
+                    const float* elevation, const float* moisture,
+                    const BiomeProfile& prof);
+void flora_fungal(TileMap& map, int w, int h, std::mt19937& rng,
+                  const float* elevation, const float* moisture,
+                  const BiomeProfile& prof);
+void flora_ice(TileMap& map, int w, int h, std::mt19937& rng,
+               const float* elevation, const float* moisture,
+               const BiomeProfile& prof);
+void flora_marsh(TileMap& map, int w, int h, std::mt19937& rng,
+                 const float* elevation, const float* moisture,
+                 const BiomeProfile& prof);
+void flora_crystal(TileMap& map, int w, int h, std::mt19937& rng,
+                   const float* elevation, const float* moisture,
+                   const BiomeProfile& prof);
+void flora_corroded(TileMap& map, int w, int h, std::mt19937& rng,
+                    const float* elevation, const float* moisture,
+                    const BiomeProfile& prof);
+void flora_sandy(TileMap& map, int w, int h, std::mt19937& rng,
+                 const float* elevation, const float* moisture,
+                 const BiomeProfile& prof);
+void flora_scarred(TileMap& map, int w, int h, std::mt19937& rng,
+                   const float* elevation, const float* moisture,
+                   const BiomeProfile& prof);
+void flora_aquatic(TileMap& map, int w, int h, std::mt19937& rng,
+                   const float* elevation, const float* moisture,
+                   const BiomeProfile& prof);
+void flora_alien(TileMap& map, int w, int h, std::mt19937& rng,
+                 const float* elevation, const float* moisture,
+                 const BiomeProfile& prof);
+
 // --- Scatter configuration ---
 
 struct ScatterEntry {
@@ -62,6 +112,9 @@ struct BiomeProfile {
 
     // Layer 4: Scatter (Phase 4)
     std::vector<ScatterEntry> scatter;
+
+    // Layer 5: Flora / ground resources
+    FloraStrategy flora_fn = nullptr;
 };
 
 // --- Lookup functions ---

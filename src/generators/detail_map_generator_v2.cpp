@@ -335,6 +335,14 @@ void DetailMapGeneratorV2::place_features(std::mt19937& rng) {
         }
     }
 
+    // --- Flora Phase (ground resources) ---
+    if (prof.flora_fn) {
+        prof.flora_fn(*map_, w, h, rng,
+                      channels_.elevation.data(),
+                      channels_.moisture.data(),
+                      prof);
+    }
+
     // --- POI Phase (Phase 6) ---
     if (props_->detail_has_poi) {
         Rect bounds = poi_phase(*map_, channels_, *props_, rng);

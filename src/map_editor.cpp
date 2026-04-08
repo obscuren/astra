@@ -274,6 +274,14 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::BridgeRail:     return "Bridge Rail";
         case FixtureType::BridgeFloor:    return "Bridge Floor";
         case FixtureType::Planter:        return "Planter";
+        case FixtureType::FloraFlower:     return "Flora: Flower";
+        case FixtureType::FloraHerb:       return "Flora: Herb";
+        case FixtureType::FloraMushroom:   return "Flora: Mushroom";
+        case FixtureType::FloraGrass:      return "Flora: Grass";
+        case FixtureType::FloraLichen:     return "Flora: Lichen";
+        case FixtureType::MineralOre:      return "Mineral: Ore";
+        case FixtureType::MineralCrystal:  return "Mineral: Crystal";
+        case FixtureType::ScrapComponent:  return "Scrap Component";
     }
     return "?";
 }
