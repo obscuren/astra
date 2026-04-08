@@ -99,7 +99,7 @@ void MapEditor::open(Game& game) {
         LocationKey ow_key = {world_->navigation().current_system_id,
                               world_->navigation().current_body_index,
                               world_->navigation().current_moon_index,
-                              false, -1, -1, 0, -1, -1};
+                              false, -1, -1, 0};
 
         if (world_->location_cache().count(ow_key)) {
             editor_restore(ow_key, game);
@@ -411,20 +411,18 @@ void MapEditor::editor_save_current(Game& game) {
         key = LocationKey{world_->navigation().current_system_id,
                           world_->navigation().current_body_index,
                           world_->navigation().current_moon_index,
-                          false, -1, -1, 0, -1, -1};
+                          false, -1, -1, 0};
     } else if (world_->on_detail_map()) {
         key = LocationKey{world_->navigation().current_system_id,
                           world_->navigation().current_body_index,
                           world_->navigation().current_moon_index,
-                          false, world_->overworld_x(), world_->overworld_y(), 0,
-                          world_->zone_x(), world_->zone_y()};
+                          false, world_->overworld_x(), world_->overworld_y(), 0};
     } else {
         // Dungeon
         key = LocationKey{world_->navigation().current_system_id,
                           world_->navigation().current_body_index,
                           world_->navigation().current_moon_index,
-                          false, world_->overworld_x(), world_->overworld_y(), 1,
-                          world_->zone_x(), world_->zone_y()};
+                          false, world_->overworld_x(), world_->overworld_y(), 1};
     }
     LocationState& state = world_->location_cache()[key];
     state.map = world_->map();           // copy, not move
@@ -473,8 +471,7 @@ void MapEditor::enter_detail(int ow_x, int ow_y, Game& game) {
     LocationKey detail_key = {world_->navigation().current_system_id,
                               world_->navigation().current_body_index,
                               world_->navigation().current_moon_index,
-                              false, ow_x, ow_y, 0,
-                              detail_zone_x_, detail_zone_y_};
+                              false, ow_x, ow_y, 0};
 
     if (world_->location_cache().count(detail_key)) {
         editor_restore(detail_key, game);
@@ -484,7 +481,7 @@ void MapEditor::enter_detail(int ow_x, int ow_y, Game& game) {
         LocationKey ow_key = {world_->navigation().current_system_id,
                               world_->navigation().current_body_index,
                               world_->navigation().current_moon_index,
-                              false, -1, -1, 0, -1, -1};
+                              false, -1, -1, 0};
         auto ow_it = world_->location_cache().find(ow_key);
         if (ow_it != world_->location_cache().end()) {
             Tile ow_tile = ow_it->second.map.get(ow_x, ow_y);
@@ -536,7 +533,7 @@ void MapEditor::switch_zone(int zx, int zy, Game& game) {
     LocationKey key = {world_->navigation().current_system_id,
                        world_->navigation().current_body_index,
                        world_->navigation().current_moon_index,
-                       false, detail_ow_x_, detail_ow_y_, 0, zx, zy};
+                       false, detail_ow_x_, detail_ow_y_, 0};
 
     if (world_->location_cache().count(key)) {
         editor_restore(key, game);
@@ -545,7 +542,7 @@ void MapEditor::switch_zone(int zx, int zy, Game& game) {
         LocationKey ow_key = {world_->navigation().current_system_id,
                               world_->navigation().current_body_index,
                               world_->navigation().current_moon_index,
-                              false, -1, -1, 0, -1, -1};
+                              false, -1, -1, 0};
         auto ow_it = world_->location_cache().find(ow_key);
         if (ow_it != world_->location_cache().end()) {
             Tile ow_tile = ow_it->second.map.get(detail_ow_x_, detail_ow_y_);
@@ -583,7 +580,7 @@ void MapEditor::exit_detail(Game& game) {
     LocationKey ow_key = {world_->navigation().current_system_id,
                           world_->navigation().current_body_index,
                           world_->navigation().current_moon_index,
-                          false, -1, -1, 0, -1, -1};
+                          false, -1, -1, 0};
 
     if (world_->location_cache().count(ow_key)) {
         editor_restore(ow_key, game);
@@ -612,8 +609,7 @@ void MapEditor::enter_dungeon(Game& game) {
     LocationKey key = {world_->navigation().current_system_id,
                        world_->navigation().current_body_index,
                        world_->navigation().current_moon_index,
-                       false, detail_ow_x_, detail_ow_y_, 1,
-                       detail_zone_x_, detail_zone_y_};
+                       false, detail_ow_x_, detail_ow_y_, 1};
 
     if (world_->location_cache().count(key)) {
         editor_restore(key, game);
@@ -640,8 +636,7 @@ void MapEditor::exit_dungeon(Game& game) {
     LocationKey key = {world_->navigation().current_system_id,
                        world_->navigation().current_body_index,
                        world_->navigation().current_moon_index,
-                       false, detail_ow_x_, detail_ow_y_, 0,
-                       detail_zone_x_, detail_zone_y_};
+                       false, detail_ow_x_, detail_ow_y_, 0};
 
     if (world_->location_cache().count(key)) {
         editor_restore(key, game);

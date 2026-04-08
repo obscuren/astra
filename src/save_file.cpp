@@ -834,8 +834,8 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
     // Quest locations map
     w.write_u32(static_cast<uint32_t>(data.quest_locations.size()));
     for (const auto& [key, meta] : data.quest_locations) {
-        // LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth, zone_x, zone_y}
-        auto [sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth, zone_x, zone_y] = key;
+        // LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}
+        auto [sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth] = key;
         w.write_u32(sys_id);
         w.write_i32(body_idx);
         w.write_i32(moon_idx);
@@ -843,8 +843,6 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
         w.write_i32(ow_x);
         w.write_i32(ow_y);
         w.write_i32(depth);
-        w.write_i32(zone_x);
-        w.write_i32(zone_y);
 
         // QuestLocationMeta
         w.write_string(meta.quest_id);
@@ -885,12 +883,12 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
         int ow_x = r.read_i32();
         int ow_y = r.read_i32();
         int depth = r.read_i32();
-        int zone_x = -1, zone_y = -1;
-        if (data.version >= 16) {
-            zone_x = r.read_i32();
-            zone_y = r.read_i32();
+        // Legacy: skip zone_x, zone_y if present in old saves (v16-v20)
+        if (data.version >= 16 && data.version <= 20) {
+            r.read_i32(); // zone_x (discarded)
+            r.read_i32(); // zone_y (discarded)
         }
-        LocationKey key = LocationKey{sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth, zone_x, zone_y};
+        LocationKey key = LocationKey{sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth};
 
         QuestLocationMeta meta;
         meta.quest_id = r.read_string();

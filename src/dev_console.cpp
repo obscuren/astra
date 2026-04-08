@@ -422,7 +422,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             if (sys_id != 0 && body_idx >= 0) {
                 q.target_system_id = sys_id;
                 q.target_body_index = body_idx;
-                LocationKey mk = {sys_id, body_idx, -1, false, -1, -1, 0, -1, -1};
+                LocationKey mk = {sys_id, body_idx, -1, false, -1, -1, 0};
                 QuestLocationMeta meta;
                 meta.quest_id = q.id;
                 meta.quest_title = q.title;

@@ -938,7 +938,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 q.giver_npc = interacting_npc_->role;
                 // Register map marker if quest has a target location
                 if (q.target_system_id != 0) {
-                    LocationKey mk = {q.target_system_id, q.target_body_index, -1, false, -1, -1, 0, -1, -1};
+                    LocationKey mk = {q.target_system_id, q.target_body_index, -1, false, -1, -1, 0};
                     QuestLocationMeta meta;
                     meta.quest_id = q.id;
                     meta.quest_title = q.title;

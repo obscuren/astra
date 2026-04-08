@@ -1274,9 +1274,55 @@ void Game::travel_to_destination(const ChartAction& action) {
 
 
 void Game::compute_camera() {
-    // Center camera on look cursor if in look mode, otherwise on player
     int focus_x = input_.looking() ? input_.look_x() : player_.x;
     int focus_y = input_.looking() ? input_.look_y() : player_.y;
+
+    // Detail maps: camera follows player but clamped to zone section bounds.
+    // The zone section acts as the camera boundary — zelda-style snap when
+    // the player crosses into a new section.
+    if (world_.on_detail_map() && world_.map().width() > 200) {
+        int zone_w = world_.map().width() / zones_per_tile;
+        int zone_h = world_.map().height() / zones_per_tile;
+
+        // Determine which zone the player/focus is in
+        int zx = std::clamp(focus_x / zone_w, 0, zones_per_tile - 1);
+        int zy = std::clamp(focus_y / zone_h, 0, zones_per_tile - 1);
+
+        // Update zone tracking if it changed
+        if (zx != world_.zone_x() || zy != world_.zone_y()) {
+            world_.zone_x() = zx;
+            world_.zone_y() = zy;
+        }
+
+        // Zone section bounds
+        int zone_left = zx * zone_w;
+        int zone_top  = zy * zone_h;
+        int zone_right  = zone_left + zone_w;
+        int zone_bottom = zone_top + zone_h;
+
+        // Center camera on player
+        camera_x_ = focus_x - map_rect_.w / 2;
+        camera_y_ = focus_y - map_rect_.h / 2;
+
+        // Clamp camera to zone section bounds
+        if (camera_x_ < zone_left) camera_x_ = zone_left;
+        if (camera_y_ < zone_top)  camera_y_ = zone_top;
+        if (camera_x_ + map_rect_.w > zone_right)
+            camera_x_ = zone_right - map_rect_.w;
+        if (camera_y_ + map_rect_.h > zone_bottom)
+            camera_y_ = zone_bottom - map_rect_.h;
+
+        // Final clamp to map bounds (safety)
+        if (camera_x_ < 0) camera_x_ = 0;
+        if (camera_y_ < 0) camera_y_ = 0;
+        if (camera_x_ + map_rect_.w > world_.map().width())
+            camera_x_ = world_.map().width() - map_rect_.w;
+        if (camera_y_ + map_rect_.h > world_.map().height())
+            camera_y_ = world_.map().height() - map_rect_.h;
+        return;
+    }
+
+    // All other maps: center camera on focus point
     camera_x_ = focus_x - map_rect_.w / 2;
     camera_y_ = focus_y - map_rect_.h / 2;
 

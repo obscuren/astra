@@ -40,7 +40,7 @@ private:
     PaintMode paint_mode_ = PaintMode::Tile;
 
     // Return state
-    LocationKey return_key_ = {0, 0, 0, false, 0, 0, 0, 0, 0};
+    LocationKey return_key_ = {0, 0, 0, false, 0, 0, 0};
     int return_x_ = 0, return_y_ = 0;
     SurfaceMode return_surface_ = SurfaceMode::Dungeon;
 
