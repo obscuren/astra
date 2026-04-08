@@ -310,9 +310,10 @@ void BspGenerator::generate(TileMap& map, RuinPlan& plan,
     // 3. Subdivide recursively (base max depth = 3)
     subdivide(plan.bsp_nodes, 0, 3, nuclei, plan.civ.split_regularity, rng);
 
-    // 4. Place IndoorFloor in all leaf areas
+    // 4. Place IndoorFloor only in nucleus leaf areas (deep interior rooms).
+    //    Shallow leaves keep their natural terrain — the ruin walls cut through it.
     for (const auto& node : plan.bsp_nodes) {
-        if (!node.is_leaf) continue;
+        if (!node.is_leaf || !node.is_nucleus) continue;
         for (int y = node.area.y; y < node.area.y + node.area.h; ++y) {
             for (int x = node.area.x; x < node.area.x + node.area.w; ++x) {
                 if (x < 0 || x >= map.width() || y < 0 || y >= map.height())
