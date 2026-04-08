@@ -18,6 +18,9 @@ private:
 
     void materialize_walls(TileMap& map, const RuinPlan& plan) const;
 
+    void generate_noise_walls(TileMap& map, const RuinPlan& plan,
+                              const std::vector<Rect>& nucleus_zones) const;
+
     int nucleus_depth(int base_depth, int x, int y,
                       const std::vector<std::pair<int,int>>& nuclei,
                       int radius) const;

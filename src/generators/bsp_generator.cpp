@@ -347,6 +347,110 @@ void BspGenerator::materialize_walls(TileMap& map,
     }
 }
 
+// --- generate_noise_walls ---
+// Outdoor partition walls using ridge noise. Creates organic wall lines
+// that curve, branch, and dead-end through the natural terrain.
+
+void BspGenerator::generate_noise_walls(TileMap& map, const RuinPlan& plan,
+                                        const std::vector<Rect>& nucleus_zones) const {
+    const auto& fp = plan.footprint;
+    unsigned seed = static_cast<unsigned>(fp.x * 73856093u ^ fp.y * 19349663u);
+
+    int base_thick = static_cast<int>(
+        base_thick_for_depth(0) * plan.civ.wall_thickness_bias);
+    base_thick = std::clamp(base_thick, 2, plan.civ.max_wall_thickness);
+
+    // Use two overlapping ridge noise layers at different scales and angles
+    // to create a network of intersecting wall lines
+    float scale1 = 0.02f + plan.civ.split_regularity * 0.01f;
+    float scale2 = 0.015f;
+    float threshold = 0.72f;  // higher = fewer, more distinct walls
+
+    for (int y = fp.y; y < fp.y + fp.h; ++y) {
+        for (int x = fp.x; x < fp.x + fp.w; ++x) {
+            if (x < 0 || x >= map.width() || y < 0 || y >= map.height())
+                continue;
+            if (map.get(x, y) == Tile::Water) continue;
+
+            // Skip nucleus zones — BSP handles those
+            bool in_nucleus = false;
+            for (const auto& nz : nucleus_zones) {
+                if (nz.contains(x, y)) { in_nucleus = true; break; }
+            }
+            if (in_nucleus) continue;
+
+            // Layer 1: horizontal-ish walls
+            float n1 = ridge_noise(static_cast<float>(x), static_cast<float>(y),
+                                   seed, scale1, 4);
+            // Layer 2: vertical-ish walls (rotated coordinates)
+            float n2 = ridge_noise(static_cast<float>(y) * 0.7f,
+                                   static_cast<float>(x) * 0.7f,
+                                   seed + 9973u, scale2, 4);
+
+            // Combine: wall where either layer has a ridge
+            float wall_val = std::max(n1, n2);
+
+            if (wall_val > threshold) {
+                // Thickness modulated by how far above threshold
+                float excess = (wall_val - threshold) / (1.0f - threshold);
+                int thick = std::max(1, static_cast<int>(base_thick * excess));
+
+                // Place wall at this position (thick walls extend in the
+                // direction perpendicular to the dominant ridge)
+                map.set(x, y, Tile::Wall);
+                map.set_custom_flag(x, y, CF_RUIN_TINT);
+                set_ruin_civ(map, x, y, plan.civ.civ_index);
+            }
+        }
+    }
+
+    // Carve passages through the noise walls for navigability.
+    // Place 8-15 random corridor cuts across the map.
+    std::mt19937 gap_rng(seed + 42u);
+    float dm = plan.decay_modifier;
+    int num_corridors = 8 + static_cast<int>(dm * 7.0f);
+    std::uniform_int_distribution<int> x_dist(fp.x, fp.x + fp.w - 1);
+    std::uniform_int_distribution<int> y_dist(fp.y, fp.y + fp.h - 1);
+
+    for (int c = 0; c < num_corridors; ++c) {
+        // Random corridor: either horizontal or vertical
+        bool horizontal = std::uniform_int_distribution<int>(0, 1)(gap_rng);
+        int gap_width = 2 + static_cast<int>(dm * 2.0f);
+
+        if (horizontal) {
+            int cy = y_dist(gap_rng);
+            int cx_start = x_dist(gap_rng);
+            int length = 15 + std::uniform_int_distribution<int>(0, 30)(gap_rng);
+            for (int dx = 0; dx < length; ++dx) {
+                for (int dy = 0; dy < gap_width; ++dy) {
+                    int gx = cx_start + dx;
+                    int gy = cy + dy;
+                    if (gx < 0 || gx >= map.width() || gy < 0 || gy >= map.height())
+                        continue;
+                    if (map.get(gx, gy) == Tile::Wall) {
+                        map.set(gx, gy, Tile::Floor);
+                    }
+                }
+            }
+        } else {
+            int cx = x_dist(gap_rng);
+            int cy_start = y_dist(gap_rng);
+            int length = 10 + std::uniform_int_distribution<int>(0, 20)(gap_rng);
+            for (int dy = 0; dy < length; ++dy) {
+                for (int dx = 0; dx < gap_width; ++dx) {
+                    int gx = cx + dx;
+                    int gy = cy_start + dy;
+                    if (gx < 0 || gx >= map.width() || gy < 0 || gy >= map.height())
+                        continue;
+                    if (map.get(gx, gy) == Tile::Wall) {
+                        map.set(gx, gy, Tile::Floor);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // --- generate ---
 
 void BspGenerator::generate(TileMap& map, RuinPlan& plan,
@@ -356,6 +460,7 @@ void BspGenerator::generate(TileMap& map, RuinPlan& plan,
     // 1. Pick 2-4 nucleus points within the central 50% of the footprint
     int num_nuclei = std::uniform_int_distribution<int>(2, 4)(rng);
     std::vector<std::pair<int,int>> nuclei;
+    std::vector<Rect> nucleus_zones;
     int cx0 = fp.x + fp.w / 4;
     int cy0 = fp.y + fp.h / 4;
     int cx1 = fp.x + fp.w * 3 / 4;
@@ -364,33 +469,48 @@ void BspGenerator::generate(TileMap& map, RuinPlan& plan,
         int nx = std::uniform_int_distribution<int>(cx0, std::max(cx0, cx1))(rng);
         int ny = std::uniform_int_distribution<int>(cy0, std::max(cy0, cy1))(rng);
         nuclei.emplace_back(nx, ny);
+        // Define a rectangular zone around each nucleus for BSP
+        int zw = std::uniform_int_distribution<int>(30, 50)(rng);
+        int zh = std::uniform_int_distribution<int>(20, 35)(rng);
+        nucleus_zones.push_back({nx - zw / 2, ny - zh / 2, zw, zh});
     }
 
-    // 2. Init BSP tree with root node
+    // 2. Phase 1: Noise-based outdoor wall network
+    generate_noise_walls(map, plan, nucleus_zones);
+
+    // 3. Phase 2: BSP subdivision for each nucleus zone
     plan.bsp_nodes.clear();
-    BspNode root;
-    root.area = fp;
-    root.depth = 0;
-    plan.bsp_nodes.push_back(root);
+    for (size_t i = 0; i < nucleus_zones.size(); ++i) {
+        auto& nz = nucleus_zones[i];
+        // Clamp to map bounds
+        nz.x = std::max(0, nz.x);
+        nz.y = std::max(0, nz.y);
+        if (nz.x + nz.w > map.width()) nz.w = map.width() - nz.x;
+        if (nz.y + nz.h > map.height()) nz.h = map.height() - nz.y;
 
-    // 3. Subdivide recursively (base max depth = 5)
-    subdivide(plan.bsp_nodes, 0, 5, nuclei, plan.civ.split_regularity, rng);
-
-    // 4. Place IndoorFloor only in nucleus leaf areas (deep interior rooms).
-    //    Shallow leaves keep their natural terrain — the ruin walls cut through it.
-    for (const auto& node : plan.bsp_nodes) {
-        if (!node.is_leaf || !node.is_nucleus) continue;
-        for (int y = node.area.y; y < node.area.y + node.area.h; ++y) {
-            for (int x = node.area.x; x < node.area.x + node.area.w; ++x) {
+        // Place IndoorFloor in nucleus zone
+        for (int y = nz.y; y < nz.y + nz.h; ++y) {
+            for (int x = nz.x; x < nz.x + nz.w; ++x) {
                 if (x < 0 || x >= map.width() || y < 0 || y >= map.height())
                     continue;
                 if (map.get(x, y) == Tile::Water) continue;
                 map.set(x, y, Tile::IndoorFloor);
             }
         }
+
+        // BSP subdivide this zone
+        int root_idx = static_cast<int>(plan.bsp_nodes.size());
+        BspNode root;
+        root.area = nz;
+        root.depth = 2;  // start at depth 2 so walls are thinner (interior)
+        root.is_nucleus = true;
+        plan.bsp_nodes.push_back(root);
+
+        subdivide(plan.bsp_nodes, root_idx, 6, nuclei,
+                  plan.civ.split_regularity, rng);
     }
 
-    // 5. Materialize walls
+    // 4. Materialize BSP walls (only for nucleus interior walls)
     materialize_walls(map, plan);
 }
 
