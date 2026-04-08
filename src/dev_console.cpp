@@ -127,12 +127,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
         log("  history             - show world lore history");
         log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
-        log("                     [ruins [connected]] - generate v2 detail map");
+        log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
         log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
         log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
         log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
         log("    settlement styles: frontier, advanced, ruined (default: frontier)");
-        log("    ruins: generates ruin POI; 'connected' sets all 4 neighbor edges");
+        log("    ruins: generates ruin POI; civ style optional; 'connected' sets all 4 edges");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -220,6 +220,10 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             } else if (args[i] == "ruined") {
                 if (poi_type.empty()) poi_type = "settlement";
                 poi_style = "ruined";
+            } else if (args[i] == "monolithic" || args[i] == "baroque" ||
+                       args[i] == "crystal" || args[i] == "industrial") {
+                if (poi_type.empty()) poi_type = "ruins";
+                poi_style = args[i];
             } else {
                 try { layer = std::stoi(args[i]); } catch (...) {
                     log("Invalid arg: " + args[i]);
@@ -227,13 +231,18 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 }
             }
         }
-        game.dev_command_biome_test(biome, layer, poi_type, poi_style, connected);
+        std::string civ_name;
+        if (poi_type == "ruins") civ_name = poi_style;
+        game.dev_command_biome_test(biome, layer, poi_type,
+                                    poi_type == "ruins" ? "" : poi_style,
+                                    connected, civ_name);
         std::string msg = "Biome test: " + args[1] + " (360x150)";
         if (poi_type == "settlement") {
             std::string style_display = poi_style.empty() ? "frontier" : poi_style;
             msg += " + settlement (" + style_display + ")";
         } else if (poi_type == "ruins") {
             msg += " + ruins";
+            if (!civ_name.empty()) msg += " (" + civ_name + ")";
             if (connected) msg += " (connected)";
         }
         log(msg);

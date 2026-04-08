@@ -137,7 +137,8 @@ public:
     void dev_command_biome_test(Biome biome, int layer,
                                 const std::string& poi_type = "",
                                 const std::string& poi_style = "",
-                                bool connected = false);
+                                bool connected = false,
+                                const std::string& civ_name = "");
 
 private:
     // LocationKey moved to world_manager.h
