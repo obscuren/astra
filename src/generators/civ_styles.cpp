@@ -14,7 +14,7 @@ CivStyle civ_frontier() {
     s.cooking     = FixtureType::CampStove;
     s.knowledge   = FixtureType::BookCabinet;
     s.display     = FixtureType::Rack;
-    s.perimeter_wall = Tile::Wall;
+    s.perimeter_wall = Tile::StructuralWall;
     s.gate        = FixtureType::Gate;
     s.bridge_rail  = FixtureType::BridgeRail;
     s.bridge_floor = FixtureType::BridgeFloor;

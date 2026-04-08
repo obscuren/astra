@@ -359,8 +359,8 @@ MapProperties default_properties(MapType type) {
             p.room_count_min = 0;
             p.room_count_max = 0;
             p.light_bias = 100;
-            p.width = 120;
-            p.height = 50;
+            p.width = 360;
+            p.height = 150;
             break;
     }
     return p;
@@ -377,6 +377,7 @@ std::unique_ptr<MapGenerator> make_hub_station_generator();
 std::unique_ptr<MapGenerator> make_starship_generator();
 std::unique_ptr<MapGenerator> make_overworld_generator();
 std::unique_ptr<MapGenerator> make_detail_map_generator();
+std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
 
 std::unique_ptr<MapGenerator> create_generator(MapType type) {
     switch (type) {
@@ -397,7 +398,7 @@ std::unique_ptr<MapGenerator> create_generator(MapType type) {
         case MapType::Overworld:
             return make_overworld_generator();
         case MapType::DetailMap:
-            return make_detail_map_generator();
+            return make_detail_map_generator_v2();
     }
     return make_station_generator();
 }
