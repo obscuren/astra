@@ -1232,60 +1232,95 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         bool ruin_tint = (seed & 0x80) != 0;
         uint8_t clean_seed = seed & 0x7F;
         if (ruin_tint) {
-            // Extract civ index from bits 4-6
+            // Extract civ index from bits 4-6, neighbor mask from bits 0-3
             int civ = (clean_seed >> 4) & 0x07;
-            uint8_t var = clean_seed & 0x0F;  // low 4 bits for variation
+            uint8_t nb = clean_seed & 0x0F;  // N=1, S=2, E=4, W=8
 
-            // Per-civilization glyph tables
+            // Neighbor-aware pipe glyph lookup for double-line (baroque)
+            // Index by neighbor bitmask: 0=none, 1=N, 2=S, 3=NS, 4=E, ...
+            // Key connections: ║=NS, ═=EW, ╔=SE, ╗=SW, ╚=NE, ╝=NW, ╬=NSEW, etc.
+            static const char* baroque_conn[] = {
+                "\xe2\x96\xa0",  // 0000 isolated -> ■
+                "\xe2\x95\x91",  // 0001 N        -> ║
+                "\xe2\x95\x91",  // 0010 S        -> ║
+                "\xe2\x95\x91",  // 0011 NS       -> ║
+                "\xe2\x95\x90",  // 0100 E        -> ═
+                "\xe2\x95\x9a",  // 0101 NE       -> ╚
+                "\xe2\x95\x94",  // 0110 SE       -> ╔
+                "\xe2\x95\xa0",  // 0111 NSE      -> ╠
+                "\xe2\x95\x90",  // 1000 W        -> ═
+                "\xe2\x95\x9d",  // 1001 NW       -> ╝
+                "\xe2\x95\x97",  // 1010 SW       -> ╗
+                "\xe2\x95\xa3",  // 1011 NSW      -> ╣
+                "\xe2\x95\x90",  // 1100 EW       -> ═
+                "\xe2\x95\xa9",  // 1101 NEW      -> ╩
+                "\xe2\x95\xa6",  // 1110 SEW      -> ╦
+                "\xe2\x95\xac",  // 1111 NSEW     -> ╬
+            };
+
+            // Single-line version (crystal)
+            static const char* crystal_conn[] = {
+                "\xc2\xb7",      // 0000 isolated -> ·
+                "\xe2\x94\x82",  // 0001 N        -> │
+                "\xe2\x94\x82",  // 0010 S        -> │
+                "\xe2\x94\x82",  // 0011 NS       -> │
+                "\xe2\x94\x80",  // 0100 E        -> ─
+                "\xe2\x94\x94",  // 0101 NE       -> └
+                "\xe2\x94\x8c",  // 0110 SE       -> ┌
+                "\xe2\x94\x9c",  // 0111 NSE      -> ├
+                "\xe2\x94\x80",  // 1000 W        -> ─
+                "\xe2\x94\x98",  // 1001 NW       -> ┘
+                "\xe2\x94\x90",  // 1010 SW       -> ┐
+                "\xe2\x94\xa4",  // 1011 NSW      -> ┤
+                "\xe2\x94\x80",  // 1100 EW       -> ─
+                "\xe2\x94\xb4",  // 1101 NEW      -> ┴
+                "\xe2\x94\xac",  // 1110 SEW      -> ┬
+                "\xe2\x94\xbc",  // 1111 NSEW     -> ┼
+            };
+
+            // Block-based civs (monolithic, industrial) — no neighbor awareness
             static const char* monolithic_glyphs[] = {
                 "\xe2\x96\x88", "\xe2\x96\x93", "\xe2\x96\x93",  // █ ▓ ▓
                 "\xe2\x96\x92", "\xe2\x96\x88",                    // ▒ █
-            };
-            static const char* baroque_glyphs[] = {
-                "\xe2\x95\x94", "\xe2\x95\x90", "\xe2\x95\x91",  // ╔ ═ ║
-                "\xe2\x95\xac", "\xe2\x95\xa0",                    // ╬ ╠
-            };
-            static const char* crystal_glyphs[] = {
-                "\xe2\x94\x82", "\xe2\x94\x80", "\xe2\x94\xbc",  // │ ─ ┼
-                "\xe2\x94\x9c", "\xe2\x94\xa4",                    // ├ ┤
             };
             static const char* industrial_glyphs[] = {
                 "\xe2\x96\x93", "\xe2\x96\x88", "\xe2\x96\x91",  // ▓ █ ░
                 "\xe2\x8a\x9e", "\xe2\x8a\xa0",                    // ⊞ ⊠
             };
 
-            const char** glyphs;
+            const char* utf8;
             Color c_primary, c_secondary;
             switch (civ) {
-                case 1:  // Baroque
-                    glyphs = baroque_glyphs;
+                case 1:  // Baroque — connected double-line pipes
+                    utf8 = baroque_conn[nb];
                     c_primary = static_cast<Color>(178);   // warm gold
                     c_secondary = static_cast<Color>(172);  // darker gold
                     break;
-                case 2:  // Crystal
-                    glyphs = crystal_glyphs;
+                case 2:  // Crystal — connected single-line pipes
+                    utf8 = crystal_conn[nb];
                     c_primary = static_cast<Color>(51);    // bright cyan
                     c_secondary = static_cast<Color>(45);   // slightly dimmer cyan
                     break;
-                case 3:  // Industrial
-                    glyphs = industrial_glyphs;
+                case 3:  // Industrial — block elements
+                    utf8 = industrial_glyphs[nb % 5];
                     c_primary = static_cast<Color>(166);   // corroded orange
                     c_secondary = static_cast<Color>(124);  // rust red
                     break;
-                default: // Monolithic (0)
-                    glyphs = monolithic_glyphs;
+                default: // Monolithic — block elements
+                    utf8 = monolithic_glyphs[nb % 5];
                     c_primary = static_cast<Color>(250);   // bright stone
                     c_secondary = static_cast<Color>(245);  // mid gray
                     break;
             }
 
-            const char* utf8 = glyphs[var % 5];
             Color c;
             if (remembered) {
                 c = bc.remembered;
             } else {
-                // Mix primary and secondary with occasional overgrowth
-                switch (var % 6) {
+                // Use position hash for color variation (not nb, which is structural)
+                unsigned color_var = static_cast<unsigned>(
+                    seed & 0x80) ^ (clean_seed * 7u);
+                switch (color_var % 6) {
                     case 0: case 1: case 2: c = c_primary; break;
                     case 3: case 4:         c = c_secondary; break;
                     case 5:                 c = static_cast<Color>(28); break; // mossy

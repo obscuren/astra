@@ -184,7 +184,21 @@ void render_map(const MapRenderContext& rc) {
                         // Encode civ index in bits 4-6
                         uint8_t flags = rc.world.map().get_custom_flags(mx, my);
                         int civ = (flags & 0x1C) >> 2;  // CF_CIV_MASK >> CF_CIV_SHIFT
-                        s = (s & 0x8F) | (static_cast<uint8_t>(civ & 0x07) << 4);
+                        s = (s & 0x80) | (static_cast<uint8_t>(civ & 0x07) << 4);
+                        // Encode wall neighbor mask in bits 0-3 (N=1, S=2, E=4, W=8)
+                        auto is_ruin_wall = [&](int x, int y) {
+                            if (x < 0 || x >= rc.world.map().width() ||
+                                y < 0 || y >= rc.world.map().height()) return false;
+                            Tile t = rc.world.map().get(x, y);
+                            return (t == Tile::Wall || t == Tile::StructuralWall) &&
+                                   rc.world.map().has_custom_flag(x, y, 0x02);
+                        };
+                        uint8_t neighbors = 0;
+                        if (is_ruin_wall(mx, my - 1)) neighbors |= 0x01; // N
+                        if (is_ruin_wall(mx, my + 1)) neighbors |= 0x02; // S
+                        if (is_ruin_wall(mx + 1, my)) neighbors |= 0x04; // E
+                        if (is_ruin_wall(mx - 1, my)) neighbors |= 0x08; // W
+                        s = (s & 0xF0) | neighbors;
                     }
                     desc.seed = s;
                 }
