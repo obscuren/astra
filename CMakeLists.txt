@@ -60,6 +60,7 @@ set(ASTRA_SOURCES
     src/generators/bsp_generator.cpp
     src/generators/room_identifier.cpp
     src/generators/ruin_stamps.cpp
+    src/generators/ruin_generator.cpp
     src/overworld_stamps.cpp
     src/visibility_map.cpp
     src/save_file.cpp
