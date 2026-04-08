@@ -88,7 +88,13 @@ Rect RuinGenerator::generate(TileMap& map, const TerrainChannels& channels,
     plan.footprint = result.footprint;
     plan.civ = std::move(civ);
     plan.stamps = select_stamps(props, rng);
-    plan.base_decay = 0.12f;
+    // Decay modifier: -1 = random (0.3-1.0), 0 = pristine, 1 = max ruin
+    float decay_mod = props.detail_ruin_decay;
+    if (decay_mod < 0.0f) {
+        decay_mod = std::uniform_real_distribution<float>(0.3f, 1.0f)(rng);
+    }
+    plan.decay_modifier = std::clamp(decay_mod, 0.0f, 1.0f);
+    plan.base_decay = 0.12f * plan.decay_modifier;
 
     // Edge connectivity — check if neighboring tiles are also ruins
     plan.edge_n = (props.detail_neighbor_n == Tile::OW_Ruins);
@@ -115,13 +121,15 @@ Rect RuinGenerator::generate(TileMap& map, const TerrainChannels& channels,
     decay_ctx.use_gradient = true;
     decay_ctx.gradient_footprint = plan.footprint;
     decay_ctx.use_sectoral = true;
-    decay_ctx.sectoral_variance = 0.15f;
+    decay_ctx.sectoral_variance = 0.15f * plan.decay_modifier;
 
     RuinDecay decay;
     decay.apply(map, plan.footprint, decay_ctx, props.biome, rng);
 
-    // 9. Post-processing stamps
-    apply_ruin_stamps(map, plan, props.biome, rng);
+    // 9. Post-processing stamps (only if significantly decayed)
+    if (plan.decay_modifier > 0.3f) {
+        apply_ruin_stamps(map, plan, props.biome, rng);
+    }
 
     // 10. Edge continuity for multi-tile ruins
     apply_edge_continuity(map, plan, props);

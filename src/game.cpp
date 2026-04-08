@@ -431,7 +431,8 @@ void Game::dev_command_biome_test(Biome biome, int layer,
                                   const std::string& poi_type,
                                   const std::string& poi_style,
                                   bool connected,
-                                  const std::string& civ_name) {
+                                  const std::string& civ_name,
+                                  float ruin_decay) {
     (void)layer;
     animations_.clear();
     unsigned seed = static_cast<unsigned>(std::time(nullptr));
@@ -459,6 +460,7 @@ void Game::dev_command_biome_test(Biome biome, int layer,
         props.detail_has_poi = true;
         props.detail_poi_type = Tile::OW_Ruins;
         props.detail_ruin_civ = civ_name;
+        props.detail_ruin_decay = ruin_decay;
         props.lore_tier = 1;
         if (connected) {
             props.detail_neighbor_n = Tile::OW_Ruins;

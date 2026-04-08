@@ -204,6 +204,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         std::string poi_type;
         std::string poi_style;
         bool connected = false;
+        float ruin_decay_override = -1.0f;
         for (size_t i = 2; i < args.size(); ++i) {
             if (args[i] == "settlement") {
                 poi_type = "settlement";
@@ -225,7 +226,15 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 if (poi_type.empty()) poi_type = "ruins";
                 poi_style = args[i];
             } else {
-                try { layer = std::stoi(args[i]); } catch (...) {
+                // Try as float first (for ruin decay), then int (for layer)
+                try {
+                    float f = std::stof(args[i]);
+                    if (args[i].find('.') != std::string::npos) {
+                        ruin_decay_override = f;
+                    } else {
+                        layer = static_cast<int>(f);
+                    }
+                } catch (...) {
                     log("Invalid arg: " + args[i]);
                     return;
                 }
@@ -235,7 +244,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if (poi_type == "ruins") civ_name = poi_style;
         game.dev_command_biome_test(biome, layer, poi_type,
                                     poi_type == "ruins" ? "" : poi_style,
-                                    connected, civ_name);
+                                    connected, civ_name, ruin_decay_override);
         std::string msg = "Biome test: " + args[1] + " (360x150)";
         if (poi_type == "settlement") {
             std::string style_display = poi_style.empty() ? "frontier" : poi_style;
@@ -243,6 +252,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         } else if (poi_type == "ruins") {
             msg += " + ruins";
             if (!civ_name.empty()) msg += " (" + civ_name + ")";
+            if (ruin_decay_override >= 0.0f)
+                msg += " decay=" + std::to_string(ruin_decay_override).substr(0, 4);
             if (connected) msg += " (connected)";
         }
         log(msg);

@@ -138,7 +138,8 @@ public:
                                 const std::string& poi_type = "",
                                 const std::string& poi_style = "",
                                 bool connected = false,
-                                const std::string& civ_name = "");
+                                const std::string& civ_name = "",
+                                float ruin_decay = -1.0f);
 
 private:
     // LocationKey moved to world_manager.h

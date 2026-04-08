@@ -168,10 +168,11 @@ void BspGenerator::materialize_walls(TileMap& map,
             * plan.civ.wall_thickness_bias);
         base_thick = std::max(base_thick, 1);
 
-        // For shallow walls: only draw a partial segment (40-80% of span).
-        // This prevents every BSP split from forming a closed rectangle.
-        // Deep walls (nucleus areas) draw full length to form actual rooms.
-        bool partial = (node.depth < 3) && !ca.is_nucleus && !cb.is_nucleus;
+        // For shallow walls: draw a partial segment scaled by decay_modifier.
+        // decay_modifier 0 = full walls, 1 = 40-80% coverage.
+        // Deep walls (nucleus areas) always draw full length.
+        float dm = plan.decay_modifier;
+        bool partial = (node.depth < 3) && !ca.is_nucleus && !cb.is_nucleus && dm > 0.05f;
 
         // Determine wall segment seed for consistent partial placement
         unsigned wall_seed = seed + static_cast<unsigned>(i * 7919u);
@@ -185,9 +186,11 @@ void BspGenerator::materialize_walls(TileMap& map,
             int x0 = full_x0;
             int x1 = full_x1;
             if (partial && span > 20) {
-                // Draw 40-80% of the span, offset randomly
-                float coverage = 0.4f + hash_noise(wall_y, 0,
-                    wall_seed) * 0.4f;
+                // Coverage scales: dm=0 -> 100%, dm=1 -> 40-80%
+                float min_cov = 1.0f - dm * 0.6f;  // 1.0 -> 0.4
+                float max_cov = 1.0f - dm * 0.2f;  // 1.0 -> 0.8
+                float coverage = min_cov + hash_noise(wall_y, 0,
+                    wall_seed) * (max_cov - min_cov);
                 int seg_len = static_cast<int>(span * coverage);
                 int max_offset = span - seg_len;
                 int offset = static_cast<int>(hash_noise(0, wall_y,
@@ -223,8 +226,10 @@ void BspGenerator::materialize_walls(TileMap& map,
             int y0 = full_y0;
             int y1 = full_y1;
             if (partial && span > 20) {
-                float coverage = 0.4f + hash_noise(wall_x, 0,
-                    wall_seed) * 0.4f;
+                float min_cov = 1.0f - dm * 0.6f;
+                float max_cov = 1.0f - dm * 0.2f;
+                float coverage = min_cov + hash_noise(wall_x, 0,
+                    wall_seed) * (max_cov - min_cov);
                 int seg_len = static_cast<int>(span * coverage);
                 int max_offset = span - seg_len;
                 int offset = static_cast<int>(hash_noise(0, wall_x,
@@ -268,18 +273,22 @@ void BspGenerator::materialize_walls(TileMap& map,
             * plan.civ.wall_thickness_bias);
         base_thick = std::max(base_thick, 1);
 
-        // Intentional openings — former doorways and hallways.
-        // Shallow (thick) walls get wide openings like collapsed hallways.
-        // Deep (thin) walls get narrower doorway-sized openings.
+        // Intentional openings — scaled by decay_modifier.
+        // At dm=0 (pristine): no gaps. At dm=1: full gap sizes.
+        float dm = plan.decay_modifier;
         int gap_width;
         int num_gaps;
-        if (node.depth < 2) {
-            gap_width = 4 + static_cast<int>(hash_noise(
-                static_cast<int>(i), 0, seed) * 3.0f);  // 4-6 wide
+        if (dm < 0.05f) {
+            // Pristine: no gaps at all
+            gap_width = 0;
+            num_gaps = 0;
+        } else if (node.depth < 2) {
+            gap_width = 2 + static_cast<int>(dm * (2.0f + hash_noise(
+                static_cast<int>(i), 0, seed) * 3.0f));  // 2-7 scaled by dm
             num_gaps = 1;
         } else if (node.depth < 4) {
-            gap_width = 3;  // corridor-sized
-            num_gaps = 1 + static_cast<int>(hash_noise(
+            gap_width = 2 + static_cast<int>(dm * 1.0f);  // 2-3
+            num_gaps = 1 + static_cast<int>(dm * hash_noise(
                 static_cast<int>(i), 1, seed) * 1.5f);  // 1-2
         } else {
             gap_width = 2;  // doorway

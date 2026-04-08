@@ -86,6 +86,7 @@ struct RuinPlan {
     std::vector<RuinRoom> rooms;
     std::vector<RuinStampConfig> stamps;
     float base_decay = 0.5f;
+    float decay_modifier = 1.0f;  // 0=pristine, 1=max ruin (scales all decay)
 
     // Edge continuity: which edges connect to other ruin tiles
     bool edge_n = false;
