@@ -1,4 +1,5 @@
 #include "astra/bsp_generator.h"
+#include "astra/ruin_decay.h"  // CF_RUIN_TINT
 #include "astra/noise.h"
 
 #include <algorithm>
@@ -188,6 +189,7 @@ void BspGenerator::materialize_walls(TileMap& map,
                     if (x < 0 || x >= map.width()) continue;
                     if (map.get(x, wy) == Tile::Water) continue;
                     map.set(x, wy, Tile::Wall);
+                    map.set_custom_flag(x, wy, CF_RUIN_TINT);
                 }
             }
         } else {
@@ -210,6 +212,7 @@ void BspGenerator::materialize_walls(TileMap& map,
                     if (y < 0 || y >= map.height()) continue;
                     if (map.get(wx, y) == Tile::Water) continue;
                     map.set(wx, y, Tile::Wall);
+                    map.set_custom_flag(wx, y, CF_RUIN_TINT);
                 }
             }
         }

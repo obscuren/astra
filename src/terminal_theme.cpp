@@ -1231,18 +1231,25 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     if (tile == Tile::Wall) {
         bool ruin_tint = (seed & 0x80) != 0;
         uint8_t clean_seed = seed & 0x7F;
-        const char* utf8 = wall_glyph_for_biome(biome, clean_seed);
-        Color c;
         if (ruin_tint && !remembered) {
-            int tint = clean_seed % 3;
+            // Ruin walls: stone-colored, neutral glyph (not biome)
+            static const char* ruin_glyphs[] = {
+                "#", "\xe2\x96\x93", "\xe2\x96\x91",  // # ▓ ░
+            };
+            const char* utf8 = ruin_glyphs[clean_seed % 3];
+            int tint = clean_seed % 5;
+            Color c;
             switch (tint) {
-                case 0: c = bc.wall; break;                           // normal
-                case 1: c = static_cast<Color>(28); break;            // mossy green
-                case 2: c = static_cast<Color>(94); break;            // crumbling brown
+                case 0: c = static_cast<Color>(250); break;  // bright stone
+                case 1: c = static_cast<Color>(245); break;  // mid gray
+                case 2: c = static_cast<Color>(240); break;  // darker gray
+                case 3: c = static_cast<Color>(28); break;   // mossy green (some overgrowth)
+                case 4: c = static_cast<Color>(94); break;   // crumbling brown
             }
-        } else {
-            c = remembered ? bc.remembered : bc.wall;
+            return {'#', utf8, c, Color::Default};
         }
+        const char* utf8 = wall_glyph_for_biome(biome, clean_seed);
+        Color c = remembered ? bc.remembered : bc.wall;
         return {'#', utf8, c, Color::Default};
     }
 
