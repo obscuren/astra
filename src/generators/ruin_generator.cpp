@@ -1,7 +1,7 @@
 #include "astra/ruin_generator.h"
 #include "astra/bsp_generator.h"
 #include "astra/room_identifier.h"
-#include "astra/placement_scorer.h"
+
 #include "astra/ruin_decay.h"
 #include "astra/noise.h"
 
@@ -79,17 +79,16 @@ Rect RuinGenerator::generate(TileMap& map, const TerrainChannels& channels,
     CivConfig civ = select_civ(props, rng, civ_name);
 
     // 2. Determine footprint (80-95% of map)
+    // Ruins are megastructures — they don't need placement scoring.
+    // Just center the footprint with a small margin.
     int margin_x = map.width() / 20;
     int margin_y = map.height() / 20;
     int foot_w = map.width() - margin_x * 2;
     int foot_h = map.height() - margin_y * 2;
 
-    // 3. Score placement
-    PlacementScorer scorer;
-    auto result = scorer.score(channels, map, foot_w, foot_h, margin_x);
-    if (!result.valid) {
-        return Rect{};
-    }
+    PlacementResult result;
+    result.footprint = {margin_x, margin_y, foot_w, foot_h};
+    result.valid = true;
 
     // 4. Build the ruin plan
     RuinPlan plan;
