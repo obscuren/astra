@@ -126,11 +126,13 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
         log("  history             - show world lore history");
-        log("  biome_test <biome> [settlement [style]] - generate v2 detail map");
+        log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
+        log("                     [ruins [connected]] - generate v2 detail map");
         log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
         log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
         log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
         log("    settlement styles: frontier, advanced, ruined (default: frontier)");
+        log("    ruins: generates ruin POI; 'connected' sets all 4 neighbor edges");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -199,20 +201,25 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             return;
         }
         int layer = 0;
-        bool settlement = false;
-        int settlement_style = 0;  // 0=frontier, 1=advanced, 2=ruined
+        std::string poi_type;
+        std::string poi_style;
+        bool connected = false;
         for (size_t i = 2; i < args.size(); ++i) {
             if (args[i] == "settlement") {
-                settlement = true;
+                poi_type = "settlement";
+            } else if (args[i] == "ruins") {
+                poi_type = "ruins";
+            } else if (args[i] == "connected") {
+                connected = true;
             } else if (args[i] == "frontier") {
-                settlement = true;
-                settlement_style = 0;
+                if (poi_type.empty()) poi_type = "settlement";
+                poi_style = "frontier";
             } else if (args[i] == "advanced") {
-                settlement = true;
-                settlement_style = 1;
+                if (poi_type.empty()) poi_type = "settlement";
+                poi_style = "advanced";
             } else if (args[i] == "ruined") {
-                settlement = true;
-                settlement_style = 2;
+                if (poi_type.empty()) poi_type = "settlement";
+                poi_style = "ruined";
             } else {
                 try { layer = std::stoi(args[i]); } catch (...) {
                     log("Invalid arg: " + args[i]);
@@ -220,11 +227,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 }
             }
         }
-        game.dev_command_biome_test(biome, layer, settlement, settlement_style);
+        game.dev_command_biome_test(biome, layer, poi_type, poi_style, connected);
         std::string msg = "Biome test: " + args[1] + " (360x150)";
-        if (settlement) {
-            static const char* style_names[] = {"frontier", "advanced", "ruined"};
-            msg += " + settlement (" + std::string(style_names[settlement_style]) + ")";
+        if (poi_type == "settlement") {
+            std::string style_display = poi_style.empty() ? "frontier" : poi_style;
+            msg += " + settlement (" + style_display + ")";
+        } else if (poi_type == "ruins") {
+            msg += " + ruins";
+            if (connected) msg += " (connected)";
         }
         log(msg);
     }

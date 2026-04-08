@@ -68,6 +68,45 @@ FurniturePalette furniture_palette(BuildingType type, const CivStyle& style) {
                 {PlacementRule::WallUniform, style.storage,        FixtureType::Table,   2, 4, 0.8f},
             };
             break;
+
+        case BuildingType::Temple:
+            pal.groups = {
+                {PlacementRule::Anchor,      FixtureType::Console, FixtureType::Table,   1, 1, 0.7f},
+                {PlacementRule::WallUniform, FixtureType::Conduit, FixtureType::Table,   3, 6, 0.8f},
+                {PlacementRule::Center,      FixtureType::Debris,  FixtureType::Table,   2, 4, 0.9f},
+            };
+            break;
+
+        case BuildingType::Vault:
+            pal.groups = {
+                {PlacementRule::Anchor,      FixtureType::Crate,   FixtureType::Table,   1, 2, 0.8f},
+                {PlacementRule::Corner,      FixtureType::Debris,  FixtureType::Table,   2, 4, 0.9f},
+                {PlacementRule::WallUniform, FixtureType::Shelf,   FixtureType::Table,   1, 3, 0.5f},
+            };
+            break;
+
+        case BuildingType::GreatHall:
+            pal.groups = {
+                {PlacementRule::WallUniform, FixtureType::Conduit, FixtureType::Table,   4, 8, 0.8f},
+                {PlacementRule::Center,      FixtureType::Debris,  FixtureType::Table,   3, 6, 1.0f},
+            };
+            break;
+
+        case BuildingType::Archive:
+            pal.groups = {
+                {PlacementRule::WallShelf,   FixtureType::Shelf,   FixtureType::Shelf,   3, 6, 0.9f},
+                {PlacementRule::Center,      FixtureType::Debris,  FixtureType::Table,   1, 3, 0.7f},
+                {PlacementRule::Anchor,      FixtureType::Console, FixtureType::Table,   1, 1, 0.5f},
+            };
+            break;
+
+        case BuildingType::Observatory:
+            pal.groups = {
+                {PlacementRule::Anchor,      FixtureType::Console, FixtureType::Table,   1, 1, 0.6f},
+                {PlacementRule::Center,      FixtureType::Debris,  FixtureType::Table,   1, 2, 0.8f},
+                {PlacementRule::Corner,      FixtureType::Debris,  FixtureType::Table,   1, 2, 0.7f},
+            };
+            break;
     }
 
     return pal;

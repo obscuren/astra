@@ -20,6 +20,13 @@ enum class BuildingType : uint8_t {
     Lookout,
     Workshop,
     Storage,
+
+    // Ruin structure types
+    Temple,
+    Vault,
+    GreatHall,
+    Archive,
+    Observatory,
 };
 
 enum class AnchorType : uint8_t {
@@ -67,6 +74,8 @@ struct CivStyle {
 CivStyle civ_frontier();
 CivStyle civ_advanced();
 CivStyle civ_ruined();
+CivStyle civ_ruin_default();
+CivStyle civ_ruin_heavy();
 CivStyle select_civ_style(const MapProperties& props);
 
 // --- Furniture ---

@@ -53,6 +53,7 @@ set(ASTRA_SOURCES
     src/generators/building_generator.cpp
     src/generators/path_router.cpp
     src/generators/perimeter_builder.cpp
+    src/generators/ruin_decay.cpp
     src/generators/exterior_decorator.cpp
     src/generators/poi_phase.cpp
     src/overworld_stamps.cpp

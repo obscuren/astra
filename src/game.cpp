@@ -427,8 +427,10 @@ void Game::dev_command_kill_hostiles() {
 // Forward declare v2 generator factory
 std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
 
-void Game::dev_command_biome_test(Biome biome, int layer, bool settlement,
-                                  int settlement_style) {
+void Game::dev_command_biome_test(Biome biome, int layer,
+                                  const std::string& poi_type,
+                                  const std::string& poi_style,
+                                  bool connected) {
     (void)layer;
     animations_.clear();
     unsigned seed = static_cast<unsigned>(std::time(nullptr));
@@ -439,21 +441,28 @@ void Game::dev_command_biome_test(Biome biome, int layer, bool settlement,
     props.height = 150;
     props.light_bias = 100;
 
-    if (settlement) {
+    if (poi_type == "settlement") {
         props.detail_has_poi = true;
         props.detail_poi_type = Tile::OW_Settlement;
-        switch (settlement_style) {
-            case 0:  // frontier
-                props.lore_tier = 1;
-                break;
-            case 1:  // advanced
-                props.lore_tier = 2;
-                props.lore_alien_strength = 0.5f;
-                break;
-            case 2:  // ruined
-                props.lore_tier = 1;
-                props.lore_plague_origin = true;
-                break;
+        if (poi_style == "advanced") {
+            props.lore_tier = 2;
+            props.lore_alien_strength = 0.5f;
+        } else if (poi_style == "ruined") {
+            props.lore_tier = 1;
+            props.lore_plague_origin = true;
+        } else {
+            // frontier (default)
+            props.lore_tier = 1;
+        }
+    } else if (poi_type == "ruins") {
+        props.detail_has_poi = true;
+        props.detail_poi_type = Tile::OW_Ruins;
+        props.lore_tier = 1;
+        if (connected) {
+            props.detail_neighbor_n = Tile::OW_Ruins;
+            props.detail_neighbor_s = Tile::OW_Ruins;
+            props.detail_neighbor_e = Tile::OW_Ruins;
+            props.detail_neighbor_w = Tile::OW_Ruins;
         }
     }
 
@@ -461,19 +470,26 @@ void Game::dev_command_biome_test(Biome biome, int layer, bool settlement,
     auto gen = make_detail_map_generator_v2();
     gen->generate(world_.map(), props, seed);
     world_.map().set_biome(biome);
-    static const char* style_names[] = {"Frontier", "Advanced", "Ruined"};
+
     std::string loc_name = "[DEV] Biome Test: " + biome_profile(biome).name;
-    if (settlement) loc_name += " + " + std::string(style_names[settlement_style])
-                                      + " Settlement";
+    if (poi_type == "settlement") {
+        std::string style_display = poi_style.empty() ? "frontier" : poi_style;
+        // Capitalize first letter
+        if (!style_display.empty())
+            style_display[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(style_display[0])));
+        loc_name += " + " + style_display + " Settlement";
+    } else if (poi_type == "ruins") {
+        loc_name += " + Ruins";
+        if (connected) loc_name += " (connected)";
+    }
     world_.map().set_location_name(loc_name);
 
     world_.map().find_open_spot(player_.x, player_.y);
     world_.npcs().clear();
     world_.ground_items().clear();
 
-    if (settlement) {
+    if (poi_type == "settlement") {
         std::mt19937 npc_rng(seed ^ 0x4E5C5u);
-        // Determine size category
         int size_cat = 0;
         bool harsh = (biome == Biome::Volcanic || biome == Biome::ScarredScorched
                    || biome == Biome::ScarredGlassed || biome == Biome::Ice);
@@ -490,6 +506,11 @@ void Game::dev_command_biome_test(Biome biome, int layer, bool settlement,
         spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
                                   player_.x, player_.y, npc_rng, &player_,
                                   size_cat, sname, biome);
+    } else if (poi_type == "ruins") {
+        std::mt19937 npc_rng(seed ^ 0x4E5C5u);
+        spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
+                                  player_.x, player_.y, npc_rng, &player_,
+                                  0, "Ruined", biome);
     }
 
     world_.visibility() = VisibilityMap(props.width, props.height);

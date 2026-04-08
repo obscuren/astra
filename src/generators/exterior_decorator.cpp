@@ -41,6 +41,11 @@ void ExteriorDecorator::decorate(TileMap& map, const SettlementPlan& plan,
         }
     }
 
+    // Skip all lighting and decoration for ruins — they're abandoned
+    bool is_ruin = (style.name == "RuinDefault" || style.name == "RuinHeavy"
+                 || style.name == "Ruined");
+    if (is_ruin) return;
+
     // --- 2. Path lighting — scan actual Path tiles, place lamps beside them ---
     // Collect all Path tiles in the footprint, then place lamps at intervals
     // next to the path (on adjacent Floor tiles), not ON the path.

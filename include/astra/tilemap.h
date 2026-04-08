@@ -466,11 +466,15 @@ public:
     bool is_hub() const { return hub_; }
     void set_hub(bool h) { hub_ = h; }
 
-    // Custom detail flag — marks overworld tiles as hand-crafted
+    // Custom detail flag — marks overworld tiles as hand-crafted (bit 0)
     bool custom_detail(int x, int y) const;
     void set_custom_detail(int x, int y, bool v);
     const std::vector<uint8_t>& custom_flags() const { return custom_flags_; }
     void load_custom_flags(std::vector<uint8_t> flags) { custom_flags_ = std::move(flags); }
+
+    // Generic custom flag accessors (bitwise)
+    void set_custom_flag(int x, int y, uint8_t bit);
+    bool has_custom_flag(int x, int y, uint8_t bit) const;
 
     // Glyph override layer (for stamp system)
     uint8_t glyph_override(int x, int y) const;

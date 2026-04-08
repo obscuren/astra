@@ -62,6 +62,33 @@ CivStyle civ_ruined() {
     return s;
 }
 
+CivStyle civ_ruin_default() {
+    CivStyle s;
+    s.name = "RuinDefault";
+    s.wall_tile    = Tile::Wall;
+    s.floor_tile   = Tile::IndoorFloor;
+    s.path_tile    = Tile::Path;
+    s.lighting     = FixtureType::Torch;
+    s.storage      = FixtureType::Debris;
+    s.seating      = FixtureType::Debris;
+    s.cooking      = FixtureType::Debris;
+    s.knowledge    = FixtureType::Debris;
+    s.display      = FixtureType::Debris;
+    s.perimeter_wall = Tile::Wall;
+    s.gate         = FixtureType::Gate;
+    s.bridge_rail  = FixtureType::BridgeRail;
+    s.bridge_floor = FixtureType::BridgeFloor;
+    s.decay        = 0.5f;
+    return s;
+}
+
+CivStyle civ_ruin_heavy() {
+    CivStyle s = civ_ruin_default();
+    s.name = "RuinHeavy";
+    s.decay = 0.7f;
+    return s;
+}
+
 CivStyle select_civ_style(const MapProperties& props) {
     if (props.lore_plague_origin) {
         return civ_ruined();

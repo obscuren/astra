@@ -1229,8 +1229,20 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     }
 
     if (tile == Tile::Wall) {
-        const char* utf8 = wall_glyph_for_biome(biome, seed);
-        Color c = remembered ? bc.remembered : bc.wall;
+        bool ruin_tint = (seed & 0x80) != 0;
+        uint8_t clean_seed = seed & 0x7F;
+        const char* utf8 = wall_glyph_for_biome(biome, clean_seed);
+        Color c;
+        if (ruin_tint && !remembered) {
+            int tint = clean_seed % 3;
+            switch (tint) {
+                case 0: c = bc.wall; break;                           // normal
+                case 1: c = static_cast<Color>(28); break;            // mossy green
+                case 2: c = static_cast<Color>(94); break;            // crumbling brown
+            }
+        } else {
+            c = remembered ? bc.remembered : bc.wall;
+        }
         return {'#', utf8, c, Color::Default};
     }
 
