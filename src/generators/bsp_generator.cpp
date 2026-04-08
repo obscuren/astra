@@ -358,11 +358,11 @@ void BspGenerator::generate_noise_walls(TileMap& map, const RuinPlan& plan,
     std::mt19937 rng(seed);
 
     int max_thick = std::clamp(
-        static_cast<int>(base_thick_for_depth(0) * plan.civ.wall_thickness_bias),
-        2, plan.civ.max_wall_thickness);
+        static_cast<int>(base_thick_for_depth(2) * plan.civ.wall_thickness_bias),
+        2, std::min(4, plan.civ.max_wall_thickness));
     int min_thick = std::clamp(
-        static_cast<int>(base_thick_for_depth(3) * plan.civ.wall_thickness_bias),
-        1, plan.civ.max_wall_thickness);
+        static_cast<int>(base_thick_for_depth(4) * plan.civ.wall_thickness_bias),
+        1, std::min(3, plan.civ.max_wall_thickness));
 
     // Helper: place a straight wall segment
     auto place_wall_line = [&](int start_x, int start_y, int length,
