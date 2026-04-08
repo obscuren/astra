@@ -423,6 +423,46 @@ void BspGenerator::generate_noise_walls(TileMap& map, const RuinPlan& plan,
         }
 
         place_wall_line(sx, sy, length, horizontal, thickness);
+
+        // ~25% of segments get a diagonal connector leading to a perpendicular run.
+        // Creates patterns like:  #     or  ####
+        //                          #            #
+        //                           ####         #
+        if (hash_noise(s, 5, seed) < 0.25f) {
+            // Diagonal staircase from the end of this segment
+            int diag_len = 3 + static_cast<int>(hash_noise(s, 6, seed) * 8.0f);
+            int end_x = horizontal ? (sx + length) : sx;
+            int end_y = horizontal ? sy : (sy + length);
+            int dir_x = (hash_noise(s, 7, seed) > 0.5f) ? 1 : -1;
+            int dir_y = (hash_noise(s, 8, seed) > 0.5f) ? 1 : -1;
+
+            // Place diagonal staircase
+            for (int d = 0; d < diag_len; ++d) {
+                int dx2 = end_x + d * dir_x;
+                int dy2 = end_y + d * dir_y;
+                for (int t = 0; t < thickness; ++t) {
+                    int wx = horizontal ? dx2 : (dx2 + t);
+                    int wy = horizontal ? (dy2 + t) : dy2;
+                    if (wx < 0 || wx >= map.width() || wy < 0 || wy >= map.height())
+                        continue;
+                    if (map.get(wx, wy) == Tile::Water) continue;
+                    bool in_nz = false;
+                    for (const auto& nz : nucleus_zones) {
+                        if (nz.contains(wx, wy)) { in_nz = true; break; }
+                    }
+                    if (in_nz) continue;
+                    map.set(wx, wy, Tile::Wall);
+                    map.set_custom_flag(wx, wy, CF_RUIN_TINT);
+                    set_ruin_civ(map, wx, wy, plan.civ.civ_index);
+                }
+            }
+
+            // Perpendicular run after the diagonal
+            int perp_len = 10 + static_cast<int>(hash_noise(s, 9, seed) * 30.0f);
+            int perp_x = end_x + diag_len * dir_x;
+            int perp_y = end_y + diag_len * dir_y;
+            place_wall_line(perp_x, perp_y, perp_len, !horizontal, thickness);
+        }
     }
 
     // Carve passageways through walls for navigability
@@ -547,8 +587,8 @@ void BspGenerator::generate(TileMap& map, RuinPlan& plan,
         int ny = std::uniform_int_distribution<int>(cy0, std::max(cy0, cy1))(rng);
         nuclei.emplace_back(nx, ny);
         // Define a rectangular zone around each nucleus for BSP
-        int zw = std::uniform_int_distribution<int>(30, 50)(rng);
-        int zh = std::uniform_int_distribution<int>(20, 35)(rng);
+        int zw = std::uniform_int_distribution<int>(50, 80)(rng);
+        int zh = std::uniform_int_distribution<int>(30, 50)(rng);
         nucleus_zones.push_back({nx - zw / 2, ny - zh / 2, zw, zh});
     }
 
