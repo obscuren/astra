@@ -834,72 +834,95 @@ void Game::transition_detail_edge(int dx, int dy) {
     int new_zx = world_.zone_x() + dx;
     int new_zy = world_.zone_y() + dy;
 
-    // Check if we're still within the 3x3 zone grid
     bool crossing_overworld = (new_zx < 0 || new_zx >= zones_per_tile ||
                                new_zy < 0 || new_zy >= zones_per_tile);
 
-    int new_ow_x = world_.overworld_x();
-    int new_ow_y = world_.overworld_y();
-    int time_cost = 5; // intra-tile zone transition
+    if (!crossing_overworld) {
+        // INTRA-TILE: same 360x150 map, just change viewport section
+        world_.zone_x() = new_zx;
+        world_.zone_y() = new_zy;
 
-    if (crossing_overworld) {
-        // Wrap zone and shift overworld tile
-        int ow_dx = 0, ow_dy = 0;
-        if (new_zx < 0)             { ow_dx = -1; new_zx = zones_per_tile - 1; }
-        if (new_zx >= zones_per_tile) { ow_dx = 1;  new_zx = 0; }
-        if (new_zy < 0)             { ow_dy = -1; new_zy = zones_per_tile - 1; }
-        if (new_zy >= zones_per_tile) { ow_dy = 1;  new_zy = 0; }
+        // Reposition player at the opposite edge of the new zone section
+        int zone_w = world_.map().width() / zones_per_tile;
+        int zone_h = world_.map().height() / zones_per_tile;
 
-        new_ow_x += ow_dx;
-        new_ow_y += ow_dy;
+        if (dx == 1)       player_.x = new_zx * zone_w + 1;
+        else if (dx == -1) player_.x = new_zx * zone_w + zone_w - 2;
 
-        // Check overworld bounds and passability
-        LocationKey ow_key = {world_.navigation().current_system_id,
-                              world_.navigation().current_body_index,
-                              world_.navigation().current_moon_index,
-                              false, -1, -1, 0};
+        if (dy == 1)       player_.y = new_zy * zone_h + 1;
+        else if (dy == -1) player_.y = new_zy * zone_h + zone_h - 2;
 
-        auto ow_it = world_.location_cache().find(ow_key);
-        if (ow_it == world_.location_cache().end()) {
-            log("You can't go that way.");
-            return;
-        }
+        // Clamp to map bounds
+        player_.x = std::clamp(player_.x, 0, world_.map().width() - 1);
+        player_.y = std::clamp(player_.y, 0, world_.map().height() - 1);
 
-        const auto& ow_map = ow_it->second.map;
-        if (new_ow_x < 0 || new_ow_x >= ow_map.width() ||
-            new_ow_y < 0 || new_ow_y >= ow_map.height()) {
-            log("You've reached the edge of this region.");
-            return;
-        }
+        // Ensure passable
+        if (!world_.map().passable(player_.x, player_.y))
+            world_.map().find_open_spot(player_.x, player_.y);
 
-        Tile dest_tile = ow_map.get(new_ow_x, new_ow_y);
-        if (dest_tile == Tile::OW_Mountains || dest_tile == Tile::OW_Lake) {
-            log("Impassable terrain blocks your path.");
-            return;
-        }
-
-        // Update overworld position on cached map
-        ow_it->second.player_x = new_ow_x;
-        ow_it->second.player_y = new_ow_y;
-
-        time_cost = 15;
-        // Terrain lore halves cross-tile travel
-        Tile dest_ow = ow_map.get(new_ow_x, new_ow_y);
-        SkillId lore = terrain_lore_for(dest_ow);
-        if (static_cast<uint32_t>(lore) != 0 && player_has_skill(player_, lore))
-            time_cost /= 2;
+        world_.current_region() = -1;
+        recompute_fov();
+        compute_camera();
+        check_region_change();
+        advance_world(5);
+        return;
     }
 
-    // Save current zone
+    // CROSS-TILE: leaving this overworld tile entirely
+    int ow_dx = 0, ow_dy = 0;
+    if (new_zx < 0)              { ow_dx = -1; new_zx = zones_per_tile - 1; }
+    if (new_zx >= zones_per_tile) { ow_dx = 1;  new_zx = 0; }
+    if (new_zy < 0)              { ow_dy = -1; new_zy = zones_per_tile - 1; }
+    if (new_zy >= zones_per_tile) { ow_dy = 1;  new_zy = 0; }
+
+    int new_ow_x = world_.overworld_x() + ow_dx;
+    int new_ow_y = world_.overworld_y() + ow_dy;
+
+    // Check overworld bounds and passability
+    LocationKey ow_key = {world_.navigation().current_system_id,
+                          world_.navigation().current_body_index,
+                          world_.navigation().current_moon_index,
+                          false, -1, -1, 0};
+
+    auto ow_it = world_.location_cache().find(ow_key);
+    if (ow_it == world_.location_cache().end()) {
+        log("You can't go that way.");
+        return;
+    }
+
+    const auto& ow_map = ow_it->second.map;
+    if (new_ow_x < 0 || new_ow_x >= ow_map.width() ||
+        new_ow_y < 0 || new_ow_y >= ow_map.height()) {
+        log("You've reached the edge of this region.");
+        return;
+    }
+
+    Tile dest_tile = ow_map.get(new_ow_x, new_ow_y);
+    if (dest_tile == Tile::OW_Mountains || dest_tile == Tile::OW_Lake) {
+        log("Impassable terrain blocks your path.");
+        return;
+    }
+
+    // Update overworld position on cached overworld map
+    ow_it->second.player_x = new_ow_x;
+    ow_it->second.player_y = new_ow_y;
+
+    int time_cost = 15;
+    Tile dest_ow = ow_map.get(new_ow_x, new_ow_y);
+    SkillId lore = terrain_lore_for(dest_ow);
+    if (static_cast<uint32_t>(lore) != 0 && player_has_skill(player_, lore))
+        time_cost /= 2;
+
+    // Save current 360x150 map
     save_current_location();
 
-    // Update position
+    // Update to new overworld tile + zone
     world_.overworld_x() = new_ow_x;
     world_.overworld_y() = new_ow_y;
     world_.zone_x() = new_zx;
     world_.zone_y() = new_zy;
 
-    // Generate or restore the target zone
+    // Generate or restore the neighbor tile's 360x150 map
     auto props = build_detail_props(new_ow_x, new_ow_y);
 
     LocationKey new_detail_key = {world_.navigation().current_system_id,
@@ -915,9 +938,7 @@ void Game::transition_detail_edge(int dx, int dy) {
             ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
             ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(new_ow_x) * 1013u)
-            ^ (static_cast<unsigned>(new_ow_y) * 2039u)
-            ^ (static_cast<unsigned>(new_zx) * 4517u)
-            ^ (static_cast<unsigned>(new_zy) * 5381u);
+            ^ (static_cast<unsigned>(new_ow_y) * 2039u);
 
         world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
@@ -929,22 +950,20 @@ void Game::transition_detail_edge(int dx, int dy) {
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
-    // Place player at opposite edge, preserving position on the other axis
-    int prev_x = player_.x;
-    int prev_y = player_.y;
+    // Place player at matching edge of the new tile
+    int zone_w = world_.map().width() / zones_per_tile;
+    int zone_h = world_.map().height() / zones_per_tile;
 
-    if (dx == -1) player_.x = world_.map().width() - 2;
-    else if (dx == 1) player_.x = 1;
-    else player_.x = std::clamp(prev_x, 1, world_.map().width() - 2);
+    if (dx == 1)       player_.x = new_zx * zone_w + 1;
+    else if (dx == -1) player_.x = new_zx * zone_w + zone_w - 2;
+    else               player_.x = std::clamp(player_.x, new_zx * zone_w, (new_zx + 1) * zone_w - 1);
 
-    if (dy == -1) player_.y = world_.map().height() - 2;
-    else if (dy == 1) player_.y = 1;
-    else player_.y = std::clamp(prev_y, 1, world_.map().height() - 2);
+    if (dy == 1)       player_.y = new_zy * zone_h + 1;
+    else if (dy == -1) player_.y = new_zy * zone_h + zone_h - 2;
+    else               player_.y = std::clamp(player_.y, new_zy * zone_h, (new_zy + 1) * zone_h - 1);
 
-    // Ensure we're on a passable tile
-    if (!world_.map().passable(player_.x, player_.y)) {
+    if (!world_.map().passable(player_.x, player_.y))
         world_.map().find_open_spot(player_.x, player_.y);
-    }
 
     world_.current_region() = -1;
     recompute_fov();
