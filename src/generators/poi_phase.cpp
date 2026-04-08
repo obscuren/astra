@@ -19,6 +19,16 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
         return ruin_gen.generate(map, channels, props, rng, props.detail_ruin_civ);
     }
 
+    // Stubbed POI types — generate terrain only, implementation pending
+    if (props.detail_poi_type == Tile::OW_CrashedShip ||
+        props.detail_poi_type == Tile::OW_Outpost ||
+        props.detail_poi_type == Tile::OW_CaveEntrance ||
+        props.detail_poi_type == Tile::OW_Landing ||
+        props.detail_poi_type == Tile::OW_Beacon ||
+        props.detail_poi_type == Tile::OW_Megastructure) {
+        return {};
+    }
+
     if (props.detail_poi_type != Tile::OW_Settlement)
         return {};
 
