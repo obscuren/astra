@@ -3,6 +3,7 @@
 #include "astra/settlement_types.h"
 #include "astra/lore_types.h"
 
+#include <random>
 #include <string>
 #include <vector>
 
@@ -92,5 +93,9 @@ CivConfig civ_config_crystal();
 CivConfig civ_config_industrial();
 CivConfig civ_config_for_architecture(Architecture arch);
 CivConfig civ_config_by_name(const std::string& name);
+
+// --- Post-processing stamps ---
+void apply_ruin_stamps(TileMap& map, const RuinPlan& plan,
+                       Biome biome, std::mt19937& rng);
 
 } // namespace astra
