@@ -15,6 +15,14 @@ struct DecayContext {
     bool battle_scarred = false;  // future
     int blast_direction = -1;     // future
     bool seismic = false;         // future
+
+    // Gradient decay: edges decay more, interior preserved
+    bool use_gradient = false;
+    Rect gradient_footprint;       // used to compute distance-from-edge
+
+    // Sectoral variance: per-sector random multiplier
+    bool use_sectoral = false;
+    float sectoral_variance = 0.3f;  // max +/- deviation from gradient
 };
 
 class RuinDecay {
