@@ -518,9 +518,7 @@ void Game::enter_detail_map() {
             ^ (static_cast<unsigned>(world_.navigation().current_body_index) * 6271u)
             ^ (static_cast<unsigned>(world_.navigation().current_moon_index + 1) * 3571u)
             ^ (static_cast<unsigned>(world_.overworld_x()) * 1013u)
-            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u)
-            ^ (static_cast<unsigned>(world_.zone_x()) * 4517u)
-            ^ (static_cast<unsigned>(world_.zone_y()) * 5381u);
+            ^ (static_cast<unsigned>(world_.overworld_y()) * 2039u);
 
         world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
         auto gen = create_generator(MapType::DetailMap);
@@ -559,7 +557,8 @@ void Game::enter_detail_map() {
         // Spawn NPCs in settlements and outposts (after player placement)
         std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
         if (props.detail_poi_type == Tile::OW_Settlement) {
-            spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+            spawn_settlement_npcs_v2(world_.map(), world_.npcs(), player_.x, player_.y,
+                                     npc_rng, &player_, 1, "frontier", props.biome);
         } else if (props.detail_poi_type == Tile::OW_Outpost) {
             spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
         }
