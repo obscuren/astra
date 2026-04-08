@@ -88,7 +88,7 @@ Rect RuinGenerator::generate(TileMap& map, const TerrainChannels& channels,
     plan.footprint = result.footprint;
     plan.civ = std::move(civ);
     plan.stamps = select_stamps(props, rng);
-    plan.base_decay = 0.2f;
+    plan.base_decay = 0.12f;
 
     // Edge connectivity — check if neighboring tiles are also ruins
     plan.edge_n = (props.detail_neighbor_n == Tile::OW_Ruins);
@@ -115,7 +115,7 @@ Rect RuinGenerator::generate(TileMap& map, const TerrainChannels& channels,
     decay_ctx.use_gradient = true;
     decay_ctx.gradient_footprint = plan.footprint;
     decay_ctx.use_sectoral = true;
-    decay_ctx.sectoral_variance = 0.3f;
+    decay_ctx.sectoral_variance = 0.15f;
 
     RuinDecay decay;
     decay.apply(map, plan.footprint, decay_ctx, props.biome, rng);

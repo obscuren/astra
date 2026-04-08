@@ -176,11 +176,12 @@ void BspGenerator::materialize_walls(TileMap& map,
 
             for (int x = x0; x < x1; ++x) {
                 // fbm modulates thickness locally
-                float n = fbm(static_cast<float>(x) * 0.15f,
-                              static_cast<float>(wall_y) * 0.15f,
-                              seed + static_cast<unsigned>(i), 0.3f, 3);
+                // Gentle noise — walls stay close to base thickness
+                float n = fbm(static_cast<float>(x) * 0.08f,
+                              static_cast<float>(wall_y) * 0.08f,
+                              seed + static_cast<unsigned>(i), 0.2f, 2);
                 int thick = std::max(1, static_cast<int>(
-                    static_cast<float>(base_thick) * (0.5f + n)));
+                    static_cast<float>(base_thick) * (0.8f + n * 0.4f)));
 
                 int half = thick / 2;
                 for (int dy = -half; dy < thick - half; ++dy) {
