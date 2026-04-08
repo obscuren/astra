@@ -1318,7 +1318,13 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
             Color c;
             if (remembered) {
-                c = bc.remembered;
+                // Use a dark version of the civ color, not biome shadow
+                switch (civ) {
+                    case 1:  c = static_cast<Color>(58); break;   // dark gold
+                    case 2:  c = static_cast<Color>(23); break;   // dark cyan
+                    case 3:  c = static_cast<Color>(52); break;   // dark red
+                    default: c = static_cast<Color>(239); break;  // dark gray
+                }
             } else {
                 // Color variation: mostly primary, some secondary, rare mossy
                 // Use position-based hash (not nb which is structural)
