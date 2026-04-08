@@ -174,6 +174,18 @@ bool TileMap::has_custom_flag(int x, int y, uint8_t bit) const {
     return (custom_flags_[y * width_ + x] & bit) != 0;
 }
 
+uint8_t TileMap::get_custom_flags(int x, int y) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return 0;
+    if (custom_flags_.empty()) return 0;
+    return custom_flags_[y * width_ + x];
+}
+
+void TileMap::set_custom_flags_byte(int x, int y, uint8_t value) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    if (custom_flags_.empty()) custom_flags_.resize(width_ * height_, 0);
+    custom_flags_[y * width_ + x] = value;
+}
+
 void TileMap::find_open_spot(int& out_x, int& out_y) const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {

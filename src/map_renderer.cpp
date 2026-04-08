@@ -181,6 +181,57 @@ void render_map(const MapRenderContext& rc) {
                     if (tile_at == Tile::Wall &&
                         rc.world.map().has_custom_flag(mx, my, 0x02)) {
                         s |= 0x80;  // CF_RUIN_TINT — top bit signals ruin tinting
+                        // Encode civ index in bits 4-6
+                        uint8_t flags = rc.world.map().get_custom_flags(mx, my);
+                        int civ = (flags & 0x1C) >> 2;  // CF_CIV_MASK >> CF_CIV_SHIFT
+                        s = (s & 0x80) | (static_cast<uint8_t>(civ & 0x07) << 4);
+                        // Encode wall neighbor mask in bits 0-3 (N=1, S=2, E=4, W=8)
+                        auto is_ruin_wall = [&](int x, int y) {
+                            if (x < 0 || x >= rc.world.map().width() ||
+                                y < 0 || y >= rc.world.map().height()) return false;
+                            Tile t = rc.world.map().get(x, y);
+                            return (t == Tile::Wall || t == Tile::StructuralWall) &&
+                                   rc.world.map().has_custom_flag(x, y, 0x02);
+                        };
+                        bool n = is_ruin_wall(mx, my - 1);
+                        bool so = is_ruin_wall(mx, my + 1);
+                        bool e = is_ruin_wall(mx + 1, my);
+                        bool w = is_ruin_wall(mx - 1, my);
+
+                        // Detect wall primary axis for pipe rendering.
+                        // A thick wall's interior tiles see neighbors on all sides,
+                        // but cross-axis neighbors are just wall thickness, not junctions.
+                        //
+                        // Check for open (non-wall) space to determine which direction
+                        // this wall faces. "Open" on E or W = vertical wall. Open on
+                        // N or S = horizontal wall. Open on none = interior.
+                        bool open_n = !n;
+                        bool open_s = !so;
+                        bool open_e = !e;
+                        bool open_w = !w;
+
+                        uint8_t neighbors = 0;
+                        if (n && so && e && w) {
+                            // Interior: all 4 walls → solid fill
+                            neighbors = 0x0F;
+                        } else if ((open_e || open_w) && !(open_n || open_s)) {
+                            // Vertical wall edge: has N+S but open on E or W side
+                            // Only report N/S connections, suppress E/W
+                            if (n) neighbors |= 0x01;
+                            if (so) neighbors |= 0x02;
+                        } else if ((open_n || open_s) && !(open_e || open_w)) {
+                            // Horizontal wall edge: has E+W but open on N or S side
+                            // Only report E/W connections, suppress N/S
+                            if (e) neighbors |= 0x04;
+                            if (w) neighbors |= 0x08;
+                        } else {
+                            // Corner or true junction — report all actual neighbors
+                            if (n) neighbors |= 0x01;
+                            if (so) neighbors |= 0x02;
+                            if (e) neighbors |= 0x04;
+                            if (w) neighbors |= 0x08;
+                        }
+                        s = (s & 0xF0) | neighbors;
                     }
                     desc.seed = s;
                 }

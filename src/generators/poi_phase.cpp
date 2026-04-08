@@ -1,5 +1,6 @@
 #include "astra/poi_phase.h"
 #include "astra/placement_scorer.h"
+#include "astra/ruin_generator.h"
 #include "astra/settlement_planner.h"
 #include "astra/building_generator.h"
 #include "astra/path_router.h"
@@ -10,8 +11,15 @@ namespace astra {
 
 Rect poi_phase(TileMap& map, const TerrainChannels& channels,
                const MapProperties& props, std::mt19937& rng) {
-    // Only run for settlement POIs
-    if (!props.detail_has_poi || props.detail_poi_type != Tile::OW_Settlement)
+    if (!props.detail_has_poi)
+        return {};
+
+    if (props.detail_poi_type == Tile::OW_Ruins) {
+        RuinGenerator ruin_gen;
+        return ruin_gen.generate(map, channels, props, rng, props.detail_ruin_civ);
+    }
+
+    if (props.detail_poi_type != Tile::OW_Settlement)
         return {};
 
     // --- Determine footprint size from biome ---

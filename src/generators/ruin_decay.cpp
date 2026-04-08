@@ -1,4 +1,7 @@
 #include "astra/ruin_decay.h"
+#include "astra/noise.h"
+
+#include <algorithm>
 
 namespace astra {
 
@@ -29,13 +32,39 @@ void RuinDecay::apply(TileMap& map, const Rect& footprint,
                       std::mt19937& rng) const {
     std::uniform_real_distribution<float> chance(0.0f, 1.0f);
 
+    auto effective_decay = [&](int x, int y) -> float {
+        if (!ctx.use_gradient) return ctx.age_decay;
+
+        const auto& gf = ctx.gradient_footprint;
+        float dx_left  = static_cast<float>(x - gf.x);
+        float dx_right = static_cast<float>(gf.x + gf.w - 1 - x);
+        float dy_top   = static_cast<float>(y - gf.y);
+        float dy_bot   = static_cast<float>(gf.y + gf.h - 1 - y);
+        float min_edge = std::min({dx_left, dx_right, dy_top, dy_bot});
+        float max_dim  = static_cast<float>(std::max(gf.w, gf.h)) * 0.5f;
+        float depth_ratio = std::clamp(min_edge / max_dim, 0.0f, 1.0f);
+
+        // Gradient: edges (depth_ratio=0) get high decay, center gets low
+        float gradient_decay = ctx.age_decay * (1.5f - depth_ratio);
+
+        // Sectoral variance
+        if (ctx.use_sectoral) {
+            float sector_noise = hash_noise(x / 20, y / 20,
+                static_cast<unsigned>(gf.x * 7919 + gf.y * 104729));
+            float jitter = (sector_noise - 0.5f) * 2.0f * ctx.sectoral_variance;
+            gradient_decay += jitter;
+        }
+
+        return std::clamp(gradient_decay, 0.0f, 0.95f);
+    };
+
     // 1. Extra wall collapse
     for (int y = footprint.y; y < footprint.y + footprint.h; ++y) {
         for (int x = footprint.x; x < footprint.x + footprint.w; ++x) {
             Tile t = map.get(x, y);
             if (!is_wall(t)) continue;
 
-            if (chance(rng) < ctx.age_decay) {
+            if (chance(rng) < effective_decay(x, y)) {
                 map.set(x, y, Tile::Floor);
                 map.add_fixture(x, y, make_fixture(FixtureType::Debris));
             }

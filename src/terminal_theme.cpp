@@ -11,50 +11,53 @@ namespace astra {
 // Biome palette — mirrors biome_colors() in tilemap.cpp
 // ---------------------------------------------------------------------------
 
+// Unified remembered/shadow color — dark navy blue
+static constexpr Color REMEMBERED_COLOR = static_cast<Color>(60);  // 256-color muted slate blue
+
 ThemeBiomeColors biome_palette(Biome biome) {
     switch (biome) {
         case Biome::Station:
-            return {Color::White, Color::Default, Color::Blue, Color::Blue};
+            return {Color::White, Color::Default, Color::Blue, REMEMBERED_COLOR};
         case Biome::Rocky:
-            return {Color::White, Color::DarkGray, Color::Blue, Color::Blue};
+            return {Color::White, Color::DarkGray, Color::Blue, REMEMBERED_COLOR};
         case Biome::Volcanic:
-            return {Color::Red, static_cast<Color>(52), Color::Red, static_cast<Color>(52)};
+            return {Color::Red, static_cast<Color>(52), Color::Red, REMEMBERED_COLOR};
         case Biome::Ice:
-            return {Color::Cyan, Color::White, static_cast<Color>(39), Color::Blue};
+            return {Color::Cyan, Color::White, static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::Sandy:
-            return {Color::Yellow, static_cast<Color>(180), Color::Blue, static_cast<Color>(58)};
+            return {Color::Yellow, static_cast<Color>(180), Color::Blue, REMEMBERED_COLOR};
         case Biome::Aquatic:
-            return {static_cast<Color>(30), static_cast<Color>(24), Color::Blue, static_cast<Color>(24)};
+            return {static_cast<Color>(30), static_cast<Color>(24), Color::Blue, REMEMBERED_COLOR};
         case Biome::Fungal:
-            return {Color::Green, static_cast<Color>(22), Color::Green, static_cast<Color>(22)};
+            return {Color::Green, static_cast<Color>(22), Color::Green, REMEMBERED_COLOR};
         case Biome::Crystal:
-            return {Color::BrightMagenta, Color::Magenta, Color::Magenta, static_cast<Color>(54)};
+            return {Color::BrightMagenta, Color::Magenta, Color::Magenta, REMEMBERED_COLOR};
         case Biome::Corroded:
-            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), static_cast<Color>(58)};
+            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), REMEMBERED_COLOR};
         case Biome::Forest:
-            return {Color::Green, static_cast<Color>(58), Color::Blue, static_cast<Color>(22)};
+            return {Color::Green, static_cast<Color>(58), Color::Blue, REMEMBERED_COLOR};
         case Biome::Grassland:
-            return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
+            return {Color::DarkGray, Color::Green, Color::Blue, REMEMBERED_COLOR};
         case Biome::Jungle:
-            return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
+            return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), REMEMBERED_COLOR};
         case Biome::Marsh:
-            return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), static_cast<Color>(23)};
+            return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), REMEMBERED_COLOR};
         case Biome::AlienCrystalline:
-            return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), Color::Cyan};
+            return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::AlienOrganic:
-            return {Color::Red, Color::Magenta, static_cast<Color>(88), Color::Magenta};
+            return {Color::Red, Color::Magenta, static_cast<Color>(88), REMEMBERED_COLOR};
         case Biome::AlienGeometric:
-            return {Color::Yellow, static_cast<Color>(136), Color::Yellow, static_cast<Color>(136)};
+            return {Color::Yellow, static_cast<Color>(136), Color::Yellow, REMEMBERED_COLOR};
         case Biome::AlienVoid:
-            return {static_cast<Color>(90), Color::DarkGray, Color::Magenta, static_cast<Color>(90)};
+            return {static_cast<Color>(90), Color::DarkGray, Color::Magenta, REMEMBERED_COLOR};
         case Biome::AlienLight:
-            return {static_cast<Color>(228), Color::White, static_cast<Color>(230), Color::Yellow};
+            return {static_cast<Color>(228), Color::White, static_cast<Color>(230), REMEMBERED_COLOR};
         case Biome::ScarredGlassed:
-            return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(136), static_cast<Color>(94)};
+            return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(136), REMEMBERED_COLOR};
         case Biome::ScarredScorched:
-            return {Color::DarkGray, static_cast<Color>(52), Color::DarkGray, static_cast<Color>(52)};
+            return {Color::DarkGray, static_cast<Color>(52), Color::DarkGray, REMEMBERED_COLOR};
     }
-    return {Color::White, Color::Default, Color::Blue, Color::Blue};
+    return {Color::White, Color::Default, Color::Blue, REMEMBERED_COLOR};
 }
 
 // ---------------------------------------------------------------------------
@@ -1231,18 +1234,115 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     if (tile == Tile::Wall) {
         bool ruin_tint = (seed & 0x80) != 0;
         uint8_t clean_seed = seed & 0x7F;
-        const char* utf8 = wall_glyph_for_biome(biome, clean_seed);
-        Color c;
-        if (ruin_tint && !remembered) {
-            int tint = clean_seed % 3;
-            switch (tint) {
-                case 0: c = bc.wall; break;                           // normal
-                case 1: c = static_cast<Color>(28); break;            // mossy green
-                case 2: c = static_cast<Color>(94); break;            // crumbling brown
+        if (ruin_tint) {
+            // Extract civ index from bits 4-6, neighbor mask from bits 0-3
+            int civ = (clean_seed >> 4) & 0x07;
+            uint8_t nb = clean_seed & 0x0F;  // N=1, S=2, E=4, W=8
+
+            // Neighbor-aware pipe glyph lookup for double-line (baroque)
+            // Index by neighbor bitmask: 0=none, 1=N, 2=S, 3=NS, 4=E, ...
+            // Key connections: ║=NS, ═=EW, ╔=SE, ╗=SW, ╚=NE, ╝=NW, ╬=NSEW, etc.
+            static const char* baroque_conn[] = {
+                "\xe2\x96\xa0",  // 0000 isolated -> ■
+                "\xe2\x95\x91",  // 0001 N        -> ║
+                "\xe2\x95\x91",  // 0010 S        -> ║
+                "\xe2\x95\x91",  // 0011 NS       -> ║
+                "\xe2\x95\x90",  // 0100 E        -> ═
+                "\xe2\x95\x9a",  // 0101 NE       -> ╚
+                "\xe2\x95\x94",  // 0110 SE       -> ╔
+                "\xe2\x95\xa0",  // 0111 NSE      -> ╠
+                "\xe2\x95\x90",  // 1000 W        -> ═
+                "\xe2\x95\x9d",  // 1001 NW       -> ╝
+                "\xe2\x95\x97",  // 1010 SW       -> ╗
+                "\xe2\x95\xa3",  // 1011 NSW      -> ╣
+                "\xe2\x95\x90",  // 1100 EW       -> ═
+                "\xe2\x95\xa9",  // 1101 NEW      -> ╩
+                "\xe2\x95\xa6",  // 1110 SEW      -> ╦
+                "\xe2\x95\xac",  // 1111 NSEW     -> ╬
+            };
+
+            // Single-line version (crystal)
+            static const char* crystal_conn[] = {
+                "\xc2\xb7",      // 0000 isolated -> ·
+                "\xe2\x94\x82",  // 0001 N        -> │
+                "\xe2\x94\x82",  // 0010 S        -> │
+                "\xe2\x94\x82",  // 0011 NS       -> │
+                "\xe2\x94\x80",  // 0100 E        -> ─
+                "\xe2\x94\x94",  // 0101 NE       -> └
+                "\xe2\x94\x8c",  // 0110 SE       -> ┌
+                "\xe2\x94\x9c",  // 0111 NSE      -> ├
+                "\xe2\x94\x80",  // 1000 W        -> ─
+                "\xe2\x94\x98",  // 1001 NW       -> ┘
+                "\xe2\x94\x90",  // 1010 SW       -> ┐
+                "\xe2\x94\xa4",  // 1011 NSW      -> ┤
+                "\xe2\x94\x80",  // 1100 EW       -> ─
+                "\xe2\x94\xb4",  // 1101 NEW      -> ┴
+                "\xe2\x94\xac",  // 1110 SEW      -> ┬
+                "\xe2\x94\xbc",  // 1111 NSEW     -> ┼
+            };
+
+            // Block-based civs (monolithic, industrial) — no neighbor awareness
+            static const char* monolithic_glyphs[] = {
+                "\xe2\x96\x88", "\xe2\x96\x93", "\xe2\x96\x93",  // █ ▓ ▓
+                "\xe2\x96\x92", "\xe2\x96\x88",                    // ▒ █
+            };
+            static const char* industrial_glyphs[] = {
+                "\xe2\x96\x93", "\xe2\x96\x88", "\xe2\x96\x91",  // ▓ █ ░
+                "\xe2\x8a\x9e", "\xe2\x8a\xa0",                    // ⊞ ⊠
+            };
+
+            const char* utf8;
+            Color c_primary, c_secondary;
+            // Interior tiles of thick walls → solid fill
+            static const char* solid_fill = "\xe2\x96\x88";  // █
+
+            switch (civ) {
+                case 1:  // Baroque — connected double-line pipes
+                    utf8 = (nb == 0x0F) ? solid_fill : baroque_conn[nb];
+                    c_primary = static_cast<Color>(178);   // warm gold
+                    c_secondary = static_cast<Color>(172);  // darker gold
+                    break;
+                case 2:  // Crystal — connected single-line pipes
+                    utf8 = (nb == 0x0F) ? solid_fill : crystal_conn[nb];
+                    c_primary = static_cast<Color>(51);    // bright cyan
+                    c_secondary = static_cast<Color>(45);   // slightly dimmer cyan
+                    break;
+                case 3:  // Industrial — block elements
+                    utf8 = industrial_glyphs[nb % 5];
+                    c_primary = static_cast<Color>(166);   // corroded orange
+                    c_secondary = static_cast<Color>(124);  // rust red
+                    break;
+                default: // Monolithic — block elements
+                    utf8 = monolithic_glyphs[nb % 5];
+                    c_primary = static_cast<Color>(250);   // bright stone
+                    c_secondary = static_cast<Color>(245);  // mid gray
+                    break;
             }
-        } else {
-            c = remembered ? bc.remembered : bc.wall;
+
+            Color c;
+            if (remembered) {
+                c = REMEMBERED_COLOR;
+            } else {
+                // Color variation: mostly primary, some secondary, rare mossy
+                // Use position-based hash (not nb which is structural)
+                unsigned color_var = static_cast<unsigned>(
+                    (seed >> 4) * 7u + (seed & 0x0F) * 13u);
+                if (civ == 0) {
+                    // Monolithic: gray with some mossy/brown
+                    switch (color_var % 6) {
+                        case 0: case 1: case 2: c = c_primary; break;
+                        case 3: case 4:         c = c_secondary; break;
+                        case 5:                 c = static_cast<Color>(28); break;
+                    }
+                } else {
+                    // Colored civs: stick to their palette, no mossy
+                    c = (color_var % 3 == 0) ? c_secondary : c_primary;
+                }
+            }
+            return {'#', utf8, c, Color::Default};
         }
+        const char* utf8 = wall_glyph_for_biome(biome, clean_seed);
+        Color c = remembered ? bc.remembered : bc.wall;
         return {'#', utf8, c, Color::Default};
     }
 

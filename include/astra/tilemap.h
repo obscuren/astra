@@ -475,6 +475,8 @@ public:
     // Generic custom flag accessors (bitwise)
     void set_custom_flag(int x, int y, uint8_t bit);
     bool has_custom_flag(int x, int y, uint8_t bit) const;
+    uint8_t get_custom_flags(int x, int y) const;
+    void set_custom_flags_byte(int x, int y, uint8_t value);
 
     // Glyph override layer (for stamp system)
     uint8_t glyph_override(int x, int y) const;

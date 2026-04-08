@@ -56,6 +56,11 @@ set(ASTRA_SOURCES
     src/generators/ruin_decay.cpp
     src/generators/exterior_decorator.cpp
     src/generators/poi_phase.cpp
+    src/generators/ruin_civ_configs.cpp
+    src/generators/bsp_generator.cpp
+    src/generators/room_identifier.cpp
+    src/generators/ruin_stamps.cpp
+    src/generators/ruin_generator.cpp
     src/overworld_stamps.cpp
     src/visibility_map.cpp
     src/save_file.cpp

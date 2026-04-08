@@ -5,6 +5,7 @@
 #include "astra/tilemap.h"
 
 #include <cstdint>
+#include <string>
 
 namespace astra {
 
@@ -82,6 +83,8 @@ struct MapProperties {
     bool detail_has_poi = false;
     Tile detail_poi_type = Tile::Empty;
     bool detail_is_custom = false;  // hand-crafted zone (skip generator)
+    std::string detail_ruin_civ;   // dev-mode: force specific ruin civilization
+    float detail_ruin_decay = -1.0f;  // dev-mode: 0=pristine, 1=max decay, -1=random
 };
 
 MapProperties default_properties(MapType type);
