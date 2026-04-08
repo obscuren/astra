@@ -166,7 +166,7 @@ void BspGenerator::materialize_walls(TileMap& map,
         int base_thick = static_cast<int>(
             static_cast<float>(base_thick_for_depth(node.depth))
             * plan.civ.wall_thickness_bias);
-        base_thick = std::max(base_thick, 1);
+        base_thick = std::clamp(base_thick, 1, plan.civ.max_wall_thickness);
 
         // For shallow walls: draw a partial segment scaled by decay_modifier.
         // decay_modifier 0 = full walls, 1 = 40-80% coverage.
@@ -271,18 +271,14 @@ void BspGenerator::materialize_walls(TileMap& map,
         int base_thick = static_cast<int>(
             static_cast<float>(base_thick_for_depth(node.depth))
             * plan.civ.wall_thickness_bias);
-        base_thick = std::max(base_thick, 1);
+        base_thick = std::clamp(base_thick, 1, plan.civ.max_wall_thickness);
 
-        // Intentional openings — scaled by decay_modifier.
-        // At dm=0 (pristine): no gaps. At dm=1: full gap sizes.
+        // Intentional openings — passageways always exist (structural).
+        // Decay modifier scales the WIDTH of openings, not their existence.
         float dm = plan.decay_modifier;
         int gap_width;
         int num_gaps;
-        if (dm < 0.05f) {
-            // Pristine: no gaps at all
-            gap_width = 0;
-            num_gaps = 0;
-        } else if (node.depth < 2) {
+        if (node.depth < 2) {
             gap_width = 2 + static_cast<int>(dm * (2.0f + hash_noise(
                 static_cast<int>(i), 0, seed) * 3.0f));  // 2-7 scaled by dm
             num_gaps = 1;

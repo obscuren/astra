@@ -34,6 +34,7 @@ struct CivConfig {
 
     // Architectural tendencies
     float wall_thickness_bias = 1.0f;  // multiplier on base thickness (>1 = thicker)
+    int max_wall_thickness    = 99;    // cap for pipe-style civs (1 = single-line)
     float split_regularity    = 0.5f;  // 0 = organic BSP, 1 = geometric BSP
 
     // Room preferences (weighted)
