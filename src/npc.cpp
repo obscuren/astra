@@ -108,6 +108,8 @@ Npc create_npc(NpcRole npc_role, Race race, std::mt19937& rng) {
         case NpcRole::Engineer:      return build_engineer(race, rng);
         case NpcRole::Nova:          return build_nova();
         case NpcRole::Civilian:      return build_civilian(race, rng);
+        case NpcRole::Scavenger:     return build_scavenger(race, rng);
+        case NpcRole::Prospector:    return build_prospector(race, rng);
     }
     return {};
 }

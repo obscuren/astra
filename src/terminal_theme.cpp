@@ -970,7 +970,7 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
         case FixtureType::DataTerminal:
             vis = {'#', "\xe2\x95\xac", Color::Cyan, Color::Default}; break;            // ╬ data terminal
         case FixtureType::Bench:
-            vis = {'=', "\xe2\x95\x90", static_cast<Color>(137), Color::Default}; break; // ═ tan bench
+            vis = {'|', "\xe2\x95\x91", static_cast<Color>(137), Color::Default}; break; // ║ tan bench
         case FixtureType::Chair:
             vis = {'h', nullptr, Color::White, Color::Default}; break;
         case FixtureType::Gate:
@@ -1008,6 +1008,8 @@ static ResolvedVisual resolve_npc(uint16_t type_id, uint8_t seed, uint8_t /*flag
         case NpcRole::Astronomer:    return {'P', nullptr, Color::Cyan, Color::Default};
         case NpcRole::Engineer:      return {'E', nullptr, Color::Yellow, Color::Default};
         case NpcRole::Nova:          return {'N', nullptr, static_cast<Color>(135), Color::Default};
+        case NpcRole::Scavenger:     return {'S', nullptr, Color::Yellow, Color::Default};
+        case NpcRole::Prospector:    return {'P', nullptr, Color::White, Color::Default};
         case NpcRole::Civilian: {
             auto race = static_cast<Race>(seed);
             switch (race) {
@@ -1423,7 +1425,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::Locker:          return '=';
         case FixtureType::BookCabinet:     return '[';
         case FixtureType::DataTerminal:    return '#';
-        case FixtureType::Bench:           return '=';
+        case FixtureType::Bench:           return '|';
         case FixtureType::Chair:           return 'h';
         case FixtureType::Gate:            return '/';
         case FixtureType::BridgeRail:      return '|';
@@ -1446,6 +1448,8 @@ char npc_glyph(NpcRole role, Race race) {
         case NpcRole::Astronomer:    return 'P';
         case NpcRole::Engineer:      return 'E';
         case NpcRole::Nova:          return 'N';
+        case NpcRole::Scavenger:     return 'S';
+        case NpcRole::Prospector:    return 'P';
         case NpcRole::Civilian: {
             switch (race) {
                 case Race::Human:     return 'H';

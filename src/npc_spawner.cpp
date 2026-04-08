@@ -2,7 +2,37 @@
 #include "astra/npc_defs.h"
 #include "astra/player.h"
 
+#include <algorithm>
+
 namespace astra {
+
+// ---------------------------------------------------------------------------
+// find_walkable_in_bounds — reusable NPC placement within a rect
+// ---------------------------------------------------------------------------
+
+bool find_walkable_in_bounds(const TileMap& map, const Rect& bounds,
+                              int& out_x, int& out_y,
+                              const std::vector<std::pair<int,int>>& occupied,
+                              std::mt19937& rng) {
+    std::vector<std::pair<int,int>> candidates;
+    for (int y = bounds.y; y < bounds.y + bounds.h; ++y) {
+        for (int x = bounds.x; x < bounds.x + bounds.w; ++x) {
+            if (x < 0 || x >= map.width() || y < 0 || y >= map.height()) continue;
+            if (!map.passable(x, y)) continue;
+            bool taken = false;
+            for (auto& [ox, oy] : occupied) {
+                if (ox == x && oy == y) { taken = true; break; }
+            }
+            if (!taken) candidates.push_back({x, y});
+        }
+    }
+    if (candidates.empty()) return false;
+    std::uniform_int_distribution<int> pick(0, static_cast<int>(candidates.size()) - 1);
+    auto [px, py] = candidates[pick(rng)];
+    out_x = px;
+    out_y = py;
+    return true;
+}
 
 void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                     int player_x, int player_y, std::mt19937& rng,
@@ -100,8 +130,8 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
 static bool find_floor_near(const TileMap& map, int fx, int fy,
                             int& out_x, int& out_y,
                             const std::vector<std::pair<int,int>>& occupied) {
-    // Search tiles within radius 2 for a walkable indoor/outdoor floor
-    for (int r = 1; r <= 2; ++r) {
+    // Search tiles within radius 5 for a walkable floor
+    for (int r = 1; r <= 5; ++r) {
         for (int dy = -r; dy <= r; ++dy) {
             for (int dx = -r; dx <= r; ++dx) {
                 if (dx == 0 && dy == 0) continue;
@@ -110,7 +140,15 @@ static bool find_floor_near(const TileMap& map, int fx, int fy,
                 if (nx < 0 || ny < 0 || nx >= map.width() || ny >= map.height())
                     continue;
                 Tile t = map.get(nx, ny);
-                if (t != Tile::IndoorFloor && t != Tile::Floor) continue;
+                // Accept any walkable tile: floor, indoor floor, path, or
+                // passable fixtures (furniture tiles set by add_fixture)
+                bool walkable = (t == Tile::Floor || t == Tile::IndoorFloor
+                              || t == Tile::Path);
+                if (!walkable && t == Tile::Fixture) {
+                    int fid = map.fixture_id(nx, ny);
+                    walkable = (fid >= 0 && map.fixture(fid).passable);
+                }
+                if (!walkable) continue;
                 // Not occupied
                 bool taken = false;
                 for (auto& p : occupied) {
@@ -273,6 +311,226 @@ void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
             occupied.push_back({patrol.x, patrol.y});
             npcs.push_back(std::move(patrol));
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Settlement NPC spawning V2 — civ-style-aware roles and scaling
+// ---------------------------------------------------------------------------
+
+void spawn_settlement_npcs_v2(TileMap& map, std::vector<Npc>& npcs,
+                               int player_x, int player_y,
+                               std::mt19937& rng, const Player* player,
+                               int size_category,
+                               const std::string& style_name,
+                               Biome biome) {
+    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
+    std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
+    bool ruined = (style_name == "Ruined");
+
+    // Use poi_bounds from the map for constrained NPC placement
+    Rect bounds = map.poi_bounds();
+    // Fallback: if no bounds set, use a generous center region
+    if (bounds.empty()) {
+        bounds = {map.width() / 4, map.height() / 4,
+                  map.width() / 2, map.height() / 2};
+    }
+
+    auto place_near = [&](Npc npc, int fx, int fy) -> bool {
+        if (find_floor_near(map, fx, fy, npc.x, npc.y, occupied)) {
+            occupied.push_back({npc.x, npc.y});
+            npcs.push_back(std::move(npc));
+            return true;
+        }
+        return false;
+    };
+
+    auto place_anywhere = [&](Npc npc) -> bool {
+        if (find_walkable_in_bounds(map, bounds, npc.x, npc.y, occupied, rng)) {
+            occupied.push_back({npc.x, npc.y});
+            npcs.push_back(std::move(npc));
+            return true;
+        }
+        return false;
+    };
+
+    int placed = 0;
+
+    // --- Target count ---
+    int target_min = 0, target_max = 0;
+    switch (size_category) {
+        case 0: target_min = 4;  target_max = 6;  break;
+        case 1: target_min = 7;  target_max = 10; break;
+        default: target_min = 11; target_max = 15; break;
+    }
+    if (ruined) {
+        target_min /= 2;
+        target_max /= 2;
+    }
+    std::uniform_int_distribution<int> target_dist(target_min, target_max);
+    int target = target_dist(rng);
+
+    // --- Fixed: Leader near Console ---
+    auto [cx, cy] = find_fixture_pos(map, FixtureType::Console);
+    if (cx >= 0) {
+        Npc leader = ruined ? build_scavenger(pick_friendly_race(rng), rng)
+                            : build_commander(pick_friendly_race(rng), rng);
+        if (place_near(std::move(leader), cx, cy)) ++placed;
+    }
+
+    // --- Fixed: Trader near Table ---
+    auto [tx, ty] = find_fixture_pos(map, FixtureType::Table);
+    if (tx >= 0) {
+        std::uniform_int_distribution<int> trader_pick(0, 2);
+        Npc trader;
+        Race r = pick_friendly_race(rng);
+        switch (trader_pick(rng)) {
+            case 0: trader = build_merchant(r, rng, kreth_rep); break;
+            case 1: trader = build_food_merchant(r, rng, kreth_rep); break;
+            default: trader = build_arms_dealer(r, rng, kreth_rep); break;
+        }
+        if (place_near(std::move(trader), tx, ty)) ++placed;
+    }
+
+    // --- Optional roles ---
+    int opt_min = 0, opt_max = 0;
+    switch (size_category) {
+        case 0: opt_min = 1; opt_max = 2; break;
+        case 1: opt_min = 2; opt_max = 4; break;
+        default: opt_min = 3; opt_max = 5; break;
+    }
+    std::uniform_int_distribution<int> opt_dist(opt_min, opt_max);
+    int opt_slots = opt_dist(rng);
+
+    bool is_rocky = (biome == Biome::Rocky || biome == Biome::Volcanic || biome == Biome::Sandy);
+
+    // Weight table: {role_builder, weight, fixture_type}
+    struct OptionalRole {
+        enum Kind { Medic, Engineer, Astronomer, ArmsDealer, FoodMerchant,
+                    Drifter, Scavenger, Prospector } kind;
+        int weight;
+    };
+
+    std::vector<OptionalRole> pool;
+    if (style_name == "Frontier") {
+        pool = {
+            {OptionalRole::Medic, 40},
+            {OptionalRole::Engineer, 20},
+            {OptionalRole::Astronomer, 10},
+            {OptionalRole::ArmsDealer, 30},
+            {OptionalRole::FoodMerchant, 50},
+            {OptionalRole::Drifter, 30},
+        };
+        if (is_rocky) pool.push_back({OptionalRole::Prospector, 20});
+    } else if (style_name == "Advanced") {
+        pool = {
+            {OptionalRole::Medic, 60},
+            {OptionalRole::Engineer, 60},
+            {OptionalRole::Astronomer, 50},
+            {OptionalRole::ArmsDealer, 40},
+            {OptionalRole::FoodMerchant, 30},
+            {OptionalRole::Drifter, 10},
+        };
+        if (is_rocky) pool.push_back({OptionalRole::Prospector, 10});
+    } else { // Ruined
+        pool = {
+            {OptionalRole::Engineer, 30},
+            {OptionalRole::ArmsDealer, 50},
+            {OptionalRole::FoodMerchant, 20},
+            {OptionalRole::Drifter, 60},
+            {OptionalRole::Scavenger, 70},
+        };
+        if (is_rocky) pool.push_back({OptionalRole::Prospector, 10});
+    }
+
+    std::uniform_int_distribution<int> pct(1, 100);
+    int opt_placed = 0;
+    for (auto& entry : pool) {
+        if (opt_placed >= opt_slots) break;
+        if (pct(rng) > entry.weight) continue;
+
+        Race race = pick_friendly_race(rng);
+        Npc npc;
+        int fx = -1, fy = -1;
+
+        switch (entry.kind) {
+            case OptionalRole::Medic: {
+                npc = build_medic(race, rng);
+                auto [hx, hy] = find_fixture_pos(map, FixtureType::HealPod);
+                fx = hx; fy = hy;
+                break;
+            }
+            case OptionalRole::Engineer: {
+                npc = build_engineer(race, rng);
+                auto [ex, ey] = find_fixture_pos(map, FixtureType::Conduit);
+                fx = ex; fy = ey;
+                break;
+            }
+            case OptionalRole::Astronomer:
+                npc = build_astronomer(race, rng);
+                break;
+            case OptionalRole::ArmsDealer:
+                npc = build_arms_dealer(race, rng, kreth_rep);
+                break;
+            case OptionalRole::FoodMerchant:
+                npc = build_food_merchant(race, rng, kreth_rep);
+                break;
+            case OptionalRole::Drifter:
+                npc = build_drifter(race, rng);
+                break;
+            case OptionalRole::Scavenger:
+                npc = build_scavenger(race, rng);
+                break;
+            case OptionalRole::Prospector:
+                npc = build_prospector(race, rng);
+                break;
+        }
+
+        bool ok = false;
+        if (fx >= 0)
+            ok = place_near(std::move(npc), fx, fy);
+        else
+            ok = place_anywhere(std::move(npc));
+        if (ok) { ++placed; ++opt_placed; }
+    }
+
+    // --- Fill residents to reach target ---
+    // Track which bunks already have a resident (1 NPC per dwelling)
+    int next_bunk = 0;
+
+    while (placed < target) {
+        std::uniform_int_distribution<int> fill(1, 100);
+        int roll = fill(rng);
+        Race race = pick_friendly_race(rng);
+        Npc npc;
+
+        if (roll <= 60) {
+            npc = build_civilian(race, rng);
+        } else if (roll <= 80) {
+            npc = build_drifter(race, rng);
+        } else if (roll <= 90) {
+            npc = build_civilian(race, rng);
+            npc.role = "Settler";
+        } else {
+            npc = build_civilian(race, rng);
+            npc.role = "Refugee";
+        }
+
+        // First few residents go near bunks (1 per dwelling)
+        bool ok = false;
+        if (next_bunk < 10) {
+            auto [bx, by] = find_fixture_pos(map, FixtureType::Bunk, next_bunk);
+            if (bx >= 0) {
+                Npc attempt = npc;
+                ok = place_near(std::move(attempt), bx, by);
+                if (ok) ++next_bunk;
+            }
+        }
+        // Remaining residents spawn anywhere walkable in the settlement
+        if (!ok) {
+            if (!place_anywhere(std::move(npc))) break;
+        }
+        ++placed;
     }
 }
 

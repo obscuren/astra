@@ -71,19 +71,26 @@ CivStyle select_civ_style(const MapProperties& props);
 
 // --- Furniture ---
 
-struct FurnitureEntry {
-    FixtureType type        = FixtureType::Table;
-    float frequency         = 0.5f;  // probability this entry appears at all
-    int min_count           = 1;     // minimum items if it appears
-    int max_count           = 1;     // maximum items
-    bool wall_adjacent      = false;
-    bool needs_clearance    = false;
-    bool prefers_corner     = false;
-    bool prefers_center     = false; // prefers non-wall-adjacent tiles
+enum class PlacementRule : uint8_t {
+    Anchor,       // prominent position (back wall center), placed first
+    TableSet,     // table + bench on each side, rows in center
+    WallShelf,    // 3-tile shelf structure against walls
+    WallUniform,  // distributed evenly along all walls
+    Corner,       // one per corner, skip near doors
+    Center,       // free-standing in open floor
+};
+
+struct FurnitureGroup {
+    PlacementRule rule = PlacementRule::Center;
+    FixtureType primary   = FixtureType::Table;
+    FixtureType secondary = FixtureType::Bench; // paired item (bench for TableSet, item for Shelf)
+    int min_count = 1;
+    int max_count = 1;
+    float frequency = 1.0f;  // probability this group appears at all
 };
 
 struct FurniturePalette {
-    std::vector<FurnitureEntry> entries;
+    std::vector<FurnitureGroup> groups;
 };
 
 FurniturePalette furniture_palette(BuildingType type, const CivStyle& style);

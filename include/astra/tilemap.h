@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/rect.h"
 #include "astra/renderer.h"
 
 #include <cstdint>
@@ -437,6 +438,10 @@ public:
     const std::string& location_name() const { return location_name_; }
     void set_location_name(const std::string& name) { location_name_ = name; }
 
+    // POI bounds (set by poi_phase, used by NPC spawning)
+    Rect poi_bounds() const { return poi_bounds_; }
+    void set_poi_bounds(Rect r) { poi_bounds_ = r; }
+
     // Fixture accessors
     int fixture_id(int x, int y) const;
     const FixtureData& fixture(int id) const { return fixtures_[id]; }
@@ -502,6 +507,7 @@ private:
     int height_ = 0;
     std::string location_name_ = "Unknown";
     bool hub_ = false;
+    Rect poi_bounds_;
     std::vector<Tile> tiles_;
     std::vector<char> backdrop_;
     std::vector<int> region_ids_;

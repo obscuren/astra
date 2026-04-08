@@ -8,11 +8,11 @@
 
 namespace astra {
 
-void poi_phase(TileMap& map, const TerrainChannels& channels,
+Rect poi_phase(TileMap& map, const TerrainChannels& channels,
                const MapProperties& props, std::mt19937& rng) {
     // Only run for settlement POIs
     if (!props.detail_has_poi || props.detail_poi_type != Tile::OW_Settlement)
-        return;
+        return {};
 
     // --- Determine footprint size from biome ---
     int foot_w = 100;
@@ -42,7 +42,7 @@ void poi_phase(TileMap& map, const TerrainChannels& channels,
     // --- Placement scoring ---
     PlacementScorer scorer;
     auto placement = scorer.score(channels, map, foot_w, foot_h);
-    if (!placement.valid) return;
+    if (!placement.valid) return {};
 
     // --- Mutable copy of channels for terrain sculpting ---
     TerrainChannels mutable_channels = channels;
@@ -110,6 +110,8 @@ void poi_phase(TileMap& map, const TerrainChannels& channels,
     // --- Decorate exterior ---
     ExteriorDecorator decorator;
     decorator.decorate(map, plan, rng);
+
+    return placement.footprint;
 }
 
 } // namespace astra

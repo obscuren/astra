@@ -471,6 +471,27 @@ void Game::dev_command_biome_test(Biome biome, int layer, bool settlement,
     world_.npcs().clear();
     world_.ground_items().clear();
 
+    if (settlement) {
+        std::mt19937 npc_rng(seed ^ 0x4E5C5u);
+        // Determine size category
+        int size_cat = 0;
+        bool harsh = (biome == Biome::Volcanic || biome == Biome::ScarredScorched
+                   || biome == Biome::ScarredGlassed || biome == Biome::Ice);
+        bool lush = (biome == Biome::Forest || biome == Biome::Jungle
+                  || biome == Biome::Grassland || biome == Biome::Marsh);
+        if (harsh || props.lore_tier == 0) size_cat = 0;
+        else if (lush && props.lore_tier >= 2) size_cat = 2;
+        else size_cat = 1;
+
+        std::string sname = "Frontier";
+        if (props.lore_plague_origin) sname = "Ruined";
+        else if (props.lore_tier >= 2) sname = "Advanced";
+
+        spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
+                                  player_.x, player_.y, npc_rng, &player_,
+                                  size_cat, sname, biome);
+    }
+
     world_.visibility() = VisibilityMap(props.width, props.height);
     recompute_fov();
     compute_camera();

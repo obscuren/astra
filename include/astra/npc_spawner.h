@@ -4,6 +4,7 @@
 #include "astra/tilemap.h"
 
 #include <random>
+#include <string>
 #include <vector>
 
 namespace astra {
@@ -25,5 +26,20 @@ void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
 void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
                         int player_x, int player_y, std::mt19937& rng,
                         const Player* player = nullptr);
+
+// Find a random walkable position within bounds, avoiding occupied tiles.
+// Returns true and sets out_x/out_y on success.
+bool find_walkable_in_bounds(const TileMap& map, const Rect& bounds,
+                              int& out_x, int& out_y,
+                              const std::vector<std::pair<int,int>>& occupied,
+                              std::mt19937& rng);
+
+// Spawn NPCs in settlements with civ-style-aware roles and scaling.
+void spawn_settlement_npcs_v2(TileMap& map, std::vector<Npc>& npcs,
+                               int player_x, int player_y,
+                               std::mt19937& rng, const Player* player,
+                               int size_category,
+                               const std::string& style_name,
+                               Biome biome);
 
 } // namespace astra

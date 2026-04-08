@@ -337,7 +337,10 @@ void DetailMapGeneratorV2::place_features(std::mt19937& rng) {
 
     // --- POI Phase (Phase 6) ---
     if (props_->detail_has_poi) {
-        poi_phase(*map_, channels_, *props_, rng);
+        Rect bounds = poi_phase(*map_, channels_, *props_, rng);
+        if (!bounds.empty()) {
+            map_->set_poi_bounds(bounds);
+        }
     }
 }
 

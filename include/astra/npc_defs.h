@@ -28,4 +28,8 @@ Npc build_engineer(Race race, std::mt19937& rng);
 Npc build_civilian(Race race, std::mt19937& rng);
 Npc build_random_civilian(std::mt19937& rng); // picks random friendly race
 
+// Settlement NPC builders
+Npc build_scavenger(Race race, std::mt19937& rng);
+Npc build_prospector(Race race, std::mt19937& rng);
+
 } // namespace astra

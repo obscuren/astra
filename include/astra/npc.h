@@ -30,6 +30,8 @@ enum class NpcRole : uint8_t {
     Engineer,
     Nova,
     Civilian,
+    Scavenger,
+    Prospector,
 };
 
 struct Npc {
