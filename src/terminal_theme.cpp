@@ -11,50 +11,53 @@ namespace astra {
 // Biome palette — mirrors biome_colors() in tilemap.cpp
 // ---------------------------------------------------------------------------
 
+// Unified remembered/shadow color — dark navy blue
+static constexpr Color REMEMBERED_COLOR = static_cast<Color>(60);  // 256-color muted slate blue
+
 ThemeBiomeColors biome_palette(Biome biome) {
     switch (biome) {
         case Biome::Station:
-            return {Color::White, Color::Default, Color::Blue, Color::Blue};
+            return {Color::White, Color::Default, Color::Blue, REMEMBERED_COLOR};
         case Biome::Rocky:
-            return {Color::White, Color::DarkGray, Color::Blue, Color::Blue};
+            return {Color::White, Color::DarkGray, Color::Blue, REMEMBERED_COLOR};
         case Biome::Volcanic:
-            return {Color::Red, static_cast<Color>(52), Color::Red, static_cast<Color>(52)};
+            return {Color::Red, static_cast<Color>(52), Color::Red, REMEMBERED_COLOR};
         case Biome::Ice:
-            return {Color::Cyan, Color::White, static_cast<Color>(39), Color::Blue};
+            return {Color::Cyan, Color::White, static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::Sandy:
-            return {Color::Yellow, static_cast<Color>(180), Color::Blue, static_cast<Color>(58)};
+            return {Color::Yellow, static_cast<Color>(180), Color::Blue, REMEMBERED_COLOR};
         case Biome::Aquatic:
-            return {static_cast<Color>(30), static_cast<Color>(24), Color::Blue, static_cast<Color>(24)};
+            return {static_cast<Color>(30), static_cast<Color>(24), Color::Blue, REMEMBERED_COLOR};
         case Biome::Fungal:
-            return {Color::Green, static_cast<Color>(22), Color::Green, static_cast<Color>(22)};
+            return {Color::Green, static_cast<Color>(22), Color::Green, REMEMBERED_COLOR};
         case Biome::Crystal:
-            return {Color::BrightMagenta, Color::Magenta, Color::Magenta, static_cast<Color>(54)};
+            return {Color::BrightMagenta, Color::Magenta, Color::Magenta, REMEMBERED_COLOR};
         case Biome::Corroded:
-            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), static_cast<Color>(58)};
+            return {static_cast<Color>(142), static_cast<Color>(58), static_cast<Color>(148), REMEMBERED_COLOR};
         case Biome::Forest:
-            return {Color::Green, static_cast<Color>(58), Color::Blue, static_cast<Color>(22)};
+            return {Color::Green, static_cast<Color>(58), Color::Blue, REMEMBERED_COLOR};
         case Biome::Grassland:
-            return {Color::DarkGray, Color::Green, Color::Blue, static_cast<Color>(22)};
+            return {Color::DarkGray, Color::Green, Color::Blue, REMEMBERED_COLOR};
         case Biome::Jungle:
-            return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
+            return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), REMEMBERED_COLOR};
         case Biome::Marsh:
-            return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), static_cast<Color>(23)};
+            return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), REMEMBERED_COLOR};
         case Biome::AlienCrystalline:
-            return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), Color::Cyan};
+            return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::AlienOrganic:
-            return {Color::Red, Color::Magenta, static_cast<Color>(88), Color::Magenta};
+            return {Color::Red, Color::Magenta, static_cast<Color>(88), REMEMBERED_COLOR};
         case Biome::AlienGeometric:
-            return {Color::Yellow, static_cast<Color>(136), Color::Yellow, static_cast<Color>(136)};
+            return {Color::Yellow, static_cast<Color>(136), Color::Yellow, REMEMBERED_COLOR};
         case Biome::AlienVoid:
-            return {static_cast<Color>(90), Color::DarkGray, Color::Magenta, static_cast<Color>(90)};
+            return {static_cast<Color>(90), Color::DarkGray, Color::Magenta, REMEMBERED_COLOR};
         case Biome::AlienLight:
-            return {static_cast<Color>(228), Color::White, static_cast<Color>(230), Color::Yellow};
+            return {static_cast<Color>(228), Color::White, static_cast<Color>(230), REMEMBERED_COLOR};
         case Biome::ScarredGlassed:
-            return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(136), static_cast<Color>(94)};
+            return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(136), REMEMBERED_COLOR};
         case Biome::ScarredScorched:
-            return {Color::DarkGray, static_cast<Color>(52), Color::DarkGray, static_cast<Color>(52)};
+            return {Color::DarkGray, static_cast<Color>(52), Color::DarkGray, REMEMBERED_COLOR};
     }
-    return {Color::White, Color::Default, Color::Blue, Color::Blue};
+    return {Color::White, Color::Default, Color::Blue, REMEMBERED_COLOR};
 }
 
 // ---------------------------------------------------------------------------
@@ -1318,13 +1321,7 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
             Color c;
             if (remembered) {
-                // Use a dark version of the civ color, not biome shadow
-                switch (civ) {
-                    case 1:  c = static_cast<Color>(58); break;   // dark gold
-                    case 2:  c = static_cast<Color>(23); break;   // dark cyan
-                    case 3:  c = static_cast<Color>(52); break;   // dark red
-                    default: c = static_cast<Color>(239); break;  // dark gray
-                }
+                c = REMEMBERED_COLOR;
             } else {
                 // Color variation: mostly primary, some secondary, rare mossy
                 // Use position-based hash (not nb which is structural)
