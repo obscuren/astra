@@ -22,11 +22,12 @@ float dist_to_nearest(int x, int y,
 
 int base_thick_for_depth(int depth) {
     switch (depth) {
-        case 0: return 5;
-        case 1: return 4;
-        case 2: return 3;
-        case 3: return 2;
-        default: return 1;
+        case 0: return 8;
+        case 1: return 6;
+        case 2: return 5;
+        case 3: return 4;
+        case 4: return 3;
+        default: return 2;
     }
 }
 
@@ -69,11 +70,19 @@ void BspGenerator::subdivide(std::vector<BspNode>& nodes, int node_idx,
     // Minimum partition sizes
     int min_side = (node.depth < 2) ? 20 : 8;
 
-    // Prefer splitting the longer axis
-    bool split_horiz = (node.area.h > node.area.w);
-    // If roughly square, randomize
-    if (std::abs(node.area.w - node.area.h) < 4) {
-        split_horiz = std::uniform_int_distribution<int>(0, 1)(rng) == 0;
+    // Alternate split direction more aggressively to avoid monotonous bands.
+    // At even depths split one way, odd depths the other, with some randomness.
+    bool split_horiz;
+    if (node.area.w > node.area.h * 2) {
+        split_horiz = false;  // very wide — must split vertically
+    } else if (node.area.h > node.area.w * 2) {
+        split_horiz = true;   // very tall — must split horizontally
+    } else {
+        // Alternate based on depth, with 30% chance to override
+        split_horiz = (node.depth % 2 == 0);
+        if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < 0.3f) {
+            split_horiz = !split_horiz;
+        }
     }
 
     int length = split_horiz ? node.area.h : node.area.w;
@@ -220,10 +229,10 @@ void BspGenerator::materialize_walls(TileMap& map,
             * plan.civ.wall_thickness_bias);
         base_thick = std::max(base_thick, 1);
 
-        // Gap width: outer walls (depth < 2) get 3-wide, inner get 2-wide
-        int gap_width = (node.depth < 2) ? 3 : 2;
-        // Number of gaps: 1-3
-        int num_gaps = std::min(3, std::max(1, (node.depth < 2) ? 2 : 1));
+        // Gap width: just wide enough to walk through
+        int gap_width = (node.depth < 3) ? 2 : 1;
+        // Fewer gaps at shallow depths to preserve wall structure
+        int num_gaps = (node.depth < 2) ? 1 : std::min(2, 1 + (node.depth / 3));
 
         // Seed gap positions deterministically
         unsigned gap_seed = seed + static_cast<unsigned>(i * 997u);
@@ -307,8 +316,8 @@ void BspGenerator::generate(TileMap& map, RuinPlan& plan,
     root.depth = 0;
     plan.bsp_nodes.push_back(root);
 
-    // 3. Subdivide recursively (base max depth = 3)
-    subdivide(plan.bsp_nodes, 0, 3, nuclei, plan.civ.split_regularity, rng);
+    // 3. Subdivide recursively (base max depth = 5)
+    subdivide(plan.bsp_nodes, 0, 5, nuclei, plan.civ.split_regularity, rng);
 
     // 4. Place IndoorFloor only in nucleus leaf areas (deep interior rooms).
     //    Shallow leaves keep their natural terrain — the ruin walls cut through it.
