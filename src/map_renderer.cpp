@@ -198,16 +198,34 @@ void render_map(const MapRenderContext& rc) {
                         bool e = is_ruin_wall(mx + 1, my);
                         bool w = is_ruin_wall(mx - 1, my);
 
-                        // For pipe civs: determine the "edge" neighbor mask.
-                        // Interior tiles of thick walls (all 4 neighbors are walls)
-                        // should render as solid fill, not junctions.
-                        // Edge tiles get the actual directional connections.
+                        // Detect wall primary axis for pipe rendering.
+                        // A thick wall's interior tiles see neighbors on all sides,
+                        // but cross-axis neighbors are just wall thickness, not junctions.
+                        //
+                        // Check for open (non-wall) space to determine which direction
+                        // this wall faces. "Open" on E or W = vertical wall. Open on
+                        // N or S = horizontal wall. Open on none = interior.
+                        bool open_n = !n;
+                        bool open_s = !so;
+                        bool open_e = !e;
+                        bool open_w = !w;
+
                         uint8_t neighbors = 0;
                         if (n && so && e && w) {
-                            // Interior: encode as 0x0F (all 4) — theme renders solid
+                            // Interior: all 4 walls → solid fill
                             neighbors = 0x0F;
+                        } else if ((open_e || open_w) && !(open_n || open_s)) {
+                            // Vertical wall edge: has N+S but open on E or W side
+                            // Only report N/S connections, suppress E/W
+                            if (n) neighbors |= 0x01;
+                            if (so) neighbors |= 0x02;
+                        } else if ((open_n || open_s) && !(open_e || open_w)) {
+                            // Horizontal wall edge: has E+W but open on N or S side
+                            // Only report E/W connections, suppress N/S
+                            if (e) neighbors |= 0x04;
+                            if (w) neighbors |= 0x08;
                         } else {
-                            // Edge tile: only count neighbors along open edges
+                            // Corner or true junction — report all actual neighbors
                             if (n) neighbors |= 0x01;
                             if (so) neighbors |= 0x02;
                             if (e) neighbors |= 0x04;
