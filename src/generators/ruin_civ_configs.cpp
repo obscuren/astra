@@ -5,6 +5,7 @@ namespace astra {
 CivConfig civ_config_monolithic() {
     CivConfig c;
     c.name = "Monolithic";
+    c.civ_index = CIV_MONOLITHIC;
     c.wall_glyphs = {"\xe2\x96\x88", "\xe2\x96\x93", "\xe2\x96\x91"};
     c.accent_glyphs = {"\xe2\x96\xaa", "\xe2\x96\xa0"};
     c.color_primary = 250;    // near-white
@@ -23,6 +24,7 @@ CivConfig civ_config_monolithic() {
 CivConfig civ_config_baroque() {
     CivConfig c;
     c.name = "Baroque";
+    c.civ_index = CIV_BAROQUE;
     c.wall_glyphs = {"\xe2\x95\x94", "\xe2\x95\x90", "\xe2\x95\x97", "\xe2\x95\x91", "\xe2\x95\xac", "\xe2\x95\xa0", "\xe2\x95\xa3"};
     c.accent_glyphs = {"\xe2\x97\x86", "\xe2\x97\x87"};
     c.color_primary = 178;    // warm gold
@@ -41,6 +43,7 @@ CivConfig civ_config_baroque() {
 CivConfig civ_config_crystal() {
     CivConfig c;
     c.name = "Crystal";
+    c.civ_index = CIV_CRYSTAL;
     c.wall_glyphs = {"\xe2\x94\x8c", "\xe2\x94\x80", "\xe2\x94\x90", "\xe2\x94\x82", "\xe2\x94\xbc", "\xe2\x94\x9c", "\xe2\x94\xa4"};
     c.accent_glyphs = {"\xe2\x97\x88", "\xe2\x97\x8e", "\xe2\x97\x89"};
     c.color_primary = 51;     // bright cyan
@@ -59,6 +62,7 @@ CivConfig civ_config_crystal() {
 CivConfig civ_config_industrial() {
     CivConfig c;
     c.name = "Industrial";
+    c.civ_index = CIV_INDUSTRIAL;
     c.wall_glyphs = {"\xe2\x96\x93", "\xe2\x96\x88", "\xe2\x96\x91"};
     c.accent_glyphs = {"\xe2\x8a\x9e", "\xe2\x8a\xa0"};
     c.color_primary = 166;    // corroded orange

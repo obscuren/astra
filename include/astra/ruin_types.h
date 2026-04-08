@@ -11,8 +11,17 @@ namespace astra {
 
 // --- Civilization visual config for ruins ---
 
+// Civilization indices (stored in custom_flags_ bits 2-4)
+enum CivIndex : int {
+    CIV_MONOLITHIC  = 0,
+    CIV_BAROQUE     = 1,
+    CIV_CRYSTAL     = 2,
+    CIV_INDUSTRIAL  = 3,
+};
+
 struct CivConfig {
     std::string name;
+    int civ_index = CIV_MONOLITHIC;  // for renderer lookup
 
     // Glyph palettes (UTF-8 strings for overworld + detail rendering)
     std::vector<std::string> wall_glyphs;    // primary wall characters

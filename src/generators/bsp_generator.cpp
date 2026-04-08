@@ -211,6 +211,7 @@ void BspGenerator::materialize_walls(TileMap& map,
                     if (map.get(x, wy) == Tile::Water) continue;
                     map.set(x, wy, Tile::Wall);
                     map.set_custom_flag(x, wy, CF_RUIN_TINT);
+                    set_ruin_civ(map, x, wy, plan.civ.civ_index);
                 }
             }
         } else {
@@ -247,6 +248,7 @@ void BspGenerator::materialize_walls(TileMap& map,
                     if (map.get(wx, y) == Tile::Water) continue;
                     map.set(wx, y, Tile::Wall);
                     map.set_custom_flag(wx, y, CF_RUIN_TINT);
+                    set_ruin_civ(map, wx, y, plan.civ.civ_index);
                 }
             }
         }

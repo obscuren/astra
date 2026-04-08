@@ -1232,26 +1232,63 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         bool ruin_tint = (seed & 0x80) != 0;
         uint8_t clean_seed = seed & 0x7F;
         if (ruin_tint) {
-            // Ruin walls: block glyphs, stone colors (dimmed when remembered)
-            static const char* ruin_glyphs[] = {
-                "\xe2\x96\x88",  // █
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x93",  // ▓
-                "\xe2\x96\x92",  // ▒
-                "\xe2\x96\x88",  // █
+            // Extract civ index from bits 4-6
+            int civ = (clean_seed >> 4) & 0x07;
+            uint8_t var = clean_seed & 0x0F;  // low 4 bits for variation
+
+            // Per-civilization glyph tables
+            static const char* monolithic_glyphs[] = {
+                "\xe2\x96\x88", "\xe2\x96\x93", "\xe2\x96\x93",  // █ ▓ ▓
+                "\xe2\x96\x92", "\xe2\x96\x88",                    // ▒ █
             };
-            const char* utf8 = ruin_glyphs[clean_seed % 5];
+            static const char* baroque_glyphs[] = {
+                "\xe2\x95\x94", "\xe2\x95\x90", "\xe2\x95\x91",  // ╔ ═ ║
+                "\xe2\x95\xac", "\xe2\x95\xa0",                    // ╬ ╠
+            };
+            static const char* crystal_glyphs[] = {
+                "\xe2\x94\x82", "\xe2\x94\x80", "\xe2\x94\xbc",  // │ ─ ┼
+                "\xe2\x94\x9c", "\xe2\x94\xa4",                    // ├ ┤
+            };
+            static const char* industrial_glyphs[] = {
+                "\xe2\x96\x93", "\xe2\x96\x88", "\xe2\x96\x91",  // ▓ █ ░
+                "\xe2\x8a\x9e", "\xe2\x8a\xa0",                    // ⊞ ⊠
+            };
+
+            const char** glyphs;
+            Color c_primary, c_secondary;
+            switch (civ) {
+                case 1:  // Baroque
+                    glyphs = baroque_glyphs;
+                    c_primary = static_cast<Color>(178);   // warm gold
+                    c_secondary = static_cast<Color>(172);  // darker gold
+                    break;
+                case 2:  // Crystal
+                    glyphs = crystal_glyphs;
+                    c_primary = static_cast<Color>(51);    // bright cyan
+                    c_secondary = static_cast<Color>(45);   // slightly dimmer cyan
+                    break;
+                case 3:  // Industrial
+                    glyphs = industrial_glyphs;
+                    c_primary = static_cast<Color>(166);   // corroded orange
+                    c_secondary = static_cast<Color>(124);  // rust red
+                    break;
+                default: // Monolithic (0)
+                    glyphs = monolithic_glyphs;
+                    c_primary = static_cast<Color>(250);   // bright stone
+                    c_secondary = static_cast<Color>(245);  // mid gray
+                    break;
+            }
+
+            const char* utf8 = glyphs[var % 5];
             Color c;
             if (remembered) {
                 c = bc.remembered;
             } else {
-                int tint = clean_seed % 5;
-                switch (tint) {
-                    case 0: c = static_cast<Color>(250); break;  // bright stone
-                    case 1: c = static_cast<Color>(245); break;  // mid gray
-                    case 2: c = static_cast<Color>(240); break;  // darker gray
-                    case 3: c = static_cast<Color>(28); break;   // mossy green
-                    case 4: c = static_cast<Color>(94); break;   // crumbling brown
+                // Mix primary and secondary with occasional overgrowth
+                switch (var % 6) {
+                    case 0: case 1: case 2: c = c_primary; break;
+                    case 3: case 4:         c = c_secondary; break;
+                    case 5:                 c = static_cast<Color>(28); break; // mossy
                 }
             }
             return {'#', utf8, c, Color::Default};

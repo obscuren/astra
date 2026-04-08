@@ -181,6 +181,10 @@ void render_map(const MapRenderContext& rc) {
                     if (tile_at == Tile::Wall &&
                         rc.world.map().has_custom_flag(mx, my, 0x02)) {
                         s |= 0x80;  // CF_RUIN_TINT — top bit signals ruin tinting
+                        // Encode civ index in bits 4-6
+                        uint8_t flags = rc.world.map().get_custom_flags(mx, my);
+                        int civ = (flags & 0x1C) >> 2;  // CF_CIV_MASK >> CF_CIV_SHIFT
+                        s = (s & 0x8F) | (static_cast<uint8_t>(civ & 0x07) << 4);
                     }
                     desc.seed = s;
                 }
