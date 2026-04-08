@@ -196,7 +196,7 @@ void render_map(const MapRenderContext& rc) {
                     uint8_t mat = rc.world.map().glyph_override(mx, my);
                     desc.seed = encode_wall_seed(mat, mx, my);
                 } else {
-                    uint8_t s = position_seed(mx, my);
+                    uint8_t s = position_seed(mx, my) & 0x7F;  // bit 7 reserved for ruin tint
                     if (tile_at == Tile::Wall &&
                         rc.world.map().has_custom_flag(mx, my, 0x02)) {
                         s |= 0x80;  // CF_RUIN_TINT — top bit signals ruin tinting
