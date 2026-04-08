@@ -1320,13 +1320,20 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
             if (remembered) {
                 c = bc.remembered;
             } else {
-                // Use position hash for color variation (not nb, which is structural)
+                // Color variation: mostly primary, some secondary, rare mossy
+                // Use position-based hash (not nb which is structural)
                 unsigned color_var = static_cast<unsigned>(
-                    seed & 0x80) ^ (clean_seed * 7u);
-                switch (color_var % 6) {
-                    case 0: case 1: case 2: c = c_primary; break;
-                    case 3: case 4:         c = c_secondary; break;
-                    case 5:                 c = static_cast<Color>(28); break; // mossy
+                    (seed >> 4) * 7u + (seed & 0x0F) * 13u);
+                if (civ == 0) {
+                    // Monolithic: gray with some mossy/brown
+                    switch (color_var % 6) {
+                        case 0: case 1: case 2: c = c_primary; break;
+                        case 3: case 4:         c = c_secondary; break;
+                        case 5:                 c = static_cast<Color>(28); break;
+                    }
+                } else {
+                    // Colored civs: stick to their palette, no mossy
+                    c = (color_var % 3 == 0) ? c_secondary : c_primary;
                 }
             }
             return {'#', utf8, c, Color::Default};
