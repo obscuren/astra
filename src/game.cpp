@@ -424,9 +424,6 @@ void Game::dev_command_kill_hostiles() {
     combat_.remove_dead_npcs(*this);
 }
 
-// Forward declare v2 generator factory
-std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
-
 void Game::dev_command_biome_test(Biome biome, int layer,
                                   const std::string& poi_type,
                                   const std::string& poi_style,
@@ -439,8 +436,6 @@ void Game::dev_command_biome_test(Biome biome, int layer,
 
     auto props = default_properties(MapType::DetailMap);
     props.biome = biome;
-    props.width = 360;
-    props.height = 150;
     props.light_bias = 100;
 
     if (poi_type == "settlement") {
@@ -471,7 +466,7 @@ void Game::dev_command_biome_test(Biome biome, int layer,
     }
 
     world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
-    auto gen = make_detail_map_generator_v2();
+    auto gen = create_generator(MapType::DetailMap);
     gen->generate(world_.map(), props, seed);
     world_.map().set_biome(biome);
 
