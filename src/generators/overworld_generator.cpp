@@ -94,7 +94,7 @@ static Tile classify_terrestrial(float elev, float moist, const TerrainContext& 
         base = Tile::OW_Mountains;
     } else if (elev < 0.25f) {
         base = Tile::OW_Lake;
-    } else if (elev < 0.42f && moist > 0.55f) {
+    } else if (elev < 0.35f && moist > 0.5f) {
         base = Tile::OW_Swamp;
     } else if (moist > 0.6f) {
         base = Tile::OW_Forest;
