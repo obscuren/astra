@@ -37,7 +37,8 @@ set(ASTRA_SOURCES
     src/generators/hub_station_generator.cpp
     src/generators/derelict_station_generator.cpp
     src/generators/starship_generator.cpp
-    src/generators/overworld_generator.cpp
+    src/generators/overworld_generator_base.cpp
+    src/generators/default_overworld_generator.cpp
     src/generators/detail_map_generator.cpp
     src/generators/biome_profiles.cpp
     src/generators/elevation_strategies.cpp
