@@ -243,6 +243,76 @@ Walls still block line of sight — no seeing around corners.
 | Lore: Mountains | Mountains, Crater |
 | Lore: Tundra | Ice Field, Lava Flow |
 
+## Overworld Generation
+
+### Architecture
+
+Overworld generators inherit from `OverworldGeneratorBase` which provides a template-method pipeline. Subclasses override virtual hooks to customize terrain for specific body types. `DefaultOverworldGenerator` handles all body types without a dedicated generator.
+
+**Pipeline (non-virtual, calls hooks in order):**
+1. Build `TerrainContext` from body properties
+2. `configure_noise()` — set elevation/moisture noise scales
+3. Generate dual fBm noise fields (elevation + moisture)
+4. `pre_classify()` — setup before classification (e.g., derived layers)
+5. `classify_terrain()` per cell — assign tile type
+6. `apply_lore_overlays()` — scar/alien terrain from lore influence map
+7. `carve_rivers()` — body-specific river generation
+8. `place_landing_pad()` — spiral search from center for passable tile
+9. `ensure_connectivity()` — flood-fill + mountain pass carving
+
+**Shared `place_features()` pipeline:**
+1. Place lore landmarks (beacons, megastructures)
+2. `place_pois()` — body-specific POI placement
+
+### Default Generator (all non-temperate bodies)
+
+Three classifiers dispatched by body type:
+- **Terrestrial + atmosphere**: elevation/moisture thresholds modified by temperature and atmosphere
+- **Rocky / airless**: elevation only → Mountains, Crater, Desert, Plains
+- **Asteroid belt**: elevation only → Mountains, Crater, Plains
+
+Rivers: 2-4, 40-step steepest descent from mountain-adjacent sources. Only on terrestrial with atmosphere, not frozen/scorching.
+
+### Temperate Planet Generator (Terrestrial + Temperate + Standard/Dense)
+
+**Layered simulation approach** — biomes emerge from physical conditions rather than direct threshold assignment.
+
+**Layer 1: Elevation** — fBm noise at scale 0.06 (low frequency for large mountain ranges and valleys).
+
+**Layer 2: Moisture** — fBm noise at scale 0.08 (low frequency for large wet/dry zones).
+
+**Layer 3: Temperature** — derived from latitude + elevation:
+```
+base_temp    = y / (h - 1)                              // 0=cold (north), 1=hot (south)
+elev_cooling = max(0, (elevation - 0.4) * 1.5)          // high ground is colder
+noise_var    = (fbm(x, y, seed, 0.05, 3) - 0.5) * 0.15 // natural irregularity
+temperature  = clamp(base_temp - elev_cooling + noise_var, 0, 1)
+```
+
+**Biome classification** from elevation + temperature + moisture:
+
+| Condition | Tile |
+|-----------|------|
+| elevation > 0.75 | Mountains |
+| elevation < 0.2 | Lake |
+| temp < 0.2 | Ice Field |
+| temp < 0.3, elev > 0.6 | Ice Field |
+| temp < 0.3 | Plains (tundra) |
+| temp > 0.8, moist > 0.6 | Swamp (tropical) |
+| temp > 0.8, moist > 0.4 | Plains (savanna) |
+| temp > 0.8 | Desert |
+| temp > 0.65, moist > 0.55 | Forest (warm) |
+| temp > 0.65, moist > 0.35 | Plains |
+| temp > 0.65 | Desert |
+| elev < 0.32, moist > 0.5 | Swamp (temperate) |
+| moist > 0.55 | Forest |
+| moist > 0.3 | Plains |
+| else | Desert |
+
+**Rivers:** 3-8, steepest descent from mountain-adjacent sources, up to 120 steps. Form lakes (3-8 tiles) when reaching basins with no downhill path.
+
+**Result:** Ice caps at poles/peaks, forests in wet temperate band, desert in hot+dry south, swamp in low+wet areas, natural latitude-based transitions.
+
 ## Galaxy Simulation (Lore Generation)
 
 ### Civilization Traits
