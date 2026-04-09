@@ -193,7 +193,7 @@ inline const char* overworld_glyph(Tile t, int x, int y) {
             };
             return g[h % 4];
         }
-        case Tile::OW_Settlement:  return "\xe2\x99\xa6"; // ♦
+        case Tile::OW_Settlement:  return "\xe2\x96\xb2"; // ▲
         case Tile::OW_CrashedShip: {
             static const char* g[] = {
                 "%",

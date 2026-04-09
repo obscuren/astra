@@ -30,7 +30,7 @@ const char* stamp_glyph(uint8_t index) {
 // ---------------------------------------------------------------------------
 
 static const StampCell settlement_1x1[] = {
-    {0, 0, Tile::OW_Settlement, SG_Diamond},
+    {0, 0, Tile::OW_Settlement, SG_None},
 };
 
 static const StampCell settlement_2x2[] = {
@@ -61,11 +61,8 @@ static const StampCell settlement_walled[] = {
 
 const StampDef settlement_stamps[] = {
     {1, 1, settlement_1x1, 1},
-    {2, 2, settlement_2x2, 4},
-    {3, 3, settlement_3x3, 7},
-    {3, 2, settlement_walled, 6},
 };
-const int settlement_stamp_count = 4;
+const int settlement_stamp_count = 1;
 
 // ---------------------------------------------------------------------------
 // Space habitat stamps (airless worlds)
