@@ -89,20 +89,32 @@ EdgeStrip DetailMapGeneratorV2::generate_synthetic_strip(
     TileMap temp_map(w, h, MapType::DetailMap);
     composite_terrain(temp_map, neighbor_channels, neighbor_prof);
 
-    // Run scatter so open biomes (sandy, grassland) get their identity fixtures
-    for (const auto& entry : neighbor_prof.scatter) {
-        if (entry.density <= 0.0f) continue;
-        int threshold = static_cast<int>(entry.density * 100.0f);
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
+    // Run scatter in the strip region so open biomes get identity fixtures
+    constexpr int strip_d = 20;
+    int sx0 = 0, sy0 = 0, sx1 = w, sy1 = h;
+    switch (extract_dir) {
+        case EdgeDirection::North: sy1 = strip_d; break;
+        case EdgeDirection::South: sy0 = h - strip_d; break;
+        case EdgeDirection::West:  sx1 = strip_d; break;
+        case EdgeDirection::East:  sx0 = w - strip_d; break;
+    }
+
+    for (size_t i = 0; i < neighbor_prof.scatter.size(); ++i) {
+        float density = neighbor_prof.scatter[i].density;
+        if (density <= 0.0f) continue;
+        int threshold = static_cast<int>(density * 100.0f);
+        FixtureType ftype = neighbor_prof.scatter[i].type;
+        bool blocks = neighbor_prof.scatter[i].blocks_vision;
+        for (int y = sy0; y < sy1; ++y) {
+            for (int x = sx0; x < sx1; ++x) {
                 if (temp_map.get(x, y) != Tile::Floor) continue;
                 if (temp_map.fixture_id(x, y) >= 0) continue;
                 if (static_cast<int>(rng() % 100) < threshold) {
                     FixtureData fd;
-                    fd.type = entry.type;
+                    fd.type = ftype;
                     fd.passable = true;
                     fd.interactable = false;
-                    fd.blocks_vision = entry.blocks_vision;
+                    fd.blocks_vision = blocks;
                     temp_map.add_fixture(x, y, fd);
                 }
             }

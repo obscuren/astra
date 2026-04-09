@@ -51,7 +51,9 @@ EdgeStrip extract_edge_strip(const TileMap& map, EdgeDirection dir, int strip_de
             }
 
             EdgeStripCell& cell = strip.cells[d * strip.length + a];
-            cell.tile = map.get(x, y);
+            Tile t = map.get(x, y);
+            // Fixtures are stored separately — record the underlying floor tile
+            cell.tile = (t == Tile::Fixture) ? Tile::Floor : t;
             cell.glyph_override = map.glyph_override(x, y);
             cell.custom_flags = map.get_custom_flags(x, y);
 
