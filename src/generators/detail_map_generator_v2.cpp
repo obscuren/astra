@@ -89,6 +89,26 @@ EdgeStrip DetailMapGeneratorV2::generate_synthetic_strip(
     TileMap temp_map(w, h, MapType::DetailMap);
     composite_terrain(temp_map, neighbor_channels, neighbor_prof);
 
+    // Run scatter so open biomes (sandy, grassland) get their identity fixtures
+    for (const auto& entry : neighbor_prof.scatter) {
+        if (entry.density <= 0.0f) continue;
+        int threshold = static_cast<int>(entry.density * 100.0f);
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                if (temp_map.get(x, y) != Tile::Floor) continue;
+                if (temp_map.fixture_id(x, y) >= 0) continue;
+                if (static_cast<int>(rng() % 100) < threshold) {
+                    FixtureData fd;
+                    fd.type = entry.type;
+                    fd.passable = true;
+                    fd.interactable = false;
+                    fd.blocks_vision = entry.blocks_vision;
+                    temp_map.add_fixture(x, y, fd);
+                }
+            }
+        }
+    }
+
     // Extract the edge facing our tile
     return extract_edge_strip(temp_map, extract_dir, 20);
 }
