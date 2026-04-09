@@ -133,15 +133,15 @@ static unsigned shared_edge_seed(unsigned base_seed, int ow_x, int ow_y,
         ^ (static_cast<unsigned>(edge_dir & 1) * 8831u);
 }
 
-struct EdgeStrip {
+struct TerrainEdgeStrip {
     std::vector<float> wall_density;
     std::vector<float> water_density;
 };
 
 // Generate deterministic terrain strip for a shared edge
-static EdgeStrip generate_edge_strip(unsigned seed, int length,
-                                     float base_wall, float base_water) {
-    EdgeStrip strip;
+static TerrainEdgeStrip generate_edge_strip(unsigned seed, int length,
+                                            float base_wall, float base_water) {
+    TerrainEdgeStrip strip;
     strip.wall_density.resize(length);
     strip.water_density.resize(length);
     for (int i = 0; i < length; ++i) {

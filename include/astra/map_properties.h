@@ -1,10 +1,12 @@
 #pragma once
 
 #include "astra/celestial_body.h"
+#include "astra/edge_strip.h"
 #include "astra/lore_types.h"
 #include "astra/tilemap.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace astra {
@@ -80,6 +82,13 @@ struct MapProperties {
     Tile detail_neighbor_s = Tile::Empty;
     Tile detail_neighbor_e = Tile::Empty;
     Tile detail_neighbor_w = Tile::Empty;
+
+    // Cached neighbor edge strips for seamless detail map transitions
+    std::optional<EdgeStrip> edge_strip_n;
+    std::optional<EdgeStrip> edge_strip_s;
+    std::optional<EdgeStrip> edge_strip_e;
+    std::optional<EdgeStrip> edge_strip_w;
+
     bool detail_has_poi = false;
     Tile detail_poi_type = Tile::Empty;
     bool detail_is_custom = false;  // hand-crafted zone (skip generator)
