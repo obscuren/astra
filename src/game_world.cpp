@@ -10,6 +10,7 @@
 #include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
 #include "astra/star_chart.h"
+#include "astra/edge_strip.h"
 
 namespace astra {
 
@@ -461,6 +462,31 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     props.detail_neighbor_s = get_ow(ow_x, ow_y + 1);
     props.detail_neighbor_w = get_ow(ow_x - 1, ow_y);
     props.detail_neighbor_e = get_ow(ow_x + 1, ow_y);
+
+    // Extract edge strips from cached neighbor detail maps
+    {
+        static constexpr int bleed_depth = 20;
+        auto try_extract = [&](int nx, int ny, EdgeDirection neighbor_edge)
+                -> std::optional<EdgeStrip> {
+            LocationKey neighbor_key = {
+                world_.navigation().current_system_id,
+                world_.navigation().current_body_index,
+                world_.navigation().current_moon_index,
+                false, nx, ny, 0};
+            auto it = world_.location_cache().find(neighbor_key);
+            if (it == world_.location_cache().end()) return std::nullopt;
+            return extract_edge_strip(it->second.map, neighbor_edge, bleed_depth);
+        };
+
+        // B is south of A → read A's south edge
+        props.edge_strip_n = try_extract(ow_x, ow_y - 1, EdgeDirection::South);
+        // B is north of A → read A's north edge
+        props.edge_strip_s = try_extract(ow_x, ow_y + 1, EdgeDirection::North);
+        // B is east of A → read A's east edge
+        props.edge_strip_w = try_extract(ow_x - 1, ow_y, EdgeDirection::East);
+        // B is west of A → read A's west edge
+        props.edge_strip_e = try_extract(ow_x + 1, ow_y, EdgeDirection::West);
+    }
 
     // POI generates for the full tile — no center-zone restriction
     {
