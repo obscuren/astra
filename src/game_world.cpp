@@ -614,6 +614,7 @@ void Game::enter_detail_map() {
         case Tile::OW_Crater:       msg = "You descend into the impact crater."; break;
         case Tile::OW_Fungal:       msg = "Alien growths crowd around you."; break;
         case Tile::OW_Plains:       msg = "Open terrain stretches before you."; break;
+        case Tile::OW_Mountains:    msg = "You ascend into the mountains."; break;
         default: break;
     }
     log(msg);
@@ -931,7 +932,7 @@ void Game::transition_detail_edge(int dx, int dy) {
     }
 
     Tile dest_tile = ow_map.get(new_ow_x, new_ow_y);
-    if (dest_tile == Tile::OW_Mountains || dest_tile == Tile::OW_Lake) {
+    if (dest_tile == Tile::OW_Lake) {
         log("Impassable terrain blocks your path.");
         return;
     }

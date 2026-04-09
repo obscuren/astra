@@ -389,7 +389,7 @@ void Game::handle_play_input(int key) {
         case '>': {
             if (world_.on_overworld()) {
                 Tile t = world_.map().get(player_.x, player_.y);
-                if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
+                if (t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
                     enter_detail_map();
@@ -429,7 +429,7 @@ void Game::handle_play_input(int key) {
             // Overworld: enter detail map for the tile underneath the player
             if (world_.on_overworld() && (key == '\n' || key == '\r')) {
                 Tile t = world_.map().get(player_.x, player_.y);
-                if (t == Tile::OW_Mountains || t == Tile::OW_Lake) {
+                if (t == Tile::OW_Lake) {
                     log("This terrain cannot be explored on foot.");
                 } else {
                     enter_detail_map();
