@@ -1453,9 +1453,9 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
         }
         case AnimationType::WaterShimmer: {
             static const ResolvedVisual frames[] = {
-                {'~', nullptr, Color::Blue, Color::Default},
-                {'~', "\xe2\x89\x88", Color::Cyan, Color::Default},
-                {'~', nullptr, Color::Blue, Color::Default},
+                {'~', nullptr, Color::Blue, static_cast<Color>(17)},
+                {'~', "\xe2\x89\x88", Color::Cyan, static_cast<Color>(18)},
+                {'~', nullptr, Color::Blue, static_cast<Color>(17)},
             };
             return frames[frame_index % 3];
         }

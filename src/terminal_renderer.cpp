@@ -576,10 +576,17 @@ void TerminalRenderer::draw_entity(int x, int y, const RenderDescriptor& desc) {
 
 void TerminalRenderer::draw_animation(int x, int y, AnimationType type, int frame_index) {
     auto visual = resolve_animation(type, frame_index);
-    if (visual.utf8)
-        draw_glyph(x, y, visual.utf8, visual.fg);
-    else
-        draw_char(x, y, visual.glyph, visual.fg);
+    if (visual.utf8) {
+        if (visual.bg != Color::Default)
+            draw_glyph(x, y, visual.utf8, visual.fg, visual.bg);
+        else
+            draw_glyph(x, y, visual.utf8, visual.fg);
+    } else {
+        if (visual.bg != Color::Default)
+            draw_char(x, y, visual.glyph, visual.fg, visual.bg);
+        else
+            draw_char(x, y, visual.glyph, visual.fg);
+    }
 }
 
 } // namespace astra
