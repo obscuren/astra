@@ -47,8 +47,18 @@ void DetailMapGeneratorV2::generate_layout(std::mt19937& rng) {
     }
 
     if (prof.structure_fn) {
+        // Mountains strategy needs neighbor count for variant selection
+        BiomeProfile prof_copy = prof;
+        if (props_->biome == Biome::Mountains) {
+            int count = 0;
+            if (props_->detail_neighbor_n == Tile::OW_Mountains) ++count;
+            if (props_->detail_neighbor_s == Tile::OW_Mountains) ++count;
+            if (props_->detail_neighbor_e == Tile::OW_Mountains) ++count;
+            if (props_->detail_neighbor_w == Tile::OW_Mountains) ++count;
+            prof_copy.mountain_neighbor_count = count;
+        }
         prof.structure_fn(channels_.structure.data(), w, h, rng,
-                          channels_.elevation.data(), channels_.moisture.data(), prof);
+                          channels_.elevation.data(), channels_.moisture.data(), prof_copy);
     }
 
     composite_terrain(*map_, channels_, prof);
