@@ -32,7 +32,7 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Forest:      return Color::Green;
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
-        case Tile::OW_Swamp:       return static_cast<Color>(58);
+        case Tile::OW_Swamp:       return static_cast<Color>(22);
         case Tile::OW_CaveEntrance:return Color::Magenta;
         case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;

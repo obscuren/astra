@@ -141,9 +141,9 @@ inline const char* overworld_glyph(Tile t, int x, int y) {
         }
         case Tile::OW_Swamp: {
             static const char* g[] = {
-                "\xcf\x84",      // τ
-                "\"",
-                ",",
+                "\xd5\x88",      // Ո
+                "\xca\x83",      // ʃ
+                "\xd5\x88",      // Ո
             };
             return g[h % 3];
         }

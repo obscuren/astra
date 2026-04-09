@@ -106,7 +106,7 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Forest:      return Color::Green;
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
-        case Tile::OW_Swamp:       return static_cast<Color>(58);
+        case Tile::OW_Swamp:       return static_cast<Color>(22);
         case Tile::OW_CaveEntrance:return Color::Magenta;
         case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;
@@ -174,9 +174,9 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
         }
         case Tile::OW_Swamp: {
             static const char* g[] = {
-                "\xcf\x84",      // τ
-                "\"",
-                ",",
+                "\xd5\x88",      // Ո
+                "\xca\x83",      // ʃ
+                "\xd5\x88",      // Ո
             };
             return select_variant(g, seed);
         }

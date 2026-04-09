@@ -37,8 +37,9 @@ Color Minimap::tile_color(Tile t, MapType map_type) {
             return Color::Green;
         case Tile::OW_River:
         case Tile::OW_Lake:
-        case Tile::OW_Swamp:
             return Color::Blue;
+        case Tile::OW_Swamp:
+            return static_cast<Color>(22);
         case Tile::OW_IceField:
             return Color::Cyan;
         case Tile::OW_LavaFlow:
