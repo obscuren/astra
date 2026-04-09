@@ -136,29 +136,27 @@ void DetailMapGeneratorV2::apply_edge_strips(std::mt19937& rng) {
     const int w = map_->width();
     const int h = map_->height();
 
-    // Cached strips from props (real neighbor data)
+    // All arrays indexed by dir: 0=N, 1=S, 2=E, 3=W
     const std::optional<EdgeStrip>* cached[4] = {
-        &props_->edge_strip_n,
-        &props_->edge_strip_s,
-        &props_->edge_strip_e,
-        &props_->edge_strip_w,
+        &props_->edge_strip_n,  // 0: north
+        &props_->edge_strip_s,  // 1: south
+        &props_->edge_strip_e,  // 2: east
+        &props_->edge_strip_w,  // 3: west
     };
 
-    // Neighbor overworld tiles (for synthetic generation)
     const Tile neighbor_tiles[4] = {
-        props_->detail_neighbor_n,
-        props_->detail_neighbor_s,
-        props_->detail_neighbor_w,
-        props_->detail_neighbor_e,
+        props_->detail_neighbor_n,  // 0: north
+        props_->detail_neighbor_s,  // 1: south
+        props_->detail_neighbor_e,  // 2: east
+        props_->detail_neighbor_w,  // 3: west
     };
 
     // The edge of the neighbor's map that faces us
-    // Our north neighbor's south edge faces us, etc.
     const EdgeDirection facing_edge[4] = {
-        EdgeDirection::South,  // our north → neighbor's south
-        EdgeDirection::North,  // our south → neighbor's north
-        EdgeDirection::East,   // our west → neighbor's east
-        EdgeDirection::West,   // our east → neighbor's west
+        EdgeDirection::South,  // 0: our north → neighbor's south
+        EdgeDirection::North,  // 1: our south → neighbor's north
+        EdgeDirection::West,   // 2: our east → neighbor's west
+        EdgeDirection::East,   // 3: our west → neighbor's east
     };
 
     // Generate synthetic strips for uncached neighbors with different biomes
