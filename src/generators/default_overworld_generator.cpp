@@ -497,7 +497,16 @@ void DefaultOverworldGenerator::place_pois(std::mt19937& rng) {
 // Factory
 // ---------------------------------------------------------------------------
 
-std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& /*props*/) {
+// Forward declaration
+std::unique_ptr<MapGenerator> make_temperate_overworld_generator();
+
+std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props) {
+    if (props.body_type == BodyType::Terrestrial &&
+        props.body_temperature == Temperature::Temperate &&
+        (props.body_atmosphere == Atmosphere::Standard ||
+         props.body_atmosphere == Atmosphere::Dense)) {
+        return make_temperate_overworld_generator();
+    }
     return std::make_unique<DefaultOverworldGenerator>();
 }
 

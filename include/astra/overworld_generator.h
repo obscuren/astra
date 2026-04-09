@@ -36,6 +36,10 @@ protected:
     virtual void configure_noise(float& elev_scale, float& moist_scale,
                                  const TerrainContext& ctx);
 
+    // Called after noise generation, before classification. Use for setup
+    // that needs elevation/moisture data (e.g., Voronoi seed placement).
+    virtual void pre_classify(std::mt19937& rng);
+
     // Classify a single cell to a terrain tile.
     virtual Tile classify_terrain(int x, int y, float elev, float moist,
                                   const TerrainContext& ctx) = 0;

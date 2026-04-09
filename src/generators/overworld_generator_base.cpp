@@ -66,6 +66,10 @@ void OverworldGeneratorBase::configure_noise(float& elev_scale, float& moist_sca
     moist_scale = 0.12f;
 }
 
+void OverworldGeneratorBase::pre_classify(std::mt19937& /*rng*/) {
+    // Default: nothing to do
+}
+
 void OverworldGeneratorBase::carve_rivers(std::mt19937& /*rng*/) {
     // Default: no rivers
 }
@@ -107,6 +111,9 @@ void OverworldGeneratorBase::generate_layout(std::mt19937& rng) {
                                             moist_seed, moist_scale);
         }
     }
+
+    // Step 3.5: Pre-classification hook (e.g., Voronoi seed placement)
+    pre_classify(rng);
 
     // Step 4: Classify terrain (virtual hook)
     for (int y = 0; y < h; ++y) {
