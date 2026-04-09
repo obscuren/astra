@@ -63,6 +63,10 @@ protected:
 // --- Noise helpers (used by classifiers and base) ---
 float ow_fbm(float x, float y, unsigned seed, float scale, int octaves = 4);
 
+// --- Shared POI placement (used by Default and Temperate generators) ---
+void place_default_pois(TileMap* map, const MapProperties* props,
+                        const std::vector<float>& elevation, std::mt19937& rng);
+
 // --- Factory ---
 std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props);
 
