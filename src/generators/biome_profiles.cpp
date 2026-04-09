@@ -25,6 +25,7 @@ void structure_cliffs(StructureMask* grid, int w, int h, std::mt19937& rng, cons
 void structure_islands(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
 void structure_formations(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
 void structure_craters(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
+void structure_mountains(StructureMask* grid, int w, int h, std::mt19937& rng, const float* elevation, const float* moisture, const BiomeProfile& prof);
 
 const BiomeProfile& biome_profile(Biome b) {
     // Natural biomes
@@ -138,6 +139,18 @@ const BiomeProfile& biome_profile(Biome b) {
         flora_marsh
     };
 
+    static const BiomeProfile mountains {
+        "Mountains",
+        elevation_ridgeline,
+        0.04f, 5, 0.92f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
+        structure_mountains, 0.6f,
+        {{FixtureType::NaturalObstacle, 0.02f, false},
+         {FixtureType::MineralOre, 0.01f, false},
+         {FixtureType::MineralCrystal, 0.005f, false}},
+        nullptr
+    };
+
     // Alien biomes
     static const BiomeProfile alien_crystalline {
         "AlienCrystalline",
@@ -228,6 +241,7 @@ const BiomeProfile& biome_profile(Biome b) {
         case Biome::Crystal:           return crystal;
         case Biome::Corroded:          return corroded;
         case Biome::Marsh:             return marsh;
+        case Biome::Mountains:         return mountains;
         case Biome::AlienCrystalline:  return alien_crystalline;
         case Biome::AlienOrganic:      return alien_organic;
         case Biome::AlienGeometric:    return alien_geometric;
@@ -241,7 +255,7 @@ const BiomeProfile& biome_profile(Biome b) {
 }
 
 bool parse_biome(const std::string& name, Biome& out) {
-    static const std::array<std::pair<const char*, Biome>, 22> table {{
+    static const std::array<std::pair<const char*, Biome>, 23> table {{
         {"grassland",        Biome::Grassland},
         {"forest",           Biome::Forest},
         {"jungle",           Biome::Jungle},
@@ -262,6 +276,7 @@ bool parse_biome(const std::string& name, Biome& out) {
         {"alien_light",      Biome::AlienLight},
         {"scarred_scorched", Biome::ScarredScorched},
         {"scarred_glassed",  Biome::ScarredGlassed},
+        {"mountains",        Biome::Mountains},
         {"station",          Biome::Station},
     }};
 

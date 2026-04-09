@@ -235,6 +235,7 @@ enum class Biome : uint8_t {
     Grassland,
     Jungle,
     Marsh,
+    Mountains,
     // Alien terrain (one per Architecture type)
     AlienCrystalline,
     AlienOrganic,

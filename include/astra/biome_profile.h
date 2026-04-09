@@ -115,6 +115,9 @@ struct BiomeProfile {
 
     // Layer 5: Flora / ground resources
     FloraStrategy flora_fn = nullptr;
+
+    // Mountain variant selection (set by generator before structure_fn call)
+    int mountain_neighbor_count = 0;
 };
 
 // --- Lookup functions ---

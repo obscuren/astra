@@ -300,4 +300,89 @@ void structure_craters(StructureMask* grid, int w, int h,
     }
 }
 
+// ---------------------------------------------------------------------------
+// Strategy 6: structure_mountains — neighbor-driven mountain variants
+// ---------------------------------------------------------------------------
+void structure_mountains(StructureMask* grid, int w, int h,
+                         std::mt19937& rng,
+                         const float* elevation, const float* /*moisture*/,
+                         const BiomeProfile& prof) {
+    int neighbors = prof.mountain_neighbor_count;
+
+    // --- Cellular automata mountain generation ---
+    // All variants use cave-automata: random fill → smoothing passes.
+    // Neighbor count controls initial wall density (more neighbors = more open).
+    //
+    // Passes (0-1):  55% initial fill → dense mountains with winding valleys
+    // Gradient (2):  45% initial fill → moderate mountain coverage
+    // Plateau (3-4): 35% initial fill → open highland with scattered massifs
+
+    int fill_pct;
+    int smooth_passes;
+    if (neighbors <= 1) {
+        fill_pct = 55;
+        smooth_passes = 5;
+    } else if (neighbors == 2) {
+        fill_pct = 45;
+        smooth_passes = 5;
+    } else {
+        fill_pct = 35;
+        smooth_passes = 4;
+    }
+
+    // Step 1: Random fill
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            // Map edges are always wall (keeps terrain contained)
+            if (x == 0 || x == w - 1 || y == 0 || y == h - 1) {
+                grid[y * w + x] = StructureMask::Wall;
+            } else {
+                grid[y * w + x] = (static_cast<int>(rng() % 100) < fill_pct)
+                    ? StructureMask::Wall : StructureMask::None;
+            }
+        }
+    }
+
+    // Step 2: Cellular automata smoothing
+    // Rule: cell becomes wall if 5+ of its 8 neighbors are wall (B5678/S45678 variant)
+    std::vector<StructureMask> buf(w * h);
+    for (int pass = 0; pass < smooth_passes; ++pass) {
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                if (x == 0 || x == w - 1 || y == 0 || y == h - 1) {
+                    buf[y * w + x] = StructureMask::Wall;
+                    continue;
+                }
+                // Count wall neighbors (8-connected)
+                int walls = 0;
+                for (int dy = -1; dy <= 1; ++dy) {
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        if (dx == 0 && dy == 0) continue;
+                        if (grid[(y + dy) * w + (x + dx)] == StructureMask::Wall)
+                            ++walls;
+                    }
+                }
+                // Birth at 5+, survive at 4+
+                if (grid[y * w + x] == StructureMask::Wall) {
+                    buf[y * w + x] = (walls >= 4) ? StructureMask::Wall : StructureMask::None;
+                } else {
+                    buf[y * w + x] = (walls >= 5) ? StructureMask::Wall : StructureMask::None;
+                }
+            }
+        }
+        std::copy(buf.begin(), buf.end(), grid);
+    }
+
+    // Step 3: Open the edges so terrain doesn't feel boxed in
+    // Clear the border walls we forced (let the compositor/bleed handle edges)
+    for (int x = 0; x < w; ++x) {
+        grid[x] = StructureMask::None;             // top row
+        grid[(h - 1) * w + x] = StructureMask::None; // bottom row
+    }
+    for (int y = 0; y < h; ++y) {
+        grid[y * w] = StructureMask::None;             // left col
+        grid[y * w + (w - 1)] = StructureMask::None;   // right col
+    }
+}
+
 } // namespace astra

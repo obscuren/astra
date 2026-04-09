@@ -37,8 +37,8 @@ bool TileMap::passable(int x, int y) const {
     }
     if (t == Tile::Floor || t == Tile::IndoorFloor || t == Tile::Path || t == Tile::Portal || t == Tile::Water || t == Tile::Ice)
         return true;
-    // Overworld tiles: all passable except mountains, lakes, and glassed craters
-    if (t == Tile::OW_Mountains || t == Tile::OW_Lake || t == Tile::OW_GlassedCrater) return false;
+    // Overworld tiles: all passable except lakes and glassed craters
+    if (t == Tile::OW_Lake || t == Tile::OW_GlassedCrater) return false;
     if (t >= Tile::OW_Plains && t <= Tile::OW_Landing) return true;
     return false;
 }
@@ -483,6 +483,8 @@ BiomeColors biome_colors(Biome b) {
             return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), static_cast<Color>(22)};
         case Biome::Marsh:
             return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), static_cast<Color>(23)};
+        case Biome::Mountains:
+            return {static_cast<Color>(245), static_cast<Color>(243), Color::Blue, static_cast<Color>(240)};
         case Biome::AlienCrystalline:
             return {Color::Cyan, static_cast<Color>(23), Color::White, Color::DarkGray};
         case Biome::AlienOrganic:
