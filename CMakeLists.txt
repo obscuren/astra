@@ -45,6 +45,7 @@ set(ASTRA_SOURCES
     src/generators/structure_strategies.cpp
     src/generators/flora_strategies.cpp
     src/generators/terrain_compositor.cpp
+    src/generators/edge_strip.cpp
     src/generators/detail_map_generator_v2.cpp
     src/generators/civ_styles.cpp
     src/generators/furniture_palettes.cpp
