@@ -1197,7 +1197,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 props.lore_influence = &lore_infl;
 
             world_.map() = TileMap(props.width, props.height, MapType::Overworld);
-            auto gen = create_generator(MapType::Overworld);
+            auto gen = create_generator(MapType::Overworld, props);
             gen->generate(world_.map(), props, ow_seed);
             world_.map().set_biome(dest_biome);
             if (props.lore_terraformed)

@@ -43,6 +43,7 @@ protected:
 
 // Factory
 std::unique_ptr<MapGenerator> create_generator(MapType type);
+std::unique_ptr<MapGenerator> create_generator(MapType type, const MapProperties& props);
 std::unique_ptr<MapGenerator> create_hub_generator();
 std::unique_ptr<MapGenerator> create_derelict_generator();
 std::unique_ptr<MapGenerator> create_starship_generator();

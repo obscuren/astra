@@ -488,7 +488,7 @@ void DefaultOverworldGenerator::place_pois(std::mt19937& rng) {
 // Factory
 // ---------------------------------------------------------------------------
 
-std::unique_ptr<MapGenerator> make_overworld_generator() {
+std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& /*props*/) {
     return std::make_unique<DefaultOverworldGenerator>();
 }
 

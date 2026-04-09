@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/map_generator.h"
+#include "astra/map_properties.h"
 #include "astra/celestial_body.h"
 
 #include <vector>
@@ -63,6 +64,6 @@ protected:
 float ow_fbm(float x, float y, unsigned seed, float scale, int octaves = 4);
 
 // --- Factory ---
-std::unique_ptr<MapGenerator> make_overworld_generator();
+std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props);
 
 } // namespace astra

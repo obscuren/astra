@@ -807,7 +807,7 @@ bool MapEditor::handle_input(int key, Game& game) {
                                              Biome::Ice, Biome::Volcanic, Biome::Aquatic};
                         Biome ow_biome = (pending_biome_ < 6) ? ow_biomes[pending_biome_] : Biome::Rocky;
                         world_->map() = TileMap(props.width, props.height, MapType::Overworld);
-                        auto gen = create_generator(MapType::Overworld);
+                        auto gen = create_generator(MapType::Overworld, props);
                         gen->generate(world_->map(), props, seed);
                         world_->map().set_biome(ow_biome);
                         world_->visibility().reveal_all();

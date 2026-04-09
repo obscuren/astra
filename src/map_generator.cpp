@@ -375,7 +375,7 @@ std::unique_ptr<MapGenerator> make_open_cave_generator();
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator();
 std::unique_ptr<MapGenerator> make_starship_generator();
-std::unique_ptr<MapGenerator> make_overworld_generator();
+std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props);
 std::unique_ptr<MapGenerator> make_detail_map_generator();
 std::unique_ptr<MapGenerator> make_detail_map_generator_v2();
 
@@ -395,12 +395,21 @@ std::unique_ptr<MapGenerator> create_generator(MapType type) {
             return make_station_generator();
         case MapType::Starship:
             return make_starship_generator();
-        case MapType::Overworld:
-            return make_overworld_generator();
+        case MapType::Overworld: {
+            auto props = default_properties(MapType::Overworld);
+            return make_overworld_generator(props);
+        }
         case MapType::DetailMap:
             return make_detail_map_generator_v2();
     }
     return make_station_generator();
+}
+
+std::unique_ptr<MapGenerator> create_generator(MapType type, const MapProperties& props) {
+    if (type == MapType::Overworld) {
+        return make_overworld_generator(props);
+    }
+    return create_generator(type);
 }
 
 std::unique_ptr<MapGenerator> create_hub_generator() {
