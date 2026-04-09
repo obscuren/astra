@@ -8,6 +8,12 @@
 
 namespace astra {
 
+// Forest variant flags stored in bits 0-1 of overworld custom_flags
+static constexpr uint8_t FOREST_VARIANT_MASK = 0x03;
+static constexpr uint8_t FOREST_TEMPERATE   = 0;  // standard green
+static constexpr uint8_t FOREST_AUTUMN      = 1;  // red/orange (cool + mid elevation)
+static constexpr uint8_t FOREST_CONIFER     = 2;  // dark blue-green (cold + high)
+
 // ---------------------------------------------------------------------------
 // TemperateOverworldGenerator — layered simulation for temperate terrestrial
 // planets. Biomes emerge from elevation + latitude-based temperature + moisture.
@@ -60,9 +66,9 @@ void TemperateOverworldGenerator::pre_classify(std::mt19937& rng) {
             // Use a curve that makes the middle temperate band wider
             float base_temp = latitude;
 
-            // Elevation cooling: high elevation = colder
+            // Elevation cooling: high elevation = colder (gentle effect)
             float elev = elevation_[y * w + x];
-            float elev_cooling = std::max(0.0f, (elev - 0.4f) * 1.5f);
+            float elev_cooling = std::max(0.0f, (elev - 0.5f) * 0.8f);
 
             // Small noise variation for natural irregularity
             float noise = ow_fbm(static_cast<float>(x), static_cast<float>(y),
@@ -84,28 +90,40 @@ Tile TemperateOverworldGenerator::classify_terrain(int x, int y, float elev, flo
     int w = map_->width();
     float temp = temperature_[y * w + x];
 
+    // Helper: return forest tile with variant flag based on temperature + elevation
+    auto forest = [&]() -> Tile {
+        uint8_t variant = FOREST_TEMPERATE;
+        if (temp < 0.3f && elev > 0.5f) {
+            variant = FOREST_CONIFER;     // cold + high = dark conifers
+        } else if (temp < 0.4f || elev > 0.6f) {
+            variant = FOREST_AUTUMN;      // cool or elevated = autumn colors
+        }
+        map_->set_custom_flags_byte(x, y, variant & FOREST_VARIANT_MASK);
+        return Tile::OW_Forest;
+    };
+
     // --- Elevation extremes ---
     if (elev > 0.75f) return Tile::OW_Mountains;
     if (elev < 0.2f)  return Tile::OW_Lake;
 
-    // --- Cold regions (temp < 0.25) — ice and tundra ---
-    if (temp < 0.2f) {
+    // --- Cold regions — ice only at truly polar temperatures ---
+    if (temp < 0.15f) {
         return Tile::OW_IceField;
     }
-    if (temp < 0.3f) {
-        // Tundra/cold plains — some ice at high elevation
-        if (elev > 0.6f) return Tile::OW_IceField;
+    if (temp < 0.25f) {
+        // Tundra/cold plains — ice only at very high elevation
+        if (elev > 0.65f) return Tile::OW_IceField;
         return Tile::OW_Plains;
     }
 
     // --- Hot regions (temp > 0.75) — desert and savanna ---
     if (temp > 0.8f) {
-        if (moist > 0.6f) return Tile::OW_Swamp;  // hot + wet = tropical swamp
-        if (moist > 0.4f) return Tile::OW_Plains;  // hot + moderate = savanna
+        if (moist > 0.6f) return Tile::OW_Swamp;
+        if (moist > 0.4f) return Tile::OW_Plains;
         return Tile::OW_Desert;
     }
     if (temp > 0.65f) {
-        if (moist > 0.55f) return Tile::OW_Forest;  // warm + wet = dense forest
+        if (moist > 0.55f) return forest();
         if (moist > 0.35f) return Tile::OW_Plains;
         return Tile::OW_Desert;
     }
@@ -119,7 +137,7 @@ Tile TemperateOverworldGenerator::classify_terrain(int x, int y, float elev, flo
 
     // Wet = forest
     if (moist > 0.55f) {
-        return Tile::OW_Forest;
+        return forest();
     }
 
     // Moderate moisture = plains/grassland
