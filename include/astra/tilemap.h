@@ -107,9 +107,9 @@ inline const char* overworld_glyph(Tile t, int x, int y) {
         }
         case Tile::OW_Forest: {
             static const char* g[] = {
-                "\xe2\x99\xa0",  // ♠
-                "\xce\xa6",      // Φ
-                "\xc6\x92",      // ƒ
+                "\xe2\x99\xa3",  // ♣
+                "\xca\xae",      // ʮ
+                "\xd0\xa6",      // Ц
             };
             return g[h % 3];
         }

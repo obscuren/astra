@@ -103,7 +103,7 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_LavaFlow:    return Color::Red;
         case Tile::OW_Desert:      return Color::Yellow;
         case Tile::OW_Fungal:      return Color::Green;
-        case Tile::OW_Forest:      return Color::Green;
+        case Tile::OW_Forest:      return static_cast<Color>(34);
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(22);
@@ -141,9 +141,9 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
         }
         case Tile::OW_Forest: {
             static const char* g[] = {
-                "\xe2\x99\xa0",  // ♠
-                "\xce\xa6",      // Φ
-                "\xc6\x92",      // ƒ
+                "\xe2\x99\xa3",  // ♣
+                "\xca\xae",      // ʮ
+                "\xd0\xa6",      // Ц
             };
             return select_variant(g, seed);
         }
@@ -1190,7 +1190,7 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
         // OW_Ruins: seed carries neighbor bitmask for baroque pipe rendering
         if (tile == Tile::OW_Ruins) {
             static const char* baroque_conn[] = {
-                "\xe2\x96\xa0",  // 0000 isolated -> ■
+                "\xe2\x95\xac",  // 0000 isolated -> ╬
                 "\xe2\x95\x91",  // 0001 N        -> ║
                 "\xe2\x95\x91",  // 0010 S        -> ║
                 "\xe2\x95\x91",  // 0011 NS       -> ║
@@ -1209,7 +1209,7 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
             };
             uint8_t nb = seed & 0x0F;
             const char* utf8 = baroque_conn[nb];
-            Color c = remembered ? bc.remembered : static_cast<Color>(178);  // warm gold
+            Color c = remembered ? bc.remembered : static_cast<Color>(15);
             return {'#', utf8, c, Color::Default};
         }
 
