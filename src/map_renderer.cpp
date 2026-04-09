@@ -123,7 +123,13 @@ void render_map(const MapRenderContext& rc) {
                         RenderDescriptor desc;
                         desc.category = RenderCategory::Tile;
                         desc.type_id  = static_cast<uint16_t>(tile_at);
-                        desc.seed     = position_seed(mx, my);
+                        uint8_t pseed = position_seed(mx, my);
+                        // Forest: encode variant in top 2 bits of seed
+                        if (tile_at == Tile::OW_Forest) {
+                            uint8_t variant = rc.world.map().get_custom_flags(mx, my) & 0x03;
+                            pseed = (pseed & 0x3F) | (variant << 6);
+                        }
+                        desc.seed     = pseed;
                         desc.flags    = RF_None;
                         desc.biome    = rc.world.map().biome();
                         if (tile_at == Tile::OW_AlienTerrain &&

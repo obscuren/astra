@@ -103,7 +103,7 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_LavaFlow:    return Color::Red;
         case Tile::OW_Desert:      return Color::Yellow;
         case Tile::OW_Fungal:      return Color::Green;
-        case Tile::OW_Forest:      return static_cast<Color>(34);
+        case Tile::OW_Forest:      return static_cast<Color>(34);  // overridden per-variant in resolve
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(22);
@@ -222,7 +222,7 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
             // fallback glyph for legacy path
             return "\xe2\x96\xa0";  // ■
         }
-        case Tile::OW_Settlement:  return "\xe2\x99\xa6"; // ♦
+        case Tile::OW_Settlement:  return "\xe2\x96\xb2"; // ▲
         case Tile::OW_CrashedShip: {
             static const char* g[] = {
                 "%",
@@ -1215,6 +1215,31 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
         Color c = ow_tile_color(tile, biome);
         const char* utf8 = ow_glyph(tile, seed);
+
+        // Forest variant colors from top 2 bits of seed
+        if (tile == Tile::OW_Forest) {
+            uint8_t variant = (seed >> 6) & 0x03;
+            switch (variant) {
+                case 0: // Temperate — standard green
+                    c = static_cast<Color>(34);
+                    break;
+                case 1: { // Autumn — red/orange/amber mix
+                    static const Color autumn[] = {
+                        static_cast<Color>(166),  // orange
+                        static_cast<Color>(130),  // brown-red
+                        static_cast<Color>(172),  // amber
+                        static_cast<Color>(136),  // dark gold
+                    };
+                    c = autumn[seed % 4];
+                    break;
+                }
+                case 2: // Conifer — dark blue-green
+                    c = static_cast<Color>(23);
+                    break;
+                default:
+                    break;
+            }
+        }
 
         // Alien terrain: architecture-specific color palette
         if (tile == Tile::OW_AlienTerrain) {
