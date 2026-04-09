@@ -19,8 +19,9 @@ protected:
     void generate_backdrop(unsigned /*seed*/) override {}
 
 private:
-    void apply_procedural_bleed(TerrainChannels& channels, std::mt19937& rng);
     void apply_edge_strips(std::mt19937& rng);
+    EdgeStrip generate_synthetic_strip(Tile neighbor_tile, EdgeDirection extract_dir,
+                                       std::mt19937& rng);
 
     TerrainChannels channels_;
 };
@@ -50,85 +51,46 @@ void DetailMapGeneratorV2::generate_layout(std::mt19937& rng) {
                           channels_.elevation.data(), channels_.moisture.data(), prof);
     }
 
-    // Procedural channel blending for uncached neighbors (modifies channels)
-    apply_procedural_bleed(channels_, rng);
-
     composite_terrain(*map_, channels_, prof);
 
-    // Cached edge strip application (modifies composited TileMap)
+    // Apply edge strips — cached from real neighbors + synthetic for uncached
     apply_edge_strips(rng);
 }
 
 // ---------------------------------------------------------------------------
-// apply_procedural_bleed
+// generate_synthetic_strip — procedural fallback for uncached neighbors
+// Generates the neighbor's terrain from its biome profile, composites it,
+// and extracts the edge strip facing our tile.
 // ---------------------------------------------------------------------------
 
-void DetailMapGeneratorV2::apply_procedural_bleed(TerrainChannels& channels,
-                                                   std::mt19937& rng) {
-    static constexpr int bleed_margin = 20;
+EdgeStrip DetailMapGeneratorV2::generate_synthetic_strip(
+    Tile neighbor_tile, EdgeDirection extract_dir, std::mt19937& rng) {
 
-    const int w = channels.width;
-    const int h = channels.height;
+    const int w = map_->width();
+    const int h = map_->height();
 
-    const Tile neighbors[4] = {
-        props_->detail_neighbor_n,
-        props_->detail_neighbor_s,
-        props_->detail_neighbor_w,
-        props_->detail_neighbor_e,
-    };
+    Biome neighbor_biome = detail_biome_for_terrain(neighbor_tile, props_->biome);
+    const auto& neighbor_prof = biome_profile(neighbor_biome);
 
-    // Skip directions that have cached edge strips — they get real data later
-    const bool has_strip[4] = {
-        props_->edge_strip_n.has_value(),
-        props_->edge_strip_s.has_value(),
-        props_->edge_strip_w.has_value(),
-        props_->edge_strip_e.has_value(),
-    };
+    // Generate full channels using neighbor's biome profile
+    TerrainChannels neighbor_channels(w, h);
+    if (neighbor_prof.elevation_fn)
+        neighbor_prof.elevation_fn(neighbor_channels.elevation.data(), w, h,
+                                   rng, neighbor_prof);
+    if (neighbor_prof.moisture_fn)
+        neighbor_prof.moisture_fn(neighbor_channels.moisture.data(), w, h, rng,
+                                  neighbor_channels.elevation.data(), neighbor_prof);
+    if (neighbor_prof.structure_fn)
+        neighbor_prof.structure_fn(neighbor_channels.structure.data(), w, h, rng,
+                                   neighbor_channels.elevation.data(),
+                                   neighbor_channels.moisture.data(), neighbor_prof);
 
-    for (int dir = 0; dir < 4; ++dir) {
-        if (has_strip[dir]) continue;
-        if (neighbors[dir] == Tile::Empty) continue;
+    // Composite into a temporary TileMap
+    TileMap temp_map(w, h, MapType::DetailMap);
+    composite_terrain(temp_map, neighbor_channels, neighbor_prof);
 
-        Biome neighbor_biome = detail_biome_for_terrain(neighbors[dir],
-                                                         props_->biome);
-        if (neighbor_biome == props_->biome) continue;
-
-        const auto& neighbor_prof = biome_profile(neighbor_biome);
-        if (!neighbor_prof.elevation_fn) continue;
-
-        // Deterministic seed for this neighbor direction
-        unsigned dir_seed = rng() ^ (static_cast<unsigned>(dir) * 7919u);
-        std::mt19937 neighbor_rng(dir_seed);
-
-        // Generate the neighbor's elevation for the full grid
-        std::vector<float> neighbor_elev(w * h, 0.0f);
-        neighbor_prof.elevation_fn(neighbor_elev.data(), w, h,
-                                   neighbor_rng, neighbor_prof);
-
-        // Blend at the edge
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
-                int distance = 0;
-                switch (dir) {
-                    case 0: distance = y; break;              // north: from top
-                    case 1: distance = (h - 1) - y; break;   // south: from bottom
-                    case 2: distance = x; break;              // west: from left
-                    case 3: distance = (w - 1) - x; break;   // east: from right
-                }
-
-                if (distance >= bleed_margin) continue;
-
-                float t = 1.0f - (static_cast<float>(distance) /
-                                  static_cast<float>(bleed_margin));
-                t = t * t; // quadratic falloff
-
-                int idx = y * w + x;
-                channels.elevation[idx] =
-                    channels.elevation[idx] * (1.0f - t) +
-                    neighbor_elev[idx] * t;
-            }
-        }
-    }
+    // Extract the edge facing our tile
+    return extract_edge_strip(temp_map, extract_dir, 20);
 }
 
 // ---------------------------------------------------------------------------
@@ -142,24 +104,64 @@ void DetailMapGeneratorV2::apply_edge_strips(std::mt19937& rng) {
     const int w = map_->width();
     const int h = map_->height();
 
-    // Process strips in order: N, S, E, W (later overwrites earlier in corners)
-    struct StripInfo {
-        const std::optional<EdgeStrip>* strip;
-        int dir; // 0=N, 1=S, 2=E, 3=W
-    };
-    StripInfo strips[4] = {
-        {&props_->edge_strip_n, 0},
-        {&props_->edge_strip_s, 1},
-        {&props_->edge_strip_e, 2},
-        {&props_->edge_strip_w, 3},
+    // Cached strips from props (real neighbor data)
+    const std::optional<EdgeStrip>* cached[4] = {
+        &props_->edge_strip_n,
+        &props_->edge_strip_s,
+        &props_->edge_strip_e,
+        &props_->edge_strip_w,
     };
 
-    for (const auto& info : strips) {
-        if (!info.strip->has_value()) continue;
-        const EdgeStrip& strip = info.strip->value();
+    // Neighbor overworld tiles (for synthetic generation)
+    const Tile neighbor_tiles[4] = {
+        props_->detail_neighbor_n,
+        props_->detail_neighbor_s,
+        props_->detail_neighbor_w,
+        props_->detail_neighbor_e,
+    };
+
+    // The edge of the neighbor's map that faces us
+    // Our north neighbor's south edge faces us, etc.
+    const EdgeDirection facing_edge[4] = {
+        EdgeDirection::South,  // our north → neighbor's south
+        EdgeDirection::North,  // our south → neighbor's north
+        EdgeDirection::East,   // our west → neighbor's east
+        EdgeDirection::West,   // our east → neighbor's west
+    };
+
+    // Generate synthetic strips for uncached neighbors with different biomes
+    std::optional<EdgeStrip> synthetic[4];
+    for (int dir = 0; dir < 4; ++dir) {
+        if (cached[dir]->has_value()) continue;
+        if (neighbor_tiles[dir] == Tile::Empty) continue;
+
+        Biome neighbor_biome = detail_biome_for_terrain(neighbor_tiles[dir],
+                                                         props_->biome);
+        if (neighbor_biome == props_->biome) continue;
+
+        // Deterministic seed per direction
+        unsigned dir_seed = rng() ^ (static_cast<unsigned>(dir) * 7919u);
+        std::mt19937 synth_rng(dir_seed);
+
+        synthetic[dir] = generate_synthetic_strip(
+            neighbor_tiles[dir], facing_edge[dir], synth_rng);
+    }
+
+    // Process all strips: N(0), S(1), E(2), W(3)
+    // Later overwrites earlier in corners
+    for (int dir = 0; dir < 4; ++dir) {
+        const EdgeStrip* strip_ptr = nullptr;
+        if (cached[dir]->has_value()) {
+            strip_ptr = &cached[dir]->value();
+        } else if (synthetic[dir].has_value()) {
+            strip_ptr = &synthetic[dir].value();
+        } else {
+            continue;
+        }
+        const EdgeStrip& strip = *strip_ptr;
 
         // Deterministic RNG for blend probability
-        unsigned strip_seed = rng() ^ (static_cast<unsigned>(info.dir) * 4973u);
+        unsigned strip_seed = rng() ^ (static_cast<unsigned>(dir) * 4973u);
         std::mt19937 blend_rng(strip_seed);
 
         int max_depth = std::min(strip.depth, total_depth);
@@ -168,7 +170,7 @@ void DetailMapGeneratorV2::apply_edge_strips(std::mt19937& rng) {
             for (int a = 0; a < strip.length; ++a) {
                 // Map strip coordinates to map coordinates
                 int x = 0, y = 0;
-                switch (info.dir) {
+                switch (dir) {
                     case 0: // North: strip boundary → map row 0
                         x = a; y = d;
                         break;
