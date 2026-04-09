@@ -42,6 +42,8 @@ ThemeBiomeColors biome_palette(Biome biome) {
             return {static_cast<Color>(22), static_cast<Color>(22), static_cast<Color>(30), REMEMBERED_COLOR};
         case Biome::Marsh:
             return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), REMEMBERED_COLOR};
+        case Biome::Mountains:
+            return {Color::White, static_cast<Color>(243), Color::Blue, REMEMBERED_COLOR};
         case Biome::AlienCrystalline:
             return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::AlienOrganic:
@@ -362,6 +364,16 @@ static const char* wall_glyph_for_biome(Biome biome, uint8_t seed) {
             };
             return select_variant(g, seed);
         }
+        case Biome::Mountains: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓ dense rock
+                "\xe2\x96\x92",  // ▒ rough stone
+                "\xe2\x96\x91",  // ░ crumbling face
+                "#",              // solid cliff
+                "\xe2\x88\xa9",  // ∩ rounded peak
+            };
+            return select_variant(g, seed);
+        }
         default:
             return "#";
     }
@@ -409,6 +421,7 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
         case Biome::Grassland:s = {15, ",`.",  3}; break;
         case Biome::Jungle:   s = {15, "\",'", 3}; break;
         case Biome::Marsh:    s = {15, "\",~", 3}; break;
+        case Biome::Mountains:s = {18, ",:^",  3}; break;
         default: return {'.', nullptr, floor_color, Color::Default};
     }
 
@@ -641,6 +654,17 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
                         {'~', "\xe2\x89\x88", static_cast<Color>(33), Color::Default},    // ≈ deep pool
                     };
                     vis = variants[seed % 4]; break;
+                }
+                case Biome::Mountains: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", Color::White, Color::Default},                   // ° round boulder
+                        {'^', "\xe2\x96\xb2", static_cast<Color>(245), Color::Default},    // ▲ stone peak
+                        {'#', "\xe2\x96\x92", static_cast<Color>(243), Color::Default},    // ▒ rock face
+                        {'o', nullptr, Color::DarkGray, Color::Default},                    // rubble pile
+                        {'^', nullptr, static_cast<Color>(250), Color::Default},            // crag
+                        {'#', "\xe2\x96\x91", static_cast<Color>(247), Color::Default},    // ░ scree
+                    };
+                    vis = variants[seed % 6]; break;
                 }
                 case Biome::AlienCrystalline: {
                     static const ResolvedVisual variants[] = {
