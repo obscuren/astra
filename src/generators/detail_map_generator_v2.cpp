@@ -4,6 +4,7 @@
 #include "astra/terrain_compositor.h"
 #include "astra/map_properties.h"
 #include "astra/poi_phase.h"
+#include "astra/edge_strip.h"
 
 #include <queue>
 
@@ -18,7 +19,8 @@ protected:
     void generate_backdrop(unsigned /*seed*/) override {}
 
 private:
-    void apply_neighbor_bleed(TerrainChannels& channels, std::mt19937& rng);
+    void apply_procedural_bleed(TerrainChannels& channels, std::mt19937& rng);
+    void apply_edge_strips(std::mt19937& rng);
 
     TerrainChannels channels_;
 };
@@ -48,23 +50,26 @@ void DetailMapGeneratorV2::generate_layout(std::mt19937& rng) {
                           channels_.elevation.data(), channels_.moisture.data(), prof);
     }
 
-    apply_neighbor_bleed(channels_, rng);
+    // Procedural channel blending for uncached neighbors (modifies channels)
+    apply_procedural_bleed(channels_, rng);
 
     composite_terrain(*map_, channels_, prof);
+
+    // Cached edge strip application (modifies composited TileMap)
+    apply_edge_strips(rng);
 }
 
 // ---------------------------------------------------------------------------
-// apply_neighbor_bleed
+// apply_procedural_bleed
 // ---------------------------------------------------------------------------
 
-void DetailMapGeneratorV2::apply_neighbor_bleed(TerrainChannels& channels,
-                                                 std::mt19937& rng) {
+void DetailMapGeneratorV2::apply_procedural_bleed(TerrainChannels& channels,
+                                                   std::mt19937& rng) {
     static constexpr int bleed_margin = 20;
 
     const int w = channels.width;
     const int h = channels.height;
 
-    // Neighbor tiles: north, south, west, east
     const Tile neighbors[4] = {
         props_->detail_neighbor_n,
         props_->detail_neighbor_s,
@@ -72,7 +77,16 @@ void DetailMapGeneratorV2::apply_neighbor_bleed(TerrainChannels& channels,
         props_->detail_neighbor_e,
     };
 
+    // Skip directions that have cached edge strips — they get real data later
+    const bool has_strip[4] = {
+        props_->edge_strip_n.has_value(),
+        props_->edge_strip_s.has_value(),
+        props_->edge_strip_w.has_value(),
+        props_->edge_strip_e.has_value(),
+    };
+
     for (int dir = 0; dir < 4; ++dir) {
+        if (has_strip[dir]) continue;
         if (neighbors[dir] == Tile::Empty) continue;
 
         Biome neighbor_biome = detail_biome_for_terrain(neighbors[dir],
@@ -112,6 +126,115 @@ void DetailMapGeneratorV2::apply_neighbor_bleed(TerrainChannels& channels,
                 channels.elevation[idx] =
                     channels.elevation[idx] * (1.0f - t) +
                     neighbor_elev[idx] * t;
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// apply_edge_strips
+// ---------------------------------------------------------------------------
+
+void DetailMapGeneratorV2::apply_edge_strips(std::mt19937& rng) {
+    static constexpr int verbatim_depth = 5;
+    static constexpr int total_depth = 20;
+
+    const int w = map_->width();
+    const int h = map_->height();
+
+    // Process strips in order: N, S, E, W (later overwrites earlier in corners)
+    struct StripInfo {
+        const std::optional<EdgeStrip>* strip;
+        int dir; // 0=N, 1=S, 2=E, 3=W
+    };
+    StripInfo strips[4] = {
+        {&props_->edge_strip_n, 0},
+        {&props_->edge_strip_s, 1},
+        {&props_->edge_strip_e, 2},
+        {&props_->edge_strip_w, 3},
+    };
+
+    for (const auto& info : strips) {
+        if (!info.strip->has_value()) continue;
+        const EdgeStrip& strip = info.strip->value();
+
+        // Deterministic RNG for blend probability
+        unsigned strip_seed = rng() ^ (static_cast<unsigned>(info.dir) * 4973u);
+        std::mt19937 blend_rng(strip_seed);
+
+        int max_depth = std::min(strip.depth, total_depth);
+
+        for (int d = 0; d < max_depth; ++d) {
+            for (int a = 0; a < strip.length; ++a) {
+                // Map strip coordinates to map coordinates
+                int x = 0, y = 0;
+                switch (info.dir) {
+                    case 0: // North: strip boundary → map row 0
+                        x = a; y = d;
+                        break;
+                    case 1: // South: strip boundary → map last row
+                        x = a; y = (h - 1) - d;
+                        break;
+                    case 2: // East: strip boundary → map last col
+                        x = (w - 1) - d; y = a;
+                        break;
+                    case 3: // West: strip boundary → map col 0
+                        x = d; y = a;
+                        break;
+                }
+
+                if (x < 0 || x >= w || y < 0 || y >= h) continue;
+
+                const EdgeStripCell& src = strip.at(d, a);
+
+                if (d < verbatim_depth) {
+                    // Phase 1: Verbatim stamp
+                    map_->set(x, y, src.tile);
+
+                    // Remove existing fixture if any, then place strip's fixture
+                    if (map_->fixture_id(x, y) >= 0) {
+                        map_->remove_fixture(x, y);
+                    }
+                    if (src.fixture.has_value()) {
+                        map_->add_fixture(x, y, src.fixture.value());
+                    }
+
+                    map_->set_glyph_override(x, y, src.glyph_override);
+                    map_->set_custom_flags_byte(x, y, src.custom_flags);
+                } else {
+                    // Phase 2: Weighted blend
+                    float t = 1.0f - (static_cast<float>(d - verbatim_depth) /
+                                      static_cast<float>(total_depth - verbatim_depth));
+                    t = t * t; // quadratic falloff
+
+                    // Probability roll for this cell
+                    float roll = static_cast<float>(blend_rng() % 10000) / 10000.0f;
+
+                    bool stamp_tile = false;
+
+                    // Walls, structural tiles, water: stamp if they differ from generated
+                    if (src.tile == Tile::Wall || src.tile == Tile::StructuralWall ||
+                        src.tile == Tile::IndoorFloor || src.tile == Tile::Path ||
+                        src.tile == Tile::Water) {
+                        if (map_->get(x, y) == Tile::Floor && roll < t) {
+                            map_->set(x, y, src.tile);
+                            stamp_tile = true;
+                        }
+                    }
+
+                    // Fixtures: place if strip has one and generated cell doesn't
+                    if (src.fixture.has_value() && map_->fixture_id(x, y) < 0) {
+                        float fixture_roll = static_cast<float>(blend_rng() % 10000) / 10000.0f;
+                        if (fixture_roll < t) {
+                            map_->add_fixture(x, y, src.fixture.value());
+                        }
+                    }
+
+                    // Glyph override: copy where tile was also stamped
+                    if (stamp_tile && src.glyph_override != 0) {
+                        map_->set_glyph_override(x, y, src.glyph_override);
+                    }
+                }
             }
         }
     }
