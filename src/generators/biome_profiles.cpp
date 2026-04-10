@@ -151,6 +151,27 @@ const BiomeProfile& biome_profile(Biome b) {
         nullptr
     };
 
+    // Martian biomes — Mars-like rust terrain
+    static const BiomeProfile martian_barren {
+        "MartianBarren",
+        elevation_rugged,
+        0.03f, 3, 0.88f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
+        structure_craters, 0.5f,
+        {{FixtureType::NaturalObstacle, 0.03f, false},
+         {FixtureType::MineralOre, 0.008f, false}},
+        nullptr
+    };
+    static const BiomeProfile martian_polar {
+        "MartianPolar",
+        elevation_flat,
+        0.015f, 2, 0.95f,
+        moisture_none, 0.04f, 0.7f, 0.4f,
+        structure_none, 0.0f,
+        {{FixtureType::NaturalObstacle, 0.03f, false}},
+        nullptr
+    };
+
     // Alien biomes
     static const BiomeProfile alien_crystalline {
         "AlienCrystalline",
@@ -242,6 +263,8 @@ const BiomeProfile& biome_profile(Biome b) {
         case Biome::Corroded:          return corroded;
         case Biome::Marsh:             return marsh;
         case Biome::Mountains:         return mountains;
+        case Biome::MartianBarren:     return martian_barren;
+        case Biome::MartianPolar:      return martian_polar;
         case Biome::AlienCrystalline:  return alien_crystalline;
         case Biome::AlienOrganic:      return alien_organic;
         case Biome::AlienGeometric:    return alien_geometric;
@@ -255,7 +278,7 @@ const BiomeProfile& biome_profile(Biome b) {
 }
 
 bool parse_biome(const std::string& name, Biome& out) {
-    static const std::array<std::pair<const char*, Biome>, 23> table {{
+    static const std::array<std::pair<const char*, Biome>, 25> table {{
         {"grassland",        Biome::Grassland},
         {"forest",           Biome::Forest},
         {"jungle",           Biome::Jungle},
@@ -277,6 +300,8 @@ bool parse_biome(const std::string& name, Biome& out) {
         {"scarred_scorched", Biome::ScarredScorched},
         {"scarred_glassed",  Biome::ScarredGlassed},
         {"mountains",        Biome::Mountains},
+        {"martian_barren",   Biome::MartianBarren},
+        {"martian_polar",    Biome::MartianPolar},
         {"station",          Biome::Station},
     }};
 

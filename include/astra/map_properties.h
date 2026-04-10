@@ -98,8 +98,21 @@ struct MapProperties {
 
 MapProperties default_properties(MapType type);
 
-// Map an overworld terrain tile to the appropriate detail map biome
+// Map an overworld terrain tile to the appropriate detail map biome.
+// The planet_biome argument is the overworld map's biome — used to theme
+// ambiguous tiles (e.g. Barren on Mars vs airless moons).
 inline Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
+    // Mars-like planets (Biome::Sandy on rocky cold+thin atmo) — rust theme
+    if (planet_biome == Biome::Sandy) {
+        switch (terrain) {
+            case Tile::OW_Barren:    return Biome::MartianBarren;
+            case Tile::OW_Crater:    return Biome::MartianBarren;
+            case Tile::OW_IceField:  return Biome::MartianPolar;
+            case Tile::OW_Mountains: return Biome::Mountains;  // reuse mountains
+            default: break;  // fall through to default mapping
+        }
+    }
+
     switch (terrain) {
         case Tile::OW_Forest:    return Biome::Forest;
         case Tile::OW_Plains:    return Biome::Grassland;

@@ -485,6 +485,12 @@ BiomeColors biome_colors(Biome b) {
             return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), static_cast<Color>(23)};
         case Biome::Mountains:
             return {static_cast<Color>(245), static_cast<Color>(243), Color::Blue, static_cast<Color>(240)};
+        case Biome::MartianBarren:
+            // wall, floor, water, remembered — rust tones
+            return {static_cast<Color>(130), static_cast<Color>(94), Color::Blue, static_cast<Color>(52)};
+        case Biome::MartianPolar:
+            // icy rust — pale rose for ice over rust bedrock
+            return {static_cast<Color>(225), static_cast<Color>(180), static_cast<Color>(39), static_cast<Color>(145)};
         case Biome::AlienCrystalline:
             return {Color::Cyan, static_cast<Color>(23), Color::White, Color::DarkGray};
         case Biome::AlienOrganic:

@@ -246,6 +246,8 @@ enum class Biome : uint8_t {
     Jungle,
     Marsh,
     Mountains,
+    MartianBarren,  // rust-red rocky wastes (Mars-like)
+    MartianPolar,   // frozen rust terrain at the poles
     // Alien terrain (one per Architecture type)
     AlienCrystalline,
     AlienOrganic,

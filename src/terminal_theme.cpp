@@ -44,6 +44,10 @@ ThemeBiomeColors biome_palette(Biome biome) {
             return {static_cast<Color>(23), static_cast<Color>(29), static_cast<Color>(33), REMEMBERED_COLOR};
         case Biome::Mountains:
             return {Color::White, static_cast<Color>(243), Color::Blue, REMEMBERED_COLOR};
+        case Biome::MartianBarren:
+            return {static_cast<Color>(130), static_cast<Color>(94), Color::Blue, REMEMBERED_COLOR};
+        case Biome::MartianPolar:
+            return {static_cast<Color>(225), static_cast<Color>(180), static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::AlienCrystalline:
             return {Color::Cyan, static_cast<Color>(51), static_cast<Color>(39), REMEMBERED_COLOR};
         case Biome::AlienOrganic:
@@ -390,6 +394,23 @@ static const char* wall_glyph_for_biome(Biome biome, uint8_t seed) {
             };
             return select_variant(g, seed);
         }
+        case Biome::MartianBarren: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x96\x92",  // ▒
+                "\xe2\x96\x91",  // ░
+                "#",
+            };
+            return select_variant(g, seed);
+        }
+        case Biome::MartianPolar: {
+            static const char* g[] = {
+                "\xe2\x96\x91",  // ░ frost-rimed stone
+                "\xe2\x96\x92",  // ▒
+                "#",
+            };
+            return select_variant(g, seed);
+        }
         default:
             return "#";
     }
@@ -438,6 +459,8 @@ static ResolvedVisual resolve_floor(uint8_t seed, Biome biome, Color floor_color
         case Biome::Jungle:   s = {15, "\",'", 3}; break;
         case Biome::Marsh:    s = {15, "\",~", 3}; break;
         case Biome::Mountains:s = {18, ",:^",  3}; break;
+        case Biome::MartianBarren: s = {15, ",.:",  3}; break;
+        case Biome::MartianPolar:  s = {12, "'`,",  3}; break;
         default: return {'.', nullptr, floor_color, Color::Default};
     }
 
@@ -681,6 +704,24 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
                         {'#', "\xe2\x96\x91", static_cast<Color>(247), Color::Default},    // ░ scree
                     };
                     vis = variants[seed % 6]; break;
+                }
+                case Biome::MartianBarren: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", static_cast<Color>(166), Color::Default},        // ° rust boulder
+                        {'#', "\xe2\x96\x92", static_cast<Color>(130), Color::Default},    // ▒ iron-rich rock
+                        {'o', nullptr, static_cast<Color>(94), Color::Default},             // dark rust pile
+                        {'^', "\xe2\x96\xb2", static_cast<Color>(173), Color::Default},    // ▲ rust crag
+                        {'#', "\xe2\x96\x91", static_cast<Color>(137), Color::Default},    // ░ dusty gravel
+                    };
+                    vis = variants[seed % 5]; break;
+                }
+                case Biome::MartianPolar: {
+                    static const ResolvedVisual variants[] = {
+                        {'o', "\xc2\xb0", static_cast<Color>(225), Color::Default},        // ° frosted rock
+                        {'*', "\xe2\x97\x87", Color::White, Color::Default},                // ◇ ice chunk
+                        {'#', "\xe2\x96\x92", static_cast<Color>(145), Color::Default},    // ▒ frozen dust
+                    };
+                    vis = variants[seed % 3]; break;
                 }
                 case Biome::AlienCrystalline: {
                     static const ResolvedVisual variants[] = {
