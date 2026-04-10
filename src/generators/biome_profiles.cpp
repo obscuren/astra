@@ -160,7 +160,9 @@ const BiomeProfile& biome_profile(Biome b) {
         structure_craters, 0.5f,
         {{FixtureType::NaturalObstacle, 0.03f, false},
          {FixtureType::MineralOre, 0.008f, false}},
-        nullptr
+        nullptr,
+        0,       // mountain_neighbor_count
+        true,    // water_as_ice — frozen CO2 in crater interiors
     };
     static const BiomeProfile martian_polar {
         "MartianPolar",
@@ -169,7 +171,9 @@ const BiomeProfile& biome_profile(Biome b) {
         moisture_none, 0.04f, 0.7f, 0.4f,
         structure_none, 0.0f,
         {{FixtureType::NaturalObstacle, 0.03f, false}},
-        nullptr
+        nullptr,
+        0,       // mountain_neighbor_count
+        true,    // water_as_ice — polar ice caps
     };
 
     // Alien biomes

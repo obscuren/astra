@@ -118,6 +118,9 @@ struct BiomeProfile {
 
     // Mountain variant selection (set by generator before structure_fn call)
     int mountain_neighbor_count = 0;
+
+    // Water appears as ice (frozen biomes) — compositor uses Tile::Ice instead
+    bool water_as_ice = false;
 };
 
 // --- Lookup functions ---

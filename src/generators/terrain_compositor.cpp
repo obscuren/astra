@@ -6,6 +6,7 @@ void composite_terrain(TileMap& map, const TerrainChannels& channels,
                        const BiomeProfile& prof) {
     int w = channels.width;
     int h = channels.height;
+    const Tile water_tile = prof.water_as_ice ? Tile::Ice : Tile::Water;
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             float elev = channels.elev(x, y);
@@ -15,11 +16,11 @@ void composite_terrain(TileMap& map, const TerrainChannels& channels,
             // Structure overrides take highest priority
             if (s == StructureMask::Wall)  { map.set(x, y, Tile::Wall);  continue; }
             if (s == StructureMask::Floor) { map.set(x, y, Tile::Floor); continue; }
-            if (s == StructureMask::Water) { map.set(x, y, Tile::Water); continue; }
+            if (s == StructureMask::Water) { map.set(x, y, water_tile);  continue; }
 
             // Moisture → water
             if (moist > prof.water_threshold && elev < prof.flood_level) {
-                map.set(x, y, Tile::Water);
+                map.set(x, y, water_tile);
             } else if (elev > prof.wall_threshold) {
                 map.set(x, y, Tile::Wall);
             } else {
