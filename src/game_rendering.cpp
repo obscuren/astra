@@ -210,6 +210,7 @@ std::string Game::look_tile_name(int mx, int my) const {
         case Tile::OW_River:        return "River";
         case Tile::OW_Lake:         return "Lake";
         case Tile::OW_Swamp:        return "Swamp";
+        case Tile::OW_Barren:       return "Barren Wastes";
         case Tile::OW_CaveEntrance: return "Cave Entrance";
         case Tile::OW_Ruins:        return "Ruins";
         case Tile::OW_Settlement:   return "Settlement";
@@ -274,6 +275,7 @@ std::string Game::look_tile_desc(int mx, int my) const {
         case Tile::OW_River:        return "A rushing current of liquid cuts through the terrain.";
         case Tile::OW_Lake:         return "A vast body of liquid shimmers under the sky.";
         case Tile::OW_Swamp:        return "Murky pools and twisted growth make footing treacherous.";
+        case Tile::OW_Barren:       return "Lifeless rocky flatland. Nothing grows here.";
         case Tile::OW_CaveEntrance: return "A dark opening leads underground. Press > to enter.";
         case Tile::OW_Ruins:        return "Crumbling remains of an ancient structure.";
         case Tile::OW_Settlement:   return "A small settlement. Signs of habitation are visible.";

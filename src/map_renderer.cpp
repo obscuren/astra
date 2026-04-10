@@ -33,6 +33,7 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(22);
+        case Tile::OW_Barren:      return Color::DarkGray;
         case Tile::OW_CaveEntrance:return Color::Magenta;
         case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;
@@ -90,7 +91,8 @@ void render_map(const MapRenderContext& rc) {
                     RenderDescriptor desc;
                     desc.category = RenderCategory::Tile;
                     desc.type_id = static_cast<uint16_t>(tile_at);
-                    desc.seed = nb;
+                    // Low 4 bits = neighbor mask, upper 4 bits = position variant
+                    desc.seed = nb | ((position_seed(mx, my) & 0xF0));
                     desc.biome = rc.world.map().biome();
                     desc.flags = RF_None;
                     wctx.put(sx, sy, desc);

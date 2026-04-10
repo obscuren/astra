@@ -34,6 +34,7 @@ enum class Tile : uint8_t {
     OW_River,
     OW_Lake,
     OW_Swamp,
+    OW_Barren,   // airless/rocky flatland — no flora, no grass
     // Overworld POIs
     OW_CaveEntrance,
     OW_Ruins,
@@ -70,6 +71,7 @@ inline char tile_glyph(Tile t) {
         case Tile::OW_River:       return '~';
         case Tile::OW_Lake:        return '~';
         case Tile::OW_Swamp:       return '"';
+        case Tile::OW_Barren:      return '.';
         case Tile::OW_CaveEntrance:return '>';
         case Tile::OW_Ruins:       return '#';
         case Tile::OW_Settlement:  return '*';
@@ -144,6 +146,14 @@ inline const char* overworld_glyph(Tile t, int x, int y) {
                 "\xd5\x88",      // Ո
                 "\xca\x83",      // ʃ
                 "\xd5\x88",      // Ո
+            };
+            return g[h % 3];
+        }
+        case Tile::OW_Barren: {
+            static const char* g[] = {
+                "\xc2\xb7",      // ·
+                ",",
+                "\xe2\x96\x91",  // ░
             };
             return g[h % 3];
         }

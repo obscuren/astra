@@ -378,14 +378,14 @@ Tile DefaultOverworldGenerator::classify_terrestrial(float elev, float moist,
 Tile DefaultOverworldGenerator::classify_rocky(float elev) {
     if (elev > 0.72f) return Tile::OW_Mountains;
     if (elev > 0.55f) return Tile::OW_Crater;
-    if (elev < 0.3f) return Tile::OW_Desert;
-    return Tile::OW_Plains;
+    // No grass on airless/rocky bodies — just barren rocky wastes
+    return Tile::OW_Barren;
 }
 
 Tile DefaultOverworldGenerator::classify_asteroid(float elev) {
     if (elev > 0.65f) return Tile::OW_Mountains;
     if (elev > 0.45f) return Tile::OW_Crater;
-    return Tile::OW_Plains;
+    return Tile::OW_Barren;
 }
 
 // ---------------------------------------------------------------------------

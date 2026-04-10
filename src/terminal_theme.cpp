@@ -107,6 +107,7 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(22);
+        case Tile::OW_Barren:      return Color::DarkGray;
         case Tile::OW_CaveEntrance:return Color::Magenta;
         case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;
@@ -177,6 +178,14 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
                 "\xd5\x88",      // Ո
                 "\xca\x83",      // ʃ
                 "\xd5\x88",      // Ո
+            };
+            return select_variant(g, seed);
+        }
+        case Tile::OW_Barren: {
+            static const char* g[] = {
+                "\xc2\xb7",      // ·
+                ",",
+                "\xe2\x96\x91",  // ░
             };
             return select_variant(g, seed);
         }
@@ -1209,6 +1218,25 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
             };
             uint8_t nb = seed & 0x0F;
             const char* utf8 = baroque_conn[nb];
+            // Isolated ruin tiles: vary glyph by position seed for visual variety
+            if (nb == 0) {
+                static const char* isolated_variants[] = {
+                    "\xe2\x95\xac",  // ╬
+                    "\xe2\x95\x91",  // ║
+                    "\xe2\x95\x90",  // ═
+                    "\xe2\x95\x94",  // ╔
+                    "\xe2\x95\x97",  // ╗
+                    "\xe2\x95\x9a",  // ╚
+                    "\xe2\x95\x9d",  // ╝
+                    "\xe2\x95\xa3",  // ╣
+                    "\xe2\x95\xa0",  // ╠
+                    "\xe2\x95\xa9",  // ╩
+                    "\xe2\x95\xa6",  // ╦
+                };
+                // Use upper bits of seed for variant selection
+                uint8_t variant = (seed >> 4) & 0x0F;
+                utf8 = isolated_variants[variant % 11];
+            }
             Color c = remembered ? bc.remembered : static_cast<Color>(15);
             return {'#', utf8, c, Color::Default};
         }

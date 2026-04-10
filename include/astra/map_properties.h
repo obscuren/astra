@@ -107,6 +107,7 @@ inline Biome detail_biome_for_terrain(Tile terrain, Biome planet_biome) {
         case Tile::OW_IceField:  return Biome::Ice;
         case Tile::OW_LavaFlow:  return Biome::Volcanic;
         case Tile::OW_Swamp:     return Biome::Marsh;
+        case Tile::OW_Barren:    return Biome::Rocky;
         case Tile::OW_Fungal:    return Biome::Fungal;
         case Tile::OW_Mountains: return Biome::Mountains;
         case Tile::OW_Crater:    return Biome::Rocky;

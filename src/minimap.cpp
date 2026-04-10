@@ -30,6 +30,8 @@ Color Minimap::tile_color(Tile t, MapType map_type) {
         case Tile::OW_Plains:
         case Tile::OW_Desert:
             return Color::Yellow;
+        case Tile::OW_Barren:
+            return Color::DarkGray;
         case Tile::OW_Mountains:
             return Color::White;
         case Tile::OW_Forest:
