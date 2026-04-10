@@ -97,8 +97,8 @@ const BiomeProfile& biome_profile(Biome b) {
         elevation_flat,
         0.015f, 2, 0.96f,
         moisture_none, 0.035f, 0.7f, 0.45f,
-        structure_formations, 0.4f,
-        {{FixtureType::NaturalObstacle, 0.03f, false}},
+        structure_none, 0.0f,
+        {{FixtureType::NaturalObstacle, 0.04f, false}},
         flora_ice
     };
     static const BiomeProfile fungal {

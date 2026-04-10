@@ -206,15 +206,10 @@ void flora_fungal(TileMap& map, int w, int h, std::mt19937& rng,
 void flora_ice(TileMap& map, int w, int h, std::mt19937& rng,
                const float* /*elevation*/, const float* /*moisture*/,
                const BiomeProfile& /*prof*/) {
-    unsigned seed1 = rng();
-
+    // Sparse lichen patches across the tundra. No crystals — this is ice, not a gemstone field.
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
-            if (fbm(static_cast<float>(x), static_cast<float>(y), seed1, 0.09f) > 0.6f) {
-                place_flora(map, x, y, FixtureType::MineralCrystal);
-                continue;
-            }
-            if (rng() % 100 < 2) {
+            if (rng() % 100 < 3) {
                 place_flora(map, x, y, FixtureType::FloraLichen);
             }
         }
