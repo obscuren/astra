@@ -97,8 +97,12 @@ static Color ow_tile_color(Tile tile, Biome biome) {
                 case Biome::Sandy: return Color::Yellow;
                 default:           return Color::Green;
             }
-        case Tile::OW_Mountains:   return Color::White;
-        case Tile::OW_Crater:      return Color::DarkGray;
+        case Tile::OW_Mountains:
+            if (biome == Biome::Sandy) return static_cast<Color>(130); // rust mountains
+            return Color::White;
+        case Tile::OW_Crater:
+            if (biome == Biome::Sandy) return static_cast<Color>(94);  // dark rust craters
+            return Color::DarkGray;
         case Tile::OW_IceField:    return Color::Cyan;
         case Tile::OW_LavaFlow:    return Color::Red;
         case Tile::OW_Desert:      return Color::Yellow;
@@ -107,7 +111,10 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_River:       return Color::Blue;
         case Tile::OW_Lake:        return Color::Cyan;
         case Tile::OW_Swamp:       return static_cast<Color>(22);
-        case Tile::OW_Barren:      return Color::DarkGray;
+        case Tile::OW_Barren:
+            // Sandy biome = Mars-like rust color
+            if (biome == Biome::Sandy) return static_cast<Color>(166); // rust red
+            return Color::DarkGray;
         case Tile::OW_CaveEntrance:return Color::Magenta;
         case Tile::OW_Ruins:       return static_cast<Color>(178); // warm gold
         case Tile::OW_Settlement:  return Color::Yellow;

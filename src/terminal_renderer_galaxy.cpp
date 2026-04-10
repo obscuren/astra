@@ -375,7 +375,7 @@ static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
             bool is_cursor = (i == desc.body_cursor);
             bool body_selected = is_cursor && desc.sub_cursor == -1;
             char glyph = body_type_glyph(body.type);
-            Color color = body_type_color(body.type);
+            Color color = body_display_color(body);
 
             // --- Station above (if this body hosts it) ---
             if (i == station_host) {

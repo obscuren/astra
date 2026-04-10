@@ -27,6 +27,20 @@ Color body_type_color(BodyType type) {
     return Color::White;
 }
 
+Color body_display_color(const CelestialBody& body) {
+    // Mars-like: cold rocky with thin atmo = rust red
+    if (body.type == BodyType::Rocky &&
+        body.temperature == Temperature::Cold &&
+        body.atmosphere == Atmosphere::Thin) {
+        return static_cast<Color>(166);  // rust red
+    }
+    // Scorching rocky = reddish orange (Mercury/Venus-like)
+    if (body.type == BodyType::Rocky && body.temperature == Temperature::Scorching) {
+        return static_cast<Color>(208);  // orange
+    }
+    return body_type_color(body.type);
+}
+
 const char* body_type_name(BodyType type) {
     switch (type) {
         case BodyType::Rocky:        return "Rocky";
@@ -72,6 +86,9 @@ Biome determine_biome(BodyType type, Atmosphere atmo, Temperature temp, unsigned
 
     switch (type) {
         case BodyType::Rocky:
+            // Cold rocky with thin atmo = Mars-like (rust-colored sand)
+            if (temp == Temperature::Cold && atmo == Atmosphere::Thin)
+                return Biome::Sandy;
             if (temp == Temperature::Frozen || temp == Temperature::Cold)
                 return Biome::Ice;
             if (temp == Temperature::Scorching)

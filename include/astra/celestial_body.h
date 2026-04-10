@@ -75,6 +75,7 @@ struct CelestialBody {
 // Display helpers
 char body_type_glyph(BodyType type);
 Color body_type_color(BodyType type);
+Color body_display_color(const CelestialBody& body);  // considers temp/atmo for Mars-likes, etc.
 const char* body_type_name(BodyType type);
 const char* atmosphere_name(Atmosphere atmo);
 const char* temperature_name(Temperature temp);

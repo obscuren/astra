@@ -755,7 +755,7 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
                 ctx.text(1, y, "Type", Color::DarkGray);
                 ctx.text(10, y++, "Moon", Color::White);
                 ctx.text(1, y, "Orbits", Color::DarkGray);
-                ctx.text(10, y++, body.name, body_type_color(body.type));
+                ctx.text(10, y++, body.name, body_display_color(body));
             } else if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
                 draw_body_info_text(ctx, sys.bodies[body_cursor_], sys, y);
             }
@@ -847,7 +847,7 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
             if (y >= max_h) break;
 
             char glyph = body_type_glyph(body.type);
-            Color color = body_type_color(body.type);
+            Color color = body_display_color(body);
             ctx.put(1, y, glyph, color);
 
             int name_max = panel_w - 4;
@@ -884,7 +884,7 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
     int y = start_y;
 
     char glyph = body_type_glyph(body.type);
-    Color color = body_type_color(body.type);
+    Color color = body_display_color(body);
     ctx.put(1, y, glyph, color);
     ctx.text(3, y++, body.name, Color::White);
     ctx.hline(y++, BoxDraw::H, Color::DarkGray);
@@ -1002,7 +1002,7 @@ void StarChartViewer::draw_station_info_text(UIContext& ctx, const StarSystem& s
     int host = station_host_body(sys);
     if (host >= 0 && host < static_cast<int>(sys.bodies.size())) {
         ctx.text(1, y, "Orbits", Color::DarkGray);
-        ctx.text(10, y++, sys.bodies[host].name, body_type_color(sys.bodies[host].type));
+        ctx.text(10, y++, sys.bodies[host].name, body_display_color(sys.bodies[host]));
     }
 
     y++;

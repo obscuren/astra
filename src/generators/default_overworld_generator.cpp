@@ -497,15 +497,23 @@ void DefaultOverworldGenerator::place_pois(std::mt19937& rng) {
 // Factory
 // ---------------------------------------------------------------------------
 
-// Forward declaration
+// Forward declarations
 std::unique_ptr<MapGenerator> make_temperate_overworld_generator();
+std::unique_ptr<MapGenerator> make_cold_rocky_overworld_generator();
 
 std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props) {
+    // Temperate terrestrial planets (Earth-like)
     if (props.body_type == BodyType::Terrestrial &&
         props.body_temperature == Temperature::Temperate &&
         (props.body_atmosphere == Atmosphere::Standard ||
          props.body_atmosphere == Atmosphere::Dense)) {
         return make_temperate_overworld_generator();
+    }
+    // Cold rocky planets with thin atmosphere (Mars-like)
+    if (props.body_type == BodyType::Rocky &&
+        props.body_temperature == Temperature::Cold &&
+        props.body_atmosphere == Atmosphere::Thin) {
+        return make_cold_rocky_overworld_generator();
     }
     return std::make_unique<DefaultOverworldGenerator>();
 }
