@@ -613,28 +613,72 @@ GalaxyMapDesc StarChartViewer::build_map_desc() const {
 // Info panel
 // ---------------------------------------------------------------------------
 
+// Draw the interior vertical bar that runs the height of the info panel
+static void draw_info_spine(UIContext& ctx) {
+    for (int y = 0; y < ctx.height(); ++y) {
+        ctx.put(0, y, BoxDraw::V, Color::DarkGray);
+    }
+}
+
+// Draw a double-line title row: ╞═══════════════╡  (line below the name)
+static void draw_info_title(UIContext& ctx, int& y, const std::string& name, Color name_color) {
+    ctx.text(2, y++, name, name_color);
+    // Replace the vertical spine at this row with ╞, fill with ═
+    ctx.put(0, y, "\xe2\x95\x9e", Color::DarkGray);  // ╞
+    for (int x = 1; x < ctx.width(); ++x) {
+        ctx.put(x, y, BoxDraw::DH, Color::DarkGray);
+    }
+    ++y;
+}
+
+// Draw a section divider: ├─┤ LABEL ├────────
+// If glyph != 0, prefix the label with the glyph in the given color
+static void draw_info_section(UIContext& ctx, int& y, const std::string& label,
+                              Color label_color, char glyph = 0, Color glyph_color = Color::White) {
+    int w = ctx.width();
+    // Left: ├─┤
+    ctx.put(0, y, BoxDraw::LT, Color::DarkGray);  // ├
+    ctx.put(1, y, BoxDraw::H, Color::DarkGray);   // ─
+    ctx.put(2, y, BoxDraw::RT, Color::DarkGray);  // ┤
+    int tx = 4;
+    if (glyph != 0) {
+        ctx.put(tx++, y, glyph, glyph_color);
+        ++tx;  // space after glyph
+    }
+    ctx.text(tx, y, label, label_color);
+    int after = tx + static_cast<int>(label.size()) + 1;
+    // Right: ├──────
+    ctx.put(after, y, BoxDraw::LT, Color::DarkGray);  // ├
+    for (int x = after + 1; x < w; ++x) {
+        ctx.put(x, y, BoxDraw::H, Color::DarkGray);
+    }
+    ++y;
+}
+
 void StarChartViewer::draw_info_panel(UIContext& ctx) {
-    int y = 0;
+    // Draw the vertical spine first — everything else overwrites it where needed
+    draw_info_spine(ctx);
+
+    int y = 1;
 
     switch (zoom_) {
         case ChartZoom::Galaxy: {
-            ctx.text(1, y++, "MILKY WAY GALAXY", Color::White);
-            ctx.hline(y++, '~');
+            draw_info_title(ctx, y, "MILKY WAY", Color::White);
             y++;
-            ctx.text(1, y++, "Zoom: Galaxy", Color::DarkGray);
+            ctx.text(2, y++, "Zoom: Galaxy", Color::DarkGray);
 
             int total = static_cast<int>(nav_->systems.size());
             int discovered = 0;
             for (const auto& s : nav_->systems) {
                 if (s.discovered) ++discovered;
             }
-            ctx.text(1, y++, "Systems: " + std::to_string(total), Color::DarkGray);
-            ctx.text(1, y++, "Discovered: " + std::to_string(discovered), Color::Cyan);
+            ctx.text(2, y++, "Systems: " + std::to_string(total), Color::DarkGray);
+            ctx.text(2, y++, "Discovered: " + std::to_string(discovered), Color::Cyan);
             y++;
 
             for (const auto& s : nav_->systems) {
                 if (s.id == nav_->current_system_id) {
-                    ctx.text(1, y++, "Current: " + s.name, Color::Yellow);
+                    ctx.text(2, y++, "Current: " + s.name, Color::Yellow);
                     break;
                 }
             }
@@ -645,33 +689,21 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
             ctx.hline(y++, '~');
             y++;
 
-            float view_w = 40.0f;
-            float view_h = view_w * (static_cast<float>(ctx.height()) / static_cast<float>(ctx.width())) * 2.0f;
-            int visible_count = 0, visible_discovered = 0;
-            for (const auto& sys : nav_->systems) {
-                float dx = std::abs(sys.gx - view_cx_);
-                float dy = std::abs(sys.gy - view_cy_);
-                if (dx <= view_w / 2 && dy <= view_h / 2) {
-                    ++visible_count;
-                    if (sys.discovered) ++visible_discovered;
-                }
-            }
-            ctx.text(1, y++, "Systems: " + std::to_string(visible_count), Color::DarkGray);
-            ctx.text(1, y++, "Known: " + std::to_string(visible_discovered), Color::Cyan);
-            y++;
-
             if (cursor_index_ >= 0 && cursor_index_ < static_cast<int>(nav_->systems.size())) {
                 const auto& sys = nav_->systems[cursor_index_];
                 if (sys.discovered) {
                     draw_system_info_text(ctx, sys, y);
                 } else {
-                    ctx.text(1, y++, "UNKNOWN SYSTEM", Color::DarkGray);
-                    ctx.text(1, y + 1, "Scan or visit", Color::DarkGray);
-                    ctx.text(1, y + 2, "to reveal", Color::DarkGray);
+                    draw_info_title(ctx, y, "UNKNOWN", Color::DarkGray);
+                    y++;
+                    ctx.text(2, y++, "Scan or visit", Color::DarkGray);
+                    ctx.text(2, y++, "to reveal", Color::DarkGray);
                 }
             } else {
-                ctx.text(1, y, "Use [Tab] to", Color::DarkGray);
-                ctx.text(1, y + 1, "select a system", Color::DarkGray);
+                draw_info_title(ctx, y, "REGION", Color::White);
+                y++;
+                ctx.text(2, y++, "Use [Tab] to", Color::DarkGray);
+                ctx.text(2, y++, "select a system", Color::DarkGray);
             }
             break;
         }
@@ -681,11 +713,10 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
                 if (sys.discovered) {
                     draw_system_info_text(ctx, sys, y, ctx.height());
                 } else {
-                    ctx.text(1, y++, "UNKNOWN SYSTEM", Color::DarkGray);
-                    ctx.hline(y++, '~');
+                    draw_info_title(ctx, y, "UNKNOWN", Color::DarkGray);
                     y++;
-                    ctx.text(1, y++, "Scan or visit", Color::DarkGray);
-                    ctx.text(1, y++, "to reveal", Color::DarkGray);
+                    ctx.text(2, y++, "Scan or visit", Color::DarkGray);
+                    ctx.text(2, y++, "to reveal", Color::DarkGray);
                 }
             }
             break;
@@ -694,52 +725,28 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
             if (cursor_index_ < 0 || cursor_index_ >= static_cast<int>(nav_->systems.size())) break;
             const auto& sys = nav_->systems[cursor_index_];
 
-            // System header
-            ctx.text(1, y++, sys.name, Color::White);
-            ctx.hline(y++, '~');
+            // Title: star name
+            draw_info_title(ctx, y, sys.name, Color::White);
             y++;
 
-            ctx.text(1, y, "Class", Color::DarkGray);
+            // Star details
+            ctx.text(2, y, "Class", Color::DarkGray);
             ctx.text(10, y++, star_class_name(sys.star_class), star_class_color(sys.star_class));
-            ctx.text(1, y, "Bodies", Color::DarkGray);
+            ctx.text(2, y, "Type", Color::DarkGray);
+            ctx.text(10, y++, sys.binary ? "Binary" : "Single star", Color::White);
+            ctx.text(2, y, "Bodies", Color::DarkGray);
             ctx.text(10, y++, std::to_string(sys.bodies.size()), Color::White);
 
             if (sys.has_station) {
                 Color sc = sys.station.derelict ? Color::Red : Color::Cyan;
                 std::string slabel = sys.station.name;
                 if (sys.station.derelict) slabel += " [!]";
-                ctx.text(1, y, "Station", Color::DarkGray);
+                ctx.text(2, y, "Station", Color::DarkGray);
                 ctx.text(10, y++, slabel, sc);
-            }
-
-            // Player location
-            if (sys.id == nav_->current_system_id) {
-                if (nav_->at_station && sys.has_station) {
-                    ctx.text(1, y, "You", Color::Green);
-                    std::string loc = "@ " + sys.station.name;
-                    if (nav_->on_ship) loc += " (ship)";
-                    ctx.text(10, y++, loc, Color::Green);
-                } else if (nav_->current_body_index >= 0 &&
-                           nav_->current_body_index < static_cast<int>(sys.bodies.size())) {
-                    ctx.text(1, y, "You", Color::Green);
-                    const auto& body = sys.bodies[nav_->current_body_index];
-                    if (nav_->current_moon_index >= 0 &&
-                        nav_->current_moon_index < static_cast<int>(body.moon_names.size())) {
-                        ctx.text(10, y++, "@ " + body.moon_names[nav_->current_moon_index], Color::Green);
-                    } else if (nav_->current_moon_index >= 0) {
-                        ctx.text(10, y++, "@ " + body.name + " Moon " +
-                                  std::to_string(nav_->current_moon_index + 1), Color::Green);
-                    } else {
-                        ctx.text(10, y++, "@ " + body.name, Color::Green);
-                    }
-                } else if (nav_->on_ship) {
-                    ctx.text(1, y, "You", Color::Green);
-                    ctx.text(10, y++, "@ Starship (in orbit)", Color::Green);
-                }
             }
             y++;
 
-            // Selected item details
+            // Selected item details — body/moon/station
             if (sub_cursor_ == 0 && sys.has_station) {
                 draw_station_info_text(ctx, sys, y);
             } else if (sub_cursor_ >= 1 && body_cursor_ >= 0 &&
@@ -750,13 +757,11 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
                 std::string mname = (mi >= 0 && mi < static_cast<int>(body.moon_names.size()))
                                     ? body.moon_names[mi]
                                     : body.name + " Moon " + std::to_string(sub_cursor_);
-                ctx.put(1, y, '*', Color::DarkGray);
-                ctx.text(3, y++, mname, Color::White);
-                ctx.hline(y++, BoxDraw::H, Color::DarkGray);
+                draw_info_section(ctx, y, mname, Color::White, '*', Color::DarkGray);
                 y++;
-                ctx.text(1, y, "Type", Color::DarkGray);
+                ctx.text(2, y, "Type", Color::DarkGray);
                 ctx.text(10, y++, "Moon", Color::White);
-                ctx.text(1, y, "Orbits", Color::DarkGray);
+                ctx.text(2, y, "Orbits", Color::DarkGray);
                 ctx.text(10, y++, body.name, body_display_color(body));
             } else if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
                 draw_body_info_text(ctx, sys.bodies[body_cursor_], sys, y);
@@ -766,7 +771,7 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
             if (world_ && body_cursor_ >= 0 && world_->is_quest_target_body(sys.id, body_cursor_)) {
                 std::string qt = world_->quest_title_for_body(sys.id, body_cursor_);
                 int qy = ctx.height() - 2;
-                ctx.text(1, qy, "! " + (qt.empty() ? "QUEST TARGET" : qt), Color::BrightYellow);
+                ctx.text(2, qy, "! " + (qt.empty() ? "QUEST TARGET" : qt), Color::BrightYellow);
             }
             break;
         }
@@ -779,37 +784,38 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
 
 void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sys, int start_y, int max_h) {
     int y = start_y;
-    ctx.text(1, y++, sys.name, Color::White);
-    ctx.hline(y++, '~');
+
+    // Title
+    draw_info_title(ctx, y, sys.name, Color::White);
     y++;
 
-    ctx.text(1, y, "Class", Color::DarkGray);
+    // Star details
+    ctx.text(2, y, "Class", Color::DarkGray);
     ctx.text(10, y++, star_class_name(sys.star_class), star_class_color(sys.star_class));
 
-    ctx.text(1, y, "Type", Color::DarkGray);
-    ctx.text(10, y++, sys.binary ? "Binary system" : "Single star", Color::White);
+    ctx.text(2, y, "Type", Color::DarkGray);
+    ctx.text(10, y++, sys.binary ? "Binary" : "Single star", Color::White);
 
     if (sys.has_station) {
-        ctx.text(1, y, "Station", Color::DarkGray);
+        ctx.text(2, y, "Station", Color::DarkGray);
         Color sc = sys.station.derelict ? Color::Red : Color::Cyan;
         std::string slabel = sys.station.name;
         if (sys.station.derelict) slabel += " [!]";
         ctx.text(10, y++, slabel, sc);
     } else {
-        ctx.text(1, y, "Station", Color::DarkGray);
+        ctx.text(2, y, "Station", Color::DarkGray);
         ctx.text(10, y++, "None", Color::DarkGray);
     }
 
-    ctx.text(1, y, "Planets", Color::DarkGray);
+    ctx.text(2, y, "Planets", Color::DarkGray);
     ctx.text(10, y++, std::to_string(sys.planet_count), Color::White);
 
     if (sys.asteroid_belts > 0) {
-        ctx.text(1, y, "Belts", Color::DarkGray);
+        ctx.text(2, y, "Belts", Color::DarkGray);
         ctx.text(10, y++, std::to_string(sys.asteroid_belts), Color::White);
     }
 
-    y++;
-    ctx.text(1, y, "Danger", Color::DarkGray);
+    ctx.text(2, y, "Danger", Color::DarkGray);
     std::string danger_bar;
     for (int i = 0; i < 10; ++i) {
         danger_bar += (i < sys.danger_level) ? '=' : '-';
@@ -820,29 +826,30 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
     else if (sys.danger_level >= 4) danger_color = Color::Yellow;
     ctx.text(10, y++, danger_bar, danger_color);
 
-    if (sys.lore.has_megastructure) {
-        ctx.text(1, y++, " \xe2\x97\x88 Megastructure in orbit", Color::Yellow);
-    }
-    if (sys.lore.beacon) {
-        ctx.text(1, y++, " \xe2\x8c\xbe Sgr A* Beacon detected", Color::Cyan);
-    }
-
-    y++;
     for (const auto& s : nav_->systems) {
         if (s.id == nav_->current_system_id) {
             float dist = system_distance(sys, s);
             int d10 = static_cast<int>(dist * 10.0f);
             std::string dist_str = std::to_string(d10 / 10) + "." + std::to_string(d10 % 10) + " ly";
-            ctx.text(1, y, "Dist", Color::DarkGray);
+            ctx.text(2, y, "Dist", Color::DarkGray);
             ctx.text(10, y++, dist_str, Color::White);
             break;
         }
     }
 
+    if (sys.lore.has_megastructure) {
+        ctx.text(2, y++, "\xe2\x97\x88 Megastructure", Color::Yellow);
+    }
+    if (sys.lore.beacon) {
+        ctx.text(2, y++, "\xe2\x8c\xbe Sgr A* Beacon", Color::Cyan);
+    }
+
+    y++;
+
+    // BODIES section
     if (!sys.bodies.empty() && y + 2 < max_h) {
+        draw_info_section(ctx, y, "BODIES", Color::White);
         y++;
-        ctx.text(1, y++, "BODIES", Color::White);
-        ctx.hline(y++, BoxDraw::H, Color::DarkGray);
 
         int panel_w = ctx.width();
         for (const auto& body : sys.bodies) {
@@ -850,9 +857,9 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
 
             char glyph = body_type_glyph(body.type);
             Color color = body_display_color(body);
-            ctx.put(1, y, glyph, color);
+            ctx.put(2, y, glyph, color);
 
-            int name_max = panel_w - 4;
+            int name_max = panel_w - 5;
             std::string display_name = body.name;
             if (static_cast<int>(display_name.size()) > name_max) {
                 display_name = display_name.substr(0, name_max - 1) + ".";
@@ -862,20 +869,7 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
                 display_name += " [L]";
             }
 
-            ctx.text(3, y, display_name, color);
-
-            // Show lore feature icons on landable bodies
-            if (body.landable && sys.lore.lore_tier > 0) {
-                int lx = 3 + static_cast<int>(display_name.size()) + 1;
-                if (sys.lore.beacon)
-                    ctx.text(lx++, y, "\xe2\x8c\xbe", Color::Cyan);       // ⌾
-                if (sys.lore.has_megastructure)
-                    ctx.text(lx++, y, "\xe2\x97\x88", Color::Yellow);     // ◈
-                if (sys.lore.terraformed)
-                    ctx.text(lx++, y, "\xe2\x88\x97", Color::Green);      // ∗
-                if (sys.lore.battle_site || sys.lore.weapon_test_site)
-                    ctx.text(lx++, y, "\xe2\x9a\xa0", Color::Red);        // ⚠
-            }
+            ctx.text(4, y, display_name, color);
             ++y;
         }
     }
@@ -885,27 +879,26 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
                                           const StarSystem& sys, int start_y) {
     int y = start_y;
 
+    // Body section header: ├─┤ o Mars ├──────
     char glyph = body_type_glyph(body.type);
     Color color = body_display_color(body);
-    ctx.put(1, y, glyph, color);
-    ctx.text(3, y++, body.name, Color::White);
-    ctx.hline(y++, BoxDraw::H, Color::DarkGray);
+    draw_info_section(ctx, y, body.name, Color::White, glyph, color);
     y++;
 
-    ctx.text(1, y, "Type", Color::DarkGray);
+    ctx.text(2, y, "Type", Color::DarkGray);
     ctx.text(10, y++, body_type_name(body.type), color);
 
-    ctx.text(1, y, "Size", Color::DarkGray);
+    ctx.text(2, y, "Size", Color::DarkGray);
     {
         std::string size_bar;
         for (int i = 0; i < 10; ++i) size_bar += (i < body.size) ? '=' : '-';
         ctx.text(10, y++, size_bar, Color::White);
     }
 
-    ctx.text(1, y, "Atmo", Color::DarkGray);
+    ctx.text(2, y, "Atmo", Color::DarkGray);
     ctx.text(10, y++, atmosphere_name(body.atmosphere), Color::White);
 
-    ctx.text(1, y, "Temp", Color::DarkGray);
+    ctx.text(2, y, "Temp", Color::DarkGray);
     {
         Color temp_color = Color::White;
         switch (body.temperature) {
@@ -919,47 +912,18 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
     }
 
     if (body.moons > 0) {
-        ctx.text(1, y, "Moons", Color::DarkGray);
+        ctx.text(2, y, "Moons", Color::DarkGray);
         ctx.text(10, y++, std::to_string(body.moons), Color::White);
     }
 
     {
         int d10 = static_cast<int>(body.orbital_distance * 10.0f);
         std::string dist_str = std::to_string(d10 / 10) + "." + std::to_string(d10 % 10) + " AU";
-        ctx.text(1, y, "Orbit", Color::DarkGray);
+        ctx.text(2, y, "Orbit", Color::DarkGray);
         ctx.text(10, y++, dist_str, Color::White);
     }
 
-    y++;
-
-    if (body.landable) {
-        ctx.text(1, y++, "LANDABLE", Color::Green);
-    } else {
-        ctx.text(1, y++, "Not landable", Color::DarkGray);
-    }
-
-    if (body.has_dungeon) {
-        ctx.text(1, y++, "Dungeon detected", Color::Yellow);
-    }
-
-    // Lore features (system-level, shown on landable bodies)
-    if (body.landable && sys.lore.lore_tier > 0) {
-        if (sys.lore.beacon)
-            ctx.text(1, y++, "\xe2\x8c\xbe Sgr A* Beacon", Color::Cyan);
-        if (sys.lore.has_megastructure)
-            ctx.text(1, y++, "\xe2\x97\x88 Megastructure", Color::Yellow);
-        if (sys.lore.terraformed)
-            ctx.text(1, y++, "\xe2\x88\x97 Terraformed", Color::Green);
-        if (sys.lore.battle_site)
-            ctx.text(1, y++, "\xe2\x9a\xa0 Battle site", Color::Red);
-        if (sys.lore.weapon_test_site)
-            ctx.text(1, y++, "\xe2\x9a\xa0 Weapon test site", Color::Red);
-        if (sys.lore.plague_origin)
-            ctx.text(1, y++, "\xe2\x9a\xa0 Plague origin", Color::Magenta);
-    }
-
-    y++;
-    ctx.text(1, y, "Danger", Color::DarkGray);
+    ctx.text(2, y, "Danger", Color::DarkGray);
     {
         std::string danger_bar;
         for (int i = 0; i < 10; ++i) danger_bar += (i < body.danger_level) ? '=' : '-';
@@ -969,18 +933,45 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
         ctx.text(10, y++, danger_bar, dc);
     }
 
-    y++;
+    if (body.landable) {
+        ctx.text(2, y++, "LANDABLE", Color::Green);
+    } else {
+        ctx.text(2, y++, "Not landable", Color::DarkGray);
+    }
+
+    if (body.has_dungeon) {
+        ctx.text(2, y++, "Dungeon detected", Color::Yellow);
+    }
+
+    // Lore features (system-level, shown on landable bodies)
+    if (body.landable && sys.lore.lore_tier > 0) {
+        if (sys.lore.beacon)
+            ctx.text(2, y++, "\xe2\x8c\xbe Sgr A* Beacon", Color::Cyan);
+        if (sys.lore.has_megastructure)
+            ctx.text(2, y++, "\xe2\x97\x88 Megastructure", Color::Yellow);
+        if (sys.lore.terraformed)
+            ctx.text(2, y++, "\xe2\x88\x97 Terraformed", Color::Green);
+        if (sys.lore.battle_site)
+            ctx.text(2, y++, "\xe2\x9a\xa0 Battle site", Color::Red);
+        if (sys.lore.weapon_test_site)
+            ctx.text(2, y++, "\xe2\x9a\xa0 Weapon test site", Color::Red);
+        if (sys.lore.plague_origin)
+            ctx.text(2, y++, "\xe2\x9a\xa0 Plague origin", Color::Magenta);
+    }
+
+    // RESOURCES section
     if (body.resources != 0) {
-        ctx.text(1, y++, "RESOURCES", Color::White);
-        ctx.hline(y++, BoxDraw::H, Color::DarkGray);
-        if (has_resource(body.resources, Resource::Metals))     ctx.text(2, y++, "Metals", Color::White);
-        if (has_resource(body.resources, Resource::RareMetals)) ctx.text(2, y++, "Rare Metals", Color::BrightMagenta);
-        if (has_resource(body.resources, Resource::Water))      ctx.text(2, y++, "Water", Color::Blue);
-        if (has_resource(body.resources, Resource::Fuel))       ctx.text(2, y++, "Fuel", Color::Yellow);
-        if (has_resource(body.resources, Resource::Organics))   ctx.text(2, y++, "Organics", Color::Green);
-        if (has_resource(body.resources, Resource::Crystals))   ctx.text(2, y++, "Crystals", Color::Cyan);
-        if (has_resource(body.resources, Resource::Radioactive))ctx.text(2, y++, "Radioactive", Color::Red);
-        if (has_resource(body.resources, Resource::Gas))        ctx.text(2, y++, "Gas", static_cast<Color>(208));
+        y++;
+        draw_info_section(ctx, y, "RESOURCES", Color::White);
+        y++;
+        if (has_resource(body.resources, Resource::Metals))     ctx.text(3, y++, "Metals", Color::White);
+        if (has_resource(body.resources, Resource::RareMetals)) ctx.text(3, y++, "Rare Metals", Color::BrightMagenta);
+        if (has_resource(body.resources, Resource::Water))      ctx.text(3, y++, "Water", Color::Blue);
+        if (has_resource(body.resources, Resource::Fuel))       ctx.text(3, y++, "Fuel", Color::Yellow);
+        if (has_resource(body.resources, Resource::Organics))   ctx.text(3, y++, "Organics", Color::Green);
+        if (has_resource(body.resources, Resource::Crystals))   ctx.text(3, y++, "Crystals", Color::Cyan);
+        if (has_resource(body.resources, Resource::Radioactive))ctx.text(3, y++, "Radioactive", Color::Red);
+        if (has_resource(body.resources, Resource::Gas))        ctx.text(3, y++, "Gas", static_cast<Color>(208));
     }
 }
 
@@ -989,12 +980,10 @@ void StarChartViewer::draw_station_info_text(UIContext& ctx, const StarSystem& s
 
     char glyph = sys.station.derelict ? '#' : 'H';
     Color color = sys.station.derelict ? Color::Red : Color::Cyan;
-    ctx.put(1, y, glyph, color);
-    ctx.text(3, y++, sys.station.name, Color::White);
-    ctx.hline(y++, BoxDraw::H, Color::DarkGray);
+    draw_info_section(ctx, y, sys.station.name, Color::White, glyph, color);
     y++;
 
-    ctx.text(1, y, "Type", Color::DarkGray);
+    ctx.text(2, y, "Type", Color::DarkGray);
     if (sys.station.derelict) {
         ctx.text(10, y++, "Derelict", Color::Red);
     } else {
@@ -1003,19 +992,19 @@ void StarChartViewer::draw_station_info_text(UIContext& ctx, const StarSystem& s
 
     int host = station_host_body(sys);
     if (host >= 0 && host < static_cast<int>(sys.bodies.size())) {
-        ctx.text(1, y, "Orbits", Color::DarkGray);
+        ctx.text(2, y, "Orbits", Color::DarkGray);
         ctx.text(10, y++, sys.bodies[host].name, body_display_color(sys.bodies[host]));
     }
 
     y++;
     if (sys.station.derelict) {
-        ctx.text(1, y++, "DERELICT", Color::Red);
-        ctx.text(1, y++, "Power systems offline", Color::DarkGray);
-        ctx.text(1, y++, "Structural integrity", Color::DarkGray);
-        ctx.text(1, y++, "compromised", Color::DarkGray);
+        ctx.text(2, y++, "DERELICT", Color::Red);
+        ctx.text(2, y++, "Power systems offline", Color::DarkGray);
+        ctx.text(2, y++, "Structural integrity", Color::DarkGray);
+        ctx.text(2, y++, "compromised", Color::DarkGray);
     } else {
-        ctx.text(1, y++, "OPERATIONAL", Color::Green);
-        ctx.text(1, y++, "Docking available", Color::DarkGray);
+        ctx.text(2, y++, "OPERATIONAL", Color::Green);
+        ctx.text(2, y++, "Docking available", Color::DarkGray);
     }
 }
 
