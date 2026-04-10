@@ -2,6 +2,7 @@
 #include "astra/placement_scorer.h"
 #include "astra/ruin_generator.h"
 #include "astra/settlement_planner.h"
+#include "astra/outpost_planner.h"
 #include "astra/building_generator.h"
 #include "astra/path_router.h"
 #include "astra/perimeter_builder.h"
@@ -19,9 +20,57 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
         return ruin_gen.generate(map, channels, props, rng, props.detail_ruin_civ);
     }
 
+    if (props.detail_poi_type == Tile::OW_Outpost) {
+        constexpr int kOutpostFootW = 44;
+        constexpr int kOutpostFootH = 32;
+
+        PlacementScorer scorer;
+        auto placement = scorer.score(channels, map, kOutpostFootW, kOutpostFootH);
+        if (!placement.valid) return {};
+
+        TerrainChannels mutable_channels = channels;
+
+        OutpostPlanner outpost_planner;
+        auto plan = outpost_planner.plan(placement, mutable_channels, map, props, rng);
+
+        // Apply terrain clears
+        for (const auto& mod : plan.terrain_mods) {
+            const auto& area = mod.area;
+            for (int y = area.y; y < area.y + area.h; ++y) {
+                for (int x = area.x; x < area.x + area.w; ++x) {
+                    if (x < 0 || x >= map.width() || y < 0 || y >= map.height())
+                        continue;
+                    if (mod.type == TerrainModType::Clear) {
+                        mutable_channels.struc(x, y) = StructureMask::None;
+                        if (map.get(x, y) == Tile::Wall)
+                            map.set(x, y, Tile::Floor);
+                    }
+                }
+            }
+        }
+
+        BuildingGenerator builder;
+        for (const auto& spec : plan.buildings) {
+            builder.generate(map, spec, plan.style, rng);
+        }
+
+        PathRouter router;
+        router.route(map, plan);
+
+        PerimeterBuilder perimeter;
+        perimeter.build(map, plan, rng);
+
+        ExteriorDecorator decorator;
+        decorator.decorate(map, plan, rng);
+
+        // Post-stamp: tents, campfires, fence glyph overrides.
+        outpost_planner.post_stamp(map, plan, props.biome, rng);
+
+        return placement.footprint;
+    }
+
     // Stubbed POI types — generate terrain only, implementation pending
     if (props.detail_poi_type == Tile::OW_CrashedShip ||
-        props.detail_poi_type == Tile::OW_Outpost ||
         props.detail_poi_type == Tile::OW_CaveEntrance ||
         props.detail_poi_type == Tile::OW_Landing ||
         props.detail_poi_type == Tile::OW_Beacon ||

@@ -17,13 +17,15 @@ struct SizeRange {
 
 SizeRange size_range(BuildingType type) {
     switch (type) {
-        case BuildingType::MainHall:   return {14, 20, 8, 12};
-        case BuildingType::Market:     return {10, 14, 6, 9};
-        case BuildingType::Dwelling:   return {7, 10,  5, 7};
-        case BuildingType::Distillery: return {10, 14, 7, 9};
-        case BuildingType::Lookout:    return {5, 7,   4, 6};
-        case BuildingType::Workshop:   return {8, 12,  6, 8};
-        case BuildingType::Storage:    return {7, 10,  5, 7};
+        case BuildingType::MainHall:    return {14, 20, 8, 12};
+        case BuildingType::Market:      return {10, 14, 6, 9};
+        case BuildingType::Dwelling:    return {7, 10,  5, 7};
+        case BuildingType::Distillery:  return {10, 14, 7, 9};
+        case BuildingType::Lookout:     return {5, 7,   4, 6};
+        case BuildingType::Workshop:    return {8, 12,  6, 8};
+        case BuildingType::Storage:     return {7, 10,  5, 7};
+        case BuildingType::OutpostMain: return {13, 13, 9,  9};
+        default: break;
     }
     return {7, 10, 5, 7};
 }

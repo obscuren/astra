@@ -128,11 +128,13 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  history             - show world lore history");
         log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
         log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
+        log("                     [outpost]");
         log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
         log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
         log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
         log("    settlement styles: frontier, advanced, ruined (default: frontier)");
         log("    ruins: generates ruin POI; civ style optional; 'connected' sets all 4 edges");
+        log("    outpost: fenced fort with main building, tents, campfires");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -210,6 +212,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 poi_type = "settlement";
             } else if (args[i] == "ruins") {
                 poi_type = "ruins";
+            } else if (args[i] == "outpost") {
+                poi_type = "outpost";
             } else if (args[i] == "connected") {
                 connected = true;
             } else if (args[i] == "frontier") {
@@ -255,6 +259,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             if (ruin_decay_override >= 0.0f)
                 msg += " decay=" + std::to_string(ruin_decay_override).substr(0, 4);
             if (connected) msg += " (connected)";
+        } else if (poi_type == "outpost") {
+            msg += " + outpost";
         }
         log(msg);
     }

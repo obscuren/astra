@@ -107,6 +107,18 @@ FurniturePalette furniture_palette(BuildingType type, const CivStyle& style) {
                 {PlacementRule::Corner,      FixtureType::Debris,  FixtureType::Table,   1, 2, 0.7f},
             };
             break;
+
+        case BuildingType::OutpostMain:
+            // Fixture types are hardcoded (not style.*) because spawn_outpost_npcs
+            // looks for Crate/Console/Bunk specifically to anchor NPCs.
+            pal.groups = {
+                {PlacementRule::Anchor,      FixtureType::Console,   FixtureType::Table, 1, 1, 1.0f},  // quest giver
+                {PlacementRule::TableSet,    FixtureType::Table,     FixtureType::Bench, 1, 1, 1.0f},  // trader + seating
+                {PlacementRule::WallUniform, FixtureType::Bunk,      FixtureType::Table, 1, 2, 1.0f},  // resting
+                {PlacementRule::Corner,      FixtureType::Crate,     FixtureType::Table, 1, 2, 1.0f},  // loot / quartermaster
+                {PlacementRule::WallUniform, FixtureType::CampStove, FixtureType::Table, 1, 1, 0.8f},  // cooking
+            };
+            break;
     }
 
     return pal;

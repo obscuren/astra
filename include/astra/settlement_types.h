@@ -27,6 +27,9 @@ enum class BuildingType : uint8_t {
     GreatHall,
     Archive,
     Observatory,
+
+    // Outpost main building
+    OutpostMain,
 };
 
 enum class AnchorType : uint8_t {

@@ -81,6 +81,10 @@
 - [ ] **Civilization-themed dungeon aesthetics** — tile palette, fixture types, room flavors per precursor civilization
 - [ ] **Archaeological strata** — deeper dungeon levels = older civilization layers
 - [ ] New dungeon generator types / biomes
+- [x] **Outpost POI** — fenced fort with main building, exterior tents, campfires, biome-themed palisade
+- [ ] **Outpost dungeon portal** — rare (~20%) chance of a dungeon entrance beneath an outpost
+- [ ] **Outpost kind variants** — forward base / refuge / scoundrel hideout / traveler camp with distinct NPCs and loot
+- [ ] **Outpost reputation / hostility** — hostile outposts spawn combatants instead of traders
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] **Interactive shelves** — 3-tile shelf structures (║~║ or ═~═) against walls; middle tile holds lootable item (book, scroll, data crystal); picking up item reverts to empty shelf
 - [ ] Derelict station expansion — more room types

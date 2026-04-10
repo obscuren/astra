@@ -54,6 +54,7 @@ set(ASTRA_SOURCES
     src/generators/furniture_palettes.cpp
     src/generators/placement_scorer.cpp
     src/generators/settlement_planner.cpp
+    src/generators/outpost_planner.cpp
     src/generators/building_generator.cpp
     src/generators/path_router.cpp
     src/generators/perimeter_builder.cpp

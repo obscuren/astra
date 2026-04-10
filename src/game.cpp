@@ -463,6 +463,10 @@ void Game::dev_command_biome_test(Biome biome, int layer,
             props.detail_neighbor_e = Tile::OW_Ruins;
             props.detail_neighbor_w = Tile::OW_Ruins;
         }
+    } else if (poi_type == "outpost") {
+        props.detail_has_poi = true;
+        props.detail_poi_type = Tile::OW_Outpost;
+        props.lore_tier = 1;
     }
 
     world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
@@ -480,6 +484,8 @@ void Game::dev_command_biome_test(Biome biome, int layer,
     } else if (poi_type == "ruins") {
         loc_name += " + Ruins";
         if (connected) loc_name += " (connected)";
+    } else if (poi_type == "outpost") {
+        loc_name += " + Outpost";
     }
     world_.map().set_location_name(loc_name);
 
@@ -510,6 +516,10 @@ void Game::dev_command_biome_test(Biome biome, int layer,
         spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
                                   player_.x, player_.y, npc_rng, &player_,
                                   0, "Ruined", biome);
+    } else if (poi_type == "outpost") {
+        std::mt19937 npc_rng(seed ^ 0x4E5C5u);
+        spawn_outpost_npcs(world_.map(), world_.npcs(),
+                           player_.x, player_.y, npc_rng, &player_);
     }
 
     world_.visibility() = VisibilityMap(props.width, props.height);
