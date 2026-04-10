@@ -129,28 +129,14 @@ const int ruin_stamp_count = 4;
 // Crashed ship stamps
 // ---------------------------------------------------------------------------
 
-static const StampCell crash_1x1_a[] = {
-    {0, 0, Tile::OW_CrashedShip, SG_Percent},
-};
-
-static const StampCell crash_1x1_b[] = {
-    {0, 0, Tile::OW_CrashedShip, SG_CurrencySign},
-};
-
-static const StampCell crash_3x2[] = {
-    {1, 0, Tile::OW_CrashedShip, SG_CurrencySign},
-    {0, 1, Tile::OW_CrashedShip, SG_Percent},
-    {1, 1, Tile::OW_CrashedShip, SG_Equals},
-    {2, 1, Tile::OW_CrashedShip, SG_CurrencySign},
-    {1, 2, Tile::OW_CrashedShip, SG_Percent},
+static const StampCell crash_1x1[] = {
+    {0, 0, Tile::OW_CrashedShip, SG_None},
 };
 
 const StampDef crashed_ship_stamps[] = {
-    {1, 1, crash_1x1_a, 1},
-    {1, 1, crash_1x1_b, 1},
-    {3, 3, crash_3x2, 5},
+    {1, 1, crash_1x1, 1},
 };
-const int crashed_ship_stamp_count = 3;
+const int crashed_ship_stamp_count = 1;
 
 // ---------------------------------------------------------------------------
 // Cave stamps
