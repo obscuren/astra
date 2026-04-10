@@ -42,7 +42,7 @@ void HelpScreen::draw(Renderer* renderer, int screen_w, int screen_h) {
         {"", "GENERAL"},
         {"Space", "Use / interact with nearby object"},
         {"l", "Look / examine (free cursor)"},
-        {"c", "Character screen"},
+        {"Tab", "Character screen"},
         {"?", "This help screen"},
         {"Esc", "Pause menu"},
         {"", ""},

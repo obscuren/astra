@@ -1447,7 +1447,7 @@ void Game::render_welcome_screen() {
     key_row("Arrow keys", "Move");
     key_row("Space",      "Use / interact");
     key_row("l",          "Look / examine");
-    key_row("c",          "Character screen");
+    key_row("Tab",        "Character screen");
     key_row("t / s",      "Target / shoot");
     key_row("> / <",      "Enter / exit");
     key_row("ESC",        "Pause menu");

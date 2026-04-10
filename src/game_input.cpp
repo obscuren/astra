@@ -327,21 +327,9 @@ void Game::handle_play_input(int key) {
             compute_camera();
             break;
         case '\t':
-        case KEY_SHIFT_TAB: {
-            if (!panel_visible_) {
-                panel_visible_ = true;
-                compute_layout();
-                compute_camera();
-            }
-            // Cycle focus among active widgets
-            int dir = (key == KEY_SHIFT_TAB) ? -1 : 1;
-            for (int step = 0; step < widget_count; ++step) {
-                focused_widget_ = (focused_widget_ + dir + widget_count) % widget_count;
-                if (widget_active(active_widgets_, static_cast<Widget>(focused_widget_)))
-                    break;
-            }
+            character_screen_.open(&player_, renderer_.get(), &quest_manager_,
+                                   world_.navigation().on_ship);
             break;
-        }
         case '.':
             log("You wait...");
             advance_world(ActionCost::wait);
@@ -359,8 +347,6 @@ void Game::handle_play_input(int key) {
         case 's': combat_.shoot_target(*this); break;
         case 'r': combat_.reload_weapon(*this); break;
         case 'g': pickup_ground_item(); break;
-        case 'c': character_screen_.open(&player_, renderer_.get(), &quest_manager_,
-                                        world_.navigation().on_ship); break;
         case '?': help_screen_.open(); break;
         case 'm':
             if (dev_mode_) {
