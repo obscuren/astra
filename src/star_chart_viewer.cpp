@@ -509,14 +509,11 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
     UIContext screen(renderer_, Rect{2, 2, screen_w - 4, screen_h - 4});
     auto content = screen.panel({.title = title, .footer = footer});
 
-    // Split: map | separator | info
+    // Split: map | info (info panel has its own internal spine)
     int info_width = std::max(22, content.width() * 20 / 100);
-    auto cols = content.columns({fill(), fixed(1), fixed(info_width)});
+    auto cols = content.columns({fill(), fixed(info_width)});
     auto& map_area = cols[0];
-    auto& sep = cols[1];
-    auto& info = cols[2];
-
-    sep.separator({.vertical = true});
+    auto& info = cols[1];
 
     // Layer 1: galaxy map primitive
     map_area.galaxy_map(build_map_desc());
@@ -685,35 +682,35 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
             break;
         }
         case ChartZoom::Region: {
-            ctx.text(1, y++, "REGION VIEW", Color::White);
-            ctx.hline(y++, '~');
+            draw_info_title(ctx, y, "REGION VIEW", Color::White);
             y++;
 
             if (cursor_index_ >= 0 && cursor_index_ < static_cast<int>(nav_->systems.size())) {
                 const auto& sys = nav_->systems[cursor_index_];
                 if (sys.discovered) {
-                    draw_system_info_text(ctx, sys, y);
+                    draw_system_info_text(ctx, sys, y, ctx.height(), /*use_title=*/false);
                 } else {
-                    draw_info_title(ctx, y, "UNKNOWN", Color::DarkGray);
+                    draw_info_section(ctx, y, "UNKNOWN", Color::DarkGray);
                     y++;
                     ctx.text(2, y++, "Scan or visit", Color::DarkGray);
                     ctx.text(2, y++, "to reveal", Color::DarkGray);
                 }
             } else {
-                draw_info_title(ctx, y, "REGION", Color::White);
-                y++;
                 ctx.text(2, y++, "Use [Tab] to", Color::DarkGray);
                 ctx.text(2, y++, "select a system", Color::DarkGray);
             }
             break;
         }
         case ChartZoom::Local: {
+            draw_info_title(ctx, y, "LOCAL VIEW", Color::White);
+            y++;
+
             if (cursor_index_ >= 0 && cursor_index_ < static_cast<int>(nav_->systems.size())) {
                 const auto& sys = nav_->systems[cursor_index_];
                 if (sys.discovered) {
-                    draw_system_info_text(ctx, sys, y, ctx.height());
+                    draw_system_info_text(ctx, sys, y, ctx.height(), /*use_title=*/false);
                 } else {
-                    draw_info_title(ctx, y, "UNKNOWN", Color::DarkGray);
+                    draw_info_section(ctx, y, "UNKNOWN", Color::DarkGray);
                     y++;
                     ctx.text(2, y++, "Scan or visit", Color::DarkGray);
                     ctx.text(2, y++, "to reveal", Color::DarkGray);
@@ -782,12 +779,19 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
 // Info text helpers
 // ---------------------------------------------------------------------------
 
-void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sys, int start_y, int max_h) {
+void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sys, int start_y, int max_h, bool use_title) {
     int y = start_y;
 
-    // Title
-    draw_info_title(ctx, y, sys.name, Color::White);
-    y++;
+    if (use_title) {
+        // Title: star name as the main heading
+        draw_info_title(ctx, y, sys.name, Color::White);
+        y++;
+    } else {
+        // Section header: star name as a sub-section (for Region/Local views)
+        draw_info_section(ctx, y, sys.name, Color::White, '*',
+                          star_class_color(sys.star_class));
+        y++;
+    }
 
     // Star details
     ctx.text(2, y, "Class", Color::DarkGray);

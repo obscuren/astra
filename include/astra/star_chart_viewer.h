@@ -61,7 +61,7 @@ private:
     // Semantic rendering
     GalaxyMapDesc build_map_desc() const;
     void draw_info_panel(UIContext& ctx);
-    void draw_system_info_text(UIContext& ctx, const StarSystem& sys, int start_y, int max_h = 100);
+    void draw_system_info_text(UIContext& ctx, const StarSystem& sys, int start_y, int max_h = 100, bool use_title = true);
     void draw_body_info_text(UIContext& ctx, const CelestialBody& body, const StarSystem& sys, int start_y);
     void draw_station_info_text(UIContext& ctx, const StarSystem& sys, int start_y);
 
