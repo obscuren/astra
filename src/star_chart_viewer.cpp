@@ -154,8 +154,7 @@ bool StarChartViewer::handle_input(int key) {
                     center_on_sol();
                     return true;
                 case '\033': case 'q':
-                    zoom_ = ChartZoom::Galaxy;
-                    cursor_index_ = -1;
+                    close();
                     return true;
             }
             break;
@@ -230,7 +229,7 @@ bool StarChartViewer::handle_input(int key) {
                     cursor_index_ = find_nearest_system(view_cx_, view_cy_);
                     return true;
                 case '\033': case 'q':
-                    zoom_ = ChartZoom::Region;
+                    close();
                     return true;
             }
             break;
@@ -327,10 +326,13 @@ bool StarChartViewer::handle_input(int key) {
                     }
                     break;
                 }
-                case '-': case '\b': case '\033': case 'q':
+                case '-': case '\b':
                     zoom_ = ChartZoom::Local;
                     body_cursor_ = -1;
                     sub_cursor_ = -1;
+                    return true;
+                case '\033': case 'q':
+                    close();
                     return true;
             }
             break;
@@ -493,13 +495,13 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
             footer = "[Arrows] Pan  [+] Zoom in  [H] Home  [ESC] Close";
             break;
         case ChartZoom::Region:
-            footer = "[Arrows] Pan  [Tab] Select  [s] Scan  [+] Zoom in  [-] Zoom out  [H] Home  [ESC] Back";
+            footer = "[Arrows] Pan  [Tab] Select  [s] Scan  [+] Zoom in  [-] Zoom out  [H] Home  [ESC] Close";
             break;
         case ChartZoom::Local:
-            footer = "[Arrows] Select  [Tab] Cycle  [s] Scan  [w] Warp  [+] View  [-] Zoom out  [H] Home  [ESC] Back";
+            footer = "[Arrows] Select  [Tab] Cycle  [s] Scan  [w] Warp  [+] View  [-] Zoom out  [H] Home  [ESC] Close";
             break;
         case ChartZoom::System:
-            footer = "[Left/Right] Select  [Up/Down] Sub  [t] Travel  [-] Back  [ESC] Back";
+            footer = "[Left/Right] Select  [Up/Down] Sub  [t] Travel  [-] Back  [ESC] Close";
             break;
     }
 
