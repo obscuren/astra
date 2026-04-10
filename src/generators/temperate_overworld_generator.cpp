@@ -106,13 +106,16 @@ Tile TemperateOverworldGenerator::classify_terrain(int x, int y, float elev, flo
     if (elev > 0.75f) return Tile::OW_Mountains;
     if (elev < 0.2f)  return Tile::OW_Lake;
 
-    // --- Cold regions — ice only at truly polar temperatures ---
+    // --- Cold regions — ice with mountain peaks poking through ---
     if (temp < 0.15f) {
+        // Polar: mountain peaks at high elevation, ice everywhere else
+        if (elev > 0.6f) return Tile::OW_Mountains;
         return Tile::OW_IceField;
     }
     if (temp < 0.25f) {
-        // Tundra/cold plains — ice only at very high elevation
-        if (elev > 0.65f) return Tile::OW_IceField;
+        // Sub-polar: mountain peaks at high elevation, ice at mid-high, plains below
+        if (elev > 0.6f) return Tile::OW_Mountains;
+        if (elev > 0.5f) return Tile::OW_IceField;
         return Tile::OW_Plains;
     }
 
