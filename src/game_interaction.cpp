@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/poi_placement.h"
 #include "astra/tile_props.h"
 #include "astra/tinkering.h"
 
@@ -32,6 +33,12 @@ void Game::try_move(int dx, int dy) {
         Tile prev_tile = world_.map().get(player_.x, player_.y);
         player_.x = nx;
         player_.y = ny;
+
+        // Hidden POI discovery check.
+        if (auto* hidden = world_.map().find_hidden_poi_mut(nx, ny)) {
+            discover_hidden_poi(*hidden);
+        }
+
         // Walk-over messages for POI tiles (suppress when moving within same tile type)
         Tile stepped = world_.map().get(nx, ny);
         if (stepped != prev_tile) {
