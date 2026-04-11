@@ -69,6 +69,7 @@ set(ASTRA_SOURCES
     src/generators/ruin_stamps.cpp
     src/generators/ruin_generator.cpp
     src/overworld_stamps.cpp
+    src/poi_budget.cpp
     src/visibility_map.cpp
     src/save_file.cpp
     src/celestial_body.cpp
