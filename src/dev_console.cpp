@@ -4,9 +4,7 @@
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
-#include "astra/journal.h"
 #include "astra/lore_generator.h"
-#include "astra/poi_budget.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
