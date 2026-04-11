@@ -3,12 +3,13 @@
 #include "astra/player.h"
 #include "astra/quest.h"
 #include "astra/ui.h"
-#include "astra/world_manager.h"
 
 #include <random>
 #include <string>
 
 namespace astra {
+
+class WorldManager;
 
 enum class CharTab : uint8_t {
     Skills,

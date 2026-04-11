@@ -5,7 +5,7 @@
 #include "astra/skill_defs.h"
 #include "astra/journal.h"
 #include "astra/tinkering.h"
-#include "astra/tilemap.h"
+#include "astra/world_manager.h"
 #include "terminal_theme.h"
 
 #include <algorithm>
