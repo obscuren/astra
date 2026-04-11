@@ -1495,7 +1495,7 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
     if (tile == Tile::Portal) {
         const char* utf8 = "\xe2\x96\xbc";  // ▼
-        Color c = remembered ? bc.remembered : Color::Magenta;
+        Color c = remembered ? bc.remembered : Color::Yellow;
         return {'>', utf8, c, Color::Default};
     }
 

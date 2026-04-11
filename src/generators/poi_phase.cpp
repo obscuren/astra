@@ -4,6 +4,7 @@
 #include "astra/settlement_planner.h"
 #include "astra/outpost_planner.h"
 #include "astra/crashed_ship_generator.h"
+#include "astra/cave_entrance_generator.h"
 #include "astra/building_generator.h"
 #include "astra/path_router.h"
 #include "astra/perimeter_builder.h"
@@ -75,9 +76,13 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
         return ship_gen.generate(map, channels, props, rng);
     }
 
+    if (props.detail_poi_type == Tile::OW_CaveEntrance) {
+        CaveEntranceGenerator cave_gen;
+        return cave_gen.generate(map, channels, props, rng);
+    }
+
     // Stubbed POI types — generate terrain only, implementation pending
-    if (props.detail_poi_type == Tile::OW_CaveEntrance ||
-        props.detail_poi_type == Tile::OW_Landing ||
+    if (props.detail_poi_type == Tile::OW_Landing ||
         props.detail_poi_type == Tile::OW_Beacon ||
         props.detail_poi_type == Tile::OW_Megastructure) {
         return {};

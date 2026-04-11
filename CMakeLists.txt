@@ -56,6 +56,7 @@ set(ASTRA_SOURCES
     src/generators/settlement_planner.cpp
     src/generators/outpost_planner.cpp
     src/generators/crashed_ship_generator.cpp
+    src/generators/cave_entrance_generator.cpp
     src/generators/building_generator.cpp
     src/generators/path_router.cpp
     src/generators/perimeter_builder.cpp

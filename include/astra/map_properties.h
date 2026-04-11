@@ -97,6 +97,10 @@ struct MapProperties {
     // Dev override: force a specific crashed ship class.
     // Empty = auto (lore-weighted). Values: "pod", "freighter", "corvette".
     std::string detail_crashed_ship_class;
+    // Dev override: force a specific cave entrance variant.
+    // Empty = auto (lore-weighted + biome-filtered).
+    // Values: "natural", "mine", "excavation".
+    std::string detail_cave_variant;
 };
 
 MapProperties default_properties(MapType type);

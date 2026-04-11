@@ -91,6 +91,10 @@
 - [ ] **Crashed ship lore logs** — readable captain's log fixture on cockpit console
 - [ ] **Aquatic crashed ships** — partially submerged hull rendering
 - [ ] **Haunted wrecks** — optional creature spawning inside wrecks
+- [x] **Cave Entrance POI** — three variants (natural cave / abandoned mine / ancient excavation) with cliff-embedded placement and lore-weighted selection
+- [ ] **Cave entrance dungeon theming** — variant-specific dungeon generators beneath the portal
+- [ ] **Additional cave variants** — flooded cave, sealed vault entrance, collapsed shaft
+- [ ] **Ice cave variants** — frozen entrances with crystal fixtures in Ice biome
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] **Interactive shelves** — 3-tile shelf structures (║~║ or ═~═) against walls; middle tile holds lootable item (book, scroll, data crystal); picking up item reverts to empty shelf
 - [ ] Derelict station expansion — more room types

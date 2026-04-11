@@ -255,8 +255,6 @@ void AnimationManager::spawn_fixture_anims(const TileMap& map, const VisibilityM
                     ? &anim_lava_shimmer : &anim_water_shimmer;
             } else if (map.get(x, y) == Tile::OW_LavaFlow) {
                 def = &anim_torch_flicker;
-            } else if (map.get(x, y) == Tile::Portal) {
-                def = &anim_beacon_glow;
             }
 
             if (def) {

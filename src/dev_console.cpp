@@ -130,6 +130,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
         log("                     [outpost]");
         log("                     [ship [pod|freighter|corvette]]");
+        log("                     [cave [natural|mine|excavation]]");
         log("    biomes: grassland forest jungle sandy rocky volcanic marsh ice");
         log("    fungal crystal corroded aquatic alien_crystalline alien_organic");
         log("    alien_geometric alien_void alien_light scarred_scorched scarred_glassed");
@@ -137,6 +138,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("    ruins: generates ruin POI; civ style optional; 'connected' sets all 4 edges");
         log("    outpost: fenced fort with main building, tents, campfires");
         log("    ship: crashed wreck; class optional (auto = lore-weighted)");
+        log("    cave: dungeon entrance; variant optional (natural/mine/excavation)");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -221,6 +223,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             } else if (args[i] == "pod" || args[i] == "freighter" || args[i] == "corvette") {
                 if (poi_type.empty()) poi_type = "ship";
                 poi_style = args[i];
+            } else if (args[i] == "cave" || args[i] == "cave_entrance") {
+                poi_type = "cave";
+            } else if (args[i] == "natural" || args[i] == "mine" || args[i] == "excavation") {
+                if (poi_type.empty()) poi_type = "cave";
+                poi_style = args[i];
             } else if (args[i] == "connected") {
                 connected = true;
             } else if (args[i] == "frontier") {
@@ -270,6 +277,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             msg += " + outpost";
         } else if (poi_type == "ship") {
             msg += " + crashed ship";
+            if (!poi_style.empty()) msg += " (" + poi_style + ")";
+        } else if (poi_type == "cave") {
+            msg += " + cave entrance";
             if (!poi_style.empty()) msg += " (" + poi_style + ")";
         }
         log(msg);
