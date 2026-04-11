@@ -3,6 +3,7 @@
 #include "astra/player.h"
 #include "astra/quest.h"
 #include "astra/ui.h"
+#include "astra/world_manager.h"
 
 #include <random>
 #include <string>
@@ -29,7 +30,8 @@ public:
     bool is_open() const;
     void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr,
               bool on_ship = false, CharTab initial_tab = CharTab::Skills,
-              bool can_board_ship = false);
+              bool can_board_ship = false,
+              const WorldManager* world = nullptr);
     bool consume_board_ship_request() {
         bool r = board_ship_requested_;
         board_ship_requested_ = false;
@@ -43,6 +45,7 @@ private:
     Player* player_ = nullptr;
     QuestManager* quests_ = nullptr;
     Renderer* renderer_ = nullptr;
+    const WorldManager* world_ = nullptr;
     std::mt19937 rng_{std::random_device{}()};
     bool open_ = false;
     CharTab active_tab_ = CharTab::Skills;

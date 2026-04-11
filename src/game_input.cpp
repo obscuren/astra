@@ -180,7 +180,7 @@ void Game::handle_play_input(int key) {
         if (dialog_.consume_aria_ship_tab()) {
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship, CharTab::Ship,
-                                   can_board_ship());
+                                   can_board_ship(), &world_);
         }
         if (dialog_.consume_aria_star_chart()) {
             star_chart_viewer_.set_view_only(false);
@@ -196,7 +196,7 @@ void Game::handle_play_input(int key) {
         if (dialog_.consume_aria_open_datapad()) {
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
-                                   CharTab::Skills, can_board_ship());
+                                   CharTab::Skills, can_board_ship(), &world_);
         }
         return;
     }
@@ -330,7 +330,7 @@ void Game::handle_play_input(int key) {
         case '\t':
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
-                                   CharTab::Skills, can_board_ship());
+                                   CharTab::Skills, can_board_ship(), &world_);
             break;
         case '.':
             log("You wait...");

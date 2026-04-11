@@ -5,6 +5,7 @@
 #include "astra/skill_defs.h"
 #include "astra/journal.h"
 #include "astra/tinkering.h"
+#include "astra/tilemap.h"
 #include "terminal_theme.h"
 
 #include <algorithm>
@@ -21,12 +22,14 @@ static const char* tab_names[] = {
 bool CharacterScreen::is_open() const { return open_; }
 
 void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
-                           bool on_ship, CharTab initial_tab, bool can_board_ship) {
+                           bool on_ship, CharTab initial_tab, bool can_board_ship,
+                           const WorldManager* world) {
     player_ = player;
     renderer_ = renderer;
     quests_ = quests;
     on_ship_ = on_ship;
     can_board_ship_ = can_board_ship;
+    world_ = world;
     open_ = true;
     active_tab_ = initial_tab;
     cursor_ = 0;
@@ -2249,6 +2252,59 @@ void CharacterScreen::draw_journal(UIContext& ctx) {
                 if (line_x >= rw) {
                     ry++;
                     line_x = 0;
+                }
+            }
+        }
+
+        // Live map preview for Discovery entries.
+        if (entry.category == JournalCategory::Discovery &&
+            entry.has_discovery_location && world_ != nullptr) {
+            const int pw = 11;
+            const int ph = 7;
+            int py = ctx.height() - ph - 2;
+
+            if (py > ry + 1) {  // enough room below the notes
+                const auto& nav = world_->navigation();
+                bool same_body = (nav.current_system_id == static_cast<uint32_t>(entry.discovery_system_id) &&
+                                  nav.current_body_index == entry.discovery_body_index &&
+                                  nav.current_moon_index == entry.discovery_moon_index);
+
+                // Label line above the preview.
+                if (!entry.discovery_location_name.empty()) {
+                    ctx.text({.x = rx, .y = py - 1,
+                              .content = entry.discovery_location_name,
+                              .tag = UITag::TextDim});
+                }
+
+                if (same_body) {
+                    const TileMap& owm = world_->map();
+                    int cx = entry.discovery_overworld_x;
+                    int cy = entry.discovery_overworld_y;
+                    for (int dy = 0; dy < ph; ++dy) {
+                        for (int dx = 0; dx < pw; ++dx) {
+                            int mx = cx - pw / 2 + dx;
+                            int my = cy - ph / 2 + dy;
+                            if (mx < 0 || mx >= owm.width() ||
+                                my < 0 || my >= owm.height()) {
+                                ctx.put(rx + dx, py + dy, ' ', Color::Default);
+                                continue;
+                            }
+                            Tile t = owm.get(mx, my);
+                            // Apply hidden-POI render substitution for consistency
+                            // with the main overworld view.
+                            if (const auto* hidden = owm.find_hidden_poi(mx, my)) {
+                                t = hidden->underlying_tile;
+                            }
+                            const char* g = overworld_glyph(t, mx, my);
+                            bool is_center = (dx == pw / 2 && dy == ph / 2);
+                            Color c = is_center ? Color::Yellow : Color::Default;
+                            ctx.put(rx + dx, py + dy, g, c);
+                        }
+                    }
+                } else {
+                    ctx.text({.x = rx, .y = py,
+                              .content = "(not in current system)",
+                              .tag = UITag::TextDim});
                 }
             }
         }
