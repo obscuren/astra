@@ -1,7 +1,5 @@
 #include "astra/overworld_generator.h"
-#include "astra/lore_influence_map.h"
 #include "astra/map_properties.h"
-#include "astra/overworld_stamps.h"
 #include "astra/poi_placement.h"
 
 #include <algorithm>
