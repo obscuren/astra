@@ -1,7 +1,5 @@
 #include "astra/save_file.h"
 #include "astra/item_ids.h"
-#include "astra/poi_budget.h"
-#include "astra/poi_placement.h"
 #include "astra/world_manager.h"
 
 #include <unordered_map>

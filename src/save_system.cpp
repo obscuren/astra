@@ -1,7 +1,5 @@
 #include "astra/save_system.h"
 #include "astra/game.h"
-#include "astra/poi_budget.h"
-#include "astra/poi_placement.h"
 #include "astra/quest.h"
 #include "astra/star_chart.h"
 
