@@ -3,6 +3,7 @@
 #include "astra/celestial_body.h"
 #include "astra/edge_strip.h"
 #include "astra/lore_types.h"
+#include "astra/poi_placement.h"
 #include "astra/tilemap.h"
 
 #include <cstdint>
@@ -101,6 +102,10 @@ struct MapProperties {
     // Empty = auto (lore-weighted + biome-filtered).
     // Values: "natural", "mine", "excavation".
     std::string detail_cave_variant;
+
+    // Set from the overworld tile's anchor hint when entering a detail map.
+    // Stage-2 generators use this to short-circuit their own terrain scans.
+    PoiAnchorHint detail_poi_anchor;
 };
 
 MapProperties default_properties(MapType type);

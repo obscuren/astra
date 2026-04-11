@@ -583,6 +583,11 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
         }
     }
 
+    // Copy anchor hint from overworld tile (if any).
+    if (const auto* hint = ow_map->anchor_hint(ow_x, ow_y)) {
+        props.detail_poi_anchor = *hint;
+    }
+
     // Lore influence at this overworld cell
     const auto& infl = world_.lore_influence();
     if (!infl.empty()) {
