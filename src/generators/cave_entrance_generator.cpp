@@ -548,7 +548,10 @@ Rect CaveEntranceGenerator::generate(TileMap& map,
                                       std::mt19937& rng) const {
     // 1. Pick variant.
     CaveVariant variant;
-    if (props.detail_cave_variant == "natural") {
+    if (props.detail_poi_anchor.valid &&
+        props.detail_poi_anchor.cave_variant != CaveVariant::None) {
+        variant = props.detail_poi_anchor.cave_variant;
+    } else if (props.detail_cave_variant == "natural") {
         variant = CaveVariant::NaturalCave;
     } else if (props.detail_cave_variant == "mine") {
         variant = CaveVariant::AbandonedMine;
