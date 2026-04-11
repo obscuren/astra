@@ -3,6 +3,8 @@
 #include "astra/lore_types.h"
 #include "astra/npc.h"
 #include "astra/player.h"
+#include "astra/poi_budget.h"
+#include "astra/poi_placement.h"
 #include "astra/quest.h"
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
@@ -37,10 +39,15 @@ struct MapState {
     VisibilityMap visibility;
     std::vector<Npc> npcs;
     std::vector<GroundItem> ground_items;
+
+    // v23: POI budget, hidden POIs, anchor hints carried on the overworld map.
+    PoiBudget poi_budget;
+    std::vector<HiddenPoi> hidden_pois;
+    std::vector<std::pair<uint64_t, PoiAnchorHint>> anchor_hints;
 };
 
 struct SaveData {
-    uint32_t version = 22;
+    uint32_t version = 23;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

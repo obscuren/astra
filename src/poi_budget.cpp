@@ -171,9 +171,35 @@ PoiBudget roll_poi_budget(const MapProperties& props, std::mt19937& rng) {
     return b;
 }
 
-// Placeholder — filled in by Task 17.
-PoiBudget reconstruct_poi_budget_from_map(const TileMap& /*overworld*/) {
-    return PoiBudget{};
+PoiBudget reconstruct_poi_budget_from_map(const TileMap& overworld) {
+    PoiBudget b;
+    for (int y = 0; y < overworld.height(); ++y) {
+        for (int x = 0; x < overworld.width(); ++x) {
+            Tile t = overworld.get(x, y);
+            switch (t) {
+                case Tile::OW_Settlement:  ++b.settlements; break;
+                case Tile::OW_Outpost:     ++b.outposts; break;
+                case Tile::OW_Ruins: {
+                    RuinRequest r;
+                    r.civ = "unknown";
+                    r.hidden = false;
+                    b.ruins.push_back(r);
+                    break;
+                }
+                case Tile::OW_CrashedShip: {
+                    ShipRequest s;
+                    s.klass = ShipClass::Freighter;
+                    b.ships.push_back(s);
+                    break;
+                }
+                case Tile::OW_CaveEntrance: ++b.caves.natural; break;
+                case Tile::OW_Beacon:       ++b.beacons; break;
+                case Tile::OW_Megastructure:++b.megastructures; break;
+                default: break;
+            }
+        }
+    }
+    return b;
 }
 
 } // namespace astra

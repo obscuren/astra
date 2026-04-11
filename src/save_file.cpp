@@ -1,5 +1,7 @@
 #include "astra/save_file.h"
 #include "astra/item_ids.h"
+#include "astra/poi_budget.h"
+#include "astra/poi_placement.h"
 #include "astra/world_manager.h"
 
 #include <unordered_map>
@@ -21,6 +23,7 @@ public:
     void write_u8(uint8_t v)   { out_.write(reinterpret_cast<const char*>(&v), 1); }
     void write_u16(uint16_t v) { out_.write(reinterpret_cast<const char*>(&v), 2); }
     void write_u32(uint32_t v) { out_.write(reinterpret_cast<const char*>(&v), 4); }
+    void write_u64(uint64_t v) { out_.write(reinterpret_cast<const char*>(&v), 8); }
     void write_i32(int32_t v)  { out_.write(reinterpret_cast<const char*>(&v), 4); }
 
     void write_string(const std::string& s) {
@@ -67,6 +70,7 @@ public:
     uint8_t  read_u8()  { uint8_t v = 0;  in_.read(reinterpret_cast<char*>(&v), 1); return v; }
     uint16_t read_u16() { uint16_t v = 0; in_.read(reinterpret_cast<char*>(&v), 2); return v; }
     uint32_t read_u32() { uint32_t v = 0; in_.read(reinterpret_cast<char*>(&v), 4); return v; }
+    uint64_t read_u64() { uint64_t v = 0; in_.read(reinterpret_cast<char*>(&v), 8); return v; }
     int32_t  read_i32() { int32_t v = 0;  in_.read(reinterpret_cast<char*>(&v), 4); return v; }
 
     std::string read_string() {
@@ -529,6 +533,14 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_i32(je.world_tick);
         // v16: quest_id link
         w.write_string(je.quest_id);
+        // v23: discovery location fields
+        w.write_u8(je.has_discovery_location ? 1 : 0);
+        w.write_i32(je.discovery_system_id);
+        w.write_i32(je.discovery_body_index);
+        w.write_i32(je.discovery_moon_index);
+        w.write_i32(je.discovery_overworld_x);
+        w.write_i32(je.discovery_overworld_y);
+        w.write_string(je.discovery_location_name);
     }
     // v14: starship
     w.write_string(p.ship.name);
@@ -685,6 +697,52 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
 
     // Hub flag
     w.write_u8(tm.is_hub() ? 1 : 0);
+
+    // v23: PoiBudget
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.settlements));
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.outposts));
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.caves.natural));
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.caves.mine));
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.caves.excavation));
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.beacons));
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.megastructures));
+
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.ruins.size()));
+    for (const auto& r : ms.poi_budget.ruins) {
+        w.write_string(r.civ);
+        w.write_u8(static_cast<uint8_t>(r.formation));
+        w.write_u8(r.hidden ? 1 : 0);
+    }
+
+    w.write_u32(static_cast<uint32_t>(ms.poi_budget.ships.size()));
+    for (const auto& s : ms.poi_budget.ships) {
+        w.write_u8(static_cast<uint8_t>(s.klass));
+    }
+
+    // v23: Hidden POIs
+    w.write_u32(static_cast<uint32_t>(ms.hidden_pois.size()));
+    for (const auto& h : ms.hidden_pois) {
+        w.write_i32(h.x);
+        w.write_i32(h.y);
+        w.write_u8(static_cast<uint8_t>(h.underlying_tile));
+        w.write_u8(static_cast<uint8_t>(h.real_tile));
+        w.write_u8(h.discovered ? 1 : 0);
+        w.write_string(h.ruin_civ);
+        w.write_u8(static_cast<uint8_t>(h.ruin_formation));
+    }
+
+    // v23: Anchor hints
+    w.write_u32(static_cast<uint32_t>(ms.anchor_hints.size()));
+    for (const auto& [k, hint] : ms.anchor_hints) {
+        w.write_u64(k);
+        w.write_u8(hint.valid ? 1 : 0);
+        w.write_u8(static_cast<uint8_t>(hint.reason));
+        w.write_u8(static_cast<uint8_t>(hint.direction));
+        w.write_u8(static_cast<uint8_t>(hint.cave_variant));
+        w.write_u8(static_cast<uint8_t>(hint.ship_class));
+        w.write_string(hint.ruin_civ);
+        w.write_u8(static_cast<uint8_t>(hint.ruin_formation));
+    }
 
     w.end_section(pos);
 }
@@ -1039,6 +1097,15 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
             if (version >= 16) {
                 p.journal[i].quest_id = r.read_string();
             }
+            if (version >= 23) {
+                p.journal[i].has_discovery_location = (r.read_u8() != 0);
+                p.journal[i].discovery_system_id    = r.read_i32();
+                p.journal[i].discovery_body_index   = r.read_i32();
+                p.journal[i].discovery_moon_index   = r.read_i32();
+                p.journal[i].discovery_overworld_x  = r.read_i32();
+                p.journal[i].discovery_overworld_y  = r.read_i32();
+                p.journal[i].discovery_location_name = r.read_string();
+            }
         }
     }
     // v14: starship
@@ -1244,6 +1311,59 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
 
         bool hub = r.read_u8() != 0;
         ms.tilemap.set_hub(hub);
+    }
+
+    // v23: PoiBudget, hidden POIs, anchor hints
+    if (version >= 23) {
+        ms.poi_budget.settlements     = static_cast<int>(r.read_u32());
+        ms.poi_budget.outposts        = static_cast<int>(r.read_u32());
+        ms.poi_budget.caves.natural   = static_cast<int>(r.read_u32());
+        ms.poi_budget.caves.mine      = static_cast<int>(r.read_u32());
+        ms.poi_budget.caves.excavation= static_cast<int>(r.read_u32());
+        ms.poi_budget.beacons         = static_cast<int>(r.read_u32());
+        ms.poi_budget.megastructures  = static_cast<int>(r.read_u32());
+
+        uint32_t n_ruins = r.read_u32();
+        ms.poi_budget.ruins.resize(n_ruins);
+        for (auto& rr : ms.poi_budget.ruins) {
+            rr.civ = r.read_string();
+            rr.formation = static_cast<RuinFormation>(r.read_u8());
+            rr.hidden = (r.read_u8() != 0);
+        }
+
+        uint32_t n_ships = r.read_u32();
+        ms.poi_budget.ships.resize(n_ships);
+        for (auto& s : ms.poi_budget.ships) {
+            s.klass = static_cast<ShipClass>(r.read_u8());
+        }
+
+        uint32_t n_hidden = r.read_u32();
+        ms.hidden_pois.resize(n_hidden);
+        for (auto& h : ms.hidden_pois) {
+            h.x = r.read_i32();
+            h.y = r.read_i32();
+            h.underlying_tile = static_cast<Tile>(r.read_u8());
+            h.real_tile       = static_cast<Tile>(r.read_u8());
+            h.discovered      = (r.read_u8() != 0);
+            h.ruin_civ        = r.read_string();
+            h.ruin_formation  = static_cast<RuinFormation>(r.read_u8());
+        }
+
+        uint32_t n_hints = r.read_u32();
+        ms.anchor_hints.clear();
+        ms.anchor_hints.reserve(n_hints);
+        for (uint32_t i = 0; i < n_hints; ++i) {
+            uint64_t k = r.read_u64();
+            PoiAnchorHint hint;
+            hint.valid = (r.read_u8() != 0);
+            hint.reason = static_cast<AnchorReason>(r.read_u8());
+            hint.direction = static_cast<AnchorDirection>(r.read_u8());
+            hint.cave_variant = static_cast<CaveVariant>(r.read_u8());
+            hint.ship_class = static_cast<ShipClass>(r.read_u8());
+            hint.ruin_civ = r.read_string();
+            hint.ruin_formation = static_cast<RuinFormation>(r.read_u8());
+            ms.anchor_hints.push_back({k, hint});
+        }
     }
 }
 
