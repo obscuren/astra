@@ -3,6 +3,7 @@
 #include "astra/crashed_ship_types.h"
 #include "astra/noise.h"
 #include "astra/placement_scorer.h"
+#include "astra/poi_placement.h"
 
 #include <algorithm>
 #include <cmath>
@@ -611,9 +612,11 @@ Rect CrashedShipGenerator::generate(TileMap& map,
     // 1. Skip Aquatic biome entirely.
     if (props.biome == Biome::Aquatic) return {};
 
-    // 2. Pick ship class (dev override or lore-weighted).
+    // 2. Pick ship class (anchor hint > dev override > lore-weighted).
     ShipClass klass;
-    if (props.detail_crashed_ship_class == "pod") {
+    if (props.detail_poi_anchor.valid) {
+        klass = props.detail_poi_anchor.ship_class;
+    } else if (props.detail_crashed_ship_class == "pod") {
         klass = ShipClass::EscapePod;
     } else if (props.detail_crashed_ship_class == "freighter") {
         klass = ShipClass::Freighter;
