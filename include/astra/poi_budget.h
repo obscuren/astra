@@ -1,6 +1,5 @@
 #pragma once
 
-#include "astra/cave_entrance_types.h"
 #include "astra/crashed_ship_types.h"
 #include "astra/tilemap.h"
 
