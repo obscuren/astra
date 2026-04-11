@@ -118,6 +118,7 @@
 - [x] **Observatory view-only star chart** — can browse but not travel
 - [ ] Ship combat (space encounters)
 - [ ] Ship weapons / utility slots
+- [ ] **Ship scanner component** — installable utility that scans planets and systems. Base tier reveals total POI counts on planet info screen; upgraded tiers split visible vs uncharted (see layered POI budget) and eventually reveal hidden POI positions. System-level scans surface body summaries on the star chart. Ties into the Archaeology skill line (Beacon Sense / Ruin Reader augment scanner results).
 
 ---
 
