@@ -40,7 +40,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 21;
+    uint32_t version = 22;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -72,6 +72,13 @@ struct SaveData {
 
     // v20: world lore
     WorldLore lore;
+
+    // Overworld return position — set when the player boards their ship
+    // from a planet overworld, cleared when they disembark.
+    bool overworld_return_valid = false;
+    int overworld_return_x = 0;
+    int overworld_return_y = 0;
+    LocationKey overworld_return_body_key{};
 };
 
 std::filesystem::path save_directory();

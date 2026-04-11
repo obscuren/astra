@@ -119,6 +119,10 @@ void Game::handle_play_input(int key) {
     // Character screen intercepts input when open
     if (character_screen_.is_open()) {
         character_screen_.handle_input(key);
+        if (character_screen_.consume_board_ship_request()) {
+            board_ship_from_overworld();
+            return;
+        }
         if (character_screen_.has_dropped_item()) {
             Item dropped = character_screen_.consume_dropped_item();
             log("You drop " + dropped.name + ".");
@@ -175,7 +179,8 @@ void Game::handle_play_input(int key) {
         // Check ARIA command terminal outputs
         if (dialog_.consume_aria_ship_tab()) {
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
-                                   world_.navigation().on_ship, CharTab::Ship);
+                                   world_.navigation().on_ship, CharTab::Ship,
+                                   can_board_ship());
         }
         if (dialog_.consume_aria_star_chart()) {
             star_chart_viewer_.set_view_only(false);
@@ -190,7 +195,8 @@ void Game::handle_play_input(int key) {
         }
         if (dialog_.consume_aria_open_datapad()) {
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
-                                   world_.navigation().on_ship);
+                                   world_.navigation().on_ship,
+                                   CharTab::Skills, can_board_ship());
         }
         return;
     }
@@ -278,12 +284,7 @@ void Game::handle_play_input(int key) {
             break;
         case ' ':
             if (world_.on_overworld()) {
-                Tile t = world_.map().get(player_.x, player_.y);
-                if (t == Tile::OW_Landing) {
-                    enter_detail_map();
-                } else {
-                    log("Nothing to interact with here.");
-                }
+                log("Nothing to interact with here.");
                 break;
             }
             use_action();
@@ -328,7 +329,8 @@ void Game::handle_play_input(int key) {
             break;
         case '\t':
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
-                                   world_.navigation().on_ship);
+                                   world_.navigation().on_ship,
+                                   CharTab::Skills, can_board_ship());
             break;
         case '.':
             log("You wait...");

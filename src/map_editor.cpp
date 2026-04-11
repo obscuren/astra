@@ -21,7 +21,7 @@ void MapEditor::init_overworld_palette() {
         Tile::OW_Crater, Tile::OW_IceField, Tile::OW_LavaFlow, Tile::OW_Fungal,
         Tile::OW_River, Tile::OW_Lake, Tile::OW_Swamp,
         Tile::OW_CaveEntrance, Tile::OW_Ruins, Tile::OW_Settlement,
-        Tile::OW_CrashedShip, Tile::OW_Outpost, Tile::OW_Landing,
+        Tile::OW_CrashedShip, Tile::OW_Outpost,
     };
     palette_cursor_ = 0;
 }
@@ -489,7 +489,7 @@ void MapEditor::enter_detail(int ow_x, int ow_y, Game& game) {
             props.biome = detail_biome_for_terrain(ow_tile, ow_it->second.map.biome());
             props.detail_has_poi = (ow_tile == Tile::OW_Settlement || ow_tile == Tile::OW_Ruins ||
                                     ow_tile == Tile::OW_CrashedShip || ow_tile == Tile::OW_Outpost ||
-                                    ow_tile == Tile::OW_CaveEntrance || ow_tile == Tile::OW_Landing);
+                                    ow_tile == Tile::OW_CaveEntrance);
             if (props.detail_has_poi) props.detail_poi_type = ow_tile;
         }
         unsigned detail_seed = static_cast<unsigned>(std::time(nullptr))
@@ -550,7 +550,7 @@ void MapEditor::switch_zone(int zx, int zy, Game& game) {
             props.biome = detail_biome_for_terrain(ow_tile, ow_it->second.map.biome());
             props.detail_has_poi = (ow_tile == Tile::OW_Settlement || ow_tile == Tile::OW_Ruins ||
                                     ow_tile == Tile::OW_CrashedShip || ow_tile == Tile::OW_Outpost ||
-                                    ow_tile == Tile::OW_CaveEntrance || ow_tile == Tile::OW_Landing);
+                                    ow_tile == Tile::OW_CaveEntrance);
             if (props.detail_has_poi) props.detail_poi_type = ow_tile;
         }
         unsigned detail_seed = static_cast<unsigned>(std::time(nullptr))

@@ -82,8 +82,7 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
     }
 
     // Stubbed POI types — generate terrain only, implementation pending
-    if (props.detail_poi_type == Tile::OW_Landing ||
-        props.detail_poi_type == Tile::OW_Beacon ||
+    if (props.detail_poi_type == Tile::OW_Beacon ||
         props.detail_poi_type == Tile::OW_Megastructure) {
         return {};
     }

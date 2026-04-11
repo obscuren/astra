@@ -929,6 +929,20 @@ static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
     // v10: day clock
     w.write_i32(data.local_tick);
     w.write_i32(data.local_ticks_per_day);
+    // v22: overworld return position for Board Ship
+    w.write_u8(data.overworld_return_valid ? 1 : 0);
+    w.write_i32(data.overworld_return_x);
+    w.write_i32(data.overworld_return_y);
+    {
+        const auto& k = data.overworld_return_body_key;
+        w.write_u32(std::get<0>(k));
+        w.write_i32(std::get<1>(k));
+        w.write_i32(std::get<2>(k));
+        w.write_u8(std::get<3>(k) ? 1 : 0);
+        w.write_i32(std::get<4>(k));
+        w.write_i32(std::get<5>(k));
+        w.write_i32(std::get<6>(k));
+    }
     w.end_section(pos);
 }
 
@@ -1349,6 +1363,20 @@ static void read_game_state_section(BinaryReader& r, SaveData& data) {
     if (data.version >= 10) {
         data.local_tick = r.read_i32();
         data.local_ticks_per_day = r.read_i32();
+    }
+    // v22: overworld return position for Board Ship
+    if (data.version >= 22) {
+        data.overworld_return_valid = r.read_u8() != 0;
+        data.overworld_return_x = r.read_i32();
+        data.overworld_return_y = r.read_i32();
+        uint32_t sys = r.read_u32();
+        int body = r.read_i32();
+        int moon = r.read_i32();
+        bool stn = r.read_u8() != 0;
+        int ox = r.read_i32();
+        int oy = r.read_i32();
+        int depth = r.read_i32();
+        data.overworld_return_body_key = LocationKey{sys, body, moon, stn, ox, oy, depth};
     }
 }
 

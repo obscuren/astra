@@ -176,7 +176,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             static const std::pair<const char*, Tile> stamps[] = {
                 {"ruins", Tile::OW_Ruins}, {"ship", Tile::OW_CrashedShip},
                 {"outpost", Tile::OW_Outpost}, {"cave", Tile::OW_CaveEntrance},
-                {"settlement", Tile::OW_Settlement}, {"landing", Tile::OW_Landing},
+                {"settlement", Tile::OW_Settlement},
             };
             bool found = false;
             for (const auto& [name, tile] : stamps) {

@@ -88,6 +88,12 @@ public:
     void log(const std::string& msg);
     void enter_ship();
     void exit_ship_to_station();
+    // Board the player's starship from a planet overworld. Saves the current
+    // overworld (x, y) + body key so disembarking later restores the tile.
+    void board_ship_from_overworld();
+    // Returns true if Board Ship is currently valid (player on a planet
+    // overworld, not at station, not already on the ship).
+    bool can_board_ship() const;
     void enter_maintenance_tunnels();
     void exit_maintenance_tunnels();
     void exit_dungeon_to_detail();

@@ -14,6 +14,33 @@
 
 namespace astra {
 
+namespace {
+
+// Walk outward in expanding rings from the map center and return the first
+// walkable overworld tile. Used for planet-arrival spawn now that the
+// physical landing pad POI has been removed.
+std::pair<int, int> find_center_spawn(const TileMap& map) {
+    int w = map.width();
+    int h = map.height();
+    int cx = w / 2, cy = h / 2;
+
+    for (int r = 0; r < std::max(w, h); ++r) {
+        for (int dy = -r; dy <= r; ++dy) {
+            for (int dx = -r; dx <= r; ++dx) {
+                if (std::abs(dx) != r && std::abs(dy) != r) continue;
+                int px = cx + dx, py = cy + dy;
+                if (px < 0 || px >= w || py < 0 || py >= h) continue;
+                Tile t = map.get(px, py);
+                if (t == Tile::OW_Mountains || t == Tile::OW_Lake ||
+                    t == Tile::OW_River    || t == Tile::OW_Swamp) continue;
+                return {px, py};
+            }
+        }
+    }
+    return {cx, cy};
+}
+
+} // namespace
 
 void Game::save_current_location() {
     animations_.clear();
@@ -97,7 +124,35 @@ void Game::exit_ship_to_station() {
     save_current_location();
     world_.navigation().on_ship = false;
 
-    // Restore station from cache
+    // If the player boarded from a planet overworld, restore that overworld
+    // instead of going back to the station. The return state's body_key
+    // must still match the player's current navigation target.
+    auto& ret = world_.overworld_return();
+    LocationKey body_key_now = {world_.navigation().current_system_id,
+                                 world_.navigation().current_body_index,
+                                 world_.navigation().current_moon_index,
+                                 false, -1, -1, 0};
+    bool can_return_to_overworld =
+        ret.valid && ret.body_key == body_key_now &&
+        world_.location_cache().count(body_key_now);
+
+    if (can_return_to_overworld) {
+        restore_location(body_key_now);
+        player_.x = ret.x;
+        player_.y = ret.y;
+        world_.set_surface_mode(SurfaceMode::Overworld);
+        world_.visibility().reveal_all();
+        ret = {};  // clear
+        world_.current_region() = -1;
+        recompute_fov();
+        compute_camera();
+        check_region_change();
+        log("You step out of your starship.");
+        return;
+    }
+
+    // Otherwise fall back to the station flow (the player boarded from
+    // the hub station or warped to a new body before disembarking).
     LocationKey station_key = {world_.navigation().current_system_id,
                                -1, -1, true, -1, -1, 0};
     if (world_.location_cache().count(station_key)) {
@@ -109,6 +164,34 @@ void Game::exit_ship_to_station() {
     compute_camera();
     check_region_change();
     log("You disembark and return to the station.");
+}
+
+bool Game::can_board_ship() const {
+    if (world_.map().map_type() != MapType::Overworld) return false;
+    if (world_.surface_mode() != SurfaceMode::Overworld) return false;
+    if (world_.navigation().at_station) return false;
+    if (world_.navigation().on_ship) return false;
+    return true;
+}
+
+void Game::board_ship_from_overworld() {
+    if (!can_board_ship()) return;
+
+    // Save the overworld position and body key so disembarking returns the
+    // player to this exact tile.
+    auto& ret = world_.overworld_return();
+    ret.valid = true;
+    ret.x = player_.x;
+    ret.y = player_.y;
+    ret.body_key = LocationKey{world_.navigation().current_system_id,
+                                world_.navigation().current_body_index,
+                                world_.navigation().current_moon_index,
+                                false, -1, -1, 0};
+
+    // Reuse the standard ship boarding flow (saves location, flips
+    // on_ship, generates/restores MapType::Starship, places player in
+    // the cockpit region).
+    enter_ship();
 }
 
 void Game::enter_maintenance_tunnels() {
@@ -493,7 +576,7 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
         Tile t = props.detail_terrain;
         if (t == Tile::OW_CaveEntrance || t == Tile::OW_Settlement ||
             t == Tile::OW_Ruins || t == Tile::OW_CrashedShip ||
-            t == Tile::OW_Outpost || t == Tile::OW_Landing ||
+            t == Tile::OW_Outpost ||
             t == Tile::OW_Beacon || t == Tile::OW_Megastructure) {
             props.detail_has_poi = true;
             props.detail_poi_type = t;
@@ -555,30 +638,11 @@ void Game::enter_detail_map() {
         world_.npcs().clear();
         world_.ground_items().clear();
 
-        // Place player: spawn in cockpit for landing pad, center otherwise
-        if (props.detail_poi_type == Tile::OW_Landing) {
-            // Find the cockpit region (ShipCockpit flavor)
-            bool found_cockpit = false;
-            for (int i = 0; i < world_.map().region_count(); ++i) {
-                if (world_.map().region(i).flavor == RoomFlavor::ShipCockpit) {
-                    if (world_.map().find_open_spot_in_region(i, player_.x, player_.y, {})) {
-                        found_cockpit = true;
-                    }
-                    break;
-                }
-            }
-            if (!found_cockpit) {
-                player_.x = world_.map().width() / 2;
-                player_.y = world_.map().height() / 2;
-                if (!world_.map().passable(player_.x, player_.y))
-                    world_.map().find_open_spot(player_.x, player_.y);
-            }
-        } else {
-            player_.x = world_.map().width() / 2;
-            player_.y = world_.map().height() / 2;
-            if (!world_.map().passable(player_.x, player_.y))
-                world_.map().find_open_spot(player_.x, player_.y);
-        }
+        // Place player at the map center (or nearest walkable tile).
+        player_.x = world_.map().width() / 2;
+        player_.y = world_.map().height() / 2;
+        if (!world_.map().passable(player_.x, player_.y))
+            world_.map().find_open_spot(player_.x, player_.y);
 
         // Spawn NPCs in settlements and outposts (after player placement)
         std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
@@ -604,7 +668,6 @@ void Game::enter_detail_map() {
         case Tile::OW_Settlement:   msg = "You enter the settlement area."; break;
         case Tile::OW_Ruins:        msg = "Ancient ruins surround you."; break;
         case Tile::OW_CrashedShip:  msg = "Wreckage of a starship lies scattered."; break;
-        case Tile::OW_Landing:      msg = "You stand in your ship's cockpit. The landing pad stretches outside."; break;
         case Tile::OW_Outpost:      msg = "You approach the outpost."; break;
         case Tile::OW_Forest:       msg = "Dense forest surrounds you."; break;
         case Tile::OW_Desert:       msg = "Sand stretches in every direction."; break;
@@ -1212,21 +1275,10 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.npcs().clear();
             world_.ground_items().clear();
 
-            // Find landing tile for player spawn
-            bool found_landing = false;
-            for (int y = 0; y < world_.map().height() && !found_landing; ++y) {
-                for (int x = 0; x < world_.map().width() && !found_landing; ++x) {
-                    if (world_.map().get(x, y) == Tile::OW_Landing) {
-                        player_.x = x;
-                        player_.y = y;
-                        found_landing = true;
-                    }
-                }
-            }
-            if (!found_landing) {
-                player_.x = world_.map().width() / 2;
-                player_.y = world_.map().height() / 2;
-            }
+            // Spawn player at the deterministic center-adjacent walkable tile.
+            auto [sx, sy] = find_center_spawn(world_.map());
+            player_.x = sx;
+            player_.y = sy;
 
             world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
         }

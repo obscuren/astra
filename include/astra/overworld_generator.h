@@ -53,15 +53,12 @@ protected:
     // --- Shared utilities (available to subclasses) ---
 
     void apply_lore_overlays(std::mt19937& rng);
-    void place_landing_pad();
     void ensure_connectivity();
 
     // --- Shared state (populated during generate_layout) ---
     TerrainContext ctx_;
     std::vector<float> elevation_;
     std::vector<float> moisture_;
-    int land_x_ = 0;
-    int land_y_ = 0;
 };
 
 // --- Noise helpers (used by classifiers and base) ---

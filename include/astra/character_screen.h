@@ -28,7 +28,13 @@ public:
 
     bool is_open() const;
     void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr,
-              bool on_ship = false, CharTab initial_tab = CharTab::Skills);
+              bool on_ship = false, CharTab initial_tab = CharTab::Skills,
+              bool can_board_ship = false);
+    bool consume_board_ship_request() {
+        bool r = board_ship_requested_;
+        board_ship_requested_ = false;
+        return r;
+    }
     void close();
     bool handle_input(int key);
     void draw(int screen_w, int screen_h);
@@ -108,11 +114,14 @@ public:
 private:
 
     // Ship tab
-    enum class ShipFocus { Equipment, Inventory };
+    enum class ShipFocus { Actions, Equipment, Inventory };
     ShipFocus ship_focus_ = ShipFocus::Equipment;
     int ship_equip_cursor_ = 0;
     int ship_inv_cursor_ = 0;
     bool on_ship_ = false;  // set in open(), controls interactivity
+    bool can_board_ship_ = false;  // set in open(), enables the Board action
+    int ship_action_cursor_ = 0;   // 0 = Board Ship (only action for now)
+    bool board_ship_requested_ = false;
 
     void draw_attributes(UIContext& ctx);
     void draw_skills(UIContext& ctx);

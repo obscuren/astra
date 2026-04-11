@@ -738,7 +738,6 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             add_option('3', "Outpost");
             add_option('4', "Cave Entrance");
             add_option('5', "Settlement");
-            add_option('6', "Landing Pad");
             add_option('b', "Back");
             footer_ = "[Space] Select  [Esc] Close";
             open_ = true;
@@ -792,18 +791,17 @@ void DialogManager::advance_dialog(int selected, Game& game) {
     if (dialog_node_ == -9) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
-        if (selected < 6) {
+        if (selected < 5) {
             static constexpr Tile poi_types[] = {
                 Tile::OW_Ruins,
                 Tile::OW_CrashedShip,
                 Tile::OW_Outpost,
                 Tile::OW_CaveEntrance,
                 Tile::OW_Settlement,
-                Tile::OW_Landing,
             };
             static constexpr const char* poi_names[] = {
                 "Ruins", "Crashed Ship", "Outpost",
-                "Cave Entrance", "Settlement", "Landing Pad",
+                "Cave Entrance", "Settlement",
             };
             game.dev_command_warp_stamp(poi_types[selected]);
             game.log(std::string("[DEV] Stamp Test: ") + poi_names[selected]);

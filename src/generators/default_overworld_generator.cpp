@@ -39,7 +39,7 @@ void place_default_pois(TileMap* map, const MapProperties* props,
         for (int x = 2; x < w - 2; ++x) {
             Tile t = map->get(x, y);
             if (t != Tile::OW_Mountains && t != Tile::OW_Lake &&
-                t != Tile::OW_River && t != Tile::OW_Landing &&
+                t != Tile::OW_River &&
                 t != Tile::OW_Beacon && t != Tile::OW_Megastructure) {
                 if (props->lore_influence &&
                     props->lore_influence->landmark_at(x, y) != LandmarkType::None)
@@ -67,7 +67,7 @@ void place_default_pois(TileMap* map, const MapProperties* props,
             if (cx < 0 || cx >= w || cy < 0 || cy >= h) return false;
             Tile t = map->get(cx, cy);
             if (t == Tile::OW_Mountains || t == Tile::OW_Lake ||
-                t == Tile::OW_River || t == Tile::OW_Landing) return false;
+                t == Tile::OW_River) return false;
             if (t >= Tile::OW_CaveEntrance && t <= Tile::OW_Outpost) return false;
         }
         return true;
@@ -141,7 +141,7 @@ void place_default_pois(TileMap* map, const MapProperties* props,
         std::vector<Pos> water_edge;
         for (const auto& c : candidates) {
             Tile t = map->get(c.x, c.y);
-            if (t >= Tile::OW_CaveEntrance && t <= Tile::OW_Landing) continue;
+            if (t >= Tile::OW_CaveEntrance && t <= Tile::OW_GlassedCrater) continue;
             bool adj_mountain = false, adj_water = false;
             static const int dx4[] = {0, 0, -1, 1};
             static const int dy4[] = {-1, 1, 0, 0};

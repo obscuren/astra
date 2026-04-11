@@ -91,6 +91,8 @@
 - [ ] **Crashed ship lore logs** — readable captain's log fixture on cockpit console
 - [ ] **Aquatic crashed ships** — partially submerged hull rendering
 - [ ] **Haunted wrecks** — optional creature spawning inside wrecks
+- [x] **Landing Pad POI removed** — replaced with Tab → Ship tab → Board Ship action. Planet arrival spawns at deterministic center-adjacent tile. `Tile::OW_Landing` is a deprecated no-op.
+- [x] **Board Ship action** — character screen Ship tab has an action row that warps the player into the Starship map from any planet overworld tile; disembarking restores the saved overworld position
 - [x] **Cave Entrance POI** — three variants (natural cave / abandoned mine / ancient excavation) with cliff-embedded placement and lore-weighted selection
 - [ ] **Cave entrance dungeon theming** — variant-specific dungeon generators beneath the portal
 - [ ] **Additional cave variants** — flooded cave, sealed vault entrance, collapsed shaft

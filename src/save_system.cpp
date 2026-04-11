@@ -35,6 +35,14 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.local_tick = world.day_clock().local_tick;
         data.local_ticks_per_day = world.day_clock().local_ticks_per_day;
 
+        // Overworld return position (set when the player boards their ship
+        // from a planet overworld).
+        const auto& ret = world.overworld_return();
+        data.overworld_return_valid = ret.valid;
+        data.overworld_return_x = ret.x;
+        data.overworld_return_y = ret.y;
+        data.overworld_return_body_key = ret.body_key;
+
         // Quest state
         data.active_quests = game.quests().active_quests();
         data.completed_quests = game.quests().completed_quests();
@@ -118,6 +126,13 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     // Restore day clock
     world.day_clock().local_tick = data.local_tick;
     world.day_clock().local_ticks_per_day = data.local_ticks_per_day;
+
+    // Restore overworld return position
+    auto& ret = world.overworld_return();
+    ret.valid = data.overworld_return_valid;
+    ret.x = data.overworld_return_x;
+    ret.y = data.overworld_return_y;
+    ret.body_key = data.overworld_return_body_key;
 
     game.reset_interaction_state();
     game.post_load();

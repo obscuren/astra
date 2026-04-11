@@ -131,10 +131,7 @@ void OverworldGeneratorBase::generate_layout(std::mt19937& rng) {
     // Step 6: Carve rivers (virtual hook)
     carve_rivers(rng);
 
-    // Step 7: Place landing pad (shared)
-    place_landing_pad();
-
-    // Step 8: Ensure connectivity (shared)
+    // Step 7: Ensure connectivity (shared)
     ensure_connectivity();
 }
 
@@ -168,41 +165,6 @@ void OverworldGeneratorBase::apply_lore_overlays(std::mt19937& rng) {
 }
 
 // ---------------------------------------------------------------------------
-// place_landing_pad
-// ---------------------------------------------------------------------------
-
-void OverworldGeneratorBase::place_landing_pad() {
-    int w = map_->width();
-    int h = map_->height();
-    int cx = w / 2, cy = h / 2;
-    land_x_ = cx;
-    land_y_ = cy;
-
-    for (int r = 0; r < std::max(w, h); ++r) {
-        bool found = false;
-        for (int dy = -r; dy <= r && !found; ++dy) {
-            for (int dx = -r; dx <= r && !found; ++dx) {
-                if (std::abs(dx) != r && std::abs(dy) != r) continue;
-                int px = cx + dx, py = cy + dy;
-                if (px < 0 || px >= w || py < 0 || py >= h) continue;
-                Tile t = map_->get(px, py);
-                if (t != Tile::OW_Mountains && t != Tile::OW_Lake &&
-                    t != Tile::OW_River && t != Tile::OW_Swamp) {
-                    land_x_ = px;
-                    land_y_ = py;
-                    found = true;
-                }
-            }
-        }
-        if (found) break;
-    }
-
-    map_->set(land_x_, land_y_, Tile::OW_Plains);
-    ensure_connectivity();
-    map_->set(land_x_, land_y_, Tile::OW_Landing);
-}
-
-// ---------------------------------------------------------------------------
 // ensure_connectivity
 // ---------------------------------------------------------------------------
 
@@ -210,11 +172,33 @@ void OverworldGeneratorBase::ensure_connectivity() {
     int w = map_->width();
     int h = map_->height();
 
+    // Seed the BFS from the first walkable tile found in an outward spiral
+    // around the map center. Matches where the legacy landing pad used to
+    // sit so terrain connectivity stays stable.
+    int cx = w / 2, cy = h / 2;
+    int seed_x = cx, seed_y = cy;
+    for (int r = 0; r < std::max(w, h); ++r) {
+        bool found = false;
+        for (int dy = -r; dy <= r && !found; ++dy) {
+            for (int dx = -r; dx <= r && !found; ++dx) {
+                if (std::abs(dx) != r && std::abs(dy) != r) continue;
+                int px = cx + dx, py = cy + dy;
+                if (px < 0 || px >= w || py < 0 || py >= h) continue;
+                if (map_->passable(px, py)) {
+                    seed_x = px;
+                    seed_y = py;
+                    found = true;
+                }
+            }
+        }
+        if (found) break;
+    }
+
     std::vector<bool> reachable(w * h, false);
     std::queue<std::pair<int,int>> frontier;
 
-    reachable[land_y_ * w + land_x_] = true;
-    frontier.push({land_x_, land_y_});
+    reachable[seed_y * w + seed_x] = true;
+    frontier.push({seed_x, seed_y});
 
     while (!frontier.empty()) {
         auto [fx, fy] = frontier.front();

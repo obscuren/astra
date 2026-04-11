@@ -49,6 +49,17 @@ enum class SurfaceMode : uint8_t {
     Overworld,
 };
 
+// Records where the player was standing on a planet overworld when they
+// triggered Board Ship from the Ship tab. When the player later disembarks
+// (without warping to a different body first), they're restored to this
+// exact tile. Cleared when the player warps elsewhere or returns.
+struct OverworldReturnPos {
+    bool valid = false;
+    int x = 0;
+    int y = 0;
+    LocationKey body_key{};
+};
+
 class WorldManager {
 public:
     WorldManager() = default;
@@ -99,6 +110,9 @@ public:
 
     NavigationData& navigation() { return navigation_; }
     const NavigationData& navigation() const { return navigation_; }
+
+    OverworldReturnPos& overworld_return() { return overworld_return_; }
+    const OverworldReturnPos& overworld_return() const { return overworld_return_; }
 
     const LoreInfluenceMap& lore_influence() const { return lore_influence_; }
     void set_lore_influence(LoreInfluenceMap m) { lore_influence_ = std::move(m); }
@@ -157,6 +171,7 @@ private:
     unsigned seed_ = 0;
     std::mt19937 rng_;
     NavigationData navigation_;
+    OverworldReturnPos overworld_return_;
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;
     std::map<LocationKey, QuestLocationMeta> quest_locations_;

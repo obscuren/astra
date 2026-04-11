@@ -21,15 +21,21 @@ static const char* tab_names[] = {
 bool CharacterScreen::is_open() const { return open_; }
 
 void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
-                           bool on_ship, CharTab initial_tab) {
+                           bool on_ship, CharTab initial_tab, bool can_board_ship) {
     player_ = player;
     renderer_ = renderer;
     quests_ = quests;
     on_ship_ = on_ship;
+    can_board_ship_ = can_board_ship;
     open_ = true;
     active_tab_ = initial_tab;
     cursor_ = 0;
     scroll_ = 0;
+    board_ship_requested_ = false;
+    // Default Ship-tab focus: if Board Ship is available, start on the action
+    // row so keyboard users land on it immediately. Otherwise focus equipment.
+    ship_focus_ = can_board_ship_ ? ShipFocus::Actions : ShipFocus::Equipment;
+    ship_action_cursor_ = 0;
     for (int i = 0; i < 6; ++i) pending_points_[i] = 0;
 
     // Initialize skill category expand state: only learned categories start expanded
@@ -284,21 +290,52 @@ bool CharacterScreen::handle_input(int key) {
         }
     } else if (active_tab_ == CharTab::Ship) {
         if (key == '\t') {
-            ship_focus_ = (ship_focus_ == ShipFocus::Equipment)
-                ? ShipFocus::Inventory : ShipFocus::Equipment;
+            // Cycle focus: Actions -> Equipment -> Inventory -> Actions...
+            // Skip Actions if Board Ship isn't available.
+            if (ship_focus_ == ShipFocus::Actions)
+                ship_focus_ = ShipFocus::Equipment;
+            else if (ship_focus_ == ShipFocus::Equipment)
+                ship_focus_ = ShipFocus::Inventory;
+            else
+                ship_focus_ = can_board_ship_ ? ShipFocus::Actions : ShipFocus::Equipment;
             return true;
         }
-        if (ship_focus_ == ShipFocus::Equipment) {
-            if (key == KEY_UP && ship_equip_cursor_ > 0) --ship_equip_cursor_;
+        if (ship_focus_ == ShipFocus::Actions) {
+            // Only one action for now. Down-arrow drops into Equipment.
+            if (key == KEY_DOWN) {
+                ship_focus_ = ShipFocus::Equipment;
+            }
+            if (key == '\r' || key == '\n' || key == ' ') {
+                if (can_board_ship_) {
+                    board_ship_requested_ = true;
+                    close();
+                    return true;
+                } else {
+                    context_message_ = "Board Ship — must be on a planet.";
+                    context_msg_timer_ = 2;
+                }
+            }
+        } else if (ship_focus_ == ShipFocus::Equipment) {
+            if (key == KEY_UP) {
+                if (ship_equip_cursor_ > 0) {
+                    --ship_equip_cursor_;
+                } else if (can_board_ship_) {
+                    ship_focus_ = ShipFocus::Actions;
+                }
+            }
             if (key == KEY_DOWN && ship_equip_cursor_ < ship_slot_count - 1) ++ship_equip_cursor_;
+            if (key == ' ' && on_ship_) {
+                open_context_menu();
+                return true;
+            }
         } else {
             int count = static_cast<int>(player_->ship.cargo.size());
             if (key == KEY_UP && ship_inv_cursor_ > 0) --ship_inv_cursor_;
             if (key == KEY_DOWN && ship_inv_cursor_ < count - 1) ++ship_inv_cursor_;
-        }
-        if (key == ' ' && on_ship_) {
-            open_context_menu();
-            return true;
+            if (key == ' ' && on_ship_) {
+                open_context_menu();
+                return true;
+            }
         }
     } else if (active_tab_ == CharTab::Skills) {
 
@@ -2235,6 +2272,26 @@ void CharacterScreen::draw_ship(UIContext& ctx) {
               .content = status, .tag = status_tag});
 
     int y = 2;
+
+    // Actions section (Board Ship) — only rendered on the left column.
+    draw_section_header(ctx, y, "ACTIONS");
+    y += 2;
+    {
+        bool selected = (ship_focus_ == ShipFocus::Actions && ship_action_cursor_ == 0);
+        if (selected && can_board_ship_) ctx.put(1, y, '>', Color::Yellow);
+        if (can_board_ship_) {
+            ctx.text({.x = 3, .y = y, .content = "Board Ship",
+                      .tag = selected ? UITag::TextWarning : UITag::TextBright});
+            ctx.text({.x = 3 + 12, .y = y,
+                      .content = "  [Enter]",
+                      .tag = UITag::TextDim});
+        } else {
+            ctx.text({.x = 3, .y = y,
+                      .content = "Board Ship — must be on a planet",
+                      .tag = UITag::TextDim});
+        }
+    }
+    y += 2;
 
     // Component slots on the left
     draw_section_header(ctx, y, "COMPONENTS");
