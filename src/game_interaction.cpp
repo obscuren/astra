@@ -1,5 +1,4 @@
 #include "astra/game.h"
-#include "astra/poi_placement.h"
 #include "astra/tile_props.h"
 #include "astra/tinkering.h"
 

@@ -12,7 +12,6 @@
 #include "astra/poi_placement.h"
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
-#include <sstream>
 
 namespace astra {
 
