@@ -4,7 +4,9 @@
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
+#include "astra/journal.h"
 #include "astra/lore_generator.h"
+#include "astra/poi_budget.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
@@ -103,6 +105,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("Commands:");
         log("  warp random        - warp to random map");
         log("  warp stamp <type>  - POI stamp test (ruins, ship, outpost, cave, settlement, landing)");
+        log("  budget             - dump current planet's PoiBudget");
+        log("  discoveries        - list Discovery-category journal entries");
         log("  give hp <n>        - set HP");
         log("  give xp <n>        - set XP");
         log("  give money <n>     - set credits");
@@ -144,6 +148,38 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     }
     else if (verb == "clear") {
         clear();
+    }
+    else if (verb == "budget") {
+        const TileMap& owm = game.world().map();
+        if (owm.map_type() != MapType::Overworld) {
+            output_.push_back("(not on an overworld — fly to a planet)");
+        } else {
+            const PoiBudget& b = owm.poi_budget();
+            std::string report = format_poi_budget(b);
+            size_t start = 0;
+            while (start < report.size()) {
+                size_t nl = report.find('\n', start);
+                std::string line = report.substr(start, nl - start);
+                if (!line.empty()) output_.push_back(line);
+                if (nl == std::string::npos) break;
+                start = nl + 1;
+            }
+            output_.push_back("Hidden POIs: " +
+                std::to_string(owm.hidden_pois().size()));
+            output_.push_back("Anchor hints: " +
+                std::to_string(owm.anchor_hints().size()));
+        }
+    }
+    else if (verb == "discoveries") {
+        const auto& journal = game.player().journal;
+        int count = 0;
+        for (const auto& e : journal) {
+            if (e.category == JournalCategory::Discovery) {
+                output_.push_back(e.title);
+                ++count;
+            }
+        }
+        if (count == 0) output_.push_back("(no discoveries)");
     }
     else if (verb == "heal") {
         player.hp = player.effective_max_hp();
