@@ -1,5 +1,6 @@
 #include "astra/map_renderer.h"
 #include "astra/animation.h"
+#include "astra/poi_placement.h"
 #include "astra/combat_system.h"
 #include "astra/input_manager.h"
 #include "astra/world_manager.h"
@@ -79,6 +80,11 @@ void render_map(const MapRenderContext& rc) {
 
             // Overworld: no FOV dimming, use overworld colors + UTF-8 glyphs
             if (rc.world.map().map_type() == MapType::Overworld) {
+                // Render-side invariant: undiscovered hidden POIs are invisible —
+                // show the underlying biome tile regardless of what the map stores.
+                if (const auto* hidden = rc.world.map().find_hidden_poi(mx, my)) {
+                    tile_at = hidden->underlying_tile;
+                }
                 // OW_Ruins: encode neighbor mask for baroque pipe rendering
                 if (tile_at == Tile::OW_Ruins) {
                     uint8_t nb = 0;

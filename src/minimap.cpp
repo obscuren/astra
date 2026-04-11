@@ -1,4 +1,5 @@
 #include "astra/minimap.h"
+#include "astra/poi_placement.h"
 
 #include <algorithm>
 
@@ -147,6 +148,12 @@ void Minimap::draw(UIContext& ctx,
 
         // All explored/visible tiles rendered at dim — no FOV on minimap
         Tile t = map.get(mx2, my2);
+        // Render-side invariant: undiscovered hidden POIs show as underlying biome.
+        if (map_type == MapType::Overworld) {
+            if (const auto* hidden = map.find_hidden_poi(mx2, my2)) {
+                t = hidden->underlying_tile;
+            }
+        }
         Color c = tile_color(t, map_type);
         if (c == Color::Default) return Color::Black;
         return dim_color(c);
