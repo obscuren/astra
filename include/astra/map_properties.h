@@ -94,6 +94,9 @@ struct MapProperties {
     bool detail_is_custom = false;  // hand-crafted zone (skip generator)
     std::string detail_ruin_civ;   // dev-mode: force specific ruin civilization
     float detail_ruin_decay = -1.0f;  // dev-mode: 0=pristine, 1=max decay, -1=random
+    // Dev override: force a specific crashed ship class.
+    // Empty = auto (lore-weighted). Values: "pod", "freighter", "corvette".
+    std::string detail_crashed_ship_class;
 };
 
 MapProperties default_properties(MapType type);

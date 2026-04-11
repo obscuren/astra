@@ -467,6 +467,11 @@ void Game::dev_command_biome_test(Biome biome, int layer,
         props.detail_has_poi = true;
         props.detail_poi_type = Tile::OW_Outpost;
         props.lore_tier = 1;
+    } else if (poi_type == "ship") {
+        props.detail_has_poi = true;
+        props.detail_poi_type = Tile::OW_CrashedShip;
+        props.detail_crashed_ship_class = poi_style;  // "" / pod / freighter / corvette
+        props.lore_tier = 1;
     }
 
     world_.map() = TileMap(props.width, props.height, MapType::DetailMap);
@@ -486,6 +491,13 @@ void Game::dev_command_biome_test(Biome biome, int layer,
         if (connected) loc_name += " (connected)";
     } else if (poi_type == "outpost") {
         loc_name += " + Outpost";
+    } else if (poi_type == "ship") {
+        loc_name += " + Crashed Ship";
+        if (!poi_style.empty()) {
+            std::string s = poi_style;
+            s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
+            loc_name += " (" + s + ")";
+        }
     }
     world_.map().set_location_name(loc_name);
 

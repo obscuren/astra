@@ -85,6 +85,12 @@
 - [ ] **Outpost dungeon portal** — rare (~20%) chance of a dungeon entrance beneath an outpost
 - [ ] **Outpost kind variants** — forward base / refuge / scoundrel hideout / traveler camp with distinct NPCs and loot
 - [ ] **Outpost reputation / hostility** — hostile outposts spawn combatants instead of traders
+- [x] **Crashed Ship POI** — three classes (escape pod / freighter / corvette), 4-way orientation, long scorched skid marks that plow through scatter, debris field, rare dungeon portal
+- [ ] **Crashed ship dungeon theming** — wreck-themed dungeon content when the portal hits
+- [ ] **Crashed ship kind variants** — pirate / civilian / military / alien flavoring via scatter + fixture palettes
+- [ ] **Crashed ship lore logs** — readable captain's log fixture on cockpit console
+- [ ] **Aquatic crashed ships** — partially submerged hull rendering
+- [ ] **Haunted wrecks** — optional creature spawning inside wrecks
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] **Interactive shelves** — 3-tile shelf structures (║~║ or ═~═) against walls; middle tile holds lootable item (book, scroll, data crystal); picking up item reverts to empty shelf
 - [ ] Derelict station expansion — more room types
