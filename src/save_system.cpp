@@ -123,7 +123,9 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
         world.map().poi_budget().outposts == 0 &&
         world.map().poi_budget().ruins.empty() &&
         world.map().poi_budget().ships.empty() &&
-        world.map().poi_budget().total_caves() == 0) {
+        world.map().poi_budget().total_caves() == 0 &&
+        world.map().poi_budget().beacons == 0 &&
+        world.map().poi_budget().megastructures == 0) {
         world.map().set_poi_budget(reconstruct_poi_budget_from_map(world.map()));
     }
 
