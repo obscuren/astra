@@ -97,6 +97,8 @@
 - [ ] **Cave entrance dungeon theming** — variant-specific dungeon generators beneath the portal
 - [ ] **Additional cave variants** — flooded cave, sealed vault entrance, collapsed shaft
 - [ ] **Ice cave variants** — frozen entrances with crystal fixtures in Ice biome
+- [ ] **Beacon POI** — parked. Ground anchor for a Sgr A* lore beacon spire. Needs design work — scope, interaction, how it ties into star chart and lore tier progression. Existing `OW_Beacon` tile type and legacy detail-map stamp remain as placeholders.
+- [ ] **Megastructure POI** — parked. Ground anchor for a precursor megastructure. Needs design work — scope, scale, how it ties into multi-tile terrain. Existing `OW_Megastructure` tile type and legacy detail-map stamp remain as placeholders.
 - [ ] **Layered POI site selection** — replace the per-POI `PlacementScorer` pass with a planet-wide layered approach that picks candidate sites for all POI types up front (elevation + biome + lore + neighbor awareness), scored by suitability rather than per-generator constraints. Scheduled to land after the Phase 6 POI generators are complete.
 - [ ] More overworld POI stamps (temples, factories, research labs)
 - [ ] **Interactive shelves** — 3-tile shelf structures (║~║ or ═~═) against walls; middle tile holds lootable item (book, scroll, data crystal); picking up item reverts to empty shelf
