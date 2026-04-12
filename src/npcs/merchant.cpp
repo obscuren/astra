@@ -1,5 +1,6 @@
 #include "astra/npc_defs.h"
 #include "astra/item_defs.h"
+#include "astra/faction.h"
 
 namespace astra {
 
@@ -10,7 +11,7 @@ Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
     npc.role = "Merchant";
     npc.hp = 15;
     npc.max_hp = 15;
-    npc.faction = "Kreth Mining Guild";
+    npc.faction = Faction_KrethMiningGuild;
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);

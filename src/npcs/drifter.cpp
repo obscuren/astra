@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/faction.h"
 
 namespace astra {
 
@@ -13,6 +14,7 @@ Npc build_drifter(Race race, std::mt19937& rng) {
     npc.base_xp = 10;
     npc.base_damage = 1;
     npc.name = generate_name(race, rng);
+    npc.faction = Faction_DriftCollective;
 
     // --- Talk: passing through ---
     npc.interactions.talk = TalkTrait{

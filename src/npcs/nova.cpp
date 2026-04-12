@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/faction.h"
 
 namespace astra {
 
@@ -6,6 +7,7 @@ Npc build_nova() {
     Npc npc;
     npc.race = Race::Stellari;
     npc.name = "Nova";
+    npc.faction = Faction_StellariConclave;
     npc.npc_role = NpcRole::Nova;
     npc.role = "Stellar Engineer";
     npc.hp = 100;

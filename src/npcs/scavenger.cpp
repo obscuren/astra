@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/faction.h"
 
 namespace astra {
 
@@ -13,6 +14,7 @@ Npc build_scavenger(Race race, std::mt19937& rng) {
     npc.base_xp = 12;
     npc.base_damage = 2;
     npc.name = generate_name(race, rng);
+    npc.faction = Faction_DriftCollective;
 
     // --- Talk: salvaging ruins ---
     npc.interactions.talk = TalkTrait{

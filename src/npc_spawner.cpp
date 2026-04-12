@@ -1,6 +1,7 @@
 #include "astra/npc_spawner.h"
 #include "astra/npc_defs.h"
 #include "astra/player.h"
+#include "astra/faction.h"
 
 #include <algorithm>
 
@@ -37,7 +38,7 @@ bool find_walkable_in_bounds(const TileMap& map, const Rect& bounds,
 void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                     int player_x, int player_y, std::mt19937& rng,
                     const Player* player) {
-    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
+    int kreth_rep = player ? reputation_for(*player, Faction_KrethMiningGuild) : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
     auto place_npc = [&](Npc npc, int region_id) {
@@ -194,7 +195,7 @@ static Race pick_friendly_race(std::mt19937& rng) {
 void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
                            int player_x, int player_y, std::mt19937& rng,
                            const Player* player) {
-    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
+    int kreth_rep = player ? reputation_for(*player, Faction_KrethMiningGuild) : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
     auto place_near = [&](Npc npc, int fx, int fy) {
@@ -270,7 +271,7 @@ void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,
 void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
                         int player_x, int player_y, std::mt19937& rng,
                         const Player* player) {
-    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
+    int kreth_rep = player ? reputation_for(*player, Faction_KrethMiningGuild) : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
     auto place_near = [&](Npc npc, int fx, int fy) {
@@ -324,7 +325,7 @@ void spawn_settlement_npcs_v2(TileMap& map, std::vector<Npc>& npcs,
                                int size_category,
                                const std::string& style_name,
                                Biome biome) {
-    int kreth_rep = player ? reputation_for(*player, "Kreth Mining Guild") : 0;
+    int kreth_rep = player ? reputation_for(*player, Faction_KrethMiningGuild) : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
     bool ruined = (style_name == "Ruined");
 
