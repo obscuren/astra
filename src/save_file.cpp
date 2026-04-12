@@ -1,9 +1,11 @@
 #include "astra/save_file.h"
+#include "astra/faction.h"
 #include "astra/item_ids.h"
 #include "astra/world_manager.h"
 
 #include <unordered_map>
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <fstream>
@@ -564,7 +566,7 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_u8(static_cast<uint8_t>(npc.race));
     w.write_i32(npc.hp);
     w.write_i32(npc.max_hp);
-    w.write_u8(0); // legacy disposition byte (kept for save compat)
+    w.write_string(npc.faction);  // v25: faction instead of disposition
     w.write_u8(has_effect(npc.effects, EffectId::Invulnerable) ? 1 : 0); // back-compat
     w.write_i32(npc.quickness);
     w.write_i32(npc.energy);
@@ -1085,6 +1087,12 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
             p.reputation[i].faction_name = r.read_string();
             p.reputation[i].reputation = r.read_i32();
         }
+        // Scale old reputation values to new range
+        if (version < 25) {
+            for (auto& fs : p.reputation) {
+                fs.reputation = std::clamp(fs.reputation * 6, -600, 600);
+            }
+        }
         // Blueprints
         uint32_t bp_count = r.read_u32();
         p.learned_blueprints.resize(bp_count);
@@ -1168,7 +1176,11 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     }
     npc.hp = r.read_i32();
     npc.max_hp = r.read_i32();
-    r.read_u8(); // legacy disposition byte (ignored — hostility now faction-based)
+    if (version >= 25) {
+        npc.faction = r.read_string();
+    } else {
+        r.read_u8(); // legacy disposition byte, discard
+    }
     { bool was_invulnerable = r.read_u8() != 0;
       if (was_invulnerable) add_effect(npc.effects, make_invulnerable()); }
     npc.quickness = r.read_i32();
@@ -1203,6 +1215,29 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
         q.quest_intro = r.read_string();
         read_dialog_nodes(r, q.nodes);
         npc.interactions.quest = std::move(q);
+    }
+
+    // Legacy: assign faction from role for pre-v25 saves
+    if (version < 25 && npc.faction.empty()) {
+        switch (npc.npc_role) {
+            case NpcRole::StationKeeper:
+            case NpcRole::Medic:
+            case NpcRole::Commander:
+            case NpcRole::Astronomer:
+            case NpcRole::Engineer:
+                npc.faction = Faction_StellariConclave;
+                break;
+            case NpcRole::Merchant:
+            case NpcRole::FoodMerchant:
+            case NpcRole::ArmsDealer:
+                npc.faction = Faction_KrethMiningGuild;
+                break;
+            case NpcRole::Xytomorph:
+                npc.faction = Faction_XytomorphHive;
+                break;
+            default:
+                break;
+        }
     }
 
     return npc;

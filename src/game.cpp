@@ -597,9 +597,18 @@ void Game::new_game() {
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
 
-        player_.reputation.push_back({"Stellari Conclave", 10});
-        player_.reputation.push_back({"Kreth Mining Guild", 0});
-        player_.reputation.push_back({"Xytomorph Hive", -50});
+        player_.reputation = {
+            {Faction_StellariConclave,  10},
+            {Faction_KrethMiningGuild,  0},
+            {Faction_VeldraniAccord,    0},
+            {Faction_SylphariWanderers, 0},
+            {Faction_TerranFederation,  0},
+            {Faction_XytomorphHive,     -400},
+            {Faction_VoidReavers,       -350},
+            {Faction_ArchonRemnants,    -400},
+            {Faction_Feral,             -400},
+            {Faction_DriftCollective,   0},
+        };
     }
     // Always start in the Docking Bay (region 0)
     if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
@@ -865,10 +874,29 @@ void Game::new_game(const CreationResult& cr) {
     player_.max_hp = player_.effective_max_hp();
     player_.hp = player_.max_hp;
 
-    // Starting reputation
-    player_.reputation.push_back({"Stellari Conclave", 0});
-    player_.reputation.push_back({"Kreth Mining Guild", 0});
-    player_.reputation.push_back({"Xytomorph Hive", 0});
+    // Initialize reputation for all factions
+    auto race_faction = [](Race r) -> const char* {
+        switch (r) {
+            case Race::Stellari:   return Faction_StellariConclave;
+            case Race::Kreth:      return Faction_KrethMiningGuild;
+            case Race::Veldrani:   return Faction_VeldraniAccord;
+            case Race::Sylphari:   return Faction_SylphariWanderers;
+            case Race::Human:      return Faction_TerranFederation;
+            case Race::Xytomorph:  return Faction_XytomorphHive;
+        }
+        return "";
+    };
+    const char* own_faction = race_faction(player_.race);
+
+    for (const auto& fi : all_factions()) {
+        int starting_rep = default_faction_standing(
+            own_faction, fi.name);
+        if (fi.name == std::string(own_faction)) {
+            starting_rep = 100;
+        }
+        starting_rep = std::clamp(starting_rep, -600, 600);
+        player_.reputation.push_back({fi.name, starting_rep});
+    }
 
     // Spawn
     if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
