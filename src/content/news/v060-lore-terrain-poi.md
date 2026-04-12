@@ -65,7 +65,13 @@ Decay varies across each ruin — one wing might be pristine while the other cru
 
 ## Overworld Generation
 
-A new temperate overworld generator uses Voronoi regions with layered simulation for habitable planets — producing more natural-looking continents with distinct biome zones. Mars-like planets get their own cold rocky generator. Forest tiles now render in multiple green shades, and mountain peaks pierce through polar ice caps.
+Every planet's surface is now generated through a layered simulation. The generator starts with a Voronoi region map that carves the surface into natural-looking continental zones. Temperature gradients run from pole to equator, driving biome selection — polar ice caps at the extremes, temperate forests and grasslands in the mid-latitudes, deserts and volcanic terrain near the equator.
+
+Moisture is simulated independently, creating rivers that flow through valleys and lakes that pool in low-lying basins. Mountain ranges rise where tectonic boundaries would form, and their peaks pierce through polar ice when they're tall enough. Forests render in multiple shades of green, giving wooded areas a sense of depth rather than a flat uniform color.
+
+Different planet types get dedicated generators — Earth-like worlds use the full temperate simulation, while Mars-like bodies get a cold rocky generator that produces barren, cratered terrain with thin frost patches.
+
+![Earth's overworld — temperate forests, rivers, mountains, and polar ice generated from the layered simulation](/astra/news/v060/11.png)
 
 ## New POI Types
 
