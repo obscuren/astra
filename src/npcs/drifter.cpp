@@ -21,8 +21,8 @@ Npc build_drifter(Race race, std::mt19937& rng) {
         {
             // Node 0: small talk
             {
-                "Came in on a freight shuttle from the outer ring. "
-                "Heard there's work here, but so far... nothing.",
+                "Been wandering for a while now. Wherever the next "
+                "ride goes, that's where I'll be.",
                 {
                     {"Where are you headed next?", 1},
                     {"Good luck out there.", -1},
@@ -57,7 +57,7 @@ Npc build_drifter(Race race, std::mt19937& rng) {
             // Node 0: quest offer
             {
                 "Matter of fact, yeah. Ran into some trouble on "
-                "my way here. Could use someone to deal with it.",
+                "my way through. Could use someone to deal with it.",
                 {
                     {"Tell me more.", 1},
                     {"Sounds like your problem.", -1},
@@ -68,6 +68,44 @@ Npc build_drifter(Race race, std::mt19937& rng) {
                 "Appreciate it. Watch yourself out there.",
                 {
                     {"Will do.", -1},
+                },
+            },
+        },
+    };
+
+    return npc;
+}
+
+Npc build_hub_drifter(Race race, std::mt19937& rng) {
+    Npc npc = build_drifter(race, rng);
+
+    // Override dialog with station-specific flavor
+    npc.interactions.talk = TalkTrait{
+        "Just passing through. Don't mind me.",
+        {
+            {
+                "Came in on a freight shuttle from the outer ring. "
+                "Heard there's work on this station, but so far... nothing.",
+                {
+                    {"Where are you headed next?", 1},
+                    {"Good luck out there.", -1},
+                },
+            },
+            {
+                "Wherever the next shuttle goes. Maybe the belt, maybe "
+                "further. When you've got nothing to lose, every direction "
+                "is the right one.",
+                {
+                    {"That's one way to look at it.", 2},
+                    {"Safe travels.", -1},
+                },
+            },
+            {
+                "You learn things out in the drift. The void doesn't "
+                "care about your plans. Best thing you can do is keep "
+                "moving and stay sharp.",
+                {
+                    {"I'll keep that in mind.", -1},
                 },
             },
         },

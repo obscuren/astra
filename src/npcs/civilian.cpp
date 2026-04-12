@@ -72,7 +72,7 @@ Npc build_civilian(Race race, std::mt19937& rng) {
     };
 
     std::string greeting = pick_line(general_dialog, general_dialog_count);
-    std::string topic = pick_line(station_dialog, station_dialog_count);
+    std::string topic = pick_line(general_dialog, general_dialog_count);
 
     npc.interactions.talk = TalkTrait{
         greeting,
@@ -95,6 +95,40 @@ Npc build_random_civilian(std::mt19937& rng) {
     };
     Race race = friendly_races[std::uniform_int_distribution<int>(0, 3)(rng)];
     return build_civilian(race, rng);
+}
+
+Npc build_hub_civilian(Race race, std::mt19937& rng) {
+    Npc npc = build_civilian(race, rng);
+
+    // Override dialog with station-specific flavor
+    auto pick_line = [&](const char** pool, int count) -> std::string {
+        return pool[std::uniform_int_distribution<int>(0, count - 1)(rng)];
+    };
+
+    std::string greeting = pick_line(general_dialog, general_dialog_count);
+    std::string topic = pick_line(station_dialog, station_dialog_count);
+
+    npc.interactions.talk = TalkTrait{
+        greeting,
+        {
+            {
+                topic,
+                {
+                    {"Interesting.", -1},
+                },
+            },
+        },
+    };
+
+    return npc;
+}
+
+Npc build_random_hub_civilian(std::mt19937& rng) {
+    static constexpr Race friendly_races[] = {
+        Race::Human, Race::Veldrani, Race::Kreth, Race::Sylphari,
+    };
+    Race race = friendly_races[std::uniform_int_distribution<int>(0, 3)(rng)];
+    return build_hub_civilian(race, rng);
 }
 
 } // namespace astra

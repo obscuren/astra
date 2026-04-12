@@ -72,9 +72,9 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                 place_npc(build_food_merchant(pick_race(), rng, kreth_rep), rid);
                 place_npc(build_merchant(pick_race(), rng, kreth_rep), rid);
                 // Civilians and a drifter hanging around
-                place_npc(build_drifter(pick_race(), rng), rid);
-                place_npc(build_random_civilian(rng), rid);
-                place_npc(build_random_civilian(rng), rid);
+                place_npc(build_hub_drifter(pick_race(), rng), rid);
+                place_npc(build_random_hub_civilian(rng), rid);
+                place_npc(build_random_hub_civilian(rng), rid);
                 break;
             }
             case RoomFlavor::Medbay: {
@@ -104,17 +104,17 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                 // Occasional drifter or civilian
                 std::uniform_int_distribution<int> chance(0, 2);
                 if (chance(rng) == 0)
-                    place_npc(build_drifter(pick_race(), rng), rid);
+                    place_npc(build_hub_drifter(pick_race(), rng), rid);
                 if (chance(rng) == 0)
-                    place_npc(build_random_civilian(rng), rid);
+                    place_npc(build_random_hub_civilian(rng), rid);
                 break;
             }
             case RoomFlavor::CrewQuarters: {
                 // Residents
-                place_npc(build_random_civilian(rng), rid);
+                place_npc(build_random_hub_civilian(rng), rid);
                 std::uniform_int_distribution<int> chance(0, 1);
                 if (chance(rng) == 0)
-                    place_npc(build_random_civilian(rng), rid);
+                    place_npc(build_random_hub_civilian(rng), rid);
                 break;
             }
             default:

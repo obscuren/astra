@@ -22,7 +22,7 @@ Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
         {
             // Node 0: who are you
             {
-                "I'm a trader. I move goods between stations. If you've "
+                "I'm a trader. I move goods wherever there's demand. If you've "
                 "got credits, I've got wares. Simple as that.",
                 {
                     {"Where do you source your goods?", 1},
