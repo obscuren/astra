@@ -10,7 +10,6 @@ Npc build_nova() {
     npc.role = "Stellar Engineer";
     npc.hp = 100;
     npc.max_hp = 100;
-    npc.disposition = Disposition::Friendly;
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
 

@@ -9,7 +9,6 @@ Npc build_scavenger(Race race, std::mt19937& rng) {
     npc.role = "Scavenger";
     npc.hp = 10;
     npc.max_hp = 10;
-    npc.disposition = Disposition::Neutral;
     npc.quickness = 60;
     npc.base_xp = 12;
     npc.base_damage = 2;

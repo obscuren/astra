@@ -564,7 +564,7 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_u8(static_cast<uint8_t>(npc.race));
     w.write_i32(npc.hp);
     w.write_i32(npc.max_hp);
-    w.write_u8(static_cast<uint8_t>(npc.disposition));
+    w.write_u8(0); // legacy disposition byte (kept for save compat)
     w.write_u8(has_effect(npc.effects, EffectId::Invulnerable) ? 1 : 0); // back-compat
     w.write_i32(npc.quickness);
     w.write_i32(npc.energy);
@@ -1168,7 +1168,7 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     }
     npc.hp = r.read_i32();
     npc.max_hp = r.read_i32();
-    npc.disposition = static_cast<Disposition>(r.read_u8());
+    r.read_u8(); // legacy disposition byte (ignored — hostility now faction-based)
     { bool was_invulnerable = r.read_u8() != 0;
       if (was_invulnerable) add_effect(npc.effects, make_invulnerable()); }
     npc.quickness = r.read_i32();

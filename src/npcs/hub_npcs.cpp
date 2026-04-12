@@ -10,7 +10,7 @@ Npc build_food_merchant(Race race, std::mt19937& rng, int faction_rep) {
     npc.role = "Food Merchant";
     npc.hp = 12;
     npc.max_hp = 12;
-    npc.disposition = Disposition::Friendly;
+
     npc.faction = "Kreth Mining Guild";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
@@ -53,7 +53,7 @@ Npc build_medic(Race race, std::mt19937& rng) {
     npc.role = "Medic";
     npc.hp = 10;
     npc.max_hp = 10;
-    npc.disposition = Disposition::Friendly;
+
     npc.faction = "Stellari Conclave";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
@@ -95,7 +95,7 @@ Npc build_commander(Race race, std::mt19937& rng) {
     npc.role = "Station Commander";
     npc.hp = 25;
     npc.max_hp = 25;
-    npc.disposition = Disposition::Friendly;
+
     npc.faction = "Stellari Conclave";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
@@ -174,7 +174,7 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
     npc.role = "Arms Dealer";
     npc.hp = 20;
     npc.max_hp = 20;
-    npc.disposition = Disposition::Neutral;
+
     npc.faction = "Kreth Mining Guild";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
@@ -220,7 +220,7 @@ Npc build_astronomer(Race race, std::mt19937& rng) {
     npc.role = "Astronomer";
     npc.hp = 8;
     npc.max_hp = 8;
-    npc.disposition = Disposition::Friendly;
+
     npc.faction = "Stellari Conclave";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
@@ -262,7 +262,7 @@ Npc build_engineer(Race race, std::mt19937& rng) {
     npc.role = "Engineer";
     npc.hp = 15;
     npc.max_hp = 15;
-    npc.disposition = Disposition::Friendly;
+
     npc.faction = "Stellari Conclave";
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;

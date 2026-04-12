@@ -10,12 +10,6 @@
 
 namespace astra {
 
-enum class Disposition : uint8_t {
-    Friendly,
-    Neutral,
-    Hostile,
-};
-
 // NPC templates define the archetype; the factory fills in name/race.
 enum class NpcRole : uint8_t {
     StationKeeper,
@@ -42,7 +36,6 @@ struct Npc {
     Race race = Race::Human;
     int hp = 1;
     int max_hp = 1;
-    Disposition disposition = Disposition::Neutral;
     std::string faction;        // faction name (empty = unaligned)
     EffectList effects;
     int quickness = 100;

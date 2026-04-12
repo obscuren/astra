@@ -9,7 +9,6 @@ Npc build_prospector(Race race, std::mt19937& rng) {
     npc.role = "Prospector";
     npc.hp = 12;
     npc.max_hp = 12;
-    npc.disposition = Disposition::Neutral;
     npc.quickness = 50;
     npc.base_xp = 15;
     npc.base_damage = 2;

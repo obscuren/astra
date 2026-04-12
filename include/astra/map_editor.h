@@ -62,7 +62,6 @@ private:
         std::string name;
         NpcRole npc_role;
         std::string role;
-        Disposition disposition;
     };
     std::vector<NpcTemplate> npc_palette_;
     int npc_cursor_ = 0;

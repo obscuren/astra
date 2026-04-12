@@ -62,7 +62,6 @@ Npc build_civilian(Race race, std::mt19937& rng) {
         0, civilian_role_count - 1)(rng)];
     npc.hp = std::uniform_int_distribution<int>(5, 10)(rng);
     npc.max_hp = npc.hp;
-    npc.disposition = Disposition::Friendly;
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 

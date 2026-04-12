@@ -56,13 +56,13 @@ void MapEditor::init_fixture_palette() {
 
 void MapEditor::init_npc_palette() {
     npc_palette_ = {
-        {"Guard",     NpcRole::Civilian,      "guard",     Disposition::Neutral},
-        {"Merchant",  NpcRole::Merchant,      "merchant",  Disposition::Neutral},
-        {"Engineer",  NpcRole::Engineer,      "engineer",  Disposition::Neutral},
-        {"Medic",     NpcRole::Medic,         "medic",     Disposition::Neutral},
-        {"Commander", NpcRole::Commander,     "commander", Disposition::Neutral},
-        {"Civilian",  NpcRole::Civilian,      "civilian",  Disposition::Neutral},
-        {"Hostile",   NpcRole::Xytomorph,     "hostile",   Disposition::Hostile},
+        {"Guard",     NpcRole::Civilian,      "guard"},
+        {"Merchant",  NpcRole::Merchant,      "merchant"},
+        {"Engineer",  NpcRole::Engineer,      "engineer"},
+        {"Medic",     NpcRole::Medic,         "medic"},
+        {"Commander", NpcRole::Commander,     "commander"},
+        {"Civilian",  NpcRole::Civilian,      "civilian"},
+        {"Hostile",   NpcRole::Xytomorph,     "hostile"},
     };
     npc_cursor_ = 0;
 }
@@ -321,7 +321,6 @@ void MapEditor::place_npc(int x, int y, Game& game) {
     npc.npc_role = tmpl.npc_role;
     npc.name = tmpl.name;
     npc.role = tmpl.role;
-    npc.disposition = tmpl.disposition;
     npc.hp = 10;
     npc.max_hp = 10;
     npc.level = 1;

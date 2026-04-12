@@ -9,7 +9,6 @@ Npc build_drifter(Race race, std::mt19937& rng) {
     npc.role = "Drifter";
     npc.hp = 8;
     npc.max_hp = 8;
-    npc.disposition = Disposition::Neutral;
     npc.quickness = 50;
     npc.base_xp = 10;
     npc.base_damage = 1;
