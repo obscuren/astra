@@ -10,6 +10,8 @@
 
 namespace astra {
 
+struct Player; // forward declare
+
 // Feature flags toggled by the Wayfinding skill tree.
 struct MinimapFlags {
     bool scouts_eye = false;    // Scout's Eye: show all NPCs (hostile + friendly)
@@ -25,6 +27,7 @@ public:
               const VisibilityMap& vis,
               int player_x, int player_y,
               const std::vector<Npc>& npcs,
+              const Player& player,
               const MinimapFlags& flags = {});
 
 private:

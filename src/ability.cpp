@@ -1,4 +1,5 @@
 #include "astra/ability.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 
 namespace astra {
@@ -49,7 +50,7 @@ public:
         int px = game.player().x, py = game.player().y;
         int hits = 0;
         for (auto& npc : game.world().npcs()) {
-            if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
+            if (!npc.alive() || !is_hostile_to_player(npc.faction, game.player())) continue;
             int dx = std::abs(npc.x - px), dy = std::abs(npc.y - py);
             if (std::max(dx, dy) <= 1) {
                 int damage = game.player().effective_attack();
@@ -209,7 +210,7 @@ bool use_ability(int slot, Game& game) {
         int px = game.player().x, py = game.player().y;
         int best_dist = 999;
         for (auto& npc : game.world().npcs()) {
-            if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
+            if (!npc.alive() || !is_hostile_to_player(npc.faction, game.player())) continue;
             int dx = std::abs(npc.x - px), dy = std::abs(npc.y - py);
             int dist = std::max(dx, dy);
             if (dist <= 1 && dist < best_dist) {

@@ -1,4 +1,5 @@
 #include "astra/minimap.h"
+#include "astra/faction.h"
 #include "astra/poi_placement.h"
 
 #include <algorithm>
@@ -103,6 +104,7 @@ void Minimap::draw(UIContext& ctx,
                    const VisibilityMap& vis,
                    int player_x, int player_y,
                    const std::vector<Npc>& npcs,
+                   const Player& player,
                    const MinimapFlags& flags) {
     int panel_w = ctx.width();
     int panel_h = ctx.height();
@@ -220,7 +222,7 @@ void Minimap::draw(UIContext& ctx,
             if (npc.x < 0 || npc.x >= map_w || npc.y < 0 || npc.y >= map_h) continue;
             if (vis.get(npc.x, npc.y) == Visibility::Unexplored) continue;
 
-            bool hostile = (npc.disposition == Disposition::Hostile);
+            bool hostile = is_hostile_to_player(npc.faction, player);
 
             int sx = (npc.x - vx) / SCALE;
             int sy = (npc.y - vy) / SCALE;

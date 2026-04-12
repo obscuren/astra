@@ -2,6 +2,7 @@
 #include "astra/animation.h"
 #include "astra/biome_profile.h"
 #include "astra/effect.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/lore_generator.h"
@@ -429,7 +430,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "kill" && args.size() >= 2 && args[1] == "all") {
         int count = 0;
         for (auto& npc : game.npcs()) {
-            if (npc.alive() && npc.disposition == Disposition::Hostile) {
+            if (npc.alive() && is_hostile_to_player(npc.faction, game.player())) {
                 npc.hp = 0;
                 ++count;
             }

@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/boot_sequence.h"
+#include "astra/faction.h"
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
@@ -417,7 +418,7 @@ void Game::dev_command_level_up() {
 
 void Game::dev_command_kill_hostiles() {
     for (auto& npc : world_.npcs()) {
-        if (npc.alive() && npc.disposition == Disposition::Hostile) {
+        if (npc.alive() && is_hostile_to_player(npc.faction, player_)) {
             npc.hp = 0;
         }
     }

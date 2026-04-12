@@ -1,4 +1,5 @@
 #include "astra/ability.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
 #include "astra/skill_defs.h"
@@ -1165,7 +1166,7 @@ void Game::render_minimap_widget(UIContext& ctx) {
     flags.scouts_eye = player_has_skill(player_, SkillId::ScoutsEye);
     flags.cartographer = player_has_skill(player_, SkillId::Cartographer);
     minimap_.draw(ctx, world_.map(), world_.visibility(),
-                  player_.x, player_.y, world_.npcs(), flags);
+                  player_.x, player_.y, world_.npcs(), player_, flags);
 }
 
 void Game::render_effects_bar() {
@@ -1208,10 +1209,11 @@ void Game::render_effects_bar() {
             " (" + std::to_string(combat_.target_npc()->hp) + "/" +
             std::to_string(combat_.target_npc()->max_hp) + ")";
         Color tc = Color::DarkGray;
-        switch (combat_.target_npc()->disposition) {
-            case Disposition::Hostile:  tc = Color::Red; break;
-            case Disposition::Neutral:  tc = Color::Yellow; break;
-            case Disposition::Friendly: tc = Color::Green; break;
+        if (is_hostile_to_player(combat_.target_npc()->faction, player_)) {
+            tc = Color::Red;
+        } else {
+            auto tier = reputation_tier(reputation_for(player_, combat_.target_npc()->faction));
+            tc = (tier <= ReputationTier::Disliked) ? Color::Yellow : Color::Green;
         }
         ctx.text(mid + 7, 0, info, tc);
     } else {
