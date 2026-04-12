@@ -56,6 +56,14 @@ static SaveData build_save_data(Game& game, bool dead) {
     ms.visibility = world.visibility();
     ms.npcs = world.npcs();
     if (!dead) ms.ground_items = world.ground_items();
+
+    // v23: copy POI budget, hidden POIs, anchor hints from the overworld map.
+    ms.poi_budget = world.map().poi_budget();
+    ms.hidden_pois = world.map().hidden_pois();
+    for (const auto& [k, h] : world.map().anchor_hints()) {
+        ms.anchor_hints.push_back({k, h});
+    }
+
     data.maps.push_back(std::move(ms));
 
     return data;
@@ -99,6 +107,27 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.visibility() = ms.visibility;
     world.npcs() = ms.npcs;
     world.ground_items() = ms.ground_items;
+
+    world.map().set_poi_budget(ms.poi_budget);
+    world.map().hidden_pois_mut() = ms.hidden_pois;
+    for (const auto& [k, h] : ms.anchor_hints) {
+        int x = static_cast<int>(k % static_cast<uint64_t>(world.map().width()));
+        int y = static_cast<int>(k / static_cast<uint64_t>(world.map().width()));
+        world.map().set_anchor_hint(x, y, h);
+    }
+
+    // Legacy v22 reconstruction — if the map has no budget but is an overworld,
+    // scan placed POI tiles to produce a best-effort budget.
+    if (world.map().map_type() == MapType::Overworld &&
+        world.map().poi_budget().settlements == 0 &&
+        world.map().poi_budget().outposts == 0 &&
+        world.map().poi_budget().ruins.empty() &&
+        world.map().poi_budget().ships.empty() &&
+        world.map().poi_budget().total_caves() == 0 &&
+        world.map().poi_budget().beacons == 0 &&
+        world.map().poi_budget().megastructures == 0) {
+        world.map().set_poi_budget(reconstruct_poi_budget_from_map(world.map()));
+    }
 
     // Restore navigation data (or bootstrap for old saves)
     if (!data.navigation.systems.empty()) {

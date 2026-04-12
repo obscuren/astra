@@ -1,7 +1,7 @@
 # POI Budget, Hidden Ruins, and Anchor-Hinted Placement
 
 **Date:** 2026-04-11
-**Status:** Design
+**Status:** Implemented (v23 save format)
 **Related roadmap entries:**
 - `docs/roadmap.md` — "Layered POI site selection" (this spec is its implementation)
 - `docs/roadmap.md` — "Ship scanner component" (future consumer of the budget data)
@@ -393,6 +393,85 @@ Explicitly not in this spec (each is its own future feature):
 - **Beacon and Megastructure POIs.** Budget tracks them but the count stays 0. Parked roadmap items.
 - **Buried / hidden crashed ships, sealed vaults.** The `HiddenPoi` mechanism is generic to support them later, but no non-ruin hidden POIs are generated in this pass.
 - **Connected-ruin placement.** The `RuinFormation::Connected` value is recorded on each ruin request for future use, but in this pass both `Solo` and `Connected` produce one ruin each with standard spacing. Real multi-site linked ruins (with tighter spacing and a shared backstory) come later.
+
+## Tuning guide
+
+All tuning parameters live in two files. No header changes or recompilation of other files needed — just edit, rebuild, and test via `budget` in the dev console.
+
+### Budget roll — `src/poi_budget.cpp` → `roll_poi_budget()`
+
+This function decides **how many** of each POI kind a planet gets. Every number and probability is explicit and self-contained in a single function body.
+
+**Settlements** (line ~94):
+- Habitable worlds: fixed 3, +2 if `lore_tier >= 2`. Change `3` for the base count, `+2` for the lore bonus.
+- Marginal worlds: 40% chance of exactly 1. Change `40` for the chance.
+- Airless/asteroid: none. Add an `else if (airless)` branch if needed.
+
+**Outposts** (line ~102):
+- Base chance: 30%, raised to 70% at `lore_tier >= 2`, raised to 80% if `lore_plague_origin`. The `if` ladder is order-sensitive — later conditions override earlier ones.
+- Count on success: `uniform(1,2)`, +`uniform(1,2)` at `lore_tier >= 2`. Change the distribution ranges to control density.
+
+**Caves** (line ~114):
+- Gated on `body_has_dungeon`. Natural: `uniform(2,5)`, clamped to 2 on asteroids. Mine: exactly 1 if `lore_tier >= 2`. Excavation: exactly 1 if `lore_tier >= 3`.
+- To add more variant slots, increase the counts or add new tier thresholds.
+
+**Ruins** (line ~122):
+- Base count: `uniform(1,4)` if `danger_level >= 3`, else 30% chance of `uniform(1,2)`.
+- Lore tier bonus: tier 3 → +`uniform(4,6)`, tier 2 → +`uniform(2,4)`, tier 1 → +`uniform(1,2)`. These are **additive** and stack with the base.
+- Hidden ratio: `min(0.6f, lore_tier * 0.25f)`. At tier 0 → 0% hidden, tier 1 → 25%, tier 2 → 50%, tier 3 → 60% (capped). Change the multiplier or cap to shift the visible/hidden balance.
+- Per-ruin civ: 70% weight on the planet's primary civ if one exists, 30% on `"unknown"`. Change `70` in `pick_ruin_civ()` (line ~75).
+- Connected formation: 15% chance per ruin. Change `15` (line ~141).
+
+**Crashed ships** (line ~149):
+- Base chance: `20 + body_danger_level * 10` percent (maxes at 100 on battle sites).
+- Count: `uniform(1,3)`, +`uniform(2,4)` on battle sites.
+- Class distribution (non-asteroid): 30% EscapePod, 50% Freighter, 20% Corvette (cumulative thresholds `< 30` / `< 80`). Asteroid: always EscapePod.
+
+### Placement requirements — `src/generators/poi_placement.cpp`
+
+This file controls **where** POIs can go and how they space out. Two groups of knobs:
+
+**Spacing constants** (top of file):
+```cpp
+constexpr int kDefaultSpacing = 8;   // settlement, outpost
+constexpr int kCloseSpacing = 6;     // caves, ruins, ships
+```
+These are Manhattan distance — a value of 8 means no two POIs of any kind can be within 8 tiles of each other. Lower = denser, higher = sparser. The check uses `max(requester_spacing, placed_spacing)` so the strictest wins.
+
+**Per-POI terrain requirements** — the `reqs_for_*()` helpers:
+
+| POI | `needs_flat` | `needs_cliff` | `needs_water` | spacing |
+|-----|-------------|--------------|--------------|---------|
+| Settlement | yes | no | no | kDefaultSpacing (8) |
+| Outpost | yes | no | no | kDefaultSpacing (8) |
+| Cave (natural) | no | **yes** | no | kCloseSpacing (6) |
+| Cave (mine) | no | **yes** | no | kCloseSpacing (6) |
+| Cave (excavation) | no | no | no | kCloseSpacing (6) |
+| Crashed ship | yes | no | no | kCloseSpacing (6) |
+| Ruin | no | no | no | kCloseSpacing (6) |
+
+To change a POI's terrain requirements, edit the corresponding `reqs_for_*()` function. For example, to make ruins prefer cliff-adjacent tiles, add `r.needs_cliff = true;` in `reqs_for_ruin()`.
+
+**Priority assignment** — in `expand_budget_to_requests()`:
+- `PoiPriority::Required`: placed first, guaranteed if terrain allows. Currently used for: first settlement on terrestrial worlds, mines on tier-2+ worlds, excavations on tier-3+ worlds, first ship on battle sites, and a fraction of hidden ruins on tier-3+ worlds.
+- `PoiPriority::Normal`: placed after Required, best-effort.
+- `PoiPriority::Opportunistic`: placed last (not currently used by any POI type — available for future low-priority flavour POIs).
+
+Required items are placed before Normal, which means they get first pick of the best terrain. If a Required placement fails (no suitable candidate tile), it's silently dropped — no retry with relaxed constraints.
+
+**Scoring function** — `score_candidate()`:
+Currently just Manhattan distance from map centre (lower = better, so POIs cluster toward the centre). To add biome or elevation weighting, extend this function — it receives `(x, y, map_w, map_h)` and returns an `int`.
+
+**Walkable tile whitelist** — `tile_is_walkable_base()`:
+Controls which overworld tiles can host a POI. Currently allows: Plains, Forest, Desert, Swamp, Barren, Fungal, IceField, AlienTerrain, ScorchedEarth. Mountains, water, craters, rivers, and existing POI tiles are excluded. Add or remove `Tile::OW_*` cases to change this.
+
+### Dev console workflow
+
+1. Generate a planet (land on any body).
+2. Open dev console (`~`), type `budget`. See the rolled counts.
+3. Walk the overworld. Hidden ruins render as biome until you step on them.
+4. Type `discoveries` to see what you've found.
+5. Adjust values in `poi_budget.cpp` or `poi_placement.cpp`, rebuild, regenerate.
 
 ## Success criteria
 

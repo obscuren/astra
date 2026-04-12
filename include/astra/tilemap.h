@@ -4,12 +4,20 @@
 #include "astra/renderer.h"
 
 #include <cstdint>
+#include <memory>
 #include <random>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace astra {
+
+// Forward declarations — do NOT include poi_budget.h or poi_placement.h here
+// (circular dependency: those headers include tilemap.h).
+struct PoiBudget;
+struct PoiAnchorHint;
+struct HiddenPoi;
 
 enum class Tile : uint8_t {
     Empty,
@@ -427,8 +435,14 @@ struct Region {
 
 class TileMap {
 public:
-    TileMap() = default;
+    TileMap();
     TileMap(int width, int height, MapType type = MapType::SpaceStation);
+
+    TileMap(const TileMap& other);
+    TileMap& operator=(const TileMap& other);
+    TileMap(TileMap&&) noexcept;
+    TileMap& operator=(TileMap&&) noexcept;
+    ~TileMap();
 
     MapType map_type() const { return map_type_; }
     Biome biome() const { return biome_; }
@@ -464,6 +478,22 @@ public:
     // POI bounds (set by poi_phase, used by NPC spawning)
     Rect poi_bounds() const { return poi_bounds_; }
     void set_poi_bounds(Rect r) { poi_bounds_ = r; }
+
+    // POI budget — owned by overworld maps only, empty elsewhere.
+    const PoiBudget& poi_budget() const;
+    PoiBudget& poi_budget_mut();
+    void set_poi_budget(PoiBudget b);
+
+    // Hidden POIs — rendered as underlying_tile until discovered. Overworld only.
+    const std::vector<HiddenPoi>& hidden_pois() const;
+    std::vector<HiddenPoi>& hidden_pois_mut();
+    const HiddenPoi* find_hidden_poi(int x, int y) const;
+    HiddenPoi* find_hidden_poi_mut(int x, int y);
+
+    // Per-tile anchor hints for POIs, keyed by y*width + x. Overworld only.
+    const PoiAnchorHint* anchor_hint(int x, int y) const;
+    void set_anchor_hint(int x, int y, const PoiAnchorHint& hint);
+    const std::unordered_map<uint64_t, PoiAnchorHint>& anchor_hints() const;
 
     // Fixture accessors
     int fixture_id(int x, int y) const;
@@ -545,6 +575,9 @@ private:
     std::vector<int> fixture_ids_;  // parallel to tiles_, -1 if no fixture
     std::vector<uint8_t> glyph_override_;  // parallel to tiles_, 0 = no override
     std::vector<uint8_t> custom_flags_;   // parallel to tiles_, 1 = custom detail (overworld only)
+    std::unique_ptr<PoiBudget> poi_budget_;
+    std::vector<HiddenPoi> hidden_pois_;
+    std::unordered_map<uint64_t, PoiAnchorHint> anchor_hints_;
 };
 
 } // namespace astra

@@ -2,6 +2,7 @@
 #include "astra/map_properties.h"
 #include "astra/lore_influence_map.h"
 #include "astra/world_constants.h"
+#include "astra/poi_budget.h"
 
 #include <algorithm>
 #include <cmath>
@@ -338,6 +339,12 @@ void OverworldGeneratorBase::place_features(std::mt19937& rng) {
                 }
             }
         }
+    }
+
+    // Roll the planet's POI budget and attach it to the map.
+    {
+        PoiBudget budget = roll_poi_budget(*props_, rng);
+        map_->set_poi_budget(std::move(budget));
     }
 
     // Virtual hook for body-specific POI placement

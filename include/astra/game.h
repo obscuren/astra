@@ -40,6 +40,8 @@
 
 namespace astra {
 
+struct HiddenPoi;
+
 enum class GameState {
     MainMenu,
     Playing,
@@ -173,6 +175,7 @@ private:
     void enter_overworld_tile();
     void exit_to_overworld();
     void try_move(int dx, int dy);
+    void discover_hidden_poi(HiddenPoi& hidden);
     void try_interact(int dx, int dy);
     void use_action();
     void use_at(int tx, int ty);

@@ -1,5 +1,8 @@
 #include "astra/tilemap.h"
 
+#include "astra/poi_budget.h"
+#include "astra/poi_placement.h"
+
 #include <algorithm>
 #include <random>
 
@@ -507,6 +510,115 @@ BiomeColors biome_colors(Biome b) {
             return {Color::DarkGray, static_cast<Color>(52), Color::Red, Color::DarkGray};
     }
     return {Color::White, Color::Default, Color::Blue, Color::Blue};
+}
+
+// --- POI budget / hidden POI / anchor hint helpers ---
+
+namespace {
+uint64_t hint_key(int x, int y, int width) {
+    return static_cast<uint64_t>(y) * static_cast<uint64_t>(width)
+         + static_cast<uint64_t>(x);
+}
+} // anonymous namespace
+
+TileMap::TileMap() = default;
+TileMap::~TileMap() = default;
+
+TileMap::TileMap(TileMap&&) noexcept = default;
+TileMap& TileMap::operator=(TileMap&&) noexcept = default;
+
+TileMap::TileMap(const TileMap& other)
+    : map_type_(other.map_type_),
+      biome_(other.biome_),
+      alien_biome_(other.alien_biome_),
+      width_(other.width_),
+      height_(other.height_),
+      location_name_(other.location_name_),
+      hub_(other.hub_),
+      poi_bounds_(other.poi_bounds_),
+      tiles_(other.tiles_),
+      backdrop_(other.backdrop_),
+      region_ids_(other.region_ids_),
+      regions_(other.regions_),
+      fixtures_(other.fixtures_),
+      fixture_ids_(other.fixture_ids_),
+      glyph_override_(other.glyph_override_),
+      custom_flags_(other.custom_flags_),
+      poi_budget_(other.poi_budget_ ? std::make_unique<PoiBudget>(*other.poi_budget_) : nullptr),
+      hidden_pois_(other.hidden_pois_),
+      anchor_hints_(other.anchor_hints_) {}
+
+TileMap& TileMap::operator=(const TileMap& other) {
+    if (this == &other) return *this;
+    map_type_ = other.map_type_;
+    biome_ = other.biome_;
+    alien_biome_ = other.alien_biome_;
+    width_ = other.width_;
+    height_ = other.height_;
+    location_name_ = other.location_name_;
+    hub_ = other.hub_;
+    poi_bounds_ = other.poi_bounds_;
+    tiles_ = other.tiles_;
+    backdrop_ = other.backdrop_;
+    region_ids_ = other.region_ids_;
+    regions_ = other.regions_;
+    fixtures_ = other.fixtures_;
+    fixture_ids_ = other.fixture_ids_;
+    glyph_override_ = other.glyph_override_;
+    custom_flags_ = other.custom_flags_;
+    poi_budget_ = other.poi_budget_ ? std::make_unique<PoiBudget>(*other.poi_budget_) : nullptr;
+    hidden_pois_ = other.hidden_pois_;
+    anchor_hints_ = other.anchor_hints_;
+    return *this;
+}
+
+const PoiBudget& TileMap::poi_budget() const {
+    static const PoiBudget empty;
+    return poi_budget_ ? *poi_budget_ : empty;
+}
+
+PoiBudget& TileMap::poi_budget_mut() {
+    if (!poi_budget_) poi_budget_ = std::make_unique<PoiBudget>();
+    return *poi_budget_;
+}
+
+void TileMap::set_poi_budget(PoiBudget b) {
+    poi_budget_ = std::make_unique<PoiBudget>(std::move(b));
+}
+
+const std::vector<HiddenPoi>& TileMap::hidden_pois() const {
+    return hidden_pois_;
+}
+
+std::vector<HiddenPoi>& TileMap::hidden_pois_mut() {
+    return hidden_pois_;
+}
+
+const HiddenPoi* TileMap::find_hidden_poi(int x, int y) const {
+    for (const auto& h : hidden_pois_) {
+        if (h.x == x && h.y == y && !h.discovered) return &h;
+    }
+    return nullptr;
+}
+
+HiddenPoi* TileMap::find_hidden_poi_mut(int x, int y) {
+    for (auto& h : hidden_pois_) {
+        if (h.x == x && h.y == y && !h.discovered) return &h;
+    }
+    return nullptr;
+}
+
+const PoiAnchorHint* TileMap::anchor_hint(int x, int y) const {
+    auto it = anchor_hints_.find(hint_key(x, y, width_));
+    return (it != anchor_hints_.end()) ? &it->second : nullptr;
+}
+
+void TileMap::set_anchor_hint(int x, int y, const PoiAnchorHint& hint) {
+    anchor_hints_[hint_key(x, y, width_)] = hint;
+}
+
+const std::unordered_map<uint64_t, PoiAnchorHint>& TileMap::anchor_hints() const {
+    return anchor_hints_;
 }
 
 } // namespace astra

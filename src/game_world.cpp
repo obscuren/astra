@@ -9,6 +9,7 @@
 #include "astra/map_properties.h"
 #include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
+#include "astra/poi_placement.h"
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
 
@@ -583,6 +584,11 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
         }
     }
 
+    // Copy anchor hint from overworld tile (if any).
+    if (const auto* hint = ow_map->anchor_hint(ow_x, ow_y)) {
+        props.detail_poi_anchor = *hint;
+    }
+
     // Lore influence at this overworld cell
     const auto& infl = world_.lore_influence();
     if (!infl.empty()) {
@@ -598,6 +604,43 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
     }
 
     return props;
+}
+
+void Game::discover_hidden_poi(HiddenPoi& hidden) {
+    // Flip the state.
+    hidden.discovered = true;
+
+    // Swap the overworld tile to its real form.
+    world_.map().set(hidden.x, hidden.y, hidden.real_tile);
+
+    // Build a civ label for the message + journal.
+    std::string civ_label = hidden.ruin_civ.empty() ? "Unknown" : hidden.ruin_civ;
+    std::string msg = "Ruin discovered \xe2\x80\x94 " + civ_label + ". Logged to journal.";
+    log(msg);
+
+    // Build a journal entry with live-render coordinates.
+    std::string location_name = world_.map().location_name();
+    std::string title = "Ruin: " + civ_label + " \xe2\x80\x94 " + location_name;
+
+    std::ostringstream tech;
+    tech << "System: " << world_.navigation().current_system_id
+         << "  \xe2\x80\xa2  Body: " << world_.navigation().current_body_index
+         << "  \xe2\x80\xa2  Coords: (" << hidden.x << ", " << hidden.y << ")"
+         << "  \xe2\x80\xa2  Civ: " << civ_label;
+    std::string personal =
+        "The walls still stand, though the builders have been dust for longer "
+        "than I can imagine. I have marked the location for later study.";
+
+    auto entry = make_discovery_journal_entry(
+        title, tech.str(), personal,
+        world_.world_tick(),
+        "Cycle 1",
+        world_.navigation().current_system_id,
+        world_.navigation().current_body_index,
+        world_.navigation().current_moon_index,
+        hidden.x, hidden.y,
+        location_name);
+    player_.journal.push_back(std::move(entry));
 }
 
 void Game::enter_detail_map() {

@@ -2,6 +2,7 @@
 
 #include "astra/celestial_body.h"
 #include "astra/galaxy_map_desc.h"
+#include "astra/poi_budget.h"
 #include "astra/ui_types.h"
 #include "astra/world_manager.h"
 
@@ -761,7 +762,7 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
                 ctx.text(2, y, "Orbits", Color::DarkGray);
                 ctx.text(10, y++, body.name, body_display_color(body));
             } else if (body_cursor_ >= 0 && body_cursor_ < static_cast<int>(sys.bodies.size())) {
-                draw_body_info_text(ctx, sys.bodies[body_cursor_], sys, y);
+                draw_body_info_text(ctx, sys.bodies[body_cursor_], sys, y, body_cursor_);
             }
 
             // Quest target indicator
@@ -880,7 +881,7 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
 }
 
 void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& body,
-                                          const StarSystem& sys, int start_y) {
+                                          const StarSystem& sys, int start_y, int body_index) {
     int y = start_y;
 
     // Body section header: ├─┤ o Mars ├──────
@@ -976,6 +977,46 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
         if (has_resource(body.resources, Resource::Crystals))   ctx.text(3, y++, "Crystals", Color::Cyan);
         if (has_resource(body.resources, Resource::Radioactive))ctx.text(3, y++, "Radioactive", Color::Red);
         if (has_resource(body.resources, Resource::Gas))        ctx.text(3, y++, "Gas", static_cast<Color>(208));
+    }
+
+    // SCANNER REPORT section — shows PoiBudget if the overworld has been visited
+    y++;
+    draw_info_section(ctx, y, "SCANNER REPORT", Color::Cyan);
+    y++;
+
+    // Look up the overworld map for this body in the location cache.
+    // Key: {system_id, body_index, moon_index=-1, is_station=false, ow_x=-1, ow_y=-1, depth=0}
+    const TileMap* owm = nullptr;
+    if (world_ && body_index >= 0) {
+        LocationKey key{sys.id, body_index, -1, false, -1, -1, 0};
+        auto it = world_->location_cache().find(key);
+        if (it != world_->location_cache().end() &&
+            it->second.map.map_type() == MapType::Overworld) {
+            owm = &it->second.map;
+        }
+        // Also check if the currently-loaded map is this body's overworld
+        if (!owm && world_->on_overworld() &&
+            world_->navigation().current_system_id == sys.id &&
+            world_->navigation().current_body_index == body_index &&
+            world_->navigation().current_moon_index == -1) {
+            owm = &world_->map();
+        }
+    }
+
+    if (owm) {
+        std::string report = format_poi_budget(owm->poi_budget());
+        size_t start = 0;
+        while (start < report.size()) {
+            size_t nl = report.find('\n', start);
+            std::string line = report.substr(start, nl == std::string::npos ? std::string::npos : nl - start);
+            if (!line.empty()) {
+                ctx.text(3, y++, line, Color::White);
+            }
+            if (nl == std::string::npos) break;
+            start = nl + 1;
+        }
+    } else {
+        ctx.text(3, y++, "(not scanned \xe2\x80\x94 visit the planet to survey)", Color::DarkGray);
     }
 }
 

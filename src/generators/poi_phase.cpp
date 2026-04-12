@@ -19,7 +19,10 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
 
     if (props.detail_poi_type == Tile::OW_Ruins) {
         RuinGenerator ruin_gen;
-        return ruin_gen.generate(map, channels, props, rng, props.detail_ruin_civ);
+        std::string civ = props.detail_ruin_civ;
+        if (props.detail_poi_anchor.valid && !props.detail_poi_anchor.ruin_civ.empty())
+            civ = props.detail_poi_anchor.ruin_civ;
+        return ruin_gen.generate(map, channels, props, rng, civ);
     }
 
     if (props.detail_poi_type == Tile::OW_Outpost) {

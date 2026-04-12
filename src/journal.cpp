@@ -90,4 +90,34 @@ JournalEntry make_event_journal_entry(
     return entry;
 }
 
+JournalEntry make_discovery_journal_entry(
+    const std::string& title,
+    const std::string& technical,
+    const std::string& personal,
+    int world_tick,
+    const std::string& phase_name,
+    int system_id,
+    int body_index,
+    int moon_index,
+    int overworld_x,
+    int overworld_y,
+    const std::string& location_name)
+{
+    JournalEntry e;
+    e.category = JournalCategory::Discovery;
+    e.title = title;
+    e.technical = technical;
+    e.personal = personal;
+    e.timestamp = phase_name;
+    e.world_tick = world_tick;
+    e.has_discovery_location = true;
+    e.discovery_system_id = system_id;
+    e.discovery_body_index = body_index;
+    e.discovery_moon_index = moon_index;
+    e.discovery_overworld_x = overworld_x;
+    e.discovery_overworld_y = overworld_y;
+    e.discovery_location_name = location_name;
+    return e;
+}
+
 } // namespace astra
