@@ -41,11 +41,11 @@ struct FactionStanding {
 };
 
 enum class ReputationTier : int8_t {
-    Hated    = -2,   // rep <= -50
-    Disliked = -1,   // rep -49 to -10
-    Neutral  =  0,   // rep -9 to 9
-    Liked    =  1,   // rep 10 to 49
-    Trusted  =  2,   // rep >= 50
+    Hated    = -2,   // rep <= -300
+    Disliked = -1,   // rep -299 to -60
+    Neutral  =  0,   // rep -59 to 59
+    Liked    =  1,   // rep 60 to 299
+    Trusted  =  2,   // rep >= 300
 };
 
 ReputationTier reputation_tier(int reputation);
