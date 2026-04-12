@@ -1,4 +1,5 @@
 #include "astra/quest.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 
 namespace astra {
@@ -27,7 +28,7 @@ class GettingAirborneQuest : public StoryQuest {
 
         q.reward.xp = 100;
         q.reward.credits = 50;
-        q.reward.faction_name = "Stellari Conclave";
+        q.reward.faction_name = Faction_StellariConclave;
         q.reward.reputation_change = 5;
         return q;
     }

@@ -1,4 +1,5 @@
 #include "astra/quest.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/celestial_body.h"
 
@@ -26,7 +27,7 @@ public:
 
         q.reward.xp = 200;
         q.reward.credits = 100;
-        q.reward.faction_name = "Stellari Conclave";
+        q.reward.faction_name = Faction_StellariConclave;
         q.reward.reputation_change = 10;
         return q;
     }
