@@ -1,5 +1,6 @@
 #include "astra/combat_system.h"
 #include "astra/animation.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_gen.h"
 
@@ -24,15 +25,70 @@ static int npc_dodge_chance(const Npc& npc) {
     return std::min(chance, 25);
 }
 
+struct HostileTarget {
+    Npc* npc = nullptr;
+    bool is_player = false;
+    int distance = 9999;
+};
+
+static HostileTarget find_nearest_hostile(Npc& self, Game& game) {
+    HostileTarget best;
+    const int detection_range = 8;
+
+    for (auto& other : game.world().npcs()) {
+        if (&other == &self || !other.alive()) continue;
+        if (!is_hostile(self.faction, other.faction)) continue;
+        int d = chebyshev_dist(self.x, self.y, other.x, other.y);
+        if (d <= detection_range && d < best.distance) {
+            best.npc = &other;
+            best.is_player = false;
+            best.distance = d;
+        }
+    }
+
+    if (is_hostile_to_player(self.faction, game.player())) {
+        int d = chebyshev_dist(self.x, self.y, game.player().x, game.player().y);
+        if (d <= detection_range && d < best.distance) {
+            best.npc = nullptr;
+            best.is_player = true;
+            best.distance = d;
+        }
+    }
+
+    return best;
+}
+
+void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
+    if (roll_percent(game.world().rng(), npc_dodge_chance(defender))) {
+        game.log(defender.display_name() + " dodges " + attacker.display_name() + "'s attack!");
+        return;
+    }
+    int damage = attacker.attack_damage();
+    int defense = defender.level;
+    damage -= defense;
+    if (damage < 1) damage = 1;
+    damage = apply_damage_effects(defender.effects, damage);
+    if (damage <= 0) {
+        game.log(attacker.display_name() + "'s attack has no effect on " + defender.display_name() + ".");
+        return;
+    }
+    defender.hp -= damage;
+    if (defender.hp < 0) defender.hp = 0;
+    game.animations().spawn_effect(anim_damage_flash, defender.x, defender.y);
+    game.log(attacker.display_name() + " strikes " + defender.display_name() +
+             " for " + std::to_string(damage) + " damage!");
+    if (!defender.alive()) {
+        game.log(defender.display_name() + " is destroyed by " + attacker.display_name() + "!");
+    }
+}
+
 void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     if (!npc.alive()) return;
 
-    // Displaced NPCs try to return to their original position
     if (npc.return_x >= 0 && npc.return_y >= 0) {
         int rx = npc.return_x, ry = npc.return_y;
         npc.return_x = -1;
         npc.return_y = -1;
-        // Only move back if the spot is free
         if (game.world().map().passable(rx, ry) &&
             !(game.player().x == rx && game.player().y == ry) &&
             !game.tile_occupied(rx, ry)) {
@@ -42,36 +98,32 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
         return;
     }
 
-    if (npc.disposition == Disposition::Friendly || npc.quickness == 0)
-        return;
+    if (npc.quickness == 0) return;
 
-    if (npc.disposition == Disposition::Hostile) {
-        int dist = chebyshev_dist(npc.x, npc.y, game.player().x, game.player().y);
-
-        // Fleeing — move away from player instead of attacking
-        if (has_effect(npc.effects, EffectId::Flee)) {
-            int dx = sign(npc.x - game.player().x);
-            int dy = sign(npc.y - game.player().y);
-            // Try away diagonal, then each cardinal fallback
-            struct { int x, y; } candidates[] = {
-                {dx, dy}, {dx, 0}, {0, dy}, {-dy, dx}, {dy, -dx}
-            };
-            for (auto [cx, cy] : candidates) {
-                if (cx == 0 && cy == 0) continue;
-                int nx = npc.x + cx;
-                int ny = npc.y + cy;
-                if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
-                    npc.x = nx;
-                    npc.y = ny;
-                    return;
-                }
+    if (has_effect(npc.effects, EffectId::Flee)) {
+        int dx = sign(npc.x - game.player().x);
+        int dy = sign(npc.y - game.player().y);
+        struct { int x, y; } candidates[] = {
+            {dx, dy}, {dx, 0}, {0, dy}, {-dy, dx}, {dy, -dx}
+        };
+        for (auto [cx, cy] : candidates) {
+            if (cx == 0 && cy == 0) continue;
+            int nx = npc.x + cx;
+            int ny = npc.y + cy;
+            if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
+                npc.x = nx;
+                npc.y = ny;
+                return;
             }
-            return; // cornered, skip turn
         }
+        return;
+    }
 
-        // Adjacent — attack
+    auto target = find_nearest_hostile(npc, game);
+
+    if (target.is_player) {
+        int dist = target.distance;
         if (dist <= 1) {
-            // Player dodge check
             int dodge_chance = std::min(game.player().effective_dodge() * 2, 50);
             if (roll_percent(game.world().rng(), dodge_chance)) {
                 game.log("You dodge " + npc.display_name() + "'s attack!");
@@ -90,39 +142,50 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             if (game.player().hp < 0) game.player().hp = 0;
             game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
             game.log(npc.display_name() + " strikes you for " +
-                std::to_string(damage) + " damage!");
+                     std::to_string(damage) + " damage!");
             if (game.player().hp <= 0) {
                 game.set_death_message("Slain by " + npc.display_name());
             }
             return;
         }
-
-        // Within detection range — chase
-        if (dist <= 8) {
-            int dx = sign(game.player().x - npc.x);
-            int dy = sign(game.player().y - npc.y);
-
-            // Try diagonal, then each cardinal fallback
-            struct { int x, y; } candidates[] = {
-                {dx, dy}, {dx, 0}, {0, dy}
-            };
-            for (auto [cx, cy] : candidates) {
-                if (cx == 0 && cy == 0) continue;
-                int nx = npc.x + cx;
-                int ny = npc.y + cy;
-                if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
-                    npc.x = nx;
-                    npc.y = ny;
-                    return;
-                }
+        int dx = sign(game.player().x - npc.x);
+        int dy = sign(game.player().y - npc.y);
+        struct { int x, y; } candidates[] = {{dx, dy}, {dx, 0}, {0, dy}};
+        for (auto [cx, cy] : candidates) {
+            if (cx == 0 && cy == 0) continue;
+            int nx = npc.x + cx;
+            int ny = npc.y + cy;
+            if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
+                npc.x = nx;
+                npc.y = ny;
+                return;
             }
-            return; // all blocked, skip turn
         }
-
-        // Fall through to wander
+        return;
     }
 
-    // Wander: try random cardinal directions
+    if (target.npc) {
+        int dist = target.distance;
+        if (dist <= 1) {
+            attack_npc_vs_npc(npc, *target.npc, game);
+            return;
+        }
+        int dx = sign(target.npc->x - npc.x);
+        int dy = sign(target.npc->y - npc.y);
+        struct { int x, y; } candidates[] = {{dx, dy}, {dx, 0}, {0, dy}};
+        for (auto [cx, cy] : candidates) {
+            if (cx == 0 && cy == 0) continue;
+            int nx = npc.x + cx;
+            int ny = npc.y + cy;
+            if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
+                npc.x = nx;
+                npc.y = ny;
+                return;
+            }
+        }
+        return;
+    }
+
     std::array<std::pair<int,int>, 4> dirs = {{{0,-1},{0,1},{-1,0},{1,0}}};
     std::shuffle(dirs.begin(), dirs.end(), game.world().rng());
     for (auto [dx, dy] : dirs) {
@@ -182,6 +245,16 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     if (!npc.alive()) {
         game.log(npc.display_name() + " is destroyed!");
         game.player().kills++;
+        // Reputation penalty for killing a faction NPC
+        if (!npc.faction.empty()) {
+            for (auto& fs : game.player().reputation) {
+                if (fs.faction_name == npc.faction) {
+                    fs.reputation = std::max(fs.reputation - 30, -600);
+                    game.log("Your reputation with " + npc.faction + " decreased.");
+                    break;
+                }
+            }
+        }
         game.quests().on_npc_killed(npc.role);
         int xp = npc.xp_reward();
         if (xp > 0) {
@@ -211,7 +284,7 @@ void CombatSystem::begin_targeting(Game& game) {
     Npc* nearest = nullptr;
     int best_dist = 9999;
     for (auto& npc : game.world().npcs()) {
-        if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
+        if (!npc.alive() || !is_hostile_to_player(npc.faction, game.player())) continue;
         if (game.world().visibility().get(npc.x, npc.y) != Visibility::Visible) continue;
         int d = chebyshev_dist(game.player().x, game.player().y, npc.x, npc.y);
         if (d < best_dist) {
@@ -393,6 +466,16 @@ void CombatSystem::shoot_target(Game& game) {
     if (!target_npc_->alive()) {
         game.log(target_npc_->display_name() + " is destroyed!");
         game.player().kills++;
+        // Reputation penalty for killing a faction NPC
+        if (!target_npc_->faction.empty()) {
+            for (auto& fs : game.player().reputation) {
+                if (fs.faction_name == target_npc_->faction) {
+                    fs.reputation = std::max(fs.reputation - 30, -600);
+                    game.log("Your reputation with " + target_npc_->faction + " decreased.");
+                    break;
+                }
+            }
+        }
         game.quests().on_npc_killed(target_npc_->role);
         int xp = target_npc_->xp_reward();
         if (xp > 0) {
