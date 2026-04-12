@@ -50,6 +50,12 @@ damage = max(damage, 0)
 - Item level = npc.level
 - Rarity: Common 50%, Uncommon 30%, Rare 15%, Epic 4%, Legendary 1%
 
+### Combat Reputation
+
+- **Kill faction NPC**: -30 reputation with victim's faction (clamped to -600)
+- From Neutral (0), takes 10 kills to reach Hated (≤ -300)
+- Killing unaligned, Feral, Xytomorph, Archon, or Void Reaver NPCs: no reputation change (for now)
+
 ### Ability Cooldowns
 
 | Ability | Cooldown | Action Cost | Weapon | Effect |
@@ -70,11 +76,11 @@ sell_price  = sell_value + (sell_value * (-faction_pct + effect_sell_pct) / 100)
 ```
 - Haggle effect: `buy_price_pct = -10`, `sell_price_pct = +10`
 - Faction reputation modifier (`faction_pct`):
-  - Hated (rep <= -50): +30%
-  - Disliked (rep -49 to -10): +15%
-  - Neutral (rep -9 to 9): 0%
-  - Liked (rep 10 to 49): -10%
-  - Trusted (rep >= 50): -20%
+  - Hated (rep <= -300): +30%
+  - Disliked (rep -299 to -60): +15%
+  - Neutral (rep -59 to 59): 0%
+  - Liked (rep 60 to 299): -10%
+  - Trusted (rep >= 300): -20%
 
 ### Ship Stats
 
