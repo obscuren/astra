@@ -5,6 +5,8 @@ tag: "release"
 summary: "Procedural galactic history, complete terrain rewrite, civilization ruins, settlement generators, deterministic POI budgets, and the first SDL renderer preview."
 ---
 
+**[View the full release on GitHub](https://github.com/obscuren/astra/releases/tag/v0.6.0)**
+
 The v0.6.0 release transforms how Astra's worlds are built. Every planet now has a history — civilizations that rose and fell over billions of years, leaving scars on the terrain and ruins beneath the surface. The entire detail map generator has been rewritten from scratch, settlements and ruins are full procedural structures, and a new POI budget system makes planet content deterministic and scannable.
 
 ## Procedural World Lore
