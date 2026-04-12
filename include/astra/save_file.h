@@ -44,10 +44,22 @@ struct MapState {
     PoiBudget poi_budget;
     std::vector<HiddenPoi> hidden_pois;
     std::vector<std::pair<uint64_t, PoiAnchorHint>> anchor_hints;
+
+    // v24: location cache persistence — LocationKey fields + player position.
+    // maps[0] is the active map (key fields zeroed), maps[1+] are cached.
+    uint32_t loc_system_id = 0;
+    int loc_body_index = 0;
+    int loc_moon_index = 0;
+    bool loc_is_station = false;
+    int loc_ow_x = 0;
+    int loc_ow_y = 0;
+    int loc_depth = 0;
+    int player_x = 0;
+    int player_y = 0;
 };
 
 struct SaveData {
-    uint32_t version = 23;
+    uint32_t version = 24;
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

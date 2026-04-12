@@ -50,6 +50,7 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.lore = world.lore();
     }
 
+    // maps[0]: the active map the player is currently on.
     MapState ms;
     ms.map_id = 0;
     ms.tilemap = world.map();
@@ -65,6 +66,39 @@ static SaveData build_save_data(Game& game, bool dead) {
     }
 
     data.maps.push_back(std::move(ms));
+
+    // v24: persist the location cache (previously visited maps).
+    if (!dead) {
+        for (const auto& [key, state] : world.location_cache()) {
+            MapState cached;
+            cached.map_id = 0;
+            cached.tilemap = state.map;
+            cached.visibility = state.visibility;
+            cached.npcs = state.npcs;
+            cached.ground_items = state.ground_items;
+            cached.player_x = state.player_x;
+            cached.player_y = state.player_y;
+
+            // Copy POI data from the cached tilemap.
+            cached.poi_budget = state.map.poi_budget();
+            cached.hidden_pois = state.map.hidden_pois();
+            for (const auto& [ak, ah] : state.map.anchor_hints()) {
+                cached.anchor_hints.push_back({ak, ah});
+            }
+
+            // Store the LocationKey so we can rebuild the cache on load.
+            auto& [sys, body, moon, is_sta, ox, oy, depth] = key;
+            cached.loc_system_id = sys;
+            cached.loc_body_index = body;
+            cached.loc_moon_index = moon;
+            cached.loc_is_station = is_sta;
+            cached.loc_ow_x = ox;
+            cached.loc_ow_y = oy;
+            cached.loc_depth = depth;
+
+            data.maps.push_back(std::move(cached));
+        }
+    }
 
     return data;
 }
@@ -114,6 +148,31 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
         int x = static_cast<int>(k % static_cast<uint64_t>(world.map().width()));
         int y = static_cast<int>(k / static_cast<uint64_t>(world.map().width()));
         world.map().set_anchor_hint(x, y, h);
+    }
+
+    // v24: restore location cache from maps[1+].
+    for (size_t i = 1; i < data.maps.size(); ++i) {
+        auto& cm = data.maps[i];
+        LocationKey key{cm.loc_system_id, cm.loc_body_index,
+                        cm.loc_moon_index, cm.loc_is_station,
+                        cm.loc_ow_x, cm.loc_ow_y, cm.loc_depth};
+
+        // Restore POI data onto the tilemap before caching.
+        cm.tilemap.set_poi_budget(cm.poi_budget);
+        cm.tilemap.hidden_pois_mut() = std::move(cm.hidden_pois);
+        for (const auto& [ak, ah] : cm.anchor_hints) {
+            int ax = static_cast<int>(ak % static_cast<uint64_t>(cm.tilemap.width()));
+            int ay = static_cast<int>(ak / static_cast<uint64_t>(cm.tilemap.width()));
+            cm.tilemap.set_anchor_hint(ax, ay, ah);
+        }
+
+        LocationState& state = world.location_cache()[key];
+        state.map = std::move(cm.tilemap);
+        state.visibility = std::move(cm.visibility);
+        state.npcs = std::move(cm.npcs);
+        state.ground_items = std::move(cm.ground_items);
+        state.player_x = cm.player_x;
+        state.player_y = cm.player_y;
     }
 
     // Legacy v22 reconstruction — if the map has no budget but is an overworld,

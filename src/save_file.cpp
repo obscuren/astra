@@ -742,6 +742,17 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_u8(static_cast<uint8_t>(hint.ruin_formation));
     }
 
+    // v24: Location cache key + player position
+    w.write_u32(ms.loc_system_id);
+    w.write_i32(ms.loc_body_index);
+    w.write_i32(ms.loc_moon_index);
+    w.write_u8(ms.loc_is_station ? 1 : 0);
+    w.write_i32(ms.loc_ow_x);
+    w.write_i32(ms.loc_ow_y);
+    w.write_i32(ms.loc_depth);
+    w.write_i32(ms.player_x);
+    w.write_i32(ms.player_y);
+
     w.end_section(pos);
 }
 
@@ -1362,6 +1373,19 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
             hint.ruin_formation = static_cast<RuinFormation>(r.read_u8());
             ms.anchor_hints.push_back({k, hint});
         }
+    }
+
+    // v24: Location cache key + player position
+    if (version >= 24) {
+        ms.loc_system_id = r.read_u32();
+        ms.loc_body_index = r.read_i32();
+        ms.loc_moon_index = r.read_i32();
+        ms.loc_is_station = (r.read_u8() != 0);
+        ms.loc_ow_x = r.read_i32();
+        ms.loc_ow_y = r.read_i32();
+        ms.loc_depth = r.read_i32();
+        ms.player_x = r.read_i32();
+        ms.player_y = r.read_i32();
     }
 }
 
