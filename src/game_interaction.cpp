@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/faction.h"
 #include "astra/tile_props.h"
 #include "astra/tinkering.h"
 
@@ -101,7 +102,7 @@ void Game::try_move(int dx, int dy) {
     // Check NPC collision
     for (auto& npc : world_.npcs()) {
         if (npc.alive() && npc.x == nx && npc.y == ny) {
-            if (npc.disposition == Disposition::Hostile) {
+            if (is_hostile_to_player(npc.faction, player_)) {
                 combat_.attack_npc(npc, *this);
                 advance_world(ActionCost::move);
                 return;
@@ -226,7 +227,7 @@ void Game::try_interact(int dx, int dy) {
         return;
     }
 
-    if (target->disposition == Disposition::Hostile) {
+    if (is_hostile_to_player(target->faction, player_)) {
         log(target->display_name() + " snarls at you.");
         advance_world(ActionCost::interact);
         return;
@@ -245,7 +246,7 @@ void Game::try_interact(int dx, int dy) {
 bool Game::is_interactable(int tx, int ty) const {
     // Check for NPC
     for (const auto& npc : world_.npcs()) {
-        if (npc.x == tx && npc.y == ty && npc.disposition != Disposition::Hostile) return true;
+        if (npc.x == tx && npc.y == ty && !is_hostile_to_player(npc.faction, player_)) return true;
     }
     // Check for interactable fixture (including doors)
     Tile t = world_.map().get(tx, ty);
@@ -339,7 +340,7 @@ static const int dy4[] = {-1, 1, 0, 0};
 bool Game::auto_walk_should_stop() const {
     // Hostile NPC visible
     for (const auto& npc : world_.npcs()) {
-        if (!npc.alive() || npc.disposition != Disposition::Hostile) continue;
+        if (!npc.alive() || !is_hostile_to_player(npc.faction, player_)) continue;
         if (world_.visibility().get(npc.x, npc.y) == Visibility::Visible) return true;
     }
     // Item on ground at player position
