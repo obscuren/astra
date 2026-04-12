@@ -1,6 +1,7 @@
 #include "astra/character_screen.h"
 #include "astra/character.h"
 #include "astra/effect.h"
+#include "astra/faction.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
 #include "astra/journal.h"
@@ -2455,7 +2456,7 @@ void CharacterScreen::draw_reputation(UIContext& ctx) {
 
     int y = 2;
     for (int i = 0; i < static_cast<int>(player_->reputation.size()); ++i) {
-        if (y >= ctx.height() - 2) break;
+        if (y >= ctx.height() - 4) break;
         const auto& f = player_->reputation[i];
         bool selected = (cursor_ == i);
 
@@ -2472,8 +2473,30 @@ void CharacterScreen::draw_reputation(UIContext& ctx) {
         ctx.text({.x = ctx.width() - 2 - static_cast<int>(rep.size()), .y = y,
                   .content = rep, .tag = rep_tag});
 
-        // Flavor text
+        // Faction description
         y++;
+        const char* desc = faction_description(f.faction_name);
+        if (desc[0] != '\0') {
+            std::string desc_str(desc);
+            int max_w = ctx.width() - 8;
+            int dx = 5;
+            while (!desc_str.empty() && y < ctx.height() - 3) {
+                std::string line;
+                if (static_cast<int>(desc_str.size()) <= max_w) {
+                    line = desc_str;
+                    desc_str.clear();
+                } else {
+                    auto pos = desc_str.rfind(' ', max_w);
+                    if (pos == std::string::npos) pos = max_w;
+                    line = desc_str.substr(0, pos);
+                    desc_str = desc_str.substr(pos + 1);
+                }
+                ctx.text({.x = dx, .y = y, .content = line, .tag = UITag::TextDim});
+                y++;
+            }
+        }
+
+        // Flavor text based on tier
         std::string flavor;
         switch (tier) {
             case ReputationTier::Trusted:  flavor = "They consider you a trusted ally."; break;
@@ -2482,7 +2505,8 @@ void CharacterScreen::draw_reputation(UIContext& ctx) {
             case ReputationTier::Disliked: flavor = "They are wary of you."; break;
             case ReputationTier::Hated:    flavor = "They are hostile toward you."; break;
         }
-        ctx.text({.x = 5, .y = y, .content = flavor, .tag = UITag::TextDim});
+        ctx.text({.x = 5, .y = y, .content = flavor,
+                  .tag = tier <= ReputationTier::Disliked ? UITag::TextDanger : UITag::TextDim});
         y += 2;
     }
 }
