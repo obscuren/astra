@@ -120,6 +120,7 @@ set(ASTRA_SOURCES
     src/save_system.cpp
     src/dev_console.cpp
     src/boot_sequence.cpp
+    src/dice.cpp
 )
 
 if(WIN32)
