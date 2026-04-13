@@ -1,6 +1,7 @@
 #include "astra/combat_system.h"
 #include "astra/animation.h"
 #include "astra/dice.h"
+#include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_gen.h"
@@ -124,12 +125,12 @@ void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
     // Attack roll: 1d20 + attacker.level/2 vs defender.dv
     int natural = roll_d20(rng);
     if (natural == 1) {
-        game.log(defender.display_name() + " dodges " + attacker.display_name() + "'s attack!");
+        game.log(display_name(defender) + " dodges " + display_name(attacker) + "'s attack!");
         return;
     }
     int attack_roll = natural + attacker.level / 2;
     if (natural != 20 && attack_roll < defender.dv) {
-        game.log(defender.display_name() + " dodges " + attacker.display_name() + "'s attack!");
+        game.log(display_name(defender) + " dodges " + display_name(attacker) + "'s attack!");
         return;
     }
 
@@ -142,22 +143,22 @@ void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
     int effective_av = defender.av + defender.type_affinity.for_type(dtype);
     auto pen = roll_penetration(rng, attacker.level / 3, effective_av, dmg_dice);
     if (pen.total_damage <= 0) {
-        game.log(attacker.display_name() + "'s attack has no effect on " + defender.display_name() + ".");
+        game.log(display_name(attacker) + "'s attack has no effect on " + display_name(defender) + ".");
         return;
     }
 
     int damage = apply_damage_effects(defender.effects, pen.total_damage);
     if (damage <= 0) {
-        game.log(attacker.display_name() + "'s attack has no effect on " + defender.display_name() + ".");
+        game.log(display_name(attacker) + "'s attack has no effect on " + display_name(defender) + ".");
         return;
     }
     defender.hp -= damage;
     if (defender.hp < 0) defender.hp = 0;
     game.animations().spawn_effect(anim_damage_flash, defender.x, defender.y);
-    game.log(attacker.display_name() + " strikes " + defender.display_name() +
-             " for " + std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
+    game.log(display_name(attacker) + " strikes " + display_name(defender) +
+             " for " + std::to_string(damage) + " " + display_name(dtype) + " damage!");
     if (!defender.alive()) {
-        game.log(defender.display_name() + " is destroyed by " + attacker.display_name() + "!");
+        game.log(display_name(defender) + " is destroyed by " + display_name(attacker) + "!");
     }
 }
 
@@ -208,12 +209,12 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             // Attack roll: 1d20 + npc.level/2 vs player.effective_dv()
             int natural = roll_d20(rng);
             if (natural == 1) {
-                game.log("You dodge " + npc.display_name() + "'s attack!");
+                game.log("You dodge " + display_name(npc) + "'s attack!");
                 return;
             }
             int attack_roll = natural + npc.level / 2;
             if (natural != 20 && attack_roll < game.player().effective_dv()) {
-                game.log("You dodge " + npc.display_name() + "'s attack!");
+                game.log("You dodge " + display_name(npc) + "'s attack!");
                 return;
             }
 
@@ -226,15 +227,15 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
                 // Penetrate shield as AV=0
                 auto pen = roll_penetration(rng, npc.level / 3, 0, dmg_dice);
                 if (pen.total_damage <= 0) {
-                    game.log(npc.display_name() + "'s attack is absorbed by your shield.");
+                    game.log(display_name(npc) + "'s attack is absorbed by your shield.");
                     return;
                 }
                 int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
                 game.player().shield_hp -= absorbed;
                 if (game.player().shield_hp < 0) game.player().shield_hp = 0;
                 game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
-                game.log(npc.display_name() + " hits your shield for " +
-                         std::to_string(absorbed) + " " + damage_type_name(dtype) + " damage. [Shield " +
+                game.log(display_name(npc) + " hits your shield for " +
+                         std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
                          std::to_string(game.player().shield_hp) + "/" +
                          std::to_string(game.player().shield_max_hp) + "]");
                 return;
@@ -244,23 +245,23 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             int eff_av = game.player().effective_av(dtype);
             auto pen = roll_penetration(rng, npc.level / 3, eff_av, dmg_dice);
             if (pen.total_damage <= 0) {
-                game.log(npc.display_name() + " strikes you but deals no damage.");
+                game.log(display_name(npc) + " strikes you but deals no damage.");
                 return;
             }
 
             int damage = apply_resistance(pen.total_damage, dtype, game.player().resistances);
             damage = apply_damage_effects(game.player().effects, damage);
             if (damage <= 0) {
-                game.log(npc.display_name() + " strikes you but deals no damage.");
+                game.log(display_name(npc) + " strikes you but deals no damage.");
                 return;
             }
             game.player().hp -= damage;
             if (game.player().hp < 0) game.player().hp = 0;
             game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
-            game.log(npc.display_name() + " strikes you for " +
-                     std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
+            game.log(display_name(npc) + " strikes you for " +
+                     std::to_string(damage) + " " + display_name(dtype) + " damage!");
             if (game.player().hp <= 0) {
-                game.set_death_message("Slain by " + npc.display_name());
+                game.set_death_message("Slain by " + display_name(npc));
             }
             return;
         }
@@ -332,13 +333,13 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     // Attack roll: 1d20 + (AGI-10)/2 + weapon_skill_bonus vs npc.dv
     int natural = roll_d20(rng);
     if (natural == 1) {
-        game.log(npc.display_name() + " dodges your attack!");
+        game.log(display_name(npc) + " dodges your attack!");
         return;
     }
     int agi_mod = (game.player().attributes.agility - 10) / 2;
     int attack_roll = natural + agi_mod + weapon_skill_bonus(game.player(), wc);
     if (natural != 20 && attack_roll < npc.dv) {
-        game.log(npc.display_name() + " dodges your attack! (roll " +
+        game.log(display_name(npc) + " dodges your attack! (roll " +
                  std::to_string(attack_roll) + " vs DV " + std::to_string(npc.dv) + ")");
         return;
     }
@@ -365,27 +366,27 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     }
 
     if (damage <= 0) {
-        game.log("Your attack has no effect on " + npc.display_name() + ".");
+        game.log("Your attack has no effect on " + display_name(npc) + ".");
         return;
     }
 
     damage = apply_damage_effects(npc.effects, damage);
     if (damage <= 0) {
-        game.log("Your attack has no effect on " + npc.display_name() + ".");
+        game.log("Your attack has no effect on " + display_name(npc) + ".");
         return;
     }
     npc.hp -= damage;
     if (npc.hp < 0) npc.hp = 0;
     game.animations().spawn_effect(anim_damage_flash, npc.x, npc.y);
     if (is_crit) {
-        game.log("CRITICAL HIT! You strike " + npc.display_name() + " for " +
-            std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
+        game.log("CRITICAL HIT! You strike " + display_name(npc) + " for " +
+            std::to_string(damage) + " " + display_name(dtype) + " damage!");
     } else {
-        game.log("You strike " + npc.display_name() + " for " +
-            std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
+        game.log("You strike " + display_name(npc) + " for " +
+            std::to_string(damage) + " " + display_name(dtype) + " damage!");
     }
     if (!npc.alive()) {
-        game.log(npc.display_name() + " is destroyed!");
+        game.log(display_name(npc) + " is destroyed!");
         game.player().kills++;
         // Reputation penalty for killing a faction NPC
         if (!npc.faction.empty()) {
@@ -412,7 +413,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         // Loot drop (50% chance)
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
             Item loot = generate_loot_drop(rng, npc.level);
-            game.log("Dropped: " + loot.display_name());
+            game.log("Dropped: " + display_name(loot));
             game.world().ground_items().push_back({npc.x, npc.y, std::move(loot)});
         }
     }
@@ -568,14 +569,14 @@ void CombatSystem::shoot_target(Game& game) {
     // Attack roll: 1d20 + (AGI-10)/2 + weapon_skill_bonus vs npc.dv
     int natural = roll_d20(rng);
     if (natural == 1) {
-        game.log(target_npc_->display_name() + " dodges your shot!");
+        game.log(display_name(*target_npc_) + " dodges your shot!");
         game.advance_world(ActionCost::shoot);
         return;
     }
     int agi_mod = (game.player().attributes.agility - 10) / 2;
     int attack_roll = natural + agi_mod + weapon_skill_bonus(game.player(), wc);
     if (natural != 20 && attack_roll < target_npc_->dv) {
-        game.log(target_npc_->display_name() + " dodges your shot! (roll " +
+        game.log(display_name(*target_npc_) + " dodges your shot! (roll " +
                  std::to_string(attack_roll) + " vs DV " + std::to_string(target_npc_->dv) + ")");
         game.advance_world(ActionCost::shoot);
         return;
@@ -599,14 +600,14 @@ void CombatSystem::shoot_target(Game& game) {
     }
 
     if (damage <= 0) {
-        game.log("Your shot has no effect on " + target_npc_->display_name() + ".");
+        game.log("Your shot has no effect on " + display_name(*target_npc_) + ".");
         game.advance_world(ActionCost::shoot);
         return;
     }
 
     damage = apply_damage_effects(target_npc_->effects, damage);
     if (damage <= 0) {
-        game.log("Your shot has no effect on " + target_npc_->display_name() + ".");
+        game.log("Your shot has no effect on " + display_name(*target_npc_) + ".");
         game.advance_world(ActionCost::shoot);
         return;
     }
@@ -618,13 +619,13 @@ void CombatSystem::shoot_target(Game& game) {
         target_npc_->x, target_npc_->y);
     game.animations().spawn_effect(anim_damage_flash, target_npc_->x, target_npc_->y);
     std::string hit_msg = is_crit ? "CRITICAL HIT! You shoot " : "You shoot ";
-    game.log(hit_msg + target_npc_->display_name() + " for " +
-        std::to_string(damage) + " " + damage_type_name(dtype) + " damage. [" +
+    game.log(hit_msg + display_name(*target_npc_) + " for " +
+        std::to_string(damage) + " " + display_name(dtype) + " damage. [" +
         std::to_string(rd.current_charge) + "/" +
         std::to_string(rd.charge_capacity) + "]");
 
     if (!target_npc_->alive()) {
-        game.log(target_npc_->display_name() + " is destroyed!");
+        game.log(display_name(*target_npc_) + " is destroyed!");
         game.player().kills++;
         // Reputation penalty for killing a faction NPC
         if (!target_npc_->faction.empty()) {
@@ -646,7 +647,7 @@ void CombatSystem::shoot_target(Game& game) {
         // Loot drop (50% chance)
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
             Item loot = generate_loot_drop(rng, target_npc_->level);
-            game.log("Dropped: " + loot.display_name());
+            game.log("Dropped: " + display_name(loot));
             game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
         target_npc_ = nullptr;

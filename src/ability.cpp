@@ -1,5 +1,6 @@
 #include "astra/ability.h"
 #include "astra/dice.h"
+#include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 
@@ -33,8 +34,8 @@ public:
         if (damage > 0) {
             target->hp -= damage;
             if (target->hp < 0) target->hp = 0;
-            game.log("You jab " + target->display_name() + " for " +
-                     std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
+            game.log("You jab " + display_name(*target) + " for " +
+                     std::to_string(damage) + " " + display_name(dtype) + " damage!");
         }
         return true;
     }
@@ -75,7 +76,7 @@ public:
                     if (npc.hp < 0) npc.hp = 0;
                     hits++;
                     game.log("Cleave hits " + npc.display_name() + " for " +
-                             std::to_string(damage) + " " + damage_type_name(dtype) + "!");
+                             std::to_string(damage) + " " + display_name(dtype) + "!");
                 }
             }
         }
@@ -116,8 +117,8 @@ public:
         if (damage > 0) {
             tnpc->hp -= damage;
             if (tnpc->hp < 0) tnpc->hp = 0;
-            game.log("Quickdraw hits " + tnpc->display_name() + " for " +
-                     std::to_string(damage) + " " + damage_type_name(dtype) + "!");
+            game.log("Quickdraw hits " + display_name(*tnpc) + " for " +
+                     std::to_string(damage) + " " + display_name(dtype) + "!");
         }
         return true;
     }
@@ -140,8 +141,8 @@ public:
         int duration = 3 + (game.player().attributes.willpower - 10) / 2;
         if (duration < 2) duration = 2;
         add_effect(target->effects, make_flee(duration));
-        game.log("You intimidate " + target->display_name() + "!");
-        game.log(target->display_name() + " flees in fear! (" +
+        game.log("You intimidate " + display_name(*target) + "!");
+        game.log(display_name(*target) + " flees in fear! (" +
                  std::to_string(duration) + " ticks)");
         return true;
     }
