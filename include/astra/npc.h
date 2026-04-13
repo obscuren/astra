@@ -61,7 +61,7 @@ struct Npc {
     int xp_reward() const { return base_xp * level * (elite ? 3 : 1); }
     int attack_damage() const { return base_damage * level + (elite ? 1 : 0); }
     void scale_to_level(int lvl, bool is_elite);
-    std::string display_name() const;
+    std::string label() const;
 };
 
 // Create a fully configured NPC. Race is used for name generation.

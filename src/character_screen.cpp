@@ -649,7 +649,7 @@ void CharacterScreen::execute_context_action(char key) {
                 look_item_ = &(*equipped);
                 look_open_ = true;
             } else if (key == 'r') {
-                context_message_ = "Uninstalled " + equipped->display_name() + ".";
+                context_message_ = "Uninstalled " + equipped->label() + ".";
                 context_msg_timer_ = 3;
                 player_->ship.cargo.push_back(std::move(*equipped));
                 equipped.reset();
@@ -669,7 +669,7 @@ void CharacterScreen::execute_context_action(char key) {
                 cargo.erase(cargo.begin() + ship_inv_cursor_);
                 if (sl) cargo.push_back(std::move(*sl));
                 sl = std::move(to_install);
-                context_message_ = "Installed " + sl->display_name() + ".";
+                context_message_ = "Installed " + sl->label() + ".";
                 context_msg_timer_ = 3;
                 installed_ship_slot_ = ship_slot_name(target);
                 if (ship_inv_cursor_ >= static_cast<int>(cargo.size()) && ship_inv_cursor_ > 0)
@@ -692,7 +692,7 @@ void CharacterScreen::execute_context_action(char key) {
                 context_msg_timer_ = 3;
                 return;
             }
-            context_message_ = "Removed " + equipped->display_name() + ".";
+            context_message_ = "Removed " + equipped->label() + ".";
             context_msg_timer_ = 3;
             // Save shield charge back to item before unequipping
             if (slot == EquipSlot::Shield) {
@@ -745,7 +745,7 @@ void CharacterScreen::execute_context_action(char key) {
                     player_->shield_hp = sl->shield_hp;
                     player_->shield_affinity = sl->type_affinity;
                 }
-                context_message_ = "Equipped " + sl->display_name() + ".";
+                context_message_ = "Equipped " + sl->label() + ".";
                 context_msg_timer_ = 3;
                 if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
                     --inv_cursor_;
@@ -764,7 +764,7 @@ void CharacterScreen::execute_context_action(char key) {
             context_msg_timer_ = 3;
         } else if (key == 'd') {
             auto& item = items[inv_cursor_];
-            context_message_ = "Dropped " + item.display_name() + ".";
+            context_message_ = "Dropped " + item.label() + ".";
             context_msg_timer_ = 3;
             dropped_item_ = std::move(item);
             has_dropped_item_ = true;
@@ -905,7 +905,7 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     y++;
 
     // Item name centered, colored by rarity; dice suffix in white
-    std::string full_display = item.display_name();
+    std::string full_display = item.label();
     int name_x = (cw - static_cast<int>(full_display.size())) / 2;
     if (name_x < 1) name_x = 1;
     if (!item.damage_dice.empty()) {

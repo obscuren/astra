@@ -546,7 +546,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     interact_options_.clear();
 
     const auto& data = npc.interactions;
-    reset_content(npc.display_name());
+    reset_content(npc.label());
     entity_ = EntityRef{EntityRef::Kind::Npc, static_cast<uint16_t>(npc.npc_role), static_cast<uint8_t>(npc.race)};
 
     // Faction gate: Hated NPCs refuse all interaction
@@ -554,7 +554,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
         int rep = reputation_for(game.player(), npc.faction);
         if (reputation_tier(rep) == ReputationTier::Hated) {
             body_ = "\"I have nothing to say to you. Get lost.\"";
-            game.log(npc.display_name() + " refuses to speak with you.");
+            game.log(npc.label() + " refuses to speak with you.");
             add_option('f', "Leave");
             interact_options_.push_back(InteractOption::Farewell);
             footer_ = "[Space] Select  [Esc] Close";
@@ -566,7 +566,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     std::string greeting = data.talk ? data.talk->greeting : "";
     if (!greeting.empty()) {
         body_ = "\"" + greeting + "\"";
-        game.log(npc.display_name() + ": \"" + greeting + "\"");
+        game.log(npc.label() + ": \"" + greeting + "\"");
     }
 
     char hotkey = '1';
@@ -931,7 +931,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             } else {
                 // Generate a random quest based on NPC role + world state
                 auto q = game.quests().generate_quest_for_role(
-                    interacting_npc_->role, interacting_npc_->display_name(),
+                    interacting_npc_->role, interacting_npc_->label(),
                     game.world().navigation(), game.world().rng());
                 q.giver_npc = interacting_npc_->role;
                 // Register map marker if quest has a target location
@@ -953,9 +953,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         // Advance to next node
         dialog_node_ = next;
         const auto& next_node = (*dialog_tree_)[dialog_node_];
-        reset_content(interacting_npc_->display_name());
+        reset_content(interacting_npc_->label());
         body_ = "\"" + next_node.text + "\"";
-        game.log(interacting_npc_->display_name() + ": \"" + next_node.text + "\"");
+        game.log(interacting_npc_->label() + ": \"" + next_node.text + "\"");
         { char hk = '1';
         for (const auto& choice : next_node.choices) {
             add_option(hk++, choice.label);
@@ -977,9 +977,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             dialog_tree_ = &interacting_npc_->interactions.talk->nodes;
             dialog_node_ = 0;
             const auto& node = (*dialog_tree_)[0];
-            reset_content(interacting_npc_->display_name());
+            reset_content(interacting_npc_->label());
             body_ = "\"" + node.text + "\"";
-            game.log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
+            game.log(interacting_npc_->label() + ": \"" + node.text + "\"");
             { char hk = '1';
             for (const auto& choice : node.choices) {
                 add_option(hk++, choice.label);
@@ -997,9 +997,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             dialog_tree_ = &interacting_npc_->interactions.quest->nodes;
             dialog_node_ = 0;
             const auto& node = (*dialog_tree_)[0];
-            reset_content(interacting_npc_->display_name());
+            reset_content(interacting_npc_->label());
             body_ = "\"" + node.text + "\"";
-            game.log(interacting_npc_->display_name() + ": \"" + node.text + "\"");
+            game.log(interacting_npc_->label() + ": \"" + node.text + "\"");
             { char hk = '1';
             for (const auto& choice : node.choices) {
                 add_option(hk++, choice.label);
@@ -1055,10 +1055,10 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 }
 
                 // Show NPC response
-                reset_content(interacting_npc_->display_name());
+                reset_content(interacting_npc_->label());
                 std::string reply = "Well done, commander. You've earned your pay.";
                 body_ = "\"" + reply + "\"";
-                game.log(interacting_npc_->display_name() + ": \"" + reply + "\"");
+                game.log(interacting_npc_->label() + ": \"" + reply + "\"");
                 add_option('1', "Thanks.");
                 footer_ = "[Space] Select  [Esc] Close";
                 open_ = true;

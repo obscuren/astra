@@ -41,12 +41,12 @@ inline std::string display_name(const Npc& npc) {
         case Race::Stellari:  c = Color::Magenta; break;
         default:              c = Color::White; break;
     }
-    return colored(npc.display_name(), c);
+    return colored(npc.label(), c);
 }
 
 // Item — colored by rarity
 inline std::string display_name(const Item& item) {
-    return colored(item.display_name(), rarity_color(item.rarity));
+    return colored(item.label(), rarity_color(item.rarity));
 }
 
 // DamageType — colored by type

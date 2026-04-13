@@ -184,7 +184,7 @@ static const char* fixture_type_desc(FixtureType type) {
 std::string Game::look_tile_name(int mx, int my) const {
     // NPC
     for (const auto& npc : world_.npcs()) {
-        if (npc.x == mx && npc.y == my) return npc.display_name();
+        if (npc.x == mx && npc.y == my) return npc.label();
     }
     // Player
     if (mx == player_.x && my == player_.y) return player_.name;
@@ -1225,7 +1225,7 @@ void Game::render_effects_bar() {
     int mid = ctx.width() / 3;
     ctx.text(mid, 0, "TARGET:", Color::DarkGray);
     if (combat_.target_npc() && combat_.target_npc()->alive()) {
-        std::string info = " " + combat_.target_npc()->display_name() +
+        std::string info = " " + combat_.target_npc()->label() +
             " (" + std::to_string(combat_.target_npc()->hp) + "/" +
             std::to_string(combat_.target_npc()->max_hp) + ")";
         Color tc = Color::DarkGray;

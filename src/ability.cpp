@@ -75,7 +75,7 @@ public:
                     npc.hp -= damage;
                     if (npc.hp < 0) npc.hp = 0;
                     hits++;
-                    game.log("Cleave hits " + npc.display_name() + " for " +
+                    game.log("Cleave hits " + npc.label() + " for " +
                              std::to_string(damage) + " " + display_name(dtype) + "!");
                 }
             }

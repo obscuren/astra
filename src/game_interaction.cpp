@@ -228,17 +228,17 @@ void Game::try_interact(int dx, int dy) {
     }
 
     if (is_hostile_to_player(target->faction, player_)) {
-        log(target->display_name() + " snarls at you.");
+        log(target->label() + " snarls at you.");
         advance_world(ActionCost::interact);
         return;
     }
 
     if (target->interactions.empty()) {
-        log(target->display_name() + " has nothing to say.");
+        log(target->label() + " has nothing to say.");
         return;
     }
 
-    log("You approach " + target->display_name() + ".");
+    log("You approach " + target->label() + ".");
     dialog_.open_npc_dialog(*target, *this);
     advance_world(ActionCost::interact);
 }

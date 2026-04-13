@@ -85,7 +85,7 @@ void Npc::scale_to_level(int lvl, bool is_elite) {
 
 // --- Display name ---
 
-std::string Npc::display_name() const {
+std::string Npc::label() const {
     std::string prefix = elite ? "Elite " : "";
     if (name.empty()) {
         return prefix + role;

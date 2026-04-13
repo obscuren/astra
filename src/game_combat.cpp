@@ -478,7 +478,7 @@ void CombatSystem::handle_targeting_input(int key, Game& game) {
             if (found) {
                 target_npc_ = found;
                 targeting_ = false;
-                game.log("Targeted: " + found->display_name());
+                game.log("Targeted: " + found->label());
             } else {
                 game.log("No target there.");
             }
@@ -665,7 +665,7 @@ void CombatSystem::reload_weapon(Game& game) {
 
     auto& rd = *weapon->ranged;
     if (rd.current_charge >= rd.charge_capacity) {
-        game.log(weapon->display_name() + " is fully charged.");
+        game.log(weapon->label() + " is fully charged.");
         return;
     }
 
@@ -673,7 +673,7 @@ void CombatSystem::reload_weapon(Game& game) {
         if (game.player().inventory.items[i].type == ItemType::Battery) {
             int added = std::min(5, rd.charge_capacity - rd.current_charge);
             rd.current_charge += added;
-            game.log("Reloaded " + weapon->display_name() + ". (+" + std::to_string(added) +
+            game.log("Reloaded " + weapon->label() + ". (+" + std::to_string(added) +
                 " charge, " + std::to_string(rd.current_charge) + "/" +
                 std::to_string(rd.charge_capacity) + ")");
             auto& cell = game.player().inventory.items[i];
