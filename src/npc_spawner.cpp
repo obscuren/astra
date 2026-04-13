@@ -91,8 +91,10 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                 break;
             }
             case RoomFlavor::Observatory: {
-                // Nova's room — she's always here
-                place_npc(build_nova(), rid);
+                // Nova only appears at The Heavens Above (THA)
+                if (map.is_tha()) {
+                    place_npc(build_nova(), rid);
+                }
                 place_npc(build_astronomer(Race::Stellari, rng), rid);
                 break;
             }

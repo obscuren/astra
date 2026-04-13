@@ -339,23 +339,120 @@ static void furnish_maintenance_tunnels(RoomContext& ctx) {
     ctx.place(cx, cy, make_fixture(FixtureType::DungeonHatch));
 }
 
+static void furnish_refinery(RoomContext& ctx) {
+    if (ctx.too_small()) return;
+
+    // Industrial shelving with conduit runs — like a storage bay with more machinery
+    for (int y = ctx.iy1 + 1; y <= ctx.iy2 - 1; y += 3) {
+        for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 2) {
+            ctx.place(x, y, make_fixture(FixtureType::Shelf));
+        }
+    }
+    // Conduit run along north wall
+    for (int x = ctx.ix1; x <= ctx.ix2; x += 3) {
+        ctx.place(x, ctx.iy1, make_fixture(FixtureType::Conduit));
+    }
+    // SupplyLocker on back wall
+    int mid_x = (ctx.ix1 + ctx.ix2) / 2;
+    ctx.place(mid_x, ctx.iy2, make_fixture(FixtureType::SupplyLocker));
+}
+
+static void furnish_lab(RoomContext& ctx) {
+    if (ctx.too_small()) return;
+
+    // Consoles along the walls, RepairBench as a workbench, HealPod as specimen pod
+    for (int x = ctx.ix1; x <= ctx.ix2; x += 3) {
+        ctx.place(x, ctx.iy1, make_fixture(FixtureType::Console));
+    }
+    // Workbench in center row
+    int mid_y = (ctx.iy1 + ctx.iy2) / 2;
+    for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 3) {
+        ctx.place(x, mid_y, make_fixture(FixtureType::RepairBench));
+    }
+    // StarChart terminal on side wall
+    ctx.place(ctx.ix2, ctx.iy2, make_fixture(FixtureType::StarChart));
+}
+
+static void furnish_market_hall(RoomContext& ctx) {
+    if (ctx.too_small()) return;
+
+    // Wide trading floor: multiple counters (Tables) with stools, FoodTerminal
+    int bar_y = ctx.iy1 + (ctx.iy2 - ctx.iy1) / 3;
+    for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; ++x) {
+        ctx.place(x, bar_y, make_fixture(FixtureType::Table));
+    }
+    if (bar_y + 1 <= ctx.iy2) {
+        for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 2) {
+            ctx.place(x, bar_y + 1, make_fixture(FixtureType::Stool));
+        }
+    }
+    // Second counter row
+    int bar2_y = bar_y + 4;
+    if (bar2_y <= ctx.iy2 - 1) {
+        for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 2) {
+            ctx.place(x, bar2_y, make_fixture(FixtureType::Table));
+        }
+    }
+    // FoodTerminal and ShipTerminal (as market kiosk)
+    if (bar_y - 1 >= ctx.iy1) {
+        ctx.place(ctx.ix1 + 1, bar_y - 1, make_fixture(FixtureType::FoodTerminal));
+        ctx.place(ctx.ix2 - 1, bar_y - 1, make_fixture(FixtureType::ShipTerminal));
+    }
+}
+
+static void furnish_barracks(RoomContext& ctx) {
+    if (ctx.too_small()) return;
+
+    // Military bunk arrangement with weapon rack by the door
+    for (int y = ctx.iy1; y <= ctx.iy2; y += 2) {
+        ctx.place(ctx.ix1, y, make_fixture(FixtureType::Bunk));
+        ctx.place(ctx.ix2, y, make_fixture(FixtureType::Bunk));
+    }
+    // Weapon rack along north wall
+    int mid_x = (ctx.ix1 + ctx.ix2) / 2;
+    ctx.place(mid_x, ctx.iy1, make_fixture(FixtureType::Rack));
+    ctx.place(mid_x - 1, ctx.iy1, make_fixture(FixtureType::Rack));
+    // Console near south wall
+    ctx.place(mid_x, ctx.iy2, make_fixture(FixtureType::Console));
+}
+
+static void furnish_maintenance_access(RoomContext& ctx) {
+    if (ctx.too_small()) return;
+
+    // Like maintenance tunnels but no DungeonHatch — just utility room
+    for (int x = ctx.ix1; x <= ctx.ix2; x += 3) {
+        ctx.place(x, ctx.iy1, make_fixture(FixtureType::Conduit));
+    }
+    ctx.place(ctx.ix2, ctx.iy2, make_fixture(FixtureType::Crate));
+    ctx.place(ctx.ix2 - 1, ctx.iy1, make_fixture(FixtureType::Crate));
+    // RepairBench instead of DungeonHatch
+    int cx = (ctx.ix1 + ctx.ix2) / 2;
+    int cy = (ctx.iy1 + ctx.iy2) / 2;
+    ctx.place(cx, cy, make_fixture(FixtureType::RepairBench));
+}
+
 static void furnish_room(TileMap& map, RoomFlavor flavor,
                           const MapGenerator::RoomRect& r) {
     RoomContext ctx(map, r);
     if (ctx.iw <= 0 || ctx.ih <= 0) return;
 
     switch (flavor) {
-        case RoomFlavor::EmptyRoom:     furnish_docking_bay(ctx); break;
-        case RoomFlavor::Cantina:       furnish_cantina(ctx); break;
-        case RoomFlavor::StorageBay:    furnish_storage_bay(ctx); break;
-        case RoomFlavor::CrewQuarters:  furnish_crew_quarters(ctx); break;
-        case RoomFlavor::Medbay:        furnish_medbay(ctx); break;
-        case RoomFlavor::Engineering:   furnish_engineering(ctx); break;
-        case RoomFlavor::CommandCenter: furnish_command_center(ctx); break;
-        case RoomFlavor::CargoHold:     furnish_cargo_hold(ctx); break;
-        case RoomFlavor::Armory:        furnish_armory(ctx); break;
+        case RoomFlavor::EmptyRoom:          furnish_docking_bay(ctx); break;
+        case RoomFlavor::Cantina:            furnish_cantina(ctx); break;
+        case RoomFlavor::StorageBay:         furnish_storage_bay(ctx); break;
+        case RoomFlavor::CrewQuarters:       furnish_crew_quarters(ctx); break;
+        case RoomFlavor::Medbay:             furnish_medbay(ctx); break;
+        case RoomFlavor::Engineering:        furnish_engineering(ctx); break;
+        case RoomFlavor::CommandCenter:      furnish_command_center(ctx); break;
+        case RoomFlavor::CargoHold:          furnish_cargo_hold(ctx); break;
+        case RoomFlavor::Armory:             furnish_armory(ctx); break;
         case RoomFlavor::Observatory:        furnish_observatory(ctx); break;
         case RoomFlavor::MaintenanceTunnels: furnish_maintenance_tunnels(ctx); break;
+        case RoomFlavor::Refinery:           furnish_refinery(ctx); break;
+        case RoomFlavor::Lab:                furnish_lab(ctx); break;
+        case RoomFlavor::MarketHall:         furnish_market_hall(ctx); break;
+        case RoomFlavor::Barracks:           furnish_barracks(ctx); break;
+        case RoomFlavor::MaintenanceAccess:  furnish_maintenance_access(ctx); break;
         default: break;
     }
 }
@@ -389,16 +486,29 @@ static constexpr FixedRoomDef hub_tha_rooms[] = {
 };
 static constexpr int hub_tha_count = 2;
 
-// Random flavors for the remaining rooms
+// Random flavors for the remaining 2 rooms (appended after fixed + specialty)
 static constexpr RoomFlavor hub_random_pool[] = {
     RoomFlavor::CrewQuarters,
     RoomFlavor::CargoHold,
 };
 static constexpr int hub_random_pool_size = 2;
 
+// Full specialty room pool (used for Generic random pick)
+static constexpr RoomFlavor hub_specialty_pool[] = {
+    RoomFlavor::Refinery,
+    RoomFlavor::Lab,
+    RoomFlavor::Observatory,
+    RoomFlavor::Barracks,
+    RoomFlavor::MarketHall,
+    RoomFlavor::MaintenanceAccess,
+};
+static constexpr int hub_specialty_pool_size = 6;
+
 class HubStationGenerator : public MapGenerator {
 public:
-    explicit HubStationGenerator(StationContext ctx = {}) : ctx_(std::move(ctx)) {}
+    explicit HubStationGenerator(StationContext ctx = {}) : ctx_(std::move(ctx)) {
+        build_room_plan();
+    }
 
 protected:
     void generate_layout(std::mt19937& rng) override;
@@ -410,20 +520,82 @@ private:
     void safe_corridor_h(int x1, int x2, int y, int crid);
     void safe_corridor_v(int y1, int y2, int x, int crid);
 
+    // Build the room_plan_ vector from ctx_ (base + THA/specialty)
+    void build_room_plan();
+
+    // Apply specialty rooms to room_plan_ based on ctx_.specialty
+    void apply_specialty_rooms();
+
     // Returns the number of fixed rooms for this context
-    int fixed_count() const {
-        return hub_base_count + (ctx_.is_tha ? hub_tha_count : 0);
-    }
+    int fixed_count() const { return static_cast<int>(room_plan_.size()); }
 
     // Returns the FixedRoomDef for fixed room index i
-    const FixedRoomDef& fixed_room(int i) const {
-        if (i < hub_base_count) return hub_base_rooms[i];
-        return hub_tha_rooms[i - hub_base_count];
-    }
+    const FixedRoomDef& fixed_room(int i) const { return room_plan_[i]; }
 
     StationContext ctx_;
+    std::vector<FixedRoomDef> room_plan_;  // populated by build_room_plan()
 };
 
+
+void HubStationGenerator::apply_specialty_rooms() {
+    // Specialty rooms are placed in grid row 2 (cols 1 and 2) for non-THA stations.
+    // Each specialty adds 1-2 extra rooms. We cycle through col/row positions
+    // that aren't already occupied — row 2 cols 1,2 are free for non-THA.
+    auto add = [&](RoomFlavor f, int col, int row) {
+        room_plan_.push_back({f, col, row});
+    };
+
+    switch (ctx_.specialty) {
+        case StationSpecialty::Mining:
+            add(RoomFlavor::Refinery,   1, 2);
+            add(RoomFlavor::StorageBay, 2, 2);
+            break;
+        case StationSpecialty::Research:
+            add(RoomFlavor::Lab,         1, 2);
+            add(RoomFlavor::Observatory, 2, 2);  // Non-THA: no Nova
+            break;
+        case StationSpecialty::Frontier:
+            add(RoomFlavor::Barracks, 1, 2);
+            break;
+        case StationSpecialty::Trade:
+            add(RoomFlavor::MarketHall, 1, 2);
+            add(RoomFlavor::Cantina,    2, 2);
+            break;
+        case StationSpecialty::Industrial:
+            add(RoomFlavor::MaintenanceAccess, 1, 2);
+            break;
+        case StationSpecialty::Generic: {
+            // Pick 2 distinct rooms from the specialty pool using keeper_seed
+            std::mt19937_64 seed_rng(ctx_.keeper_seed ^ 0xC0FFEE53ULL);
+            std::uniform_int_distribution<int> dist(0, hub_specialty_pool_size - 1);
+            int pick1 = dist(seed_rng);
+            int pick2;
+            do { pick2 = dist(seed_rng); } while (pick2 == pick1);
+            add(hub_specialty_pool[pick1], 1, 2);
+            add(hub_specialty_pool[pick2], 2, 2);
+            break;
+        }
+    }
+}
+
+void HubStationGenerator::build_room_plan() {
+    room_plan_.clear();
+
+    // Base roster (always present)
+    for (const auto& r : hub_base_rooms) {
+        room_plan_.push_back(r);
+    }
+
+    if (ctx_.is_tha) {
+        // THA-only rooms: Observatory (Nova) + MaintenanceTunnels (tutorial hatch)
+        for (const auto& r : hub_tha_rooms) {
+            room_plan_.push_back(r);
+        }
+    } else {
+        // Specialty-driven rooms for non-THA stations
+        apply_specialty_rooms();
+    }
+}
 
 void HubStationGenerator::generate_layout(std::mt19937& rng) {
     // 9 fixed rooms + 2 random rooms on a 120x80 map
@@ -644,8 +816,8 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
         const char* enter_message;
     };
 
-    // Base room info (always present for any NormalHub station)
-    static const FlavorInfo hub_base_info[] = {
+    // All known room flavors for NormalHub stations — looked up by flavor value
+    static const FlavorInfo hub_flavor_table[] = {
         {RoomFlavor::EmptyRoom, "Docking Bay",
             "The main docking bay. Shuttle clamps line the deck "
             "and the hum of life support fills the air."},
@@ -666,36 +838,56 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
             "A security console monitors the entrance."},
         {RoomFlavor::Engineering, "Engineering Bay",
             "Conduits and junction boxes crowd every surface. The station's guts exposed."},
-    };
-
-    // THA-only room info (only present when ctx_.is_tha is true)
-    static const FlavorInfo hub_tha_info[] = {
+        // THA-only
         {RoomFlavor::Observatory, "Nova's Observatory",
             "A viewport dominates the far wall. Jupiter's swirling storms fill the view. "
             "Nova stands silhouetted against the light."},
         {RoomFlavor::MaintenanceTunnels, "Maintenance Access",
             "A grimy utility room. Pipes snake along the ceiling and a heavy "
             "floor hatch leads to the tunnels below. Caution markings everywhere."},
+        // Random rooms
+        {RoomFlavor::CrewQuarters, "Crew Quarters",
+            "Bunks line the walls in neat rows. A rest pod glows softly at the far end."},
+        {RoomFlavor::CargoHold, "Cargo Hold",
+            "A cavernous hold packed with crates. Magnetic clamps secure the heavier loads."},
+        // Specialty rooms
+        {RoomFlavor::Refinery, "Ore Refinery",
+            "Processing equipment lines the walls. The air tastes of metal dust "
+            "and lubricant. A supply locker sits bolted at the far end."},
+        {RoomFlavor::Lab, "Research Lab",
+            "Workbenches covered in data tablets and sample containers. "
+            "A star chart terminal blinks with active analysis."},
+        {RoomFlavor::MarketHall, "Market Hall",
+            "A bustling bazaar. Counter stalls line the room and the noise of "
+            "haggling fills the air. Every commodity imaginable on offer."},
+        {RoomFlavor::Barracks, "Barracks",
+            "Military bunks in tight rows, weapon racks by the door. "
+            "The unmistakable smell of boot polish and discipline."},
+        {RoomFlavor::MaintenanceAccess, "Maintenance Access",
+            "A utility room packed with conduits and crates. "
+            "A repair bench sits in the center, tools scattered around it."},
     };
 
-    // Helper: get FlavorInfo for fixed room index i
-    auto get_fixed_info = [&](int i) -> const FlavorInfo& {
-        if (i < hub_base_count) return hub_base_info[i];
-        return hub_tha_info[i - hub_base_count];
+    // Helper: look up flavor info by flavor value
+    auto find_flavor_info = [&](RoomFlavor f) -> const FlavorInfo* {
+        for (const auto& info : hub_flavor_table) {
+            if (info.flavor == f) return &info;
+        }
+        return nullptr;
     };
 
-    // Random room flavor info
+    // Fallback corridor info
+    static const FlavorInfo corridor_info = {
+        RoomFlavor::CorridorPlain, "Station Corridor",
+        "A well-lit corridor connecting the station's modules."
+    };
+
+    // Random room flavor info (for rooms beyond fixed_count)
     static const FlavorInfo random_room_info[] = {
         {RoomFlavor::CrewQuarters, "Crew Quarters",
             "Bunks line the walls in neat rows. A rest pod glows softly at the far end."},
         {RoomFlavor::CargoHold, "Cargo Hold",
             "A cavernous hold packed with crates. Magnetic clamps secure the heavier loads."},
-    };
-
-    // Corridor info
-    static const FlavorInfo corridor_info = {
-        RoomFlavor::CorridorPlain, "Station Corridor",
-        "A well-lit corridor connecting the station's modules."
     };
 
     int count = map_->region_count();
@@ -708,10 +900,16 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
 
         if (reg.type == RegionType::Room) {
             if (room_index < fixed_count()) {
-                const auto& info = get_fixed_info(room_index);
-                reg.flavor = info.flavor;
-                reg.name = info.name;
-                reg.enter_message = info.enter_message;
+                RoomFlavor f = room_plan_[room_index].flavor;
+                if (const auto* info = find_flavor_info(f)) {
+                    reg.flavor = info->flavor;
+                    reg.name = info->name;
+                    reg.enter_message = info->enter_message;
+                } else {
+                    reg.flavor = f;
+                    reg.name = "Unknown Room";
+                    reg.enter_message = "";
+                }
             } else {
                 int pick = random_pool_dist(rng);
                 const auto& info = random_room_info[pick];
@@ -736,6 +934,7 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
     }
 
     map_->set_hub(true);
+    map_->set_tha(ctx_.is_tha);
 }
 
 std::unique_ptr<MapGenerator> make_hub_station_generator() {

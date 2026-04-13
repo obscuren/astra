@@ -451,10 +451,15 @@ RoomFeature default_features(RoomFlavor flavor) {
         case RoomFlavor::Cantina:       return RoomFeature::FoodShop;
         case RoomFlavor::Armory:        return RoomFeature::WeaponShop;
         case RoomFlavor::CommandCenter: return RoomFeature::QuestGiver;
-        case RoomFlavor::Observatory:   return RoomFeature::LoreSource;
-        case RoomFlavor::Engineering:   return RoomFeature::Repair;
-        case RoomFlavor::StorageBay:    return RoomFeature::Storage;
-        default:                        return RoomFeature::None;
+        case RoomFlavor::Observatory:       return RoomFeature::LoreSource;
+        case RoomFlavor::Engineering:       return RoomFeature::Repair;
+        case RoomFlavor::StorageBay:        return RoomFeature::Storage;
+        case RoomFlavor::MarketHall:        return RoomFeature::FoodShop;
+        case RoomFlavor::Lab:               return RoomFeature::LoreSource;
+        case RoomFlavor::Barracks:          return RoomFeature::Rest;
+        case RoomFlavor::Refinery:          return RoomFeature::Storage;
+        case RoomFlavor::MaintenanceAccess: return RoomFeature::Repair;
+        default:                            return RoomFeature::None;
     }
 }
 

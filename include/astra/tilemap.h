@@ -305,6 +305,12 @@ enum class RoomFlavor : uint8_t {
     CollapseZone,
     // Hub station special
     MaintenanceTunnels,
+    // Specialty station rooms (non-THA NormalHub variants)
+    Refinery,          // Mining specialty — recolored storage with conduits
+    Lab,               // Research specialty — science/engineering hybrid
+    MarketHall,        // Trade specialty — expanded cantina/bazaar
+    Barracks,          // Frontier specialty — military crew quarters
+    MaintenanceAccess, // Industrial specialty — maintenance room, no hatch
     // Corridors (all map types)
     CorridorPlain,
     CorridorDimLit,
@@ -509,6 +515,10 @@ public:
     bool is_hub() const { return hub_; }
     void set_hub(bool h) { hub_ = h; }
 
+    // THA (The Heavens Above) flag — set at runtime, not persisted
+    bool is_tha() const { return tha_; }
+    void set_tha(bool t) { tha_ = t; }
+
     // Custom detail flag — marks overworld tiles as hand-crafted (bit 0)
     bool custom_detail(int x, int y) const;
     void set_custom_detail(int x, int y, bool v);
@@ -566,6 +576,7 @@ private:
     int height_ = 0;
     std::string location_name_ = "Unknown";
     bool hub_ = false;
+    bool tha_ = false;
     Rect poi_bounds_;
     std::vector<Tile> tiles_;
     std::vector<char> backdrop_;
