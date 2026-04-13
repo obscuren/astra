@@ -53,7 +53,7 @@ inline std::string display_name(const Item& item) {
 inline std::string display_name(DamageType t) {
     Color c;
     switch (t) {
-        case DamageType::Kinetic:    c = Color::White; break;
+        case DamageType::Kinetic:    c = Color::Yellow; break;
         case DamageType::Plasma:     c = Color::Red; break;
         case DamageType::Electrical: c = Color::Cyan; break;
         case DamageType::Cryo:       c = Color::Blue; break;
