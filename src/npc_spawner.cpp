@@ -127,6 +127,82 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
 }
 
 // ---------------------------------------------------------------------------
+// Scav station NPC spawning
+// ---------------------------------------------------------------------------
+
+void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
+                     int player_x, int player_y, std::mt19937& rng,
+                     const Player* /*player*/) {
+    std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
+
+    auto place_npc = [&](Npc npc, int region_id) {
+        if (map.find_open_spot_in_region(region_id, npc.x, npc.y, occupied, &rng)) {
+            occupied.push_back({npc.x, npc.y});
+            npcs.push_back(std::move(npc));
+        }
+    };
+
+    static constexpr Race friendly_races[] = {
+        Race::Human, Race::Veldrani, Race::Kreth, Race::Sylphari,
+    };
+    auto pick_race = [&]() -> Race {
+        std::uniform_int_distribution<int> dist(0, 3);
+        return friendly_races[dist(rng)];
+    };
+
+    int region_count = map.region_count();
+    bool keeper_placed    = false;
+    bool dealer_placed    = false;
+
+    for (int rid = 0; rid < region_count; ++rid) {
+        const auto& reg = map.region(rid);
+        if (reg.type != RegionType::Room) continue;
+
+        switch (reg.flavor) {
+            case RoomFlavor::EmptyRoom: {
+                // Docking Bay: Scav Keeper (placed here if no dedicated nook yet)
+                if (!keeper_placed) {
+                    place_npc(build_scav_keeper(Race::Human, rng), rid);
+                    keeper_placed = true;
+                }
+                break;
+            }
+            case RoomFlavor::Cantina: {
+                // Mess Hall: civilians
+                place_npc(build_civilian(pick_race(), rng), rid);
+                std::uniform_int_distribution<int> chance(0, 1);
+                if (chance(rng) == 0)
+                    place_npc(build_civilian(pick_race(), rng), rid);
+                break;
+            }
+            case RoomFlavor::MaintenanceAccess: {
+                // Scrap Yard: Junk Dealer
+                if (!dealer_placed) {
+                    place_npc(build_scav_junk_dealer(pick_race(), rng), rid);
+                    dealer_placed = true;
+                }
+                break;
+            }
+            case RoomFlavor::CrewQuarters: {
+                // Keeper's Nook or Bunk Room: keeper goes in the first one found
+                if (!keeper_placed) {
+                    place_npc(build_scav_keeper(Race::Human, rng), rid);
+                    keeper_placed = true;
+                } else {
+                    // Bunk Room: occasional civilian
+                    std::uniform_int_distribution<int> chance(0, 1);
+                    if (chance(rng) == 0)
+                        place_npc(build_civilian(pick_race(), rng), rid);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Settlement / Outpost NPC spawning (fixture-scanning approach)
 // ---------------------------------------------------------------------------
 

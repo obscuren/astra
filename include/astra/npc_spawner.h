@@ -27,6 +27,11 @@ void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
                         int player_x, int player_y, std::mt19937& rng,
                         const Player* player = nullptr);
 
+// Spawn NPCs in scav station rooms based on room flavor.
+void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
+                     int player_x, int player_y, std::mt19937& rng,
+                     const Player* player = nullptr);
+
 // Find a random walkable position within bounds, avoiding occupied tiles.
 // Returns true and sets out_x/out_y on success.
 bool find_walkable_in_bounds(const TileMap& map, const Rect& bounds,

@@ -26,6 +26,8 @@ set(ASTRA_SOURCES
     src/npcs/civilian.cpp
     src/npcs/scavenger.cpp
     src/npcs/prospector.cpp
+    src/npcs/scav_keeper.cpp
+    src/npcs/scav_merchant.cpp
     src/npc_spawner.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp
@@ -35,6 +37,7 @@ set(ASTRA_SOURCES
     src/generators/open_cave_generator.cpp
     src/generators/tunnel_cave_generator.cpp
     src/generators/hub_station_generator.cpp
+    src/generators/scav_station_generator.cpp
     src/generators/derelict_station_generator.cpp
     src/generators/starship_generator.cpp
     src/generators/overworld_generator_base.cpp
