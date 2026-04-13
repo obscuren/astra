@@ -1,5 +1,6 @@
 #include "astra/star_chart.h"
 #include "astra/lore_types.h"
+#include "astra/station_roll.h"
 #include "astra/time_of_day.h"
 
 #include <algorithm>
@@ -131,8 +132,14 @@ void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy) {
     sys.has_station = station_roll(rng) < 80;
 
     if (sys.has_station) {
-        // ~2% abandoned
-        sys.station.type = (station_roll(rng) < 2) ? StationType::Abandoned : StationType::NormalHub;
+        // Station seed derived from system seed (same as sys.id) for reproducibility.
+        // Task 14's distribution test should use this same derivation.
+        uint64_t station_seed = static_cast<uint64_t>(seed);
+        sys.station.type = roll_station_type(station_seed);
+        sys.station.specialty = (sys.station.type == StationType::NormalHub)
+            ? roll_station_specialty(station_seed)
+            : StationSpecialty::Generic;
+        sys.station.keeper_seed = derive_keeper_seed(station_seed);
         sys.station.name = generate_station_name(rng);
     }
 
@@ -594,6 +601,7 @@ NavigationData generate_galaxy(unsigned game_seed) {
         sol.has_station = true;
         sol.station.name = "The Heavens Above";
         sol.station.type = StationType::NormalHub;
+        sol.station.specialty = StationSpecialty::Generic;
         sol.planet_count = 8;
         sol.asteroid_belts = 1;
         sol.danger_level = 1;

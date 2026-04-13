@@ -100,6 +100,7 @@ set(ASTRA_SOURCES
     src/faction.cpp
     src/ship.cpp
     src/station_type.cpp
+    src/station_roll.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp
