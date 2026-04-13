@@ -267,15 +267,15 @@ bool CharacterScreen::handle_input(int key) {
             // Layout:  row0: Face(0)
             //          row1: Head(1)
             //          row2: LHand(2) LArm(3) Body(4) RArm(5) RHand(6)
-            //          row3: Back(7)
+            //          row3: Shield(11) Back(7)
             //          row4: Feet(8)
-            //          row5: Thrown(9) Missile(10) Shield(11)
+            //          row5: Thrown(9) Missile(10)
             //
             // Navigation tables: -1 = no movement
-            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8,  8,  8};
-            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1, -1};
-            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, -1, -1, -1,  9, 10};
-            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, -1, -1, 10, 11, -1};
+            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8,  8,  4};
+            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1,  8};
+            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, 11, -1, -1,  9, -1};
+            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, -1, -1, 10, -1,  7};
 
             int next = -1;
             if (key == KEY_UP)    next = nav_up[equip_cursor_];
@@ -649,7 +649,7 @@ void CharacterScreen::execute_context_action(char key) {
                 look_item_ = &(*equipped);
                 look_open_ = true;
             } else if (key == 'r') {
-                context_message_ = "Uninstalled " + equipped->name + ".";
+                context_message_ = "Uninstalled " + equipped->display_name() + ".";
                 context_msg_timer_ = 3;
                 player_->ship.cargo.push_back(std::move(*equipped));
                 equipped.reset();
@@ -669,7 +669,7 @@ void CharacterScreen::execute_context_action(char key) {
                 cargo.erase(cargo.begin() + ship_inv_cursor_);
                 if (sl) cargo.push_back(std::move(*sl));
                 sl = std::move(to_install);
-                context_message_ = "Installed " + sl->name + ".";
+                context_message_ = "Installed " + sl->display_name() + ".";
                 context_msg_timer_ = 3;
                 installed_ship_slot_ = ship_slot_name(target);
                 if (ship_inv_cursor_ >= static_cast<int>(cargo.size()) && ship_inv_cursor_ > 0)
@@ -692,7 +692,7 @@ void CharacterScreen::execute_context_action(char key) {
                 context_msg_timer_ = 3;
                 return;
             }
-            context_message_ = "Removed " + equipped->name + ".";
+            context_message_ = "Removed " + equipped->display_name() + ".";
             context_msg_timer_ = 3;
             // Save shield charge back to item before unequipping
             if (slot == EquipSlot::Shield) {
@@ -745,7 +745,7 @@ void CharacterScreen::execute_context_action(char key) {
                     player_->shield_hp = sl->shield_hp;
                     player_->shield_affinity = sl->type_affinity;
                 }
-                context_message_ = "Equipped " + sl->name + ".";
+                context_message_ = "Equipped " + sl->display_name() + ".";
                 context_msg_timer_ = 3;
                 if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
                     --inv_cursor_;
@@ -764,7 +764,7 @@ void CharacterScreen::execute_context_action(char key) {
             context_msg_timer_ = 3;
         } else if (key == 'd') {
             auto& item = items[inv_cursor_];
-            context_message_ = "Dropped " + item.name + ".";
+            context_message_ = "Dropped " + item.display_name() + ".";
             context_msg_timer_ = 3;
             dropped_item_ = std::move(item);
             has_dropped_item_ = true;
@@ -904,10 +904,19 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     }});
     y++;
 
-    // Item name centered, colored by rarity
-    int name_x = (cw - static_cast<int>(item.name.size())) / 2;
+    // Item name centered, colored by rarity; dice suffix in white
+    std::string full_display = item.display_name();
+    int name_x = (cw - static_cast<int>(full_display.size())) / 2;
     if (name_x < 1) name_x = 1;
-    panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
+    if (!item.damage_dice.empty()) {
+        std::string dice_str = " - " + item.damage_dice.to_string();
+        panel_content.styled_text({.x = name_x, .y = y, .segments = {
+            {item.name, rarity_tag(item.rarity)},
+            {dice_str, UITag::TextDim},
+        }});
+    } else {
+        panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
+    }
     y++;
 
     // Separator between header and content
@@ -1645,10 +1654,11 @@ void CharacterScreen::draw_equipment(UIContext& ctx) {
         {col_c,  dy + slot_h * 3, EquipSlot::Back,      "Back"},
         // Row 4: Feet (center)
         {col_c,  dy + slot_h * 4, EquipSlot::Feet,      "Feet"},
-        // Row 5: Thrown, Missile, Shield
+        // Row 5: Thrown, Missile
         {col_l,  dy + slot_h * 5, EquipSlot::Thrown,    "Thrown"},
-        {col_c,  dy + slot_h * 5, EquipSlot::Missile,   "Missile"},
-        {col_r,  dy + slot_h * 5, EquipSlot::Shield,    "Shield"},
+        {col_r,  dy + slot_h * 5, EquipSlot::Missile,   "Missile"},
+        // Shield: tethered to left of Back
+        {col_l,  dy + slot_h * 3, EquipSlot::Shield,    "Shield"},
     };
 
     // Draw connector lines (center spine: between Face→Head→Body→Back→Feet)
@@ -1682,6 +1692,13 @@ void CharacterScreen::draw_equipment(UIContext& ctx) {
             ctx.put(hx, row_y, BoxDraw::H, line_color);
         // R.Arm to R.Hand
         for (int hx = col_r + bw; hx < col_rr; ++hx)
+            ctx.put(hx, row_y, BoxDraw::H, line_color);
+    }
+
+    // Horizontal connector on Back row: Shield─Back
+    {
+        int row_y = positions[7].y + bh / 2; // middle of Back row
+        for (int hx = col_l + bw; hx < col_c; ++hx)
             ctx.put(hx, row_y, BoxDraw::H, line_color);
     }
 
@@ -2033,7 +2050,15 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 
     if (workbench_item_) {
         const auto& item = *workbench_item_;
-        ctx.text({.x = rx, .y = ry, .content = item.name, .tag = rarity_tag(item.rarity)});
+        if (!item.damage_dice.empty()) {
+            std::string dice_str = " - " + item.damage_dice.to_string();
+            ctx.styled_text({.x = rx, .y = ry, .segments = {
+                {item.name, rarity_tag(item.rarity)},
+                {dice_str, UITag::TextDim},
+            }});
+        } else {
+            ctx.text({.x = rx, .y = ry, .content = item.name, .tag = rarity_tag(item.rarity)});
+        }
         ry++;
         ctx.text({.x = rx, .y = ry, .content = std::string(rarity_name(item.rarity)),
                   .tag = rarity_tag(item.rarity)});

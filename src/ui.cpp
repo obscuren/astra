@@ -343,6 +343,13 @@ int draw_item_name(UIContext& ctx, int x, int y, const Item& item, bool selected
     ctx.text(x, y, item.name, name_color);
     x += static_cast<int>(item.name.size());
 
+    // Dice suffix for weapons/grenades (in dim white)
+    if (!item.damage_dice.empty()) {
+        std::string dice = " - " + item.damage_dice.to_string();
+        ctx.text(x, y, dice, Color::DarkGray);
+        x += static_cast<int>(dice.size());
+    }
+
     if (item.stackable && item.stack_count > 1) {
         std::string stack = " x" + std::to_string(item.stack_count);
         ctx.text(x, y, stack, Color::White);

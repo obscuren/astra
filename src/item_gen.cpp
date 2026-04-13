@@ -151,14 +151,6 @@ static void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng) {
             break;
     }
 
-    // Update weapon display name with current dice
-    if (!item.damage_dice.empty()) {
-        auto dash = item.name.rfind(" - ");
-        if (dash != std::string::npos) {
-            item.name = item.name.substr(0, dash);
-        }
-        item.name += " - " + item.damage_dice.to_string();
-    }
 }
 
 Item generate_random_weapon(std::mt19937& rng, int level) {

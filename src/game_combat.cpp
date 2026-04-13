@@ -412,7 +412,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         // Loot drop (50% chance)
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
             Item loot = generate_loot_drop(rng, npc.level);
-            game.log("Dropped: " + loot.name);
+            game.log("Dropped: " + loot.display_name());
             game.world().ground_items().push_back({npc.x, npc.y, std::move(loot)});
         }
     }
@@ -646,7 +646,7 @@ void CombatSystem::shoot_target(Game& game) {
         // Loot drop (50% chance)
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
             Item loot = generate_loot_drop(rng, target_npc_->level);
-            game.log("Dropped: " + loot.name);
+            game.log("Dropped: " + loot.display_name());
             game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
         target_npc_ = nullptr;
@@ -664,7 +664,7 @@ void CombatSystem::reload_weapon(Game& game) {
 
     auto& rd = *weapon->ranged;
     if (rd.current_charge >= rd.charge_capacity) {
-        game.log(weapon->name + " is fully charged.");
+        game.log(weapon->display_name() + " is fully charged.");
         return;
     }
 
@@ -672,7 +672,7 @@ void CombatSystem::reload_weapon(Game& game) {
         if (game.player().inventory.items[i].type == ItemType::Battery) {
             int added = std::min(5, rd.charge_capacity - rd.current_charge);
             rd.current_charge += added;
-            game.log("Reloaded " + weapon->name + ". (+" + std::to_string(added) +
+            game.log("Reloaded " + weapon->display_name() + ". (+" + std::to_string(added) +
                 " charge, " + std::to_string(rd.current_charge) + "/" +
                 std::to_string(rd.charge_capacity) + ")");
             auto& cell = game.player().inventory.items[i];

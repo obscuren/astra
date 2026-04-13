@@ -185,6 +185,13 @@ struct Item {
     // Ship component fields (only meaningful when type == ShipComponent)
     std::optional<ShipSlot> ship_slot;
     ShipModifiers ship_modifiers;
+
+    // Display name: "name - 1d6" for weapons, just "name" otherwise
+    std::string display_name() const {
+        if (!damage_dice.empty())
+            return name + " - " + damage_dice.to_string();
+        return name;
+    }
 };
 
 struct GroundItem {

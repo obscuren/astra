@@ -12,7 +12,7 @@ Item build_plasma_pistol() {
     Item it;
     it.item_def_id = ITEM_PLASMA_PISTOL;
     it.id = 1001;
-    it.name = "Plasma Pistol - 1d6";
+    it.name = "Plasma Pistol";
     it.description = "Standard-issue sidearm. Fires superheated plasma bolts.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Pistol;
@@ -33,7 +33,7 @@ Item build_ion_blaster() {
     Item it;
     it.item_def_id = ITEM_ION_BLASTER;
     it.id = 1002;
-    it.name = "Ion Blaster - 1d8+1";
+    it.name = "Ion Blaster";
     it.description = "Disrupts electronics and shields with ionized electrical bursts.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Pistol;
@@ -54,7 +54,7 @@ Item build_pulse_rifle() {
     Item it;
     it.item_def_id = ITEM_PULSE_RIFLE;
     it.id = 1003;
-    it.name = "Pulse Rifle - 2d6";
+    it.name = "Pulse Rifle";
     it.description = "Military-grade kinetic rifle with rapid energy pulses.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Rifle;
@@ -76,7 +76,7 @@ Item build_arc_caster() {
     Item it;
     it.item_def_id = ITEM_ARC_CASTER;
     it.id = 1004;
-    it.name = "Arc Caster - 2d8+1";
+    it.name = "Arc Caster";
     it.description = "Channels electricity in a devastating arc. Unstable.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Rifle;
@@ -98,7 +98,7 @@ Item build_void_lance() {
     Item it;
     it.item_def_id = ITEM_VOID_LANCE;
     it.id = 1005;
-    it.name = "Void Lance - 3d8+2";
+    it.name = "Void Lance";
     it.description = "Fires a beam of compressed plasma dark energy. Extremely rare.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Rifle;
@@ -178,7 +178,7 @@ Item build_combat_stim() {
 Item build_combat_knife() {
     Item it;
     it.item_def_id = ITEM_COMBAT_KNIFE;
-    it.id = 1101; it.name = "Combat Knife - 1d4"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
+    it.id = 1101; it.name = "Combat Knife"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
     it.description = "A short, serrated kinetic blade. Fast and deadly at close range.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
     it.weight = 2;
@@ -192,7 +192,7 @@ Item build_combat_knife() {
 Item build_vibro_blade() {
     Item it;
     it.item_def_id = ITEM_VIBRO_BLADE;
-    it.id = 1102; it.name = "Vibro Blade - 1d6+1"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
+    it.id = 1102; it.name = "Vibro Blade"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
     it.description = "A high-frequency vibrating kinetic blade that cuts through armor.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Uncommon;
     it.weight = 3;
@@ -206,7 +206,7 @@ Item build_vibro_blade() {
 Item build_plasma_saber() {
     Item it;
     it.item_def_id = ITEM_PLASMA_SABER;
-    it.id = 1103; it.name = "Plasma Saber - 2d4+2"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
+    it.id = 1103; it.name = "Plasma Saber"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A long blade wreathed in superheated plasma. Devastating.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Rare;
     it.weight = 4;
@@ -220,7 +220,7 @@ Item build_plasma_saber() {
 Item build_stun_baton() {
     Item it;
     it.item_def_id = ITEM_STUN_BATON;
-    it.id = 1104; it.name = "Stun Baton - 1d4+1"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
+    it.id = 1104; it.name = "Stun Baton"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "An electrified baton. Slow but stuns on hit with electrical damage.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
     it.weight = 3;
@@ -234,7 +234,7 @@ Item build_stun_baton() {
 Item build_ancient_mono_edge() {
     Item it;
     it.item_def_id = ITEM_ANCIENT_MONO_EDGE;
-    it.id = 1105; it.name = "Ancient Mono-Edge - 2d6+2"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
+    it.id = 1105; it.name = "Ancient Mono-Edge"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A relic kinetic blade from a lost civilization. Its molecular edge never dulls.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Epic;
     it.weight = 2;
