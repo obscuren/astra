@@ -124,13 +124,13 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     if (target.is_player) {
         int dist = target.distance;
         if (dist <= 1) {
-            int dodge_chance = std::min(game.player().effective_dodge() * 2, 50);
+            int dodge_chance = std::min(game.player().effective_dv() * 2, 50);
             if (roll_percent(game.world().rng(), dodge_chance)) {
                 game.log("You dodge " + npc.display_name() + "'s attack!");
                 return;
             }
             int raw_damage = npc.attack_damage();
-            int defense = game.player().effective_defense();
+            int defense = game.player().effective_av(DamageType::Kinetic);
             int damage = raw_damage - defense;
             if (damage < 1) damage = 1;
             damage = apply_damage_effects(game.player().effects, damage);
@@ -206,7 +206,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         return;
     }
 
-    int damage = game.player().effective_attack();
+    int damage = game.player().attack_value;
     // Weapon expertise bonus
     const auto& weapon = game.player().equipment.right_hand;
     if (weapon) {
@@ -423,7 +423,7 @@ void CombatSystem::shoot_target(Game& game) {
     }
 
     // Damage = effective attack (includes STR modifier + all equipment)
-    int damage = game.player().effective_attack();
+    int damage = game.player().attack_value;
     // Ranged weapon expertise bonus
     const auto& rw2 = game.player().equipment.missile;
     if (rw2) {

@@ -1,4 +1,5 @@
 #include "astra/item_defs.h"
+#include "astra/dice.h"
 #include "astra/item_ids.h"
 
 namespace astra {
@@ -11,7 +12,7 @@ Item build_plasma_pistol() {
     Item it;
     it.item_def_id = ITEM_PLASMA_PISTOL;
     it.id = 1001;
-    it.name = "Plasma Pistol";
+    it.name = "Plasma Pistol - 1d6";
     it.description = "Standard-issue sidearm. Fires superheated plasma bolts.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Pistol;
@@ -20,7 +21,8 @@ Item build_plasma_pistol() {
     it.weight = 3;
     it.buy_value = 120;
     it.sell_value = 40;
-    it.modifiers.attack = 3;
+    it.damage_dice = Dice::make(1, 6);
+    it.damage_type = DamageType::Plasma;
     it.max_durability = 80;
     it.durability = 80;
     it.ranged = RangedData{20, 1, 20, 6};
@@ -31,8 +33,8 @@ Item build_ion_blaster() {
     Item it;
     it.item_def_id = ITEM_ION_BLASTER;
     it.id = 1002;
-    it.name = "Ion Blaster";
-    it.description = "Disrupts electronics and shields with ionized bursts.";
+    it.name = "Ion Blaster - 1d8+1";
+    it.description = "Disrupts electronics and shields with ionized electrical bursts.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Pistol;
     it.slot = EquipSlot::Missile;
@@ -40,7 +42,8 @@ Item build_ion_blaster() {
     it.weight = 4;
     it.buy_value = 250;
     it.sell_value = 85;
-    it.modifiers.attack = 5;
+    it.damage_dice = Dice::make(1, 8, 1);
+    it.damage_type = DamageType::Electrical;
     it.max_durability = 60;
     it.durability = 60;
     it.ranged = RangedData{15, 2, 15, 8};
@@ -51,8 +54,8 @@ Item build_pulse_rifle() {
     Item it;
     it.item_def_id = ITEM_PULSE_RIFLE;
     it.id = 1003;
-    it.name = "Pulse Rifle";
-    it.description = "Military-grade rifle with rapid energy pulses.";
+    it.name = "Pulse Rifle - 2d6";
+    it.description = "Military-grade kinetic rifle with rapid energy pulses.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
@@ -60,7 +63,8 @@ Item build_pulse_rifle() {
     it.weight = 6;
     it.buy_value = 500;
     it.sell_value = 170;
-    it.modifiers.attack = 8;
+    it.damage_dice = Dice::make(2, 6);
+    it.damage_type = DamageType::Kinetic;
     it.modifiers.quickness = -5;
     it.max_durability = 100;
     it.durability = 100;
@@ -72,7 +76,7 @@ Item build_arc_caster() {
     Item it;
     it.item_def_id = ITEM_ARC_CASTER;
     it.id = 1004;
-    it.name = "Arc Caster";
+    it.name = "Arc Caster - 2d8+1";
     it.description = "Channels electricity in a devastating arc. Unstable.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Rifle;
@@ -81,7 +85,8 @@ Item build_arc_caster() {
     it.weight = 5;
     it.buy_value = 900;
     it.sell_value = 300;
-    it.modifiers.attack = 12;
+    it.damage_dice = Dice::make(2, 8, 1);
+    it.damage_type = DamageType::Electrical;
     it.modifiers.quickness = -10;
     it.max_durability = 50;
     it.durability = 50;
@@ -93,8 +98,8 @@ Item build_void_lance() {
     Item it;
     it.item_def_id = ITEM_VOID_LANCE;
     it.id = 1005;
-    it.name = "Void Lance";
-    it.description = "Fires a beam of compressed dark energy. Extremely rare.";
+    it.name = "Void Lance - 3d8+2";
+    it.description = "Fires a beam of compressed plasma dark energy. Extremely rare.";
     it.type = ItemType::RangedWeapon;
     it.weapon_class = WeaponClass::Rifle;
     it.slot = EquipSlot::Missile;
@@ -102,7 +107,8 @@ Item build_void_lance() {
     it.weight = 7;
     it.buy_value = 2500;
     it.sell_value = 800;
-    it.modifiers.attack = 18;
+    it.damage_dice = Dice::make(3, 8, 2);
+    it.damage_type = DamageType::Plasma;
     it.modifiers.view_radius = 2;
     it.max_durability = 40;
     it.durability = 40;
@@ -172,11 +178,13 @@ Item build_combat_stim() {
 Item build_combat_knife() {
     Item it;
     it.item_def_id = ITEM_COMBAT_KNIFE;
-    it.id = 1101; it.name = "Combat Knife"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
-    it.description = "A short, serrated blade. Fast and deadly at close range.";
+    it.id = 1101; it.name = "Combat Knife - 1d4"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
+    it.description = "A short, serrated kinetic blade. Fast and deadly at close range.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
     it.weight = 2;
-    it.buy_value = 60; it.sell_value = 20; it.modifiers.attack = 2;
+    it.buy_value = 60; it.sell_value = 20;
+    it.damage_dice = Dice::make(1, 4);
+    it.damage_type = DamageType::Kinetic;
     it.max_durability = 60; it.durability = 60;
     return it;
 }
@@ -184,11 +192,13 @@ Item build_combat_knife() {
 Item build_vibro_blade() {
     Item it;
     it.item_def_id = ITEM_VIBRO_BLADE;
-    it.id = 1102; it.name = "Vibro Blade"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
-    it.description = "A high-frequency vibrating blade that cuts through armor.";
+    it.id = 1102; it.name = "Vibro Blade - 1d6+1"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::ShortBlade;
+    it.description = "A high-frequency vibrating kinetic blade that cuts through armor.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Uncommon;
     it.weight = 3;
-    it.buy_value = 180; it.sell_value = 60; it.modifiers.attack = 4;
+    it.buy_value = 180; it.sell_value = 60;
+    it.damage_dice = Dice::make(1, 6, 1);
+    it.damage_type = DamageType::Kinetic;
     it.max_durability = 50; it.durability = 50;
     return it;
 }
@@ -196,11 +206,13 @@ Item build_vibro_blade() {
 Item build_plasma_saber() {
     Item it;
     it.item_def_id = ITEM_PLASMA_SABER;
-    it.id = 1103; it.name = "Plasma Saber"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
+    it.id = 1103; it.name = "Plasma Saber - 2d4+2"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
     it.description = "A long blade wreathed in superheated plasma. Devastating.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Rare;
     it.weight = 4;
-    it.buy_value = 400; it.sell_value = 135; it.modifiers.attack = 7;
+    it.buy_value = 400; it.sell_value = 135;
+    it.damage_dice = Dice::make(2, 4, 2);
+    it.damage_type = DamageType::Plasma;
     it.max_durability = 40; it.durability = 40;
     return it;
 }
@@ -208,11 +220,13 @@ Item build_plasma_saber() {
 Item build_stun_baton() {
     Item it;
     it.item_def_id = ITEM_STUN_BATON;
-    it.id = 1104; it.name = "Stun Baton"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
-    it.description = "An electrified baton. Slow but stuns on hit.";
+    it.id = 1104; it.name = "Stun Baton - 1d4+1"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
+    it.description = "An electrified baton. Slow but stuns on hit with electrical damage.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Common;
     it.weight = 3;
-    it.buy_value = 80; it.sell_value = 25; it.modifiers.attack = 1;
+    it.buy_value = 80; it.sell_value = 25;
+    it.damage_dice = Dice::make(1, 4, 1);
+    it.damage_type = DamageType::Electrical;
     it.modifiers.quickness = 5; it.max_durability = 70; it.durability = 70;
     return it;
 }
@@ -220,11 +234,13 @@ Item build_stun_baton() {
 Item build_ancient_mono_edge() {
     Item it;
     it.item_def_id = ITEM_ANCIENT_MONO_EDGE;
-    it.id = 1105; it.name = "Ancient Mono-Edge"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
-    it.description = "A relic blade from a lost civilization. Its molecular edge never dulls.";
+    it.id = 1105; it.name = "Ancient Mono-Edge - 2d6+2"; it.type = ItemType::MeleeWeapon; it.weapon_class = WeaponClass::LongBlade;
+    it.description = "A relic kinetic blade from a lost civilization. Its molecular edge never dulls.";
     it.slot = EquipSlot::RightHand; it.rarity = Rarity::Epic;
     it.weight = 2;
-    it.buy_value = 1200; it.sell_value = 400; it.modifiers.attack = 10;
+    it.buy_value = 1200; it.sell_value = 400;
+    it.damage_dice = Dice::make(2, 6, 2);
+    it.damage_type = DamageType::Kinetic;
     it.max_durability = 200; it.durability = 200;
     return it;
 }
@@ -240,7 +256,8 @@ Item build_padded_vest() {
     it.description = "Basic torso protection. Better than nothing.";
     it.slot = EquipSlot::Body; it.rarity = Rarity::Common;
     it.weight = 4;
-    it.buy_value = 80; it.sell_value = 25; it.modifiers.defense = 2;
+    it.buy_value = 80; it.sell_value = 25; it.modifiers.av = 2;
+    it.type_affinity = {1, 0, 0, 0, -1};
     it.max_durability = 50; it.durability = 50;
     return it;
 }
@@ -252,7 +269,8 @@ Item build_composite_armor() {
     it.description = "Layered ceramic-polymer plates. Standard military issue.";
     it.slot = EquipSlot::Body; it.rarity = Rarity::Uncommon;
     it.weight = 8;
-    it.buy_value = 250; it.sell_value = 85; it.modifiers.defense = 4;
+    it.buy_value = 250; it.sell_value = 85; it.modifiers.av = 4; it.modifiers.dv = -1;
+    it.type_affinity = {2, -1, 0, 0, -2};
     it.max_durability = 80; it.durability = 80;
     return it;
 }
@@ -264,7 +282,8 @@ Item build_exo_suit() {
     it.description = "Powered exoskeleton with integrated armor plating.";
     it.slot = EquipSlot::Body; it.rarity = Rarity::Rare;
     it.weight = 12;
-    it.buy_value = 600; it.sell_value = 200; it.modifiers.defense = 6;
+    it.buy_value = 600; it.sell_value = 200; it.modifiers.av = 6; it.modifiers.dv = -2;
+    it.type_affinity = {1, 1, -2, 1, 0};
     it.modifiers.max_hp = 3; it.max_durability = 120; it.durability = 120;
     return it;
 }
@@ -276,7 +295,7 @@ Item build_flight_helmet() {
     it.description = "Lightweight helmet with a tinted visor.";
     it.slot = EquipSlot::Head; it.rarity = Rarity::Common;
     it.weight = 2;
-    it.buy_value = 50; it.sell_value = 15; it.modifiers.defense = 1;
+    it.buy_value = 50; it.sell_value = 15; it.modifiers.av = 1;
     it.max_durability = 40; it.durability = 40;
     return it;
 }
@@ -288,7 +307,8 @@ Item build_tactical_helmet() {
     it.description = "Ballistic-rated helmet with HUD overlay.";
     it.slot = EquipSlot::Head; it.rarity = Rarity::Uncommon;
     it.weight = 3;
-    it.buy_value = 150; it.sell_value = 50; it.modifiers.defense = 2;
+    it.buy_value = 150; it.sell_value = 50; it.modifiers.av = 2;
+    it.type_affinity = {1, 0, 0, -1, 0};
     it.modifiers.view_radius = 1; it.max_durability = 60; it.durability = 60;
     return it;
 }
@@ -300,7 +320,7 @@ Item build_combat_boots() {
     it.description = "Sturdy boots with reinforced soles.";
     it.slot = EquipSlot::Feet; it.rarity = Rarity::Common;
     it.weight = 3;
-    it.buy_value = 60; it.sell_value = 20; it.modifiers.defense = 1;
+    it.buy_value = 60; it.sell_value = 20; it.modifiers.av = 1;
     it.max_durability = 50; it.durability = 50;
     return it;
 }
@@ -312,7 +332,7 @@ Item build_mag_lock_boots() {
     it.description = "Magnetic boots for zero-G traversal. Surprisingly agile.";
     it.slot = EquipSlot::Feet; it.rarity = Rarity::Uncommon;
     it.weight = 4;
-    it.buy_value = 120; it.sell_value = 40; it.modifiers.defense = 1;
+    it.buy_value = 120; it.sell_value = 40; it.modifiers.av = 1;
     it.modifiers.quickness = 3; it.max_durability = 60; it.durability = 60;
     return it;
 }
@@ -324,21 +344,102 @@ Item build_arm_guard() {
     it.description = "Lightweight forearm protector.";
     it.slot = EquipSlot::LeftArm; it.rarity = Rarity::Common;
     it.weight = 2;
-    it.buy_value = 40; it.sell_value = 12; it.modifiers.defense = 1;
+    it.buy_value = 40; it.sell_value = 12; it.modifiers.av = 1;
     it.max_durability = 40; it.durability = 40;
     return it;
 }
 
-Item build_riot_shield() {
+// ---------------------------------------------------------------------------
+// Energy shields
+// ---------------------------------------------------------------------------
+
+Item build_basic_deflector() {
     Item it;
-    it.item_def_id = ITEM_RIOT_SHIELD;
-    it.id = 3009; it.name = "Riot Shield"; it.type = ItemType::Shield;
-    it.description = "Heavy ballistic shield. Blocks incoming fire at the cost of speed.";
-    it.slot = EquipSlot::LeftHand; it.rarity = Rarity::Uncommon;
-    it.weight = 6;
-    it.buy_value = 200; it.sell_value = 65; it.modifiers.defense = 3;
-    it.modifiers.quickness = -5; it.max_durability = 100; it.durability = 100;
+    it.item_def_id = ITEM_BASIC_DEFLECTOR;
+    it.id = 3100; it.name = "Basic Deflector"; it.type = ItemType::Shield;
+    it.description = "Entry-level energy shield. Absorbs a small amount of damage.";
+    it.slot = EquipSlot::Shield; it.rarity = Rarity::Common;
+    it.weight = 2;
+    it.buy_value = 100; it.sell_value = 35;
+    it.shield_capacity = 10; it.shield_hp = 10;
+    it.type_affinity = {0, 0, 0, 0, 0};
     return it;
+}
+
+Item build_plasma_screen() {
+    Item it;
+    it.item_def_id = ITEM_PLASMA_SCREEN;
+    it.id = 3101; it.name = "Plasma Screen"; it.type = ItemType::Shield;
+    it.description = "Tuned to deflect plasma-based attacks.";
+    it.slot = EquipSlot::Shield; it.rarity = Rarity::Uncommon;
+    it.weight = 3;
+    it.buy_value = 250; it.sell_value = 85;
+    it.shield_capacity = 15; it.shield_hp = 15;
+    it.type_affinity = {0, 3, 0, 0, -1};
+    return it;
+}
+
+Item build_ion_barrier() {
+    Item it;
+    it.item_def_id = ITEM_ION_BARRIER;
+    it.id = 3102; it.name = "Ion Barrier"; it.type = ItemType::Shield;
+    it.description = "Disperses electrical and ion-based damage.";
+    it.slot = EquipSlot::Shield; it.rarity = Rarity::Uncommon;
+    it.weight = 3;
+    it.buy_value = 250; it.sell_value = 85;
+    it.shield_capacity = 15; it.shield_hp = 15;
+    it.type_affinity = {0, -1, 3, 0, 0};
+    return it;
+}
+
+Item build_composite_barrier() {
+    Item it;
+    it.item_def_id = ITEM_COMPOSITE_BARRIER;
+    it.id = 3103; it.name = "Composite Barrier"; it.type = ItemType::Shield;
+    it.description = "Balanced shield with moderate resistance across damage types.";
+    it.slot = EquipSlot::Shield; it.rarity = Rarity::Rare;
+    it.weight = 4;
+    it.buy_value = 500; it.sell_value = 170;
+    it.shield_capacity = 20; it.shield_hp = 20;
+    it.type_affinity = {1, 1, 1, 1, 1};
+    return it;
+}
+
+Item build_hardlight_aegis() {
+    Item it;
+    it.item_def_id = ITEM_HARDLIGHT_AEGIS;
+    it.id = 3104; it.name = "Hardlight Aegis"; it.type = ItemType::Shield;
+    it.description = "Projects a hardened light barrier. Excellent kinetic defense.";
+    it.slot = EquipSlot::Shield; it.rarity = Rarity::Epic;
+    it.weight = 3;
+    it.buy_value = 900; it.sell_value = 300;
+    it.shield_capacity = 30; it.shield_hp = 30;
+    it.type_affinity = {3, 1, -1, 0, 0};
+    return it;
+}
+
+Item build_void_mantle() {
+    Item it;
+    it.item_def_id = ITEM_VOID_MANTLE;
+    it.id = 3105; it.name = "Void Mantle"; it.type = ItemType::Shield;
+    it.description = "Ancient technology that bends space around the wearer.";
+    it.slot = EquipSlot::Shield; it.rarity = Rarity::Legendary;
+    it.weight = 2;
+    it.buy_value = 2500; it.sell_value = 800;
+    it.shield_capacity = 40; it.shield_hp = 40;
+    it.type_affinity = {2, 2, 2, 2, 2};
+    return it;
+}
+
+Item random_shield(std::mt19937& rng) {
+    std::uniform_int_distribution<int> dist(0, 99);
+    int roll = dist(rng);
+    if (roll < 35) return build_basic_deflector();     // 35%
+    if (roll < 55) return build_plasma_screen();        // 20%
+    if (roll < 75) return build_ion_barrier();           // 20%
+    if (roll < 90) return build_composite_barrier();     // 15%
+    if (roll < 97) return build_hardlight_aegis();       //  7%
+    return build_void_mantle();                          //  3%
 }
 
 // ---------------------------------------------------------------------------
@@ -402,7 +503,8 @@ Item build_frag_grenade() {
     it.slot = EquipSlot::Thrown; it.rarity = Rarity::Common;
     it.weight = 1;
     it.stackable = true; it.buy_value = 30; it.sell_value = 10;
-    it.modifiers.attack = 6;
+    it.damage_dice = Dice::make(2, 6);
+    it.damage_type = DamageType::Kinetic;
     return it;
 }
 
@@ -414,7 +516,8 @@ Item build_emp_grenade() {
     it.slot = EquipSlot::Thrown; it.rarity = Rarity::Uncommon;
     it.weight = 1;
     it.stackable = true; it.buy_value = 50; it.sell_value = 18;
-    it.modifiers.attack = 4;
+    it.damage_dice = Dice::make(1, 8);
+    it.damage_type = DamageType::Electrical;
     return it;
 }
 
@@ -426,7 +529,8 @@ Item build_cryo_grenade() {
     it.slot = EquipSlot::Thrown; it.rarity = Rarity::Rare;
     it.weight = 1;
     it.stackable = true; it.buy_value = 80; it.sell_value = 28;
-    it.modifiers.attack = 8;
+    it.damage_dice = Dice::make(2, 8);
+    it.damage_type = DamageType::Cryo;
     return it;
 }
 
@@ -588,14 +692,13 @@ Item random_melee_weapon(std::mt19937& rng) {
 Item random_armor(std::mt19937& rng) {
     std::uniform_int_distribution<int> dist(0, 99);
     int roll = dist(rng);
-    if (roll < 20) return build_padded_vest();       // 20%
-    if (roll < 35) return build_flight_helmet();     // 15%
-    if (roll < 50) return build_combat_boots();      // 15%
-    if (roll < 62) return build_arm_guard();         // 12%
-    if (roll < 74) return build_composite_armor();   // 12%
-    if (roll < 84) return build_tactical_helmet();   // 10%
-    if (roll < 92) return build_mag_lock_boots();    //  8%
-    if (roll < 97) return build_riot_shield();       //  5%
+    if (roll < 22) return build_padded_vest();       // 22%
+    if (roll < 38) return build_flight_helmet();     // 16%
+    if (roll < 54) return build_combat_boots();      // 16%
+    if (roll < 67) return build_arm_guard();         // 13%
+    if (roll < 80) return build_composite_armor();   // 13%
+    if (roll < 90) return build_tactical_helmet();   // 10%
+    if (roll < 97) return build_mag_lock_boots();    //  7%
     return build_exo_suit();                         //  3%
 }
 
@@ -626,6 +729,7 @@ std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     stock.push_back(random_armor(rng));
     stock.push_back(make_stack(build_frag_grenade(), 3));
     stock.push_back(build_night_goggles());
+    stock.push_back(random_shield(rng));
     // Ship components
     stock.push_back(build_hull_plate());
     stock.push_back(build_shield_generator());
@@ -649,6 +753,7 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
     stock.push_back(random_melee_weapon(rng));
     stock.push_back(make_stack(build_battery(), 5));
     stock.push_back(random_armor(rng));
+    stock.push_back(random_shield(rng));
     stock.push_back(make_stack(build_emp_grenade(), 2));
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));

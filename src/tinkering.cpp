@@ -177,8 +177,8 @@ TinkerResult commit_enhancements(Item& item) {
     for (auto& slot : item.enhancements) {
         if (slot.filled && !slot.committed) {
             // Apply bonus permanently
-            item.modifiers.attack += slot.bonus.attack;
-            item.modifiers.defense += slot.bonus.defense;
+            item.modifiers.av += slot.bonus.av;
+            item.modifiers.dv += slot.bonus.dv;
             item.modifiers.max_hp += slot.bonus.max_hp;
             item.modifiers.view_radius += slot.bonus.view_radius;
             item.modifiers.quickness += slot.bonus.quickness;

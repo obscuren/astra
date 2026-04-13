@@ -66,6 +66,14 @@ constexpr uint16_t ITEM_HULL_PLATE          = 38;
 constexpr uint16_t ITEM_SHIELD_GENERATOR    = 39;
 constexpr uint16_t ITEM_NAVI_COMPUTER_MK2   = 40;
 
+// Energy shields (41-46)
+constexpr uint16_t ITEM_BASIC_DEFLECTOR    = 41;
+constexpr uint16_t ITEM_PLASMA_SCREEN      = 42;
+constexpr uint16_t ITEM_ION_BARRIER        = 43;
+constexpr uint16_t ITEM_COMPOSITE_BARRIER  = 44;
+constexpr uint16_t ITEM_HARDLIGHT_AEGIS    = 45;
+constexpr uint16_t ITEM_VOID_MANTLE        = 46;
+
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;
 constexpr uint16_t ITEM_SYNTH_THRUSTER_PLATE    = 1001;

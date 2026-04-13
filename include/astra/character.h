@@ -29,6 +29,7 @@ struct PrimaryAttributes {
 };
 
 struct Resistances {
+    int kinetic = 0;    // KR
     int acid = 0;       // AR
     int electrical = 0; // ER
     int cold = 0;       // CR

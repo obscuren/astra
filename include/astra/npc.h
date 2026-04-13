@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/dice.h"
 #include "astra/effect.h"
 #include "astra/interaction.h"
 #include "astra/race.h"
@@ -44,6 +45,11 @@ struct Npc {
     bool elite = false;
     int base_xp = 0;
     int base_damage = 0;
+    int dv = 8;
+    int av = 0;
+    Dice damage_dice;
+    DamageType damage_type = DamageType::Kinetic;
+    TypeAffinity type_affinity;
     NpcRole npc_role = NpcRole::Civilian;
     InteractionData interactions;
 

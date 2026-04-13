@@ -61,8 +61,8 @@ void expire_effects(EffectList& effects) {
 StatModifiers effect_modifiers(const EffectList& effects) {
     StatModifiers total;
     for (const auto& e : effects) {
-        total.attack += e.modifiers.attack;
-        total.defense += e.modifiers.defense;
+        total.av += e.modifiers.av;
+        total.dv += e.modifiers.dv;
         total.max_hp += e.modifiers.max_hp;
         total.view_radius += e.modifiers.view_radius;
         total.quickness += e.modifiers.quickness;
@@ -167,7 +167,7 @@ Effect make_attack_boost(int duration, int amount) {
     e.duration = duration;
     e.remaining = duration;
     e.show_in_bar = false;
-    e.modifiers.attack = amount;
+    e.modifiers.av = amount;
     return e;
 }
 
@@ -179,7 +179,7 @@ Effect make_defense_boost(int duration, int amount) {
     e.duration = duration;
     e.remaining = duration;
     e.show_in_bar = false;
-    e.modifiers.defense = amount;
+    e.modifiers.av = amount;
     return e;
 }
 
@@ -204,7 +204,7 @@ Effect make_thick_skin() {
     e.duration = -1;
     e.remaining = -1;
     e.show_in_bar = false;
-    e.modifiers.defense = 1;
+    e.modifiers.av = 1;
     return e;
 }
 

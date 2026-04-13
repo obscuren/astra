@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/character.h"
+#include "astra/dice.h"
 #include "astra/effect.h"
 #include "astra/item.h"
 #include "astra/journal.h"
@@ -52,6 +53,11 @@ struct Player {
     HungerState hunger = HungerState::Satiated;
     int money = 0;
 
+    // Shield
+    int shield_hp = 0;
+    int shield_max_hp = 0;
+    TypeAffinity shield_affinity;
+
     // Primary attributes
     PrimaryAttributes attributes;
     int attribute_points = 0;
@@ -101,19 +107,29 @@ struct Player {
     uint16_t tab_help_seen = 0;  // bitfield, one bit per CharTab
 
     // Derived stats — attribute modifier + equipment + active effects
-    int effective_attack() const {
+    int effective_dv() const {
         auto eq = equipment.total_modifiers();
         auto ef = effect_modifiers(effects);
-        return attack_value + (attributes.strength - 10) / 2 + eq.attack + ef.attack;
+        return dodge_value + (attributes.agility - 10) / 2 + eq.dv + ef.dv;
     }
-    int effective_defense() const {
-        auto eq = equipment.total_modifiers();
+
+    int effective_av(DamageType type) const {
+        int total_av = 0;
+        auto add_slot = [&](const std::optional<Item>& slot) {
+            if (!slot) return;
+            if (slot->type != ItemType::Armor) return;
+            total_av += slot->modifiers.av + slot->type_affinity.for_type(type);
+        };
+        add_slot(equipment.head);
+        add_slot(equipment.body);
+        add_slot(equipment.left_arm);
+        add_slot(equipment.right_arm);
+        add_slot(equipment.feet);
         auto ef = effect_modifiers(effects);
-        return defense_value + (attributes.toughness - 10) / 3 + eq.defense + ef.defense;
+        total_av += ef.av;
+        return total_av;
     }
-    int effective_dodge() const {
-        return dodge_value + (attributes.agility - 10) / 3 + effect_dodge_mod(effects);
-    }
+
     int effective_max_hp() const {
         auto eq = equipment.total_modifiers();
         auto ef = effect_modifiers(effects);

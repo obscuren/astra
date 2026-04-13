@@ -20,7 +20,7 @@ public:
     }
 
     bool execute(Game& game, Npc* target) override {
-        int damage = game.player().effective_attack() / 2;
+        int damage = game.player().attack_value / 2;
         if (damage < 1) damage = 1;
         damage = apply_damage_effects(target->effects, damage);
         if (damage > 0) {
@@ -53,7 +53,7 @@ public:
             if (!npc.alive() || !is_hostile_to_player(npc.faction, game.player())) continue;
             int dx = std::abs(npc.x - px), dy = std::abs(npc.y - py);
             if (std::max(dx, dy) <= 1) {
-                int damage = game.player().effective_attack();
+                int damage = game.player().attack_value;
                 if (damage < 1) damage = 1;
                 damage = apply_damage_effects(npc.effects, damage);
                 if (damage > 0) {
@@ -89,7 +89,7 @@ public:
             game.log("No target for Quickdraw. Use [t] to target first.");
             return false;
         }
-        int damage = game.player().effective_attack();
+        int damage = game.player().attack_value;
         if (damage < 1) damage = 1;
         damage = apply_damage_effects(tnpc->effects, damage);
         if (damage > 0) {

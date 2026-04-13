@@ -39,6 +39,7 @@ const char* equip_slot_name(EquipSlot slot) {
         case EquipSlot::Feet:      return "Feet";
         case EquipSlot::Thrown:    return "Thrown";
         case EquipSlot::Missile:   return "Missile";
+        case EquipSlot::Shield:    return "Shield";
     }
     return "?";
 }
@@ -56,6 +57,7 @@ std::optional<Item>& Equipment::slot_ref(EquipSlot slot) {
         case EquipSlot::Feet:      return feet;
         case EquipSlot::Thrown:    return thrown;
         case EquipSlot::Missile:   return missile;
+        case EquipSlot::Shield:    return shield;
     }
     return head; // unreachable
 }
@@ -73,6 +75,7 @@ const std::optional<Item>& Equipment::slot_ref(EquipSlot slot) const {
         case EquipSlot::Feet:      return feet;
         case EquipSlot::Thrown:    return thrown;
         case EquipSlot::Missile:   return missile;
+        case EquipSlot::Shield:    return shield;
     }
     return head; // unreachable
 }
@@ -82,12 +85,12 @@ StatModifiers Equipment::total_modifiers() const {
     const std::optional<Item>* slots[] = {
         &face, &head, &body, &left_arm, &right_arm,
         &left_hand, &right_hand, &back, &feet,
-        &thrown, &missile,
+        &thrown, &missile, &shield,
     };
     for (const auto* s : slots) {
         if (*s) {
-            total.attack += (*s)->modifiers.attack;
-            total.defense += (*s)->modifiers.defense;
+            total.av += (*s)->modifiers.av;
+            total.dv += (*s)->modifiers.dv;
             total.max_hp += (*s)->modifiers.max_hp;
             total.view_radius += (*s)->modifiers.view_radius;
             total.quickness += (*s)->modifiers.quickness;

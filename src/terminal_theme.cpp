@@ -1177,6 +1177,14 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_CIRCUIT_BOARD:       return {'+', nullptr, Color::Green, Color::Default};
         case ITEM_ALLOY_INGOT:         return {'+', nullptr, Color::White, Color::Default};
 
+        // Energy shields (41-46)
+        case ITEM_BASIC_DEFLECTOR:     return {'0', nullptr, Color::White, Color::Default};
+        case ITEM_PLASMA_SCREEN:       return {'0', nullptr, Color::Red, Color::Default};
+        case ITEM_ION_BARRIER:         return {'0', nullptr, Color::Cyan, Color::Default};
+        case ITEM_COMPOSITE_BARRIER:   return {'0', nullptr, Color::Green, Color::Default};
+        case ITEM_HARDLIGHT_AEGIS:     return {'0', nullptr, Color::Yellow, Color::Default};
+        case ITEM_VOID_MANTLE:         return {'0', nullptr, Color::Magenta, Color::Default};
+
         // Ship components (37-40)
         case ITEM_ENGINE_COIL_MK1:     return {'#', nullptr, Color::Yellow, Color::Default};
         case ITEM_HULL_PLATE:          return {'#', nullptr, Color::White, Color::Default};

@@ -195,8 +195,8 @@ static bool read_header(std::ifstream& in, SaveHeader& h) {
 // ---------------------------------------------------------------------------
 
 static void write_stat_modifiers(BinaryWriter& w, const StatModifiers& m) {
-    w.write_i32(m.attack);
-    w.write_i32(m.defense);
+    w.write_i32(m.av);
+    w.write_i32(m.dv);
     w.write_i32(m.max_hp);
     w.write_i32(m.view_radius);
     w.write_i32(m.quickness);
@@ -204,8 +204,8 @@ static void write_stat_modifiers(BinaryWriter& w, const StatModifiers& m) {
 
 static StatModifiers read_stat_modifiers(BinaryReader& r) {
     StatModifiers m;
-    m.attack = r.read_i32();
-    m.defense = r.read_i32();
+    m.av = r.read_i32();
+    m.dv = r.read_i32();
     m.max_hp = r.read_i32();
     m.view_radius = r.read_i32();
     m.quickness = r.read_i32();
@@ -313,8 +313,8 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_u8(enh.committed ? 1 : 0);
         w.write_u32(enh.material_id);
         w.write_string(enh.material_name);
-        w.write_i32(enh.bonus.attack);
-        w.write_i32(enh.bonus.defense);
+        w.write_i32(enh.bonus.av);
+        w.write_i32(enh.bonus.dv);
         w.write_i32(enh.bonus.max_hp);
         w.write_i32(enh.bonus.view_radius);
         w.write_i32(enh.bonus.quickness);
@@ -374,8 +374,8 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
         item.enhancements[i].committed = r.read_u8() != 0;
         item.enhancements[i].material_id = r.read_u32();
         item.enhancements[i].material_name = r.read_string();
-        item.enhancements[i].bonus.attack = r.read_i32();
-        item.enhancements[i].bonus.defense = r.read_i32();
+        item.enhancements[i].bonus.av = r.read_i32();
+        item.enhancements[i].bonus.dv = r.read_i32();
         item.enhancements[i].bonus.max_hp = r.read_i32();
         item.enhancements[i].bonus.view_radius = r.read_i32();
         item.enhancements[i].bonus.quickness = r.read_i32();

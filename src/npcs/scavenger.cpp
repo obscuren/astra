@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/dice.h"
 #include "astra/faction.h"
 
 namespace astra {
@@ -13,6 +14,10 @@ Npc build_scavenger(Race race, std::mt19937& rng) {
     npc.quickness = 60;
     npc.base_xp = 12;
     npc.base_damage = 2;
+    npc.dv = 9; npc.av = 3;
+    npc.damage_dice = Dice::make(1, 6);
+    npc.damage_type = DamageType::Kinetic;
+    npc.type_affinity = {1, 0, -1, 0, 0};
     npc.name = generate_name(race, rng);
     npc.faction = Faction_DriftCollective;
 

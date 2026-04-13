@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/dice.h"
 #include "astra/faction.h"
 
 namespace astra {
@@ -13,6 +14,9 @@ Npc build_drifter(Race race, std::mt19937& rng) {
     npc.quickness = 50;
     npc.base_xp = 10;
     npc.base_damage = 1;
+    npc.dv = 10; npc.av = 2;
+    npc.damage_dice = Dice::make(1, 4);
+    npc.damage_type = DamageType::Kinetic;
     npc.name = generate_name(race, rng);
     npc.faction = Faction_DriftCollective;
 

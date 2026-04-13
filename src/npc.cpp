@@ -72,10 +72,14 @@ void Npc::scale_to_level(int lvl, bool is_elite) {
     elite = is_elite;
     hp = hp * level;
     max_hp = hp;
+    dv += (level - 1);
+    av += (level - 1) / 2;
     if (elite) {
         hp *= 2;
         max_hp *= 2;
         quickness = quickness * 3 / 2;
+        dv += 2;
+        av += 1;
     }
 }
 

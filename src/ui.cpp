@@ -381,14 +381,14 @@ void draw_item_info(UIContext& ctx, const Item& item) {
     y++;
 
     const auto& m = item.modifiers;
-    if (m.attack) {
-        ctx.label_value(0, y, "Attack:    ", Color::DarkGray,
-            (m.attack > 0 ? "+" : "") + std::to_string(m.attack), Color::Red);
+    if (m.av) {
+        ctx.label_value(0, y, "AV:        ", Color::DarkGray,
+            (m.av > 0 ? "+" : "") + std::to_string(m.av), Color::Red);
         y++;
     }
-    if (m.defense) {
-        ctx.label_value(0, y, "Defense:   ", Color::DarkGray,
-            (m.defense > 0 ? "+" : "") + std::to_string(m.defense), Color::Blue);
+    if (m.dv) {
+        ctx.label_value(0, y, "DV:        ", Color::DarkGray,
+            (m.dv > 0 ? "+" : "") + std::to_string(m.dv), Color::Blue);
         y++;
     }
     if (m.max_hp) {
@@ -458,8 +458,8 @@ void draw_item_info(UIContext& ctx, const Item& item) {
             if (enh.filled) {
                 std::string line = " [" + std::to_string(si + 1) + "] " + enh.material_name;
                 std::string bonus;
-                if (enh.bonus.attack) bonus += " ATK+" + std::to_string(enh.bonus.attack);
-                if (enh.bonus.defense) bonus += " DEF+" + std::to_string(enh.bonus.defense);
+                if (enh.bonus.av) bonus += " AV+" + std::to_string(enh.bonus.av);
+                if (enh.bonus.dv) bonus += " DV+" + std::to_string(enh.bonus.dv);
                 if (enh.bonus.view_radius) bonus += " VIS+" + std::to_string(enh.bonus.view_radius);
                 if (enh.bonus.quickness) bonus += " QCK+" + std::to_string(enh.bonus.quickness);
                 ctx.text(0, y, line, Color::Green);

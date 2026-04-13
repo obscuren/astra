@@ -9,6 +9,7 @@ namespace astra {
 // Affix pools
 // ---------------------------------------------------------------------------
 
+// Affix modifiers: {av, dv, max_hp, view_radius, quickness}
 static const ItemAffix s_prefixes[] = {
     {"Corroded",     true, {0, -1, 0, 0, 0}, -5,  0.7f},
     {"Rusted",       true, {-2, 0, 0, 0, 0}, -3,  0.6f},
@@ -51,8 +52,8 @@ void scale_item_to_level(Item& item, int level) {
     };
 
     item.item_level = level;
-    item.modifiers.attack = scale(item.modifiers.attack);
-    item.modifiers.defense = scale(item.modifiers.defense);
+    item.modifiers.av = scale(item.modifiers.av);
+    item.modifiers.dv = scale(item.modifiers.dv);
     item.modifiers.max_hp = scale(item.modifiers.max_hp);
     item.buy_value = scale(item.buy_value);
     item.sell_value = scale(item.sell_value);
@@ -76,8 +77,8 @@ void apply_affix(Item& item, const ItemAffix& affix) {
         item.name = item.name + " " + affix.name;
     }
 
-    item.modifiers.attack += affix.modifiers.attack;
-    item.modifiers.defense += affix.modifiers.defense;
+    item.modifiers.av += affix.modifiers.av;
+    item.modifiers.dv += affix.modifiers.dv;
     item.modifiers.max_hp += affix.modifiers.max_hp;
     item.modifiers.view_radius += affix.modifiers.view_radius;
     item.modifiers.quickness += affix.modifiers.quickness;

@@ -859,10 +859,10 @@ void Game::render_stats_bar() {
     right.push_back({std::to_string(player_.move_speed), UITag::TextBright});
     right.push_back({" :: ", UITag::TextDim});
     right.push_back({"AV:", UITag::TextDim});
-    right.push_back({std::to_string(player_.effective_attack()), UITag::StatDefense});
+    right.push_back({std::to_string(player_.effective_av(DamageType::Kinetic)), UITag::StatDefense});
     right.push_back({" :: ", UITag::TextDim});
     right.push_back({"DV:", UITag::TextDim});
-    right.push_back({std::to_string(player_.effective_dodge()), UITag::StatDefense});
+    right.push_back({std::to_string(player_.effective_dv()), UITag::StatDefense});
     right.push_back({" :: ", UITag::TextDim});
 
     // Calendar text

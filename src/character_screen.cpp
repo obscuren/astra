@@ -1271,8 +1271,8 @@ void CharacterScreen::draw_attributes(UIContext& ctx) {
     int sec_values[] = {
         player_->quickness + (a.agility - 10) / 2,
         player_->move_speed + (a.agility - 10) / 4,
-        player_->effective_defense(),
-        player_->effective_dodge(),
+        player_->effective_av(DamageType::Kinetic),
+        player_->effective_dv(),
     };
 
     for (int i = 0; i < 4; ++i) {
@@ -1707,8 +1707,8 @@ void CharacterScreen::draw_equipment(UIContext& ctx) {
         draw_section_header(ctx, bonus_y, "BONUSES");
         auto mods = player_->equipment.total_modifiers();
         ctx.styled_text({.x = 2, .y = bonus_y + 1, .segments = {
-            {"ATK +", UITag::StatAttack}, {std::to_string(mods.attack), UITag::StatAttack},
-            {"  DEF +", UITag::StatDefense}, {std::to_string(mods.defense), UITag::StatDefense},
+            {"AV +", UITag::StatAttack}, {std::to_string(mods.av), UITag::StatAttack},
+            {"  DV +", UITag::StatDefense}, {std::to_string(mods.dv), UITag::StatDefense},
             {"  HP +", UITag::StatHealth}, {std::to_string(mods.max_hp), UITag::StatHealth},
         }});
         ctx.styled_text({.x = 2, .y = bonus_y + 2, .segments = {
@@ -1872,8 +1872,8 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
                    && workbench_item_->enhancements[si].filled) {
             const auto& enh = workbench_item_->enhancements[si];
             std::string bonus;
-            if (enh.bonus.attack) bonus = "+" + std::to_string(enh.bonus.attack) + "ATK";
-            else if (enh.bonus.defense) bonus = "+" + std::to_string(enh.bonus.defense) + "DEF";
+            if (enh.bonus.av) bonus = "+" + std::to_string(enh.bonus.av) + "AV";
+            else if (enh.bonus.dv) bonus = "+" + std::to_string(enh.bonus.dv) + "DV";
             else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
             UITag enh_tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning;
         {
@@ -2018,12 +2018,12 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
                   .tag = rarity_tag(item.rarity)});
         ry += 2;
 
-        if (item.modifiers.attack)
-            ctx.label_value({.x = rx, .y = ry++, .label = "ATK: +", .label_tag = UITag::StatAttack,
-                             .value = std::to_string(item.modifiers.attack), .value_tag = UITag::StatAttack});
-        if (item.modifiers.defense)
-            ctx.label_value({.x = rx, .y = ry++, .label = "DEF: +", .label_tag = UITag::StatDefense,
-                             .value = std::to_string(item.modifiers.defense), .value_tag = UITag::StatDefense});
+        if (item.modifiers.av)
+            ctx.label_value({.x = rx, .y = ry++, .label = "AV: +", .label_tag = UITag::StatAttack,
+                             .value = std::to_string(item.modifiers.av), .value_tag = UITag::StatAttack});
+        if (item.modifiers.dv)
+            ctx.label_value({.x = rx, .y = ry++, .label = "DV: +", .label_tag = UITag::StatDefense,
+                             .value = std::to_string(item.modifiers.dv), .value_tag = UITag::StatDefense});
 
         if (item.max_durability > 0) {
             ry++;

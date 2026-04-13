@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/dice.h"
 #include "astra/renderer.h"
 #include "astra/ui_types.h"
 
@@ -54,9 +55,10 @@ enum class EquipSlot : uint8_t {
     Feet,
     Thrown,
     Missile,
+    Shield,
 };
 
-static constexpr int equip_slot_count = 11;
+static constexpr int equip_slot_count = 12;
 
 const char* equip_slot_name(EquipSlot slot);
 
@@ -122,8 +124,8 @@ inline const char* rarity_name(Rarity r) {
 }
 
 struct StatModifiers {
-    int attack = 0;
-    int defense = 0;
+    int av = 0;
+    int dv = 0;
     int max_hp = 0;
     int view_radius = 0;
     int quickness = 0;
@@ -165,6 +167,18 @@ struct Item {
     int max_durability = 0;
     bool usable = false;
     std::optional<RangedData> ranged;
+
+    // Combat dice (weapons)
+    Dice damage_dice;
+    DamageType damage_type = DamageType::Kinetic;
+
+    // Armor/shield type affinities
+    TypeAffinity type_affinity;
+
+    // Shield fields (only meaningful when slot == EquipSlot::Shield)
+    int shield_capacity = 0;
+    int shield_hp = 0;
+
     int enhancement_slots = 0;
     std::vector<EnhancementSlot> enhancements;
 
@@ -191,6 +205,7 @@ struct Equipment {
     std::optional<Item> feet;
     std::optional<Item> thrown;
     std::optional<Item> missile;
+    std::optional<Item> shield;
 
     std::optional<Item>& slot_ref(EquipSlot slot);
     const std::optional<Item>& slot_ref(EquipSlot slot) const;

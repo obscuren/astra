@@ -29,7 +29,14 @@ Item build_tactical_helmet();
 Item build_combat_boots();
 Item build_mag_lock_boots();
 Item build_arm_guard();
-Item build_riot_shield();
+// --- Energy shields ---
+Item build_basic_deflector();
+Item build_plasma_screen();
+Item build_ion_barrier();
+Item build_composite_barrier();
+Item build_hardlight_aegis();
+Item build_void_mantle();
+Item random_shield(std::mt19937& rng);
 
 // --- Accessories ---
 Item build_recon_visor();
