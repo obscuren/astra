@@ -269,13 +269,13 @@ bool CharacterScreen::handle_input(int key) {
             //          row2: LHand(2) LArm(3) Body(4) RArm(5) RHand(6)
             //          row3: Back(7)
             //          row4: Feet(8)
-            //          row5: Thrown(9) Missile(10)
+            //          row5: Thrown(9) Missile(10) Shield(11)
             //
             // Navigation tables: -1 = no movement
-            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8,  8};
-            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1};
-            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, -1, -1, -1,  9};
-            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, -1, -1, 10, -1};
+            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8,  8,  8};
+            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1, -1};
+            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, -1, -1, -1,  9, 10};
+            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, -1, -1, 10, 11, -1};
 
             int next = -1;
             if (key == KEY_UP)    next = nav_up[equip_cursor_];
@@ -694,6 +694,13 @@ void CharacterScreen::execute_context_action(char key) {
             }
             context_message_ = "Removed " + equipped->name + ".";
             context_msg_timer_ = 3;
+            // Save shield charge back to item before unequipping
+            if (slot == EquipSlot::Shield) {
+                equipped->shield_hp = player_->shield_hp;
+                player_->shield_hp = 0;
+                player_->shield_max_hp = 0;
+                player_->shield_affinity = {};
+            }
             player_->inventory.items.push_back(std::move(*equipped));
             equipped.reset();
         } else if (key == 'u') {
@@ -723,8 +730,21 @@ void CharacterScreen::execute_context_action(char key) {
                 auto& sl = player_->equipment.slot_ref(target_slot);
                 Item to_equip = std::move(item);
                 items.erase(items.begin() + inv_cursor_);
+                // Save shield charge back to old item before unequipping
+                if (target_slot == EquipSlot::Shield && sl) {
+                    sl->shield_hp = player_->shield_hp;
+                    player_->shield_hp = 0;
+                    player_->shield_max_hp = 0;
+                    player_->shield_affinity = {};
+                }
                 if (sl) items.push_back(std::move(*sl));
                 sl = std::move(to_equip);
+                // Sync shield HP from newly equipped shield
+                if (target_slot == EquipSlot::Shield) {
+                    player_->shield_max_hp = sl->shield_capacity;
+                    player_->shield_hp = sl->shield_hp;
+                    player_->shield_affinity = sl->type_affinity;
+                }
                 context_message_ = "Equipped " + sl->name + ".";
                 context_msg_timer_ = 3;
                 if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
@@ -1625,9 +1645,10 @@ void CharacterScreen::draw_equipment(UIContext& ctx) {
         {col_c,  dy + slot_h * 3, EquipSlot::Back,      "Back"},
         // Row 4: Feet (center)
         {col_c,  dy + slot_h * 4, EquipSlot::Feet,      "Feet"},
-        // Row 5: Thrown, Missile
+        // Row 5: Thrown, Missile, Shield
         {col_l,  dy + slot_h * 5, EquipSlot::Thrown,    "Thrown"},
-        {col_r,  dy + slot_h * 5, EquipSlot::Missile,   "Missile"},
+        {col_c,  dy + slot_h * 5, EquipSlot::Missile,   "Missile"},
+        {col_r,  dy + slot_h * 5, EquipSlot::Shield,    "Shield"},
     };
 
     // Draw connector lines (center spine: between Face→Head→Body→Back→Feet)
