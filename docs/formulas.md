@@ -4,39 +4,101 @@ Reference for all gameplay formulas used in Astra.
 
 ## Derived Stats
 
-- **Effective Attack**: `attack_value + (STR - 10) / 2 + equipment.attack + effects.attack`
-- **Effective Defense**: `defense_value + (TOU - 10) / 3 + equipment.defense + effects.defense`
-- **Effective Dodge**: `dodge_value + (AGI - 10) / 3 + effects.dodge_mod`
+- **DV (Dodge Value)**: `dodge_value + (AGI - 10) / 2 + equipment.dv + effects.dv`
+- **AV (Armor Value)**: `sum(equipped_armor.av) + sum(armor.type_affinity[damage_type]) + effects.av`
 - **Effective Max HP**: `max_hp + (TOU - 10) * 2 + equipment.max_hp + effects.max_hp`
 
-Base values: attack=1, defense=5, dodge=3, max_hp=10
+Base values: dodge_value=3, max_hp=10
 
 ## Combat
 
-### Damage Formulas
+### Attack Roll
 
-- **Player → NPC (melee)**: `effective_attack + weapon_expertise_bonus(+1)`
-- **Player → NPC (ranged)**: same as melee, uses missile slot weapon
-- **NPC → Player**: `npc.base_damage * npc.level + (elite ? 1 : 0) - effective_defense`
-- **NPC XP Reward**: `base_xp * level * (elite ? 3 : 1)`
-- **Kill Credits**: `level * 2 + (elite ? 5 : 0)`
+All attacks use a d20 roll against the target's DV:
 
-### Dodge/Miss Chance
+```
+attack_roll = 1d20 + attacker_modifier + weapon_skill_bonus
+hit = attack_roll >= target_DV
+```
 
-- **Player dodge chance**: `min(effective_dodge * 2, 50)` — checked before NPC deals damage
-- **NPC dodge chance**: `min(npc.level + (elite ? 5 : 0), 25)` — checked before player deals damage
-- Dodge check: `roll 1-100 <= dodge_chance` → miss (no damage applied)
-- Ranged miss still consumes ammo
+- **Natural 20**: always hits
+- **Natural 1**: always misses
+- **Player modifier**: `(AGI - 10) / 2`
+- **NPC modifier**: `level / 2`
+- **Weapon skill bonus**: +2 if trained in the matching weapon class
+
+| Weapon Class | Skill Required |
+|---|---|
+| ShortBlade | ShortBladeExpertise |
+| LongBlade | LongBladeExpertise |
+| Pistol | SteadyHand |
+| Rifle | Marksman |
+
+### Shield Layer
+
+If the target has shield HP > 0, damage is absorbed by the shield before armor:
+
+```
+raw_damage = damage_dice.roll()  (penetrate as if AV = 0)
+shield_cost = shield_absorb(raw_damage, damage_type, shield_affinity)
+shield_hp -= shield_cost
+```
+
+**Shield absorb with affinity:**
+```
+if affinity_bonus > 0:
+    shield_cost = max(1, raw_damage * 100 / (100 + affinity_bonus))
+else:
+    shield_cost = raw_damage
+```
+
+Excess damage when shield HP reaches 0 is discarded (shield absorbs the killing blow). No auto-recharge — player manually recharges from Battery items (+5 shield HP per cell).
+
+### Penetration Roll
+
+If no shield (or shield depleted), roll penetration against armor:
+
+```
+penetration_value = 1d10 + (STR - 10) / 2    (player)
+penetration_value = 1d10 + level / 3          (NPC)
+effective_AV = target.AV + target.type_affinity[damage_type]
+```
+
+- **Natural 10**: always penetrates (exactly 1 penetration)
+- **Natural 1**: always fails (0 damage)
+- **PV > AV**: 1 penetration → roll weapon damage dice once
+- **Each additional +4 over AV**: additional penetration → roll damage dice again
+- Total damage = sum of all penetration damage rolls
 
 ### Critical Hits (Player only)
 
-- **Crit chance**: `clamp((LUC - 8) * 2 + 3, 0, 30)`
-- **Crit multiplier**: 1.5x → `damage + (damage + 1) / 2` (always at least +1)
-- Checked after base damage, before effects pipeline
+- **Crit chance**: `clamp((LUC - 8) * 2 + 3, 0, 30)%`
+- **Crit effect**: auto-penetrate (skip penetration roll) + roll damage dice twice and sum
+- Makes LUC a direct counter to high-AV targets
+
+### Damage Types
+
+Five damage types:
+
+| Type | Thematic Source | Resistance Stat |
+|---|---|---|
+| Kinetic | Blades, batons, projectiles | kinetic |
+| Plasma | Superheated energy weapons | heat |
+| Electrical | Ion/arc weapons | electrical |
+| Cryo | Cold-based weapons | cold |
+| Acid | Corrosive attacks | acid |
+
+### Resistance
+
+Applied as percentage reduction after penetration damage:
+
+```
+final_damage = damage - (damage * resistance_pct / 100)
+```
 
 ### Damage Effects Pipeline
 
-For each active effect on the target:
+After resistance, for each active effect on the target:
 ```
 damage = damage * effect.damage_multiplier / 100
 damage += effect.damage_flat_mod
@@ -44,11 +106,32 @@ damage = max(damage, 0)
 ```
 - Invulnerable: `damage_multiplier = 0` (immune to all damage)
 
+### Weapon Damage Dice
+
+| Rarity | Melee | Ranged |
+|---|---|---|
+| Common | 1d4 | 1d6 |
+| Uncommon | 1d6+1 | 1d8+1 |
+| Rare | 2d4+2 | 2d6 |
+| Epic | 2d6+2 | 2d8+1 |
+| Legendary | 3d6+3 | 3d8+2 |
+
+Unarmed: 1d3 Kinetic
+
+### NPC Stat Scaling
+
+- **DV**: `base_dv + (level - 1)`
+- **AV**: `base_av + (level - 1) / 2`
+- **HP**: `base_hp * level`
+- **Elite bonus**: HP x2, quickness x1.5, DV +2, AV +1
+- **Damage dice**: fixed (not scaled by level), elite NPCs get bonus dice
+
 ### Loot Drops
 
 - 50% chance on enemy kill
 - Item level = npc.level
 - Rarity: Common 50%, Uncommon 30%, Rare 15%, Epic 4%, Legendary 1%
+- Drop table: 30% weapon, 25% armor, 20% consumable, 15% junk, 10% crafting
 
 ### Combat Reputation
 
@@ -60,10 +143,15 @@ damage = max(damage, 0)
 
 | Ability | Cooldown | Action Cost | Weapon | Effect |
 |---------|----------|-------------|--------|--------|
-| Jab | 3 ticks | 25 | ShortBlade | 50% effective_attack damage |
-| Cleave | 5 ticks | 50 | LongBlade | Full damage to all adjacent hostiles |
-| Quickdraw | 3 ticks | 25 | Pistol | Full damage to current target |
+| Jab | 3 ticks | 25 | ShortBlade | 50% weapon dice damage |
+| Cleave | 5 ticks | 50 | LongBlade | Full weapon dice to all adjacent hostiles |
+| Quickdraw | 3 ticks | 25 | Pistol | Full missile weapon dice to current target |
 | Intimidate | 10 ticks | 50 | Any | Target flees for 3 + (WIL-10)/2 ticks (min 2) |
+
+### NPC XP & Credits
+
+- **XP Reward**: `base_xp * level * (elite ? 3 : 1)`
+- **Kill Credits**: `level * 2 + (elite ? 5 : 0)`
 
 ## Economy
 
@@ -129,6 +217,7 @@ At base rate (Normal), full recovery from 1 HP to 10 HP takes 180 ticks.
 |---|---|
 | Move | 50 |
 | Attack | 100 |
+| Shoot | 100 |
 | Interact | 50 |
 | Wait | 50 |
 
