@@ -1,5 +1,6 @@
 #include "astra/combat_system.h"
 #include "astra/animation.h"
+#include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_gen.h"
@@ -15,14 +16,73 @@ static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
 
-static bool roll_percent(std::mt19937& rng, int chance) {
-    if (chance <= 0) return false;
-    return std::uniform_int_distribution<int>(1, 100)(rng) <= chance;
+static int roll_d20(std::mt19937& rng) {
+    return std::uniform_int_distribution<int>(1, 20)(rng);
 }
 
-static int npc_dodge_chance(const Npc& npc) {
-    int chance = npc.level + (npc.elite ? 5 : 0);
-    return std::min(chance, 25);
+static int roll_d10(std::mt19937& rng) {
+    return std::uniform_int_distribution<int>(1, 10)(rng);
+}
+
+static int weapon_skill_bonus(const Player& player, WeaponClass wc) {
+    switch (wc) {
+        case WeaponClass::ShortBlade:
+            return player_has_skill(player, SkillId::ShortBladeExpertise) ? 2 : 0;
+        case WeaponClass::LongBlade:
+            return player_has_skill(player, SkillId::LongBladeExpertise) ? 2 : 0;
+        case WeaponClass::Pistol:
+            return player_has_skill(player, SkillId::SteadyHand) ? 2 : 0;
+        case WeaponClass::Rifle:
+            return player_has_skill(player, SkillId::Marksman) ? 2 : 0;
+        default: return 0;
+    }
+}
+
+static int apply_resistance(int damage, DamageType type, const Resistances& res) {
+    int pct = 0;
+    switch (type) {
+        case DamageType::Kinetic:    pct = res.kinetic; break;
+        case DamageType::Plasma:     pct = res.heat; break;
+        case DamageType::Electrical: pct = res.electrical; break;
+        case DamageType::Cryo:       pct = res.cold; break;
+        case DamageType::Acid:       pct = res.acid; break;
+    }
+    if (pct <= 0) return damage;
+    return std::max(0, damage - damage * pct / 100);
+}
+
+static int shield_absorb(int damage, DamageType type, const TypeAffinity& affinity) {
+    int bonus_pct = affinity.for_type(type);
+    if (bonus_pct > 0) {
+        return std::max(1, damage * 100 / (100 + bonus_pct));
+    }
+    return damage;
+}
+
+struct PenetrationResult {
+    int total_damage = 0;
+    int penetrations = 0;
+};
+
+static PenetrationResult roll_penetration(std::mt19937& rng, int str_mod,
+                                           int effective_av, const Dice& damage_dice) {
+    PenetrationResult result;
+    int natural = roll_d10(rng);
+    if (natural == 1) return result;
+    int pv = natural + str_mod;
+    if (natural == 10 || pv > effective_av) {
+        result.penetrations = 1;
+        result.total_damage = damage_dice.roll(rng);
+        if (natural != 10) {
+            int excess = pv - effective_av;
+            while (excess >= 4) {
+                result.penetrations++;
+                result.total_damage += damage_dice.roll(rng);
+                excess -= 4;
+            }
+        }
+    }
+    return result;
 }
 
 struct HostileTarget {
@@ -59,15 +119,34 @@ static HostileTarget find_nearest_hostile(Npc& self, Game& game) {
 }
 
 void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
-    if (roll_percent(game.world().rng(), npc_dodge_chance(defender))) {
+    auto& rng = game.world().rng();
+
+    // Attack roll: 1d20 + attacker.level/2 vs defender.dv
+    int natural = roll_d20(rng);
+    if (natural == 1) {
         game.log(defender.display_name() + " dodges " + attacker.display_name() + "'s attack!");
         return;
     }
-    int damage = attacker.attack_damage();
-    int defense = defender.level;
-    damage -= defense;
-    if (damage < 1) damage = 1;
-    damage = apply_damage_effects(defender.effects, damage);
+    int attack_roll = natural + attacker.level / 2;
+    if (natural != 20 && attack_roll < defender.dv) {
+        game.log(defender.display_name() + " dodges " + attacker.display_name() + "'s attack!");
+        return;
+    }
+
+    // Determine damage dice
+    Dice dmg_dice = attacker.damage_dice;
+    if (dmg_dice.empty()) dmg_dice = Dice::make(1, 3);
+    DamageType dtype = attacker.damage_type;
+
+    // Penetration: 1d10 + attacker.level/3 vs defender.av + affinity
+    int effective_av = defender.av + defender.type_affinity.for_type(dtype);
+    auto pen = roll_penetration(rng, attacker.level / 3, effective_av, dmg_dice);
+    if (pen.total_damage <= 0) {
+        game.log(attacker.display_name() + "'s attack has no effect on " + defender.display_name() + ".");
+        return;
+    }
+
+    int damage = apply_damage_effects(defender.effects, pen.total_damage);
     if (damage <= 0) {
         game.log(attacker.display_name() + "'s attack has no effect on " + defender.display_name() + ".");
         return;
@@ -76,7 +155,7 @@ void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
     if (defender.hp < 0) defender.hp = 0;
     game.animations().spawn_effect(anim_damage_flash, defender.x, defender.y);
     game.log(attacker.display_name() + " strikes " + defender.display_name() +
-             " for " + std::to_string(damage) + " damage!");
+             " for " + std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
     if (!defender.alive()) {
         game.log(defender.display_name() + " is destroyed by " + attacker.display_name() + "!");
     }
@@ -124,15 +203,52 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     if (target.is_player) {
         int dist = target.distance;
         if (dist <= 1) {
-            int dodge_chance = std::min(game.player().effective_dv() * 2, 50);
-            if (roll_percent(game.world().rng(), dodge_chance)) {
+            auto& rng = game.world().rng();
+
+            // Attack roll: 1d20 + npc.level/2 vs player.effective_dv()
+            int natural = roll_d20(rng);
+            if (natural == 1) {
                 game.log("You dodge " + npc.display_name() + "'s attack!");
                 return;
             }
-            int raw_damage = npc.attack_damage();
-            int defense = game.player().effective_av(DamageType::Kinetic);
-            int damage = raw_damage - defense;
-            if (damage < 1) damage = 1;
+            int attack_roll = natural + npc.level / 2;
+            if (natural != 20 && attack_roll < game.player().effective_dv()) {
+                game.log("You dodge " + npc.display_name() + "'s attack!");
+                return;
+            }
+
+            Dice dmg_dice = npc.damage_dice;
+            if (dmg_dice.empty()) dmg_dice = Dice::make(1, 3);
+            DamageType dtype = npc.damage_type;
+
+            // Shield check
+            if (game.player().shield_hp > 0) {
+                // Penetrate shield as AV=0
+                auto pen = roll_penetration(rng, npc.level / 3, 0, dmg_dice);
+                if (pen.total_damage <= 0) {
+                    game.log(npc.display_name() + "'s attack is absorbed by your shield.");
+                    return;
+                }
+                int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
+                game.player().shield_hp -= absorbed;
+                if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+                game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
+                game.log(npc.display_name() + " hits your shield for " +
+                         std::to_string(absorbed) + " " + damage_type_name(dtype) + " damage. [Shield " +
+                         std::to_string(game.player().shield_hp) + "/" +
+                         std::to_string(game.player().shield_max_hp) + "]");
+                return;
+            }
+
+            // Penetration: 1d10 + npc.level/3 vs player.effective_av(dtype)
+            int eff_av = game.player().effective_av(dtype);
+            auto pen = roll_penetration(rng, npc.level / 3, eff_av, dmg_dice);
+            if (pen.total_damage <= 0) {
+                game.log(npc.display_name() + " strikes you but deals no damage.");
+                return;
+            }
+
+            int damage = apply_resistance(pen.total_damage, dtype, game.player().resistances);
             damage = apply_damage_effects(game.player().effects, damage);
             if (damage <= 0) {
                 game.log(npc.display_name() + " strikes you but deals no damage.");
@@ -142,7 +258,7 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             if (game.player().hp < 0) game.player().hp = 0;
             game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
             game.log(npc.display_name() + " strikes you for " +
-                     std::to_string(damage) + " damage!");
+                     std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
             if (game.player().hp <= 0) {
                 game.set_death_message("Slain by " + npc.display_name());
             }
@@ -200,31 +316,57 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 }
 
 void CombatSystem::attack_npc(Npc& npc, Game& game) {
-    // Dodge check
-    if (roll_percent(game.world().rng(), npc_dodge_chance(npc))) {
+    auto& rng = game.world().rng();
+
+    // Determine weapon and damage dice
+    const auto& weapon = game.player().equipment.right_hand;
+    Dice dmg_dice = Dice::make(1, 3); // unarmed
+    DamageType dtype = DamageType::Kinetic;
+    WeaponClass wc = WeaponClass::None;
+    if (weapon && !weapon->damage_dice.empty()) {
+        dmg_dice = weapon->damage_dice;
+        dtype = weapon->damage_type;
+        wc = weapon->weapon_class;
+    }
+
+    // Attack roll: 1d20 + (AGI-10)/2 + weapon_skill_bonus vs npc.dv
+    int natural = roll_d20(rng);
+    if (natural == 1) {
         game.log(npc.display_name() + " dodges your attack!");
         return;
     }
-
-    int damage = game.player().attack_value;
-    // Weapon expertise bonus
-    const auto& weapon = game.player().equipment.right_hand;
-    if (weapon) {
-        if (weapon->weapon_class == WeaponClass::ShortBlade
-            && player_has_skill(game.player(), SkillId::ShortBladeExpertise))
-            damage += 1;
-        if (weapon->weapon_class == WeaponClass::LongBlade
-            && player_has_skill(game.player(), SkillId::LongBladeExpertise))
-            damage += 1;
+    int agi_mod = (game.player().attributes.agility - 10) / 2;
+    int attack_roll = natural + agi_mod + weapon_skill_bonus(game.player(), wc);
+    if (natural != 20 && attack_roll < npc.dv) {
+        game.log(npc.display_name() + " dodges your attack! (roll " +
+                 std::to_string(attack_roll) + " vs DV " + std::to_string(npc.dv) + ")");
+        return;
     }
-    if (damage < 1) damage = 1;
+    game.log("Attack roll: " + std::to_string(attack_roll) + " vs DV " + std::to_string(npc.dv) +
+             (natural == 20 ? " (nat 20!)" : ""));
 
     // Critical hit check
     bool is_crit = false;
     int crit_chance = std::clamp((game.player().attributes.luck - 8) * 2 + 3, 0, 30);
-    if (roll_percent(game.world().rng(), crit_chance)) {
-        damage = damage + (damage + 1) / 2;
+    if (std::uniform_int_distribution<int>(1, 100)(rng) <= crit_chance) {
         is_crit = true;
+    }
+
+    int damage = 0;
+    if (is_crit) {
+        // Auto-penetrate, roll damage dice twice
+        damage = dmg_dice.roll(rng) + dmg_dice.roll(rng);
+    } else {
+        // Penetration: 1d10 + (STR-10)/2 vs npc.av + npc.type_affinity
+        int str_mod = (game.player().attributes.strength - 10) / 2;
+        int effective_av = npc.av + npc.type_affinity.for_type(dtype);
+        auto pen = roll_penetration(rng, str_mod, effective_av, dmg_dice);
+        damage = pen.total_damage;
+    }
+
+    if (damage <= 0) {
+        game.log("Your attack has no effect on " + npc.display_name() + ".");
+        return;
     }
 
     damage = apply_damage_effects(npc.effects, damage);
@@ -237,10 +379,10 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     game.animations().spawn_effect(anim_damage_flash, npc.x, npc.y);
     if (is_crit) {
         game.log("CRITICAL HIT! You strike " + npc.display_name() + " for " +
-            std::to_string(damage) + " damage!");
+            std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
     } else {
         game.log("You strike " + npc.display_name() + " for " +
-            std::to_string(damage) + " damage!");
+            std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
     }
     if (!npc.alive()) {
         game.log(npc.display_name() + " is destroyed!");
@@ -268,8 +410,8 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
             game.log("You salvage " + std::to_string(credits) + "$.");
         }
         // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(game.world().rng()) == 0) {
-            Item loot = generate_loot_drop(game.world().rng(), npc.level);
+        if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
+            Item loot = generate_loot_drop(rng, npc.level);
             game.log("Dropped: " + loot.name);
             game.world().ground_items().push_back({npc.x, npc.y, std::move(loot)});
         }
@@ -415,33 +557,51 @@ void CombatSystem::shoot_target(Game& game) {
     // Consume charge
     rd.current_charge -= rd.charge_per_shot;
 
-    // Dodge check (ranged — ammo already consumed)
-    if (roll_percent(game.world().rng(), npc_dodge_chance(*target_npc_))) {
+    auto& rng = game.world().rng();
+
+    // Determine weapon dice
+    Dice dmg_dice = weapon->damage_dice;
+    if (dmg_dice.empty()) dmg_dice = Dice::make(1, 3);
+    DamageType dtype = weapon->damage_type;
+    WeaponClass wc = weapon->weapon_class;
+
+    // Attack roll: 1d20 + (AGI-10)/2 + weapon_skill_bonus vs npc.dv
+    int natural = roll_d20(rng);
+    if (natural == 1) {
         game.log(target_npc_->display_name() + " dodges your shot!");
         game.advance_world(ActionCost::shoot);
         return;
     }
-
-    // Damage = effective attack (includes STR modifier + all equipment)
-    int damage = game.player().attack_value;
-    // Ranged weapon expertise bonus
-    const auto& rw2 = game.player().equipment.missile;
-    if (rw2) {
-        if (rw2->weapon_class == WeaponClass::Pistol
-            && player_has_skill(game.player(), SkillId::SteadyHand))
-            damage += 1;
-        if (rw2->weapon_class == WeaponClass::Rifle
-            && player_has_skill(game.player(), SkillId::Marksman))
-            damage += 1;
+    int agi_mod = (game.player().attributes.agility - 10) / 2;
+    int attack_roll = natural + agi_mod + weapon_skill_bonus(game.player(), wc);
+    if (natural != 20 && attack_roll < target_npc_->dv) {
+        game.log(target_npc_->display_name() + " dodges your shot! (roll " +
+                 std::to_string(attack_roll) + " vs DV " + std::to_string(target_npc_->dv) + ")");
+        game.advance_world(ActionCost::shoot);
+        return;
     }
-    if (damage < 1) damage = 1;
 
     // Critical hit check
     bool is_crit = false;
     int crit_chance = std::clamp((game.player().attributes.luck - 8) * 2 + 3, 0, 30);
-    if (roll_percent(game.world().rng(), crit_chance)) {
-        damage = damage + (damage + 1) / 2;
+    if (std::uniform_int_distribution<int>(1, 100)(rng) <= crit_chance) {
         is_crit = true;
+    }
+
+    int damage = 0;
+    if (is_crit) {
+        damage = dmg_dice.roll(rng) + dmg_dice.roll(rng);
+    } else {
+        int str_mod = (game.player().attributes.strength - 10) / 2;
+        int effective_av = target_npc_->av + target_npc_->type_affinity.for_type(dtype);
+        auto pen = roll_penetration(rng, str_mod, effective_av, dmg_dice);
+        damage = pen.total_damage;
+    }
+
+    if (damage <= 0) {
+        game.log("Your shot has no effect on " + target_npc_->display_name() + ".");
+        game.advance_world(ActionCost::shoot);
+        return;
     }
 
     damage = apply_damage_effects(target_npc_->effects, damage);
@@ -459,7 +619,7 @@ void CombatSystem::shoot_target(Game& game) {
     game.animations().spawn_effect(anim_damage_flash, target_npc_->x, target_npc_->y);
     std::string hit_msg = is_crit ? "CRITICAL HIT! You shoot " : "You shoot ";
     game.log(hit_msg + target_npc_->display_name() + " for " +
-        std::to_string(damage) + " damage. [" +
+        std::to_string(damage) + " " + damage_type_name(dtype) + " damage. [" +
         std::to_string(rd.current_charge) + "/" +
         std::to_string(rd.charge_capacity) + "]");
 
@@ -484,8 +644,8 @@ void CombatSystem::shoot_target(Game& game) {
             check_level_up(game);
         }
         // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(game.world().rng()) == 0) {
-            Item loot = generate_loot_drop(game.world().rng(), target_npc_->level);
+        if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
+            Item loot = generate_loot_drop(rng, target_npc_->level);
             game.log("Dropped: " + loot.name);
             game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
@@ -530,6 +690,36 @@ void CombatSystem::reload_weapon(Game& game) {
 }
 
 
+
+void CombatSystem::reload_shield(Game& game) {
+    auto& shield = game.player().equipment.shield;
+    if (!shield || shield->shield_capacity <= 0) {
+        game.log("No energy shield equipped.");
+        return;
+    }
+    if (game.player().shield_hp >= game.player().shield_max_hp) {
+        game.log("Shield is at full charge.");
+        return;
+    }
+    for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
+        if (game.player().inventory.items[i].type == ItemType::Battery) {
+            int added = std::min(5, game.player().shield_max_hp - game.player().shield_hp);
+            game.player().shield_hp += added;
+            game.log("Shield recharged +" + std::to_string(added) + " HP. (" +
+                     std::to_string(game.player().shield_hp) + "/" +
+                     std::to_string(game.player().shield_max_hp) + ")");
+            auto& cell = game.player().inventory.items[i];
+            if (cell.stackable && cell.stack_count > 1) {
+                --cell.stack_count;
+            } else {
+                game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
+            }
+            game.advance_world(ActionCost::wait);
+            return;
+        }
+    }
+    game.log("No energy cells to recharge shield.");
+}
 
 void CombatSystem::remove_dead_npcs(Game& game) {
     // Nullify target_npc_ if it died

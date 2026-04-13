@@ -1,4 +1,5 @@
 #include "astra/ability.h"
+#include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 
@@ -20,14 +21,20 @@ public:
     }
 
     bool execute(Game& game, Npc* target) override {
-        int damage = game.player().attack_value / 2;
-        if (damage < 1) damage = 1;
+        const auto& weapon = game.player().equipment.right_hand;
+        Dice dmg_dice = Dice::make(1, 3);
+        DamageType dtype = DamageType::Kinetic;
+        if (weapon && !weapon->damage_dice.empty()) {
+            dmg_dice = weapon->damage_dice;
+            dtype = weapon->damage_type;
+        }
+        int damage = std::max(1, dmg_dice.roll(game.world().rng()) / 2);
         damage = apply_damage_effects(target->effects, damage);
         if (damage > 0) {
             target->hp -= damage;
             if (target->hp < 0) target->hp = 0;
             game.log("You jab " + target->display_name() + " for " +
-                     std::to_string(damage) + " damage!");
+                     std::to_string(damage) + " " + damage_type_name(dtype) + " damage!");
         }
         return true;
     }
@@ -47,13 +54,20 @@ public:
     }
 
     bool execute(Game& game, Npc* /*target*/) override {
+        const auto& weapon = game.player().equipment.right_hand;
+        Dice dmg_dice = Dice::make(1, 3);
+        DamageType dtype = DamageType::Kinetic;
+        if (weapon && !weapon->damage_dice.empty()) {
+            dmg_dice = weapon->damage_dice;
+            dtype = weapon->damage_type;
+        }
         int px = game.player().x, py = game.player().y;
         int hits = 0;
         for (auto& npc : game.world().npcs()) {
             if (!npc.alive() || !is_hostile_to_player(npc.faction, game.player())) continue;
             int dx = std::abs(npc.x - px), dy = std::abs(npc.y - py);
             if (std::max(dx, dy) <= 1) {
-                int damage = game.player().attack_value;
+                int damage = dmg_dice.roll(game.world().rng());
                 if (damage < 1) damage = 1;
                 damage = apply_damage_effects(npc.effects, damage);
                 if (damage > 0) {
@@ -61,7 +75,7 @@ public:
                     if (npc.hp < 0) npc.hp = 0;
                     hits++;
                     game.log("Cleave hits " + npc.display_name() + " for " +
-                             std::to_string(damage) + "!");
+                             std::to_string(damage) + " " + damage_type_name(dtype) + "!");
                 }
             }
         }
@@ -89,14 +103,21 @@ public:
             game.log("No target for Quickdraw. Use [t] to target first.");
             return false;
         }
-        int damage = game.player().attack_value;
+        const auto& weapon = game.player().equipment.missile;
+        Dice dmg_dice = Dice::make(1, 3);
+        DamageType dtype = DamageType::Kinetic;
+        if (weapon && !weapon->damage_dice.empty()) {
+            dmg_dice = weapon->damage_dice;
+            dtype = weapon->damage_type;
+        }
+        int damage = dmg_dice.roll(game.world().rng());
         if (damage < 1) damage = 1;
         damage = apply_damage_effects(tnpc->effects, damage);
         if (damage > 0) {
             tnpc->hp -= damage;
             if (tnpc->hp < 0) tnpc->hp = 0;
             game.log("Quickdraw hits " + tnpc->display_name() + " for " +
-                     std::to_string(damage) + "!");
+                     std::to_string(damage) + " " + damage_type_name(dtype) + "!");
         }
         return true;
     }
