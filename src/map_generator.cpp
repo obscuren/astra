@@ -424,4 +424,30 @@ std::unique_ptr<MapGenerator> create_starship_generator() {
     return make_starship_generator();
 }
 
+std::unique_ptr<MapGenerator> create_station_generator(const StationContext& ctx) {
+    // Dispatch to the appropriate generator based on station type.
+    // THA (The Heavens Above, Sol id=1) always uses the hub generator.
+    // Non-THA NormalHub stations fall back to make_station_generator() until Task 5
+    // provides a dedicated non-THA hub generator.
+    switch (ctx.type) {
+        case StationType::NormalHub:
+            if (ctx.is_tha) return make_hub_station_generator();
+            // TODO(task-5): make_hub_station_generator(ctx) for non-THA hubs
+            return make_station_generator();
+        case StationType::Scav:
+            // TODO(task-8): make_scav_station_generator(ctx)
+            return make_station_generator();
+        case StationType::Pirate:
+            // TODO(task-9): make_pirate_station_generator(ctx)
+            return make_station_generator();
+        case StationType::Abandoned:
+            // TODO(task-10): update signature to make_derelict_station_generator(ctx)
+            return make_derelict_station_generator();
+        case StationType::Infested:
+            // TODO(task-11): make_infested_station_generator(ctx)
+            return make_station_generator();
+    }
+    return make_station_generator();
+}
+
 } // namespace astra

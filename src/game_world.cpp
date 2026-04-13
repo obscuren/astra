@@ -1350,7 +1350,17 @@ void Game::travel_to_destination(const ChartAction& action) {
         auto props = default_properties(dest_type);
         props.biome = dest_biome;
         world_.map() = TileMap(props.width, props.height, dest_type);
-        auto gen = create_generator(dest_type);
+
+        // Dispatch to the appropriate station generator based on type.
+        // target_sys is in scope (set at the top of execute_chart_action).
+        StationContext sctx{
+            .is_tha       = (target_sys.id == 1),
+            .type         = target_sys.station.type,
+            .specialty    = target_sys.station.specialty,
+            .keeper_seed  = target_sys.station.keeper_seed,
+            .station_name = target_sys.station.name,
+        };
+        auto gen = create_station_generator(sctx);
         gen->generate(world_.map(), props, travel_seed);
         world_.map().set_location_name(location_name);
 

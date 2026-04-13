@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/map_properties.h"
+#include "astra/station_type.h"
 #include "astra/tilemap.h"
 
 #include <memory>
@@ -47,5 +48,9 @@ std::unique_ptr<MapGenerator> create_generator(MapType type, const MapProperties
 std::unique_ptr<MapGenerator> create_hub_generator();
 std::unique_ptr<MapGenerator> create_derelict_generator();
 std::unique_ptr<MapGenerator> create_starship_generator();
+
+// Dispatch to the appropriate station generator based on StationContext.
+// Called by game_world when generating a fresh station map.
+std::unique_ptr<MapGenerator> create_station_generator(const StationContext& ctx);
 
 } // namespace astra
