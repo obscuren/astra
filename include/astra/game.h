@@ -327,6 +327,7 @@ private:
     Rect screen_rect_;
     Rect stats_bar_rect_;
     Rect hp_bar_rect_;
+    Rect shield_bar_rect_;
     Rect xp_bar_rect_;
     Rect tabs_rect_;
     Rect map_rect_;

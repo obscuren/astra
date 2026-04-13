@@ -846,12 +846,7 @@ void Game::render_stats_bar() {
     left.push_back({" :: ", UITag::TextDim});
     left.push_back({std::to_string(player_.money) + "$", UITag::TextWarning});
 
-    if (player_.shield_max_hp > 0) {
-        left.push_back({" :: ", UITag::TextDim});
-        left.push_back({"SH:", UITag::TextDim});
-        left.push_back({std::to_string(player_.shield_hp) + "/" +
-                        std::to_string(player_.shield_max_hp), UITag::TextBright});
-    }
+
 
     ctx.styled_text({.x = 1, .y = 0, .segments = left});
 
@@ -939,6 +934,21 @@ void Game::render_bars() {
             ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
                               .value=player_.hp, .max=player_.max_hp,
                               .tag=UITag::HealthBar});
+        }
+    }
+
+    // Shield bar (only when shield is equipped)
+    if (player_.shield_max_hp > 0) {
+        std::string sh_val = std::to_string(player_.shield_hp) + "/" + std::to_string(player_.shield_max_hp);
+        while (static_cast<int>(sh_val.size()) < val_w) sh_val = " " + sh_val;
+        UIContext ctx(renderer_.get(), shield_bar_rect_);
+        ctx.text(1, 0, "SH:", Color::DarkGray);
+        ctx.text(4, 0, sh_val, Color::Cyan);
+        int bar_w = ctx.width() - bar_start - 2;
+        if (bar_w > 0) {
+            ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
+                              .value=player_.shield_hp, .max=player_.shield_max_hp,
+                              .tag=UITag::TextBright});
         }
     }
 
