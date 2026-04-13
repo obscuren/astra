@@ -1029,7 +1029,12 @@ void Game::render_side_panel() {
         }
     }
 
-    UIContext panel(renderer_.get(), side_panel_rect_);
+    // 1-row top margin for alignment with map area
+    Rect padded = side_panel_rect_;
+    padded.y += 1;
+    padded.h -= 1;
+    if (padded.h <= 0) return;
+    UIContext panel(renderer_.get(), padded);
     auto regions = panel.rows(sizes);
 
     int region_idx = 0;
