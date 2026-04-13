@@ -101,30 +101,23 @@ void Game::compute_layout() {
 
     screen_rect_ = {0, 0, screen_w_, screen_h_};
 
-    // Vertical layout: stats | HP/tabs | [shield] | XP/tab-sep | main | bottom-sep | effects | abilities
-    bool has_shield = player_.shield_max_hp > 0;
+    // Vertical layout: stats | HP/tabs | shield | XP/tab-sep | main | bottom-sep | effects | abilities
     UIContext root(renderer_.get(), screen_rect_);
-    std::vector<Size> row_specs = {
+    auto vrows = root.rows({
         fixed(1),    // [0] stats bar
         fixed(1),    // [1] HP bar / tabs row
-    };
-    if (has_shield) row_specs.push_back(fixed(1)); // [2] shield bar
-    int xp_row = static_cast<int>(row_specs.size());
-    row_specs.push_back(fixed(1)); // XP bar / tab separator row
-    int main_row = static_cast<int>(row_specs.size());
-    row_specs.push_back(fill());   // main content
-    int botsep_row = static_cast<int>(row_specs.size());
-    row_specs.push_back(fixed(1)); // bottom separator
-    int effects_row = static_cast<int>(row_specs.size());
-    row_specs.push_back(fixed(1)); // effects
-    int abilities_row = static_cast<int>(row_specs.size());
-    row_specs.push_back(fixed(1)); // abilities
-    auto vrows = root.rows(row_specs);
+        fixed(1),    // [2] shield bar
+        fixed(1),    // [3] XP bar / tab separator row
+        fill(),      // [4] main content
+        fixed(1),    // [5] bottom separator
+        fixed(1),    // [6] effects
+        fixed(1),    // [7] abilities
+    });
 
     stats_bar_rect_ = vrows[0].bounds();
-    bottom_sep_rect_ = vrows[botsep_row].bounds();
-    effects_rect_ = vrows[effects_row].bounds();
-    abilities_rect_ = vrows[abilities_row].bounds();
+    bottom_sep_rect_ = vrows[5].bounds();
+    effects_rect_ = vrows[6].bounds();
+    abilities_rect_ = vrows[7].bounds();
 
     // Panel width calculation
     int panel_w = screen_w_ * 35 / 100;
@@ -139,21 +132,17 @@ void Game::compute_layout() {
 
     // Bars always stop before the tab column
     hp_bar_rect_ = {0, vrows[1].bounds().y, left_w, 1};
-    if (has_shield) {
-        shield_bar_rect_ = {0, vrows[2].bounds().y, left_w, 1};
-    } else {
-        shield_bar_rect_ = {0, 0, 0, 0};
-    }
-    xp_bar_rect_ = {0, vrows[xp_row].bounds().y, left_w, 1};
+    shield_bar_rect_ = {0, vrows[2].bounds().y, left_w, 1};
+    xp_bar_rect_ = {0, vrows[3].bounds().y, left_w, 1};
 
     if (panel_visible_) {
-        auto main_cols = vrows[main_row].columns({fill(), fixed(1), fixed(panel_w)});
+        auto main_cols = vrows[4].columns({fill(), fixed(1), fixed(panel_w)});
         map_rect_ = main_cols[0].bounds();
         separator_rect_ = {sep_x, vrows[1].bounds().y, 1, screen_h_ - 3};
         side_panel_rect_ = main_cols[2].bounds();
     } else {
-        map_rect_ = vrows[main_row].bounds();
-        separator_rect_ = {sep_x, vrows[1].bounds().y, 1, has_shield ? 3 : 2};
+        map_rect_ = vrows[4].bounds();
+        separator_rect_ = {sep_x, vrows[1].bounds().y, 1, 3};
         side_panel_rect_ = {0, 0, 0, 0};
     }
 }
