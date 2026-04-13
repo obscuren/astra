@@ -226,6 +226,7 @@ static const char* tile_name(Tile t) {
         case Tile::OW_ScorchedEarth: return "Scorched Earth";
         case Tile::OW_GlassedCrater: return "Glassed Crater";
         case Tile::OW_Landing:     return "Landing";
+        case Tile::OW_Barren:      return "Barren";
     }
     return "?";
 }
