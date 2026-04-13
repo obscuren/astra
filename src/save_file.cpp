@@ -835,6 +835,12 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
         w.write_u8(static_cast<uint8_t>(sys.star_class));
         w.write_u8(sys.binary ? 1 : 0);
         w.write_u8(sys.has_station ? 1 : 0);
+        // v27: station type/specialty/keeper_seed (Option A: new fields after has_station)
+        if (sys.has_station) {
+            w.write_u8(static_cast<uint8_t>(sys.station.type));
+            w.write_u8(static_cast<uint8_t>(sys.station.specialty));
+            w.write_u64(sys.station.keeper_seed);
+        }
         w.write_i32(sys.planet_count);
         w.write_i32(sys.asteroid_belts);
         w.write_i32(sys.danger_level);
@@ -1535,6 +1541,18 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
         sys.star_class = static_cast<StarClass>(r.read_u8());
         sys.binary = r.read_u8() != 0;
         sys.has_station = r.read_u8() != 0;
+        // v27: station type/specialty/keeper_seed; pre-v27 saves regenerate defaults from seed
+        if (sys.has_station) {
+            if (version >= 27) {
+                sys.station.type     = static_cast<StationType>(r.read_u8());
+                sys.station.specialty = static_cast<StationSpecialty>(r.read_u8());
+                sys.station.keeper_seed = r.read_u64();
+            } else {
+                sys.station.type     = StationType::NormalHub;
+                sys.station.specialty = StationSpecialty::Generic;
+                sys.station.keeper_seed = 0;
+            }
+        }
         sys.planet_count = r.read_i32();
         sys.asteroid_belts = r.read_i32();
         sys.danger_level = r.read_i32();

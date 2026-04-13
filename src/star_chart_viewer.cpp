@@ -736,9 +736,9 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
             ctx.text(10, y++, std::to_string(sys.bodies.size()), Color::White);
 
             if (sys.has_station) {
-                Color sc = sys.station.derelict ? Color::Red : Color::Cyan;
+                Color sc = (sys.station.type == StationType::Abandoned) ? Color::Red : Color::Cyan;
                 std::string slabel = sys.station.name;
-                if (sys.station.derelict) slabel += " [!]";
+                if (sys.station.type == StationType::Abandoned) slabel += " [!]";
                 ctx.text(2, y, "Station", Color::DarkGray);
                 ctx.text(10, y++, slabel, sc);
             }
@@ -803,9 +803,9 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
 
     if (sys.has_station) {
         ctx.text(2, y, "Station", Color::DarkGray);
-        Color sc = sys.station.derelict ? Color::Red : Color::Cyan;
+        Color sc = (sys.station.type == StationType::Abandoned) ? Color::Red : Color::Cyan;
         std::string slabel = sys.station.name;
-        if (sys.station.derelict) slabel += " [!]";
+        if (sys.station.type == StationType::Abandoned) slabel += " [!]";
         ctx.text(10, y++, slabel, sc);
     } else {
         ctx.text(2, y, "Station", Color::DarkGray);
@@ -1023,13 +1023,14 @@ void StarChartViewer::draw_body_info_text(UIContext& ctx, const CelestialBody& b
 void StarChartViewer::draw_station_info_text(UIContext& ctx, const StarSystem& sys, int start_y) {
     int y = start_y;
 
-    char glyph = sys.station.derelict ? '#' : 'H';
-    Color color = sys.station.derelict ? Color::Red : Color::Cyan;
+    bool abandoned = (sys.station.type == StationType::Abandoned);
+    char glyph = abandoned ? '#' : 'H';
+    Color color = abandoned ? Color::Red : Color::Cyan;
     draw_info_section(ctx, y, sys.station.name, Color::White, glyph, color);
     y++;
 
     ctx.text(2, y, "Type", Color::DarkGray);
-    if (sys.station.derelict) {
+    if (abandoned) {
         ctx.text(10, y++, "Derelict", Color::Red);
     } else {
         ctx.text(10, y++, "Station", Color::Cyan);
@@ -1042,7 +1043,7 @@ void StarChartViewer::draw_station_info_text(UIContext& ctx, const StarSystem& s
     }
 
     y++;
-    if (sys.station.derelict) {
+    if (abandoned) {
         ctx.text(2, y++, "DERELICT", Color::Red);
         ctx.text(2, y++, "Power systems offline", Color::DarkGray);
         ctx.text(2, y++, "Structural integrity", Color::DarkGray);

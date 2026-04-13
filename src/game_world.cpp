@@ -1167,8 +1167,8 @@ void Game::travel_to_destination(const ChartAction& action) {
         }
         case ChartActionType::TravelToStation: {
             dest_key = LocationKey{target_sys.id, -1, -1, true, -1, -1, 0};
-            dest_type = target_sys.station.derelict ? MapType::DerelictStation
-                                                    : MapType::SpaceStation;
+            dest_type = (target_sys.station.type == StationType::Abandoned) ? MapType::DerelictStation
+                                                                             : MapType::SpaceStation;
             dest_biome = Biome::Station;
             location_name = target_sys.station.name;
             break;

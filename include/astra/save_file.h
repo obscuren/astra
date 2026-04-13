@@ -59,7 +59,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 26;   // v26: dice combat fields, shield HP, kinetic resistance
+    uint32_t version = 27;   // v27: StationInfo type/specialty/keeper_seed fields
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

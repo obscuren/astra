@@ -131,8 +131,8 @@ void generate_system(StarSystem& sys, uint32_t seed, float gx, float gy) {
     sys.has_station = station_roll(rng) < 80;
 
     if (sys.has_station) {
-        // ~2% derelict
-        sys.station.derelict = station_roll(rng) < 2;
+        // ~2% abandoned
+        sys.station.type = (station_roll(rng) < 2) ? StationType::Abandoned : StationType::NormalHub;
         sys.station.name = generate_station_name(rng);
     }
 
@@ -593,7 +593,7 @@ NavigationData generate_galaxy(unsigned game_seed) {
         sol.binary = false;
         sol.has_station = true;
         sol.station.name = "The Heavens Above";
-        sol.station.derelict = false;
+        sol.station.type = StationType::NormalHub;
         sol.planet_count = 8;
         sol.asteroid_belts = 1;
         sol.danger_level = 1;

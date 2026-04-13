@@ -380,8 +380,8 @@ static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
             // --- Station above (if this body hosts it) ---
             if (i == station_host) {
                 bool st_sel = is_cursor && desc.sub_cursor == 0;
-                char st_glyph = sys.station.derelict ? '#' : 'H';
-                Color st_color = sys.station.derelict ? Color::DarkGray : Color::Cyan;
+                char st_glyph = (sys.station.type == StationType::Abandoned) ? '#' : 'H';
+                Color st_color = (sys.station.type == StationType::Abandoned) ? Color::DarkGray : Color::Cyan;
 
                 int st_y = cy - 3;
                 if (st_y >= 0) {

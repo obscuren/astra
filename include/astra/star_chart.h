@@ -3,6 +3,7 @@
 #include "astra/celestial_body.h"
 #include "astra/lore_types.h"
 #include "astra/renderer.h"
+#include "astra/station_type.h"
 
 #include <cstdint>
 #include <random>
@@ -23,7 +24,9 @@ enum class StarClass : uint8_t {
 
 struct StationInfo {
     std::string name;
-    bool derelict = false;
+    StationType type = StationType::NormalHub;
+    StationSpecialty specialty = StationSpecialty::Generic;
+    uint64_t keeper_seed = 0;
 };
 
 // ── Lore annotation for a star system ──
