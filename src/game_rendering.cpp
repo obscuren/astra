@@ -946,13 +946,12 @@ void Game::render_bars() {
         UIContext ctx(renderer_.get(), shield_bar_rect_);
         ctx.text(1, 0, "SH:", Color::DarkGray);
         ctx.text(4, 0, sh_val, player_.shield_max_hp > 0 ? Color::Cyan : Color::DarkGray);
-        if (player_.shield_max_hp > 0) {
-            int bar_w = ctx.width() - bar_start - 2;
-            if (bar_w > 0) {
-                ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
-                                  .value=player_.shield_hp, .max=player_.shield_max_hp,
-                                  .tag=UITag::TextBright});
-            }
+        int bar_w = ctx.width() - bar_start - 2;
+        if (bar_w > 0) {
+            ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
+                              .value=player_.shield_hp,
+                              .max=std::max(player_.shield_max_hp, 1),
+                              .tag=UITag::TextBright});
         }
     }
 
@@ -985,8 +984,8 @@ void Game::render_widget_bar() {
     }
     ctx.widget_bar(desc);
 
-    // Separator below widget bar
-    UIContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
+    // Separator below bars area (aligns with XP bar row + 1)
+    UIContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 3, tabs_rect_.w, 1});
     sep.separator({});
 }
 
@@ -1029,12 +1028,7 @@ void Game::render_side_panel() {
         }
     }
 
-    // 1-row top margin for alignment with map area
-    Rect padded = side_panel_rect_;
-    padded.y += 1;
-    padded.h -= 1;
-    if (padded.h <= 0) return;
-    UIContext panel(renderer_.get(), padded);
+    UIContext panel(renderer_.get(), side_panel_rect_);
     auto regions = panel.rows(sizes);
 
     int region_idx = 0;
