@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/npc.h"
+#include "astra/station_type.h"
 #include "astra/tilemap.h"
 
 #include <random>
@@ -31,6 +32,12 @@ void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
 void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
                      int player_x, int player_y, std::mt19937& rng,
                      const Player* player = nullptr);
+
+// Spawn NPCs in pirate station rooms based on room flavor.
+void spawn_pirate_npcs(TileMap& map, std::vector<Npc>& npcs,
+                       int player_x, int player_y, std::mt19937& rng,
+                       const StationContext& ctx,
+                       const Player* player = nullptr);
 
 // Find a random walkable position within bounds, avoiding occupied tiles.
 // Returns true and sets out_x/out_y on success.

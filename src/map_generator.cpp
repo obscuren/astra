@@ -376,6 +376,7 @@ std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator(const StationContext& ctx);
 std::unique_ptr<MapGenerator> make_scav_station_generator(const StationContext& ctx);
+std::unique_ptr<MapGenerator> make_pirate_station_generator(const StationContext& ctx);
 std::unique_ptr<MapGenerator> make_starship_generator();
 std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props);
 std::unique_ptr<MapGenerator> make_detail_map_generator();
@@ -437,8 +438,7 @@ std::unique_ptr<MapGenerator> create_station_generator(const StationContext& ctx
         case StationType::Scav:
             return make_scav_station_generator(ctx);
         case StationType::Pirate:
-            // TODO(task-9): make_pirate_station_generator(ctx)
-            return make_station_generator();
+            return make_pirate_station_generator(ctx);
         case StationType::Abandoned:
             // TODO(task-10): update signature to make_derelict_station_generator(ctx)
             return make_derelict_station_generator();

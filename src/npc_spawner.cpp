@@ -203,6 +203,85 @@ void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
 }
 
 // ---------------------------------------------------------------------------
+// Pirate station NPC spawning
+// ---------------------------------------------------------------------------
+
+void spawn_pirate_npcs(TileMap& map, std::vector<Npc>& npcs,
+                       int player_x, int player_y, std::mt19937& rng,
+                       const StationContext& ctx,
+                       const Player* /*player*/) {
+    std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
+
+    auto place_npc = [&](Npc npc, int region_id) {
+        if (map.find_open_spot_in_region(region_id, npc.x, npc.y, occupied, &rng)) {
+            occupied.push_back({npc.x, npc.y});
+            npcs.push_back(std::move(npc));
+        }
+    };
+
+    bool captain_placed      = false;
+    bool vendor_placed       = false;
+
+    // Grunt count: 3–5, seeded from keeper_seed for determinism.
+    std::mt19937 seed_rng(static_cast<uint32_t>(ctx.keeper_seed));
+    std::uniform_int_distribution<int> grunt_count_dist(3, 5);
+    int grunts_to_place = grunt_count_dist(seed_rng);
+    int grunts_placed   = 0;
+
+    int region_count = map.region_count();
+
+    for (int rid = 0; rid < region_count; ++rid) {
+        const auto& reg = map.region(rid);
+        if (reg.type != RegionType::Room) continue;
+
+        switch (reg.flavor) {
+            case RoomFlavor::EmptyRoom: {
+                // Docking Bay: pirate grunt on watch
+                if (grunts_placed < grunts_to_place) {
+                    place_npc(build_pirate_grunt(), rid);
+                    ++grunts_placed;
+                }
+                break;
+            }
+            case RoomFlavor::Cantina: {
+                // Pirate Den: 1–2 grunts lounging around
+                for (int i = 0; i < 2 && grunts_placed < grunts_to_place; ++i) {
+                    place_npc(build_pirate_grunt(), rid);
+                    ++grunts_placed;
+                }
+                break;
+            }
+            case RoomFlavor::CrewQuarters: {
+                if (reg.name == std::string("Captain's Quarters")) {
+                    // Captain's Quarters: pirate captain
+                    if (!captain_placed) {
+                        place_npc(build_pirate_captain(ctx), rid);
+                        captain_placed = true;
+                    }
+                } else {
+                    // Brig: grunt guarding it
+                    if (grunts_placed < grunts_to_place) {
+                        place_npc(build_pirate_grunt(), rid);
+                        ++grunts_placed;
+                    }
+                }
+                break;
+            }
+            case RoomFlavor::MaintenanceAccess: {
+                // Black Market: the Fixer
+                if (!vendor_placed) {
+                    place_npc(build_black_market_vendor(ctx), rid);
+                    vendor_placed = true;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Settlement / Outpost NPC spawning (fixture-scanning approach)
 // ---------------------------------------------------------------------------
 
