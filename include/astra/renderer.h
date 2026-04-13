@@ -37,6 +37,7 @@ enum class Color : uint8_t {
     DarkGray      = 8,
     BrightYellow  = 11,
     BrightMagenta = 13,
+    BrightWhite   = 15,
 };
 
 // UTF-8 full-block glyph (█).
