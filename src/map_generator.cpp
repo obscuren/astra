@@ -371,6 +371,7 @@ MapProperties default_properties(MapType type) {
 // Forward declarations of concrete generators
 std::unique_ptr<MapGenerator> make_station_generator();
 std::unique_ptr<MapGenerator> make_derelict_station_generator();
+std::unique_ptr<MapGenerator> make_derelict_station_generator(const StationContext& ctx);
 std::unique_ptr<MapGenerator> make_open_cave_generator();
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator();
@@ -440,8 +441,7 @@ std::unique_ptr<MapGenerator> create_station_generator(const StationContext& ctx
         case StationType::Pirate:
             return make_pirate_station_generator(ctx);
         case StationType::Abandoned:
-            // TODO(task-10): update signature to make_derelict_station_generator(ctx)
-            return make_derelict_station_generator();
+            return make_derelict_station_generator(ctx);
         case StationType::Infested:
             // TODO(task-11): make_infested_station_generator(ctx)
             return make_station_generator();

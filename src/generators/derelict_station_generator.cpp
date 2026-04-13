@@ -1,4 +1,5 @@
 #include "astra/map_generator.h"
+#include "astra/station_type.h"
 
 #include <algorithm>
 
@@ -70,11 +71,21 @@ struct DerelictRoomContext {
 // =========================================================================
 
 class DerelictStationGenerator : public MapGenerator {
+public:
+    // When constructed with a StationContext, scatter extra loot containers
+    // seeded from ctx.keeper_seed (Abandoned-station variant only).
+    explicit DerelictStationGenerator(bool place_loot = false, uint64_t keeper_seed = 0)
+        : has_station_context_(place_loot), keeper_seed_(keeper_seed) {}
+
 protected:
     void generate_layout(std::mt19937& rng) override;
     void connect_rooms(std::mt19937& rng) override;
     void place_features(std::mt19937& rng) override;
     void assign_regions(std::mt19937& rng) override;
+
+private:
+    bool     has_station_context_ = false;
+    uint64_t keeper_seed_         = 0;
 };
 
 void DerelictStationGenerator::generate_layout(std::mt19937& rng) {
@@ -193,6 +204,26 @@ void DerelictStationGenerator::place_features(std::mt19937& rng) {
             }
         }
     }
+
+    // Abandoned-station variant: scatter 3-6 additional lootable crates
+    // seeded from keeper_seed_ so placement is deterministic per-station.
+    if (has_station_context_ && !rooms_.empty()) {
+        std::mt19937 loot_rng(static_cast<uint32_t>(keeper_seed_ ^ (keeper_seed_ >> 32)));
+        int crate_count = std::uniform_int_distribution<int>(3, 6)(loot_rng);
+        // Spread across non-first rooms where possible
+        int region_start = rooms_.size() > 1 ? 1 : 0;
+        for (int c = 0; c < crate_count; ++c) {
+            int ri2 = std::uniform_int_distribution<int>(
+                region_start, static_cast<int>(rooms_.size()) - 1)(loot_rng);
+            DerelictRoomContext dctx(*map_, rooms_[ri2]);
+            if (dctx.too_small()) continue;
+            for (int attempt = 0; attempt < 8; ++attempt) {
+                int fx = std::uniform_int_distribution<int>(dctx.ix1, dctx.ix2)(loot_rng);
+                int fy = std::uniform_int_distribution<int>(dctx.iy1, dctx.iy2)(loot_rng);
+                if (dctx.place(fx, fy, make_fixture(FixtureType::Crate))) break;
+            }
+        }
+    }
 }
 
 void DerelictStationGenerator::assign_regions(std::mt19937& rng) {
@@ -278,6 +309,10 @@ void DerelictStationGenerator::assign_regions(std::mt19937& rng) {
 
 std::unique_ptr<MapGenerator> make_derelict_station_generator() {
     return std::make_unique<DerelictStationGenerator>();
+}
+
+std::unique_ptr<MapGenerator> make_derelict_station_generator(const StationContext& ctx) {
+    return std::make_unique<DerelictStationGenerator>(true, ctx.keeper_seed);
 }
 
 } // namespace astra

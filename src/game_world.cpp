@@ -1372,6 +1372,40 @@ void Game::travel_to_destination(const ChartAction& action) {
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
         debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
 
+        // Abandoned stations: spawn 1-2 wandering xytomorphs (weak variant),
+        // seeded deterministically from keeper_seed so the same station always
+        // has the same number of enemies regardless of visit order.
+        if (sctx.type == StationType::Abandoned) {
+            std::mt19937 xeno_rng(static_cast<uint32_t>(sctx.keeper_seed ^ 0xB10Du));
+            int xeno_count = std::uniform_int_distribution<int>(1, 2)(xeno_rng);
+            for (int i = 0; i < xeno_count; ++i) {
+                Npc xeno = build_xytomorph(xeno_rng);
+                xeno.name = "Wandering Xytomorph";
+                xeno.hp = 8; xeno.max_hp = 8;
+                xeno.base_damage = 2;
+                xeno.base_xp = 15;
+                int rx = 0, ry = 0;
+                bool placed = false;
+                // Prefer non-starting regions
+                for (int r = 1; r < world_.map().region_count() && !placed; ++r) {
+                    if (world_.map().find_open_spot_in_region(r, rx, ry, occupied)) {
+                        xeno.x = rx; xeno.y = ry;
+                        occupied.push_back({rx, ry});
+                        world_.npcs().push_back(std::move(xeno));
+                        placed = true;
+                    }
+                }
+                if (!placed) {
+                    if (world_.map().find_open_spot_other_room(
+                            player_.x, player_.y, rx, ry, occupied, &xeno_rng)) {
+                        xeno.x = rx; xeno.y = ry;
+                        occupied.push_back({rx, ry});
+                        world_.npcs().push_back(std::move(xeno));
+                    }
+                }
+            }
+        }
+
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
