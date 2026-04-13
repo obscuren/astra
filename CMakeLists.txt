@@ -43,6 +43,7 @@ set(ASTRA_SOURCES
     src/generators/scav_station_generator.cpp
     src/generators/pirate_station_generator.cpp
     src/generators/derelict_station_generator.cpp
+    src/generators/infested_station_generator.cpp
     src/generators/starship_generator.cpp
     src/generators/overworld_generator_base.cpp
     src/generators/default_overworld_generator.cpp

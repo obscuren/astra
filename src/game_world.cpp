@@ -1404,6 +1404,61 @@ void Game::travel_to_destination(const ChartAction& action) {
                     }
                 }
             }
+        } else if (sctx.type == StationType::Infested) {
+            // Infested stations: 6-12 xytomorphs clustered into 3-5 "nests"
+            // across different rooms.  Seeded from keeper_seed ^ 0xF001 so
+            // the infestation is deterministic per-station.
+            std::mt19937 xeno_rng(static_cast<uint32_t>(sctx.keeper_seed ^ 0xF001u));
+            int total = std::uniform_int_distribution<int>(6, 12)(xeno_rng);
+            int nest_count = std::uniform_int_distribution<int>(3, 5)(xeno_rng);
+            int region_count = world_.map().region_count();
+
+            // Build a list of candidate nest regions (non-starting rooms).
+            std::vector<int> nest_regions;
+            for (int r = 1; r < region_count; ++r) {
+                if (world_.map().region(r).type == RegionType::Room)
+                    nest_regions.push_back(r);
+            }
+            // Shuffle so nest selection is varied per station.
+            std::shuffle(nest_regions.begin(), nest_regions.end(), xeno_rng);
+            if (static_cast<int>(nest_regions.size()) > nest_count)
+                nest_regions.resize(nest_count);
+            // Fallback: allow any region if no rooms found.
+            if (nest_regions.empty()) {
+                for (int r = 0; r < region_count; ++r)
+                    nest_regions.push_back(r);
+            }
+
+            for (int i = 0; i < total; ++i) {
+                // Pick a nest region round-robin so monsters spread across nests.
+                int nest_idx = i % static_cast<int>(nest_regions.size());
+                int region = nest_regions[nest_idx];
+
+                Npc xeno = build_xytomorph(xeno_rng);
+                xeno.name = "Xytomorph";
+                // Full-strength infestation variant: slightly tougher than wanderers.
+                xeno.hp = 12; xeno.max_hp = 12;
+                xeno.base_damage = 3;
+                xeno.base_xp = 20;
+
+                int rx = 0, ry = 0;
+                bool placed = false;
+                if (world_.map().find_open_spot_in_region(region, rx, ry, occupied)) {
+                    xeno.x = rx; xeno.y = ry;
+                    occupied.push_back({rx, ry});
+                    world_.npcs().push_back(std::move(xeno));
+                    placed = true;
+                }
+                if (!placed) {
+                    // Fallback: any open spot away from the player.
+                    if (world_.map().find_open_spot_other_room(
+                            player_.x, player_.y, rx, ry, occupied, &xeno_rng)) {
+                        xeno.x = rx; xeno.y = ry;
+                        occupied.push_back({rx, ry});
+                        world_.npcs().push_back(std::move(xeno));
+                    }
+                }
+            }
         }
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
