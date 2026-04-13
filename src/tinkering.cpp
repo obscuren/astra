@@ -14,9 +14,9 @@ namespace astra {
 // ---------------------------------------------------------------------------
 
 static const MaterialEffect s_material_effects[] = {
-    {7002, "Power Core",    {2, 0, 0, 0, 0}},  // +2 ATK
+    {7002, "Power Core",    {2, 0, 0, 0, 0}},  // +2 AV
     {7003, "Circuit Board", {0, 0, 0, 1, 0}},  // +1 view
-    {7004, "Alloy Ingot",   {0, 2, 0, 0, 0}},  // +2 DEF
+    {7004, "Alloy Ingot",   {0, 2, 0, 0, 0}},  // +2 DV
 };
 
 const MaterialEffect* get_material_effect(uint32_t material_id) {

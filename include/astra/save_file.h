@@ -59,7 +59,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 25;   // v25: faction string in NPC, scaled reputation 6x
+    uint32_t version = 26;   // v26: dice combat fields, shield HP, kinetic resistance
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

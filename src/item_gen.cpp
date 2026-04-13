@@ -52,6 +52,7 @@ void scale_item_to_level(Item& item, int level) {
     };
 
     item.item_level = level;
+    item.damage_dice.modifier = scale(item.damage_dice.modifier);
     item.modifiers.av = scale(item.modifiers.av);
     item.modifiers.dv = scale(item.modifiers.dv);
     item.modifiers.max_hp = scale(item.modifiers.max_hp);
@@ -63,6 +64,10 @@ void scale_item_to_level(Item& item, int level) {
     if (item.ranged) {
         item.ranged->charge_capacity = scale(item.ranged->charge_capacity);
         item.ranged->current_charge = item.ranged->charge_capacity;
+    }
+    if (item.shield_capacity > 0) {
+        item.shield_capacity = scale(item.shield_capacity);
+        item.shield_hp = item.shield_capacity;
     }
 }
 
@@ -144,6 +149,15 @@ static void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng) {
             apply_affix(item, s_prefixes[8]); // Ancient
             apply_affix(item, s_suffixes[4]); // of the Ancients
             break;
+    }
+
+    // Update weapon display name with current dice
+    if (!item.damage_dice.empty()) {
+        auto dash = item.name.rfind(" - ");
+        if (dash != std::string::npos) {
+            item.name = item.name.substr(0, dash);
+        }
+        item.name += " - " + item.damage_dice.to_string();
     }
 }
 

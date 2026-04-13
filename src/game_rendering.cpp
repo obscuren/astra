@@ -846,6 +846,13 @@ void Game::render_stats_bar() {
     left.push_back({" :: ", UITag::TextDim});
     left.push_back({std::to_string(player_.money) + "$", UITag::TextWarning});
 
+    if (player_.shield_max_hp > 0) {
+        left.push_back({" :: ", UITag::TextDim});
+        left.push_back({"SH:", UITag::TextDim});
+        left.push_back({std::to_string(player_.shield_hp) + "/" +
+                        std::to_string(player_.shield_max_hp), UITag::TextBright});
+    }
+
     ctx.styled_text({.x = 1, .y = 0, .segments = left});
 
     // --- Right side (right-aligned): QN:5 :: MS:10 :: AV:15 :: DV:8 :: C1 D3 [▓▓▓▒░░░░] ☀ :: Location ---

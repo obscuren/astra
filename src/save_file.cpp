@@ -1,4 +1,5 @@
 #include "astra/save_file.h"
+#include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/item_ids.h"
 #include "astra/world_manager.h"
@@ -326,6 +327,18 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_i32(item.ship_modifiers.shield_hp);
     w.write_i32(item.ship_modifiers.warp_range);
     w.write_i32(item.ship_modifiers.cargo_capacity);
+    // v26: dice combat fields
+    w.write_u8(static_cast<uint8_t>(item.damage_type));
+    w.write_i32(item.damage_dice.count);
+    w.write_i32(item.damage_dice.sides);
+    w.write_i32(item.damage_dice.modifier);
+    w.write_i32(item.type_affinity.kinetic);
+    w.write_i32(item.type_affinity.plasma);
+    w.write_i32(item.type_affinity.electrical);
+    w.write_i32(item.type_affinity.cryo);
+    w.write_i32(item.type_affinity.acid);
+    w.write_i32(item.shield_capacity);
+    w.write_i32(item.shield_hp);
 }
 
 static Item read_item(BinaryReader& r, uint32_t version = 14) {
@@ -389,6 +402,20 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
         item.ship_modifiers.warp_range = r.read_i32();
         item.ship_modifiers.cargo_capacity = r.read_i32();
     }
+    // v26: dice combat fields
+    if (version >= 26) {
+        item.damage_type = static_cast<DamageType>(r.read_u8());
+        item.damage_dice.count = r.read_i32();
+        item.damage_dice.sides = r.read_i32();
+        item.damage_dice.modifier = r.read_i32();
+        item.type_affinity.kinetic = r.read_i32();
+        item.type_affinity.plasma = r.read_i32();
+        item.type_affinity.electrical = r.read_i32();
+        item.type_affinity.cryo = r.read_i32();
+        item.type_affinity.acid = r.read_i32();
+        item.shield_capacity = r.read_i32();
+        item.shield_hp = r.read_i32();
+    }
     // Reconstruct item_def_id for pre-v19 saves
     if (version < 19 && item.item_def_id == 0) {
         item.item_def_id = item_def_id_from_name(item.name);
@@ -419,6 +446,8 @@ static void write_equipment(BinaryWriter& w, const Equipment& eq) {
     write_optional_item(w, eq.feet);
     write_optional_item(w, eq.thrown);
     write_optional_item(w, eq.missile);
+    // v26: shield slot
+    write_optional_item(w, eq.shield);
 }
 
 static void read_equipment(BinaryReader& r, Equipment& eq, uint32_t version) {
@@ -434,6 +463,9 @@ static void read_equipment(BinaryReader& r, Equipment& eq, uint32_t version) {
         eq.feet = read_optional_item(r, version);
         eq.thrown = read_optional_item(r, version);
         eq.missile = read_optional_item(r, version);
+        if (version >= 26) {
+            eq.shield = read_optional_item(r, version);
+        }
     } else {
         // Old 8-slot format: map to new slots
         eq.head = read_optional_item(r, version);
@@ -553,6 +585,10 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     for (const auto& item : p.ship.cargo) write_item(w, item);
     // v15: tab help seen bitfield
     w.write_u16(p.tab_help_seen);
+    // v26: shield HP and kinetic resistance
+    w.write_i32(p.shield_hp);
+    w.write_i32(p.shield_max_hp);
+    w.write_i32(p.resistances.kinetic);
     w.end_section(pos);
 }
 
@@ -574,6 +610,18 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_u8(npc.elite ? 1 : 0);
     w.write_i32(npc.base_xp);
     w.write_i32(npc.base_damage);
+    // v26: dice combat stats
+    w.write_i32(npc.dv);
+    w.write_i32(npc.av);
+    w.write_i32(npc.damage_dice.count);
+    w.write_i32(npc.damage_dice.sides);
+    w.write_i32(npc.damage_dice.modifier);
+    w.write_u8(static_cast<uint8_t>(npc.damage_type));
+    w.write_i32(npc.type_affinity.kinetic);
+    w.write_i32(npc.type_affinity.plasma);
+    w.write_i32(npc.type_affinity.electrical);
+    w.write_i32(npc.type_affinity.cryo);
+    w.write_i32(npc.type_affinity.acid);
 
     // Interaction traits presence flags
     uint8_t has_talk = npc.interactions.talk ? 1 : 0;
@@ -1143,6 +1191,12 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
     if (version >= 15) {
         p.tab_help_seen = r.read_u16();
     }
+    // v26: shield HP and kinetic resistance
+    if (version >= 26) {
+        p.shield_hp = r.read_i32();
+        p.shield_max_hp = r.read_i32();
+        p.resistances.kinetic = r.read_i32();
+    }
 }
 
 static Npc read_npc(BinaryReader& r, uint32_t version) {
@@ -1189,6 +1243,20 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     npc.elite = r.read_u8() != 0;
     npc.base_xp = r.read_i32();
     npc.base_damage = r.read_i32();
+    // v26: dice combat stats
+    if (version >= 26) {
+        npc.dv = r.read_i32();
+        npc.av = r.read_i32();
+        npc.damage_dice.count = r.read_i32();
+        npc.damage_dice.sides = r.read_i32();
+        npc.damage_dice.modifier = r.read_i32();
+        npc.damage_type = static_cast<DamageType>(r.read_u8());
+        npc.type_affinity.kinetic = r.read_i32();
+        npc.type_affinity.plasma = r.read_i32();
+        npc.type_affinity.electrical = r.read_i32();
+        npc.type_affinity.cryo = r.read_i32();
+        npc.type_affinity.acid = r.read_i32();
+    }
 
     uint8_t has_talk = r.read_u8();
     uint8_t has_shop = r.read_u8();

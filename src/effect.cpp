@@ -167,7 +167,7 @@ Effect make_attack_boost(int duration, int amount) {
     e.duration = duration;
     e.remaining = duration;
     e.show_in_bar = false;
-    e.modifiers.av = amount;
+    e.dodge_mod = amount;
     return e;
 }
 
