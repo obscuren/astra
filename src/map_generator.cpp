@@ -374,6 +374,7 @@ std::unique_ptr<MapGenerator> make_derelict_station_generator();
 std::unique_ptr<MapGenerator> make_open_cave_generator();
 std::unique_ptr<MapGenerator> make_tunnel_cave_generator();
 std::unique_ptr<MapGenerator> make_hub_station_generator();
+std::unique_ptr<MapGenerator> make_hub_station_generator(const StationContext& ctx);
 std::unique_ptr<MapGenerator> make_starship_generator();
 std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props);
 std::unique_ptr<MapGenerator> make_detail_map_generator();
@@ -431,9 +432,7 @@ std::unique_ptr<MapGenerator> create_station_generator(const StationContext& ctx
     // provides a dedicated non-THA hub generator.
     switch (ctx.type) {
         case StationType::NormalHub:
-            if (ctx.is_tha) return make_hub_station_generator();
-            // TODO(task-5): make_hub_station_generator(ctx) for non-THA hubs
-            return make_station_generator();
+            return make_hub_station_generator(ctx);
         case StationType::Scav:
             // TODO(task-8): make_scav_station_generator(ctx)
             return make_station_generator();

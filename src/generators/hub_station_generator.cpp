@@ -1,4 +1,5 @@
 #include "astra/map_generator.h"
+#include "astra/station_type.h"
 
 #include <vector>
 
@@ -363,7 +364,42 @@ static void furnish_room(TileMap& map, RoomFlavor flavor,
 // Hub Station Generator
 // =========================================================================
 
+// Describes one fixed room slot: its flavor and its grid position
+struct FixedRoomDef {
+    RoomFlavor flavor;
+    int col, row;  // 3x3 grid position
+};
+
+// Base roster: always present for any NormalHub station
+static constexpr FixedRoomDef hub_base_rooms[] = {
+    {RoomFlavor::EmptyRoom,     0, 0},  // Docking Bay
+    {RoomFlavor::StorageBay,    1, 0},  // Storage Bay
+    {RoomFlavor::Cantina,       2, 0},  // Cantina
+    {RoomFlavor::Medbay,        0, 1},  // Medbay
+    {RoomFlavor::CommandCenter, 1, 1},  // Command Center
+    {RoomFlavor::Armory,        2, 1},  // Armory
+    {RoomFlavor::Engineering,   0, 2},  // Engineering Bay
+};
+static constexpr int hub_base_count = 7;
+
+// THA-only rooms: only placed when ctx.is_tha is true
+static constexpr FixedRoomDef hub_tha_rooms[] = {
+    {RoomFlavor::Observatory,        1, 2},  // Nova's Observatory
+    {RoomFlavor::MaintenanceTunnels, 2, 2},  // Tutorial dungeon entrance
+};
+static constexpr int hub_tha_count = 2;
+
+// Random flavors for the remaining rooms
+static constexpr RoomFlavor hub_random_pool[] = {
+    RoomFlavor::CrewQuarters,
+    RoomFlavor::CargoHold,
+};
+static constexpr int hub_random_pool_size = 2;
+
 class HubStationGenerator : public MapGenerator {
+public:
+    explicit HubStationGenerator(StationContext ctx = {}) : ctx_(std::move(ctx)) {}
+
 protected:
     void generate_layout(std::mt19937& rng) override;
     void connect_rooms(std::mt19937& rng) override;
@@ -373,28 +409,21 @@ protected:
 private:
     void safe_corridor_h(int x1, int x2, int y, int crid);
     void safe_corridor_v(int y1, int y2, int x, int crid);
+
+    // Returns the number of fixed rooms for this context
+    int fixed_count() const {
+        return hub_base_count + (ctx_.is_tha ? hub_tha_count : 0);
+    }
+
+    // Returns the FixedRoomDef for fixed room index i
+    const FixedRoomDef& fixed_room(int i) const {
+        if (i < hub_base_count) return hub_base_rooms[i];
+        return hub_tha_rooms[i - hub_base_count];
+    }
+
+    StationContext ctx_;
 };
 
-// Fixed room flavors for the 7 deterministic rooms
-static constexpr RoomFlavor hub_fixed_flavors[] = {
-    RoomFlavor::EmptyRoom,          // Docking Bay (room 0)
-    RoomFlavor::StorageBay,         // room 1 — always adjacent to Docking Bay
-    RoomFlavor::Cantina,            // room 2
-    RoomFlavor::Medbay,             // room 3
-    RoomFlavor::CommandCenter,      // room 4
-    RoomFlavor::Armory,             // room 5
-    RoomFlavor::Observatory,        // room 6 — Nova's room
-    RoomFlavor::Engineering,        // room 7 — Engineer lives here
-    RoomFlavor::MaintenanceTunnels, // room 8 — tutorial dungeon entrance
-};
-static constexpr int hub_fixed_count = 9;
-
-// Random flavors for the remaining rooms
-static constexpr RoomFlavor hub_random_pool[] = {
-    RoomFlavor::CrewQuarters,
-    RoomFlavor::CargoHold,
-};
-static constexpr int hub_random_pool_size = 2;
 
 void HubStationGenerator::generate_layout(std::mt19937& rng) {
     // 9 fixed rooms + 2 random rooms on a 120x80 map
@@ -408,25 +437,18 @@ void HubStationGenerator::generate_layout(std::mt19937& rng) {
     std::uniform_int_distribution<int> w_dist(10, 14);
     std::uniform_int_distribution<int> h_dist(8, 12);
 
-    // Grid: 3 columns, 3 rows — 9 slots for 9 fixed rooms
-    struct GridPos { int col; int row; };
-    static constexpr GridPos grid_positions[] = {
-        {0, 0}, {1, 0}, {2, 0},  // Docking Bay, Storage Bay, Cantina
-        {0, 1}, {1, 1}, {2, 1},  // Medbay, Command Center, Armory
-        {1, 2},                   // Observatory (centered bottom)
-        {0, 2}, {2, 2},          // Engineering, Maintenance Tunnels
-    };
-
+    // Grid: 3 columns, 3 rows — slots for fixed rooms
+    // Base roster fills 7 slots; THA adds Observatory + MaintenanceTunnels in row 2.
     int col_width = map_w / 3;
     int row_height = map_h / 3;
 
-    // Place 7 fixed rooms
-    for (int i = 0; i < hub_fixed_count; ++i) {
+    // Place fixed rooms (base + THA-only if applicable)
+    for (int i = 0; i < fixed_count(); ++i) {
         int rw = w_dist(rng);
         int rh = h_dist(rng);
 
-        int col = grid_positions[i].col;
-        int row = grid_positions[i].row;
+        int col = fixed_room(i).col;
+        int row = fixed_room(i).row;
 
         // Place room within its grid cell with some padding
         int cell_x = col * col_width + 2;
@@ -464,7 +486,7 @@ void HubStationGenerator::generate_layout(std::mt19937& rng) {
     std::uniform_int_distribution<int> rand_size(min_size, max_size);
 
     for (int attempt = 0; attempt < random_rooms * 8 &&
-         static_cast<int>(rooms_.size()) < hub_fixed_count + random_rooms; ++attempt) {
+         static_cast<int>(rooms_.size()) < fixed_count() + random_rooms; ++attempt) {
         int w = rand_size(rng);
         int h = rand_size(rng);
         int tw = w + 2;
@@ -603,19 +625,14 @@ void HubStationGenerator::connect_rooms(std::mt19937& rng) {
 }
 
 void HubStationGenerator::place_features(std::mt19937& /*rng*/) {
-    // Furnish each room based on its assigned flavor
-    // assign_regions hasn't run yet, so we use the known layout
-    // Fixed rooms: indices 0..4 have known flavors
+    // Furnish each room based on its assigned flavor.
+    // assign_regions hasn't run yet, so we use the known layout.
+    // Fixed rooms have known flavors; random rooms are furnished in assign_regions.
     for (int i = 0; i < static_cast<int>(rooms_.size()); ++i) {
-        RoomFlavor flavor;
-        if (i < hub_fixed_count) {
-            flavor = hub_fixed_flavors[i];
-        } else {
-            // Random rooms get their flavor set during assign_regions
-            // We'll furnish them there instead
-            continue;
+        if (i < fixed_count()) {
+            furnish_room(*map_, fixed_room(i).flavor, rooms_[i]);
         }
-        furnish_room(*map_, flavor, rooms_[i]);
+        // else: random rooms get furnished during assign_regions
     }
 }
 
@@ -627,8 +644,8 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
         const char* enter_message;
     };
 
-    // Fixed room flavor info
-    static const FlavorInfo hub_room_info[] = {
+    // Base room info (always present for any NormalHub station)
+    static const FlavorInfo hub_base_info[] = {
         {RoomFlavor::EmptyRoom, "Docking Bay",
             "The main docking bay. Shuttle clamps line the deck "
             "and the hum of life support fills the air."},
@@ -647,14 +664,24 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
         {RoomFlavor::Armory, "Armory",
             "Weapon racks stand in orderly rows. "
             "A security console monitors the entrance."},
+        {RoomFlavor::Engineering, "Engineering Bay",
+            "Conduits and junction boxes crowd every surface. The station's guts exposed."},
+    };
+
+    // THA-only room info (only present when ctx_.is_tha is true)
+    static const FlavorInfo hub_tha_info[] = {
         {RoomFlavor::Observatory, "Nova's Observatory",
             "A viewport dominates the far wall. Jupiter's swirling storms fill the view. "
             "Nova stands silhouetted against the light."},
-        {RoomFlavor::Engineering, "Engineering Bay",
-            "Conduits and junction boxes crowd every surface. The station's guts exposed."},
         {RoomFlavor::MaintenanceTunnels, "Maintenance Access",
             "A grimy utility room. Pipes snake along the ceiling and a heavy "
             "floor hatch leads to the tunnels below. Caution markings everywhere."},
+    };
+
+    // Helper: get FlavorInfo for fixed room index i
+    auto get_fixed_info = [&](int i) -> const FlavorInfo& {
+        if (i < hub_base_count) return hub_base_info[i];
+        return hub_tha_info[i - hub_base_count];
     };
 
     // Random room flavor info
@@ -680,8 +707,8 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
         Region reg = map_->region(i);
 
         if (reg.type == RegionType::Room) {
-            if (room_index < hub_fixed_count) {
-                const auto& info = hub_room_info[room_index];
+            if (room_index < fixed_count()) {
+                const auto& info = get_fixed_info(room_index);
                 reg.flavor = info.flavor;
                 reg.name = info.name;
                 reg.enter_message = info.enter_message;
@@ -712,7 +739,15 @@ void HubStationGenerator::assign_regions(std::mt19937& rng) {
 }
 
 std::unique_ptr<MapGenerator> make_hub_station_generator() {
-    return std::make_unique<HubStationGenerator>();
+    // Legacy entry point: constructs a THA-flavored context and delegates.
+    StationContext tha_ctx;
+    tha_ctx.is_tha = true;
+    tha_ctx.type = StationType::NormalHub;
+    return std::make_unique<HubStationGenerator>(tha_ctx);
+}
+
+std::unique_ptr<MapGenerator> make_hub_station_generator(const StationContext& ctx) {
+    return std::make_unique<HubStationGenerator>(ctx);
 }
 
 } // namespace astra
