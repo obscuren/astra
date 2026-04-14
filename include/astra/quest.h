@@ -42,6 +42,7 @@ enum class ObjectiveType : uint8_t {
     TalkToNpc,
     DeliverItem,
     InstallShipComponent,
+    InteractFixture,
 };
 
 struct QuestObjective {
@@ -112,6 +113,7 @@ public:
     void on_location_entered(const std::string& location_name);
     void on_npc_talked(const std::string& npc_name);
     void on_ship_component_installed(const std::string& slot_name);
+    void on_fixture_interacted(const std::string& fixture_id);
 
     // Query
     const std::vector<Quest>& active_quests() const { return active_; }

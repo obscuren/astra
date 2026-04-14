@@ -301,6 +301,18 @@ void QuestManager::on_ship_component_installed(const std::string& slot_name) {
     }
 }
 
+void QuestManager::on_fixture_interacted(const std::string& fixture_id) {
+    for (auto& q : active_) {
+        for (auto& obj : q.objectives) {
+            if (obj.type == ObjectiveType::InteractFixture &&
+                obj.target_id == fixture_id &&
+                obj.current_count < obj.target_count) {
+                ++obj.current_count;
+            }
+        }
+    }
+}
+
 // ── Random Quest Generation ─────────────────────────────────────────
 
 // Pick a random landable body from a system (generates bodies if needed)
