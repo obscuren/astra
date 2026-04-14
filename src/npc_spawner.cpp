@@ -37,7 +37,8 @@ bool find_walkable_in_bounds(const TileMap& map, const Rect& bounds,
 
 void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                     int player_x, int player_y, std::mt19937& rng,
-                    const Player* player) {
+                    const Player* player,
+                    const StationContext& ctx) {
     int kreth_rep = player ? reputation_for(*player, Faction_KrethMiningGuild) : 0;
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
@@ -66,7 +67,7 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
         switch (reg.flavor) {
             case RoomFlavor::EmptyRoom: {
                 // Docking Bay: Station Keeper
-                place_npc(build_station_keeper(Race::Human, rng), rid);
+                place_npc(build_station_keeper(Race::Human, rng, ctx), rid);
                 break;
             }
             case RoomFlavor::Cantina: {
@@ -83,7 +84,7 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                 break;
             }
             case RoomFlavor::CommandCenter: {
-                place_npc(build_commander(Race::Human, rng), rid);
+                place_npc(build_commander(Race::Human, rng, ctx), rid);
                 break;
             }
             case RoomFlavor::Armory: {

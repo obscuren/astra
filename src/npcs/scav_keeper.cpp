@@ -18,7 +18,7 @@ Npc build_scav_keeper(Race race, std::mt19937& rng) {
 
     // --- Talk ---
     npc.interactions.talk = TalkTrait{
-        "Yeah? What do you want?",
+        "Everything here's used — take what you pay for.",
         {
             // Node 0: station background
             {

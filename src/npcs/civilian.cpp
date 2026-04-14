@@ -18,7 +18,7 @@ static const char* station_dialog[] = {
     "You hear about the Xytomorph sightings in the lower decks?",
     "The food terminal's protein bars taste like recycled hull sealant.",
     "I used to run cargo for the Kreth Mining Guild. Pays well if you survive.",
-    "Jupiter looks different every cycle. Never gets old.",
+    "Every station looks different. Some feel like home, some feel like a trap.",
     "They say something's stirring near Sgr A*. Anomalies, energy spikes.",
     "The Station Keeper's been here since before most of us were born.",
     "If you're heading out past the belt, stock up. Supply runs thin fast.",

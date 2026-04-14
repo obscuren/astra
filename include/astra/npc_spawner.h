@@ -14,9 +14,11 @@ struct Player;
 
 // Spawn NPCs in hub station rooms based on room flavor.
 // Player is used for faction reputation (affects shop stock tiers).
+// ctx is used to branch THA-specific vs generic dialog.
 void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
                     int player_x, int player_y, std::mt19937& rng,
-                    const Player* player = nullptr);
+                    const Player* player = nullptr,
+                    const StationContext& ctx = {});
 
 // Spawn NPCs in settlement detail maps (near fixtures).
 void spawn_settlement_npcs(TileMap& map, std::vector<Npc>& npcs,

@@ -13,6 +13,7 @@
 #include "astra/overworld_stamps.h"
 #include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
+#include "astra/station_type.h"
 #include "astra/shop.h"
 
 #include <algorithm>
@@ -621,7 +622,8 @@ void Game::new_game() {
     world_.npcs().clear();
     world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+    StationContext tha_ctx{ .is_tha = true };
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_, tha_ctx);
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -909,7 +911,8 @@ void Game::new_game(const CreationResult& cr) {
     world_.npcs().clear();
     world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+    StationContext tha_ctx{ .is_tha = true };
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_, tha_ctx);
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();

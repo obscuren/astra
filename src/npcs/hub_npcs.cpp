@@ -1,6 +1,7 @@
 #include "astra/npc_defs.h"
 #include "astra/item_defs.h"
 #include "astra/faction.h"
+#include "astra/station_type.h"
 
 namespace astra {
 
@@ -89,7 +90,7 @@ Npc build_medic(Race race, std::mt19937& rng) {
     return npc;
 }
 
-Npc build_commander(Race race, std::mt19937& rng) {
+Npc build_commander(Race race, std::mt19937& rng, const StationContext& ctx) {
     Npc npc;
     npc.race = race;
     npc.npc_role = NpcRole::Commander;
@@ -102,68 +103,84 @@ Npc build_commander(Race race, std::mt19937& rng) {
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
-    npc.interactions.talk = TalkTrait{
-        "Commander. I run this station. What do you need?",
-        {
-            // Node 0: Main
+    if (ctx.is_tha) {
+        npc.interactions.talk = TalkTrait{
+            "Commander. I run this station. What do you need?",
             {
-                "The Heavens Above is the last major outpost before the "
-                "inner systems. We keep the peace, maintain the docks, "
-                "and make sure the supply lines stay open. Beyond here, "
-                "you're on your own.",
+                // Node 0: Main
                 {
-                    {"What's the situation out there?", 1},
-                    {"I heard you might have a spare nav computer.", 2},
-                    {"Understood.", -1},
+                    "The Heavens Above is the last major outpost before the "
+                    "inner systems. We keep the peace, maintain the docks, "
+                    "and make sure the supply lines stay open. Beyond here, "
+                    "you're on your own.",
+                    {
+                        {"What's the situation out there?", 1},
+                        {"I heard you might have a spare nav computer.", 2},
+                        {"Understood.", -1},
+                    },
+                },
+                // Node 1: Situation report
+                {
+                    "Xytomorph activity has been increasing in the asteroid "
+                    "belts. We've lost contact with two survey teams this "
+                    "cycle. If you're heading out, watch yourself. And if "
+                    "you find anything useful, report back.",
+                    {
+                        {"I'll keep my eyes open.", -1},
+                    },
+                },
+                // Node 2: Nav computer favor
+                {
+                    "A nav computer? Maybe. We salvaged one from a wreck "
+                    "last cycle. I could part with it — but I need a favor "
+                    "first. We intercepted a distress signal from the lower "
+                    "decks. Something's down there that shouldn't be. Clear "
+                    "it out and the nav computer is yours.",
+                    {
+                        {"I'll take a look.", -1},
+                    },
                 },
             },
-            // Node 1: Situation report
-            {
-                "Xytomorph activity has been increasing in the asteroid "
-                "belts. We've lost contact with two survey teams this "
-                "cycle. If you're heading out, watch yourself. And if "
-                "you find anything useful, report back.",
-                {
-                    {"I'll keep my eyes open.", -1},
-                },
-            },
-            // Node 2: Nav computer favor
-            {
-                "A nav computer? Maybe. We salvaged one from a wreck "
-                "last cycle. I could part with it — but I need a favor "
-                "first. We intercepted a distress signal from the lower "
-                "decks. Something's down there that shouldn't be. Clear "
-                "it out and the nav computer is yours.",
-                {
-                    {"I'll take a look.", -1},
-                },
-            },
-        },
-    };
+        };
 
-    npc.interactions.quest = QuestTrait{
-        "About that nav computer...",
-        {
-            // Node 0: offer
+        npc.interactions.quest = QuestTrait{
+            "About that nav computer...",
             {
-                "Right. We salvaged a nav computer from a derelict last "
-                "cycle. It's yours — consider it a welcome gift. Can't "
-                "have ships stranded on my station.",
+                // Node 0: offer
                 {
-                    {"Thank you, Commander.", 1},
-                    {"Maybe later.", -1},
+                    "Right. We salvaged a nav computer from a derelict last "
+                    "cycle. It's yours — consider it a welcome gift. Can't "
+                    "have ships stranded on my station.",
+                    {
+                        {"Thank you, Commander.", 1},
+                        {"Maybe later.", -1},
+                    },
+                },
+                // Node 1: accepted
+                {
+                    "Don't mention it. Get your ship running and come see "
+                    "me when you're ready for real work.",
+                    {
+                        {"Will do.", -1},
+                    },
                 },
             },
-            // Node 1: accepted
+        };
+    } else {
+        npc.interactions.talk = TalkTrait{
+            "This station's under my watch. Keep it civil.",
             {
-                "Don't mention it. Get your ship running and come see "
-                "me when you're ready for real work.",
                 {
-                    {"Will do.", -1},
+                    "We run a tight operation here. Any trouble and you'll "
+                    "answer to me. Security's on alert — pirate activity's "
+                    "been up in this sector.",
+                    {
+                        {"Understood.", -1},
+                    },
                 },
             },
-        },
-    };
+        };
+    }
 
     return npc;
 }
