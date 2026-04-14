@@ -2792,7 +2792,7 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
                 if (q->reward.xp > 0) rew += " " + std::to_string(q->reward.xp) + " XP";
                 if (q->reward.credits > 0) rew += " " + std::to_string(q->reward.credits) + "$";
                 if (q->reward.skill_points > 0) rew += " " + std::to_string(q->reward.skill_points) + " SP";
-                if (!q->reward.item_name.empty()) rew += " + " + q->reward.item_name;
+                for (const auto& ri : q->reward.items) rew += " + " + ri.name;
                 if (rew != "Reward:") {
                     ctx.text({.x = rx, .y = ry, .content = rew, .tag = UITag::TextAccent});
                     ry++;

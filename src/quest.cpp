@@ -1,5 +1,4 @@
 #include "astra/quest.h"
-#include "astra/item_defs.h"
 #include "astra/journal.h"
 #include "astra/player.h"
 #include "astra/character.h"
@@ -74,11 +73,8 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
             game.player().xp += it->reward.xp;
             game.player().money += it->reward.credits;
             game.player().skill_points += it->reward.skill_points;
-            if (!it->reward.item_name.empty()) {
-                Item reward_item = build_item_by_name(it->reward.item_name);
-                if (!reward_item.name.empty()) {
-                    game.player().inventory.items.push_back(std::move(reward_item));
-                }
+            for (auto& reward_item : it->reward.items) {
+                game.player().inventory.items.push_back(std::move(reward_item));
             }
             if (!it->reward.faction_name.empty()) {
                 for (auto& fs : game.player().reputation) {
@@ -104,7 +100,7 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
                 if (it->reward.xp > 0) rewards += std::to_string(it->reward.xp) + " XP  ";
                 if (it->reward.credits > 0) rewards += std::to_string(it->reward.credits) + "$  ";
                 if (it->reward.skill_points > 0) rewards += std::to_string(it->reward.skill_points) + " SP  ";
-                if (!it->reward.item_name.empty()) rewards += it->reward.item_name + "  ";
+                for (const auto& ri : it->reward.items) rewards += ri.name + "  ";
                 if (!rewards.empty()) je->personal += "\nRewards: " + rewards;
             }
 

@@ -59,7 +59,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 28;   // v28: quest chains (locked/available pools, chain fields)
+    uint32_t version = 29;   // v29: quest reward items vector (replaces item_name string)
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

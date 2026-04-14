@@ -2,6 +2,7 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/celestial_body.h"
+#include "astra/item_defs.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -35,7 +36,7 @@ public:
 
         q.reward.xp = 200;
         q.reward.credits = 100;
-        q.reward.item_name = "Plasma Pistol";
+        q.reward.items.push_back(build_plasma_pistol());
         q.reward.faction_name = Faction_StellariConclave;
         q.reward.reputation_change = 10;
         return q;

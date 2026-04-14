@@ -664,39 +664,6 @@ Item build_navi_computer_mk2() {
 }
 
 // ---------------------------------------------------------------------------
-// Lookup by display name
-// ---------------------------------------------------------------------------
-
-Item build_item_by_name(const std::string& name) {
-    struct Entry { const char* name; Item (*build)(); };
-    static const Entry table[] = {
-        {"Plasma Pistol",       build_plasma_pistol},
-        {"Ion Blaster",         build_ion_blaster},
-        {"Pulse Rifle",         build_pulse_rifle},
-        {"Arc Caster",          build_arc_caster},
-        {"Void Lance",          build_void_lance},
-        {"Combat Knife",        build_combat_knife},
-        {"Vibro-Blade",         build_vibro_blade},
-        {"Plasma Saber",        build_plasma_saber},
-        {"Stun Baton",          build_stun_baton},
-        {"Ancient Mono-Edge",   build_ancient_mono_edge},
-        {"Padded Vest",         build_padded_vest},
-        {"Composite Armor",     build_composite_armor},
-        {"Exo Suit",            build_exo_suit},
-        {"Flight Helmet",       build_flight_helmet},
-        {"Tactical Helmet",     build_tactical_helmet},
-        {"Combat Boots",        build_combat_boots},
-        {"Mag-Lock Boots",      build_mag_lock_boots},
-        {"Arm Guard",           build_arm_guard},
-    };
-    for (const auto& e : table) {
-        if (name == e.name) return e.build();
-    }
-    Item empty;
-    return empty;
-}
-
-// ---------------------------------------------------------------------------
 // Random selection
 // ---------------------------------------------------------------------------
 

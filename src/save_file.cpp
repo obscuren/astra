@@ -908,7 +908,8 @@ static void write_quest(BinaryWriter& w, const Quest& q) {
     w.write_i32(q.reward.xp);
     w.write_i32(q.reward.credits);
     w.write_i32(q.reward.skill_points);
-    w.write_string(q.reward.item_name);
+    w.write_u32(static_cast<uint32_t>(q.reward.items.size()));
+    for (const auto& it : q.reward.items) write_item(w, it);
     w.write_string(q.reward.faction_name);
     w.write_i32(q.reward.reputation_change);
 }
@@ -957,7 +958,13 @@ static Quest read_quest(BinaryReader& r, uint32_t version) {
     q.reward.xp = r.read_i32();
     q.reward.credits = r.read_i32();
     q.reward.skill_points = r.read_i32();
-    q.reward.item_name = r.read_string();
+    if (version >= 29) {
+        uint32_t n = r.read_u32();
+        q.reward.items.reserve(n);
+        for (uint32_t i = 0; i < n; ++i) q.reward.items.push_back(read_item(r, version));
+    } else {
+        (void)r.read_string();  // legacy item_name, discarded
+    }
     q.reward.faction_name = r.read_string();
     q.reward.reputation_change = r.read_i32();
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/item.h"
+
 #include <memory>
 #include <random>
 #include <string>
@@ -9,7 +11,6 @@ namespace astra {
 
 struct Player;
 struct Npc;
-struct Item;
 struct NavigationData;
 class WorldManager;
 class Game;
@@ -56,7 +57,7 @@ struct QuestReward {
     int xp = 0;
     int credits = 0;
     int skill_points = 0;
-    std::string item_name;
+    std::vector<Item> items;
     std::string faction_name;
     int reputation_change = 0;
 };

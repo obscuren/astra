@@ -8,18 +8,18 @@ namespace astra {
 
 namespace {
 
-enum class Color : uint8_t { White, Gray, Black };
+enum class DfsColor : uint8_t { White, Gray, Black };
 
 bool has_cycle_dfs(const std::string& id,
-                   std::unordered_map<std::string, Color>& color,
+                   std::unordered_map<std::string, DfsColor>& color,
                    const QuestGraph& g) {
-    color[id] = Color::Gray;
+    color[id] = DfsColor::Gray;
     for (const auto& dep : g.dependents_of(id)) {
         auto c = color[dep];
-        if (c == Color::Gray) return true;
-        if (c == Color::White && has_cycle_dfs(dep, color, g)) return true;
+        if (c == DfsColor::Gray) return true;
+        if (c == DfsColor::White && has_cycle_dfs(dep, color, g)) return true;
     }
-    color[id] = Color::Black;
+    color[id] = DfsColor::Black;
     return false;
 }
 
@@ -61,10 +61,10 @@ std::vector<std::string> validate_quest_catalog(
     }
 
     // Cycle detection in deterministic catalog order
-    std::unordered_map<std::string, Color> color;
-    for (const auto& id : ordered_ids) color[id] = Color::White;
+    std::unordered_map<std::string, DfsColor> color;
+    for (const auto& id : ordered_ids) color[id] = DfsColor::White;
     for (const auto& id : ordered_ids) {
-        if (color[id] == Color::White) {
+        if (color[id] == DfsColor::White) {
             if (has_cycle_dfs(id, color, g)) {
                 errors.push_back("Cycle detected involving quest '" + id + "'");
                 break;
