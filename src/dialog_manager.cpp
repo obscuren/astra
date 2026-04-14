@@ -1,5 +1,6 @@
 #include "astra/dialog_manager.h"
 #include "astra/character.h"
+#include "astra/display_name.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/player.h"
@@ -1061,7 +1062,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     reward_msg += " " + colored("+" + std::to_string(fr.reputation_change) + " " + fr.faction_name + " rep", Color::Green);
                 }
                 for (const auto& ri : reward.items)
-                    reward_msg += " " + colored(ri.label(), Color::Magenta);
+                    reward_msg += " " + display_name(ri);
                 game.log(reward_msg);
 
                 // Clean up quest location markers by quest_id
