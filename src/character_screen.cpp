@@ -1,5 +1,6 @@
 #include "astra/character_screen.h"
 #include "astra/character.h"
+#include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/race.h"
@@ -2853,8 +2854,8 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
                         bool focused = (quest_focus_ == QuestFocus::Right &&
                                         static_cast<int>(i) == quest_reward_cursor_);
                         if (focused) ctx.put(rx, ry, '>', Color::Yellow);
-                        UITag t = focused ? UITag::TextBright : UITag::TextAccent;
-                        ctx.text({.x = rx + 2, .y = ry, .content = rw.items[i].label(), .tag = t});
+                        ctx.text_rich(rx + 2, ry, display_name(rw.items[i]),
+                                      Color::Default);
                         ry++;
                     }
                     if (rw.xp > 0 && ry < ctx.height() - 1) {
