@@ -1,4 +1,5 @@
 build/
+build-*/
 cmake-build-*/
 compile_commands.json
 .cache/
@@ -18,3 +19,7 @@ node_modules/
 
 # Worktrees
 .worktrees/
+.claude/worktrees/
+
+# Tooling scratch
+.superpowers/
