@@ -888,6 +888,12 @@ static void write_quest(BinaryWriter& w, const Quest& q) {
     w.write_u32(q.target_system_id);
     w.write_i32(q.target_body_index);
 
+    // v28: chain fields
+    w.write_string(q.arc_id);
+    w.write_u32(static_cast<uint32_t>(q.prerequisite_ids.size()));
+    for (const auto& p : q.prerequisite_ids) w.write_string(p);
+    w.write_u8(static_cast<uint8_t>(q.reveal));
+
     // Objectives
     w.write_u32(static_cast<uint32_t>(q.objectives.size()));
     for (const auto& obj : q.objectives) {
@@ -907,17 +913,36 @@ static void write_quest(BinaryWriter& w, const Quest& q) {
     w.write_i32(q.reward.reputation_change);
 }
 
-static Quest read_quest(BinaryReader& r) {
+static Quest read_quest(BinaryReader& r, uint32_t version) {
     Quest q;
     q.id = r.read_string();
     q.title = r.read_string();
     q.description = r.read_string();
     q.giver_npc = r.read_string();
-    q.status = static_cast<QuestStatus>(r.read_u8());
+    uint8_t raw_status = r.read_u8();
+    if (version < 28) {
+        // v27 and earlier order: Available=0, Active=1, Completed=2, Failed=3
+        static constexpr QuestStatus v27_map[] = {
+            QuestStatus::Available, QuestStatus::Active,
+            QuestStatus::Completed, QuestStatus::Failed,
+        };
+        q.status = raw_status < 4 ? v27_map[raw_status] : QuestStatus::Failed;
+    } else {
+        q.status = static_cast<QuestStatus>(raw_status);
+    }
     q.is_story = r.read_u8() != 0;
     q.accepted_tick = r.read_i32();
     q.target_system_id = r.read_u32();
     q.target_body_index = r.read_i32();
+
+    // v28: chain fields
+    if (version >= 28) {
+        q.arc_id = r.read_string();
+        uint32_t pc = r.read_u32();
+        q.prerequisite_ids.resize(pc);
+        for (auto& p : q.prerequisite_ids) p = r.read_string();
+        q.reveal = static_cast<RevealPolicy>(r.read_u8());
+    }
 
     uint32_t obj_count = r.read_u32();
     q.objectives.resize(obj_count);
@@ -954,6 +979,14 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
         write_quest(w, q);
     }
 
+    // v28: locked pool
+    w.write_u32(static_cast<uint32_t>(data.locked_quests.size()));
+    for (const auto& q : data.locked_quests) write_quest(w, q);
+
+    // v28: available pool
+    w.write_u32(static_cast<uint32_t>(data.available_quests.size()));
+    for (const auto& q : data.available_quests) write_quest(w, q);
+
     // Quest locations map
     w.write_u32(static_cast<uint32_t>(data.quest_locations.size()));
     for (const auto& [key, meta] : data.quest_locations) {
@@ -988,13 +1021,23 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
     uint32_t active_count = r.read_u32();
     data.active_quests.resize(active_count);
     for (auto& q : data.active_quests) {
-        q = read_quest(r);
+        q = read_quest(r, data.version);
     }
 
     uint32_t completed_count = r.read_u32();
     data.completed_quests.resize(completed_count);
     for (auto& q : data.completed_quests) {
-        q = read_quest(r);
+        q = read_quest(r, data.version);
+    }
+
+    if (data.version >= 28) {
+        uint32_t lc = r.read_u32();
+        data.locked_quests.resize(lc);
+        for (auto& q : data.locked_quests) q = read_quest(r, data.version);
+
+        uint32_t ac = r.read_u32();
+        data.available_quests.resize(ac);
+        for (auto& q : data.available_quests) q = read_quest(r, data.version);
     }
 
     uint32_t loc_count = r.read_u32();

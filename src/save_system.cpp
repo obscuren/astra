@@ -44,6 +44,8 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.overworld_return_body_key = ret.body_key;
 
         // Quest state
+        data.locked_quests = game.quests().locked_quests();
+        data.available_quests = game.quests().available_quests();
         data.active_quests = game.quests().active_quests();
         data.completed_quests = game.quests().completed_quests();
         data.quest_locations = world.quest_locations();
@@ -195,8 +197,11 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
         world.navigation() = generate_galaxy(world.seed());
     }
     // Restore quest state (before star chart rebuild so markers appear)
-    game.quests().restore(std::move(data.active_quests),
+    game.quests().restore(std::move(data.locked_quests),
+                          std::move(data.available_quests),
+                          std::move(data.active_quests),
                           std::move(data.completed_quests));
+    game.quests().reconcile_with_catalog(game);
     world.quest_locations() = std::move(data.quest_locations);
     world.lore() = std::move(data.lore);
     apply_lore_to_galaxy(world.navigation(), world.lore());
