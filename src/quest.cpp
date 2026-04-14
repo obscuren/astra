@@ -101,7 +101,7 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
                 if (it->reward.xp > 0) rewards += std::to_string(it->reward.xp) + " XP  ";
                 if (it->reward.credits > 0) rewards += std::to_string(it->reward.credits) + "$  ";
                 if (it->reward.skill_points > 0) rewards += std::to_string(it->reward.skill_points) + " SP  ";
-                for (const auto& ri : it->reward.items) rewards += ri.name + "  ";
+                for (const auto& ri : it->reward.items) rewards += ri.label() + "  ";
                 if (!rewards.empty()) je->personal += "\nRewards: " + rewards;
             }
 

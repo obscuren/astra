@@ -2854,7 +2854,7 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
                                         static_cast<int>(i) == quest_reward_cursor_);
                         if (focused) ctx.put(rx, ry, '>', Color::Yellow);
                         UITag t = focused ? UITag::TextBright : UITag::TextAccent;
-                        ctx.text({.x = rx + 2, .y = ry, .content = rw.items[i].name, .tag = t});
+                        ctx.text({.x = rx + 2, .y = ry, .content = rw.items[i].label(), .tag = t});
                         ry++;
                     }
                     if (rw.xp > 0 && ry < ctx.height() - 1) {

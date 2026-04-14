@@ -1061,7 +1061,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     reward_msg += " " + colored("+" + std::to_string(fr.reputation_change) + " " + fr.faction_name + " rep", Color::Green);
                 }
                 for (const auto& ri : reward.items)
-                    reward_msg += " " + colored(ri.name, Color::Magenta);
+                    reward_msg += " " + colored(ri.label(), Color::Magenta);
                 game.log(reward_msg);
 
                 // Clean up quest location markers by quest_id
