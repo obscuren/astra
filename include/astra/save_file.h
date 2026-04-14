@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -59,7 +60,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 29;   // v29: quest reward items vector (replaces item_name string)
+    uint32_t version = 30;   // v30: quest fixtures (FixtureData.quest_fixture_id + QuestLocationMeta.fixtures + pending_quest_cleanup)
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -90,6 +91,7 @@ struct SaveData {
     std::vector<Quest> active_quests;
     std::vector<Quest> completed_quests;
     std::map<LocationKey, QuestLocationMeta> quest_locations;
+    std::set<LocationKey> pending_quest_cleanup;
 
     // v20: world lore
     WorldLore lore;

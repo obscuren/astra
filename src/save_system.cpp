@@ -49,6 +49,7 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.active_quests = game.quests().active_quests();
         data.completed_quests = game.quests().completed_quests();
         data.quest_locations = world.quest_locations();
+        data.pending_quest_cleanup = world.pending_quest_cleanup();
         data.lore = world.lore();
     }
 
@@ -203,6 +204,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
                           std::move(data.completed_quests));
     game.quests().reconcile_with_catalog(game);
     world.quest_locations() = std::move(data.quest_locations);
+    world.pending_quest_cleanup() = std::move(data.pending_quest_cleanup);
     world.lore() = std::move(data.lore);
     apply_lore_to_galaxy(world.navigation(), world.lore());
 
