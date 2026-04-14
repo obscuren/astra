@@ -838,12 +838,10 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
         if (selected == 0) {
-            // Play tutorial -- accept quest, ship stays empty
-            auto* sq = find_story_quest("story_getting_airborne");
-            if (sq) {
-                auto q = sq->create_quest();
-                game.log("Quest accepted: " + q.title);
-                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
+            // Play tutorial -- promote tutorial quest from available pool
+            if (game.quests().accept_available(
+                    "story_getting_airborne", game, game.world().world_tick())) {
+                game.log("Quest accepted: Getting Airborne");
             }
             game.log("ARIA: \"Understood. Let's get to work.\"");
             game.log("ARIA: \"I'd start with the " + colored("Station Keeper", Color::White)
@@ -932,16 +930,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.log("Stored in ship cargo.");
                 // Don't accept a quest -- this is a direct reward
             }
-            // Try story quest (Station Keeper) -- only after tutorial
-            else if (auto* sq = find_story_quest("story_missing_hauler");
-                sq && interacting_npc_->role == "Station Keeper" &&
-                !game.quests().has_active_quest("story_missing_hauler") &&
-                !game.quests().has_active_quest("story_getting_airborne")) {
-                auto q = sq->create_quest();
-                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
-                sq->on_accepted(game);
-                game.log("Quest accepted: " + colored("The Missing Hauler", Color::Yellow));
-            } else {
+            else {
                 // Generate a random quest based on NPC role + world state
                 auto q = game.quests().generate_quest_for_role(
                     interacting_npc_->role, interacting_npc_->label(),

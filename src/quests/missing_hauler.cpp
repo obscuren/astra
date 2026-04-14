@@ -12,6 +12,9 @@ class MissingHaulerQuest : public StoryQuest {
 public:
     static constexpr const char* quest_id = "story_missing_hauler";
 
+    std::string offer_giver_role() const override { return "Station Keeper"; }
+    OfferMode offer_mode() const override { return OfferMode::NpcOffer; }
+
     Quest create_quest() override {
         Quest q;
         q.id = quest_id;

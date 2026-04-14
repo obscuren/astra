@@ -7,6 +7,9 @@ namespace astra {
 static const char* quest_id = "story_getting_airborne";
 
 class GettingAirborneQuest : public StoryQuest {
+    OfferMode offer_mode() const override { return OfferMode::NpcOffer; }
+    // offer_giver_role left empty: tutorial-only acceptance via dialog choice
+
     Quest create_quest() override {
         Quest q;
         q.id = quest_id;

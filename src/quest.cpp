@@ -583,11 +583,13 @@ void QuestManager::init_from_catalog(Game& game) {
 
 std::vector<const Quest*> QuestManager::available_for_role(const std::string& role) const {
     std::vector<const Quest*> out;
+    if (role.empty()) return out;
     for (const auto& q : available_) {
         StoryQuest* sq = find_story_quest(q.id);
-        if (sq && sq->offer_giver_role() == role) {
-            out.push_back(&q);
-        }
+        if (!sq) continue;
+        const std::string giver = sq->offer_giver_role();
+        if (giver.empty()) continue;  // Tutorial-only or special quests
+        if (giver == role) out.push_back(&q);
     }
     return out;
 }
