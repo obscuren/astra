@@ -5,6 +5,8 @@
 #include "astra/race.h"
 #include "astra/skill_defs.h"
 #include "astra/journal.h"
+#include "astra/quest.h"
+#include "astra/quest_graph.h"
 #include "astra/tinkering.h"
 #include "astra/world_manager.h"
 #include "terminal_theme.h"
@@ -2180,6 +2182,18 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 // Journal tab
 // ─────────────────────────────────────────────────────────────────
 
+namespace {
+// returns "" if quest has no arc
+std::string lookup_arc_title(const std::string& quest_id) {
+    if (quest_id.empty()) return "";
+    StoryQuest* sq = find_story_quest(quest_id);
+    if (!sq) return "";
+    std::string title = sq->arc_title();
+    if (!title.empty()) return title;
+    return sq->arc_id();
+}
+} // namespace
+
 void CharacterScreen::draw_journal(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
@@ -2219,6 +2233,10 @@ void CharacterScreen::draw_journal(UIContext& ctx) {
 
         // Title (truncated to fit left half)
         std::string title = entry.title;
+        std::string arc_title = lookup_arc_title(entry.quest_id);
+        if (!arc_title.empty()) {
+            title = "[" + arc_title + "] " + title;
+        }
         int max_title = half - 5;
         if (static_cast<int>(title.size()) > max_title)
             title = title.substr(0, max_title);
@@ -2234,6 +2252,54 @@ void CharacterScreen::draw_journal(UIContext& ctx) {
         }
     }
 
+    // Pending story quests (ghosts — not selectable, not in journal entries)
+    if (quests_ && y < ctx.height() - 2 &&
+        (!quests_->available_quests().empty() || !quests_->locked_quests().empty())) {
+        y++;
+        ctx.text({.x = 2, .y = y, .content = "-- Story Threads --", .tag = UITag::TextDim});
+        y += 2;
+
+        // Available story quests
+        for (const auto& q : quests_->available_quests()) {
+            if (y >= ctx.height() - 2) break;
+            std::string arc_title = lookup_arc_title(q.id);
+            std::string label = q.title;
+            if (!arc_title.empty()) label = "[" + arc_title + "] " + label;
+            int max_title = half - 5;
+            if (static_cast<int>(label.size()) > max_title)
+                label = label.substr(0, max_title);
+            ctx.styled_text({.x = 2, .y = y, .segments = {{"~", UITag::TextWarning}}});
+            ctx.text({.x = 4, .y = y, .content = label, .tag = UITag::TextDim});
+            y++;
+            if (y >= ctx.height() - 2) break;
+            StoryQuest* sq = find_story_quest(q.id);
+            std::string giver = sq ? sq->offer_giver_role() : "";
+            std::string hint = giver.empty() ? std::string("Available") : "Speak to " + giver;
+            ctx.text({.x = 4, .y = y, .content = hint, .tag = UITag::TextDim});
+            y += 2;
+        }
+
+        // Locked story quests
+        for (const auto& q : quests_->locked_quests()) {
+            if (y >= ctx.height() - 2) break;
+            StoryQuest* sq = find_story_quest(q.id);
+            RevealPolicy rev = sq ? sq->reveal_policy() : RevealPolicy::Full;
+            std::string arc_title = lookup_arc_title(q.id);
+            std::string title_str = (rev == RevealPolicy::Hidden) ? std::string("???") : q.title;
+            std::string label = title_str;
+            if (!arc_title.empty()) label = "[" + arc_title + "] " + label;
+            int max_title = half - 5;
+            if (static_cast<int>(label.size()) > max_title)
+                label = label.substr(0, max_title);
+            ctx.styled_text({.x = 2, .y = y, .segments = {{"?", UITag::TextDim}}});
+            ctx.text({.x = 4, .y = y, .content = label, .tag = UITag::TextDim});
+            y++;
+            if (y >= ctx.height() - 2) break;
+            ctx.text({.x = 4, .y = y, .content = "Locked", .tag = UITag::TextDim});
+            y += 2;
+        }
+    }
+
     // Right panel: selected entry detail
     if (journal_cursor_ >= 0 && journal_cursor_ < count) {
         const auto& entry = player_->journal[journal_cursor_];
@@ -2245,8 +2311,13 @@ void CharacterScreen::draw_journal(UIContext& ctx) {
         ctx.text({.x = rx, .y = ry, .content = entry.timestamp, .tag = UITag::TextDim});
         ry += 2;
 
-        // Title
-        ctx.text({.x = rx, .y = ry, .content = entry.title, .tag = UITag::TextBright});
+        // Title (with arc prefix if applicable)
+        std::string detail_title = entry.title;
+        std::string detail_arc = lookup_arc_title(entry.quest_id);
+        if (!detail_arc.empty()) {
+            detail_title = "[" + detail_arc + "] " + detail_title;
+        }
+        ctx.text({.x = rx, .y = ry, .content = detail_title, .tag = UITag::TextBright});
         ry += 2;
 
         // Technical section
