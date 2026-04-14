@@ -506,3 +506,25 @@ if tension > 80: faction_count++, tension = 0, stability -= 15
 ### Collapse
 
 Civilization dies when `population < 3`. Territory released, systems marked with ruin layers.
+
+## Station Type Roll
+
+Deterministic per station_seed (station_seed = system.id):
+
+```
+StationType:
+  r = splitmix(seed ^ 0xA1) mod 100
+  r < 70 → NormalHub
+  r < 80 → Scav
+  r < 87 → Pirate
+  r < 94 → Abandoned
+  else     Infested
+
+StationSpecialty (NormalHub only):
+  r = splitmix(seed ^ 0xB2) mod 6
+  → Generic / Mining / Research / Frontier / Trade / Industrial
+
+keeper_seed = splitmix(station_seed ^ 0xC3)
+```
+
+THA (Sol, id=1) is hardcoded NormalHub + Generic with is_tha=true.

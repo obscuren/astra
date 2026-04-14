@@ -64,6 +64,7 @@
 
 ### Gameplay
 - [x] **Auto-walk/explore** — `w` + direction = walk straight, `ww` = BFS auto-explore
+- [x] **Space station types** — Normal/Scav/Pirate/Abandoned/Infested with unique per-station keepers and specialty rooms (see docs/superpowers/specs/2026-04-13-space-station-types-design.md)
 
 ### World Generation
 - [x] **Procedural world lore** — billions of years of layered history, 2-5 precursor civilizations, beacon network toward Sgr A*
