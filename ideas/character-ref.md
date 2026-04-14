@@ -1,0 +1,3 @@
+˦ = Direction marker
+҈ = sand dune
+
