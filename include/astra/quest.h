@@ -164,4 +164,9 @@ public:
 const std::vector<std::unique_ptr<StoryQuest>>& story_quest_catalog();
 StoryQuest* find_story_quest(const std::string& id);
 
+// Returns a list of validation errors. Empty vector = catalog is valid.
+// Pass an explicit catalog reference to avoid recursion through story_quest_catalog().
+std::vector<std::string> validate_quest_catalog(
+    const std::vector<std::unique_ptr<StoryQuest>>& catalog);
+
 } // namespace astra

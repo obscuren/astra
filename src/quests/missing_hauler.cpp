@@ -3,6 +3,9 @@
 #include "astra/game.h"
 #include "astra/celestial_body.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 namespace astra {
 
 class MissingHaulerQuest : public StoryQuest {
@@ -135,8 +138,20 @@ static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     return catalog;
 }
 
+static std::vector<std::unique_ptr<StoryQuest>> init_catalog() {
+    auto cat = build_catalog();
+    auto errors = validate_quest_catalog(cat);
+    if (!errors.empty()) {
+        for (const auto& e : errors) std::fprintf(stderr, "[quest-validator] %s\n", e.c_str());
+#ifdef ASTRA_DEV
+        std::abort();
+#endif
+    }
+    return cat;
+}
+
 const std::vector<std::unique_ptr<StoryQuest>>& story_quest_catalog() {
-    static auto catalog = build_catalog();
+    static auto catalog = init_catalog();
     return catalog;
 }
 
