@@ -559,6 +559,10 @@ void QuestManager::init_from_catalog(Game& game) {
     const auto& catalog = story_quest_catalog();
     for (const auto& sq : catalog) {
         Quest q = sq->create_quest();
+        // Copy chain/reveal metadata from StoryQuest into the Quest struct
+        q.arc_id = sq->arc_id();
+        q.prerequisite_ids = sq->prerequisite_ids();
+        q.reveal = sq->reveal_policy();
         // Skip if already in active_/completed_
         bool already = false;
         for (const auto& a : active_)    if (a.id == q.id) { already = true; break; }
@@ -627,6 +631,9 @@ void QuestManager::reconcile_with_catalog(Game& game) {
 
     for (const auto& sq : catalog) {
         Quest q = sq->create_quest();
+        q.arc_id = sq->arc_id();
+        q.prerequisite_ids = sq->prerequisite_ids();
+        q.reveal = sq->reveal_policy();
         if (seen.count(q.id)) continue;
 
         bool prereqs_ok = true;
@@ -651,6 +658,21 @@ void QuestManager::reconcile_with_catalog(Game& game) {
             available_.push_back(std::move(q));
         }
     }
+
+    // Backfill chain/reveal fields on existing pool entries for older saves
+    auto patch = [](std::vector<Quest>& pool) {
+        for (auto& q : pool) {
+            StoryQuest* sq = find_story_quest(q.id);
+            if (!sq) continue;
+            if (q.arc_id.empty()) q.arc_id = sq->arc_id();
+            if (q.prerequisite_ids.empty()) q.prerequisite_ids = sq->prerequisite_ids();
+            q.reveal = sq->reveal_policy();
+        }
+    };
+    patch(locked_);
+    patch(available_);
+    patch(active_);
+    patch(completed_);
 }
 
 } // namespace astra
