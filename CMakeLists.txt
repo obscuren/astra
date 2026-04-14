@@ -13,6 +13,7 @@ set(ASTRA_SOURCES
     src/main.cpp
     src/game.cpp
     src/ui.cpp
+    src/display_name.cpp
     src/ui_layout.cpp
     src/ui_components.cpp
     src/fov.cpp
