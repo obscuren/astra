@@ -1,4 +1,5 @@
 #include "astra/ui.h"
+#include "astra/display_name.h"
 #include "astra/item.h"
 #include "terminal_theme.h"
 
@@ -386,6 +387,15 @@ void draw_item_info(UIContext& ctx, const Item& item) {
         }
     }
     y++;
+
+    if (!item.damage_dice.empty() && y < ctx.height()) {
+        ctx.label_value(0, y, "Damage:    ", Color::DarkGray,
+            item.damage_dice.to_string(), Color::White);
+        y++;
+        ctx.text(0, y, "Type:      ", Color::DarkGray);
+        ctx.text_rich(11, y, display_name(item.damage_type), Color::Default);
+        y++;
+    }
 
     const auto& m = item.modifiers;
     if (m.av) {
