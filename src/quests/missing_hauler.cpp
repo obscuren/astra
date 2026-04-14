@@ -14,6 +14,8 @@ public:
 
     std::string offer_giver_role() const override { return "Station Keeper"; }
     OfferMode offer_mode() const override { return OfferMode::NpcOffer; }
+    std::string arc_id() const override { return "hauler_arc"; }
+    std::string arc_title() const override { return "The Hauler Arc"; }
 
     Quest create_quest() override {
         Quest q;
@@ -133,11 +135,17 @@ public:
 
 // Forward declare registrations from other quest files
 void register_getting_airborne(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_hauler_b(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_hauler_c(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_hauler_d(std::vector<std::unique_ptr<StoryQuest>>& catalog);
 
 static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     std::vector<std::unique_ptr<StoryQuest>> catalog;
     catalog.push_back(std::make_unique<MissingHaulerQuest>());
     register_getting_airborne(catalog);
+    register_hauler_b(catalog);
+    register_hauler_c(catalog);
+    register_hauler_d(catalog);
     return catalog;
 }
 

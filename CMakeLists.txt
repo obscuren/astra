@@ -119,6 +119,9 @@ set(ASTRA_SOURCES
     src/quest_validator.cpp
     src/quests/missing_hauler.cpp
     src/quests/getting_airborne.cpp
+    src/quests/hauler_b.cpp
+    src/quests/hauler_c.cpp
+    src/quests/hauler_d.cpp
     src/game_combat.cpp
     src/game_input.cpp
     src/game_interaction.cpp
