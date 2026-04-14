@@ -15,10 +15,22 @@ class WorldManager;
 class Game;
 
 enum class QuestStatus : uint8_t {
-    Available,
+    Locked,     // Prerequisites not yet satisfied (story quests only)
+    Available,  // Unlocked, awaiting NPC acceptance (or about to auto-accept)
     Active,
     Completed,
     Failed,
+};
+
+enum class RevealPolicy : uint8_t {
+    Hidden,     // Show "??? — ???" with "Locked" hint only
+    TitleOnly,  // Show title, hide description
+    Full,       // Show title + description
+};
+
+enum class OfferMode : uint8_t {
+    Auto,       // Becomes Active immediately on unlock
+    NpcOffer,   // Enters Available; offered by a named NPC role via dialog
 };
 
 enum class ObjectiveType : uint8_t {
@@ -63,6 +75,11 @@ struct Quest {
     // Target location for map markers (set by generator, 0/-1 = none)
     uint32_t target_system_id = 0;
     int target_body_index = -1;
+
+    // Chain / DAG (story quests only; standalone quests leave these defaults)
+    std::string arc_id;
+    std::vector<std::string> prerequisite_ids;
+    RevealPolicy reveal = RevealPolicy::Full;
 
     bool all_objectives_complete() const;
     // True if all objectives except a trailing TalkToNpc are complete (ready for turn-in)
