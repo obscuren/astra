@@ -3,6 +3,7 @@
 #include "astra/star_chart_viewer.h"  // for ChartZoom enum
 #include "astra/ui.h"
 #include "astra/celestial_body.h"
+#include "astra/station_type.h"
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -43,6 +44,49 @@ static bool is_quest_body(const GalaxyMapDesc& desc, int body_index) {
         if (qt.body_index == body_index) return true;
     return false;
 }
+
+#ifdef ASTRA_DEV_MODE
+// ---------------------------------------------------------------------------
+// Dev helpers — station-type overlay
+// ---------------------------------------------------------------------------
+
+// Single-char code for a station type
+static char station_type_code(StationType t) {
+    switch (t) {
+        case StationType::NormalHub:  return 'N';
+        case StationType::Scav:       return 'S';
+        case StationType::Pirate:     return 'P';
+        case StationType::Abandoned:  return 'A';
+        case StationType::Infested:   return 'I';
+    }
+    return '?';
+}
+
+// Single-char code for a NormalHub specialty
+static char specialty_code(StationSpecialty s) {
+    switch (s) {
+        case StationSpecialty::Generic:    return 'g';
+        case StationSpecialty::Mining:     return 'M';
+        case StationSpecialty::Research:   return 'R';
+        case StationSpecialty::Frontier:   return 'F';
+        case StationSpecialty::Trade:      return 'T';
+        case StationSpecialty::Industrial: return 'I';
+    }
+    return '?';
+}
+
+// Color for a station type code
+static Color station_type_color(StationType t) {
+    switch (t) {
+        case StationType::NormalHub:  return Color::Cyan;
+        case StationType::Scav:       return Color::Yellow;
+        case StationType::Pirate:     return Color::Red;
+        case StationType::Abandoned:  return Color::DarkGray;
+        case StationType::Infested:   return Color::Green;
+    }
+    return Color::White;
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Galaxy zoom
@@ -231,6 +275,22 @@ static void render_region_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         if (cy < mh - 1) ctx.put(cx, cy + 1, '|', Color::DarkGray);
         ctx.put(cx, cy, '+', Color::DarkGray);
     }
+
+#ifdef ASTRA_DEV_MODE
+    // Dev overlay: station type codes (Region zoom)
+    if (desc.show_station_types) {
+        for (const auto& sys : desc.systems) {
+            if (!sys.has_station || !sys.discovered) continue;
+            int sx = to_screen_x(sys.gx, view_left, view_w, mw);
+            int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+            if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
+            char code = station_type_code(sys.station.type);
+            Color col  = station_type_color(sys.station.type);
+            // Place type code to the right of the system glyph
+            if (sx + 1 < mw) ctx.put(sx + 1, sy, code, col);
+        }
+    }
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +367,26 @@ static void render_local_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
             ctx.put(sx, sy, '*', Color::BrightYellow);
         }
     }
+
+#ifdef ASTRA_DEV_MODE
+    // Dev overlay: station type codes + specialty (Local zoom)
+    if (desc.show_station_types) {
+        for (const auto& sys : desc.systems) {
+            if (!sys.has_station || !sys.discovered) continue;
+            int sx = to_screen_x(sys.gx, view_left, view_w, mw);
+            int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+            if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
+            char code = station_type_code(sys.station.type);
+            Color col  = station_type_color(sys.station.type);
+            // Place type code to the right of the system glyph
+            if (sx + 1 < mw) ctx.put(sx + 1, sy, code, col);
+            // For NormalHub, show specialty one char further right
+            if (sys.station.type == StationType::NormalHub && sx + 2 < mw) {
+                ctx.put(sx + 2, sy, specialty_code(sys.station.specialty), Color::DarkGray);
+            }
+        }
+    }
+#endif
 }
 
 // ---------------------------------------------------------------------------

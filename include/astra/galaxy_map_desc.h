@@ -62,6 +62,11 @@ struct GalaxyMapDesc {
 
     // System zoom: precomputed station host body index
     int station_host_body_index = -1;
+
+#ifdef ASTRA_DEV_MODE
+    // Dev overlay: show station type codes on map
+    bool show_station_types = false;
+#endif
 };
 
 } // namespace astra

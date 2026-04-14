@@ -81,9 +81,19 @@ private:
 
     // View-only mode (observatory): can browse but not travel
     bool view_only_ = false;
+
+#ifdef ASTRA_DEV_MODE
+    // Dev overlay: runtime dev-mode flag + station-type toggle
+    bool dev_mode_ = false;
+    bool show_station_types_ = false;
+#endif
+
 public:
     void set_view_only(bool v) { view_only_ = v; }
     bool view_only() const { return view_only_; }
+#ifdef ASTRA_DEV_MODE
+    void set_dev_mode(bool v) { dev_mode_ = v; }
+#endif
 private:
 
     // Pending travel action

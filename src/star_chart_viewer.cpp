@@ -108,6 +108,14 @@ void StarChartViewer::center_on_sol() {
 bool StarChartViewer::handle_input(int key) {
     if (!open_) return false;
 
+#ifdef ASTRA_DEV_MODE
+    // Dev-only: toggle station-type overlay with 'T'
+    if (dev_mode_ && key == 'T') {
+        show_station_types_ = !show_station_types_;
+        return true;
+    }
+#endif
+
     switch (zoom_) {
         case ChartZoom::Galaxy: {
             switch (key) {
@@ -505,6 +513,11 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
             footer = "[Left/Right] Select  [Up/Down] Sub  [t] Travel  [-] Back  [ESC] Close";
             break;
     }
+#ifdef ASTRA_DEV_MODE
+    if (dev_mode_) {
+        footer += "  [T] Station types";
+    }
+#endif
 
     // Full-screen context with inset padding
     UIContext screen(renderer_, Rect{2, 2, screen_w - 4, screen_h - 4});
@@ -518,6 +531,41 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
 
     // Layer 1: galaxy map primitive
     map_area.galaxy_map(build_map_desc());
+
+#ifdef ASTRA_DEV_MODE
+    // Dev overlay: station-type distribution tally at bottom of map
+    if (show_station_types_) {
+        int n_normal = 0, n_scav = 0, n_pirate = 0, n_abandoned = 0, n_infested = 0;
+        int total = 0;
+        for (const auto& sys : nav_->systems) {
+            if (!sys.has_station) continue;
+            ++total;
+            switch (sys.station.type) {
+                case StationType::NormalHub:  ++n_normal;   break;
+                case StationType::Scav:       ++n_scav;     break;
+                case StationType::Pirate:     ++n_pirate;   break;
+                case StationType::Abandoned:  ++n_abandoned; break;
+                case StationType::Infested:   ++n_infested; break;
+            }
+        }
+        if (total > 0) {
+            auto pct = [&](int n) {
+                return static_cast<int>(std::round(100.0f * n / total));
+            };
+            std::string tally = "Stations:";
+            if (n_normal   > 0) tally += " " + std::to_string(pct(n_normal))   + "%N";
+            if (n_scav     > 0) tally += " " + std::to_string(pct(n_scav))     + "%S";
+            if (n_pirate   > 0) tally += " " + std::to_string(pct(n_pirate))   + "%P";
+            if (n_abandoned> 0) tally += " " + std::to_string(pct(n_abandoned))+ "%A";
+            if (n_infested > 0) tally += " " + std::to_string(pct(n_infested)) + "%I";
+            tally += "  (n=" + std::to_string(total) + ")";
+            int ty = map_area.height() - 1;
+            if (ty >= 0) {
+                map_area.text(0, ty, tally, Color::DarkGray);
+            }
+        }
+    }
+#endif
 
     // Scan feedback overlay on the map
     if (scan_message_timer_ > 0) {
@@ -603,6 +651,10 @@ GalaxyMapDesc StarChartViewer::build_map_desc() const {
             desc.station_host_body_index = station_host_body(sys);
         }
     }
+
+#ifdef ASTRA_DEV_MODE
+    desc.show_station_types = show_station_types_;
+#endif
 
     return desc;
 }
