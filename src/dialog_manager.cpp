@@ -406,9 +406,7 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 // Grab reward info before complete_quest moves the quest
                 int reward_xp = tq->reward.xp;
                 int reward_credits = tq->reward.credits;
-                game.quests().complete_quest("story_getting_airborne", game.player());
-                auto* sq = find_story_quest("story_getting_airborne");
-                if (sq) sq->on_completed(game);
+                game.quests().complete_quest("story_getting_airborne", game, game.world().world_tick());
                 game.log("Quest complete: " + colored("Getting Airborne", Color::Yellow));
                 std::string reward_msg = "Reward:";
                 if (reward_xp > 0) reward_msg += " " + colored(std::to_string(reward_xp) + " XP", Color::Cyan);
@@ -1029,7 +1027,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (qptr) reward = qptr->reward;
 
                 // Complete the quest
-                game.quests().complete_quest(turn_in_id, game.player());
+                game.quests().complete_quest(turn_in_id, game, game.world().world_tick());
 
                 // Log reward details
                 game.log("Quest completed: " + colored(quest_title, Color::Green));
@@ -1040,10 +1038,6 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (!reward.faction_name.empty() && reward.reputation_change != 0)
                     reward_msg += " " + colored("+" + std::to_string(reward.reputation_change) + " " + reward.faction_name + " rep", Color::Green);
                 game.log(reward_msg);
-
-                // Trigger story quest cleanup
-                auto* sq = find_story_quest(turn_in_id);
-                if (sq) sq->on_completed(game);
 
                 // Clean up quest location markers by quest_id
                 auto& ql = game.world().quest_locations();

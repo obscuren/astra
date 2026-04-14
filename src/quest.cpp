@@ -2,6 +2,7 @@
 #include "astra/journal.h"
 #include "astra/player.h"
 #include "astra/character.h"
+#include "astra/quest_graph.h"
 #include "astra/star_chart.h"
 #include "astra/time_of_day.h"
 #include "astra/game.h"
@@ -64,16 +65,16 @@ void QuestManager::accept_quest(Quest quest, int world_tick, Player& player) {
     active_.push_back(std::move(quest));
 }
 
-void QuestManager::complete_quest(const std::string& quest_id, Player& player) {
+void QuestManager::complete_quest(const std::string& quest_id, Game& game, int world_tick) {
     for (auto it = active_.begin(); it != active_.end(); ++it) {
         if (it->id == quest_id) {
             it->status = QuestStatus::Completed;
             // Apply rewards
-            player.xp += it->reward.xp;
-            player.money += it->reward.credits;
-            player.skill_points += it->reward.skill_points;
+            game.player().xp += it->reward.xp;
+            game.player().money += it->reward.credits;
+            game.player().skill_points += it->reward.skill_points;
             if (!it->reward.faction_name.empty()) {
-                for (auto& fs : player.reputation) {
+                for (auto& fs : game.player().reputation) {
                     if (fs.faction_name == it->reward.faction_name) {
                         fs.reputation += it->reward.reputation_change;
                         break;
@@ -82,7 +83,7 @@ void QuestManager::complete_quest(const std::string& quest_id, Player& player) {
             }
 
             // Update journal entry
-            JournalEntry* je = find_journal_entry(player.journal, quest_id);
+            JournalEntry* je = find_journal_entry(game.player().journal, quest_id);
             if (je) {
                 je->title = "Quest Complete: " + it->title;
                 // Update objectives to show all complete
@@ -101,6 +102,44 @@ void QuestManager::complete_quest(const std::string& quest_id, Player& player) {
 
             completed_.push_back(std::move(*it));
             active_.erase(it);
+
+            // Fire StoryQuest hook
+            StoryQuest* sq = find_story_quest(quest_id);
+            if (sq) sq->on_completed(game);
+
+            // Cascade unlock dependents
+            const auto& graph = quest_graph();
+            for (const auto& dep_id : graph.dependents_of(quest_id)) {
+                auto dep_it = std::find_if(locked_.begin(), locked_.end(),
+                    [&](const Quest& q){ return q.id == dep_id; });
+                if (dep_it == locked_.end()) continue;
+
+                // Are all of this dep's prereqs now Completed?
+                bool ready = true;
+                for (const auto& p : graph.prerequisites_of(dep_id)) {
+                    bool p_done = false;
+                    for (const auto& c : completed_) {
+                        if (c.id == p && c.status == QuestStatus::Completed) {
+                            p_done = true; break;
+                        }
+                    }
+                    if (!p_done) { ready = false; break; }
+                }
+                if (!ready) continue;
+
+                Quest unlocked = std::move(*dep_it);
+                locked_.erase(dep_it);
+                StoryQuest* dep_sq = find_story_quest(dep_id);
+                if (dep_sq) dep_sq->on_unlocked(game);
+
+                if (dep_sq && dep_sq->offer_mode() == OfferMode::Auto) {
+                    accept_quest(std::move(unlocked), world_tick, game.player());
+                    dep_sq->on_accepted(game);
+                } else {
+                    unlocked.status = QuestStatus::Available;
+                    available_.push_back(std::move(unlocked));
+                }
+            }
             return;
         }
     }
