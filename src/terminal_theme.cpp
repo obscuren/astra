@@ -2,6 +2,7 @@
 #include "terminal_theme.h"
 #include "astra/item_ids.h"
 #include "astra/npc.h"
+#include "astra/quest_fixture.h"
 #include "astra/race.h"
 #include "astra/render_descriptor.h"
 
@@ -1068,6 +1069,11 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             };
             vis = v[seed % 3]; break;
         }
+        case FixtureType::QuestFixture:
+            // Registry lookup requires FixtureData (quest_fixture_id string),
+            // which RenderDescriptor doesn't carry. Render placeholder here;
+            // richer resolution can be added when the descriptor is extended.
+            vis = {'?', nullptr, Color::Magenta, Color::Default}; break;
     }
 
     if (remembered) {
@@ -1713,8 +1719,19 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::MineralOre:      return ',';
         case FixtureType::MineralCrystal:  return '*';
         case FixtureType::ScrapComponent:  return '%';
+        case FixtureType::QuestFixture:    return '?';
     }
     return '?';
+}
+
+char quest_fixture_glyph(const std::string& id) {
+    if (const auto* def = find_quest_fixture(id)) return def->glyph;
+    return '?';
+}
+
+int quest_fixture_color(const std::string& id, int fallback) {
+    if (const auto* def = find_quest_fixture(id)) return def->color;
+    return fallback;
 }
 
 char npc_glyph(NpcRole role, Race race) {

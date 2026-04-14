@@ -283,6 +283,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::MineralOre:      return "Mineral: Ore";
         case FixtureType::MineralCrystal:  return "Mineral: Crystal";
         case FixtureType::ScrapComponent:  return "Scrap Component";
+        case FixtureType::QuestFixture:    return "Quest Fixture";
     }
     return "?";
 }
