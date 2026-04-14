@@ -115,6 +115,7 @@ set(ASTRA_SOURCES
     src/dialog_manager.cpp
     src/ability.cpp
     src/quest.cpp
+    src/quest_graph.cpp
     src/quests/missing_hauler.cpp
     src/quests/getting_airborne.cpp
     src/game_combat.cpp
