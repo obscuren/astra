@@ -1,9 +1,11 @@
 #include "astra/npc_defs.h"
 #include "astra/faction.h"
+#include "astra/station_type.h"
+#include "astra/keeper_personas.h"
 
 namespace astra {
 
-Npc build_scav_keeper(Race race, std::mt19937& rng) {
+Npc build_scav_keeper(Race race, std::mt19937& rng, const StationContext& ctx) {
     Npc npc;
     npc.race     = race;
     npc.npc_role = NpcRole::StationKeeper;
@@ -13,8 +15,7 @@ Npc build_scav_keeper(Race race, std::mt19937& rng) {
     npc.faction  = "";  // Scav stations are unaligned
     add_effect(npc.effects, make_invulnerable());
     npc.quickness = 0;
-    // Task 13 will roll a real name from a scav-specific name pool.
-    npc.name = "Scav Keeper";
+    npc.name = pick_scav_keeper_name(ctx.keeper_seed);
 
     // --- Talk ---
     npc.interactions.talk = TalkTrait{

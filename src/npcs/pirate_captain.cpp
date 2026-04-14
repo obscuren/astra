@@ -2,16 +2,16 @@
 #include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/station_type.h"
+#include "astra/keeper_personas.h"
 
 namespace astra {
 
-Npc build_pirate_captain(const StationContext& /*ctx*/) {
+Npc build_pirate_captain(const StationContext& ctx) {
     Npc npc;
     npc.race     = Race::Human;
     npc.npc_role = NpcRole::Scavenger;  // Closest hostile-human role; Task 13 may refine.
     npc.role     = "Pirate Captain";
-    // Task 13 will roll a real name from a pirate name pool.
-    npc.name     = "Pirate Captain";
+    npc.name     = pick_pirate_captain_name(ctx.keeper_seed);
     npc.hp       = 40;
     npc.max_hp   = 40;
     npc.faction  = "";  // Pirate station — unaligned to any formal faction

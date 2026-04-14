@@ -33,6 +33,7 @@ void spawn_outpost_npcs(TileMap& map, std::vector<Npc>& npcs,
 // Spawn NPCs in scav station rooms based on room flavor.
 void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
                      int player_x, int player_y, std::mt19937& rng,
+                     const StationContext& ctx = {},
                      const Player* player = nullptr);
 
 // Spawn NPCs in pirate station rooms based on room flavor.

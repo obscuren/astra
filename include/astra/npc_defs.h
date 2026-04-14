@@ -39,7 +39,7 @@ Npc build_scavenger(Race race, std::mt19937& rng);
 Npc build_prospector(Race race, std::mt19937& rng);
 
 // Scav station NPC builders
-Npc build_scav_keeper(Race race, std::mt19937& rng);
+Npc build_scav_keeper(Race race, std::mt19937& rng, const StationContext& ctx = {});
 Npc build_scav_junk_dealer(Race race, std::mt19937& rng);
 
 // Pirate station NPC builders

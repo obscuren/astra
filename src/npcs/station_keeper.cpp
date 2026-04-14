@@ -2,6 +2,7 @@
 #include "astra/renderer.h"
 #include "astra/faction.h"
 #include "astra/station_type.h"
+#include "astra/keeper_personas.h"
 
 namespace astra {
 
@@ -144,19 +145,53 @@ Npc build_station_keeper(Race race, std::mt19937& rng, const StationContext& ctx
             },
         };
     } else {
-        // --- Generic: short welcome + specialty flavor ---
+        // --- Generic: rolled name, archetype greeting, specialty flavor + hook ---
+        npc.name = pick_keeper_name(ctx.keeper_seed);
+
         std::string flavor = specialty_flavor(ctx.specialty);
         std::string station = ctx.station_name.empty() ? "this station" : ctx.station_name;
+        std::string hook = keeper_specialty_hook(ctx);
+
+        KeeperArchetype arch = pick_keeper_archetype(ctx.keeper_seed);
+        std::string greeting;
+        switch (arch) {
+            case KeeperArchetype::GruffVeteran:
+                greeting = "State your business.";
+                break;
+            case KeeperArchetype::ChattyBureaucrat:
+                greeting = "Welcome, welcome! Do you have your papers in order?";
+                break;
+            case KeeperArchetype::NervousNewcomer:
+                greeting = "Oh — hi, hello. Sorry, still learning the ropes.";
+                break;
+            case KeeperArchetype::RetiredSpacer:
+                greeting = "Another face from out there. Sit, sit.";
+                break;
+            case KeeperArchetype::CorporateStiff:
+                greeting = "Greetings. I represent station management.";
+                break;
+            case KeeperArchetype::EccentricLoner:
+                greeting = "Mm. You're new.";
+                break;
+        }
 
         npc.interactions.talk = TalkTrait{
-            "Welcome to " + station + ". Keep out of trouble.",
+            greeting,
             {
                 // Node 0: brief orientation
                 {
                     flavor + " Heard pirates have been hitting the outer belts lately — "
                     "watch yourself if you're heading out.",
                     {
+                        {"Anything else going on?", 1},
                         {"Understood.", -1},
+                    },
+                },
+                // Node 1: specialty hook
+                {
+                    hook,
+                    {
+                        {"Good to know.", -1},
                     },
                 },
             },

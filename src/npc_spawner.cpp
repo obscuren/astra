@@ -133,6 +133,7 @@ void spawn_hub_npcs(TileMap& map, std::vector<Npc>& npcs,
 
 void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
                      int player_x, int player_y, std::mt19937& rng,
+                     const StationContext& ctx,
                      const Player* /*player*/) {
     std::vector<std::pair<int,int>> occupied = {{player_x, player_y}};
 
@@ -163,7 +164,7 @@ void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
             case RoomFlavor::EmptyRoom: {
                 // Docking Bay: Scav Keeper (placed here if no dedicated nook yet)
                 if (!keeper_placed) {
-                    place_npc(build_scav_keeper(Race::Human, rng), rid);
+                    place_npc(build_scav_keeper(Race::Human, rng, ctx), rid);
                     keeper_placed = true;
                 }
                 break;
@@ -187,7 +188,7 @@ void spawn_scav_npcs(TileMap& map, std::vector<Npc>& npcs,
             case RoomFlavor::CrewQuarters: {
                 // Keeper's Nook or Bunk Room: keeper goes in the first one found
                 if (!keeper_placed) {
-                    place_npc(build_scav_keeper(Race::Human, rng), rid);
+                    place_npc(build_scav_keeper(Race::Human, rng, ctx), rid);
                     keeper_placed = true;
                 } else {
                     // Bunk Room: occasional civilian

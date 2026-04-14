@@ -26,6 +26,7 @@ set(ASTRA_SOURCES
     src/npcs/civilian.cpp
     src/npcs/scavenger.cpp
     src/npcs/prospector.cpp
+    src/npcs/keeper_personas.cpp
     src/npcs/scav_keeper.cpp
     src/npcs/scav_merchant.cpp
     src/npcs/pirate_captain.cpp
