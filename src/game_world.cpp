@@ -1370,7 +1370,27 @@ void Game::travel_to_destination(const ChartAction& action) {
 
         std::mt19937 npc_rng(travel_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+
+        // Dispatch NPC spawning based on station type.
+        switch (sctx.type) {
+            case StationType::NormalHub:
+                spawn_hub_npcs(world_.map(), world_.npcs(),
+                               player_.x, player_.y, npc_rng,
+                               &player_, sctx);
+                break;
+            case StationType::Scav:
+                spawn_scav_npcs(world_.map(), world_.npcs(),
+                                player_.x, player_.y, npc_rng,
+                                sctx, &player_);
+                break;
+            case StationType::Pirate:
+                spawn_pirate_npcs(world_.map(), world_.npcs(),
+                                  player_.x, player_.y, npc_rng,
+                                  sctx, &player_);
+                break;
+            default:
+                break;
+        }
 
         // Abandoned stations: spawn 1-2 wandering xytomorphs (weak variant),
         // seeded deterministically from keeper_seed so the same station always
