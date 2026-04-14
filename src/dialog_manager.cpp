@@ -542,6 +542,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     dialog_tree_ = nullptr;
     dialog_node_ = -1;
     interact_options_.clear();
+    pending_story_offers_.clear();
 
     const auto& data = npc.interactions;
     reset_content(npc.label());
@@ -588,6 +589,20 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     if (has_turnin) {
         add_option(hotkey++, "I have news about the job.");
         interact_options_.push_back(InteractOption::QuestTurnIn);
+    }
+
+    // Offer available story quests from this NPC role
+    {
+        int rep_st = reputation_for(game.player(), npc.faction);
+        bool rep_ok_st = npc.faction.empty() || reputation_tier(rep_st) >= ReputationTier::Neutral;
+        if (rep_ok_st) {
+            auto offers = game.quests().available_for_role(npc.role);
+            for (const Quest* offer : offers) {
+                add_option(hotkey++, "Tell me about " + offer->title + ".");
+                interact_options_.push_back(InteractOption::StoryQuestOffer);
+                pending_story_offers_.push_back(offer->id);
+            }
+        }
     }
 
     // Offer new quests if none active from this NPC and reputation is Neutral+
@@ -1005,6 +1020,23 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             footer_ = "[Space] Select  [Esc] Close";
             open_ = true;
             break;
+        }
+        case InteractOption::StoryQuestOffer: {
+            // Count which StoryQuestOffer this selection refers to
+            int story_idx = 0;
+            for (int i = 0; i < selected; ++i) {
+                if (interact_options_[i] == InteractOption::StoryQuestOffer) ++story_idx;
+            }
+            if (story_idx >= 0 && story_idx < static_cast<int>(pending_story_offers_.size())) {
+                const std::string qid = pending_story_offers_[story_idx];
+                if (game.quests().accept_available(qid, game, game.world().world_tick())) {
+                    const Quest* q = game.quests().find_active(qid);
+                    std::string title = q ? q->title : qid;
+                    game.log("Quest accepted: " + colored(title, Color::Yellow));
+                }
+            }
+            open_ = false;
+            return;
         }
         case InteractOption::QuestTurnIn: {
             // Find the completable quest from this NPC and turn it in
