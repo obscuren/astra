@@ -133,6 +133,9 @@ public:
     std::map<LocationKey, QuestLocationMeta>& quest_locations() { return quest_locations_; }
     const std::map<LocationKey, QuestLocationMeta>& quest_locations() const { return quest_locations_; }
 
+    std::set<LocationKey>& pending_quest_cleanup() { return pending_quest_cleanup_; }
+    const std::set<LocationKey>& pending_quest_cleanup() const { return pending_quest_cleanup_; }
+
     // Collect system IDs that have active quest targets
     std::set<uint32_t> quest_target_system_ids() const {
         std::set<uint32_t> ids;
@@ -182,6 +185,7 @@ private:
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;
     std::map<LocationKey, QuestLocationMeta> quest_locations_;
+    std::set<LocationKey> pending_quest_cleanup_;
     LoreInfluenceMap lore_influence_;
 };
 

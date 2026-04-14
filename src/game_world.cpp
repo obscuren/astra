@@ -738,6 +738,10 @@ void Game::enter_detail_map() {
                                     false, -1, -1, 0};
                 qit = world_.quest_locations().find(bkey);
             }
+            // Drain any pending cleanup marker for this key — if a quest was
+            // completed/failed while this map was unloaded, the meta was already
+            // erased so no fixtures will be stamped below anyway.
+            world_.pending_quest_cleanup().erase(dkey);
             if (qit != world_.quest_locations().end()) {
                 std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
                 for (const auto& npc : world_.npcs()) occupied.push_back({npc.x, npc.y});
@@ -939,9 +943,11 @@ void Game::enter_dungeon_from_detail() {
                 }
             }
             // Quest-driven fixtures (Receiver Drones, Signal Nodes, etc.)
+            world_.pending_quest_cleanup().erase(dungeon_key);
             place_quest_fixtures(world_.map(), qit->second,
                                  player_.x, player_.y, occupied, npc_rng);
         } else {
+            world_.pending_quest_cleanup().erase(dungeon_key);
             debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
         }
 
