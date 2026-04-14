@@ -63,9 +63,10 @@ private:
     const std::vector<DialogNode>* dialog_tree_ = nullptr;
     int dialog_node_ = -1;
 
-    enum class InteractOption : uint8_t { Talk, Shop, Quest, QuestTurnIn, StoryQuestOffer, Farewell };
+    enum class InteractOption : uint8_t { Talk, Shop, Quest, QuestTurnIn, StoryQuestOffer, StoryQuestAccept, StoryQuestDecline, Farewell };
     std::vector<InteractOption> interact_options_;
     std::vector<std::string> pending_story_offers_;  // ids parallel to StoryQuestOffer interact_options entries
+    std::string detail_offer_quest_id_;              // non-empty while showing quest offer detail view
 
     // ARIA command terminal output flags
     bool aria_open_ship_tab_ = false;

@@ -28,6 +28,46 @@ void DialogManager::add_option(char key, const std::string& label) {
     options_.push_back(label);
 }
 
+namespace {
+std::string format_quest_offer(const Quest& q, const Npc& npc) {
+    std::string s;
+    s += display_name(npc) + " explains:\n\n";
+    if (!q.description.empty()) s += q.description + "\n\n";
+
+    if (!q.objectives.empty()) {
+        s += colored("Objectives:", Color::DarkGray) + "\n";
+        for (const auto& obj : q.objectives) {
+            s += "  \xe2\x80\xa2 " + obj.description + "\n";
+        }
+        s += "\n";
+    }
+
+    const auto& r = q.reward;
+    bool has_reward = r.xp > 0 || r.credits > 0 || r.skill_points > 0
+                   || !r.items.empty() || !r.factions.empty();
+    if (has_reward) {
+        s += colored("Rewards:", Color::DarkGray) + "\n";
+        for (const auto& it : r.items) {
+            s += "  " + display_name(it) + "\n";
+        }
+        if (r.xp > 0)
+            s += "  " + colored(std::to_string(r.xp) + " XP", Color::Cyan) + "\n";
+        if (r.credits > 0)
+            s += "  " + colored(std::to_string(r.credits) + "$", Color::Yellow) + "\n";
+        if (r.skill_points > 0)
+            s += "  " + colored(std::to_string(r.skill_points) + " SP", Color::Cyan) + "\n";
+        for (const auto& fr : r.factions) {
+            if (fr.faction_name.empty() || fr.reputation_change == 0) continue;
+            std::string sign = fr.reputation_change > 0 ? "+" : "";
+            s += "  " + colored(sign + std::to_string(fr.reputation_change)
+                                + " reputation with " + fr.faction_name, Color::Green)
+               + "\n";
+        }
+    }
+    return s;
+}
+} // namespace
+
 std::vector<std::string> DialogManager::word_wrap(const std::string& text, int width) {
     std::vector<std::string> lines;
     if (width < 4) width = 4;
@@ -544,6 +584,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     dialog_node_ = -1;
     interact_options_.clear();
     pending_story_offers_.clear();
+    detail_offer_quest_id_.clear();
 
     const auto& data = npc.interactions;
     reset_content(npc.label());
@@ -1017,15 +1058,46 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             for (int i = 0; i < selected; ++i) {
                 if (interact_options_[i] == InteractOption::StoryQuestOffer) ++story_idx;
             }
-            if (story_idx >= 0 && story_idx < static_cast<int>(pending_story_offers_.size())) {
-                const std::string qid = pending_story_offers_[story_idx];
-                if (game.quests().accept_available(qid, game, game.world().world_tick())) {
-                    const Quest* q = game.quests().find_active(qid);
-                    std::string title = q ? q->title : qid;
-                    game.log("Quest accepted: " + colored(title, Color::Yellow));
-                }
+            if (story_idx < 0 || story_idx >= static_cast<int>(pending_story_offers_.size()))
+                return;
+
+            const std::string qid = pending_story_offers_[story_idx];
+            const Quest* offer = nullptr;
+            for (const auto& q : game.quests().available_quests()) {
+                if (q.id == qid) { offer = &q; break; }
+            }
+            if (!offer || !interacting_npc_) { open_ = false; return; }
+
+            reset_content(interacting_npc_->label());
+            entity_ = EntityRef{EntityRef::Kind::Npc,
+                                static_cast<uint16_t>(interacting_npc_->npc_role),
+                                static_cast<uint8_t>(interacting_npc_->race)};
+            body_ = format_quest_offer(*offer, *interacting_npc_);
+            interact_options_.clear();
+            pending_story_offers_.clear();
+            detail_offer_quest_id_ = qid;
+            add_option('a', "Accept");
+            interact_options_.push_back(InteractOption::StoryQuestAccept);
+            add_option('d', "Decline");
+            interact_options_.push_back(InteractOption::StoryQuestDecline);
+            return;
+        }
+        case InteractOption::StoryQuestAccept: {
+            const std::string qid = detail_offer_quest_id_;
+            detail_offer_quest_id_.clear();
+            if (!qid.empty() &&
+                game.quests().accept_available(qid, game, game.world().world_tick())) {
+                const Quest* q = game.quests().find_active(qid);
+                std::string title = q ? q->title : qid;
+                game.log("Quest accepted: " + colored(title, Color::Yellow));
             }
             open_ = false;
+            return;
+        }
+        case InteractOption::StoryQuestDecline: {
+            detail_offer_quest_id_.clear();
+            if (interacting_npc_) open_npc_dialog(*interacting_npc_, game);
+            else open_ = false;
             return;
         }
         case InteractOption::QuestTurnIn: {
