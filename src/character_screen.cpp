@@ -579,14 +579,66 @@ bool CharacterScreen::handle_input(int key) {
         if (quest_cat_expanded_.size() < 4) quest_cat_expanded_.assign(4, true);
         auto vis = build_quest_vis();
         int max_c = static_cast<int>(vis.size()) - 1;
-        if (key == KEY_UP && quest_cursor_ > 0) --quest_cursor_;
-        if (key == KEY_DOWN && quest_cursor_ < max_c) ++quest_cursor_;
-        if (quest_cursor_ > max_c) quest_cursor_ = std::max(0, max_c);
 
+        // Resolve selected quest's reward items (for right-pane focus)
+        const Quest* sel_q = nullptr;
         if (quest_cursor_ >= 0 && quest_cursor_ < static_cast<int>(vis.size())) {
             const auto& v = vis[quest_cursor_];
-            if (key == ' ' && v.kind == QuestVisItem::Kind::Category) {
-                quest_cat_expanded_[v.cat_idx] = !quest_cat_expanded_[v.cat_idx];
+            if (v.kind == QuestVisItem::Kind::Quest) {
+                switch (v.qstate) {
+                    case QuestVisItem::QState::Active:
+                        sel_q = quests_->find_active(v.quest_id); break;
+                    case QuestVisItem::QState::Available:
+                        for (const auto& q : quests_->available_quests())
+                            if (q.id == v.quest_id) { sel_q = &q; break; }
+                        break;
+                    case QuestVisItem::QState::Completed:
+                        for (const auto& q : quests_->completed_quests())
+                            if (q.id == v.quest_id) { sel_q = &q; break; }
+                        break;
+                    case QuestVisItem::QState::Locked:
+                        break;
+                }
+            }
+        }
+        int reward_item_count = sel_q ? static_cast<int>(sel_q->reward.items.size()) : 0;
+        bool right_allowed = reward_item_count > 0 &&
+                             sel_q &&
+                             quest_cursor_ >= 0 && quest_cursor_ < static_cast<int>(vis.size()) &&
+                             (vis[quest_cursor_].qstate == QuestVisItem::QState::Active ||
+                              vis[quest_cursor_].qstate == QuestVisItem::QState::Available);
+
+        if (!right_allowed) quest_focus_ = QuestFocus::Left;
+
+        if (key == '\t') {
+            if (right_allowed)
+                quest_focus_ = (quest_focus_ == QuestFocus::Left)
+                                   ? QuestFocus::Right : QuestFocus::Left;
+            if (quest_focus_ == QuestFocus::Right) quest_reward_cursor_ = 0;
+        } else if (quest_focus_ == QuestFocus::Right) {
+            if (reward_item_count == 0) {
+                quest_focus_ = QuestFocus::Left;
+            } else {
+                if (quest_reward_cursor_ >= reward_item_count)
+                    quest_reward_cursor_ = reward_item_count - 1;
+                if (key == KEY_UP && quest_reward_cursor_ > 0) --quest_reward_cursor_;
+                if (key == KEY_DOWN && quest_reward_cursor_ < reward_item_count - 1)
+                    ++quest_reward_cursor_;
+                if (key == ' ') {
+                    look_item_ = &sel_q->reward.items[quest_reward_cursor_];
+                    look_open_ = true;
+                }
+            }
+        } else {
+            if (key == KEY_UP && quest_cursor_ > 0) --quest_cursor_;
+            if (key == KEY_DOWN && quest_cursor_ < max_c) ++quest_cursor_;
+            if (quest_cursor_ > max_c) quest_cursor_ = std::max(0, max_c);
+
+            if (quest_cursor_ >= 0 && quest_cursor_ < static_cast<int>(vis.size())) {
+                const auto& v = vis[quest_cursor_];
+                if (key == ' ' && v.kind == QuestVisItem::Kind::Category) {
+                    quest_cat_expanded_[v.cat_idx] = !quest_cat_expanded_[v.cat_idx];
+                }
             }
         }
     }
@@ -2792,11 +2844,17 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
                 bool has_any = rw.xp > 0 || rw.credits > 0 || rw.skill_points > 0
                             || !rw.items.empty() || !rw.factions.empty();
                 if (has_any && ry < ctx.height() - 1) {
-                    ctx.text({.x = rx, .y = ry, .content = "Rewards:", .tag = UITag::TextDim});
+                    std::string hdr = "Rewards:";
+                    if (!rw.items.empty()) hdr += "   [Tab] inspect";
+                    ctx.text({.x = rx, .y = ry, .content = hdr, .tag = UITag::TextDim});
                     ry++;
-                    for (const auto& ri : rw.items) {
+                    for (size_t i = 0; i < rw.items.size(); ++i) {
                         if (ry >= ctx.height() - 1) break;
-                        ctx.text({.x = rx + 2, .y = ry, .content = ri.name, .tag = UITag::TextAccent});
+                        bool focused = (quest_focus_ == QuestFocus::Right &&
+                                        static_cast<int>(i) == quest_reward_cursor_);
+                        if (focused) ctx.put(rx, ry, '>', Color::Yellow);
+                        UITag t = focused ? UITag::TextBright : UITag::TextAccent;
+                        ctx.text({.x = rx + 2, .y = ry, .content = rw.items[i].name, .tag = t});
                         ry++;
                     }
                     if (rw.xp > 0 && ry < ctx.height() - 1) {

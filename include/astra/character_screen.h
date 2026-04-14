@@ -108,6 +108,9 @@ private:
     std::vector<bool> quest_cat_expanded_;
     int quest_cursor_ = 0;
     int quest_scroll_ = 0;
+    enum class QuestFocus : uint8_t { Left, Right };
+    QuestFocus quest_focus_ = QuestFocus::Left;
+    int quest_reward_cursor_ = 0;
     void draw_quests(UIContext& ctx);
     std::vector<QuestVisItem> build_quest_vis() const;
 
