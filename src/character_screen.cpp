@@ -931,6 +931,34 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     draw_item_info(info_area, item);
 }
 
+namespace {
+// returns "" if quest has no arc
+std::string lookup_arc_title(const std::string& quest_id) {
+    if (quest_id.empty()) return "";
+    StoryQuest* sq = find_story_quest(quest_id);
+    if (!sq) return "";
+    std::string title = sq->arc_title();
+    if (!title.empty()) return title;
+    return sq->arc_id();
+}
+
+bool quest_is_bounty(const Quest& q) {
+    if (q.objectives.empty()) return false;
+    for (const auto& o : q.objectives) {
+        if (o.type != ObjectiveType::KillNpc) return false;
+    }
+    return true;
+}
+
+enum class QuestCategory { Main, Contracts, Bounties };
+
+QuestCategory classify_quest(const Quest& q) {
+    if (q.is_story) return QuestCategory::Main;
+    if (quest_is_bounty(q)) return QuestCategory::Bounties;
+    return QuestCategory::Contracts;
+}
+} // namespace
+
 void CharacterScreen::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
@@ -982,48 +1010,206 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         case CharTab::Tinkering:  draw_tinkering(full); break;
         case CharTab::Journal:    draw_journal(content); break;
         case CharTab::Quests: {
-            if (!quests_ || (quests_->active_quests().empty() && quests_->completed_quests().empty())) {
+            if (!quests_ ||
+                (quests_->active_quests().empty() &&
+                 quests_->available_quests().empty() &&
+                 quests_->completed_quests().empty())) {
                 draw_stub(content, "No active quests.");
-            } else {
-                int y = 0;
-                // Active quests
-                for (const auto& q : quests_->active_quests()) {
-                    if (y >= content.height() - 1) break;
-                    content.text({.x = 1, .y = y, .content = q.title, .tag = UITag::TextWarning});
-                    y++;
-                    content.text({.x = 2, .y = y, .content = q.description, .tag = UITag::TextDim});
-                    y++;
-                    for (const auto& obj : q.objectives) {
-                        if (y >= content.height() - 1) break;
-                        std::string status = obj.complete() ? "[x] " : "[ ] ";
-                        std::string progress = " (" + std::to_string(obj.current_count) + "/" +
-                                              std::to_string(obj.target_count) + ")";
-                        UITag obj_tag = obj.complete() ? UITag::TextSuccess : UITag::TextBright;
-                        content.text({.x = 3, .y = y, .content = status + obj.description + progress,
-                                      .tag = obj_tag});
-                        y++;
-                    }
-                    // Reward summary
-                    if (y < content.height() - 1) {
-                        std::string rew = "  Reward:";
-                        if (q.reward.xp > 0) rew += " " + std::to_string(q.reward.xp) + " XP";
-                        if (q.reward.credits > 0) rew += " " + std::to_string(q.reward.credits) + "$";
-                        if (q.reward.skill_points > 0) rew += " " + std::to_string(q.reward.skill_points) + " SP";
-                        content.text({.x = 2, .y = y, .content = rew, .tag = UITag::TextAccent});
-                        y++;
-                    }
-                    y++; // blank line between quests
+                break;
+            }
+
+            int y = 0;
+            const int maxy = content.height() - 1;
+
+            std::vector<const Quest*> main_active;
+            std::vector<const Quest*> contracts;
+            std::vector<const Quest*> bounties;
+            for (const auto& q : quests_->active_quests()) {
+                switch (classify_quest(q)) {
+                    case QuestCategory::Main:      main_active.push_back(&q); break;
+                    case QuestCategory::Contracts: contracts.push_back(&q); break;
+                    case QuestCategory::Bounties:  bounties.push_back(&q); break;
                 }
-                // Completed quests
-                if (!quests_->completed_quests().empty() && y < content.height() - 1) {
-                    content.text({.x = 1, .y = y, .content = "Completed:", .tag = UITag::TextDim});
+            }
+            for (const auto& q : quests_->available_quests()) {
+                if (q.is_story) main_active.push_back(&q);
+            }
+
+            auto draw_header = [&](const char* label, int n) {
+                if (y >= maxy) return;
+                std::string s = std::string(label) + " (" + std::to_string(n) + ")";
+                content.text({.x = 1, .y = y, .content = s, .tag = UITag::TextWarning});
+                y++;
+            };
+
+            auto draw_objectives_and_reward = [&](const Quest& q) {
+                if (y >= maxy) return;
+                content.text({.x = 4, .y = y, .content = q.description, .tag = UITag::TextDim});
+                y++;
+                for (const auto& obj : q.objectives) {
+                    if (y >= maxy) return;
+                    std::string status = obj.complete() ? "[x] " : "[ ] ";
+                    std::string progress = " (" + std::to_string(obj.current_count) + "/" +
+                                           std::to_string(obj.target_count) + ")";
+                    UITag obj_tag = obj.complete() ? UITag::TextSuccess : UITag::TextBright;
+                    content.text({.x = 5, .y = y, .content = status + obj.description + progress,
+                                  .tag = obj_tag});
                     y++;
-                    for (const auto& q : quests_->completed_quests()) {
-                        if (y >= content.height() - 1) break;
-                        UITag q_tag = q.status == QuestStatus::Completed ? UITag::TextSuccess : UITag::TextDanger;
-                        content.text({.x = 2, .y = y, .content = q.title, .tag = q_tag});
-                        y++;
+                }
+                if (y < maxy) {
+                    std::string rew = "  Reward:";
+                    if (q.reward.xp > 0) rew += " " + std::to_string(q.reward.xp) + " XP";
+                    if (q.reward.credits > 0) rew += " " + std::to_string(q.reward.credits) + "$";
+                    if (q.reward.skill_points > 0) rew += " " + std::to_string(q.reward.skill_points) + " SP";
+                    content.text({.x = 4, .y = y, .content = rew, .tag = UITag::TextAccent});
+                    y++;
+                }
+                y++;
+            };
+
+            // ── Main Missions ─────────────────────────────────────
+            if (!main_active.empty()) {
+                draw_header("Main Missions", static_cast<int>(main_active.size()));
+
+                std::vector<std::string> arc_order;
+                std::vector<const Quest*> standalones;
+                for (const Quest* q : main_active) {
+                    if (q->arc_id.empty()) { standalones.push_back(q); continue; }
+                    if (std::find(arc_order.begin(), arc_order.end(), q->arc_id) == arc_order.end()) {
+                        arc_order.push_back(q->arc_id);
                     }
+                }
+
+                for (const std::string& arc : arc_order) {
+                    if (y >= maxy) break;
+                    std::string arc_name = arc;
+                    for (const auto& sq : story_quest_catalog()) {
+                        if (sq->arc_id() == arc && !sq->arc_title().empty()) {
+                            arc_name = sq->arc_title(); break;
+                        }
+                    }
+                    content.text({.x = 2, .y = y, .content = "└─ " + arc_name,
+                                  .tag = UITag::TextBright});
+                    y++;
+
+                    auto members = quest_graph().arc_members(arc);
+                    for (const std::string& mid : members) {
+                        if (y >= maxy) break;
+                        StoryQuest* sq = find_story_quest(mid);
+                        if (!sq) continue;
+
+                        const Quest* act = quests_->find_active(mid);
+                        bool is_completed = false;
+                        std::string completed_title;
+                        for (const auto& c : quests_->completed_quests()) {
+                            if (c.id == mid) { is_completed = true; completed_title = c.title; break; }
+                        }
+                        bool is_available = false;
+                        std::string available_title;
+                        for (const auto& a : quests_->available_quests()) {
+                            if (a.id == mid) { is_available = true; available_title = a.title; break; }
+                        }
+                        bool is_locked = false;
+                        std::string locked_title;
+                        for (const auto& l : quests_->locked_quests()) {
+                            if (l.id == mid) { is_locked = true; locked_title = l.title; break; }
+                        }
+
+                        if (act) {
+                            content.styled_text({.x = 3, .y = y, .segments = {
+                                {"● ", UITag::TextBright},
+                                {act->title, UITag::TextBright},
+                            }});
+                            y++;
+                            draw_objectives_and_reward(*act);
+                        } else if (is_completed) {
+                            content.styled_text({.x = 3, .y = y, .segments = {
+                                {"✓ ", UITag::TextSuccess},
+                                {completed_title, UITag::TextSuccess},
+                            }});
+                            y++;
+                        } else if (is_available) {
+                            std::string giver = sq->offer_giver_role();
+                            std::string hint = giver.empty() ? std::string("Available")
+                                                             : "Speak to " + giver;
+                            content.styled_text({.x = 3, .y = y, .segments = {
+                                {"● ", UITag::TextDim},
+                                {available_title + "  — " + hint, UITag::TextDim},
+                            }});
+                            y++;
+                        } else if (is_locked) {
+                            RevealPolicy rev = sq->reveal_policy();
+                            if (rev == RevealPolicy::Hidden) {
+                                content.styled_text({.x = 3, .y = y, .segments = {
+                                    {"? ", UITag::TextDim},
+                                    {"??? — ???", UITag::TextDim},
+                                }});
+                            } else {
+                                content.styled_text({.x = 3, .y = y, .segments = {
+                                    {"○ ", UITag::TextDim},
+                                    {locked_title + "  — locked", UITag::TextDim},
+                                }});
+                            }
+                            y++;
+                        }
+                    }
+                    y++;
+                }
+
+                for (const Quest* q : standalones) {
+                    if (y >= maxy) break;
+                    content.styled_text({.x = 3, .y = y, .segments = {
+                        {"● ", UITag::TextBright},
+                        {q->title, UITag::TextBright},
+                    }});
+                    y++;
+                    draw_objectives_and_reward(*q);
+                }
+            }
+
+            // ── Contracts ─────────────────────────────────────────
+            if (!contracts.empty() && y < maxy) {
+                draw_header("Contracts", static_cast<int>(contracts.size()));
+                for (const Quest* q : contracts) {
+                    if (y >= maxy) break;
+                    content.styled_text({.x = 3, .y = y, .segments = {
+                        {"● ", UITag::TextBright},
+                        {q->title, UITag::TextBright},
+                    }});
+                    y++;
+                    draw_objectives_and_reward(*q);
+                }
+            }
+
+            // ── Bounties ──────────────────────────────────────────
+            if (!bounties.empty() && y < maxy) {
+                draw_header("Bounties", static_cast<int>(bounties.size()));
+                for (const Quest* q : bounties) {
+                    if (y >= maxy) break;
+                    content.styled_text({.x = 3, .y = y, .segments = {
+                        {"● ", UITag::TextDanger},
+                        {q->title, UITag::TextDanger},
+                    }});
+                    y++;
+                    draw_objectives_and_reward(*q);
+                }
+            }
+
+            // ── Completed ─────────────────────────────────────────
+            if (!quests_->completed_quests().empty() && y < maxy) {
+                draw_header("Completed", static_cast<int>(quests_->completed_quests().size()));
+                for (const auto& q : quests_->completed_quests()) {
+                    if (y >= maxy) break;
+                    std::string arc = lookup_arc_title(q.id);
+                    std::string label = q.title;
+                    if (!arc.empty()) label = "[" + arc + "] " + label;
+                    UITag tag = (q.status == QuestStatus::Completed) ? UITag::TextSuccess
+                                                                     : UITag::TextDanger;
+                    content.styled_text({.x = 3, .y = y, .segments = {
+                        {"✓ ", tag},
+                        {label, tag},
+                    }});
+                    y++;
                 }
             }
             break;
@@ -2182,18 +2368,6 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 // Journal tab
 // ─────────────────────────────────────────────────────────────────
 
-namespace {
-// returns "" if quest has no arc
-std::string lookup_arc_title(const std::string& quest_id) {
-    if (quest_id.empty()) return "";
-    StoryQuest* sq = find_story_quest(quest_id);
-    if (!sq) return "";
-    std::string title = sq->arc_title();
-    if (!title.empty()) return title;
-    return sq->arc_id();
-}
-} // namespace
-
 void CharacterScreen::draw_journal(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
@@ -2249,54 +2423,6 @@ void CharacterScreen::draw_journal(UIContext& ctx) {
         if (y < ctx.height() - 1) {
             ctx.text({.x = 4, .y = y, .content = entry.timestamp, .tag = UITag::TextDim});
             y += 2; // extra gap between entries
-        }
-    }
-
-    // Pending story quests (ghosts — not selectable, not in journal entries)
-    if (quests_ && y < ctx.height() - 2 &&
-        (!quests_->available_quests().empty() || !quests_->locked_quests().empty())) {
-        y++;
-        ctx.text({.x = 2, .y = y, .content = "-- Story Threads --", .tag = UITag::TextDim});
-        y += 2;
-
-        // Available story quests
-        for (const auto& q : quests_->available_quests()) {
-            if (y >= ctx.height() - 2) break;
-            std::string arc_title = lookup_arc_title(q.id);
-            std::string label = q.title;
-            if (!arc_title.empty()) label = "[" + arc_title + "] " + label;
-            int max_title = half - 5;
-            if (static_cast<int>(label.size()) > max_title)
-                label = label.substr(0, max_title);
-            ctx.styled_text({.x = 2, .y = y, .segments = {{"~", UITag::TextWarning}}});
-            ctx.text({.x = 4, .y = y, .content = label, .tag = UITag::TextDim});
-            y++;
-            if (y >= ctx.height() - 2) break;
-            StoryQuest* sq = find_story_quest(q.id);
-            std::string giver = sq ? sq->offer_giver_role() : "";
-            std::string hint = giver.empty() ? std::string("Available") : "Speak to " + giver;
-            ctx.text({.x = 4, .y = y, .content = hint, .tag = UITag::TextDim});
-            y += 2;
-        }
-
-        // Locked story quests
-        for (const auto& q : quests_->locked_quests()) {
-            if (y >= ctx.height() - 2) break;
-            StoryQuest* sq = find_story_quest(q.id);
-            RevealPolicy rev = sq ? sq->reveal_policy() : RevealPolicy::Full;
-            std::string arc_title = lookup_arc_title(q.id);
-            std::string title_str = (rev == RevealPolicy::Hidden) ? std::string("???") : q.title;
-            std::string label = title_str;
-            if (!arc_title.empty()) label = "[" + arc_title + "] " + label;
-            int max_title = half - 5;
-            if (static_cast<int>(label.size()) > max_title)
-                label = label.substr(0, max_title);
-            ctx.styled_text({.x = 2, .y = y, .segments = {{"?", UITag::TextDim}}});
-            ctx.text({.x = 4, .y = y, .content = label, .tag = UITag::TextDim});
-            y++;
-            if (y >= ctx.height() - 2) break;
-            ctx.text({.x = 4, .y = y, .content = "Locked", .tag = UITag::TextDim});
-            y += 2;
         }
     }
 

@@ -130,6 +130,7 @@
 - [x] **Minimap** — half-block pixel minimap widget (F3), 3x3 downsampling, player-centered, all map types
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)
 - [x] **Message log scrollback** — scroll through message history
+- [x] **Quest tab categorization** — Main Missions / Contracts / Bounties / Completed; arcs rendered under Main with active, locked (title/hidden), and completed steps inline
 - [ ] **Item comparison** — show stat diff when hovering equipment
 - [ ] **Character panel tab memory** — remember the last active tab; reopening shows the same tab
 - [x] **Equipment tab read-only** — side panel equipment is display-only
