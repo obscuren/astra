@@ -32,34 +32,38 @@ std::vector<std::string> validate_quest_catalog(
     QuestGraph g;
     g.build_from(catalog);
 
-    // Collect ids and check duplicates
+    // Single pass: collect ids, check duplicates
+    std::vector<std::string> ordered_ids;
+    ordered_ids.reserve(catalog.size());
     std::unordered_set<std::string> ids;
     for (const auto& sq : catalog) {
-        Quest q = sq->create_quest();
-        if (!ids.insert(q.id).second) {
-            errors.push_back("Duplicate quest id: " + q.id);
+        std::string id = sq->create_quest().id;
+        if (!ids.insert(id).second) {
+            errors.push_back("Duplicate quest id: " + id);
         }
+        ordered_ids.push_back(std::move(id));
     }
 
-    // Check prerequisites and offer_giver_role
-    for (const auto& sq : catalog) {
-        Quest q = sq->create_quest();
+    // Prereq + offer checks (no second create_quest())
+    for (size_t i = 0; i < catalog.size(); ++i) {
+        const auto& sq = catalog[i];
+        const auto& id = ordered_ids[i];
         for (const auto& p : sq->prerequisite_ids()) {
             if (!ids.count(p)) {
-                errors.push_back("Quest '" + q.id + "' has unknown prerequisite '" + p + "'");
+                errors.push_back("Quest '" + id + "' has unknown prerequisite '" + p + "'");
             }
         }
         if (sq->offer_mode() == OfferMode::NpcOffer
             && sq->offer_giver_role().empty()
             && !sq->prerequisite_ids().empty()) {
-            errors.push_back("Quest '" + q.id + "' uses NpcOffer but declares no offer_giver_role");
+            errors.push_back("Quest '" + id + "' uses NpcOffer but declares no offer_giver_role");
         }
     }
 
-    // Cycle detection
+    // Cycle detection in deterministic catalog order
     std::unordered_map<std::string, Color> color;
-    for (const auto& id : ids) color[id] = Color::White;
-    for (const auto& id : ids) {
+    for (const auto& id : ordered_ids) color[id] = Color::White;
+    for (const auto& id : ordered_ids) {
         if (color[id] == Color::White) {
             if (has_cycle_dfs(id, color, g)) {
                 errors.push_back("Cycle detected involving quest '" + id + "'");
