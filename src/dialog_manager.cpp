@@ -651,7 +651,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     if (data.quest) {
         bool has_active_from_npc = false;
         for (const auto& q : game.quests().active_quests()) {
-            if (q.giver_npc == npc.role) { has_active_from_npc = true; break; }
+            if (q.giver_npc == npc.role && !q.is_story) { has_active_from_npc = true; break; }
         }
         int rep = reputation_for(game.player(), npc.faction);
         bool rep_ok = npc.faction.empty() || reputation_tier(rep) >= ReputationTier::Neutral;
