@@ -98,7 +98,7 @@ public:
     // Quest lifecycle
     void accept_quest(Quest quest, int world_tick, Player& player);
     void complete_quest(const std::string& quest_id, Game& game, int world_tick);
-    void fail_quest(const std::string& quest_id);
+    void fail_quest(const std::string& quest_id, Game& game);
 
     // Progress tracking (called by game systems)
     void on_npc_killed(const std::string& npc_role);

@@ -145,14 +145,29 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
     }
 }
 
-void QuestManager::fail_quest(const std::string& quest_id) {
-    for (auto it = active_.begin(); it != active_.end(); ++it) {
-        if (it->id == quest_id) {
-            it->status = QuestStatus::Failed;
-            completed_.push_back(std::move(*it));
-            active_.erase(it);
-            return;
+void QuestManager::fail_quest(const std::string& quest_id, Game& game) {
+    const auto& graph = quest_graph();
+    std::unordered_set<std::string> to_fail = graph.descendants_of(quest_id);
+    to_fail.insert(quest_id);
+
+    auto move_failed = [&](std::vector<Quest>& pool, const std::string& id) -> bool {
+        for (auto it = pool.begin(); it != pool.end(); ++it) {
+            if (it->id == id) {
+                it->status = QuestStatus::Failed;
+                StoryQuest* sq = find_story_quest(id);
+                if (sq) sq->on_failed(game);
+                completed_.push_back(std::move(*it));
+                pool.erase(it);
+                return true;
+            }
         }
+        return false;
+    };
+
+    for (const auto& id : to_fail) {
+        if (move_failed(active_, id)) continue;
+        if (move_failed(available_, id)) continue;
+        move_failed(locked_, id);  // ignore return; quest may already be completed/unknown
     }
 }
 
