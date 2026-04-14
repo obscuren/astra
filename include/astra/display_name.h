@@ -44,10 +44,8 @@ inline std::string display_name(const Npc& npc) {
     return colored(npc.label(), c);
 }
 
-// Item — colored by rarity
-inline std::string display_name(const Item& item) {
-    return colored(item.label(), rarity_color(item.rarity));
-}
+// Item — colored by rarity: "<glyph> <name> - <dice>" for weapons, glyph + name otherwise
+std::string display_name(const Item& item);
 
 // DamageType — colored by type
 inline std::string display_name(DamageType t) {

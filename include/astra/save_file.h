@@ -59,7 +59,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 27;   // v27: StationInfo type/specialty/keeper_seed fields
+    uint32_t version = 29;   // v29: quest reward items vector (replaces item_name string)
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -85,6 +85,8 @@ struct SaveData {
     int local_ticks_per_day = 200;
 
     // v13: quest state
+    std::vector<Quest> locked_quests;
+    std::vector<Quest> available_quests;
     std::vector<Quest> active_quests;
     std::vector<Quest> completed_quests;
     std::map<LocationKey, QuestLocationMeta> quest_locations;

@@ -58,7 +58,7 @@
 - [x] **Random quest generation** — kill/fetch/deliver/scout templates, NPC role-based offering
 - [x] **Quest save/load** — full quest state persistence (active, completed, quest locations)
 - [x] **Faction reputation effects** — pricing, dialog gates, quest availability, tiered shop stock
-- [ ] **Story quest chains** — hand-tailored multi-quest arcs (A → B → C), prerequisite system
+- [x] **Story quest chains** — hand-tailored multi-quest DAGs (A → B → {C, D} → E), prerequisite system, NPC-offer / auto-accept modes, reveal policies, failure cascade. Demo: Hauler Arc fan-out (2026-04-14)
 - [ ] **World-driven random quests** — generate quests from actual world state instead of hardcoded arrays
 - [ ] **Quest failure mechanics** — expiration, consequences, reputation loss
 
@@ -130,6 +130,7 @@
 - [x] **Minimap** — half-block pixel minimap widget (F3), 3x3 downsampling, player-centered, all map types
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)
 - [x] **Message log scrollback** — scroll through message history
+- [x] **Quest tab categorization** — Main Missions / Contracts / Bounties / Completed; arcs rendered under Main with active, locked (title/hidden), and completed steps inline
 - [ ] **Item comparison** — show stat diff when hovering equipment
 - [ ] **Character panel tab memory** — remember the last active tab; reopening shows the same tab
 - [x] **Equipment tab read-only** — side panel equipment is display-only

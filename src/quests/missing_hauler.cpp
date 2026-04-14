@@ -2,12 +2,21 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/celestial_body.h"
+#include "astra/item_defs.h"
+
+#include <cstdio>
+#include <cstdlib>
 
 namespace astra {
 
 class MissingHaulerQuest : public StoryQuest {
 public:
     static constexpr const char* quest_id = "story_missing_hauler";
+
+    std::string offer_giver_role() const override { return "Station Keeper"; }
+    OfferMode offer_mode() const override { return OfferMode::NpcOffer; }
+    std::string arc_id() const override { return "hauler_arc"; }
+    std::string arc_title() const override { return "The Hauler Arc"; }
 
     Quest create_quest() override {
         Quest q;
@@ -27,8 +36,9 @@ public:
 
         q.reward.xp = 200;
         q.reward.credits = 100;
-        q.reward.faction_name = Faction_StellariConclave;
-        q.reward.reputation_change = 10;
+        q.reward.items.push_back(build_plasma_pistol());
+        q.reward.factions.push_back({Faction_StellariConclave, 10});
+        q.reward.factions.push_back({Faction_KrethMiningGuild, 5});
         return q;
     }
 
@@ -127,16 +137,34 @@ public:
 
 // Forward declare registrations from other quest files
 void register_getting_airborne(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_hauler_b(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_hauler_c(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_hauler_d(std::vector<std::unique_ptr<StoryQuest>>& catalog);
 
 static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     std::vector<std::unique_ptr<StoryQuest>> catalog;
     catalog.push_back(std::make_unique<MissingHaulerQuest>());
     register_getting_airborne(catalog);
+    register_hauler_b(catalog);
+    register_hauler_c(catalog);
+    register_hauler_d(catalog);
     return catalog;
 }
 
+static std::vector<std::unique_ptr<StoryQuest>> init_catalog() {
+    auto cat = build_catalog();
+    auto errors = validate_quest_catalog(cat);
+    if (!errors.empty()) {
+        for (const auto& e : errors) std::fprintf(stderr, "[quest-validator] %s\n", e.c_str());
+#ifdef ASTRA_DEV
+        std::abort();
+#endif
+    }
+    return cat;
+}
+
 const std::vector<std::unique_ptr<StoryQuest>>& story_quest_catalog() {
-    static auto catalog = build_catalog();
+    static auto catalog = init_catalog();
     return catalog;
 }
 

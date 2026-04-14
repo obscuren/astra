@@ -1,5 +1,6 @@
 #include "astra/dialog_manager.h"
 #include "astra/character.h"
+#include "astra/display_name.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/player.h"
@@ -406,9 +407,7 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 // Grab reward info before complete_quest moves the quest
                 int reward_xp = tq->reward.xp;
                 int reward_credits = tq->reward.credits;
-                game.quests().complete_quest("story_getting_airborne", game.player());
-                auto* sq = find_story_quest("story_getting_airborne");
-                if (sq) sq->on_completed(game);
+                game.quests().complete_quest("story_getting_airborne", game, game.world().world_tick());
                 game.log("Quest complete: " + colored("Getting Airborne", Color::Yellow));
                 std::string reward_msg = "Reward:";
                 if (reward_xp > 0) reward_msg += " " + colored(std::to_string(reward_xp) + " XP", Color::Cyan);
@@ -544,6 +543,7 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     dialog_tree_ = nullptr;
     dialog_node_ = -1;
     interact_options_.clear();
+    pending_story_offers_.clear();
 
     const auto& data = npc.interactions;
     reset_content(npc.label());
@@ -590,6 +590,20 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
     if (has_turnin) {
         add_option(hotkey++, "I have news about the job.");
         interact_options_.push_back(InteractOption::QuestTurnIn);
+    }
+
+    // Offer available story quests from this NPC role
+    {
+        int rep_st = reputation_for(game.player(), npc.faction);
+        bool rep_ok_st = npc.faction.empty() || reputation_tier(rep_st) >= ReputationTier::Neutral;
+        if (rep_ok_st) {
+            auto offers = game.quests().available_for_role(npc.role);
+            for (const Quest* offer : offers) {
+                add_option(hotkey++, "Tell me about " + offer->title + ".");
+                interact_options_.push_back(InteractOption::StoryQuestOffer);
+                pending_story_offers_.push_back(offer->id);
+            }
+        }
     }
 
     // Offer new quests if none active from this NPC and reputation is Neutral+
@@ -825,12 +839,10 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         dialog_node_ = -1;
         dialog_tree_ = nullptr;
         if (selected == 0) {
-            // Play tutorial -- accept quest, ship stays empty
-            auto* sq = find_story_quest("story_getting_airborne");
-            if (sq) {
-                auto q = sq->create_quest();
-                game.log("Quest accepted: " + q.title);
-                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
+            // Play tutorial -- promote tutorial quest from available pool
+            if (game.quests().accept_available(
+                    "story_getting_airborne", game, game.world().world_tick())) {
+                game.log("Quest accepted: Getting Airborne");
             }
             game.log("ARIA: \"Understood. Let's get to work.\"");
             game.log("ARIA: \"I'd start with the " + colored("Station Keeper", Color::White)
@@ -919,16 +931,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.log("Stored in ship cargo.");
                 // Don't accept a quest -- this is a direct reward
             }
-            // Try story quest (Station Keeper) -- only after tutorial
-            else if (auto* sq = find_story_quest("story_missing_hauler");
-                sq && interacting_npc_->role == "Station Keeper" &&
-                !game.quests().has_active_quest("story_missing_hauler") &&
-                !game.quests().has_active_quest("story_getting_airborne")) {
-                auto q = sq->create_quest();
-                game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
-                sq->on_accepted(game);
-                game.log("Quest accepted: " + colored("The Missing Hauler", Color::Yellow));
-            } else {
+            else {
                 // Generate a random quest based on NPC role + world state
                 auto q = game.quests().generate_quest_for_role(
                     interacting_npc_->role, interacting_npc_->label(),
@@ -1008,6 +1011,23 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             open_ = true;
             break;
         }
+        case InteractOption::StoryQuestOffer: {
+            // Count which StoryQuestOffer this selection refers to
+            int story_idx = 0;
+            for (int i = 0; i < selected; ++i) {
+                if (interact_options_[i] == InteractOption::StoryQuestOffer) ++story_idx;
+            }
+            if (story_idx >= 0 && story_idx < static_cast<int>(pending_story_offers_.size())) {
+                const std::string qid = pending_story_offers_[story_idx];
+                if (game.quests().accept_available(qid, game, game.world().world_tick())) {
+                    const Quest* q = game.quests().find_active(qid);
+                    std::string title = q ? q->title : qid;
+                    game.log("Quest accepted: " + colored(title, Color::Yellow));
+                }
+            }
+            open_ = false;
+            return;
+        }
         case InteractOption::QuestTurnIn: {
             // Find the completable quest from this NPC and turn it in
             std::string turn_in_id;
@@ -1029,7 +1049,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (qptr) reward = qptr->reward;
 
                 // Complete the quest
-                game.quests().complete_quest(turn_in_id, game.player());
+                game.quests().complete_quest(turn_in_id, game, game.world().world_tick());
 
                 // Log reward details
                 game.log("Quest completed: " + colored(quest_title, Color::Green));
@@ -1037,13 +1057,13 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (reward.xp > 0) reward_msg += " " + colored(std::to_string(reward.xp) + " XP", Color::Cyan);
                 if (reward.credits > 0) reward_msg += " " + colored(std::to_string(reward.credits) + " credits", Color::Yellow);
                 if (reward.skill_points > 0) reward_msg += " " + colored(std::to_string(reward.skill_points) + " SP", Color::Cyan);
-                if (!reward.faction_name.empty() && reward.reputation_change != 0)
-                    reward_msg += " " + colored("+" + std::to_string(reward.reputation_change) + " " + reward.faction_name + " rep", Color::Green);
+                for (const auto& fr : reward.factions) {
+                    if (fr.faction_name.empty() || fr.reputation_change == 0) continue;
+                    reward_msg += " " + colored("+" + std::to_string(fr.reputation_change) + " " + fr.faction_name + " rep", Color::Green);
+                }
+                for (const auto& ri : reward.items)
+                    reward_msg += " " + display_name(ri);
                 game.log(reward_msg);
-
-                // Trigger story quest cleanup
-                auto* sq = find_story_quest(turn_in_id);
-                if (sq) sq->on_completed(game);
 
                 // Clean up quest location markers by quest_id
                 auto& ql = game.world().quest_locations();

@@ -97,6 +97,23 @@ private:
     int journal_cursor_ = 0;
     int journal_scroll_ = 0;
 
+    // Quests tab
+    struct QuestVisItem {
+        enum class Kind : uint8_t { Category, ArcHeader, Quest } kind;
+        enum class QState : uint8_t { Active, Available, Locked, Completed } qstate = QState::Active;
+        int cat_idx = -1;
+        std::string arc_id;
+        std::string quest_id;
+    };
+    std::vector<bool> quest_cat_expanded_;
+    int quest_cursor_ = 0;
+    int quest_scroll_ = 0;
+    enum class QuestFocus : uint8_t { Left, Right };
+    QuestFocus quest_focus_ = QuestFocus::Left;
+    int quest_reward_cursor_ = 0;
+    void draw_quests(UIContext& ctx);
+    std::vector<QuestVisItem> build_quest_vis() const;
+
     void open_context_menu();
     void execute_context_action(char key);
     void draw_look_overlay(UIContext& ctx);

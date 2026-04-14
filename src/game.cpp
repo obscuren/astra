@@ -842,6 +842,9 @@ void Game::new_game() {
     star_chart_viewer_.set_dev_mode(dev_mode_);
 #endif
 
+    quest_manager_ = QuestManager{};  // fresh manager for new game
+    quest_manager_.init_from_catalog(*this);
+
     apply_passive_skill_effects();
     state_ = GameState::Playing;
 }
@@ -1076,6 +1079,9 @@ void Game::new_game(const CreationResult& cr) {
 #ifdef ASTRA_DEV_MODE
     star_chart_viewer_.set_dev_mode(dev_mode_);
 #endif
+
+    quest_manager_ = QuestManager{};  // fresh manager for new game
+    quest_manager_.init_from_catalog(*this);
 
     apply_passive_skill_effects();
     state_ = GameState::Playing;

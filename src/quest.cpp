@@ -2,11 +2,14 @@
 #include "astra/journal.h"
 #include "astra/player.h"
 #include "astra/character.h"
+#include "astra/quest_graph.h"
 #include "astra/star_chart.h"
 #include "astra/time_of_day.h"
+#include "astra/game.h"
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 namespace astra {
 
@@ -62,25 +65,29 @@ void QuestManager::accept_quest(Quest quest, int world_tick, Player& player) {
     active_.push_back(std::move(quest));
 }
 
-void QuestManager::complete_quest(const std::string& quest_id, Player& player) {
+void QuestManager::complete_quest(const std::string& quest_id, Game& game, int world_tick) {
     for (auto it = active_.begin(); it != active_.end(); ++it) {
         if (it->id == quest_id) {
             it->status = QuestStatus::Completed;
             // Apply rewards
-            player.xp += it->reward.xp;
-            player.money += it->reward.credits;
-            player.skill_points += it->reward.skill_points;
-            if (!it->reward.faction_name.empty()) {
-                for (auto& fs : player.reputation) {
-                    if (fs.faction_name == it->reward.faction_name) {
-                        fs.reputation += it->reward.reputation_change;
+            game.player().xp += it->reward.xp;
+            game.player().money += it->reward.credits;
+            game.player().skill_points += it->reward.skill_points;
+            for (auto& reward_item : it->reward.items) {
+                game.player().inventory.items.push_back(std::move(reward_item));
+            }
+            for (const auto& fr : it->reward.factions) {
+                if (fr.faction_name.empty()) continue;
+                for (auto& fs : game.player().reputation) {
+                    if (fs.faction_name == fr.faction_name) {
+                        fs.reputation += fr.reputation_change;
                         break;
                     }
                 }
             }
 
             // Update journal entry
-            JournalEntry* je = find_journal_entry(player.journal, quest_id);
+            JournalEntry* je = find_journal_entry(game.player().journal, quest_id);
             if (je) {
                 je->title = "Quest Complete: " + it->title;
                 // Update objectives to show all complete
@@ -94,24 +101,78 @@ void QuestManager::complete_quest(const std::string& quest_id, Player& player) {
                 if (it->reward.xp > 0) rewards += std::to_string(it->reward.xp) + " XP  ";
                 if (it->reward.credits > 0) rewards += std::to_string(it->reward.credits) + "$  ";
                 if (it->reward.skill_points > 0) rewards += std::to_string(it->reward.skill_points) + " SP  ";
+                for (const auto& ri : it->reward.items) rewards += ri.label() + "  ";
                 if (!rewards.empty()) je->personal += "\nRewards: " + rewards;
             }
 
             completed_.push_back(std::move(*it));
             active_.erase(it);
+
+            // Fire StoryQuest hook
+            StoryQuest* sq = find_story_quest(quest_id);
+            if (sq) sq->on_completed(game);
+
+            // Cascade unlock dependents
+            const auto& graph = quest_graph();
+            for (const auto& dep_id : graph.dependents_of(quest_id)) {
+                auto dep_it = std::find_if(locked_.begin(), locked_.end(),
+                    [&](const Quest& q){ return q.id == dep_id; });
+                if (dep_it == locked_.end()) continue;
+
+                // Are all of this dep's prereqs now Completed?
+                bool ready = true;
+                for (const auto& p : graph.prerequisites_of(dep_id)) {
+                    bool p_done = false;
+                    for (const auto& c : completed_) {
+                        if (c.id == p && c.status == QuestStatus::Completed) {
+                            p_done = true; break;
+                        }
+                    }
+                    if (!p_done) { ready = false; break; }
+                }
+                if (!ready) continue;
+
+                Quest unlocked = std::move(*dep_it);
+                locked_.erase(dep_it);
+                StoryQuest* dep_sq = find_story_quest(dep_id);
+                if (dep_sq) dep_sq->on_unlocked(game);
+
+                if (dep_sq && dep_sq->offer_mode() == OfferMode::Auto) {
+                    accept_quest(std::move(unlocked), world_tick, game.player());
+                    dep_sq->on_accepted(game);
+                } else {
+                    unlocked.status = QuestStatus::Available;
+                    available_.push_back(std::move(unlocked));
+                }
+            }
             return;
         }
     }
 }
 
-void QuestManager::fail_quest(const std::string& quest_id) {
-    for (auto it = active_.begin(); it != active_.end(); ++it) {
-        if (it->id == quest_id) {
-            it->status = QuestStatus::Failed;
-            completed_.push_back(std::move(*it));
-            active_.erase(it);
-            return;
+void QuestManager::fail_quest(const std::string& quest_id, Game& game) {
+    const auto& graph = quest_graph();
+    std::unordered_set<std::string> to_fail = graph.descendants_of(quest_id);
+    to_fail.insert(quest_id);
+
+    auto move_failed = [&](std::vector<Quest>& pool, const std::string& id) -> bool {
+        for (auto it = pool.begin(); it != pool.end(); ++it) {
+            if (it->id == id) {
+                it->status = QuestStatus::Failed;
+                StoryQuest* sq = find_story_quest(id);
+                if (sq) sq->on_failed(game);
+                completed_.push_back(std::move(*it));
+                pool.erase(it);
+                return true;
+            }
         }
+        return false;
+    };
+
+    for (const auto& id : to_fail) {
+        if (move_failed(active_, id)) continue;
+        if (move_failed(available_, id)) continue;
+        move_failed(locked_, id);  // ignore return; quest may already be completed/unknown
     }
 }
 
@@ -493,6 +554,130 @@ Quest QuestManager::generate_quest_for_role(const std::string& role,
     }
 
     return q;
+}
+
+void QuestManager::init_from_catalog(Game& game) {
+    locked_.clear();
+    available_.clear();
+    // active_/completed_ preserved; caller responsible.
+
+    const auto& catalog = story_quest_catalog();
+    for (const auto& sq : catalog) {
+        Quest q = sq->create_quest();
+        // Copy chain/reveal metadata from StoryQuest into the Quest struct
+        q.arc_id = sq->arc_id();
+        q.prerequisite_ids = sq->prerequisite_ids();
+        q.reveal = sq->reveal_policy();
+        // Skip if already in active_/completed_
+        bool already = false;
+        for (const auto& a : active_)    if (a.id == q.id) { already = true; break; }
+        if (!already) for (const auto& c : completed_) if (c.id == q.id) { already = true; break; }
+        if (already) continue;
+
+        if (!sq->prerequisite_ids().empty()) {
+            q.status = QuestStatus::Locked;
+            locked_.push_back(std::move(q));
+        } else if (sq->offer_mode() == OfferMode::Auto) {
+            sq->on_unlocked(game);
+            q.status = QuestStatus::Active;
+            q.accepted_tick = 0;
+            active_.push_back(std::move(q));
+            sq->on_accepted(game);
+        } else {
+            q.status = QuestStatus::Available;
+            available_.push_back(std::move(q));
+        }
+    }
+}
+
+std::vector<const Quest*> QuestManager::available_for_role(const std::string& role) const {
+    std::vector<const Quest*> out;
+    if (role.empty()) return out;
+    for (const auto& q : available_) {
+        StoryQuest* sq = find_story_quest(q.id);
+        if (!sq) continue;
+        const std::string giver = sq->offer_giver_role();
+        if (giver.empty()) continue;  // Tutorial-only or special quests
+        if (giver == role) out.push_back(&q);
+    }
+    return out;
+}
+
+bool QuestManager::accept_available(const std::string& quest_id, Game& game, int world_tick) {
+    for (auto it = available_.begin(); it != available_.end(); ++it) {
+        if (it->id != quest_id) continue;
+        Quest q = std::move(*it);
+        available_.erase(it);
+        StoryQuest* sq = find_story_quest(quest_id);
+        accept_quest(std::move(q), world_tick, game.player());
+        if (sq) sq->on_accepted(game);
+        return true;
+    }
+    return false;
+}
+
+void QuestManager::restore(std::vector<Quest> locked,
+                           std::vector<Quest> available,
+                           std::vector<Quest> active,
+                           std::vector<Quest> completed) {
+    locked_ = std::move(locked);
+    available_ = std::move(available);
+    active_ = std::move(active);
+    completed_ = std::move(completed);
+}
+
+void QuestManager::reconcile_with_catalog(Game& game) {
+    const auto& catalog = story_quest_catalog();
+    std::unordered_set<std::string> seen;
+    for (const auto& q : locked_)    seen.insert(q.id);
+    for (const auto& q : available_) seen.insert(q.id);
+    for (const auto& q : active_)    seen.insert(q.id);
+    for (const auto& q : completed_) seen.insert(q.id);
+
+    for (const auto& sq : catalog) {
+        Quest q = sq->create_quest();
+        q.arc_id = sq->arc_id();
+        q.prerequisite_ids = sq->prerequisite_ids();
+        q.reveal = sq->reveal_policy();
+        if (seen.count(q.id)) continue;
+
+        bool prereqs_ok = true;
+        for (const auto& p : sq->prerequisite_ids()) {
+            bool done = false;
+            for (const auto& c : completed_) {
+                if (c.id == p && c.status == QuestStatus::Completed) { done = true; break; }
+            }
+            if (!done) { prereqs_ok = false; break; }
+        }
+
+        if (!prereqs_ok) {
+            q.status = QuestStatus::Locked;
+            locked_.push_back(std::move(q));
+        } else if (sq->offer_mode() == OfferMode::Auto) {
+            sq->on_unlocked(game);
+            q.status = QuestStatus::Active;
+            active_.push_back(std::move(q));
+            sq->on_accepted(game);
+        } else {
+            q.status = QuestStatus::Available;
+            available_.push_back(std::move(q));
+        }
+    }
+
+    // Backfill chain/reveal fields on existing pool entries for older saves
+    auto patch = [](std::vector<Quest>& pool) {
+        for (auto& q : pool) {
+            StoryQuest* sq = find_story_quest(q.id);
+            if (!sq) continue;
+            if (q.arc_id.empty()) q.arc_id = sq->arc_id();
+            if (q.prerequisite_ids.empty()) q.prerequisite_ids = sq->prerequisite_ids();
+            q.reveal = sq->reveal_policy();
+        }
+    };
+    patch(locked_);
+    patch(available_);
+    patch(active_);
+    patch(completed_);
 }
 
 } // namespace astra

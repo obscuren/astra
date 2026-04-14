@@ -13,6 +13,7 @@ set(ASTRA_SOURCES
     src/main.cpp
     src/game.cpp
     src/ui.cpp
+    src/display_name.cpp
     src/ui_layout.cpp
     src/ui_components.cpp
     src/fov.cpp
@@ -115,8 +116,13 @@ set(ASTRA_SOURCES
     src/dialog_manager.cpp
     src/ability.cpp
     src/quest.cpp
+    src/quest_graph.cpp
+    src/quest_validator.cpp
     src/quests/missing_hauler.cpp
     src/quests/getting_airborne.cpp
+    src/quests/hauler_b.cpp
+    src/quests/hauler_c.cpp
+    src/quests/hauler_d.cpp
     src/game_combat.cpp
     src/game_input.cpp
     src/game_interaction.cpp
