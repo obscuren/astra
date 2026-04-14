@@ -71,6 +71,9 @@ Item build_hull_plate();
 Item build_shield_generator();
 Item build_navi_computer_mk2();
 
+// Look up an item by its display name. Returns an empty-name item if unknown.
+Item build_item_by_name(const std::string& name);
+
 // Random item pickers
 Item random_ranged_weapon(std::mt19937& rng);
 Item random_melee_weapon(std::mt19937& rng);
