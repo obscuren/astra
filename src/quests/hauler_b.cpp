@@ -20,8 +20,7 @@ public:
             "Report back to the Station Keeper", 1, 0, "Station Keeper"});
         q.reward.xp = 250;
         q.reward.credits = 150;
-        q.reward.faction_name = Faction_StellariConclave;
-        q.reward.reputation_change = 8;
+        q.reward.factions.push_back({Faction_StellariConclave, 8});
         return q;
     }
 

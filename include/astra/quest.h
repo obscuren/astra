@@ -53,13 +53,17 @@ struct QuestObjective {
     bool complete() const { return current_count >= target_count; }
 };
 
+struct FactionReward {
+    std::string faction_name;
+    int reputation_change = 0;
+};
+
 struct QuestReward {
     int xp = 0;
     int credits = 0;
     int skill_points = 0;
     std::vector<Item> items;
-    std::string faction_name;
-    int reputation_change = 0;
+    std::vector<FactionReward> factions;
 };
 
 struct Quest {

@@ -76,10 +76,11 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
             for (auto& reward_item : it->reward.items) {
                 game.player().inventory.items.push_back(std::move(reward_item));
             }
-            if (!it->reward.faction_name.empty()) {
+            for (const auto& fr : it->reward.factions) {
+                if (fr.faction_name.empty()) continue;
                 for (auto& fs : game.player().reputation) {
-                    if (fs.faction_name == it->reward.faction_name) {
-                        fs.reputation += it->reward.reputation_change;
+                    if (fs.faction_name == fr.faction_name) {
+                        fs.reputation += fr.reputation_change;
                         break;
                     }
                 }

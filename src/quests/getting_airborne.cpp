@@ -31,8 +31,7 @@ class GettingAirborneQuest : public StoryQuest {
 
         q.reward.xp = 100;
         q.reward.credits = 50;
-        q.reward.faction_name = Faction_StellariConclave;
-        q.reward.reputation_change = 5;
+        q.reward.factions.push_back({Faction_StellariConclave, 5});
         return q;
     }
 

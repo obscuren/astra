@@ -1056,8 +1056,12 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 if (reward.xp > 0) reward_msg += " " + colored(std::to_string(reward.xp) + " XP", Color::Cyan);
                 if (reward.credits > 0) reward_msg += " " + colored(std::to_string(reward.credits) + " credits", Color::Yellow);
                 if (reward.skill_points > 0) reward_msg += " " + colored(std::to_string(reward.skill_points) + " SP", Color::Cyan);
-                if (!reward.faction_name.empty() && reward.reputation_change != 0)
-                    reward_msg += " " + colored("+" + std::to_string(reward.reputation_change) + " " + reward.faction_name + " rep", Color::Green);
+                for (const auto& fr : reward.factions) {
+                    if (fr.faction_name.empty() || fr.reputation_change == 0) continue;
+                    reward_msg += " " + colored("+" + std::to_string(fr.reputation_change) + " " + fr.faction_name + " rep", Color::Green);
+                }
+                for (const auto& ri : reward.items)
+                    reward_msg += " " + colored(ri.name, Color::Magenta);
                 game.log(reward_msg);
 
                 // Clean up quest location markers by quest_id

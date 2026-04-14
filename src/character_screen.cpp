@@ -2788,14 +2788,45 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
             // Reward
             if (q && (sel.qstate == QuestVisItem::QState::Active ||
                       sel.qstate == QuestVisItem::QState::Available)) {
-                std::string rew = "Reward:";
-                if (q->reward.xp > 0) rew += " " + std::to_string(q->reward.xp) + " XP";
-                if (q->reward.credits > 0) rew += " " + std::to_string(q->reward.credits) + "$";
-                if (q->reward.skill_points > 0) rew += " " + std::to_string(q->reward.skill_points) + " SP";
-                for (const auto& ri : q->reward.items) rew += " + " + ri.name;
-                if (rew != "Reward:") {
-                    ctx.text({.x = rx, .y = ry, .content = rew, .tag = UITag::TextAccent});
+                const auto& rw = q->reward;
+                bool has_any = rw.xp > 0 || rw.credits > 0 || rw.skill_points > 0
+                            || !rw.items.empty() || !rw.factions.empty();
+                if (has_any && ry < ctx.height() - 1) {
+                    ctx.text({.x = rx, .y = ry, .content = "Rewards:", .tag = UITag::TextDim});
                     ry++;
+                    for (const auto& ri : rw.items) {
+                        if (ry >= ctx.height() - 1) break;
+                        ctx.text({.x = rx + 2, .y = ry, .content = ri.name, .tag = UITag::TextAccent});
+                        ry++;
+                    }
+                    if (rw.xp > 0 && ry < ctx.height() - 1) {
+                        ctx.text({.x = rx + 2, .y = ry,
+                                  .content = std::to_string(rw.xp) + " XP",
+                                  .tag = UITag::TextBright});
+                        ry++;
+                    }
+                    if (rw.credits > 0 && ry < ctx.height() - 1) {
+                        ctx.text({.x = rx + 2, .y = ry,
+                                  .content = std::to_string(rw.credits) + "$",
+                                  .tag = UITag::TextWarning});
+                        ry++;
+                    }
+                    if (rw.skill_points > 0 && ry < ctx.height() - 1) {
+                        ctx.text({.x = rx + 2, .y = ry,
+                                  .content = std::to_string(rw.skill_points) + " SP",
+                                  .tag = UITag::TextBright});
+                        ry++;
+                    }
+                    for (const auto& fr : rw.factions) {
+                        if (ry >= ctx.height() - 1) break;
+                        if (fr.faction_name.empty() || fr.reputation_change == 0) continue;
+                        std::string sign = fr.reputation_change > 0 ? "+" : "";
+                        std::string line = sign + std::to_string(fr.reputation_change)
+                                         + " reputation with " + fr.faction_name;
+                        ctx.text({.x = rx + 2, .y = ry, .content = line,
+                                  .tag = UITag::TextSuccess});
+                        ry++;
+                    }
                 }
             }
 

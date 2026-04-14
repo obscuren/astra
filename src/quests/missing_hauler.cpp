@@ -37,8 +37,8 @@ public:
         q.reward.xp = 200;
         q.reward.credits = 100;
         q.reward.items.push_back(build_plasma_pistol());
-        q.reward.faction_name = Faction_StellariConclave;
-        q.reward.reputation_change = 10;
+        q.reward.factions.push_back({Faction_StellariConclave, 10});
+        q.reward.factions.push_back({Faction_KrethMiningGuild, 5});
         return q;
     }
 
