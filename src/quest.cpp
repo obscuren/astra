@@ -4,7 +4,6 @@
 #include "astra/character.h"
 #include "astra/star_chart.h"
 #include "astra/time_of_day.h"
-#include "astra/quest_graph.h"
 #include "astra/game.h"
 
 #include <algorithm>
