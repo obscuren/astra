@@ -31,12 +31,19 @@ struct LocationState {
     int player_y = 0;
 };
 
+struct QuestFixturePlacement {
+    std::string fixture_id;   // registry key
+    int x = -1;               // -1 = unresolved; resolver picks + writes back
+    int y = -1;
+};
+
 struct QuestLocationMeta {
     std::string quest_id;
     std::string quest_title;               // display name for markers
     int difficulty_override = -1;          // -1 = use default
     std::vector<std::string> npc_roles;    // specific NPCs to spawn
     std::vector<std::string> quest_items;  // items to place on ground
+    std::vector<QuestFixturePlacement> fixtures;  // quest-driven fixtures
     Tile poi_type = Tile::Empty;           // overworld stamp to place
     bool remove_on_completion = false;     // clean up after quest done
     uint32_t target_system_id = 0;         // star chart marker: system
