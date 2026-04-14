@@ -140,7 +140,21 @@ private:
 class StoryQuest {
 public:
     virtual ~StoryQuest() = default;
+
     virtual Quest create_quest() = 0;
+
+    // Arc / DAG declarations (defaults = standalone, no arc)
+    virtual std::string arc_id() const { return ""; }
+    virtual std::string arc_title() const { return ""; }
+    virtual std::vector<std::string> prerequisite_ids() const { return {}; }
+    virtual RevealPolicy reveal_policy() const { return RevealPolicy::Full; }
+
+    // Offer semantics
+    virtual OfferMode offer_mode() const { return OfferMode::NpcOffer; }
+    virtual std::string offer_giver_role() const { return ""; }
+
+    // Lifecycle hooks
+    virtual void on_unlocked(Game& game) {}
     virtual void on_accepted(Game& game) {}
     virtual void on_completed(Game& game) {}
     virtual void on_failed(Game& game) {}
