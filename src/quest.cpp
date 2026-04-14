@@ -4,9 +4,12 @@
 #include "astra/character.h"
 #include "astra/star_chart.h"
 #include "astra/time_of_day.h"
+#include "astra/quest_graph.h"
+#include "astra/game.h"
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 namespace astra {
 
@@ -493,6 +496,106 @@ Quest QuestManager::generate_quest_for_role(const std::string& role,
     }
 
     return q;
+}
+
+void QuestManager::init_from_catalog(Game& game) {
+    locked_.clear();
+    available_.clear();
+    // active_/completed_ preserved; caller responsible.
+
+    const auto& catalog = story_quest_catalog();
+    for (const auto& sq : catalog) {
+        Quest q = sq->create_quest();
+        // Skip if already in active_/completed_
+        bool already = false;
+        for (const auto& a : active_)    if (a.id == q.id) { already = true; break; }
+        if (!already) for (const auto& c : completed_) if (c.id == q.id) { already = true; break; }
+        if (already) continue;
+
+        if (!sq->prerequisite_ids().empty()) {
+            q.status = QuestStatus::Locked;
+            locked_.push_back(std::move(q));
+        } else if (sq->offer_mode() == OfferMode::Auto) {
+            sq->on_unlocked(game);
+            q.status = QuestStatus::Active;
+            q.accepted_tick = 0;
+            active_.push_back(std::move(q));
+            sq->on_accepted(game);
+        } else {
+            q.status = QuestStatus::Available;
+            available_.push_back(std::move(q));
+        }
+    }
+}
+
+std::vector<const Quest*> QuestManager::available_for_role(const std::string& role) const {
+    std::vector<const Quest*> out;
+    for (const auto& q : available_) {
+        StoryQuest* sq = find_story_quest(q.id);
+        if (sq && sq->offer_giver_role() == role) {
+            out.push_back(&q);
+        }
+    }
+    return out;
+}
+
+bool QuestManager::accept_available(const std::string& quest_id, Game& game, int world_tick) {
+    for (auto it = available_.begin(); it != available_.end(); ++it) {
+        if (it->id != quest_id) continue;
+        Quest q = std::move(*it);
+        available_.erase(it);
+        StoryQuest* sq = find_story_quest(quest_id);
+        accept_quest(std::move(q), world_tick, game.player());
+        if (sq) sq->on_accepted(game);
+        return true;
+    }
+    return false;
+}
+
+void QuestManager::restore(std::vector<Quest> locked,
+                           std::vector<Quest> available,
+                           std::vector<Quest> active,
+                           std::vector<Quest> completed) {
+    locked_ = std::move(locked);
+    available_ = std::move(available);
+    active_ = std::move(active);
+    completed_ = std::move(completed);
+}
+
+void QuestManager::reconcile_with_catalog(Game& game) {
+    const auto& catalog = story_quest_catalog();
+    std::unordered_set<std::string> seen;
+    for (const auto& q : locked_)    seen.insert(q.id);
+    for (const auto& q : available_) seen.insert(q.id);
+    for (const auto& q : active_)    seen.insert(q.id);
+    for (const auto& q : completed_) seen.insert(q.id);
+
+    for (const auto& sq : catalog) {
+        Quest q = sq->create_quest();
+        if (seen.count(q.id)) continue;
+
+        bool prereqs_ok = true;
+        for (const auto& p : sq->prerequisite_ids()) {
+            bool done = false;
+            for (const auto& c : completed_) {
+                if (c.id == p && c.status == QuestStatus::Completed) { done = true; break; }
+            }
+            if (!done) { prereqs_ok = false; break; }
+        }
+
+        if (!prereqs_ok) {
+            q.status = QuestStatus::Locked;
+            locked_.push_back(std::move(q));
+        } else if (sq->offer_mode() == OfferMode::Auto) {
+            sq->on_unlocked(game);
+            q.status = QuestStatus::Active;
+            active_.push_back(std::move(q));
+            sq->on_accepted(game);
+        } else {
+            q.status = QuestStatus::Available;
+            available_.push_back(std::move(q));
+        }
+    }
 }
 
 } // namespace astra

@@ -90,6 +90,11 @@ class QuestManager {
 public:
     QuestManager() = default;
 
+    // Initialize locked/available from story catalog.
+    // Caller is responsible for calling this once on new-game.
+    // Quests already present in active_/completed_ are skipped.
+    void init_from_catalog(Game& game);
+
     // Quest lifecycle
     void accept_quest(Quest quest, int world_tick, Player& player);
     void complete_quest(const std::string& quest_id, Player& player);
@@ -114,8 +119,26 @@ public:
     // Update journal entries for all active quests with current objective progress
     void update_quest_journals(Player& player);
 
+    // New pool queries
+    const std::vector<Quest>& locked_quests() const { return locked_; }
+    const std::vector<Quest>& available_quests() const { return available_; }
+    std::vector<const Quest*> available_for_role(const std::string& role) const;
+
+    // Accept from available pool. Returns false if not found.
+    bool accept_available(const std::string& quest_id, Game& game, int world_tick);
+
     // Restore from save (replaces internal state without triggering rewards)
     void restore(std::vector<Quest> active, std::vector<Quest> completed);
+
+    // 4-arg restore (saves v27+).
+    void restore(std::vector<Quest> locked,
+                 std::vector<Quest> available,
+                 std::vector<Quest> active,
+                 std::vector<Quest> completed);
+
+    // After restore, fold in any catalog quests that aren't in any pool yet
+    // (handles catalog growth across save versions).
+    void reconcile_with_catalog(Game& game);
 
     // Random quest generation (simple — no world awareness)
     Quest generate_kill_quest(std::mt19937& rng);
@@ -131,6 +154,8 @@ public:
                                   std::mt19937& rng);
 
 private:
+    std::vector<Quest> locked_;
+    std::vector<Quest> available_;
     std::vector<Quest> active_;
     std::vector<Quest> completed_;
 };
