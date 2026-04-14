@@ -194,6 +194,10 @@ public:
     virtual void on_accepted(Game& game) {}
     virtual void on_completed(Game& game) {}
     virtual void on_failed(Game& game) {}
+
+    // Register any QuestFixtureDef entries owned by this quest.
+    // Called once per boot from build_catalog(); must be idempotent.
+    virtual void register_fixtures() {}
 };
 
 // Registry of all story quests

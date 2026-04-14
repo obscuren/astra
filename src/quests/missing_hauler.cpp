@@ -148,6 +148,12 @@ static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     register_hauler_b(catalog);
     register_hauler_c(catalog);
     register_hauler_d(catalog);
+
+    // Give every story quest a chance to register its fixture defs.
+    for (const auto& sq : catalog) {
+        sq->register_fixtures();
+    }
+
     return catalog;
 }
 
