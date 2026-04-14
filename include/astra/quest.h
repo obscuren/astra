@@ -21,6 +21,7 @@ enum class QuestStatus : uint8_t {
     Active,
     Completed,
     Failed,
+    Unknown = 255,  // Runtime-only sentinel for failed lookups; never serialized
 };
 
 enum class RevealPolicy : uint8_t {
@@ -117,6 +118,11 @@ public:
     const std::vector<Quest>& completed_quests() const { return completed_; }
     bool has_active_quest(const std::string& id) const;
     Quest* find_active(const std::string& id);
+
+    // Cross-pool lookup. Returns {nullptr, Unknown} if the id isn't in any pool.
+    struct Lookup { const Quest* quest; QuestStatus status; };
+    Lookup find_quest(const std::string& id) const;
+    QuestStatus status_of(const std::string& id) const;
 
     // Check if any quest just completed all objectives (returns quest id, empty if none)
     std::string check_completions() const;

@@ -190,6 +190,18 @@ Quest* QuestManager::find_active(const std::string& id) {
     return nullptr;
 }
 
+QuestManager::Lookup QuestManager::find_quest(const std::string& id) const {
+    for (const auto& q : active_)    if (q.id == id) return {&q, QuestStatus::Active};
+    for (const auto& q : available_) if (q.id == id) return {&q, QuestStatus::Available};
+    for (const auto& q : locked_)    if (q.id == id) return {&q, QuestStatus::Locked};
+    for (const auto& q : completed_) if (q.id == id) return {&q, q.status};
+    return {nullptr, QuestStatus::Unknown};
+}
+
+QuestStatus QuestManager::status_of(const std::string& id) const {
+    return find_quest(id).status;
+}
+
 void QuestManager::restore(std::vector<Quest> active, std::vector<Quest> completed) {
     active_ = std::move(active);
     completed_ = std::move(completed);

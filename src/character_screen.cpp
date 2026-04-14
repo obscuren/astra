@@ -2434,10 +2434,6 @@ const char* quest_cat_name(int idx) {
     return "";
 }
 
-const Quest* find_in(const std::vector<Quest>& v, const std::string& id) {
-    for (const auto& q : v) if (q.id == id) return &q;
-    return nullptr;
-}
 } // namespace
 
 std::vector<CharacterScreen::QuestVisItem>
@@ -2499,10 +2495,13 @@ CharacterScreen::build_quest_vis() const {
                     it.cat_idx = 0;
                     it.arc_id = arc;
                     it.quest_id = mid;
-                    if (quests_->find_active(mid) != nullptr) it.qstate = QuestVisItem::QState::Active;
-                    else if (find_in(quests_->completed_quests(), mid)) it.qstate = QuestVisItem::QState::Completed;
-                    else if (find_in(quests_->available_quests(), mid)) it.qstate = QuestVisItem::QState::Available;
-                    else it.qstate = QuestVisItem::QState::Locked;
+                    switch (quests_->status_of(mid)) {
+                        case QuestStatus::Active:    it.qstate = QuestVisItem::QState::Active;    break;
+                        case QuestStatus::Completed:
+                        case QuestStatus::Failed:    it.qstate = QuestVisItem::QState::Completed; break;
+                        case QuestStatus::Available: it.qstate = QuestVisItem::QState::Available; break;
+                        default:                     it.qstate = QuestVisItem::QState::Locked;    break;
+                    }
                     vis.push_back(std::move(it));
                 }
             }
@@ -2670,14 +2669,14 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
                     break;
                 }
                 case QuestVisItem::QState::Available: {
-                    const Quest* q = find_in(quests_->available_quests(), it.quest_id);
+                    const Quest* q = quests_->find_quest(it.quest_id).quest;
                     title = q ? q->title : it.quest_id;
                     glyph = "\xe2\x97\x8f"; // ●
                     tag = UITag::TextDim;
                     break;
                 }
                 case QuestVisItem::QState::Completed: {
-                    const Quest* q = find_in(quests_->completed_quests(), it.quest_id);
+                    const Quest* q = quests_->find_quest(it.quest_id).quest;
                     title = q ? q->title : it.quest_id;
                     glyph = "\xe2\x9c\x93"; // ✓
                     tag = UITag::TextSuccess;
@@ -2688,7 +2687,7 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
                         title = "??? — ???";
                         glyph = "?";
                     } else {
-                        const Quest* q = find_in(quests_->locked_quests(), it.quest_id);
+                        const Quest* q = quests_->find_quest(it.quest_id).quest;
                         title = q ? q->title : it.quest_id;
                         glyph = "\xe2\x97\x8b"; // ○
                     }
@@ -2755,8 +2754,11 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
             auto members = quest_graph().arc_members(sel.arc_id);
             int active_n = 0, done_n = 0;
             for (const auto& mid : members) {
-                if (quests_->find_active(mid)) active_n++;
-                else if (find_in(quests_->completed_quests(), mid)) done_n++;
+                switch (quests_->status_of(mid)) {
+                    case QuestStatus::Active:    ++active_n; break;
+                    case QuestStatus::Completed: ++done_n;   break;
+                    default: break;
+                }
             }
             std::string s = "Chain — " + std::to_string(done_n) + "/" +
                             std::to_string(members.size()) + " complete, " +
@@ -2766,17 +2768,7 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
         } else { // Quest
             StoryQuest* sq = find_story_quest(sel.quest_id);
             RevealPolicy rev = sq ? sq->reveal_policy() : RevealPolicy::Full;
-            const Quest* q = nullptr;
-            switch (sel.qstate) {
-                case QuestVisItem::QState::Active:
-                    q = quests_->find_active(sel.quest_id); break;
-                case QuestVisItem::QState::Available:
-                    q = find_in(quests_->available_quests(), sel.quest_id); break;
-                case QuestVisItem::QState::Completed:
-                    q = find_in(quests_->completed_quests(), sel.quest_id); break;
-                case QuestVisItem::QState::Locked:
-                    q = find_in(quests_->locked_quests(), sel.quest_id); break;
-            }
+            const Quest* q = quests_->find_quest(sel.quest_id).quest;
 
             // Title
             std::string title = (sel.qstate == QuestVisItem::QState::Locked &&

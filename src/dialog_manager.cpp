@@ -1062,10 +1062,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 return;
 
             const std::string qid = pending_story_offers_[story_idx];
-            const Quest* offer = nullptr;
-            for (const auto& q : game.quests().available_quests()) {
-                if (q.id == qid) { offer = &q; break; }
-            }
+            const Quest* offer = game.quests().find_quest(qid).quest;
             if (!offer || !interacting_npc_) { open_ = false; return; }
 
             reset_content(interacting_npc_->label());
