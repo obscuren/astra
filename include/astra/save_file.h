@@ -60,7 +60,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 30;   // v30: quest fixtures (FixtureData.quest_fixture_id + QuestLocationMeta.fixtures + pending_quest_cleanup)
+    uint32_t version = 31;   // v31: NavigationData.next_custom_system_id
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

@@ -6,8 +6,10 @@
 #include "astra/station_type.h"
 
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace astra {
@@ -64,6 +66,18 @@ struct StarSystem {
     LoreAnnotation lore;                // populated by apply_lore_to_galaxy()
 };
 
+struct CustomSystemSpec {
+    std::string name;
+    float gx = 0.0f;
+    float gy = 0.0f;
+    StarClass star_class = StarClass::ClassG;
+    bool discovered = true;
+    bool binary = false;
+    bool has_station = false;
+    LoreAnnotation lore = {};
+    std::vector<CelestialBody> bodies;        // empty = lazy procedural
+};
+
 struct NavigationData {
     uint32_t current_system_id = 0;
     int current_body_index = -1;  // index into current system's bodies (-1 = none)
@@ -72,7 +86,30 @@ struct NavigationData {
     bool on_ship = false;         // true if aboard the player's starship
     std::vector<StarSystem> systems;
     int navi_range = 1;
+    uint32_t next_custom_system_id = 0x80000000u;
 };
+
+// Create a custom system and append it to nav.systems. Returns the allocated id.
+// IDs come from nav.next_custom_system_id (starts at 0x80000000); the counter
+// survives save/load. If spec.bodies is non-empty, bodies are moved in and
+// bodies_generated is set to true. Empty spec.bodies leaves bodies_generated
+// false so the lazy generator runs on first access.
+uint32_t add_custom_system(NavigationData& nav, CustomSystemSpec spec);
+
+// Set discovered=true for the system with this id. Returns false if not found.
+bool reveal_system(NavigationData& nav, uint32_t system_id);
+
+// Symmetry helper; sets discovered=false.
+bool hide_system(NavigationData& nav, uint32_t system_id);
+
+// Pick coordinates within [min_dist, max_dist] of the reference system's
+// (gx, gy), avoiding overlap with any existing system's position. Returns
+// std::nullopt if no suitable spot was found within max_attempts tries
+// (typically because the ring is already crowded).
+std::optional<std::pair<float, float>>
+pick_coords_near(const NavigationData& nav, uint32_t ref_system_id,
+                 float min_dist, float max_dist, std::mt19937& rng,
+                 int max_attempts = 200);
 
 // Generate the full galaxy from a seed
 NavigationData generate_galaxy(unsigned game_seed);

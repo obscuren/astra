@@ -871,6 +871,8 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
             }
         }
     }
+    // v31: custom system id counter
+    w.write_u32(nav.next_custom_system_id);
     w.end_section(pos);
 }
 
@@ -1695,6 +1697,10 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
             }
         }
     }
+    if (version >= 31) {
+        nav.next_custom_system_id = r.read_u32();
+    }
+    // else: default 0x80000000u from NavigationData's in-class initializer
 }
 
 static void read_game_state_section(BinaryReader& r, SaveData& data) {

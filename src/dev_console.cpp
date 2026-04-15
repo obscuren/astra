@@ -1,12 +1,14 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
 #include "astra/biome_profile.h"
+#include "astra/body_presets.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/lore_generator.h"
 #include "astra/quest_fixture.h"
+#include "astra/star_chart.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
@@ -129,6 +131,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
+        log("  chart create [name] - create custom system near current");
+        log("  chart reveal <name> - reveal system by name substring");
+        log("  chart hide <name>   - hide system by name substring");
         log("  history             - show world lore history");
         log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
         log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
@@ -626,6 +631,55 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else {
             log("Usage: lore list | lore warp <feature>");
             log("Features: beacon, megastructure, terraformed, scarred, battle, weapon, plague, tier1, tier2, tier3");
+        }
+    }
+    else if (verb == "chart") {
+        auto& nav = game.world().navigation();
+        if (args.size() >= 2 && args[1] == "create") {
+            std::string name = args.size() >= 3 ? args[2] : std::string("Custom");
+            auto coords = pick_coords_near(nav, nav.current_system_id,
+                                           2.0f, 5.0f, game.world().rng());
+            if (!coords) {
+                log("chart create: couldn't find a spot near current system");
+                return;
+            }
+            CustomSystemSpec spec;
+            spec.name = name;
+            spec.gx = coords->first;
+            spec.gy = coords->second;
+            spec.star_class = StarClass::ClassM;
+            spec.discovered = true;
+            spec.bodies = { make_asteroid_orbit(name + " Rock") };
+            uint32_t id = add_custom_system(nav, std::move(spec));
+            log("Created custom system '" + name + "' id=" + std::to_string(id) +
+                " at (" + std::to_string(coords->first) + ", " +
+                std::to_string(coords->second) + ")");
+        } else if (args.size() >= 2 && args[1] == "reveal") {
+            if (args.size() < 3) { log("Usage: chart reveal <name-substring>"); return; }
+            const std::string& needle = args[2];
+            for (auto& s : nav.systems) {
+                if (s.name.find(needle) != std::string::npos) {
+                    if (reveal_system(nav, s.id)) {
+                        log("Revealed '" + s.name + "' (id=" + std::to_string(s.id) + ")");
+                    }
+                    return;
+                }
+            }
+            log("No system matches '" + needle + "'");
+        } else if (args.size() >= 2 && args[1] == "hide") {
+            if (args.size() < 3) { log("Usage: chart hide <name-substring>"); return; }
+            const std::string& needle = args[2];
+            for (auto& s : nav.systems) {
+                if (s.name.find(needle) != std::string::npos) {
+                    if (hide_system(nav, s.id)) {
+                        log("Hid '" + s.name + "' (id=" + std::to_string(s.id) + ")");
+                    }
+                    return;
+                }
+            }
+            log("No system matches '" + needle + "'");
+        } else {
+            log("Usage: chart create [name]|reveal <name>|hide <name>");
         }
     }
     else {

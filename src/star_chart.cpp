@@ -692,4 +692,92 @@ void apply_lore_to_galaxy(NavigationData& nav, const WorldLore& lore) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Custom system management
+// ---------------------------------------------------------------------------
+
+uint32_t add_custom_system(NavigationData& nav, CustomSystemSpec spec) {
+    // Allocate an id, stepping past any collision (extremely unlikely).
+    uint32_t id = nav.next_custom_system_id;
+    while (std::any_of(nav.systems.begin(), nav.systems.end(),
+                       [id](const StarSystem& s){ return s.id == id; })) {
+        ++id;
+    }
+    nav.next_custom_system_id = id + 1;
+
+    StarSystem sys;
+    sys.id = id;
+    sys.name = std::move(spec.name);
+    sys.star_class = spec.star_class;
+    sys.binary = spec.binary;
+    sys.has_station = spec.has_station;
+    sys.gx = spec.gx;
+    sys.gy = spec.gy;
+    sys.discovered = spec.discovered;
+    sys.lore = std::move(spec.lore);
+    sys.planet_count = 0;
+    sys.asteroid_belts = 0;
+    sys.danger_level = 1;
+
+    if (!spec.bodies.empty()) {
+        sys.bodies = std::move(spec.bodies);
+        sys.bodies_generated = true;
+    } else {
+        sys.bodies_generated = false;
+    }
+
+    nav.systems.push_back(std::move(sys));
+    return id;
+}
+
+static bool set_discovered(NavigationData& nav, uint32_t system_id, bool value) {
+    for (auto& s : nav.systems) {
+        if (s.id == system_id) {
+            s.discovered = value;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool reveal_system(NavigationData& nav, uint32_t system_id) {
+    return set_discovered(nav, system_id, true);
+}
+
+bool hide_system(NavigationData& nav, uint32_t system_id) {
+    return set_discovered(nav, system_id, false);
+}
+
+std::optional<std::pair<float, float>>
+pick_coords_near(const NavigationData& nav, uint32_t ref_system_id,
+                 float min_dist, float max_dist, std::mt19937& rng,
+                 int max_attempts) {
+    const StarSystem* ref = nullptr;
+    for (const auto& s : nav.systems) {
+        if (s.id == ref_system_id) { ref = &s; break; }
+    }
+    if (!ref) return std::nullopt;
+
+    std::uniform_real_distribution<float> dr(min_dist, max_dist);
+    std::uniform_real_distribution<float> dtheta(0.0f, 6.2831853f);
+
+    // Reject any candidate too close to an existing system.
+    constexpr float kMinSep = 0.25f;
+    for (int i = 0; i < max_attempts; ++i) {
+        float r = dr(rng);
+        float t = dtheta(rng);
+        float gx = ref->gx + r * std::cos(t);
+        float gy = ref->gy + r * std::sin(t);
+
+        bool collides = false;
+        for (const auto& s : nav.systems) {
+            float dx = s.gx - gx;
+            float dy = s.gy - gy;
+            if (dx * dx + dy * dy < kMinSep * kMinSep) { collides = true; break; }
+        }
+        if (!collides) return std::make_pair(gx, gy);
+    }
+    return std::nullopt;
+}
+
 } // namespace astra

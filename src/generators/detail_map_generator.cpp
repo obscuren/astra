@@ -499,11 +499,15 @@ static FixtureData settlement_prop() {
 }
 
 // Each biome defines a palette of scatter features with relative weights.
+// NOTE: anon-namespaced to avoid ODR collision with include/astra/biome_profile.h's
+// identically-named ScatterEntry (different field layout).
+namespace {
 struct ScatterEntry {
     int weight;
     ScatterStamp::Shape shape;
     FixtureData fixture;
 };
+} // namespace
 
 static void scatter_biome_features(TileMap* map, std::mt19937& rng, Biome biome) {
     int w = map->width();
