@@ -6,6 +6,7 @@
 #include "astra/star_chart.h"
 #include "astra/time_of_day.h"
 #include "astra/game.h"
+#include "astra/world_manager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -65,6 +66,41 @@ void QuestManager::accept_quest(Quest quest, int world_tick, Player& player) {
     active_.push_back(std::move(quest));
 }
 
+static void cleanup_quest_fixtures(Game& game, const std::string& quest_id) {
+    auto& locs = game.world().quest_locations();
+    auto& pending = game.world().pending_quest_cleanup();
+
+    const auto& nav = game.world().navigation();
+    LocationKey cur = {nav.current_system_id,
+                       nav.current_body_index,
+                       nav.current_moon_index,
+                       false,
+                       game.world().overworld_x(),
+                       game.world().overworld_y(),
+                       0};
+
+    for (auto it = locs.begin(); it != locs.end();) {
+        auto& meta = it->second;
+        if (meta.quest_id != quest_id || !meta.remove_on_completion) {
+            ++it;
+            continue;
+        }
+
+        if (it->first == cur) {
+            // Current map is loaded — remove fixtures directly.
+            for (const auto& p : meta.fixtures) {
+                if (p.x >= 0 && p.y >= 0) {
+                    game.world().map().remove_fixture(p.x, p.y);
+                }
+            }
+        } else {
+            // Map not loaded; mark for drain on next entry.
+            pending.insert(it->first);
+        }
+        it = locs.erase(it);
+    }
+}
+
 void QuestManager::complete_quest(const std::string& quest_id, Game& game, int world_tick) {
     for (auto it = active_.begin(); it != active_.end(); ++it) {
         if (it->id == quest_id) {
@@ -107,6 +143,8 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
 
             completed_.push_back(std::move(*it));
             active_.erase(it);
+
+            cleanup_quest_fixtures(game, quest_id);
 
             // Fire StoryQuest hook
             StoryQuest* sq = find_story_quest(quest_id);
@@ -170,9 +208,16 @@ void QuestManager::fail_quest(const std::string& quest_id, Game& game) {
     };
 
     for (const auto& id : to_fail) {
-        if (move_failed(active_, id)) continue;
-        if (move_failed(available_, id)) continue;
+        if (move_failed(active_, id)) {
+            cleanup_quest_fixtures(game, id);
+            continue;
+        }
+        if (move_failed(available_, id)) {
+            cleanup_quest_fixtures(game, id);
+            continue;
+        }
         move_failed(locked_, id);  // ignore return; quest may already be completed/unknown
+        cleanup_quest_fixtures(game, id);
     }
 }
 
@@ -296,6 +341,18 @@ void QuestManager::on_ship_component_installed(const std::string& slot_name) {
             if (obj.type == ObjectiveType::InstallShipComponent &&
                 obj.target_id == slot_name) {
                 obj.current_count = obj.target_count;
+            }
+        }
+    }
+}
+
+void QuestManager::on_fixture_interacted(const std::string& fixture_id) {
+    for (auto& q : active_) {
+        for (auto& obj : q.objectives) {
+            if (obj.type == ObjectiveType::InteractFixture &&
+                obj.target_id == fixture_id &&
+                obj.current_count < obj.target_count) {
+                ++obj.current_count;
             }
         }
     }

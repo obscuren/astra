@@ -43,6 +43,33 @@ std::pair<int, int> find_center_spawn(const TileMap& map) {
 
 } // namespace
 
+static void place_quest_fixtures(TileMap& map,
+                                 QuestLocationMeta& meta,
+                                 int avoid_x, int avoid_y,
+                                 std::vector<std::pair<int,int>>& occupied,
+                                 std::mt19937& rng) {
+    for (auto& p : meta.fixtures) {
+        // Already resolved in a previous session — fixture is in the serialized map.
+        if (p.x >= 0 && p.y >= 0) continue;
+
+        int fx = 0, fy = 0;
+        if (!map.find_open_spot_other_room(avoid_x, avoid_y, fx, fy, occupied, &rng)) {
+            continue;  // no room; skip (quest may be failed later if still required)
+        }
+
+        FixtureData fd;
+        fd.type = FixtureType::QuestFixture;
+        fd.interactable = true;
+        fd.passable = true;
+        fd.quest_fixture_id = p.fixture_id;
+        map.add_fixture(fx, fy, fd);
+
+        p.x = fx;
+        p.y = fy;
+        occupied.push_back({fx, fy});
+    }
+}
+
 void Game::save_current_location() {
     animations_.clear();
     LocationKey key;
@@ -696,6 +723,33 @@ void Game::enter_detail_map() {
             spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
         }
 
+        // Quest-driven fixtures on fresh detail maps
+        {
+            std::mt19937 fixture_rng(detail_seed ^ 0xF1F7u);
+            LocationKey dkey = {world_.navigation().current_system_id,
+                                world_.navigation().current_body_index,
+                                world_.navigation().current_moon_index,
+                                false, world_.overworld_x(), world_.overworld_y(), 0};
+            auto qit = world_.quest_locations().find(dkey);
+            if (qit == world_.quest_locations().end()) {
+                LocationKey bkey = {world_.navigation().current_system_id,
+                                    world_.navigation().current_body_index,
+                                    world_.navigation().current_moon_index,
+                                    false, -1, -1, 0};
+                qit = world_.quest_locations().find(bkey);
+            }
+            // Drain any pending cleanup marker for this key — if a quest was
+            // completed/failed while this map was unloaded, the meta was already
+            // erased so no fixtures will be stamped below anyway.
+            world_.pending_quest_cleanup().erase(dkey);
+            if (qit != world_.quest_locations().end()) {
+                std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+                for (const auto& npc : world_.npcs()) occupied.push_back({npc.x, npc.y});
+                place_quest_fixtures(world_.map(), qit->second,
+                                     player_.x, player_.y, occupied, fixture_rng);
+            }
+        }
+
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
@@ -888,7 +942,12 @@ void Game::enter_dungeon_from_detail() {
                     occupied.push_back({ix, iy});
                 }
             }
+            // Quest-driven fixtures (Receiver Drones, Signal Nodes, etc.)
+            world_.pending_quest_cleanup().erase(dungeon_key);
+            place_quest_fixtures(world_.map(), qit->second,
+                                 player_.x, player_.y, occupied, npc_rng);
         } else {
+            world_.pending_quest_cleanup().erase(dungeon_key);
             debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
         }
 

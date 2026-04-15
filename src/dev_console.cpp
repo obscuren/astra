@@ -6,6 +6,7 @@
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/lore_generator.h"
+#include "astra/quest_fixture.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
@@ -509,8 +510,36 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             } else {
                 log("Story quest not found.");
             }
+        } else if (args.size() >= 2 && args[1] == "fixture") {
+            // Register a debug def and plant it adjacent to the player.
+            QuestFixtureDef def;
+            def.id = "dev_smoke_fixture";
+            def.glyph = '*';
+            def.color = 135;
+            def.prompt = "Interact (debug)";
+            def.log_message = "You nudge the debug fixture. It beeps.";
+            register_quest_fixture(def);
+
+            FixtureData fd;
+            fd.type = FixtureType::QuestFixture;
+            fd.interactable = true;
+            fd.passable = true;
+            fd.quest_fixture_id = def.id;
+
+            int fx = game.player().x + 1;
+            int fy = game.player().y;
+            if (fx >= 0 && fx < game.world().map().width() &&
+                fy >= 0 && fy < game.world().map().height() &&
+                game.world().map().passable(fx, fy) &&
+                game.world().map().fixture_id(fx, fy) < 0) {
+                game.world().map().add_fixture(fx, fy, fd);
+                log("Planted dev_smoke_fixture at (" +
+                    std::to_string(fx) + "," + std::to_string(fy) + ")");
+            } else {
+                log("No open tile adjacent to player for fixture.");
+            }
         } else {
-            log("Usage: quest kill|fetch|deliver|scout|story");
+            log("Usage: quest kill|fetch|deliver|scout|story|fixture");
         }
     }
     else if (verb == "history") {

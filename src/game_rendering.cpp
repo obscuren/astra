@@ -123,6 +123,7 @@ static const char* fixture_type_name(FixtureType type) {
         case FixtureType::MineralOre:      return "Ore Deposit";
         case FixtureType::MineralCrystal:  return "Crystal Shard";
         case FixtureType::ScrapComponent:  return "Salvage";
+        case FixtureType::QuestFixture:    return "Quest Fixture";
     }
     return "Unknown";
 }
@@ -177,6 +178,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::MineralOre:      return "Raw mineral ore exposed at the surface.";
         case FixtureType::MineralCrystal:  return "A crystalline formation juts from the ground.";
         case FixtureType::ScrapComponent:  return "Salvageable scrap metal and circuitry.";
+        case FixtureType::QuestFixture:    return "A quest-related object.";
     }
     return "";
 }

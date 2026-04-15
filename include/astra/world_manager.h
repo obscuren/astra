@@ -31,12 +31,19 @@ struct LocationState {
     int player_y = 0;
 };
 
+struct QuestFixturePlacement {
+    std::string fixture_id;   // registry key
+    int x = -1;               // -1 = unresolved; resolver picks + writes back
+    int y = -1;
+};
+
 struct QuestLocationMeta {
     std::string quest_id;
     std::string quest_title;               // display name for markers
     int difficulty_override = -1;          // -1 = use default
     std::vector<std::string> npc_roles;    // specific NPCs to spawn
     std::vector<std::string> quest_items;  // items to place on ground
+    std::vector<QuestFixturePlacement> fixtures;  // quest-driven fixtures
     Tile poi_type = Tile::Empty;           // overworld stamp to place
     bool remove_on_completion = false;     // clean up after quest done
     uint32_t target_system_id = 0;         // star chart marker: system
@@ -126,6 +133,9 @@ public:
     std::map<LocationKey, QuestLocationMeta>& quest_locations() { return quest_locations_; }
     const std::map<LocationKey, QuestLocationMeta>& quest_locations() const { return quest_locations_; }
 
+    std::set<LocationKey>& pending_quest_cleanup() { return pending_quest_cleanup_; }
+    const std::set<LocationKey>& pending_quest_cleanup() const { return pending_quest_cleanup_; }
+
     // Collect system IDs that have active quest targets
     std::set<uint32_t> quest_target_system_ids() const {
         std::set<uint32_t> ids;
@@ -175,6 +185,7 @@ private:
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;
     std::map<LocationKey, QuestLocationMeta> quest_locations_;
+    std::set<LocationKey> pending_quest_cleanup_;
     LoreInfluenceMap lore_influence_;
 };
 

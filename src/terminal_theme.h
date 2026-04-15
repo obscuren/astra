@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "astra/npc.h"       // NpcRole
 #include "astra/race.h"      // Race
 #include "astra/renderer.h"  // Color
@@ -36,6 +38,12 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index);
 
 // Return the ASCII glyph for a fixture type (for UI / editor palette display).
 char fixture_glyph(FixtureType type);
+
+// Resolve a quest-fixture id (as stored on FixtureData::quest_fixture_id) to
+// a glyph/color via the quest-fixture registry. Returns '?' / fallback when
+// the id is empty or unknown (e.g. save references a stale def).
+char quest_fixture_glyph(const std::string& id);
+int  quest_fixture_color(const std::string& id, int fallback);
 
 // Return the ASCII glyph for an NPC role (for UI display).
 char npc_glyph(NpcRole role, Race race = Race::Human);

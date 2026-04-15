@@ -8,6 +8,7 @@
 #include "astra/overworld_stamps.h"
 #include "astra/world_context.h"
 #include "astra/render_descriptor.h"
+#include "terminal_theme.h"
 
 namespace astra {
 
@@ -158,7 +159,15 @@ void render_map(const MapRenderContext& rc) {
                 if (fid >= 0 && fid < rc.world.map().fixture_count()) {
                     const auto& f = rc.world.map().fixture(fid);
 
-                    if (v == Visibility::Visible) {
+                    // Quest fixtures carry a per-instance id; visuals come
+                    // from the registry, not RenderDescriptor (which is flat POD).
+                    if (f.type == FixtureType::QuestFixture && !f.quest_fixture_id.empty()) {
+                        char g = quest_fixture_glyph(f.quest_fixture_id);
+                        Color col = static_cast<Color>(
+                            quest_fixture_color(f.quest_fixture_id, static_cast<int>(Color::Magenta)));
+                        if (v != Visibility::Visible) col = biome_palette(biome).remembered;
+                        ctx.put(sx, sy, g, col);
+                    } else if (v == Visibility::Visible) {
                         // Animation override — semantic path via WorldContext
                         if (rc.animations) {
                             if (auto anim = rc.animations->query(mx, my)) {

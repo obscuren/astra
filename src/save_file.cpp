@@ -738,6 +738,7 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_u8(f.interactable ? 1 : 0);
         w.write_i32(f.cooldown);
         w.write_i32(f.last_used_tick);
+        w.write_string(f.quest_fixture_id);   // v30
     }
     // Fixture IDs (parallel to tiles)
     const auto& fids = tm.fixture_ids();
@@ -1032,6 +1033,23 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
         w.write_u8(meta.remove_on_completion ? 1 : 0);
         w.write_u32(meta.target_system_id);
         w.write_i32(meta.target_body_index);
+
+        // v30: quest fixtures
+        w.write_u32(static_cast<uint32_t>(meta.fixtures.size()));
+        for (const auto& p : meta.fixtures) {
+            w.write_string(p.fixture_id);
+            w.write_i32(p.x);
+            w.write_i32(p.y);
+        }
+    }
+
+    // v30: pending quest cleanup set
+    w.write_u32(static_cast<uint32_t>(data.pending_quest_cleanup.size()));
+    for (const auto& k : data.pending_quest_cleanup) {
+        auto [sys, b, m, stn, ow_x, ow_y, d] = k;
+        w.write_u32(sys); w.write_i32(b); w.write_i32(m);
+        w.write_u8(stn ? 1 : 0);
+        w.write_i32(ow_x); w.write_i32(ow_y); w.write_i32(d);
     }
 
     w.end_section(pos);
@@ -1091,7 +1109,31 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
         meta.target_system_id = r.read_u32();
         meta.target_body_index = r.read_i32();
 
+        if (data.version >= 30) {
+            uint32_t fc = r.read_u32();
+            meta.fixtures.resize(fc);
+            for (auto& p : meta.fixtures) {
+                p.fixture_id = r.read_string();
+                p.x = r.read_i32();
+                p.y = r.read_i32();
+            }
+        }
+
         data.quest_locations[key] = std::move(meta);
+    }
+
+    if (data.version >= 30) {
+        uint32_t pc = r.read_u32();
+        for (uint32_t i = 0; i < pc; ++i) {
+            uint32_t sys = r.read_u32();
+            int b = r.read_i32();
+            int m = r.read_i32();
+            bool stn = r.read_u8() != 0;
+            int ow_x = r.read_i32();
+            int ow_y = r.read_i32();
+            int d = r.read_i32();
+            data.pending_quest_cleanup.insert(LocationKey{sys, b, m, stn, ow_x, ow_y, d});
+        }
     }
 }
 
@@ -1465,6 +1507,9 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
             f.interactable = r.read_u8() != 0;
             f.cooldown = r.read_i32();
             f.last_used_tick = r.read_i32();
+            if (version >= 30) {
+                f.quest_fixture_id = r.read_string();
+            }
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();

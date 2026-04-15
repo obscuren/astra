@@ -116,6 +116,7 @@ set(ASTRA_SOURCES
     src/dialog_manager.cpp
     src/ability.cpp
     src/quest.cpp
+    src/quest_fixture.cpp
     src/quest_graph.cpp
     src/quest_validator.cpp
     src/quests/missing_hauler.cpp

@@ -44,10 +44,11 @@ std::vector<std::string> validate_quest_catalog(
         ordered_ids.push_back(std::move(id));
     }
 
-    // Prereq + offer checks (no second create_quest())
+    // Prereq + offer + objective checks (no second create_quest())
     for (size_t i = 0; i < catalog.size(); ++i) {
         const auto& sq = catalog[i];
         const auto& id = ordered_ids[i];
+        auto q = sq->create_quest();
         for (const auto& p : sq->prerequisite_ids()) {
             if (!ids.count(p)) {
                 errors.push_back("Quest '" + id + "' has unknown prerequisite '" + p + "'");
@@ -57,6 +58,11 @@ std::vector<std::string> validate_quest_catalog(
             && sq->offer_giver_role().empty()
             && !sq->prerequisite_ids().empty()) {
             errors.push_back("Quest '" + id + "' uses NpcOffer but declares no offer_giver_role");
+        }
+        for (const auto& obj : q.objectives) {
+            if (obj.type == ObjectiveType::InteractFixture && obj.target_id.empty()) {
+                errors.push_back(id + ": InteractFixture objective has empty target_id");
+            }
         }
     }
 

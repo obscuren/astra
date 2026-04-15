@@ -4,6 +4,7 @@
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/player.h"
+#include "astra/quest_fixture.h"
 #include "astra/shop.h"
 
 namespace astra {
@@ -526,6 +527,14 @@ void DialogManager::interact_fixture(int fid, Game& game) {
                 f.passable = true;
                 game.log("You open the door.");
             }
+            break;
+        }
+        case FixtureType::QuestFixture: {
+            const QuestFixtureDef* def = find_quest_fixture(f.quest_fixture_id);
+            if (def && !def->log_message.empty()) {
+                game.log(def->log_message);
+            }
+            game.quests().on_fixture_interacted(f.quest_fixture_id);
             break;
         }
         default:

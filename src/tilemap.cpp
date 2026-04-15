@@ -438,6 +438,10 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::MineralCrystal:
         case FixtureType::ScrapComponent:
             fd.passable = true; fd.interactable = false; break;
+        case FixtureType::QuestFixture:
+            // Per-fixture behavior is authored via QuestFixtureDef at placement
+            // time; the factory just provides sensible interactable defaults.
+            fd.passable = true; fd.interactable = true; break;
     }
     return fd;
 }
