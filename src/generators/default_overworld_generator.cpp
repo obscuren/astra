@@ -275,8 +275,16 @@ void DefaultOverworldGenerator::place_pois(std::mt19937& rng) {
 // Forward declarations
 std::unique_ptr<MapGenerator> make_temperate_overworld_generator();
 std::unique_ptr<MapGenerator> make_cold_rocky_overworld_generator();
+std::unique_ptr<MapGenerator> make_scarred_overworld_generator(Biome variant);
 
 std::unique_ptr<MapGenerator> make_overworld_generator(const MapProperties& props) {
+    // Quest-forced scarred worlds (must come before default rules).
+    if (props.body_biome_override) {
+        Biome b = *props.body_biome_override;
+        if (b == Biome::ScarredScorched || b == Biome::ScarredGlassed) {
+            return make_scarred_overworld_generator(b);
+        }
+    }
     // Temperate terrestrial planets (Earth-like)
     if (props.body_type == BodyType::Terrestrial &&
         props.body_temperature == Temperature::Temperate &&

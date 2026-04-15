@@ -1337,6 +1337,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 props.body_temperature = body.temperature;
                 props.body_has_dungeon = body.has_dungeon;
                 props.body_danger_level = body.danger_level;
+                props.body_biome_override = body.biome_override;
             }
 
             // Apply lore annotations to overworld properties

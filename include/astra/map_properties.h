@@ -50,6 +50,7 @@ struct MapProperties {
     Temperature body_temperature = Temperature::Cold;
     bool body_has_dungeon = false;
     int body_danger_level = 1;
+    std::optional<Biome> body_biome_override;  // forces overworld style (scarred, etc.)
 
     // Lore-driven overworld context (populated from LoreAnnotation)
     int lore_tier = 0;              // 0-3: affects POI density
