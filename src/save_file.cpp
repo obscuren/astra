@@ -868,6 +868,11 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
                 w.write_i32(body.danger_level);
                 // v10: day length
                 w.write_i32(body.day_length);
+                // v32: biome override (optional Biome forced on entry)
+                w.write_u8(body.biome_override.has_value() ? 1 : 0);
+                if (body.biome_override) {
+                    w.write_u8(static_cast<uint8_t>(*body.biome_override));
+                }
             }
         }
     }
@@ -1692,6 +1697,12 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
                     // v10: day length
                     if (version >= 10) {
                         body.day_length = r.read_i32();
+                    }
+                    if (version >= 32) {
+                        if (r.read_u8() != 0) {
+                            body.biome_override = static_cast<Biome>(r.read_u8());
+                        }
+                        // else: leaves optional as nullopt
                     }
                 }
             }

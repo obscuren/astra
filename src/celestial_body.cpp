@@ -11,6 +11,7 @@ char body_type_glyph(BodyType type) {
         case BodyType::Terrestrial:  return 'o';
         case BodyType::DwarfPlanet:  return '.';
         case BodyType::AsteroidBelt: return '~';
+        case BodyType::LandableAsteroid: return '*';
     }
     return '?';
 }
@@ -23,11 +24,20 @@ Color body_type_color(BodyType type) {
         case BodyType::Terrestrial:  return Color::Green;
         case BodyType::DwarfPlanet:  return Color::DarkGray;
         case BodyType::AsteroidBelt: return Color::White;
+        case BodyType::LandableAsteroid: return Color::White;
     }
     return Color::White;
 }
 
 Color body_display_color(const CelestialBody& body) {
+    // Quest-forced biomes get distinctive chart colors.
+    if (body.biome_override) {
+        switch (*body.biome_override) {
+            case Biome::ScarredScorched: return static_cast<Color>(202);  // rust-orange
+            case Biome::ScarredGlassed:  return static_cast<Color>(231);  // pale glass-white
+            default: break;   // any other forced biome: fall through to type color logic
+        }
+    }
     // Mars-like: cold rocky with thin atmo = rust red
     if (body.type == BodyType::Rocky &&
         body.temperature == Temperature::Cold &&
@@ -49,6 +59,7 @@ const char* body_type_name(BodyType type) {
         case BodyType::Terrestrial:  return "Terrestrial";
         case BodyType::DwarfPlanet:  return "Dwarf Planet";
         case BodyType::AsteroidBelt: return "Asteroid Belt";
+        case BodyType::LandableAsteroid: return "Landable Asteroid";
     }
     return "Unknown";
 }
@@ -128,9 +139,17 @@ Biome determine_biome(BodyType type, Atmosphere atmo, Temperature temp, unsigned
         case BodyType::AsteroidBelt:
             return pick({Biome::Rocky, Biome::Crystal});
 
+        case BodyType::LandableAsteroid:
+            return pick({Biome::Rocky, Biome::Crystal});
+
         default:
             return Biome::Rocky;
     }
+}
+
+Biome determine_biome(const CelestialBody& body, unsigned seed) {
+    if (body.biome_override.has_value()) return *body.biome_override;
+    return determine_biome(body.type, body.atmosphere, body.temperature, seed);
 }
 
 CelestialBody generate_moon_body(const CelestialBody& parent, int moon_index, unsigned seed) {

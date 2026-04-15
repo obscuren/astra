@@ -1248,6 +1248,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                     break;
                 case BodyType::DwarfPlanet:
                 case BodyType::AsteroidBelt:
+                case BodyType::LandableAsteroid:
                     dest_type = MapType::Asteroid;
                     break;
                 default:
@@ -1268,7 +1269,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 dest_biome = determine_biome(moon.type, moon.atmosphere, moon.temperature, biome_seed);
                 location_name = moon.name;
             } else {
-                dest_biome = determine_biome(body.type, body.atmosphere, body.temperature, biome_seed);
+                dest_biome = determine_biome(body, biome_seed);
                 location_name = body.name;
             }
             break;
@@ -1336,6 +1337,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 props.body_temperature = body.temperature;
                 props.body_has_dungeon = body.has_dungeon;
                 props.body_danger_level = body.danger_level;
+                props.body_biome_override = body.biome_override;
             }
 
             // Apply lore annotations to overworld properties

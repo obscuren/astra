@@ -51,6 +51,7 @@ set(ASTRA_SOURCES
     src/generators/default_overworld_generator.cpp
     src/generators/temperate_overworld_generator.cpp
     src/generators/cold_rocky_overworld_generator.cpp
+    src/generators/scarred_overworld_generator.cpp
     src/generators/detail_map_generator.cpp
     src/generators/biome_profiles.cpp
     src/generators/elevation_strategies.cpp
