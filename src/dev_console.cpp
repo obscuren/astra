@@ -649,7 +649,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             spec.gy = coords->second;
             spec.star_class = StarClass::ClassM;
             spec.discovered = true;
-            spec.bodies = { make_asteroid_orbit(name + " Rock") };
+            spec.bodies = { make_landable_asteroid(name + " Rock") };
             uint32_t id = add_custom_system(nav, std::move(spec));
             log("Created custom system '" + name + "' id=" + std::to_string(id) +
                 " at (" + std::to_string(coords->first) + ", " +
