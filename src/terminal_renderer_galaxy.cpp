@@ -628,6 +628,40 @@ static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
                     ctx.put(px + 2, py, '@', Color::Green);
             }
         }
+    } else if (sys.has_station) {
+        // Bodyless system with only a station — draw it standalone,
+        // around ~1/4 width so it reads as "inner system" without
+        // overlapping the star.
+        int bx = star_x + std::max(12, (mw - star_x) / 4);
+        if (bx >= mw - 4) bx = mw - 4;
+        bool st_sel = (desc.sub_cursor == 0);
+        char st_glyph = 'H';
+        Color st_color = (sys.station.type == StationType::Abandoned)
+                         ? Color::DarkGray : Color::Cyan;
+
+        // Station glyph
+        if (st_sel) {
+            ctx.put(bx, cy, st_glyph, Color::White);
+            if (bx > 0) ctx.put(bx - 1, cy, '[', Color::White);
+            if (bx < mw - 1) ctx.put(bx + 1, cy, ']', Color::White);
+        } else {
+            ctx.put(bx, cy, st_glyph, st_color);
+        }
+
+        // Station name above
+        if (cy - 1 >= 0) {
+            std::string slabel = sys.station.name;
+            if (sys.station.type == StationType::Abandoned) slabel += " [!]";
+            if (slabel.size() > 24) slabel = slabel.substr(0, 23) + ".";
+            int lx = bx - static_cast<int>(slabel.size()) / 2;
+            if (lx < 0) lx = 0;
+            ctx.text(lx, cy - 1, slabel, st_sel ? Color::White : st_color);
+        }
+
+        // Player marker
+        if (desc.cursor_system_index == desc.player_system_index && desc.at_station) {
+            if (bx + 2 < mw) ctx.put(bx + 2, cy, '@', Color::Green);
+        }
     }
 }
 
