@@ -1542,6 +1542,31 @@ void Game::travel_to_destination(const ChartAction& action) {
             }
         }
 
+        // Drain pending cleanup for this station key (quest may have
+        // completed while this map was unloaded).
+        world_.pending_quest_cleanup().erase(dest_key);
+
+        // Quest-location injection for station interiors.
+        auto qit = world_.quest_locations().find(dest_key);
+        if (qit != world_.quest_locations().end()) {
+            auto& meta = qit->second;
+            // Spawn quest NPCs
+            for (const auto& role : meta.npc_roles) {
+                Npc qnpc = create_npc_by_role(role, npc_rng);
+                int rx = 0, ry = 0;
+                if (world_.map().find_open_spot_other_room(
+                        player_.x, player_.y, rx, ry, occupied, &npc_rng)) {
+                    qnpc.x = rx;
+                    qnpc.y = ry;
+                    occupied.push_back({rx, ry});
+                    world_.npcs().push_back(std::move(qnpc));
+                }
+            }
+            // Place quest fixtures
+            place_quest_fixtures(world_.map(), qit->second,
+                                 player_.x, player_.y, occupied, npc_rng);
+        }
+
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
 
