@@ -16,6 +16,7 @@ enum class BodyType : uint8_t {
     Terrestrial,
     DwarfPlanet,
     AsteroidBelt,
+    LandableAsteroid,   // single landable rock; chart glyph '*'
 };
 
 enum class Atmosphere : uint8_t {
