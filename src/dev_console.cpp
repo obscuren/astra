@@ -516,8 +516,15 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             def.id = "dev_smoke_fixture";
             def.glyph = '*';
             def.color = 135;
-            def.prompt = "Interact (debug)";
+            def.prompt = "Play debug transmission";
             def.log_message = "You nudge the debug fixture. It beeps.";
+            def.log_title = "DEV SMOKE TRANSMISSION";
+            def.log_lines = {
+                "This is line one of the debug transmission.",
+                "",
+                "Line two. The reveal should advance at thirty chars per second.",
+                "Press Space to skip; press Esc to close; re-interact to replay.",
+            };
             register_quest_fixture(def);
 
             FixtureData fd;
