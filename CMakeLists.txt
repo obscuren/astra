@@ -18,6 +18,8 @@ set(ASTRA_SOURCES
     src/ui_components.cpp
     src/fov.cpp
     src/npc.cpp
+    src/npcs/archon_remnant.cpp
+    src/npcs/archon_sentinel.cpp
     src/npcs/station_keeper.cpp
     src/npcs/merchant.cpp
     src/npcs/drifter.cpp
@@ -33,6 +35,7 @@ set(ASTRA_SOURCES
     src/npcs/pirate_captain.cpp
     src/npcs/pirate_grunt.cpp
     src/npcs/black_market_vendor.cpp
+    src/npcs/void_reaver.cpp
     src/npc_spawner.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp
