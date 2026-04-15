@@ -32,9 +32,29 @@ bool PlaybackViewer::is_revealing() const {
     return open_ && reveal_cursor() < total_chars_;
 }
 
-bool PlaybackViewer::handle_input(int /*key*/) {
-    // Task 2 wires input.
-    return open_;
+bool PlaybackViewer::handle_input(int key) {
+    if (!open_) return false;
+
+    // Esc / q closes
+    if (key == 27 || key == 'q' || key == 'Q') {
+        close();
+        return true;
+    }
+
+    // Space skips remaining reveal
+    if (key == ' ') {
+        skip_offset_ = total_chars_;   // clamps inside reveal_cursor()
+        return true;
+    }
+
+    // Scroll (clamping happens in draw())
+    if (key == KEY_UP)      { if (scroll_ > 0) --scroll_; return true; }
+    if (key == KEY_DOWN)    { ++scroll_; return true; }
+    if (key == KEY_PAGE_UP) { scroll_ -= 10; if (scroll_ < 0) scroll_ = 0; return true; }
+    if (key == KEY_PAGE_DOWN) { scroll_ += 10; return true; }
+
+    // Consume everything else (viewer has focus)
+    return true;
 }
 
 void PlaybackViewer::draw(Renderer* /*r*/, int /*screen_w*/, int /*screen_h*/) {
