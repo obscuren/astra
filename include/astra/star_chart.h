@@ -75,6 +75,7 @@ struct CustomSystemSpec {
     bool discovered = true;
     bool binary = false;
     bool has_station = false;
+    StationInfo station;   // honoured when has_station=true; default NormalHub/Generic
     LoreAnnotation lore = {};
     std::vector<CelestialBody> bodies;        // empty = lazy procedural
 };

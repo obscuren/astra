@@ -722,6 +722,7 @@ uint32_t add_custom_system(NavigationData& nav, CustomSystemSpec spec) {
     sys.star_class = spec.star_class;
     sys.binary = spec.binary;
     sys.has_station = spec.has_station;
+    sys.station = spec.station;
     sys.gx = spec.gx;
     sys.gy = spec.gy;
     sys.discovered = spec.discovered;
