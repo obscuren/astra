@@ -39,6 +39,7 @@ Npc build_scavenger(Race race, std::mt19937& rng);
 Npc build_prospector(Race race, std::mt19937& rng);
 Npc build_archon_remnant(std::mt19937& rng);
 Npc build_void_reaver(std::mt19937& rng);
+Npc build_archon_sentinel(std::mt19937& rng);
 
 // Scav station NPC builders
 Npc build_scav_keeper(Race race, std::mt19937& rng, const StationContext& ctx = {});

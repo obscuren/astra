@@ -1105,6 +1105,7 @@ static ResolvedVisual resolve_npc(uint16_t type_id, uint8_t seed, uint8_t /*flag
         case NpcRole::Prospector:    return {'P', nullptr, Color::White, Color::Default};
         case NpcRole::ArchonRemnant: return {'R', nullptr, Color::Red, Color::Default};
         case NpcRole::VoidReaver:    return {'r', nullptr, Color::DarkGray, Color::Default};
+        case NpcRole::ArchonSentinel: return {'S', nullptr, Color::BrightYellow, Color::Default};
         case NpcRole::Civilian: {
             auto race = static_cast<Race>(seed);
             switch (race) {

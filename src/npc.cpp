@@ -116,6 +116,7 @@ Npc create_npc(NpcRole npc_role, Race race, std::mt19937& rng) {
         case NpcRole::Prospector:    return build_prospector(race, rng);
         case NpcRole::ArchonRemnant: return build_archon_remnant(rng);
         case NpcRole::VoidReaver:    return build_void_reaver(rng);
+        case NpcRole::ArchonSentinel: return build_archon_sentinel(rng);
     }
     return {};
 }
@@ -128,6 +129,7 @@ Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng) {
     if (role_name == "Drifter")          return create_npc(NpcRole::Drifter, Race::Human, rng);
     if (role_name == "Archon Remnant")   return create_npc(NpcRole::ArchonRemnant, Race::Human, rng);
     if (role_name == "Void Reaver")      return create_npc(NpcRole::VoidReaver, Race::Human, rng);
+    if (role_name == "Archon Sentinel")  return create_npc(NpcRole::ArchonSentinel, Race::Human, rng);
     // Fallback: hostile xytomorph
     return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
 }
