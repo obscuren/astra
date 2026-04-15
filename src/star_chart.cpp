@@ -692,4 +692,60 @@ void apply_lore_to_galaxy(NavigationData& nav, const WorldLore& lore) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Custom system management
+// ---------------------------------------------------------------------------
+
+uint32_t add_custom_system(NavigationData& nav, CustomSystemSpec spec) {
+    // Allocate an id, stepping past any collision (extremely unlikely).
+    uint32_t id = nav.next_custom_system_id;
+    while (std::any_of(nav.systems.begin(), nav.systems.end(),
+                       [id](const StarSystem& s){ return s.id == id; })) {
+        ++id;
+    }
+    nav.next_custom_system_id = id + 1;
+
+    StarSystem sys;
+    sys.id = id;
+    sys.name = std::move(spec.name);
+    sys.star_class = spec.star_class;
+    sys.binary = spec.binary;
+    sys.has_station = spec.has_station;
+    sys.gx = spec.gx;
+    sys.gy = spec.gy;
+    sys.discovered = spec.discovered;
+    sys.lore = std::move(spec.lore);
+    sys.planet_count = 0;
+    sys.asteroid_belts = 0;
+    sys.danger_level = 1;
+
+    if (!spec.bodies.empty()) {
+        sys.bodies = std::move(spec.bodies);
+        sys.bodies_generated = true;
+    } else {
+        sys.bodies_generated = false;
+    }
+
+    nav.systems.push_back(std::move(sys));
+    return id;
+}
+
+static bool set_discovered(NavigationData& nav, uint32_t system_id, bool value) {
+    for (auto& s : nav.systems) {
+        if (s.id == system_id) {
+            s.discovered = value;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool reveal_system(NavigationData& nav, uint32_t system_id) {
+    return set_discovered(nav, system_id, true);
+}
+
+bool hide_system(NavigationData& nav, uint32_t system_id) {
+    return set_discovered(nav, system_id, false);
+}
+
 } // namespace astra
