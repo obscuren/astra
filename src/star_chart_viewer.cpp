@@ -41,18 +41,23 @@ void StarChartViewer::open() {
                 cursor_index_ = static_cast<int>(i);
                 auto& sys = nav_->systems[i];
                 generate_system_bodies(sys);
-                if (!sys.bodies.empty()) {
+                if (!sys.bodies.empty() || sys.has_station) {
                     zoom_ = ChartZoom::System;
+                    bool station_only = sys.bodies.empty() && sys.has_station;
                     // Select the body/station we're currently at
                     if (nav_->at_station) {
                         int host = station_host_body(sys);
-                        body_cursor_ = (host >= 0) ? host : 0;
-                        sub_cursor_ = (host >= 0) ? 0 : -1;
+                        body_cursor_ = host;
+                        sub_cursor_ = 0;   // select station regardless of host
                     } else if (nav_->current_body_index >= 0) {
                         body_cursor_ = nav_->current_body_index;
                         // If on a moon, select it
                         sub_cursor_ = (nav_->current_moon_index >= 0)
                                       ? nav_->current_moon_index + 1 : -1;
+                    } else if (station_only) {
+                        // Arrived in a bodyless station-only system (e.g. just warped in).
+                        body_cursor_ = -1;
+                        sub_cursor_ = 0;
                     } else if (nav_->on_ship) {
                         body_cursor_ = 0; // in orbit around host star
                         sub_cursor_ = -1;
@@ -183,10 +188,16 @@ bool StarChartViewer::handle_input(int key) {
                         auto& sys = nav_->systems[cursor_index_];
                         if (sys.discovered && sys.id != 0) {
                             generate_system_bodies(sys);
-                            if (!sys.bodies.empty()) {
+                            if (!sys.bodies.empty() || sys.has_station) {
                                 zoom_ = ChartZoom::System;
-                                body_cursor_ = 0;
-                                sub_cursor_ = -1;
+                                if (sys.bodies.empty()) {
+                                    // Standalone station — sub_cursor=0 selects the station
+                                    body_cursor_ = -1;
+                                    sub_cursor_ = 0;
+                                } else {
+                                    body_cursor_ = 0;
+                                    sub_cursor_ = -1;
+                                }
                             }
                         }
                     }
@@ -254,14 +265,18 @@ bool StarChartViewer::handle_input(int key) {
                             ? sys.bodies[body_cursor_].moons : 0;
             bool hosts_station = sys.has_station &&
                                  body_cursor_ == station_host_body(sys);
+            bool station_only = sys.has_station && sys.bodies.empty();
             switch (key) {
                 case KEY_LEFT:
+                    if (station_only) return true;   // nothing to cycle
                     if (body_cursor_ > 0) { --body_cursor_; sub_cursor_ = -1; }
                     return true;
                 case KEY_RIGHT:
+                    if (station_only) return true;
                     if (body_cursor_ < body_count - 1) { ++body_cursor_; sub_cursor_ = -1; }
                     return true;
                 case KEY_UP:
+                    if (station_only) { sub_cursor_ = 0; return true; }
                     if (sub_cursor_ > 1) {
                         // Move up through moons
                         --sub_cursor_;
@@ -274,6 +289,7 @@ bool StarChartViewer::handle_input(int key) {
                     }
                     return true;
                 case KEY_DOWN:
+                    if (station_only) { sub_cursor_ = 0; return true; }
                     if (sub_cursor_ == 0) {
                         // From station back to body
                         sub_cursor_ = -1;

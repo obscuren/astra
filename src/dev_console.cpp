@@ -10,6 +10,7 @@
 #include "astra/npc.h"
 #include "astra/quest_fixture.h"
 #include "astra/star_chart.h"
+#include "astra/station_type.h"
 #include "astra/tilemap.h"
 
 #include <sstream>
@@ -132,7 +133,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
-        log("  chart create [kind] [name] - create custom system (kind: asteroid|scar|rock|neutron)");
+        log("  chart create [kind] [name] - create custom system (kind: asteroid|scar|rock|neutron|derelict)");
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
         log("  spawn <role> - spawn an enemy NPC adjacent to player");
@@ -647,9 +648,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 // Two extra args: <kind> <name>. Kind must be known.
                 std::string a2 = args[2];
                 if (a2 != "asteroid" && a2 != "scar" &&
-                    a2 != "rock" && a2 != "neutron") {
+                    a2 != "rock" && a2 != "neutron" && a2 != "derelict") {
                     log("chart create: unknown kind '" + a2 +
-                        "' (expected asteroid|scar|rock|neutron)");
+                        "' (expected asteroid|scar|rock|neutron|derelict)");
                     return;
                 }
                 kind = a2;
@@ -677,6 +678,13 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             } else if (kind == "neutron") {
                 spec.star_class = StarClass::Neutron;
                 spec.bodies = { make_landable_asteroid(name + " Fragment") };
+            } else if (kind == "derelict") {
+                spec.has_station = true;
+                spec.station.type = StationType::Abandoned;
+                spec.station.specialty = StationSpecialty::Generic;
+                spec.station.name = name + " Outpost";
+                spec.star_class = StarClass::ClassG;
+                spec.bodies = {};
             } else { // "rock"
                 CelestialBody b;
                 b.name = name + " Rock";
