@@ -27,6 +27,7 @@ enum class NpcRole : uint8_t {
     Civilian,
     Scavenger,
     Prospector,
+    ArchonRemnant,
 };
 
 struct Npc {
