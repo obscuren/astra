@@ -34,6 +34,7 @@ set(ASTRA_SOURCES
     src/npcs/pirate_captain.cpp
     src/npcs/pirate_grunt.cpp
     src/npcs/black_market_vendor.cpp
+    src/npcs/void_reaver.cpp
     src/npc_spawner.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp
