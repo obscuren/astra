@@ -85,6 +85,7 @@ set(ASTRA_SOURCES
     src/visibility_map.cpp
     src/save_file.cpp
     src/celestial_body.cpp
+    src/body_presets.cpp
     src/star_chart.cpp
     src/star_chart_viewer.cpp
     src/item.cpp
