@@ -4,6 +4,7 @@
 #include "astra/tilemap.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,7 @@ struct CelestialBody {
     bool has_dungeon = false;
     int danger_level = 1;
     int day_length = 200;  // ticks per local planetary day
+    std::optional<Biome> biome_override;   // when set, forces Biome on entry
 };
 
 // Display helpers
@@ -83,6 +85,9 @@ const char* temperature_name(Temperature temp);
 
 // Determine biome from body properties (deterministic via seed)
 Biome determine_biome(BodyType type, Atmosphere atmo, Temperature temp, unsigned seed);
+
+// Body-overload: respects body.biome_override; otherwise delegates above.
+Biome determine_biome(const CelestialBody& body, unsigned seed);
 
 // Generate independent moon properties from parent body
 CelestialBody generate_moon_body(const CelestialBody& parent, int moon_index, unsigned seed);

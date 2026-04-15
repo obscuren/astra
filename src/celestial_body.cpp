@@ -30,6 +30,14 @@ Color body_type_color(BodyType type) {
 }
 
 Color body_display_color(const CelestialBody& body) {
+    // Quest-forced biomes get distinctive chart colors.
+    if (body.biome_override) {
+        switch (*body.biome_override) {
+            case Biome::ScarredScorched: return static_cast<Color>(202);  // rust-orange
+            case Biome::ScarredGlassed:  return static_cast<Color>(231);  // pale glass-white
+            default: break;   // any other forced biome: fall through to type color logic
+        }
+    }
     // Mars-like: cold rocky with thin atmo = rust red
     if (body.type == BodyType::Rocky &&
         body.temperature == Temperature::Cold &&
@@ -137,6 +145,11 @@ Biome determine_biome(BodyType type, Atmosphere atmo, Temperature temp, unsigned
         default:
             return Biome::Rocky;
     }
+}
+
+Biome determine_biome(const CelestialBody& body, unsigned seed) {
+    if (body.biome_override.has_value()) return *body.biome_override;
+    return determine_biome(body.type, body.atmosphere, body.temperature, seed);
 }
 
 CelestialBody generate_moon_body(const CelestialBody& parent, int moon_index, unsigned seed) {
