@@ -638,14 +638,19 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if (args.size() >= 2 && args[1] == "create") {
             std::string kind = "asteroid";
             std::string name = "Custom";
-            if (args.size() >= 3) {
+            if (args.size() == 3) {
+                // Single extra arg: name only (back-compat, `chart create Foo`).
+                name = args[2];
+            } else if (args.size() >= 4) {
+                // Two extra args: <kind> <name>. Kind must be known.
                 std::string a2 = args[2];
-                if (a2 == "asteroid" || a2 == "scar" || a2 == "rock") {
-                    kind = a2;
-                    if (args.size() >= 4) name = args[3];
-                } else {
-                    name = a2;
+                if (a2 != "asteroid" && a2 != "scar" && a2 != "rock") {
+                    log("chart create: unknown kind '" + a2 +
+                        "' (expected asteroid|scar|rock)");
+                    return;
                 }
+                kind = a2;
+                name = args[3];
             }
 
             auto coords = pick_coords_near(nav, nav.current_system_id,
