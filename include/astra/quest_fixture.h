@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -13,6 +14,8 @@ struct QuestFixtureDef {
     int color = 7;            // terminal color index
     std::string prompt;       // UI hint, e.g. "Plant receiver drone"
     std::string log_message;  // optional; written to game log on interact ("" = silent)
+    std::string log_title;    // viewer header title (empty = none)
+    std::vector<std::string> log_lines;  // viewer body; empty = no playback
 };
 
 // Idempotent: re-registering the same id overwrites the existing def.

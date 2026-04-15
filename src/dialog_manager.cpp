@@ -3,6 +3,7 @@
 #include "astra/display_name.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
+#include "astra/playback_viewer.h"
 #include "astra/player.h"
 #include "astra/quest_fixture.h"
 #include "astra/shop.h"
@@ -531,10 +532,20 @@ void DialogManager::interact_fixture(int fid, Game& game) {
         }
         case FixtureType::QuestFixture: {
             const QuestFixtureDef* def = find_quest_fixture(f.quest_fixture_id);
-            if (def && !def->log_message.empty()) {
+            bool first_use = (f.last_used_tick < 0);
+
+            if (def && !def->log_lines.empty()) {
+                game.playback_viewer().open(PlaybackStyle::AudioLog,
+                                            def->log_title,
+                                            def->log_lines);
+            } else if (def && !def->log_message.empty()) {
                 game.log(def->log_message);
             }
-            game.quests().on_fixture_interacted(f.quest_fixture_id);
+
+            if (first_use) {
+                game.quests().on_fixture_interacted(f.quest_fixture_id);
+            }
+            f.last_used_tick = game.world().world_tick();
             break;
         }
         default:

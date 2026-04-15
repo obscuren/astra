@@ -48,6 +48,12 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Playback viewer intercept
+    if (playback_viewer_.is_open()) {
+        playback_viewer_.handle_input(key);
+        return;
+    }
+
     // Lore viewer intercept
     if (lore_viewer_.is_open()) {
         lore_viewer_.handle_input(key);

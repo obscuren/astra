@@ -38,14 +38,17 @@ void Game::run() {
     render();
 
     while (running_) {
+        bool revealing = playback_viewer_.is_revealing();
         bool needs_timeout = combat_.targeting() || input_.looking()
                            || quit_confirm_.open
                            || auto_walking_ || auto_exploring_
-                           || animations_.has_any();
-        int timeout_ms = (auto_walking_ || auto_exploring_) ? 50
-                       : animations_.has_active_effects() ? 80
-                       : animations_.has_any() ? 200
-                       : 300;
+                           || animations_.has_any()
+                           || revealing;
+        int timeout_ms = revealing                                 ? 33
+                       : (auto_walking_ || auto_exploring_)         ? 50
+                       : animations_.has_active_effects()           ? 80
+                       : animations_.has_any()                      ? 200
+                                                                    : 300;
         int key = needs_timeout ? renderer_->wait_input_timeout(timeout_ms)
                                 : renderer_->wait_input();
 
@@ -89,6 +92,7 @@ void Game::run() {
         }
 
         animations_.tick();
+        playback_viewer_.tick();
         update();
         render();
     }
