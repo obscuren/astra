@@ -50,6 +50,8 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.completed_quests = game.quests().completed_quests();
         data.quest_locations = world.quest_locations();
         data.pending_quest_cleanup = world.pending_quest_cleanup();
+        data.stellar_signal_echo_ids = world.stellar_signal_echo_ids();
+        data.stellar_signal_beacon_id = world.stellar_signal_beacon_id();
         data.lore = world.lore();
     }
 
@@ -205,6 +207,8 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     game.quests().reconcile_with_catalog(game);
     world.quest_locations() = std::move(data.quest_locations);
     world.pending_quest_cleanup() = std::move(data.pending_quest_cleanup);
+    world.stellar_signal_echo_ids() = data.stellar_signal_echo_ids;
+    world.stellar_signal_beacon_id() = data.stellar_signal_beacon_id;
     world.lore() = std::move(data.lore);
     apply_lore_to_galaxy(world.navigation(), world.lore());
 

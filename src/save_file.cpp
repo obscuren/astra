@@ -1059,6 +1059,10 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
         w.write_i32(ow_x); w.write_i32(ow_y); w.write_i32(d);
     }
 
+    // v33: stellar_signal arc ids
+    for (uint32_t id : data.stellar_signal_echo_ids) w.write_u32(id);
+    w.write_u32(data.stellar_signal_beacon_id);
+
     w.end_section(pos);
 }
 
@@ -1141,6 +1145,11 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
             int d = r.read_i32();
             data.pending_quest_cleanup.insert(LocationKey{sys, b, m, stn, ow_x, ow_y, d});
         }
+    }
+
+    if (data.version >= 33) {
+        for (auto& id : data.stellar_signal_echo_ids) id = r.read_u32();
+        data.stellar_signal_beacon_id = r.read_u32();
     }
 }
 
