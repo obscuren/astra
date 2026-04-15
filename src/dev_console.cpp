@@ -131,7 +131,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
-        log("  chart create [name] - create custom system near Sol");
+        log("  chart create [name] - create custom system near current");
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
         log("  history             - show world lore history");
@@ -637,18 +637,23 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         auto& nav = game.world().navigation();
         if (args.size() >= 2 && args[1] == "create") {
             std::string name = args.size() >= 3 ? args[2] : std::string("Custom");
-            // Place near Sol so it's easy to find on the chart.
-            float dx = 1.5f + 0.3f * static_cast<float>(nav.systems.size() % 7);
+            auto coords = pick_coords_near(nav, nav.current_system_id,
+                                           2.0f, 5.0f, game.world().rng());
+            if (!coords) {
+                log("chart create: couldn't find a spot near current system");
+                return;
+            }
             CustomSystemSpec spec;
             spec.name = name;
-            spec.gx = dx;
-            spec.gy = 1.0f;
+            spec.gx = coords->first;
+            spec.gy = coords->second;
             spec.star_class = StarClass::ClassM;
             spec.discovered = true;
             spec.bodies = { make_asteroid_orbit(name + " Rock") };
             uint32_t id = add_custom_system(nav, std::move(spec));
             log("Created custom system '" + name + "' id=" + std::to_string(id) +
-                " at (" + std::to_string(dx) + ", 1.0)");
+                " at (" + std::to_string(coords->first) + ", " +
+                std::to_string(coords->second) + ")");
         } else if (args.size() >= 2 && args[1] == "reveal") {
             if (args.size() < 3) { log("Usage: chart reveal <name-substring>"); return; }
             const std::string& needle = args[2];
