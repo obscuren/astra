@@ -1248,6 +1248,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                     break;
                 case BodyType::DwarfPlanet:
                 case BodyType::AsteroidBelt:
+                case BodyType::LandableAsteroid:
                     dest_type = MapType::Asteroid;
                     break;
                 default:
@@ -1268,7 +1269,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 dest_biome = determine_biome(moon.type, moon.atmosphere, moon.temperature, biome_seed);
                 location_name = moon.name;
             } else {
-                dest_biome = determine_biome(body.type, body.atmosphere, body.temperature, biome_seed);
+                dest_biome = determine_biome(body, biome_seed);
                 location_name = body.name;
             }
             break;
