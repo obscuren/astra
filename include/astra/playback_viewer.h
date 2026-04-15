@@ -30,6 +30,10 @@ public:
     bool handle_input(int key);
     void draw(Renderer* r, int screen_w, int screen_h);
 
+    // Advance the reveal cursor using wall-clock delta since the last call.
+    // Mirrors AnimationManager::tick — invoked each iteration from Game::run.
+    void tick();
+
 private:
     using Clock = std::chrono::steady_clock;
 
@@ -38,11 +42,9 @@ private:
     std::string title_;
     std::vector<std::string> lines_;
     int total_chars_ = 0;               // sum of line lengths, set at open()
-    int skip_offset_ = 0;               // chars added to the reveal cursor on Space
-    Clock::time_point start_time_;      // set at open()
+    float reveal_cursor_ = 0.0f;        // fractional chars revealed; floor() = rendered
+    Clock::time_point last_tick_ = Clock::now();
     int scroll_ = 0;                    // vertical scroll (only when body overflows)
-
-    int reveal_cursor() const;          // how many chars to draw now
 };
 
 } // namespace astra

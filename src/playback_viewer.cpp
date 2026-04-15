@@ -15,21 +15,23 @@ void PlaybackViewer::open(PlaybackStyle style,
     lines_ = std::move(lines);
     total_chars_ = 0;
     for (const auto& l : lines_) total_chars_ += static_cast<int>(l.size());
-    skip_offset_ = 0;
-    start_time_ = Clock::now();
+    reveal_cursor_ = 0.0f;
+    last_tick_ = Clock::now();
     scroll_ = 0;
 }
 
-int PlaybackViewer::reveal_cursor() const {
-    if (!open_) return 0;
-    float elapsed = std::chrono::duration<float>(Clock::now() - start_time_).count();
-    int cursor = static_cast<int>(elapsed * kCharsPerSecond) + skip_offset_;
-    if (cursor > total_chars_) cursor = total_chars_;
-    return cursor;
+void PlaybackViewer::tick() {
+    if (!open_) { last_tick_ = Clock::now(); return; }
+    auto now = Clock::now();
+    float dt = std::chrono::duration<float>(now - last_tick_).count();
+    last_tick_ = now;
+    reveal_cursor_ += dt * kCharsPerSecond;
+    if (reveal_cursor_ > static_cast<float>(total_chars_))
+        reveal_cursor_ = static_cast<float>(total_chars_);
 }
 
 bool PlaybackViewer::is_revealing() const {
-    return open_ && reveal_cursor() < total_chars_;
+    return open_ && static_cast<int>(reveal_cursor_) < total_chars_;
 }
 
 bool PlaybackViewer::handle_input(int key) {
@@ -43,7 +45,7 @@ bool PlaybackViewer::handle_input(int key) {
 
     // Space skips remaining reveal
     if (key == ' ') {
-        skip_offset_ = total_chars_;   // clamps inside reveal_cursor()
+        reveal_cursor_ = static_cast<float>(total_chars_);
         return true;
     }
 
