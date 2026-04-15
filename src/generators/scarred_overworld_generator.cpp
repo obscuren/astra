@@ -35,19 +35,20 @@ Tile ScarredOverworldGenerator::classify_terrain(int /*x*/, int /*y*/,
                                                  float elev, float /*moist*/,
                                                  const TerrainContext& /*ctx*/) {
     // Jagged peaks remain regardless of variant.
-    if (elev > 0.82f) return Tile::OW_Mountains;
+    if (elev > 0.85f) return Tile::OW_Mountains;
 
-    // Deep basins: former seas / impact scars → glassed craters.
-    if (elev < 0.30f) return Tile::OW_GlassedCrater;
-
-    // Variant: ScarredGlassed skews heavily toward glassed surfaces;
-    // ScarredScorched is mostly scorched earth with occasional glass pools.
+    // GlassedCrater is impassable; keep it to distinct features only so
+    // the player never spawns boxed in. Scorched earth (passable) is the
+    // dominant terrain on both variants.
     if (variant_ == Biome::ScarredGlassed) {
-        if (elev < 0.55f) return Tile::OW_GlassedCrater;
+        // Heavier glass presence: scattered craters at low AND very high
+        // mid-elevation, but the mid band stays traversable.
+        if (elev < 0.22f) return Tile::OW_GlassedCrater;   // crater basins
+        if (elev > 0.78f) return Tile::OW_GlassedCrater;   // fused plateaus
         return Tile::OW_ScorchedEarth;
     }
-    // ScarredScorched default
-    if (elev < 0.38f) return Tile::OW_GlassedCrater;   // rare glass pools
+    // ScarredScorched: sparse crater pits.
+    if (elev < 0.18f) return Tile::OW_GlassedCrater;
     return Tile::OW_ScorchedEarth;
 }
 
