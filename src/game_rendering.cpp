@@ -807,6 +807,9 @@ void Game::render_play() {
     console_.draw(renderer_.get(), screen_w_, screen_h_);
     help_screen_.draw(renderer_.get(), screen_w_, screen_h_);
     lore_viewer_.draw(renderer_.get(), screen_w_, screen_h_);
+    if (playback_viewer_.is_open()) {
+        playback_viewer_.draw(renderer_.get(), screen_w_, screen_h_);
+    }
     repair_bench_.draw(screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     character_screen_.draw(screen_w_, screen_h_);
