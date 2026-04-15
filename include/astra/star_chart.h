@@ -22,6 +22,7 @@ enum class StarClass : uint8_t {
     ClassA,  // White
     ClassB,  // Blue-white
     ClassO,  // Blue (rarest)
+    Neutron, // Pulsar remnant (quest-only, never procedural)
 };
 
 struct StationInfo {

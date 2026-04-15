@@ -255,11 +255,19 @@ void generate_system_bodies(StarSystem& sys) {
     // Sgr A* — supermassive black hole, no bodies
     if (sys.id == 0) return;
 
+    // Neutron stars: no habitable zone, no procedural planets.
+    // Custom systems pre-fill bodies; the idempotence guard at the top
+    // prevents this branch from clobbering them.
+    if (sys.star_class == StarClass::Neutron) {
+        return;
+    }
+
     std::mt19937 rng(sys.id ^ 0x504C4E54u);
 
     // Habitable zone bounds based on star class
     float hz_inner, hz_outer;
     switch (sys.star_class) {
+        case StarClass::Neutron: // unreachable due to early return above, but silences -Wswitch
         case StarClass::ClassM: hz_inner = 0.1f;  hz_outer = 0.4f;  break;
         case StarClass::ClassK: hz_inner = 0.4f;  hz_outer = 0.8f;  break;
         case StarClass::ClassG: hz_inner = 0.8f;  hz_outer = 1.5f;  break;
@@ -425,6 +433,7 @@ const char* star_class_name(StarClass sc) {
         case StarClass::ClassA: return "A (White Star)";
         case StarClass::ClassB: return "B (Blue-White)";
         case StarClass::ClassO: return "O (Blue Giant)";
+        case StarClass::Neutron: return "Neutron (Pulsar Remnant)";
     }
     return "Unknown";
 }
@@ -438,6 +447,7 @@ char star_class_glyph(StarClass sc) {
         case StarClass::ClassG: return '*';
         case StarClass::ClassK: return '*';
         case StarClass::ClassM: return '.';
+        case StarClass::Neutron: return '+';
     }
     return '.';
 }
@@ -451,6 +461,7 @@ Color star_class_color(StarClass sc) {
         case StarClass::ClassA: return Color::White;
         case StarClass::ClassB: return Color::Cyan;
         case StarClass::ClassO: return Color::Blue;
+        case StarClass::Neutron: return Color::BrightWhite;
     }
     return Color::White;
 }
