@@ -748,4 +748,36 @@ bool hide_system(NavigationData& nav, uint32_t system_id) {
     return set_discovered(nav, system_id, false);
 }
 
+std::optional<std::pair<float, float>>
+pick_coords_near(const NavigationData& nav, uint32_t ref_system_id,
+                 float min_dist, float max_dist, std::mt19937& rng,
+                 int max_attempts) {
+    const StarSystem* ref = nullptr;
+    for (const auto& s : nav.systems) {
+        if (s.id == ref_system_id) { ref = &s; break; }
+    }
+    if (!ref) return std::nullopt;
+
+    std::uniform_real_distribution<float> dr(min_dist, max_dist);
+    std::uniform_real_distribution<float> dtheta(0.0f, 6.2831853f);
+
+    // Reject any candidate too close to an existing system.
+    constexpr float kMinSep = 0.25f;
+    for (int i = 0; i < max_attempts; ++i) {
+        float r = dr(rng);
+        float t = dtheta(rng);
+        float gx = ref->gx + r * std::cos(t);
+        float gy = ref->gy + r * std::sin(t);
+
+        bool collides = false;
+        for (const auto& s : nav.systems) {
+            float dx = s.gx - gx;
+            float dy = s.gy - gy;
+            if (dx * dx + dy * dy < kMinSep * kMinSep) { collides = true; break; }
+        }
+        if (!collides) return std::make_pair(gx, gy);
+    }
+    return std::nullopt;
+}
+
 } // namespace astra

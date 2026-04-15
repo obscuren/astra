@@ -6,8 +6,10 @@
 #include "astra/station_type.h"
 
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace astra {
@@ -99,6 +101,15 @@ bool reveal_system(NavigationData& nav, uint32_t system_id);
 
 // Symmetry helper; sets discovered=false.
 bool hide_system(NavigationData& nav, uint32_t system_id);
+
+// Pick coordinates within [min_dist, max_dist] of the reference system's
+// (gx, gy), avoiding overlap with any existing system's position. Returns
+// std::nullopt if no suitable spot was found within max_attempts tries
+// (typically because the ring is already crowded).
+std::optional<std::pair<float, float>>
+pick_coords_near(const NavigationData& nav, uint32_t ref_system_id,
+                 float min_dist, float max_dist, std::mt19937& rng,
+                 int max_attempts = 200);
 
 // Generate the full galaxy from a seed
 NavigationData generate_galaxy(unsigned game_seed);
