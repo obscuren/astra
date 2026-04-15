@@ -7,6 +7,7 @@
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/lore_generator.h"
+#include "astra/npc.h"
 #include "astra/quest_fixture.h"
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
@@ -134,6 +135,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  chart create [kind] [name] - create custom system (kind: asteroid|scar|rock)");
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
+        log("  spawn <role> - spawn an enemy NPC adjacent to player");
         log("  history             - show world lore history");
         log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
         log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
@@ -715,6 +717,50 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         } else {
             log("Usage: chart create [kind] [name]|reveal <name>|hide <name>");
         }
+    }
+    else if (verb == "spawn") {
+        if (args.size() < 2) {
+            log("Usage: spawn <role>  (archon_remnant|void_reaver|archon_sentinel)");
+            return;
+        }
+        std::string role_arg = args[1];
+        std::string role_name;
+        if      (role_arg == "archon_remnant")  role_name = "Archon Remnant";
+        else if (role_arg == "void_reaver")     role_name = "Void Reaver";
+        else if (role_arg == "archon_sentinel") role_name = "Archon Sentinel";
+        else {
+            log("spawn: unknown role '" + role_arg +
+                "' (archon_remnant|void_reaver|archon_sentinel)");
+            return;
+        }
+
+        Npc npc = create_npc_by_role(role_name, game.world().rng());
+        // Walk the 8 neighbours until a passable empty tile is found.
+        const int dx[] = {1, -1, 0, 0, 1, 1, -1, -1};
+        const int dy[] = {0, 0, 1, -1, 1, -1, 1, -1};
+        bool placed = false;
+        for (int i = 0; i < 8 && !placed; ++i) {
+            int nx = game.player().x + dx[i];
+            int ny = game.player().y + dy[i];
+            if (nx < 0 || nx >= game.world().map().width()) continue;
+            if (ny < 0 || ny >= game.world().map().height()) continue;
+            if (!game.world().map().passable(nx, ny)) continue;
+            bool occupied = false;
+            for (const auto& other : game.world().npcs()) {
+                if (other.alive() && other.x == nx && other.y == ny) {
+                    occupied = true;
+                    break;
+                }
+            }
+            if (occupied) continue;
+            npc.x = nx;
+            npc.y = ny;
+            game.world().npcs().push_back(std::move(npc));
+            log("Spawned " + role_name + " at (" + std::to_string(nx) +
+                "," + std::to_string(ny) + ")");
+            placed = true;
+        }
+        if (!placed) log("spawn: no adjacent passable tile");
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
