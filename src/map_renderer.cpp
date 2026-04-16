@@ -8,6 +8,7 @@
 #include "astra/overworld_stamps.h"
 #include "astra/world_context.h"
 #include "astra/render_descriptor.h"
+#include "astra/quest.h"
 #include "terminal_theme.h"
 
 namespace astra {
@@ -314,6 +315,36 @@ void render_map(const MapRenderContext& rc) {
             desc.type_id = static_cast<uint16_t>(npc.npc_role);
             desc.seed = static_cast<uint8_t>(npc.race);
             wctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, desc);
+
+            // Quest marker above NPC:
+            //   '!'  -> a story quest is available from this NPC
+            //   '?'  -> an active quest from this NPC is ready to turn in
+            //   (offer wins when both conditions are true)
+            if (rc.quests && !npc.role.empty()) {
+                bool has_offer = !rc.quests->available_for_role(npc.role).empty();
+                bool has_turnin = false;
+                if (!has_offer) {
+                    for (const auto& q : rc.quests->active_quests()) {
+                        if (q.giver_npc != npc.role) continue;
+                        // Nova Stage 1 hook has no ready_for_turnin objective;
+                        // its dialog entry lives on active_, so treat it as a
+                        // pending turn-in marker too.
+                        if (q.id == "story_stellar_signal_hook" ||
+                            q.ready_for_turnin()) {
+                            has_turnin = true;
+                            break;
+                        }
+                    }
+                }
+                if (has_offer || has_turnin) {
+                    int mx = npc.x - rc.camera_x;
+                    int my = npc.y - rc.camera_y - 1;
+                    if (my >= 0) {
+                        char glyph = has_offer ? '!' : '?';
+                        ctx.put(mx, my, glyph, Color::BrightYellow);
+                    }
+                }
+            }
         }
     }
 

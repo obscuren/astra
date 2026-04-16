@@ -11,6 +11,7 @@ class WorldManager;
 class CombatSystem;
 class InputManager;
 class AnimationManager;
+class QuestManager;
 struct Player;
 
 struct MapRenderContext {
@@ -23,6 +24,7 @@ struct MapRenderContext {
     int camera_x;
     int camera_y;
     const AnimationManager* animations = nullptr;
+    const QuestManager* quests = nullptr;   // for NPC quest markers
 };
 
 void render_map(const MapRenderContext& ctx);
