@@ -295,7 +295,7 @@ void Game::handle_play_input(int key) {
             }
             use_action();
             break;
-        case KEY_F1: case KEY_F2: case KEY_F3: {
+        case KEY_F1: case KEY_F2: case KEY_F3: case KEY_F4: {
             // Toggle widget on/off via configurable F-keys
             for (int i = 0; i < widget_count; ++i) {
                 if (key == widget_keys_.keys[i]) {

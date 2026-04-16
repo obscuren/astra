@@ -132,8 +132,10 @@ void Game::compute_layout() {
     int left_w = screen_w_ - panel_w - 1;
     int sep_x = left_w;
 
-    // Tabs always visible in top-right
-    tabs_rect_ = {sep_x + 1, vrows[1].bounds().y, panel_w, 1};
+    // Tabs sit two rows below the bars row (on the XP-bar row of the left
+    // column) so they're visually paired with the widget panel rather than
+    // floating up with the stats bar.
+    tabs_rect_ = {sep_x + 1, vrows[3].bounds().y, panel_w, 1};
 
     // Bars always stop before the tab column
     hp_bar_rect_ = {0, vrows[1].bounds().y, left_w, 1};
@@ -144,7 +146,10 @@ void Game::compute_layout() {
         auto main_cols = vrows[4].columns({fill(), fixed(1), fixed(panel_w)});
         map_rect_ = main_cols[0].bounds();
         separator_rect_ = {sep_x, vrows[1].bounds().y, 1, screen_h_ - 3};
-        side_panel_rect_ = main_cols[2].bounds();
+        // Shift the side panel down one row so the tabs-row separator
+        // doesn't overwrite the first widget row.
+        auto sp = main_cols[2].bounds();
+        side_panel_rect_ = {sp.x, sp.y + 1, sp.w, sp.h - 1};
     } else {
         map_rect_ = vrows[4].bounds();
         separator_rect_ = {sep_x, vrows[1].bounds().y, 1, 3};

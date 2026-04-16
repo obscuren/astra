@@ -1,4 +1,5 @@
 #include "astra/ability.h"
+#include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
@@ -71,7 +72,10 @@ static const char* widget_names[] = {
     "Messages",
     "Wait",
     "Minimap",
+    "Nearby",
 };
+static_assert(sizeof(widget_names) / sizeof(widget_names[0]) == widget_count,
+              "widget_names size must match widget_count");
 
 const char* fixture_type_name(FixtureType type) {
     switch (type) {
@@ -993,8 +997,10 @@ void Game::render_widget_bar() {
     }
     ctx.widget_bar(desc);
 
-    // Separator below bars area (aligns with XP bar row + 1)
-    UIContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 3, tabs_rect_.w, 1});
+    // Separator sits immediately below the tabs row; the side panel is
+    // shifted down one row in compute_layout() so widget content starts
+    // on the row after this separator.
+    UIContext sep(renderer_.get(), {tabs_rect_.x, tabs_rect_.y + 1, tabs_rect_.w, 1});
     sep.separator({});
 }
 
@@ -1051,7 +1057,7 @@ void Game::render_side_panel() {
             case Widget::Messages:      render_messages_widget(regions[region_idx]); break;
             case Widget::Wait:          render_wait_widget(regions[region_idx]); break;
             case Widget::Minimap:       render_minimap_widget(regions[region_idx]); break;
-            case Widget::Interactables: break;
+            case Widget::Interactables: render_interactables_widget(regions[region_idx]); break;
         }
         ++region_idx;
     }
@@ -1200,8 +1206,94 @@ void Game::render_minimap_widget(UIContext& ctx) {
                   player_.x, player_.y, world_.npcs(), player_, flags);
 }
 
-void Game::render_interactables_widget(UIContext& /*ctx*/) {
-    // Implementation lands in Task 4.
+void Game::render_interactables_widget(UIContext& ctx) {
+    struct Entry {
+        int dist;
+        int category;       // 0 NPC, 1 Fixture, 2 Item
+        char glyph;
+        Color color;
+        std::string text;
+    };
+
+    const auto& map = world_.map();
+    const auto& vis = world_.visibility();
+    int px = player_.x;
+    int py = player_.y;
+
+    std::vector<Entry> entries;
+
+    // NPC pass — alive + visible
+    for (const auto& npc : world_.npcs()) {
+        if (!npc.alive()) continue;
+        if (vis.get(npc.x, npc.y) != Visibility::Visible) continue;
+        int d = std::max(std::abs(npc.x - px), std::abs(npc.y - py));
+        entries.push_back({d, 0,
+                           npc_glyph(npc.npc_role, npc.race),
+                           Color::White,
+                           display_name(npc)});
+    }
+
+    // Fixture pass — interactable + visible, scan within a 40x40 box
+    int w = map.width();
+    int h = map.height();
+    int x0 = std::max(0, px - 20);
+    int y0 = std::max(0, py - 20);
+    int x1 = std::min(w, px + 21);
+    int y1 = std::min(h, py + 21);
+    for (int y = y0; y < y1; ++y) {
+        for (int x = x0; x < x1; ++x) {
+            if (vis.get(x, y) != Visibility::Visible) continue;
+            int fid = map.fixture_id(x, y);
+            if (fid < 0) continue;
+            const FixtureData& f = map.fixture(fid);
+            if (!f.interactable) continue;
+            int d = std::max(std::abs(x - px), std::abs(y - py));
+            entries.push_back({d, 1,
+                               fixture_glyph(f.type),
+                               Color::Cyan,
+                               fixture_type_name(f.type)});
+        }
+    }
+
+    // Ground-item pass — visible
+    for (const auto& gi : world_.ground_items()) {
+        if (vis.get(gi.x, gi.y) != Visibility::Visible) continue;
+        int d = std::max(std::abs(gi.x - px), std::abs(gi.y - py));
+        ResolvedVisual iv = item_visual(gi.item.item_def_id);
+        entries.push_back({d, 2,
+                           iv.glyph,
+                           iv.fg,
+                           display_name(gi.item)});
+    }
+
+    std::sort(entries.begin(), entries.end(),
+              [](const Entry& a, const Entry& b) {
+                  if (a.dist != b.dist) return a.dist < b.dist;
+                  return a.category < b.category;
+              });
+
+    int panel_h = ctx.height();
+    if (panel_h <= 0) return;
+
+    if (entries.empty()) {
+        ctx.text(1, 0, "(nothing nearby)", Color::DarkGray);
+        return;
+    }
+
+    int total = static_cast<int>(entries.size());
+    bool overflow = total > panel_h;
+    int rows_to_render = overflow ? (panel_h - 1) : total;
+
+    for (int i = 0; i < rows_to_render; ++i) {
+        const auto& e = entries[i];
+        ctx.put(1, i, e.glyph, e.color);
+        ctx.text_rich(3, i, e.text);
+    }
+
+    if (overflow) {
+        std::string more = "... " + std::to_string(total - rows_to_render) + " more";
+        ctx.text(1, panel_h - 1, more, Color::DarkGray);
+    }
 }
 
 void Game::render_effects_bar() {
