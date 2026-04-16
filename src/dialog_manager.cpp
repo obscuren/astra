@@ -1102,10 +1102,15 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         case InteractOption::StoryQuestAccept: {
             const std::string qid = detail_offer_quest_id_;
             detail_offer_quest_id_.clear();
+            // Capture the title BEFORE accept_available runs — some quests
+            // self-complete inside on_accepted (e.g. narrative-only stages),
+            // which would move them out of active_ before we can look them up.
+            std::string title = qid;
+            if (const Quest* q = game.quests().find_quest(qid).quest) {
+                title = q->title;
+            }
             if (!qid.empty() &&
                 game.quests().accept_available(qid, game, game.world().world_tick())) {
-                const Quest* q = game.quests().find_active(qid);
-                std::string title = q ? q->title : qid;
                 game.log("Quest accepted: " + colored(title, Color::Yellow));
             }
             open_ = false;
