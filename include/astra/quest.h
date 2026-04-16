@@ -79,6 +79,12 @@ struct Quest {
     bool is_story = false;
     int accepted_tick = 0;
 
+    // Narrative journal text — shown in the Journal, not the Quests tab.
+    // Task progress lives in the Quests tab; the journal is a diary of what
+    // was said / felt / witnessed.
+    std::string journal_on_accept;     // seeded into the entry at accept
+    std::string journal_on_complete;   // appended when the quest completes
+
     // Target location for map markers (set by generator, 0/-1 = none)
     uint32_t target_system_id = 0;
     int target_body_index = -1;

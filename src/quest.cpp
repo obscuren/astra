@@ -46,52 +46,36 @@ static std::string journal_key_for(const Quest& quest) {
     return quest.arc_id.empty() ? quest.id : ("arc:" + quest.arc_id);
 }
 
-// Render the personal body for an arc journal entry by walking every stage
-// in the arc and listing its status + objectives. Called on every accept
-// and every complete so the entry always mirrors current state.
+// Render the personal body for an arc journal entry — a narrative diary
+// composed of each stage's authored journal_on_accept / journal_on_complete
+// text, not a task checklist (the Quests tab is for tasks).
 static std::string render_arc_body(const QuestManager& qm,
                                    const std::string& arc_id) {
     const auto& graph = quest_graph();
     const auto& members = graph.arc_members(arc_id);
     std::string body;
-    int stage_num = 1;
     for (const auto& id : members) {
         auto look = qm.find_quest(id);
-        if (!look.quest) { ++stage_num; continue; }
+        if (!look.quest) continue;
         const Quest& q = *look.quest;
-        StoryQuest* sq = find_story_quest(id);
-        RevealPolicy rev = sq ? sq->reveal_policy() : RevealPolicy::Full;
 
-        // Status marker
-        const char* marker = "[ ]";
-        switch (look.status) {
-            case QuestStatus::Locked:    marker = "[ ]"; break;
-            case QuestStatus::Available: marker = "[-]"; break;
-            case QuestStatus::Active:    marker = "[*]"; break;
-            case QuestStatus::Completed: marker = "[x]"; break;
-            case QuestStatus::Failed:    marker = "[X]"; break;
-            default:                     marker = "[ ]"; break;
+        // Skip stages the player hasn't reached yet.
+        if (look.status == QuestStatus::Locked ||
+            look.status == QuestStatus::Available) continue;
+
+        // Accept prose
+        if (!q.journal_on_accept.empty()) {
+            if (!body.empty()) body += "\n";
+            body += q.journal_on_accept;
+            if (body.back() != '\n') body += "\n";
         }
-
-        // Title subject to reveal policy
-        std::string title = q.title;
-        if (look.status == QuestStatus::Locked) {
-            if (rev == RevealPolicy::Hidden)    title = "???";
-            // TitleOnly / Full: show title
+        // Complete prose — only when the stage is actually done
+        if (look.status == QuestStatus::Completed &&
+            !q.journal_on_complete.empty()) {
+            if (!body.empty() && body.back() != '\n') body += "\n";
+            body += q.journal_on_complete;
+            if (body.back() != '\n') body += "\n";
         }
-
-        body += "Stage " + std::to_string(stage_num) + ": " + marker + " " + title + "\n";
-
-        // Objectives only meaningful for active / completed stages
-        if (look.status == QuestStatus::Active ||
-            look.status == QuestStatus::Completed) {
-            for (const auto& obj : q.objectives) {
-                body += "  " + std::string(obj.complete() ? "[x]" : "[ ]")
-                     + " " + obj.description + "\n";
-            }
-        }
-        body += "\n";
-        ++stage_num;
     }
     return body;
 }
@@ -128,14 +112,9 @@ void QuestManager::accept_quest(Quest quest, int world_tick, Player& player) {
         if (pushed.arc_id.empty()) {
             entry.title = "Quest: " + pushed.title;
             entry.technical = pushed.description;
-            std::string obj;
-            for (const auto& o : pushed.objectives) {
-                obj += "[ ] " + o.description + "\n";
-            }
-            entry.personal = "Objectives:\n" + obj;
-            if (!pushed.giver_npc.empty()) {
-                entry.personal += "\nGiven by: " + pushed.giver_npc;
-            }
+            entry.personal = pushed.journal_on_accept.empty()
+                               ? pushed.description
+                               : pushed.journal_on_accept;
         } else {
             StoryQuest* sq = find_story_quest(pushed.id);
             std::string arc_title = sq ? sq->arc_title() : pushed.arc_id;
@@ -229,17 +208,15 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
                         je->personal += "Stage complete: " + stage_title + "  (+" + rewards + ")\n";
                 } else {
                     je->title = "Quest Complete: " + stage_title;
-                    std::string objectives;
-                    for (const auto& obj : game.quests().completed_quests().back().objectives) {
-                        objectives += "[x] " + obj.description + "\n";
+                    const Quest& done = game.quests().completed_quests().back();
+                    std::string body = done.journal_on_accept.empty()
+                                         ? done.description
+                                         : done.journal_on_accept;
+                    if (!done.journal_on_complete.empty()) {
+                        if (!body.empty() && body.back() != '\n') body += "\n";
+                        body += "\n" + done.journal_on_complete;
                     }
-                    je->personal = "Objectives:\n" + objectives;
-                    std::string rewards;
-                    if (snapshot_reward.xp > 0) rewards += std::to_string(snapshot_reward.xp) + " XP  ";
-                    if (snapshot_reward.credits > 0) rewards += std::to_string(snapshot_reward.credits) + "$  ";
-                    if (snapshot_reward.skill_points > 0) rewards += std::to_string(snapshot_reward.skill_points) + " SP  ";
-                    for (const auto& ri : snapshot_reward.items) rewards += ri.label() + "  ";
-                    if (!rewards.empty()) je->personal += "\nRewards: " + rewards;
+                    je->personal = body;
                 }
             }
 
@@ -359,39 +336,14 @@ std::string QuestManager::check_completions() const {
 }
 
 void QuestManager::update_quest_journals(Player& player) {
-    // Track which arc entries we've already rebuilt this pass so we don't
-    // redo the whole arc body once per stage.
-    std::unordered_set<std::string> arc_done;
-    for (const auto& q : active_) {
-        const std::string key = journal_key_for(q);
-        JournalEntry* je = find_journal_entry(player.journal, key);
-        if (!je) continue;
-
-        if (!q.arc_id.empty()) {
-            if (arc_done.count(q.arc_id)) continue;
-            arc_done.insert(q.arc_id);
-            je->personal = render_arc_body(*this, q.arc_id);
-            if (!q.giver_npc.empty())
-                je->personal += "Given by: " + q.giver_npc + "\n";
-            continue;
-        }
-
-        // Standalone quest
-        std::string objectives;
-        for (const auto& obj : q.objectives) {
-            std::string mark = obj.complete() ? "[x] " : "[ ] ";
-            objectives += mark + obj.description;
-            if (obj.target_count > 1) {
-                objectives += " (" + std::to_string(obj.current_count)
-                           + "/" + std::to_string(obj.target_count) + ")";
-            }
-            objectives += "\n";
-        }
-        je->personal = "Objectives:\n" + objectives;
-        if (!q.giver_npc.empty()) {
-            je->personal += "\nGiven by: " + q.giver_npc;
-        }
-    }
+    // Arc entries refresh when a stage transitions (accept/complete); the
+    // narrative text is seeded from authored journal_on_accept /
+    // journal_on_complete rather than tick-by-tick objective progress, so
+    // there's nothing to rebuild here for arcs. Standalone quests likewise
+    // author their own narrative via journal_on_accept — task progress
+    // lives in the Quests tab. This function becomes a no-op; kept in the
+    // interface so callers don't break.
+    (void)player;
 }
 
 // ── Progress Tracking ───────────────────────────────────────────────
