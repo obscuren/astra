@@ -133,6 +133,7 @@ int SdlRenderer::poll_input() {
                 case SDLK_F1:      return KEY_F1;
                 case SDLK_F2:      return KEY_F2;
                 case SDLK_F3:      return KEY_F3;
+                case SDLK_F4:      return KEY_F4;
             }
         }
     }

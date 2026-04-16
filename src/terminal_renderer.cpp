@@ -413,6 +413,12 @@ int TerminalRenderer::poll_input() {
                 case 'D': return KEY_LEFT;
             }
         }
+        if (seq[0] == 'O') {
+            if (seq[1] == 'P') return KEY_F1;
+            if (seq[1] == 'Q') return KEY_F2;
+            if (seq[1] == 'R') return KEY_F3;
+            if (seq[1] == 'S') return KEY_F4;
+        }
         return '\033';
     }
 
@@ -474,6 +480,7 @@ int TerminalRenderer::wait_input() {
                         if (c3 == '1') return KEY_F1;
                         if (c3 == '2') return KEY_F2;
                         if (c3 == '3') return KEY_F3;
+                        if (c3 == '4') return KEY_F4;
                     }
                     break;
                 }
@@ -483,6 +490,7 @@ int TerminalRenderer::wait_input() {
             if (seq[1] == 'P') return KEY_F1;
             if (seq[1] == 'Q') return KEY_F2;
             if (seq[1] == 'R') return KEY_F3;
+            if (seq[1] == 'S') return KEY_F4;
         }
         return '\033';
     }
@@ -539,6 +547,7 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
                         if (c3 == '1') return KEY_F1;
                         if (c3 == '2') return KEY_F2;
                         if (c3 == '3') return KEY_F3;
+                        if (c3 == '4') return KEY_F4;
                     }
                     break;
                 }
@@ -548,6 +557,7 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
             if (seq[1] == 'P') return KEY_F1;
             if (seq[1] == 'Q') return KEY_F2;
             if (seq[1] == 'R') return KEY_F3;
+            if (seq[1] == 'S') return KEY_F4;
         }
         return '\033';
     }
