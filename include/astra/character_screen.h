@@ -7,6 +7,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <unordered_set>
 
 namespace astra {
 
@@ -111,6 +112,8 @@ private:
         std::string quest_id;
     };
     std::vector<bool> quest_cat_expanded_;
+    // arc_id -> collapsed? (absent = expanded by default)
+    std::unordered_set<std::string> quest_arcs_collapsed_;
     int quest_cursor_ = 0;
     int quest_scroll_ = 0;
     enum class QuestFocus : uint8_t { Left, Right };

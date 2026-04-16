@@ -642,6 +642,11 @@ bool CharacterScreen::handle_input(int key) {
                 const auto& v = vis[quest_cursor_];
                 if (key == ' ' && v.kind == QuestVisItem::Kind::Category) {
                     quest_cat_expanded_[v.cat_idx] = !quest_cat_expanded_[v.cat_idx];
+                } else if (key == ' ' && v.kind == QuestVisItem::Kind::ArcHeader) {
+                    if (quest_arcs_collapsed_.count(v.arc_id))
+                        quest_arcs_collapsed_.erase(v.arc_id);
+                    else
+                        quest_arcs_collapsed_.insert(v.arc_id);
                 }
             }
         }
@@ -2491,6 +2496,9 @@ CharacterScreen::build_quest_vis() const {
                 hdr.arc_id = arc;
                 vis.push_back(std::move(hdr));
 
+                // Skip arc members when the arc is collapsed.
+                if (quest_arcs_collapsed_.count(arc)) continue;
+
                 auto members = quest_graph().arc_members(arc);
                 for (const std::string& mid : members) {
                     QuestVisItem it;
@@ -2581,6 +2589,8 @@ CharacterScreen::build_quest_vis() const {
                     hdr.cat_idx = 3;
                     hdr.arc_id = q.arc_id;
                     vis.push_back(std::move(hdr));
+
+                    if (quest_arcs_collapsed_.count(q.arc_id)) continue;
 
                     for (const auto& mid : quest_graph().arc_members(q.arc_id)) {
                         QuestVisItem it;
