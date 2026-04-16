@@ -2698,10 +2698,21 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
 
             // Indent: arc members deeper than flat entries
             int indent = it.arc_id.empty() ? 4 : 6;
+#ifdef ASTRA_DEV_MODE
+            // Dev overlay: append the quest id so 'quest finish <id>' is one
+            // copy-paste away from the panel the designer is looking at.
+            std::string dev_suffix = "  [" + it.quest_id + "]";
+            ctx.styled_text({.x = indent, .y = y, .segments = {
+                {std::string(glyph) + " ", tag},
+                {title, tag},
+                {dev_suffix, UITag::TextDim},
+            }});
+#else
             ctx.styled_text({.x = indent, .y = y, .segments = {
                 {std::string(glyph) + " ", tag},
                 {title, tag},
             }});
+#endif
         }
         y++;
     }

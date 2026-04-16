@@ -129,6 +129,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest deliver      - random deliver quest");
         log("  quest scout        - random scout quest");
         log("  quest story        - The Missing Hauler");
+        log("  quest begin <id>   - force-start a story quest by id (bypass prereqs)");
+        log("  quest finish <id>  - force-complete active quest by id (fires cascade)");
         log("  heal               - full heal");
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
@@ -556,8 +558,40 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             } else {
                 log("No open tile adjacent to player for fixture.");
             }
+        } else if (args.size() >= 3 && args[1] == "begin") {
+            // Force-start a story quest by id, bypassing prereqs and dialog.
+            const std::string& qid = args[2];
+            if (game.quests().has_active_quest(qid)) {
+                log("quest begin: already active");
+                return;
+            }
+            auto* sq = find_story_quest(qid);
+            if (!sq) {
+                log("quest begin: no story quest with id '" + qid + "'");
+                return;
+            }
+            auto q = sq->create_quest();
+            game.quests().accept_quest(std::move(q), game.world().world_tick(),
+                                       game.player());
+            sq->on_accepted(game);
+            log("Force-started quest: " + qid);
+        } else if (args.size() >= 3 && args[1] == "finish") {
+            // Force-complete an active quest by id (fires on_completed + DAG).
+            const std::string& qid = args[2];
+            if (!game.quests().has_active_quest(qid)) {
+                log("quest finish: '" + qid + "' is not active");
+                return;
+            }
+            // Tick every objective to its target so complete_quest sees it done
+            // and its reward / journal paths run normally.
+            if (Quest* q = game.quests().find_active(qid)) {
+                for (auto& obj : q->objectives) obj.current_count = obj.target_count;
+            }
+            game.quests().complete_quest(qid, game, game.world().world_tick());
+            log("Force-finished quest: " + qid);
         } else {
             log("Usage: quest kill|fetch|deliver|scout|story|fixture");
+            log("       quest begin <id> | quest finish <id>");
         }
     }
     else if (verb == "history") {
