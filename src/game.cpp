@@ -849,6 +849,18 @@ void Game::new_game() {
     quest_manager_ = QuestManager{};  // fresh manager for new game
     quest_manager_.init_from_catalog(*this);
 
+#ifdef ASTRA_DEV_MODE
+    // Dev commander: skip the tutorial. Auto-accept + auto-complete
+    // Getting Airborne so the DAG immediately unlocks downstream arcs
+    // (Stellar Signal Stage 1, etc.) for iteration.
+    if (quest_manager_.accept_available("story_getting_airborne", *this,
+                                        world_.world_tick())) {
+        quest_manager_.complete_quest("story_getting_airborne", *this,
+                                      world_.world_tick());
+        log("[DEV] Getting Airborne auto-completed — downstream arcs unlocked.");
+    }
+#endif
+
     apply_passive_skill_effects();
     state_ = GameState::Playing;
 }
@@ -1086,6 +1098,15 @@ void Game::new_game(const CreationResult& cr) {
 
     quest_manager_ = QuestManager{};  // fresh manager for new game
     quest_manager_.init_from_catalog(*this);
+
+#ifdef ASTRA_DEV_MODE
+    if (quest_manager_.accept_available("story_getting_airborne", *this,
+                                        world_.world_tick())) {
+        quest_manager_.complete_quest("story_getting_airborne", *this,
+                                      world_.world_tick());
+        log("[DEV] Getting Airborne auto-completed — downstream arcs unlocked.");
+    }
+#endif
 
     apply_passive_skill_effects();
     state_ = GameState::Playing;
