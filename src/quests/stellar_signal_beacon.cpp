@@ -30,6 +30,16 @@ public:
         };
         q.reward.xp = 400;
         q.reward.credits = 250;
+        q.journal_on_accept =
+            "The fragments align into coordinates — a system nobody should "
+            "be able to reach without hardware that doesn't exist yet. "
+            "Nova marked it. She asked me to go alone. Whatever she — "
+            "what she — left there, it isn't for her anymore.";
+        q.journal_on_complete =
+            "Nova is the signal. A Stellari race of one, looping across "
+            "cycles of galactic rebirth, leaving warnings in fragments "
+            "that survive the reset when she doesn't. She remembers now. "
+            "She says: not this time.";
         return q;
     }
 

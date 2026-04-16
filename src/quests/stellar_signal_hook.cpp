@@ -29,6 +29,18 @@ public:
             "Stellar Engineer",
         });
         q.reward.xp = 50;
+        q.journal_on_accept =
+            "Nova, the Stellar Engineer on The Heavens Above, says she hears "
+            "something in the galactic background — a modulated signal, older "
+            "than any civilisation, calling her by name. She's never left "
+            "this station and doesn't know why. I agreed to help her "
+            "investigate.";
+        q.journal_on_complete =
+            "Nova triangulated three systems where the signal is strongest: "
+            "The Fire-Worn, The Quiet Shell, and The Edge. She gave me "
+            "receiver drones to plant at each — her station instruments are "
+            "dampened by Jupiter's magnetosphere and she needs recordings "
+            "from the void.";
         return q;
     }
 

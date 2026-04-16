@@ -32,6 +32,13 @@ class GettingAirborneQuest : public StoryQuest {
         q.reward.xp = 100;
         q.reward.credits = 50;
         q.reward.factions.push_back({Faction_StellariConclave, 5});
+        q.journal_on_accept =
+            "My ship limped into The Heavens Above with the engine, hull "
+            "plating, and navi computer blown. ARIA is walking me through "
+            "the repairs — she says the Station Keeper is the man to see "
+            "for parts.";
+        q.journal_on_complete =
+            "All primary systems restored. ARIA says the galaxy awaits.";
         return q;
     }
 

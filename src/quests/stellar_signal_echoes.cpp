@@ -34,6 +34,17 @@ public:
         q.reward.xp = 200;
         q.reward.credits = 100;
         q.reward.factions.push_back({Faction_StellariConclave, 10});
+        q.journal_on_accept =
+            "Three systems, three drones. Nova marked them on my chart — "
+            "The Fire-Worn (red dwarf, scar planet), The Quiet Shell "
+            "(derelict station), and The Edge (neutron remnant, crystalline "
+            "fragment). Whatever the signal is, it's loudest in places "
+            "nothing should be left.";
+        q.journal_on_complete =
+            "The three recordings are all in Nova's voice — but older, "
+            "weathered, from a version of herself she has no memory of "
+            "being. One of them called me 'the one with green eyes.' "
+            "Nova thinks she may have lived this cycle before.";
         return q;
     }
 
