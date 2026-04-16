@@ -642,11 +642,21 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
 
     // Check for turnable-in quests from this NPC
     bool has_turnin = false;
+    bool has_nova_hook_active = false;
     for (const auto& q : game.quests().active_quests()) {
+        if (q.id == "story_stellar_signal_hook" && q.giver_npc == npc.role) {
+            has_nova_hook_active = true;
+            continue;  // hook gets its own entry, not the generic turnin
+        }
         if (q.giver_npc == npc.role && q.ready_for_turnin()) {
             has_turnin = true;
             break;
         }
+    }
+    // Nova's Stage 1 hook: special branching turn-in dialog.
+    if (has_nova_hook_active) {
+        add_option(hotkey++, "What's troubling you, Nova?");
+        interact_options_.push_back(InteractOption::NovaHookEntry);
     }
     if (has_turnin) {
         add_option(hotkey++, "I have news about the job.");
@@ -1097,6 +1107,79 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             interact_options_.push_back(InteractOption::StoryQuestAccept);
             add_option('d', "Decline");
             interact_options_.push_back(InteractOption::StoryQuestDecline);
+            return;
+        }
+        case InteractOption::NovaHookEntry: {
+            // Opening monologue + three branching responses.
+            reset_content(interacting_npc_ ? interacting_npc_->label() : "");
+            body_ =
+                "\"Commander... do you ever hear things that "
+                "shouldn't be there?\n\n"
+                "Static in the dark. Not interference — pattern. "
+                "Like someone speaking just below the frequency you "
+                "can actually hear.\n\n"
+                "Stellari don't hear the way you do. We listen to the "
+                "galaxy the way you listen to music. And there's a "
+                "song playing out there that shouldn't exist. It's "
+                "older than the gate network. Older than the Precursors.\n\n"
+                "It's calling me by name.\"";
+            interact_options_.clear();
+            add_option('1', "Calling you how? Are you okay?");
+            interact_options_.push_back(InteractOption::NovaHookCare);
+            add_option('2', "Sounds like background radiation.");
+            interact_options_.push_back(InteractOption::NovaHookSkeptic);
+            add_option('3', "What do you need me to do?");
+            interact_options_.push_back(InteractOption::NovaHookAction);
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
+            return;
+        }
+        case InteractOption::NovaHookCare:
+        case InteractOption::NovaHookSkeptic:
+        case InteractOption::NovaHookAction: {
+            InteractOption which = interact_options_[selected];
+            reset_content(interacting_npc_ ? interacting_npc_->label() : "");
+            if (which == InteractOption::NovaHookCare) {
+                body_ =
+                    "\"I'm fine. I'm Stellari, we don't break, we just... "
+                    "resonate.\n\n"
+                    "But this signal knows me. Specifically me. And I don't "
+                    "know how. I've never left The Heavens Above. I've been "
+                    "here as long as I can remember.\n\n"
+                    "Which, come to think of it, I can't actually remember "
+                    "how long.\n\n"
+                    "...That's a problem, isn't it.\"";
+            } else if (which == InteractOption::NovaHookSkeptic) {
+                body_ =
+                    "\"Background radiation doesn't match Stellari "
+                    "resonance frequency to three decimal places. This is "
+                    "modulated. This is intentional. Someone is reaching "
+                    "out.\"";
+            } else {
+                body_ =
+                    "\"I've triangulated three systems where the signal is "
+                    "strongest. I need you to go to each and plant a "
+                    "receiver drone. My station instruments are too "
+                    "dampened by Jupiter's magnetosphere — I need clean "
+                    "recordings from the void.\n\n"
+                    "I'd go myself. But Stellari... we don't leave. I don't "
+                    "know why. I've never really wondered until now.\"";
+            }
+            interact_options_.clear();
+            add_option('a', "I'll go.");
+            interact_options_.push_back(InteractOption::NovaHookConfirm);
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
+            return;
+        }
+        case InteractOption::NovaHookConfirm: {
+            // Complete Stage 1. DAG cascade unlocks Stage 2 so Nova's next
+            // dialog offers it.
+            game.quests().complete_quest("story_stellar_signal_hook", game,
+                                          game.world().world_tick());
+            game.log("Quest completed: " +
+                     colored("Static in the Dark", Color::Green));
+            open_ = false;
             return;
         }
         case InteractOption::StoryQuestAccept: {

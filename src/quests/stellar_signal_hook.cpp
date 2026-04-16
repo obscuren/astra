@@ -4,7 +4,6 @@
 #include "astra/body_presets.h"
 #include "astra/faction.h"
 #include "astra/world_manager.h"
-#include "astra/playback_viewer.h"
 
 namespace astra {
 
@@ -23,8 +22,12 @@ public:
             "and she says the signal is calling her by name.";
         q.giver_npc = "Stellar Engineer";
         q.is_story = true;
-        // No player-facing objective — Stage 1 completes the moment it is
-        // accepted (see on_accepted). The dialog modal IS the experience.
+        q.objectives.push_back({
+            ObjectiveType::TalkToNpc,
+            "Return to Nova and hear her out",
+            1, 0,
+            "Stellar Engineer",
+        });
         q.reward.xp = 50;
         return q;
     }
@@ -81,41 +84,9 @@ public:
 
         game.world().stellar_signal_echo_ids() = {echo1_id, echo2_id, echo3_id};
 
-        // Play Nova's full hook monologue (the three narrative branches from
-        // the Nova doc collapsed into the action-path convergence). This is
-        // the narrative moment of Stage 1; there is no further objective.
-        game.playback_viewer().open(
-            PlaybackStyle::AudioLog,
-            "NOVA — OBSERVATORY, THE HEAVENS ABOVE",
-            {
-                "Commander... do you ever hear things that shouldn't",
-                "be there?",
-                "",
-                "Static in the dark. Not interference — pattern.",
-                "Like someone speaking just below the frequency you",
-                "can actually hear.",
-                "",
-                "Stellari don't hear the way you do. We listen to the",
-                "galaxy the way you listen to music. And there's a song",
-                "playing out there that shouldn't exist. It's older",
-                "than the gate network. Older than the Precursors.",
-                "",
-                "It's calling me by name.",
-                "",
-                "I've triangulated three systems where the signal is",
-                "strongest. I need you to go to each and plant a",
-                "receiver drone. My station instruments are too dampened",
-                "by Jupiter's magnetosphere — I need clean recordings",
-                "from the void.",
-                "",
-                "I'd go myself. But Stellari... we don't leave.",
-                "I don't know why. I've never really wondered until now.",
-            });
-
-        // Stage 1's experience IS the dialog. Complete it immediately so the
-        // DAG cascade unlocks Stage 2 for Nova to offer on the next talk.
-        game.quests().complete_quest(QUEST_ID_HOOK, game,
-                                     game.world().world_tick());
+        // Quest stays active. The hook dialog with Nova (dialog_manager's
+        // NovaHookEntry branch) plays when the player next talks to her and
+        // completes the quest on "I'll go.".
     }
 };
 

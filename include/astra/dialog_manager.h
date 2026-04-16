@@ -63,7 +63,17 @@ private:
     const std::vector<DialogNode>* dialog_tree_ = nullptr;
     int dialog_node_ = -1;
 
-    enum class InteractOption : uint8_t { Talk, Shop, Quest, QuestTurnIn, StoryQuestOffer, StoryQuestAccept, StoryQuestDecline, Farewell };
+    enum class InteractOption : uint8_t {
+        Talk, Shop, Quest, QuestTurnIn,
+        StoryQuestOffer, StoryQuestAccept, StoryQuestDecline,
+        // Nova Stage 1 "Static in the Dark" turn-in flow:
+        //   NovaHookEntry opens Nova's monologue + 3 response choices.
+        //   NovaHookCare / Skeptic / Action show her reaction + "I'll go."
+        //   NovaHookConfirm completes the quest on "I'll go.".
+        NovaHookEntry, NovaHookCare, NovaHookSkeptic, NovaHookAction,
+        NovaHookConfirm,
+        Farewell,
+    };
     std::vector<InteractOption> interact_options_;
     std::vector<std::string> pending_story_offers_;  // ids parallel to StoryQuestOffer interact_options entries
     std::string detail_offer_quest_id_;              // non-empty while showing quest offer detail view
