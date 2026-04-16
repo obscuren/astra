@@ -5,6 +5,7 @@
 #include "astra/npc.h"
 #include "astra/race.h"
 #include "astra/renderer.h"
+#include "astra/tilemap.h"
 
 #include <string>
 
@@ -60,5 +61,8 @@ inline std::string display_name(DamageType t) {
     }
     return colored(damage_type_name(t), c);
 }
+
+// Fixture — human-readable name for display (e.g. "Heal Pod", "Food Terminal")
+const char* fixture_type_name(FixtureType type);
 
 } // namespace astra

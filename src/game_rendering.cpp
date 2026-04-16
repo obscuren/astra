@@ -73,7 +73,7 @@ static const char* widget_names[] = {
     "Minimap",
 };
 
-static const char* fixture_type_name(FixtureType type) {
+const char* fixture_type_name(FixtureType type) {
     switch (type) {
         case FixtureType::Table:         return "Table";
         case FixtureType::Console:       return "Console";
