@@ -129,6 +129,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest deliver      - random deliver quest");
         log("  quest scout        - random scout quest");
         log("  quest story        - The Missing Hauler");
+        log("  quest begin <id>   - force-start a story quest by id (bypass prereqs)");
+        log("  quest finish <id>  - force-complete active quest by id (fires cascade)");
         log("  heal               - full heal");
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
@@ -137,6 +139,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
         log("  spawn <role> - spawn an enemy NPC adjacent to player");
+        log("  fixtures     - list quest fixtures (id, location key, tile)");
+        log("  tp <x> <y>   - teleport to tile (x, y) on current map");
+        log("  tp <fixture_id> - teleport to that quest fixture if it's on the current map");
         log("  history             - show world lore history");
         log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
         log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
@@ -553,8 +558,40 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             } else {
                 log("No open tile adjacent to player for fixture.");
             }
+        } else if (args.size() >= 3 && args[1] == "begin") {
+            // Force-start a story quest by id, bypassing prereqs and dialog.
+            const std::string& qid = args[2];
+            if (game.quests().has_active_quest(qid)) {
+                log("quest begin: already active");
+                return;
+            }
+            auto* sq = find_story_quest(qid);
+            if (!sq) {
+                log("quest begin: no story quest with id '" + qid + "'");
+                return;
+            }
+            auto q = sq->create_quest();
+            game.quests().accept_quest(std::move(q), game.world().world_tick(),
+                                       game.player());
+            sq->on_accepted(game);
+            log("Force-started quest: " + qid);
+        } else if (args.size() >= 3 && args[1] == "finish") {
+            // Force-complete an active quest by id (fires on_completed + DAG).
+            const std::string& qid = args[2];
+            if (!game.quests().has_active_quest(qid)) {
+                log("quest finish: '" + qid + "' is not active");
+                return;
+            }
+            // Tick every objective to its target so complete_quest sees it done
+            // and its reward / journal paths run normally.
+            if (Quest* q = game.quests().find_active(qid)) {
+                for (auto& obj : q->objectives) obj.current_count = obj.target_count;
+            }
+            game.quests().complete_quest(qid, game, game.world().world_tick());
+            log("Force-finished quest: " + qid);
         } else {
             log("Usage: quest kill|fetch|deliver|scout|story|fixture");
+            log("       quest begin <id> | quest finish <id>");
         }
     }
     else if (verb == "history") {
@@ -773,6 +810,71 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             placed = true;
         }
         if (!placed) log("spawn: no adjacent passable tile");
+    }
+    else if (verb == "fixtures") {
+        // Dump quest-fixture placements across all quest_locations so the
+        // dev can see what's been stamped where (and on which map key).
+        const auto& qlocs = game.world().quest_locations();
+        if (qlocs.empty()) {
+            log("No quest_locations registered.");
+            return;
+        }
+        int total = 0;
+        for (const auto& [key, meta] : qlocs) {
+            auto [sys, b, m, stn, ow_x, ow_y, d] = key;
+            for (const auto& p : meta.fixtures) {
+                ++total;
+                std::string loc = "sys=" + std::to_string(sys) +
+                                  " body=" + std::to_string(b) +
+                                  (m >= 0 ? " moon=" + std::to_string(m) : "") +
+                                  (stn ? " [station]" : "") +
+                                  (d > 0 ? " depth=" + std::to_string(d) : "");
+                if (p.x < 0 || p.y < 0) {
+                    log(p.fixture_id + " — " + loc + " — (unplaced)");
+                } else {
+                    log(p.fixture_id + " — " + loc + " — tile (" +
+                        std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+                }
+            }
+        }
+        if (total == 0) log("No quest fixtures declared.");
+    }
+    else if (verb == "tp" && args.size() >= 3) {
+        // Teleport player to (x, y) on the current map.
+        int tx = std::atoi(args[1].c_str());
+        int ty = std::atoi(args[2].c_str());
+        if (tx < 0 || tx >= game.world().map().width() ||
+            ty < 0 || ty >= game.world().map().height()) {
+            log("tp: out of bounds");
+            return;
+        }
+        game.player().x = tx;
+        game.player().y = ty;
+        log("Teleported to (" + std::to_string(tx) + "," + std::to_string(ty) + ")");
+    }
+    else if (verb == "tp" && args.size() == 2) {
+        // Teleport to a quest fixture by id, if it's on the current map.
+        const std::string& fid = args[1];
+        for (const auto& [key, meta] : game.world().quest_locations()) {
+            for (const auto& p : meta.fixtures) {
+                if (p.fixture_id != fid) continue;
+                if (p.x < 0 || p.y < 0) {
+                    log("tp: fixture '" + fid + "' hasn't been placed yet (enter its map first)");
+                    return;
+                }
+                if (p.x >= game.world().map().width() ||
+                    p.y >= game.world().map().height()) {
+                    log("tp: fixture '" + fid + "' is on a different map");
+                    return;
+                }
+                game.player().x = p.x;
+                game.player().y = p.y;
+                log("Teleported to '" + fid + "' at (" +
+                    std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+                return;
+            }
+        }
+        log("tp: fixture '" + fid + "' not found");
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");

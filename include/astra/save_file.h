@@ -11,6 +11,7 @@
 #include "astra/visibility_map.h"
 #include "astra/world_manager.h"
 
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
@@ -60,7 +61,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 32;   // v32: CelestialBody.biome_override
+    uint32_t version = 33;   // v33: stellar_signal arc ids on WorldManager
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -92,6 +93,10 @@ struct SaveData {
     std::vector<Quest> completed_quests;
     std::map<LocationKey, QuestLocationMeta> quest_locations;
     std::set<LocationKey> pending_quest_cleanup;
+
+    // v33: stellar_signal arc ids
+    std::array<uint32_t, 3> stellar_signal_echo_ids = {0, 0, 0};
+    uint32_t stellar_signal_beacon_id = 0;
 
     // v20: world lore
     WorldLore lore;

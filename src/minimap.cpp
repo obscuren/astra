@@ -114,6 +114,12 @@ void Minimap::draw(UIContext& ctx,
     int map_h = map.height();
     if (map_w <= 0 || map_h <= 0) return;
 
+    // Reserve the bottom row for the player coordinate readout so the
+    // minimap cells don't overlap it.
+    bool show_coords = panel_h >= 3;
+    int coord_row = show_coords ? panel_h - 1 : -1;
+    if (show_coords) --panel_h;
+
     MapType map_type = map.map_type();
     bool schematic = (map_type == MapType::SpaceStation ||
                       map_type == MapType::Starship);
@@ -253,6 +259,13 @@ void Minimap::draw(UIContext& ctx,
             else
                 ctx.put(px, py_cell, UPPER_HALF, Color::Black, Color::BrightYellow);
         }
+    }
+
+    // Player coordinate readout in the reserved bottom row.
+    if (coord_row >= 0) {
+        std::string coord = "(" + std::to_string(player_x) + "," +
+                            std::to_string(player_y) + ")";
+        ctx.text(0, coord_row, coord, Color::DarkGray);
     }
 }
 

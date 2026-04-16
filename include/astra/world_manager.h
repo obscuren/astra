@@ -9,6 +9,7 @@
 #include "astra/time_of_day.h"
 #include "astra/visibility_map.h"
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <random>
@@ -136,6 +137,12 @@ public:
     std::set<LocationKey>& pending_quest_cleanup() { return pending_quest_cleanup_; }
     const std::set<LocationKey>& pending_quest_cleanup() const { return pending_quest_cleanup_; }
 
+    // Stellar Signal arc state
+    std::array<uint32_t, 3>& stellar_signal_echo_ids() { return stellar_signal_echo_ids_; }
+    const std::array<uint32_t, 3>& stellar_signal_echo_ids() const { return stellar_signal_echo_ids_; }
+    uint32_t& stellar_signal_beacon_id() { return stellar_signal_beacon_id_; }
+    uint32_t stellar_signal_beacon_id() const { return stellar_signal_beacon_id_; }
+
     // Collect system IDs that have active quest targets
     std::set<uint32_t> quest_target_system_ids() const {
         std::set<uint32_t> ids;
@@ -187,6 +194,9 @@ private:
     std::map<LocationKey, QuestLocationMeta> quest_locations_;
     std::set<LocationKey> pending_quest_cleanup_;
     LoreInfluenceMap lore_influence_;
+    // Arc-specific state
+    std::array<uint32_t, 3> stellar_signal_echo_ids_ = {0, 0, 0};
+    uint32_t stellar_signal_beacon_id_ = 0;
 };
 
 } // namespace astra

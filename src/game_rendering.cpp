@@ -804,7 +804,6 @@ void Game::render_play() {
     dialog_.draw(renderer_.get(), screen_w_, screen_h_);
     render_pause_menu();
     render_quit_confirm();
-    console_.draw(renderer_.get(), screen_w_, screen_h_);
     help_screen_.draw(renderer_.get(), screen_w_, screen_h_);
     lore_viewer_.draw(renderer_.get(), screen_w_, screen_h_);
     if (playback_viewer_.is_open()) {
@@ -820,6 +819,10 @@ void Game::render_play() {
     if (show_welcome_) {
         render_welcome_screen();
     }
+
+    // Dev console renders absolute-last so it's never occluded by any other
+    // overlay — makes it usable when a journal, chart, or dialog is open.
+    console_.draw(renderer_.get(), screen_w_, screen_h_);
 }
 
 void Game::render_stats_bar() {
