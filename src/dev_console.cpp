@@ -137,6 +137,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
         log("  spawn <role> - spawn an enemy NPC adjacent to player");
+        log("  fixtures     - list quest fixtures (id, location key, tile)");
+        log("  tp <x> <y>   - teleport to tile (x, y) on current map");
+        log("  tp <fixture_id> - teleport to that quest fixture if it's on the current map");
         log("  history             - show world lore history");
         log("  biome_test <biome> [settlement [frontier|advanced|ruined]]");
         log("                     [ruins [monolithic|baroque|crystal|industrial] [connected]]");
@@ -814,6 +817,30 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         game.player().x = tx;
         game.player().y = ty;
         log("Teleported to (" + std::to_string(tx) + "," + std::to_string(ty) + ")");
+    }
+    else if (verb == "tp" && args.size() == 2) {
+        // Teleport to a quest fixture by id, if it's on the current map.
+        const std::string& fid = args[1];
+        for (const auto& [key, meta] : game.world().quest_locations()) {
+            for (const auto& p : meta.fixtures) {
+                if (p.fixture_id != fid) continue;
+                if (p.x < 0 || p.y < 0) {
+                    log("tp: fixture '" + fid + "' hasn't been placed yet (enter its map first)");
+                    return;
+                }
+                if (p.x >= game.world().map().width() ||
+                    p.y >= game.world().map().height()) {
+                    log("tp: fixture '" + fid + "' is on a different map");
+                    return;
+                }
+                game.player().x = p.x;
+                game.player().y = p.y;
+                log("Teleported to '" + fid + "' at (" +
+                    std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+                return;
+            }
+        }
+        log("tp: fixture '" + fid + "' not found");
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
