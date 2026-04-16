@@ -317,31 +317,36 @@ void render_map(const MapRenderContext& rc) {
             wctx.put(npc.x - rc.camera_x, npc.y - rc.camera_y, desc);
 
             // Quest marker above NPC:
-            //   '!'  -> a story quest is available from this NPC
-            //   '?'  -> an active quest from this NPC is ready to turn in
-            //   (offer wins when both conditions are true)
+            //   '!' bright yellow -> story quest available from this NPC
+            //   '?' bright yellow -> active quest ready to turn in
+            //   '?' silver/white  -> active quest from this NPC, not yet ready
+            //   (offer wins when multiple conditions hold)
             if (rc.quests && !npc.role.empty()) {
                 bool has_offer = !rc.quests->available_for_role(npc.role).empty();
                 bool has_turnin = false;
+                bool has_inprogress = false;
                 if (!has_offer) {
                     for (const auto& q : rc.quests->active_quests()) {
                         if (q.giver_npc != npc.role) continue;
-                        // Nova Stage 1 hook has no ready_for_turnin objective;
-                        // its dialog entry lives on active_, so treat it as a
-                        // pending turn-in marker too.
+                        // Nova Stage 1 hook is turn-in-ready once accepted —
+                        // its hook dialog IS the turn-in.
                         if (q.id == "story_stellar_signal_hook" ||
                             q.ready_for_turnin()) {
                             has_turnin = true;
                             break;
                         }
+                        has_inprogress = true;
                     }
                 }
-                if (has_offer || has_turnin) {
+                if (has_offer || has_turnin || has_inprogress) {
                     int mx = npc.x - rc.camera_x;
                     int my = npc.y - rc.camera_y - 1;
                     if (my >= 0) {
                         char glyph = has_offer ? '!' : '?';
-                        ctx.put(mx, my, glyph, Color::BrightYellow);
+                        Color color = (has_offer || has_turnin)
+                                          ? Color::BrightYellow
+                                          : Color::White;
+                        ctx.put(mx, my, glyph, color);
                     }
                 }
             }
