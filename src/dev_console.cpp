@@ -774,6 +774,47 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
         if (!placed) log("spawn: no adjacent passable tile");
     }
+    else if (verb == "fixtures") {
+        // Dump quest-fixture placements across all quest_locations so the
+        // dev can see what's been stamped where (and on which map key).
+        const auto& qlocs = game.world().quest_locations();
+        if (qlocs.empty()) {
+            log("No quest_locations registered.");
+            return;
+        }
+        int total = 0;
+        for (const auto& [key, meta] : qlocs) {
+            auto [sys, b, m, stn, ow_x, ow_y, d] = key;
+            for (const auto& p : meta.fixtures) {
+                ++total;
+                std::string loc = "sys=" + std::to_string(sys) +
+                                  " body=" + std::to_string(b) +
+                                  (m >= 0 ? " moon=" + std::to_string(m) : "") +
+                                  (stn ? " [station]" : "") +
+                                  (d > 0 ? " depth=" + std::to_string(d) : "");
+                if (p.x < 0 || p.y < 0) {
+                    log(p.fixture_id + " — " + loc + " — (unplaced)");
+                } else {
+                    log(p.fixture_id + " — " + loc + " — tile (" +
+                        std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+                }
+            }
+        }
+        if (total == 0) log("No quest fixtures declared.");
+    }
+    else if (verb == "tp" && args.size() >= 3) {
+        // Teleport player to (x, y) on the current map.
+        int tx = std::atoi(args[1].c_str());
+        int ty = std::atoi(args[2].c_str());
+        if (tx < 0 || tx >= game.world().map().width() ||
+            ty < 0 || ty >= game.world().map().height()) {
+            log("tp: out of bounds");
+            return;
+        }
+        game.player().x = tx;
+        game.player().y = ty;
+        log("Teleported to (" + std::to_string(tx) + "," + std::to_string(ty) + ")");
+    }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
     }
