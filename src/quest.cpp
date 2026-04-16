@@ -40,30 +40,93 @@ static std::string make_timestamp(int world_tick) {
          + ", Day " + std::to_string(day_in_cycle(world_tick));
 }
 
+// Choose the journal-entry key for a quest: arc-level for story arcs,
+// per-quest for standalone. All stages of the same arc share one entry.
+static std::string journal_key_for(const Quest& quest) {
+    return quest.arc_id.empty() ? quest.id : ("arc:" + quest.arc_id);
+}
+
+// Render the personal body for an arc journal entry — a narrative diary
+// composed of each stage's authored journal_on_accept / journal_on_complete
+// text, not a task checklist (the Quests tab is for tasks).
+static std::string render_arc_body(const QuestManager& qm,
+                                   const std::string& arc_id) {
+    const auto& graph = quest_graph();
+    const auto& members = graph.arc_members(arc_id);
+    std::string body;
+    for (const auto& id : members) {
+        auto look = qm.find_quest(id);
+        if (!look.quest) continue;
+        const Quest& q = *look.quest;
+
+        // Skip stages the player hasn't reached yet.
+        if (look.status == QuestStatus::Locked ||
+            look.status == QuestStatus::Available) continue;
+
+        // Accept prose
+        if (!q.journal_on_accept.empty()) {
+            if (!body.empty()) body += "\n";
+            body += q.journal_on_accept;
+            if (body.back() != '\n') body += "\n";
+        }
+        // Complete prose — only when the stage is actually done
+        if (look.status == QuestStatus::Completed &&
+            !q.journal_on_complete.empty()) {
+            if (!body.empty() && body.back() != '\n') body += "\n";
+            body += q.journal_on_complete;
+            if (body.back() != '\n') body += "\n";
+        }
+    }
+    return body;
+}
+
 void QuestManager::accept_quest(Quest quest, int world_tick, Player& player) {
     quest.status = QuestStatus::Active;
     quest.accepted_tick = world_tick;
 
-    // Journal entry for new quest
-    JournalEntry entry;
-    entry.category = JournalCategory::Quest;
-    entry.title = "Quest: " + quest.title;
-    entry.quest_id = quest.id;
-    entry.world_tick = world_tick;
-    entry.timestamp = make_timestamp(world_tick);
-    entry.technical = quest.description;
-    // Build objectives list
-    std::string objectives;
-    for (const auto& obj : quest.objectives) {
-        objectives += "[ ] " + obj.description + "\n";
-    }
-    entry.personal = "Objectives:\n" + objectives;
-    if (!quest.giver_npc.empty()) {
-        entry.personal += "\nGiven by: " + quest.giver_npc;
-    }
-    player.journal.push_back(std::move(entry));
-
+    // Push to active_ first so render_arc_body sees this stage as Active.
     active_.push_back(std::move(quest));
+    const Quest& pushed = active_.back();
+
+    const std::string key = journal_key_for(pushed);
+
+    // Update or create the journal entry
+    JournalEntry* existing = find_journal_entry(player.journal, key);
+    if (existing) {
+        // Arc-level update: refresh title (uses arc_title if set), body, timestamp
+        StoryQuest* sq = find_story_quest(pushed.id);
+        std::string arc_title = sq ? sq->arc_title() : std::string{};
+        existing->title = arc_title.empty() ? ("Quest: " + pushed.title)
+                                            : ("Arc: " + arc_title);
+        existing->timestamp = make_timestamp(world_tick);
+        existing->personal = render_arc_body(*this, pushed.arc_id);
+        if (!pushed.giver_npc.empty()) {
+            existing->personal += "Given by: " + pushed.giver_npc + "\n";
+        }
+    } else {
+        JournalEntry entry;
+        entry.category = JournalCategory::Quest;
+        entry.quest_id = key;
+        entry.world_tick = world_tick;
+        entry.timestamp = make_timestamp(world_tick);
+        if (pushed.arc_id.empty()) {
+            entry.title = "Quest: " + pushed.title;
+            entry.technical = pushed.description;
+            entry.personal = pushed.journal_on_accept.empty()
+                               ? pushed.description
+                               : pushed.journal_on_accept;
+        } else {
+            StoryQuest* sq = find_story_quest(pushed.id);
+            std::string arc_title = sq ? sq->arc_title() : pushed.arc_id;
+            entry.title = "Arc: " + arc_title;
+            entry.technical = pushed.description;   // seed with first stage desc
+            entry.personal = render_arc_body(*this, pushed.arc_id);
+            if (!pushed.giver_npc.empty()) {
+                entry.personal += "Given by: " + pushed.giver_npc + "\n";
+            }
+        }
+        player.journal.push_back(std::move(entry));
+    }
 }
 
 static void cleanup_quest_fixtures(Game& game, const std::string& quest_id) {
@@ -122,27 +185,40 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
                 }
             }
 
-            // Update journal entry
-            JournalEntry* je = find_journal_entry(game.player().journal, quest_id);
-            if (je) {
-                je->title = "Quest Complete: " + it->title;
-                // Update objectives to show all complete
-                std::string objectives;
-                for (const auto& obj : it->objectives) {
-                    objectives += "[x] " + obj.description + "\n";
-                }
-                je->personal = "Objectives:\n" + objectives;
-                // Append reward summary
-                std::string rewards;
-                if (it->reward.xp > 0) rewards += std::to_string(it->reward.xp) + " XP  ";
-                if (it->reward.credits > 0) rewards += std::to_string(it->reward.credits) + "$  ";
-                if (it->reward.skill_points > 0) rewards += std::to_string(it->reward.skill_points) + " SP  ";
-                for (const auto& ri : it->reward.items) rewards += ri.label() + "  ";
-                if (!rewards.empty()) je->personal += "\nRewards: " + rewards;
-            }
-
+            // Move quest to completed_ BEFORE rebuilding the journal body so
+            // render_arc_body sees this stage's status as Completed.
+            const std::string key = journal_key_for(*it);
+            const std::string arc_id = it->arc_id;
+            const std::string stage_title = it->title;
+            QuestReward snapshot_reward = it->reward;
             completed_.push_back(std::move(*it));
             active_.erase(it);
+
+            JournalEntry* je = find_journal_entry(game.player().journal, key);
+            if (je) {
+                if (!arc_id.empty()) {
+                    // Arc entry: title stays "Arc: …", body rebuilt from all stages.
+                    je->personal = render_arc_body(*this, arc_id);
+                    std::string rewards;
+                    if (snapshot_reward.xp > 0) rewards += std::to_string(snapshot_reward.xp) + " XP  ";
+                    if (snapshot_reward.credits > 0) rewards += std::to_string(snapshot_reward.credits) + "$  ";
+                    if (snapshot_reward.skill_points > 0) rewards += std::to_string(snapshot_reward.skill_points) + " SP  ";
+                    for (const auto& ri : snapshot_reward.items) rewards += ri.label() + "  ";
+                    if (!rewards.empty())
+                        je->personal += "Stage complete: " + stage_title + "  (+" + rewards + ")\n";
+                } else {
+                    je->title = "Quest Complete: " + stage_title;
+                    const Quest& done = game.quests().completed_quests().back();
+                    std::string body = done.journal_on_accept.empty()
+                                         ? done.description
+                                         : done.journal_on_accept;
+                    if (!done.journal_on_complete.empty()) {
+                        if (!body.empty() && body.back() != '\n') body += "\n";
+                        body += "\n" + done.journal_on_complete;
+                    }
+                    je->personal = body;
+                }
+            }
 
             cleanup_quest_fixtures(game, quest_id);
 
@@ -260,25 +336,14 @@ std::string QuestManager::check_completions() const {
 }
 
 void QuestManager::update_quest_journals(Player& player) {
-    for (const auto& q : active_) {
-        JournalEntry* je = find_journal_entry(player.journal, q.id);
-        if (!je) continue;
-
-        std::string objectives;
-        for (const auto& obj : q.objectives) {
-            std::string mark = obj.complete() ? "[x] " : "[ ] ";
-            objectives += mark + obj.description;
-            if (obj.target_count > 1) {
-                objectives += " (" + std::to_string(obj.current_count)
-                           + "/" + std::to_string(obj.target_count) + ")";
-            }
-            objectives += "\n";
-        }
-        je->personal = "Objectives:\n" + objectives;
-        if (!q.giver_npc.empty()) {
-            je->personal += "\nGiven by: " + q.giver_npc;
-        }
-    }
+    // Arc entries refresh when a stage transitions (accept/complete); the
+    // narrative text is seeded from authored journal_on_accept /
+    // journal_on_complete rather than tick-by-tick objective progress, so
+    // there's nothing to rebuild here for arcs. Standalone quests likewise
+    // author their own narrative via journal_on_accept — task progress
+    // lives in the Quests tab. This function becomes a no-op; kept in the
+    // interface so callers don't break.
+    (void)player;
 }
 
 // ── Progress Tracking ───────────────────────────────────────────────
