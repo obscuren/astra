@@ -850,10 +850,12 @@ void Game::new_game() {
     quest_manager_.init_from_catalog(*this);
 
 #ifdef ASTRA_DEV_MODE
-    // Dev commander: skip the tutorial. Auto-accept + auto-complete
+    // Dev commander only: skip the tutorial. Auto-accept + auto-complete
     // Getting Airborne so the DAG immediately unlocks downstream arcs
-    // (Stellar Signal Stage 1, etc.) for iteration.
-    if (quest_manager_.accept_available("story_getting_airborne", *this,
+    // (Stellar Signal Stage 1, etc.) for iteration. Non-dev characters
+    // still play the tutorial normally even in a dev-mode build.
+    if (dev_mode_ &&
+        quest_manager_.accept_available("story_getting_airborne", *this,
                                         world_.world_tick())) {
         quest_manager_.complete_quest("story_getting_airborne", *this,
                                       world_.world_tick());
@@ -1100,7 +1102,8 @@ void Game::new_game(const CreationResult& cr) {
     quest_manager_.init_from_catalog(*this);
 
 #ifdef ASTRA_DEV_MODE
-    if (quest_manager_.accept_available("story_getting_airborne", *this,
+    if (dev_mode_ &&
+        quest_manager_.accept_available("story_getting_airborne", *this,
                                         world_.world_tick())) {
         quest_manager_.complete_quest("story_getting_airborne", *this,
                                       world_.world_tick());
