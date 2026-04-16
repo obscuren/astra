@@ -334,9 +334,10 @@ void Game::handle_play_input(int key) {
             compute_camera();
             break;
         case '\t':
+            // nullopt -> CharacterScreen reopens on the last-used tab.
             character_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
-                                   CharTab::Skills, can_board_ship(), &world_);
+                                   std::nullopt, can_board_ship(), &world_);
             break;
         case '.':
             log("You wait...");

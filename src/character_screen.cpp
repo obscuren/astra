@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <iterator>
 #include <string>
+#include <unordered_set>
 
 namespace astra {
 
@@ -26,7 +27,8 @@ static const char* tab_names[] = {
 bool CharacterScreen::is_open() const { return open_; }
 
 void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
-                           bool on_ship, CharTab initial_tab, bool can_board_ship,
+                           bool on_ship, std::optional<CharTab> initial_tab,
+                           bool can_board_ship,
                            const WorldManager* world) {
     player_ = player;
     renderer_ = renderer;
@@ -35,7 +37,8 @@ void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* que
     can_board_ship_ = can_board_ship;
     world_ = world;
     open_ = true;
-    active_tab_ = initial_tab;
+    if (initial_tab) active_tab_ = *initial_tab;
+    // else: keep active_tab_ from last close
     cursor_ = 0;
     scroll_ = 0;
     board_ship_requested_ = false;
@@ -2549,16 +2552,53 @@ CharacterScreen::build_quest_vis() const {
     }
 
     // Category 3: Completed
+    //
+    // A completed arc stage appears here only when the WHOLE arc is
+    // completed — in-progress arcs keep their completed stages shown
+    // under the Main-Missions arc header (Category 0), avoiding the
+    // double-listing that makes a partly-done arc look doubled up.
     if (!completed.empty()) {
         cat_row(3);
         if (expanded(3)) {
+            auto arc_fully_complete = [&](const std::string& arc) {
+                for (const auto& mid : quest_graph().arc_members(arc)) {
+                    QuestStatus st = quests_->status_of(mid);
+                    if (st != QuestStatus::Completed && st != QuestStatus::Failed)
+                        return false;
+                }
+                return true;
+            };
+
+            std::unordered_set<std::string> shown_arcs;
             for (const auto& q : completed) {
-                QuestVisItem it;
-                it.kind = QuestVisItem::Kind::Quest;
-                it.cat_idx = 3;
-                it.quest_id = q.id;
-                it.qstate = QuestVisItem::QState::Completed;
-                vis.push_back(std::move(it));
+                if (!q.arc_id.empty()) {
+                    if (shown_arcs.count(q.arc_id)) continue;
+                    if (!arc_fully_complete(q.arc_id)) continue;
+
+                    shown_arcs.insert(q.arc_id);
+                    QuestVisItem hdr;
+                    hdr.kind = QuestVisItem::Kind::ArcHeader;
+                    hdr.cat_idx = 3;
+                    hdr.arc_id = q.arc_id;
+                    vis.push_back(std::move(hdr));
+
+                    for (const auto& mid : quest_graph().arc_members(q.arc_id)) {
+                        QuestVisItem it;
+                        it.kind = QuestVisItem::Kind::Quest;
+                        it.cat_idx = 3;
+                        it.arc_id = q.arc_id;
+                        it.quest_id = mid;
+                        it.qstate = QuestVisItem::QState::Completed;
+                        vis.push_back(std::move(it));
+                    }
+                } else {
+                    QuestVisItem it;
+                    it.kind = QuestVisItem::Kind::Quest;
+                    it.cat_idx = 3;
+                    it.quest_id = q.id;
+                    it.qstate = QuestVisItem::QState::Completed;
+                    vis.push_back(std::move(it));
+                }
             }
         }
     }

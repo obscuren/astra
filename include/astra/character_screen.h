@@ -4,6 +4,7 @@
 #include "astra/quest.h"
 #include "astra/ui.h"
 
+#include <optional>
 #include <random>
 #include <string>
 
@@ -29,8 +30,12 @@ public:
     CharacterScreen() = default;
 
     bool is_open() const;
+    // initial_tab = nullopt -> open on the last-used tab (persists across
+    // open/close). Callers that want to force a specific tab (ARIA, etc.)
+    // pass it explicitly.
     void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr,
-              bool on_ship = false, CharTab initial_tab = CharTab::Skills,
+              bool on_ship = false,
+              std::optional<CharTab> initial_tab = std::nullopt,
               bool can_board_ship = false,
               const WorldManager* world = nullptr);
     bool consume_board_ship_request() {
