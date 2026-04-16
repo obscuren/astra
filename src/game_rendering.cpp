@@ -1003,9 +1003,10 @@ void Game::render_widget_bar() {
 // Messages always fills remaining space.
 static int widget_desired_height(Widget w) {
     switch (w) {
-        case Widget::Wait:    return 10; // time + calendar + blank + 6 options + hints
-        case Widget::Minimap: return 10;
-        default:              return 0;
+        case Widget::Wait:           return 10; // time + calendar + blank + 6 options + hints
+        case Widget::Minimap:        return 10;
+        case Widget::Interactables:  return 10;
+        default:                     return 0;
     }
 }
 
@@ -1047,9 +1048,10 @@ void Game::render_side_panel() {
             ++region_idx;
         }
         switch (active[i]) {
-            case Widget::Messages: render_messages_widget(regions[region_idx]); break;
-            case Widget::Wait:     render_wait_widget(regions[region_idx]); break;
-            case Widget::Minimap:  render_minimap_widget(regions[region_idx]); break;
+            case Widget::Messages:      render_messages_widget(regions[region_idx]); break;
+            case Widget::Wait:          render_wait_widget(regions[region_idx]); break;
+            case Widget::Minimap:       render_minimap_widget(regions[region_idx]); break;
+            case Widget::Interactables: break;
         }
         ++region_idx;
     }
@@ -1196,6 +1198,10 @@ void Game::render_minimap_widget(UIContext& ctx) {
     flags.cartographer = player_has_skill(player_, SkillId::Cartographer);
     minimap_.draw(ctx, world_.map(), world_.visibility(),
                   player_.x, player_.y, world_.npcs(), player_, flags);
+}
+
+void Game::render_interactables_widget(UIContext& /*ctx*/) {
+    // Implementation lands in Task 4.
 }
 
 void Game::render_effects_bar() {

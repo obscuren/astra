@@ -55,11 +55,12 @@ enum class GameState {
 
 // Side-panel widgets — multiple can be active simultaneously (bitfield).
 enum class Widget : uint8_t {
-    Messages = 0,
-    Wait     = 1,
-    Minimap  = 2,
+    Messages      = 0,
+    Wait          = 1,
+    Minimap       = 2,
+    Interactables = 3,
 };
-static constexpr int widget_count = 3;
+static constexpr int widget_count = 4;
 static constexpr uint8_t widget_default = (1 << static_cast<uint8_t>(Widget::Messages));
 
 inline bool widget_active(uint8_t mask, Widget w) {
@@ -71,8 +72,8 @@ inline void widget_toggle(uint8_t& mask, Widget w) {
 
 // Configurable toggle keys for each widget (indexed by Widget enum value).
 struct WidgetKeys {
-    int keys[widget_count] = { KEY_F1, KEY_F2, KEY_F3 };
-    const char* labels[widget_count] = { "F1", "F2", "F3" };
+    int keys[widget_count] = { KEY_F1, KEY_F2, KEY_F3, KEY_F4 };
+    const char* labels[widget_count] = { "F1", "F2", "F3", "F4" };
 };
 
 class Game {
@@ -220,6 +221,7 @@ private:
     void render_messages_widget(UIContext& ctx);
     void render_wait_widget(UIContext& ctx);
     void render_minimap_widget(UIContext& ctx);
+    void render_interactables_widget(UIContext& ctx);
     void render_effects_bar();
     void render_abilities_bar();
     void render_welcome_screen();
