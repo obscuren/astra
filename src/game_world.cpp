@@ -43,6 +43,40 @@ std::pair<int, int> find_center_spawn(const TileMap& map) {
 
 } // namespace
 
+// Fallback open-spot picker for maps without defined Rooms (ruins, caves,
+// scar terrain, etc.). Picks a random passable tile that's at least
+// min_dist Chebyshev distance from (avoid_x, avoid_y) and not already
+// occupied. Returns false only if the map is completely dense with no
+// qualifying tile.
+static bool find_open_spot_any(const TileMap& map,
+                               int avoid_x, int avoid_y,
+                               int min_dist,
+                               int& out_x, int& out_y,
+                               const std::vector<std::pair<int,int>>& exclude,
+                               std::mt19937& rng) {
+    std::vector<std::pair<int,int>> candidates;
+    for (int y = 0; y < map.height(); ++y) {
+        for (int x = 0; x < map.width(); ++x) {
+            if (!map.passable(x, y)) continue;
+            if (map.fixture_ids()[y * map.width() + x] >= 0) continue;
+            int d = std::max(std::abs(x - avoid_x), std::abs(y - avoid_y));
+            if (d < min_dist) continue;
+            bool excl = false;
+            for (const auto& [ex, ey] : exclude) {
+                if (x == ex && y == ey) { excl = true; break; }
+            }
+            if (excl) continue;
+            candidates.emplace_back(x, y);
+        }
+    }
+    if (candidates.empty()) return false;
+    std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+    auto [cx, cy] = candidates[dist(rng)];
+    out_x = cx;
+    out_y = cy;
+    return true;
+}
+
 static void place_quest_fixtures(TileMap& map,
                                  QuestLocationMeta& meta,
                                  int avoid_x, int avoid_y,
@@ -53,9 +87,16 @@ static void place_quest_fixtures(TileMap& map,
         if (p.x >= 0 && p.y >= 0) continue;
 
         int fx = 0, fy = 0;
-        if (!map.find_open_spot_other_room(avoid_x, avoid_y, fx, fy, occupied, &rng)) {
-            continue;  // no room; skip (quest may be failed later if still required)
+        // Prefer a different room (stations / room-based dungeons).
+        // Fall back to any passable tile at least 6 Chebyshev from the
+        // player spawn — covers ruins, scar terrain, open caves, etc.
+        bool found = map.find_open_spot_other_room(avoid_x, avoid_y, fx, fy,
+                                                   occupied, &rng);
+        if (!found) {
+            found = find_open_spot_any(map, avoid_x, avoid_y, /*min_dist=*/6,
+                                       fx, fy, occupied, rng);
         }
+        if (!found) continue;
 
         FixtureData fd;
         fd.type = FixtureType::QuestFixture;
