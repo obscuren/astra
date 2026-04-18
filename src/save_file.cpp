@@ -1063,6 +1063,19 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
     for (uint32_t id : data.stellar_signal_echo_ids) w.write_u32(id);
     w.write_u32(data.stellar_signal_beacon_id);
 
+    // v34: world flags (map<string,bool>)
+    w.write_u32(static_cast<uint32_t>(data.world_flags.size()));
+    for (const auto& [k, v] : data.world_flags) {
+        w.write_string(k);
+        w.write_u8(v ? 1 : 0);
+    }
+
+    // v34: ambushed systems (set<uint32_t>)
+    w.write_u32(static_cast<uint32_t>(data.ambushed_systems.size()));
+    for (uint32_t sid : data.ambushed_systems) {
+        w.write_u32(sid);
+    }
+
     w.end_section(pos);
 }
 
@@ -1150,6 +1163,19 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
     if (data.version >= 33) {
         for (auto& id : data.stellar_signal_echo_ids) id = r.read_u32();
         data.stellar_signal_beacon_id = r.read_u32();
+    }
+
+    if (data.version >= 34) {
+        uint32_t flag_count = r.read_u32();
+        for (uint32_t i = 0; i < flag_count; ++i) {
+            std::string k = r.read_string();
+            bool v = r.read_u8() != 0;
+            data.world_flags[k] = v;
+        }
+        uint32_t ambush_count = r.read_u32();
+        for (uint32_t i = 0; i < ambush_count; ++i) {
+            data.ambushed_systems.insert(r.read_u32());
+        }
     }
 }
 

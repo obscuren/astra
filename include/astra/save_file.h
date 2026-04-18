@@ -17,6 +17,8 @@
 #include <filesystem>
 #include <set>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace astra {
@@ -61,7 +63,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 33;   // v33: stellar_signal arc ids on WorldManager
+    uint32_t version = 34;   // v34: world flags + ambushed systems set (stage 4 hostility)
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -97,6 +99,10 @@ struct SaveData {
     // v33: stellar_signal arc ids
     std::array<uint32_t, 3> stellar_signal_echo_ids = {0, 0, 0};
     uint32_t stellar_signal_beacon_id = 0;
+
+    // v34: scenario world flags and per-run ambushed systems set
+    std::unordered_map<std::string, bool> world_flags;
+    std::unordered_set<uint32_t> ambushed_systems;
 
     // v20: world lore
     WorldLore lore;
