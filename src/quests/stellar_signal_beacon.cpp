@@ -5,6 +5,8 @@
 #include "astra/body_presets.h"
 #include "astra/playback_viewer.h"
 #include "astra/world_manager.h"
+#include "astra/scenario_effects.h"
+#include "astra/faction.h"
 
 namespace astra {
 
@@ -149,6 +151,9 @@ public:
                 "",
                 "Not this time.",
             });
+
+        shift_faction_standing(game, Faction_StellariConclave, -300);
+        set_world_flag(game, "stage4_active", true);
     }
 };
 
