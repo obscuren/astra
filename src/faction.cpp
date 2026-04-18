@@ -2,6 +2,7 @@
 #include "astra/faction.h"
 #include "astra/player.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace astra {
@@ -186,6 +187,20 @@ bool is_hostile_to_player(const std::string& npc_faction, const Player& player) 
     if (npc_faction.empty()) return false;
     int rep = reputation_for(player, npc_faction);
     return rep <= hostile_threshold;
+}
+
+int modify_faction_standing(Player& player, const std::string& faction, int delta) {
+    for (auto& fs : player.reputation) {
+        if (fs.faction_name == faction) {
+            fs.reputation = std::clamp(fs.reputation + delta, -1000, 1000);
+            return fs.reputation;
+        }
+    }
+    FactionStanding fs;
+    fs.faction_name = faction;
+    fs.reputation = std::clamp(delta, -1000, 1000);
+    player.reputation.push_back(fs);
+    return fs.reputation;
 }
 
 } // namespace astra

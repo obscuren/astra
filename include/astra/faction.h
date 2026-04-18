@@ -47,6 +47,11 @@ bool is_hostile(const std::string& faction_a, const std::string& faction_b);
 // Uses the player's reputation vector (player->faction standing).
 bool is_hostile_to_player(const std::string& npc_faction, const Player& player);
 
+// Add or subtract from the player's standing with a named faction.
+// If the faction isn't in the reputation vector yet, it is appended.
+// Clamps to [-1000, 1000]. Returns the new standing value.
+int modify_faction_standing(Player& player, const std::string& faction, int delta);
+
 // Return the faction description string (for UI). Empty if unknown.
 const char* faction_description(const std::string& faction);
 
