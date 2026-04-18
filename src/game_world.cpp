@@ -1229,6 +1229,7 @@ void Game::travel_to_destination(const ChartAction& action) {
     switch (action.type) {
         case ChartActionType::WarpToSystem: {
             // Warp puts you on your ship in the new system
+            uint32_t prev_system_id = world_.navigation().current_system_id;
             save_current_location();
             world_.navigation().current_system_id = target_sys.id;
             discover_nearby(world_.navigation(), target_sys.id, 20.0f);
@@ -1263,6 +1264,14 @@ void Game::travel_to_destination(const ChartAction& action) {
             log("Warp drive engaged...");
             log("You arrive at " + colored(target_sys.name, Color::Yellow)
                 + ". Open the star chart to navigate.");
+
+            // Notify scenarios that the player has warped into a new system.
+            // Only emitted here (the real warp boundary) — NOT from save-load
+            // restoration (save_file.cpp) or initial world gen (star_chart.cpp).
+            SystemEnteredEvent ev;
+            ev.system_id = world_.navigation().current_system_id;
+            ev.previous_system_id = prev_system_id;
+            event_bus().emit(*this, ev);
             return;
         }
         case ChartActionType::TravelToStation: {
