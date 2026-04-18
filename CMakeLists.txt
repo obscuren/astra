@@ -114,6 +114,7 @@ set(ASTRA_SOURCES
     src/character_creation.cpp
     src/effect.cpp
     src/event_bus.cpp
+    src/scenario_effects.cpp
     src/scenarios/stage4_hostility.cpp
     src/faction.cpp
     src/ship.cpp
