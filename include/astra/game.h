@@ -17,6 +17,7 @@
 #include "astra/combat_system.h"
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
+#include "astra/event_bus.h"
 #include "astra/help_screen.h"
 #include "astra/save_system.h"
 #include "astra/input_manager.h"
@@ -122,6 +123,8 @@ public:
     CombatSystem& combat() { return combat_; }
     QuestManager& quests() { return quest_manager_; }
     AnimationManager& animations() { return animations_; }
+    EventBus& event_bus() { return event_bus_; }
+    const EventBus& event_bus() const { return event_bus_; }
     void auto_step();
     bool auto_walk_should_stop() const;
     std::pair<int,int> bfs_explore_goal() const;
@@ -321,6 +324,9 @@ private:
     void check_regain_bearings();
     int get_lost_chance(Tile terrain) const;    // % chance per overworld move
     int regain_chance() const;                  // % chance per detail move, ramps with lost_moves_
+
+    // Event bus — scenarios subscribe to gameplay events here.
+    EventBus event_bus_;
 
     // Dialogs
     DialogManager dialog_;

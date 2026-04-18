@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/boot_sequence.h"
+#include "astra/scenarios.h"
 #include "astra/faction.h"
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
@@ -870,6 +871,9 @@ void Game::new_game() {
 
     apply_passive_skill_effects();
     state_ = GameState::Playing;
+
+    event_bus_.clear();
+    register_all_scenarios(*this);
 }
 
 void Game::new_game(const CreationResult& cr) {
@@ -1118,6 +1122,9 @@ void Game::new_game(const CreationResult& cr) {
 
     apply_passive_skill_effects();
     state_ = GameState::Playing;
+
+    event_bus_.clear();
+    register_all_scenarios(*this);
 }
 
 
@@ -1171,6 +1178,9 @@ void Game::post_load() {
     recompute_fov();
     compute_camera();
     state_ = GameState::Playing;
+
+    event_bus_.clear();
+    register_all_scenarios(*this);
 }
 
 void Game::apply_passive_skill_effects() {
