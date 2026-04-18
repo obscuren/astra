@@ -15,6 +15,8 @@
 #include <random>
 #include <set>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace astra {
 
@@ -143,6 +145,18 @@ public:
     uint32_t& stellar_signal_beacon_id() { return stellar_signal_beacon_id_; }
     uint32_t stellar_signal_beacon_id() const { return stellar_signal_beacon_id_; }
 
+    // Scenario world flags — string-keyed boolean state flipped by scenarios.
+    // Persisted in the save file. Examples: "stage4_active".
+    bool world_flag(const std::string& name) const;
+    void set_world_flag(const std::string& name, bool value);
+    const std::unordered_map<std::string, bool>& world_flags() const { return world_flags_; }
+    std::unordered_map<std::string, bool>& world_flags() { return world_flags_; }
+
+    // Systems the player has already been ambushed in during current Stage 4 run.
+    // Used so each system spawns its Conclave ambush at most once.
+    const std::unordered_set<uint32_t>& ambushed_systems() const { return ambushed_systems_; }
+    std::unordered_set<uint32_t>& ambushed_systems() { return ambushed_systems_; }
+
     // Collect system IDs that have active quest targets
     std::set<uint32_t> quest_target_system_ids() const {
         std::set<uint32_t> ids;
@@ -197,6 +211,9 @@ private:
     // Arc-specific state
     std::array<uint32_t, 3> stellar_signal_echo_ids_ = {0, 0, 0};
     uint32_t stellar_signal_beacon_id_ = 0;
+    // Scenario state
+    std::unordered_map<std::string, bool> world_flags_;
+    std::unordered_set<uint32_t> ambushed_systems_;
 };
 
 } // namespace astra

@@ -148,6 +148,7 @@ set(ASTRA_SOURCES
     src/dev_console.cpp
     src/boot_sequence.cpp
     src/dice.cpp
+    src/world_manager.cpp
 )
 
 if(WIN32)
