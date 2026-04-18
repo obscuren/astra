@@ -62,6 +62,18 @@
 - [ ] **World-driven random quests** — generate quests from actual world state instead of hardcoded arrays
 - [ ] **Quest failure mechanics** — expiration, consequences, reputation loss
 
+### The Stellar Signal (main arc)
+- [x] **Stage 1 — Static in the Dark** — hook quest, Nova NPC, signal reveal dialog
+- [x] **Stage 2 — Three Echoes** — three-system exploration, receiver drones, per-system Fragment audio logs
+- [x] **Stage 3 — The Beacon** — hidden beacon system, multi-line audio log reveal
+- [x] **Stage 4 infra — EventBus + scenario graph** — in-process typed event bus, effect primitives, scenario registration (2026-04-18, see `docs/plans/scenario_graph_vision.md`)
+- [x] **Stage 4 — Conclave hostility & ambushes** — -300 rep drop on Stage 3 completion, one-shot transmission, per-system Conclave Sentry ambushes
+- [ ] **Stage 4 — Station siege & lockdown** — The Heavens Above under siege, ARIA panicked comms, Observatory access state
+- [ ] **Stage 4 — Conclave Archive (Io)** — multi-level Precursor ruin, Stellari-resonance crystal fixture
+- [ ] **Stage 5 — The Long Way Home** — three branching endings, timed objective, Nova core extraction
+- [ ] **Nova companion NPC** — follower unlocked by Ending C, cross-run persistence
+- [ ] **New Game+ loop** — Ending A cycle-reset, knowledge carryover, meta-unlocks
+
 ### Gameplay
 - [x] **Auto-walk/explore** — `w` + direction = walk straight, `ww` = BFS auto-explore
 - [x] **Space station types** — Normal/Scav/Pirate/Abandoned/Infested with unique per-station keepers and specialty rooms (see docs/superpowers/specs/2026-04-13-space-station-types-design.md)

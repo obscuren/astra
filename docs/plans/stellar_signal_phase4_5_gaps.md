@@ -96,20 +96,16 @@ Binary save/load for player, world lore, quests, NPC state. No meta-layer for NG
 ### **Feature: Faction ambush events at jump points**
 
 **Stage:** 4
-**Status:** Missing
-**What's needed:** When player warps to any system after Stage 3 completes and Conclave reputation drops below -300, intercept warp entry with a transmission event + forced combat encounter (1–3 Conclave Sentries, scales with player level). Requires event scheduling on system-enter and faction-gated spawn logic.
-**Touch points:** `src/game_world.cpp` (system entry hook), `src/npc_spawner.cpp`, `src/quests/stellar_signal_echoes.cpp` (on Stage 3 complete, drop Conclave rep -300 and mark stage4_started flag)
-**Risk/Complexity:** M — faction lookup + conditional spawn is straightforward; warp-entry hook is new.
+**Status:** ✅ Done (2026-04-18, branch `feat/stage4-event-bus`)
+**What shipped:** Implemented via the new EventBus (`include/astra/event_bus.h`) with a single `stage4_hostility` scenario in `src/scenarios/stage4_hostility.cpp`. Beacon quest completion drops Stellari Conclave standing by -300 and sets `stage4_active` world flag; `SystemEntered` event fires from `Game::travel_to_destination`; the scenario injects 1–3 Conclave Sentries (scaled by player level) via `inject_location_encounter`, with per-system dedup through `WorldManager::ambushed_systems_`.
+**Touch points shipped:** `include/astra/event_bus.h`, `src/event_bus.cpp`, `include/astra/scenarios.h`, `src/scenarios/stage4_hostility.cpp`, `include/astra/scenario_effects.h`, `src/scenario_effects.cpp`, `src/quests/stellar_signal_beacon.cpp`, `src/game_world.cpp`, `src/npcs/conclave_sentry.cpp`.
 
 ---
 
 ### **Feature: Incoming transmission UI (comms modal)**
 
 **Stage:** 4
-**Status:** Missing
-**What's needed:** Modal dialog box displaying "[INCOMING TRANSMISSION — STELLARI CONCLAVE]" header + text body, blocks further interaction until dismissed. Should be distinct from normal NPC dialog (no choices, just acknowledgment). Single-line or multi-line text delivery with fade-in pacing optional.
-**Touch points:** `include/astra/ui_types.h`, `src/dialog_manager.cpp`, `src/game_rendering.cpp` (modal rendering stack)
-**Risk/Complexity:** S — repurpose existing dialog modal or add a new ModalMessage type.
+**Status:** ✅ Done (2026-04-18) — reused the existing `PlaybackViewer` `AudioLog` style instead of adding a new modal type. The `open_transmission` effect in `scenario_effects.cpp` wraps it. Upgrade to a dedicated comms modal later if the visual treatment needs to diverge from audio logs.
 
 ---
 
