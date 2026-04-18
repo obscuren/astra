@@ -769,7 +769,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     }
     else if (verb == "spawn") {
         if (args.size() < 2) {
-            log("Usage: spawn <role>  (archon_remnant|void_reaver|archon_sentinel)");
+            log("Usage: spawn <role>  (archon_remnant|void_reaver|archon_sentinel|conclave_sentry)");
             return;
         }
         std::string role_arg = args[1];
@@ -777,9 +777,10 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if      (role_arg == "archon_remnant")  role_name = "Archon Remnant";
         else if (role_arg == "void_reaver")     role_name = "Void Reaver";
         else if (role_arg == "archon_sentinel") role_name = "Archon Sentinel";
+        else if (role_arg == "conclave_sentry") role_name = "Conclave Sentry";
         else {
             log("spawn: unknown role '" + role_arg +
-                "' (archon_remnant|void_reaver|archon_sentinel)");
+                "' (archon_remnant|void_reaver|archon_sentinel|conclave_sentry)");
             return;
         }
 

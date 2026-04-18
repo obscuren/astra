@@ -30,6 +30,7 @@ enum class NpcRole : uint8_t {
     ArchonRemnant,
     VoidReaver,
     ArchonSentinel,
+    ConclaveSentry,
 };
 
 struct Npc {

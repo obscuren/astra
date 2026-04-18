@@ -20,6 +20,7 @@ set(ASTRA_SOURCES
     src/npc.cpp
     src/npcs/archon_remnant.cpp
     src/npcs/archon_sentinel.cpp
+    src/npcs/conclave_sentry.cpp
     src/npcs/station_keeper.cpp
     src/npcs/merchant.cpp
     src/npcs/drifter.cpp
