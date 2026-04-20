@@ -563,6 +563,34 @@ void DialogManager::show_tutorial_followup() {
     dialog_node_ = -12; // sentinel: tutorial followup -- opens datapad on dismiss
 }
 
+void DialogManager::show_auto_accept(Game& /*game*/, const Quest& q) {
+    std::string header = "New Mission";
+    if (!q.arc_id.empty()) {
+        StoryQuest* sq = find_story_quest(q.id);
+        std::string arc = sq ? sq->arc_title() : std::string{};
+        if (!arc.empty()) header += " — " + arc;
+        else               header += " — " + q.title;
+    } else {
+        header += " — " + q.title;
+    }
+
+    reset_content(header, 0.45f);
+    interacting_npc_ = nullptr;
+    dialog_tree_ = nullptr;
+    dialog_node_ = -1;
+    detail_offer_quest_id_.clear();
+    pending_story_offers_.clear();
+    interact_options_.clear();
+
+    body_ = format_quest_body(q);
+
+    add_option('a', "Accept");
+    interact_options_.push_back(InteractOption::AutoAcceptAck);
+
+    footer_ = "[Space] Accept";
+    open_ = true;
+}
+
 // ---------------------------------------------------------------------------
 // Open NPC dialog
 // ---------------------------------------------------------------------------
@@ -935,6 +963,14 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         return;
     }
 
+    // Auto-accept quest popup: no NPC interaction, Space/Enter just dismisses.
+    if (selected >= 0 && selected < static_cast<int>(interact_options_.size())
+     && interact_options_[selected] == InteractOption::AutoAcceptAck) {
+        open_ = false;
+        interact_options_.clear();
+        return;
+    }
+
     if (!interacting_npc_) return;
 
     // Currently navigating a dialog tree
@@ -1175,6 +1211,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             else open_ = false;
             return;
         }
+        case InteractOption::AutoAcceptAck:
+            // Handled above the NPC-required guard; unreachable here.
+            return;
         case InteractOption::QuestTurnIn: {
             // Find the completable quest from this NPC and turn it in
             std::string turn_in_id;

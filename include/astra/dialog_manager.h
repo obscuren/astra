@@ -11,6 +11,7 @@
 namespace astra {
 
 class Game; // forward declare
+struct Quest;
 
 class DialogManager {
 public:
@@ -29,6 +30,11 @@ public:
     // Tutorial choice dialog
     void show_tutorial_choice(Game& game);
     void show_tutorial_followup();
+
+    // Announce an auto-accepted quest. Shows the quest info panel with a
+    // single [a] Accept option. The quest is already in the active pool
+    // when this is called; Accept just dismisses.
+    void show_auto_accept(Game& game, const Quest& quest);
 
     // Input — returns true if consumed. Handles Tab (trade), l (look), etc.
     bool handle_input(int key, Game& game);
@@ -66,6 +72,7 @@ private:
     enum class InteractOption : uint8_t {
         Talk, Shop, Quest, QuestTurnIn,
         StoryQuestOffer, StoryQuestAccept, StoryQuestDecline,
+        AutoAcceptAck,
         // Nova Stage 1 "Static in the Dark" turn-in flow:
         //   NovaHookEntry opens Nova's monologue + 3 response choices.
         //   NovaHookCare / Skeptic / Action show her reaction + "I'll go."
