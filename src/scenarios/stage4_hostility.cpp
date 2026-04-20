@@ -5,6 +5,7 @@
 #include "astra/game.h"
 #include "astra/player.h"
 #include "astra/scenario_effects.h"
+#include "astra/star_chart.h"
 #include "astra/world_manager.h"
 
 #include <string>
@@ -44,6 +45,15 @@ void register_stage4_hostility_scenario(Game& game) {
                     });
                 set_world_flag(g, kTransmissionSeen, true);
             }
+
+            // Ambushes only in Conclave-controlled space.
+            const auto& nav = world.navigation();
+            const StarSystem* sys = nullptr;
+            for (const auto& s : nav.systems) {
+                if (s.id == payload.system_id) { sys = &s; break; }
+            }
+            if (!sys) return;
+            if (sys->controlling_faction != Faction_StellariConclave) return;
 
             // Queue an ambush in the system's overworld / inbound location.
             int level = g.player().level;
