@@ -1,4 +1,6 @@
 #include "astra/quest.h"
+#include "astra/game.h"
+#include "astra/world_manager.h"
 
 #include <memory>
 #include <string>
@@ -42,6 +44,17 @@ public:
     }
     RevealPolicy reveal_policy() const override   { return RevealPolicy::Full; }
     OfferMode    offer_mode()    const override   { return OfferMode::Auto; }
+
+    void on_accepted(Game& game) override {
+        // Sol = 1, Jupiter body index = 5 (THA's host).
+        LocationKey k{1, 5, -1, false, -1, -1, 0};
+        QuestLocationMeta meta;
+        meta.quest_id = QUEST_ID_RETURN;
+        meta.quest_title = "Return to the Heavens Above";
+        meta.target_system_id = 1;
+        meta.target_body_index = 5;
+        game.world().quest_locations()[k] = std::move(meta);
+    }
 };
 
 void register_stellar_signal_return(std::vector<std::unique_ptr<StoryQuest>>& catalog) {

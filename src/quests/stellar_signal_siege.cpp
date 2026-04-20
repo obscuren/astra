@@ -1,6 +1,7 @@
 #include "astra/quest.h"
 #include "astra/game.h"
 #include "astra/scenario_effects.h"
+#include "astra/world_manager.h"
 
 #include <memory>
 #include <string>
@@ -60,6 +61,16 @@ public:
     OfferMode    offer_mode()    const override { return OfferMode::Auto; }
 
     void on_accepted(Game& game) override {
+        // Star chart marker: Sol = 1, Jupiter body = 5, Io moon = 0.
+        LocationKey k{1, 5, 0, false, -1, -1, 0};
+        QuestLocationMeta meta;
+        meta.quest_id = QUEST_ID_SIEGE;
+        meta.quest_title = "They Came For Her";
+        meta.target_system_id = 1;
+        meta.target_body_index = 5;
+        meta.target_moon_index = 0;
+        game.world().quest_locations()[k] = std::move(meta);
+
         // ARIA panics over ship comms the moment Nova's message lands.
         // The player sees this transmission first; the cascade in
         // QuestManager pushes this quest onto pending_announcements_

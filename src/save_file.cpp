@@ -1040,6 +1040,7 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
         w.write_u8(meta.remove_on_completion ? 1 : 0);
         w.write_u32(meta.target_system_id);
         w.write_i32(meta.target_body_index);
+        w.write_i32(meta.target_moon_index);  // v35
 
         // v30: quest fixtures
         w.write_u32(static_cast<uint32_t>(meta.fixtures.size()));
@@ -1132,6 +1133,9 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
         meta.remove_on_completion = r.read_u8() != 0;
         meta.target_system_id = r.read_u32();
         meta.target_body_index = r.read_i32();
+        if (data.version >= 35) {
+            meta.target_moon_index = r.read_i32();
+        }
 
         if (data.version >= 30) {
             uint32_t fc = r.read_u32();

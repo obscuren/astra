@@ -849,7 +849,7 @@ void Game::new_game() {
     assign_system_factions(world_.navigation(), world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_, &quest_manager_);
 #ifdef ASTRA_DEV_MODE
     star_chart_viewer_.set_dev_mode(dev_mode_);
 #endif
@@ -1105,7 +1105,7 @@ void Game::new_game(const CreationResult& cr) {
     assign_system_factions(world_.navigation(), world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_, &quest_manager_);
 #ifdef ASTRA_DEV_MODE
     star_chart_viewer_.set_dev_mode(dev_mode_);
 #endif
@@ -1159,7 +1159,7 @@ void Game::open_repair_bench() {
 }
 
 void Game::rebuild_star_chart_viewer() {
-    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_, &quest_manager_);
 #ifdef ASTRA_DEV_MODE
     star_chart_viewer_.set_dev_mode(dev_mode_);
 #endif

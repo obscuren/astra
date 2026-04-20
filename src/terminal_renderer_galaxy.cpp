@@ -56,12 +56,6 @@ static bool is_lore_system(const GalaxyMapDesc& desc, uint32_t sys_id) {
     return false;
 }
 
-static bool is_quest_body(const GalaxyMapDesc& desc, int body_index) {
-    for (const auto& qt : desc.quest_body_targets)
-        if (qt.body_index == body_index) return true;
-    return false;
-}
-
 #ifdef ASTRA_DEV_MODE
 // ---------------------------------------------------------------------------
 // Dev helpers — station-type overlay
@@ -547,11 +541,26 @@ static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
                 }
             }
 
-            // --- Quest target marker above body ---
-            if (is_quest_body(desc, i)) {
-                int qy = cy - 2;
-                if (qy >= 0 && qy < mh)
-                    ctx.put(bx, qy, '!', Color::BrightYellow);
+            // --- Quest target marker (body-level entries only) ---
+            // If this body hosts the station, the marker represents the
+            // station itself (that's where every station-targeted quest
+            // visually terminates) — so draw it next to the station glyph
+            // rather than stacked below it on the orbital connector.
+            // Drawn last so it wins over any cursor bracket or the ':'
+            // connector line that shares its cell.
+            for (const auto& qt : desc.quest_body_targets) {
+                if (qt.body_index != i) continue;
+                if (qt.moon_index >= 0) continue;
+                if (i == station_host) {
+                    int st_y = cy - 3;
+                    if (st_y >= 0 && bx + 1 < mw)
+                        ctx.put(bx + 1, st_y, '!', Color::BrightYellow);
+                } else {
+                    int qy = cy - 2;
+                    if (qy >= 0 && qy < mh)
+                        ctx.put(bx, qy, '!', Color::BrightYellow);
+                }
+                break;
             }
 
             // --- Orbital track dot ---
@@ -592,6 +601,18 @@ static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
                         if (bx < mw - 1) ctx.put(bx + 1, row, ']', Color::White);
                     } else {
                         ctx.put(bx, row, '*', Color::DarkGray);
+                    }
+
+                    // Quest marker for this moon. Drawn last so it wins
+                    // over the cursor's ']' bracket when the moon is
+                    // selected — the marker should stay visible in both
+                    // states.
+                    for (const auto& qt : desc.quest_body_targets) {
+                        if (qt.body_index != i) continue;
+                        if (qt.moon_index != m) continue;
+                        if (bx + 1 < mw && row < mh)
+                            ctx.put(bx + 1, row, '!', Color::BrightYellow);
+                        break;
                     }
 
                     std::string mlabel = (m < static_cast<int>(body.moon_names.size()))
@@ -635,6 +656,15 @@ static void render_system_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
                     int mlx = sel_bx + 2;
                     if (mlx - 1 >= 0 && mlx + static_cast<int>(padded.size()) - 1 < mw) {
                         ctx.text(mlx - 1, moon_row, padded, Color::White);
+                    }
+                    // Re-draw the quest marker if this moon has one —
+                    // the padded label just wrote a space over it.
+                    for (const auto& qt : desc.quest_body_targets) {
+                        if (qt.body_index != desc.body_cursor) continue;
+                        if (qt.moon_index != m) continue;
+                        if (sel_bx + 1 < mw)
+                            ctx.put(sel_bx + 1, moon_row, '!', Color::BrightYellow);
+                        break;
                     }
                 }
             }

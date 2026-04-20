@@ -63,7 +63,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 34;   // v34: world flags + ambushed systems set (stage 4 hostility)
+    uint32_t version = 35;   // v35: QuestLocationMeta.target_moon_index
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;

@@ -25,6 +25,7 @@ struct GVArmLabel {
 struct GVBodyQuest {
     int body_index;
     std::string title;
+    int moon_index = -1;  // -1 = marker on body; >=0 = marker on this moon
 };
 
 // Describes the galaxy map visualization — just the star field / orbital diagram.

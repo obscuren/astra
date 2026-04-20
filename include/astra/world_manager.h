@@ -51,6 +51,7 @@ struct QuestLocationMeta {
     bool remove_on_completion = false;     // clean up after quest done
     uint32_t target_system_id = 0;         // star chart marker: system
     int target_body_index = -1;            // star chart marker: body
+    int target_moon_index = -1;            // star chart marker: moon (-1 = body)
 };
 
 enum class SurfaceMode : uint8_t {

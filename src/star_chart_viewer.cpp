@@ -3,12 +3,14 @@
 #include "astra/celestial_body.h"
 #include "astra/galaxy_map_desc.h"
 #include "astra/poi_budget.h"
+#include "astra/quest.h"
 #include "astra/ui_types.h"
 #include "astra/world_manager.h"
 
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <unordered_set>
 
 namespace astra {
 
@@ -27,8 +29,9 @@ static const GVArmLabel arm_labels[] = {
 // Construction / open / close
 // ---------------------------------------------------------------------------
 
-StarChartViewer::StarChartViewer(NavigationData* nav, Renderer* renderer, WorldManager* world)
-    : nav_(nav), renderer_(renderer), world_(world) {}
+StarChartViewer::StarChartViewer(NavigationData* nav, Renderer* renderer,
+                                 WorldManager* world, const QuestManager* quests)
+    : nav_(nav), renderer_(renderer), world_(world), quests_(quests) {}
 
 void StarChartViewer::open() {
     open_ = true;
@@ -651,19 +654,52 @@ GalaxyMapDesc StarChartViewer::build_map_desc() const {
     desc.body_cursor = body_cursor_;
     desc.sub_cursor = sub_cursor_;
 
-    // Quest markers
+    // Quest markers — filter by active quest status so completed quests
+    // stop painting markers on the chart.
     if (world_) {
-        auto ids = world_->quest_target_system_ids();
-        desc.quest_system_ids.assign(ids.begin(), ids.end());
+        if (quests_) {
+            std::unordered_set<std::string> active_ids;
+            for (const auto& q : quests_->active_quests()) {
+                active_ids.insert(q.id);
+            }
 
-        if (zoom_ == ChartZoom::System && cursor_index_ >= 0 &&
-            cursor_index_ < static_cast<int>(nav_->systems.size())) {
-            const auto& sys = nav_->systems[cursor_index_];
-            for (int bi = 0; bi < static_cast<int>(sys.bodies.size()); ++bi) {
-                if (world_->is_quest_target_body(sys.id, bi)) {
+            std::set<uint32_t> sys_ids;
+            uint32_t cursor_sys_id = 0;
+            if (zoom_ == ChartZoom::System && cursor_index_ >= 0 &&
+                cursor_index_ < static_cast<int>(nav_->systems.size())) {
+                cursor_sys_id = nav_->systems[cursor_index_].id;
+            }
+
+            for (const auto& [key, meta] : world_->quest_locations()) {
+                if (!active_ids.contains(meta.quest_id)) continue;
+                if (meta.target_system_id != 0) {
+                    sys_ids.insert(meta.target_system_id);
+                }
+                if (cursor_sys_id != 0 &&
+                    meta.target_system_id == cursor_sys_id &&
+                    meta.target_body_index >= 0) {
                     desc.quest_body_targets.push_back({
-                        bi, world_->quest_title_for_body(sys.id, bi)
+                        meta.target_body_index,
+                        meta.quest_title,
+                        meta.target_moon_index,
                     });
+                }
+            }
+            desc.quest_system_ids.assign(sys_ids.begin(), sys_ids.end());
+        } else {
+            // Fallback: unfiltered (tests / partial wiring)
+            auto ids = world_->quest_target_system_ids();
+            desc.quest_system_ids.assign(ids.begin(), ids.end());
+
+            if (zoom_ == ChartZoom::System && cursor_index_ >= 0 &&
+                cursor_index_ < static_cast<int>(nav_->systems.size())) {
+                const auto& sys = nav_->systems[cursor_index_];
+                for (int bi = 0; bi < static_cast<int>(sys.bodies.size()); ++bi) {
+                    if (world_->is_quest_target_body(sys.id, bi)) {
+                        desc.quest_body_targets.push_back({
+                            bi, world_->quest_title_for_body(sys.id, bi), -1
+                        });
+                    }
                 }
             }
         }
