@@ -818,6 +818,12 @@ void StarChartViewer::draw_info_panel(UIContext& ctx) {
                 ctx.text(2, y, "Station", Color::DarkGray);
                 ctx.text(10, y++, slabel, sc);
             }
+            ctx.text(2, y, "Faction", Color::DarkGray);
+            if (!sys.controlling_faction.empty()) {
+                ctx.text(10, y++, sys.controlling_faction, Color::White);
+            } else {
+                ctx.text(10, y++, "Unclaimed space", Color::DarkGray);
+            }
             y++;
 
             // Selected item details — body/moon/station
@@ -916,6 +922,13 @@ void StarChartViewer::draw_system_info_text(UIContext& ctx, const StarSystem& sy
             ctx.text(10, y++, dist_str, Color::White);
             break;
         }
+    }
+
+    ctx.text(2, y, "Faction", Color::DarkGray);
+    if (!sys.controlling_faction.empty()) {
+        ctx.text(10, y++, sys.controlling_faction, Color::White);
+    } else {
+        ctx.text(10, y++, "Unclaimed space", Color::DarkGray);
     }
 
     if (sys.lore.has_megastructure) {
