@@ -102,6 +102,14 @@ Binary save/load for player, world lore, quests, NPC state. No meta-layer for NG
 
 ---
 
+### **Feature: Faction-space gating for Stage 4 ambushes**
+
+**Stage:** 4
+**Status:** ✅ Done (2026-04-20) — `controlling_faction` field on `StarSystem`, deterministic clustered assignment from galaxy seed around procedurally-placed capitals (Sol pinned to Terran), galaxy chart renders territorial bands, Stage 4 scenario filters ambushes to Conclave-owned systems.
+**Touch points shipped:** `include/astra/faction_map.h`, `include/astra/faction_territory.h`, `src/generators/faction_territory.cpp`, `include/astra/star_chart.h`, `src/star_chart_viewer.cpp`, `src/scenarios/stage4_hostility.cpp`, `src/quests/stellar_signal_beacon.cpp`.
+
+---
+
 ### **Feature: Incoming transmission UI (comms modal)**
 
 **Stage:** 4

@@ -68,6 +68,7 @@
 - [x] **Stage 3 — The Beacon** — hidden beacon system, multi-line audio log reveal
 - [x] **Stage 4 infra — EventBus + scenario graph** — in-process typed event bus, effect primitives, scenario registration (2026-04-18, see `docs/plans/scenario_graph_vision.md`)
 - [x] **Stage 4 — Conclave hostility & ambushes** — -300 rep drop on Stage 3 completion, one-shot transmission, per-system Conclave Sentry ambushes
+- [x] **System faction ownership** — controlling_faction per system, deterministic clustered generation, galaxy-view band rendering with `F` toggle, Stage 4 ambushes gated to Conclave space (2026-04-20)
 - [ ] **Stage 4 — Station siege & lockdown** — The Heavens Above under siege, ARIA panicked comms, Observatory access state
 - [ ] **Stage 4 — Conclave Archive (Io)** — multi-level Precursor ruin, Stellari-resonance crystal fixture
 - [ ] **Stage 5 — The Long Way Home** — three branching endings, timed objective, Nova core extraction
