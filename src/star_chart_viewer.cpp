@@ -227,18 +227,25 @@ bool StarChartViewer::handle_input(int key) {
                         scan_message_timer_ = 90;
                         break;
                     }
-                    // Check warp range
-                    const StarSystem* current_sys = nullptr;
-                    for (const auto& s : nav_->systems) {
-                        if (s.id == nav_->current_system_id) { current_sys = &s; break; }
-                    }
-                    if (current_sys) {
-                        float dist = system_distance(*current_sys, target);
-                        float max_range = static_cast<float>(nav_->navi_range) * 20.0f;
-                        if (dist > max_range) {
-                            scan_message_ = "Out of warp range.";
-                            scan_message_timer_ = 90;
-                            break;
+                    // Check warp range (dev mode bypasses — infinite range).
+#ifdef ASTRA_DEV_MODE
+                    const bool bypass_range = dev_mode_;
+#else
+                    const bool bypass_range = false;
+#endif
+                    if (!bypass_range) {
+                        const StarSystem* current_sys = nullptr;
+                        for (const auto& s : nav_->systems) {
+                            if (s.id == nav_->current_system_id) { current_sys = &s; break; }
+                        }
+                        if (current_sys) {
+                            float dist = system_distance(*current_sys, target);
+                            float max_range = static_cast<float>(nav_->navi_range) * 20.0f;
+                            if (dist > max_range) {
+                                scan_message_ = "Out of warp range.";
+                                scan_message_timer_ = 90;
+                                break;
+                            }
                         }
                     }
                     if (view_only_) {
