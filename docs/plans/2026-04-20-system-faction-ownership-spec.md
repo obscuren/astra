@@ -69,7 +69,7 @@ namespace astra {
 // Compute faction territory for every system in the navigation state.
 // Idempotent: may be called multiple times; later calls overwrite.
 // Deterministic for a given galaxy_seed.
-void assign_system_factions(NavigationState& nav, uint64_t galaxy_seed);
+void assign_system_factions(NavigationData& nav, uint64_t galaxy_seed);
 
 // Cheap accessor, reads the field directly.
 inline const std::string& controlling_faction(const StarSystem& s) {
@@ -84,7 +84,7 @@ inline bool is_unclaimed(const StarSystem& s) {
 // Returns the faction that controls the galaxy-space coord (gx, gy), regardless
 // of whether a StarSystem exists there. Used by the renderer to tint empty
 // space between stars. Implemented via a precomputed grid for speed.
-std::string faction_at_coord(const NavigationState& nav, float gx, float gy);
+std::string faction_at_coord(const NavigationData& nav, float gx, float gy);
 
 } // namespace astra
 ```
@@ -165,7 +165,7 @@ Exact palette indexes are tuning targets; adjust during implementation if any re
 
 A naive "compute nearest capital per cell per frame" is expensive (capitals count is small — 7 — but the galaxy view has thousands of cells and redraws on interaction).
 
-**Implementation:** pre-build a `FactionMap` owned by `NavigationState` (new field alongside `systems`) during `assign_system_factions`. It's a 2D `std::vector<uint8_t>` sized to the galaxy-view grid, each cell holding a small faction enum index (0=Unclaimed, 1=Conclave, 2=Terran, 3=Kreth, 4=Veldrani). `faction_at_coord(nav, gx, gy)` does one O(1) lookup on the grid. Rebuild only when galaxy is (re)generated. Like `controlling_faction`, the map itself is not serialized — regenerated on load alongside faction assignment.
+**Implementation:** pre-build a `FactionMap` owned by `NavigationData` (new field alongside `systems`) during `assign_system_factions`. It's a 2D `std::vector<uint8_t>` sized to the galaxy-view grid, each cell holding a small faction enum index (0=Unclaimed, 1=Conclave, 2=Terran, 3=Kreth, 4=Veldrani). `faction_at_coord(nav, gx, gy)` does one O(1) lookup on the grid. Rebuild only when galaxy is (re)generated. Like `controlling_faction`, the map itself is not serialized — regenerated on load alongside faction assignment.
 
 Size bound: galaxy view is on the order of 200×200 cells → 40 KB for a byte-per-cell lookup. Trivial.
 
@@ -222,7 +222,7 @@ Narrative consequence: the player gets the transmission immediately after Stage 
 
 **None.** `controlling_faction` is not serialized. On save load:
 
-1. Existing `galaxy_seed` is restored from save file (already persisted via `NavigationState`).
+1. Existing `galaxy_seed` is restored from save file (already persisted via `NavigationData`).
 2. All `StarSystem` entries are deserialized with `controlling_faction = ""` (not in save file).
 3. After load, `assign_system_factions(nav, galaxy_seed)` is called to fill the field.
 
