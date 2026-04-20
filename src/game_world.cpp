@@ -1449,6 +1449,16 @@ void Game::travel_to_destination(const ChartAction& action) {
 
         // Notify quest system of arrival at this body
         quest_manager_.on_location_entered(location_name);
+
+        // Drain location-driven completions.
+        for (;;) {
+            std::string id;
+            for (const auto& aq : quest_manager_.active_quests()) {
+                if (aq.all_objectives_complete()) { id = aq.id; break; }
+            }
+            if (id.empty()) break;
+            quest_manager_.complete_quest(id, *this, world_.world_tick());
+        }
         return;
     }
 
@@ -1647,6 +1657,23 @@ void Game::travel_to_destination(const ChartAction& action) {
     compute_camera();
     check_region_change();
     log("You dock at " + colored(location_name, Color::Cyan) + ".");
+
+    // Notify quest system of arrival at this station (symmetric with
+    // TravelToBody above).
+    quest_manager_.on_location_entered(location_name);
+
+    // Drain location-driven completions. Any active quest whose every
+    // objective is now complete finishes here; quests with a trailing
+    // TalkToNpc turn-in are not affected because their final objective
+    // still requires an NPC interaction.
+    for (;;) {
+        std::string id;
+        for (const auto& aq : quest_manager_.active_quests()) {
+            if (aq.all_objectives_complete()) { id = aq.id; break; }
+        }
+        if (id.empty()) break;
+        quest_manager_.complete_quest(id, *this, world_.world_tick());
+    }
 }
 
 
