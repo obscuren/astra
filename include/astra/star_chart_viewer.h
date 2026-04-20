@@ -84,6 +84,13 @@ private:
 
     bool show_faction_tint_ = true;  // session-local; default on
 
+    // Cached galaxy-zoom cell size in galaxy units — written every render from
+    // the actual map-area width so pan steps match the renderer's grid exactly
+    // (full renderer width and map-area width differ because of the info panel
+    // + padding). Conservative defaults until the first draw.
+    mutable float galaxy_cell_w_ = 5.0f;
+    mutable float galaxy_cell_h_ = 10.0f;
+
 #ifdef ASTRA_DEV_MODE
     // Dev overlay: runtime dev-mode flag + station-type toggle
     bool dev_mode_ = false;

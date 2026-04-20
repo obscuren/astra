@@ -123,11 +123,13 @@ bool StarChartViewer::handle_input(int key) {
 
     switch (zoom_) {
         case ChartZoom::Galaxy: {
+            // Per-cell navigation: step exactly one renderer cell (cached from
+            // the most recent draw, which knows the real map-area width).
             switch (key) {
-                case KEY_UP:    view_cy_ -= 15.0f; return true;
-                case KEY_DOWN:  view_cy_ += 15.0f; return true;
-                case KEY_LEFT:  view_cx_ -= 15.0f; return true;
-                case KEY_RIGHT: view_cx_ += 15.0f; return true;
+                case KEY_UP:    view_cy_ -= galaxy_cell_h_; return true;
+                case KEY_DOWN:  view_cy_ += galaxy_cell_h_; return true;
+                case KEY_LEFT:  view_cx_ -= galaxy_cell_w_; return true;
+                case KEY_RIGHT: view_cx_ += galaxy_cell_w_; return true;
                 case '+': case '=': case '\n': case '\r':
                     zoom_ = ChartZoom::Region;
                     cursor_index_ = find_nearest_system(view_cx_, view_cy_);
@@ -548,6 +550,13 @@ void StarChartViewer::draw(int screen_w, int screen_h) {
     auto cols = content.columns({fill(), fixed(info_width)});
     auto& map_area = cols[0];
     auto& info = cols[1];
+
+    // Cache galaxy cell size so input-handler pan steps match the renderer's
+    // grid (which uses map_area.width(), not the full renderer width).
+    if (zoom_ == ChartZoom::Galaxy && map_area.width() > 0) {
+        galaxy_cell_w_ = kGalaxyViewWidthGu / static_cast<float>(map_area.width());
+        galaxy_cell_h_ = 2.0f * galaxy_cell_w_;
+    }
 
     // Layer 1: galaxy map primitive
     map_area.galaxy_map(build_map_desc());

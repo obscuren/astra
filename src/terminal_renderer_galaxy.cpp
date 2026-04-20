@@ -50,11 +50,11 @@ static FactionTerritory faction_at(const FactionMap& m, float gx, float gy) {
 // ---------------------------------------------------------------------------
 
 static int to_screen_x(float gx, float view_left, float view_width, int sw) {
-    return static_cast<int>((gx - view_left) / view_width * static_cast<float>(sw));
+    return static_cast<int>(std::floor((gx - view_left) / view_width * static_cast<float>(sw)));
 }
 
 static int to_screen_y(float gy, float view_top, float view_height, int sh) {
-    return static_cast<int>((gy - view_top) / view_height * static_cast<float>(sh));
+    return static_cast<int>(std::floor((gy - view_top) / view_height * static_cast<float>(sh)));
 }
 
 // ---------------------------------------------------------------------------
@@ -131,10 +131,26 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     int mh = ctx.height();
     if (mw <= 0 || mh <= 0) return;
 
-    float view_w = 440.0f;
+    float view_w = kGalaxyViewWidthGu;
     float view_h = view_w * (static_cast<float>(mh) / static_cast<float>(mw)) * 2.0f;
-    float view_left = desc.view_cx - view_w / 2.0f;
-    float view_top = desc.view_cy - view_h / 2.0f;
+
+    // Express the viewport origin in CELL units (integer), not galaxy units.
+    // This makes the star projection `sx = floor(gx/cell_w) - k_x` drift-free
+    // regardless of how many pans have accumulated.
+    const double cell_w_d = static_cast<double>(view_w) / static_cast<double>(mw);
+    const double cell_h_d = static_cast<double>(view_h) / static_cast<double>(mh);
+    const double k_x = std::floor((static_cast<double>(desc.view_cx) - view_w / 2.0) / cell_w_d);
+    const double k_y = std::floor((static_cast<double>(desc.view_cy) - view_h / 2.0) / cell_h_d);
+    float view_left = static_cast<float>(k_x * cell_w_d);
+    float view_top  = static_cast<float>(k_y * cell_h_d);
+
+    // Local, drift-free projection: screen_cell = floor(gx/cell_w) - k_x.
+    auto galaxy_to_sx = [&](float gx) {
+        return static_cast<int>(std::floor(static_cast<double>(gx) / cell_w_d - k_x));
+    };
+    auto galaxy_to_sy = [&](float gy) {
+        return static_cast<int>(std::floor(static_cast<double>(gy) / cell_h_d - k_y));
+    };
 
     // --- Faction-territory tint ---------------------------------------------
     // Build a per-cell bg table once, then use it for both the background
@@ -164,8 +180,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     // Draw all systems (pass tint bg so we don't clobber the background pass)
     for (size_t i = 0; i < desc.systems.size(); ++i) {
         const auto& sys = desc.systems[i];
-        int sx = to_screen_x(sys.gx, view_left, view_w, mw);
-        int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+        int sx = galaxy_to_sx(sys.gx);
+        int sy = galaxy_to_sy(sys.gy);
         if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
 
         Color bg = bg_at(sx, sy);
@@ -188,8 +204,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     // Quest target markers
     for (const auto& sys : desc.systems) {
         if (!is_quest_system(desc, sys.id)) continue;
-        int sx = to_screen_x(sys.gx, view_left, view_w, mw);
-        int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+        int sx = galaxy_to_sx(sys.gx);
+        int sy = galaxy_to_sy(sys.gy);
         if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
         if (sx + 1 < mw) ctx.put(sx + 1, sy, '!', Color::BrightYellow, bg_at(sx + 1, sy));
     }
@@ -197,8 +213,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     // Lore markers — significant historical sites
     for (const auto& sys : desc.systems) {
         if (!is_lore_system(desc, sys.id)) continue;
-        int sx = to_screen_x(sys.gx, view_left, view_w, mw);
-        int sy = to_screen_y(sys.gy, view_top, view_h, mh);
+        int sx = galaxy_to_sx(sys.gx);
+        int sy = galaxy_to_sy(sys.gy);
         if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
         // Tier 3: bright cyan star, Tier 2: dim cyan dot
         Color c = (sys.lore.lore_tier >= 3) ? Color::Cyan : Color::DarkGray;
@@ -210,8 +226,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     if (desc.highlight_system_index >= 0 &&
         desc.highlight_system_index < static_cast<int>(desc.systems.size())) {
         const auto& hs = desc.systems[desc.highlight_system_index];
-        int sx = to_screen_x(hs.gx, view_left, view_w, mw);
-        int sy = to_screen_y(hs.gy, view_top, view_h, mh);
+        int sx = galaxy_to_sx(hs.gx);
+        int sy = galaxy_to_sy(hs.gy);
         if (sx >= 0 && sx < mw && sy >= 0 && sy < mh) {
             ctx.put(sx, sy, '*', Color::BrightYellow, bg_at(sx, sy));
         }
@@ -219,8 +235,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
 
     // Arm labels
     for (const auto& label : desc.arm_labels) {
-        int lx = to_screen_x(label.gx, view_left, view_w, mw);
-        int ly = to_screen_y(label.gy, view_top, view_h, mh);
+        int lx = galaxy_to_sx(label.gx);
+        int ly = galaxy_to_sy(label.gy);
         if (lx >= 0 && lx < mw - 6 && ly >= 0 && ly < mh) {
             // text() doesn't take bg; fall back to per-char put() when tinted.
             if (paint_tint) {
@@ -251,8 +267,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
 
     // Sgr A* label
     {
-        int cx = to_screen_x(0.0f, view_left, view_w, mw);
-        int cy = to_screen_y(0.0f, view_top, view_h, mh);
+        int cx = galaxy_to_sx(0.0f);
+        int cy = galaxy_to_sy(0.0f);
         if (cx >= 0 && cx < mw - 6 && cy >= 1 && cy < mh) {
             put_text(cx - 2, cy - 1, "Sgr A*", Color::BrightMagenta);
         }
@@ -260,8 +276,8 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
 
     // Sol label
     {
-        int sx = to_screen_x(180.0f, view_left, view_w, mw);
-        int sy = to_screen_y(0.0f, view_top, view_h, mh);
+        int sx = galaxy_to_sx(180.0f);
+        int sy = galaxy_to_sy(0.0f);
         if (sx >= 0 && sx < mw - 3 && sy < mh - 1) {
             put_text(sx - 1, sy + 1, "Sol", Color::Yellow);
         }

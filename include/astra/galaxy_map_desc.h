@@ -10,6 +10,10 @@
 
 namespace astra {
 
+// Galaxy-zoom viewport width in galaxy units. Shared by viewer (pan-step) and
+// renderer (view_w). Kept here so both sides snap to the same cell grid.
+constexpr float kGalaxyViewWidthGu = 440.0f;
+
 enum class ChartZoom : uint8_t;
 
 // Arm label for galaxy-level rendering
