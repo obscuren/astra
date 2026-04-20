@@ -619,6 +619,20 @@ void Game::update() {
     // Sync quest journal entries with current objective progress
     if (state_ == GameState::Playing) {
         quest_manager_.update_quest_journals(player_);
+
+        // Drain auto-accept popup queue when no other modal is active.
+        // Chains ARIA transmission → quest popup automatically: the
+        // PlaybackViewer holds the transmission, we only drain once it
+        // closes and DialogManager is also idle.
+        if (!playback_viewer_.is_open()
+         && !dialog_.is_open()
+         && quest_manager_.has_pending_announcement()) {
+            std::string id = quest_manager_.pop_pending_announcement();
+            auto look = quest_manager_.find_quest(id);
+            if (look.quest) {
+                dialog_.show_auto_accept(*this, *look.quest);
+            }
+        }
     }
 }
 
