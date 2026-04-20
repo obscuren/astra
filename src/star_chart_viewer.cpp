@@ -135,6 +135,10 @@ bool StarChartViewer::handle_input(int key) {
                 case 'h': // Home — center on Sol
                     center_on_sol();
                     return true;
+                case 'F':
+                case 'f':
+                    show_faction_tint_ = !show_faction_tint_;
+                    return true;
                 case '\033': case 'q':
                     close();
                     return true;

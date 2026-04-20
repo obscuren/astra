@@ -82,6 +82,8 @@ private:
     // View-only mode (observatory): can browse but not travel
     bool view_only_ = false;
 
+    bool show_faction_tint_ = true;  // session-local; default on
+
 #ifdef ASTRA_DEV_MODE
     // Dev overlay: runtime dev-mode flag + station-type toggle
     bool dev_mode_ = false;
