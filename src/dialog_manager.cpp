@@ -670,7 +670,8 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
         if (rep_ok_st) {
             auto offers = game.quests().available_for_role(npc.role);
             for (const Quest* offer : offers) {
-                add_option(hotkey++, "Tell me about " + offer->title + ".");
+                add_option(hotkey++,
+                    colored("(Quest)", Color::Blue) + " " + offer->title);
                 interact_options_.push_back(InteractOption::StoryQuestOffer);
                 pending_story_offers_.push_back(offer->id);
             }

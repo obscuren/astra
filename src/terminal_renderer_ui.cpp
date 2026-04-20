@@ -55,15 +55,29 @@ static constexpr const char* HLINE = "\xe2\x94\x80"; // ─
 static constexpr const char* VLINE = "\xe2\x94\x82"; // │
 
 // Render a UTF-8 string using draw_glyph for multi-byte and draw_char for ASCII.
+// Render a UTF-8 string, honouring inline color markers:
+//   \x02 <color_byte> ... \x03  — override fg for enclosed span.
+// Strings without markers render identically to the default-fg path.
 static void render_utf8_string(Renderer* r, int x, int y,
                                const std::string& s, Color fg) {
     int col = 0;
     int i = 0;
     int len = static_cast<int>(s.size());
+    Color cur = fg;
     while (i < len) {
         unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < len) {
+            cur = static_cast<Color>(static_cast<unsigned char>(s[i + 1]));
+            i += 2;
+            continue;
+        }
+        if (c == static_cast<unsigned char>(COLOR_END)) {
+            cur = fg;
+            ++i;
+            continue;
+        }
         if (c < 0x80) {
-            r->draw_char(x + col, y, s[i], fg);
+            r->draw_char(x + col, y, s[i], cur);
             ++i;
         } else {
             int seq_len = 1;
@@ -74,20 +88,28 @@ static void render_utf8_string(Renderer* r, int x, int y,
             char buf[5] = {};
             for (int j = 0; j < seq_len && i + j < len; ++j)
                 buf[j] = s[i + j];
-            r->draw_glyph(x + col, y, buf, fg);
+            r->draw_glyph(x + col, y, buf, cur);
             i += seq_len;
         }
         ++col;
     }
 }
 
-// Return visual (column) length of a UTF-8 string.
+// Return visual (column) length of a UTF-8 string, skipping color markers.
 static int utf8_display_len(const std::string& s) {
     int col = 0;
     int i = 0;
     int len = static_cast<int>(s.size());
     while (i < len) {
         unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < len) {
+            i += 2;
+            continue;
+        }
+        if (c == static_cast<unsigned char>(COLOR_END)) {
+            ++i;
+            continue;
+        }
         if (c < 0x80) {
             ++i;
         } else {
