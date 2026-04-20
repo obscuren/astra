@@ -140,6 +140,7 @@ set(ASTRA_SOURCES
     src/quests/stellar_signal_conclave_probe.cpp
     src/quests/stellar_signal_echoes.cpp
     src/quests/stellar_signal_hook.cpp
+    src/quests/stellar_signal_return.cpp
     src/game_combat.cpp
     src/game_input.cpp
     src/game_interaction.cpp
