@@ -3,15 +3,14 @@
 #include "astra/faction.h"
 #include "astra/star_chart.h"
 
-#include <algorithm>
 #include <random>
 
 namespace astra {
 
 namespace {
 
-constexpr float kCapitalMinDist   = 40.0f;  // galaxy units between capitals
-constexpr float kInfluenceRadius  = 35.0f;  // owned if dist <= this
+constexpr float kCapitalMinDist   = 70.0f;  // galaxy units between capitals
+constexpr float kInfluenceRadius  = 28.0f;  // owned if dist <= this
 constexpr float kNoiseRate        = 0.10f;  // fraction of owned systems that enclave
 
 struct Capital {
@@ -123,7 +122,6 @@ std::vector<Capital> place_capitals(const NavigationData& nav,
 
 void assign_system_factions(NavigationData& nav, uint32_t seed) {
     for (auto& s : nav.systems) s.controlling_faction.clear();
-    nav.faction_map.cells.clear();
 
     if (nav.systems.empty()) return;
 
@@ -148,11 +146,16 @@ void assign_system_factions(NavigationData& nav, uint32_t seed) {
         }
         if (is_capital) continue;
 
-        // Nearest-capital search.
+        // Warped nearest-capital search — domain warping in (gx, gy) space
+        // breaks the perfect-circle Voronoi cells into organic blobs.
+        float wx = s.gx, wy = s.gy;
+        warp_galaxy_coord(wx, wy);
         FactionTerritory best = FactionTerritory::Unclaimed;
         float best_sq = inf_sq;
         for (const auto& cap : capitals) {
-            float d2 = dist_sq(s, nav.systems[cap.system_index]);
+            const auto& cs = nav.systems[cap.system_index];
+            float dx = wx - cs.gx, dy = wy - cs.gy;
+            float d2 = dx * dx + dy * dy;
             if (d2 <= best_sq) {
                 best_sq = d2;
                 best = cap.faction;
@@ -183,71 +186,6 @@ void assign_system_factions(NavigationData& nav, uint32_t seed) {
             s.controlling_faction = "";
         }
     }
-
-    // ── Precompute FactionMap for renderer lookup. ──
-    // Compute galaxy bounds from system positions.
-    float gx_min = nav.systems.front().gx;
-    float gx_max = gx_min;
-    float gy_min = nav.systems.front().gy;
-    float gy_max = gy_min;
-    for (const auto& s : nav.systems) {
-        gx_min = std::min(gx_min, s.gx);
-        gx_max = std::max(gx_max, s.gx);
-        gy_min = std::min(gy_min, s.gy);
-        gy_max = std::max(gy_max, s.gy);
-    }
-
-    // Pad bounds slightly so edge systems aren't clipped.
-    const float pad = kInfluenceRadius;
-    gx_min -= pad; gx_max += pad;
-    gy_min -= pad; gy_max += pad;
-
-    nav.faction_map.gx_min = gx_min;
-    nav.faction_map.gx_max = gx_max;
-    nav.faction_map.gy_min = gy_min;
-    nav.faction_map.gy_max = gy_max;
-    nav.faction_map.cells.assign(
-        static_cast<size_t>(kFactionMapWidth) * kFactionMapHeight,
-        FactionTerritory::Unclaimed);
-
-    const float cell_w = (gx_max - gx_min) / kFactionMapWidth;
-    const float cell_h = (gy_max - gy_min) / kFactionMapHeight;
-    const float inf_sq_map = kInfluenceRadius * kInfluenceRadius;
-
-    for (int cy = 0; cy < kFactionMapHeight; ++cy) {
-        const float wy = gy_min + (cy + 0.5f) * cell_h;
-        for (int cx = 0; cx < kFactionMapWidth; ++cx) {
-            const float wx = gx_min + (cx + 0.5f) * cell_w;
-
-            FactionTerritory best = FactionTerritory::Unclaimed;
-            float best_sq = inf_sq_map;
-            for (const auto& cap : capitals) {
-                const auto& cs = nav.systems[cap.system_index];
-                float dx = wx - cs.gx, dy = wy - cs.gy;
-                float d2 = dx * dx + dy * dy;
-                if (d2 <= best_sq) {
-                    best_sq = d2;
-                    best = cap.faction;
-                }
-            }
-            nav.faction_map.cells[cy * kFactionMapWidth + cx] = best;
-        }
-    }
-}
-
-std::string faction_at_coord(const NavigationData& nav, float gx, float gy) {
-    const auto& m = nav.faction_map;
-    if (m.empty()) return "";
-    if (gx < m.gx_min || gx >= m.gx_max || gy < m.gy_min || gy >= m.gy_max) {
-        return "";
-    }
-    const float cell_w = (m.gx_max - m.gx_min) / kFactionMapWidth;
-    const float cell_h = (m.gy_max - m.gy_min) / kFactionMapHeight;
-    int cx = static_cast<int>((gx - m.gx_min) / cell_w);
-    int cy = static_cast<int>((gy - m.gy_min) / cell_h);
-    cx = std::clamp(cx, 0, kFactionMapWidth - 1);
-    cy = std::clamp(cy, 0, kFactionMapHeight - 1);
-    return faction_name_from_enum(m.cells[cy * kFactionMapWidth + cx]);
 }
 
 FactionTerritory faction_enum_from_name(const std::string& faction) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "astra/faction_map.h"
 #include "astra/star_chart.h"
 #include <cstdint>
 #include <span>
@@ -68,11 +67,8 @@ struct GalaxyMapDesc {
     // System zoom: precomputed station host body index
     int station_host_body_index = -1;
 
-    // Faction territorial tinting (Galaxy zoom only).
-    // When show_faction_tint is true and faction_map is non-null, the galaxy
-    // view paints a muted background color for each screen cell whose
-    // galaxy-space coordinate lies in a claimed faction territory.
-    const FactionMap* faction_map = nullptr;
+    // Faction tint (Galaxy zoom only). When true, each faction-owned system's
+    // cell uses its faction color as its own background.
     bool show_faction_tint = false;
 
 #ifdef ASTRA_DEV_MODE
