@@ -20,6 +20,7 @@ namespace astra {
 void DevConsole::toggle() {
     open_ = !open_;
     input_.clear();
+    cursor_ = 0;
 }
 
 void DevConsole::log(const std::string& msg) {
@@ -44,12 +45,27 @@ bool DevConsole::handle_input(int key, Game& game) {
                 log("> " + input_);
                 execute_command(input_, game);
                 input_.clear();
+                cursor_ = 0;
                 scroll_ = 0;
                 history_idx_ = -1;
             }
             return true;
         case 127: case 8:
-            if (!input_.empty()) input_.pop_back();
+            if (cursor_ > 0) {
+                input_.erase(cursor_ - 1, 1);
+                --cursor_;
+            }
+            return true;
+        case KEY_DELETE:
+            if (cursor_ < input_.size()) {
+                input_.erase(cursor_, 1);
+            }
+            return true;
+        case KEY_LEFT:
+            if (cursor_ > 0) --cursor_;
+            return true;
+        case KEY_RIGHT:
+            if (cursor_ < input_.size()) ++cursor_;
             return true;
         case KEY_UP: {
             int sz = static_cast<int>(history_.size());
@@ -58,6 +74,7 @@ bool DevConsole::handle_input(int key, Game& game) {
                 if (history_idx_ > 0) {
                     --history_idx_;
                     input_ = history_[history_idx_];
+                    cursor_ = input_.size();
                 }
             }
             return true;
@@ -72,6 +89,7 @@ bool DevConsole::handle_input(int key, Game& game) {
                 } else {
                     input_ = history_[history_idx_];
                 }
+                cursor_ = input_.size();
             }
             return true;
         }
@@ -83,7 +101,8 @@ bool DevConsole::handle_input(int key, Game& game) {
             return true;
         default:
             if (key >= 32 && key < 127) {
-                input_ += static_cast<char>(key);
+                input_.insert(cursor_, 1, static_cast<char>(key));
+                ++cursor_;
             }
             return true;
     }
@@ -919,11 +938,16 @@ void DevConsole::draw(Renderer* renderer, int screen_w, int screen_h) {
     int content_h = ctx.height();
     int input_row = content_h - 1;
 
-    // Input prompt
+    // Input prompt with in-place cursor
+    std::string display = input_;
+    if (cursor_ >= display.size()) display += ' ';
     ctx.styled_text({.x = 0, .y = input_row, .segments = {
         {"> ", UITag::TextAccent},
-        {input_ + "_", UITag::TextBright},
+        {display, UITag::TextBright},
     }});
+    char cursor_ch = (cursor_ < input_.size()) ? input_[cursor_] : ' ';
+    ctx.put(2 + static_cast<int>(cursor_), input_row, cursor_ch,
+            Color::Black, Color::White);
 
     // Scrollable output
     int out_rows = input_row;

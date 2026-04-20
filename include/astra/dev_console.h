@@ -27,6 +27,7 @@ public:
 private:
     bool open_ = false;
     std::string input_;
+    size_t cursor_ = 0;
     std::deque<std::string> output_;
     static constexpr size_t max_output_ = 50;
     int scroll_ = 0;
