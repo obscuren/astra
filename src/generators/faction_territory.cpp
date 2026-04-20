@@ -3,8 +3,6 @@
 #include "astra/faction.h"
 #include "astra/star_chart.h"
 
-#include <algorithm>
-#include <cmath>
 #include <random>
 
 namespace astra {
