@@ -514,6 +514,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             auto* sq = find_story_quest("story_missing_hauler");
             if (sq && !game.quests().has_active_quest("story_missing_hauler")) {
                 auto q = sq->create_quest();
+                q.arc_id = sq->arc_id();
+                q.prerequisite_ids = sq->prerequisite_ids();
+                q.reveal = sq->reveal_policy();
                 log("Quest: " + q.title);
                 log("  " + q.description);
                 game.quests().accept_quest(std::move(q), game.world().world_tick(), game.player());
@@ -572,6 +575,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 return;
             }
             auto q = sq->create_quest();
+            // Mirror init_from_catalog: carry arc/prereq/reveal metadata so
+            // journal rendering places the quest under its arc when it later
+            // completes (instead of as a loose entry).
+            q.arc_id = sq->arc_id();
+            q.prerequisite_ids = sq->prerequisite_ids();
+            q.reveal = sq->reveal_policy();
             game.quests().accept_quest(std::move(q), game.world().world_tick(),
                                        game.player());
             sq->on_accepted(game);
