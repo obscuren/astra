@@ -136,6 +136,7 @@ set(ASTRA_SOURCES
     src/quests/hauler_c.cpp
     src/quests/hauler_d.cpp
     src/quests/stellar_signal_beacon.cpp
+    src/quests/stellar_signal_conclave_probe.cpp
     src/quests/stellar_signal_echoes.cpp
     src/quests/stellar_signal_hook.cpp
     src/game_combat.cpp
