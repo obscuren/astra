@@ -129,6 +129,7 @@ set(ASTRA_SOURCES
     src/quest.cpp
     src/quest_fixture.cpp
     src/quest_graph.cpp
+    src/quest_ui.cpp
     src/quest_validator.cpp
     src/quests/missing_hauler.cpp
     src/quests/getting_airborne.cpp
