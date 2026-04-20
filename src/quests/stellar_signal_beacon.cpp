@@ -51,8 +51,9 @@ public:
     std::vector<std::string> prerequisite_ids() const override {
         return {"story_stellar_signal_echoes"};
     }
-    RevealPolicy reveal_policy() const override { return RevealPolicy::TitleOnly; }
-    OfferMode offer_mode() const override       { return OfferMode::Auto; }
+    RevealPolicy reveal_policy() const override   { return RevealPolicy::TitleOnly; }
+    OfferMode offer_mode() const override         { return OfferMode::NpcOffer; }
+    std::string offer_giver_role() const override { return "Stellar Engineer"; }
 
     void register_fixtures() override {
         register_quest_fixture({
