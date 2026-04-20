@@ -6,7 +6,6 @@
 #include "astra/playback_viewer.h"
 #include "astra/world_manager.h"
 #include "astra/scenario_effects.h"
-#include "astra/faction.h"
 
 #include <string>
 
@@ -155,7 +154,9 @@ public:
                 "Not this time.",
             });
 
-        shift_faction_standing(game, Faction_StellariConclave, -300);
+        // Stage 3 reveals the truth to the player; the Conclave doesn't
+        // know you've heard it until you actually warp into their space.
+        // Rep drop moves with the probe quest's completion.
         set_world_flag(game, "stage4_active", true);
     }
 };

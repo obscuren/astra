@@ -1,4 +1,5 @@
 #include "astra/quest.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/scenario_effects.h"
 
@@ -46,6 +47,8 @@ public:
     std::string offer_giver_role() const override { return "Stellar Engineer"; }
 
     void on_completed(Game& game) override {
+        // The Conclave has now detected you — rep collapses, ambushes follow.
+        shift_faction_standing(game, Faction_StellariConclave, -300);
         open_transmission(game,
             "INCOMING TRANSMISSION - STELLARI CONCLAVE",
             {
