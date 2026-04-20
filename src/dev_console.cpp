@@ -130,6 +130,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest scout        - random scout quest");
         log("  quest story        - The Missing Hauler");
         log("  quest begin <id>   - force-start a story quest by id (bypass prereqs)");
+        log("  quest complete <id> - fill objectives so quest is ready for hand-in");
         log("  quest finish <id>  - force-complete active quest by id (fires cascade)");
         log("  heal               - full heal");
         log("  bearings           - regain bearings if lost");
@@ -575,6 +576,18 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                                        game.player());
             sq->on_accepted(game);
             log("Force-started quest: " + qid);
+        } else if (args.size() >= 3 && args[1] == "complete") {
+            // Tick every objective to its target so the quest is ready for
+            // hand-in (e.g. talking to the giver NPC). Does NOT call
+            // complete_quest — use "quest finish" for that.
+            const std::string& qid = args[2];
+            Quest* q = game.quests().find_active(qid);
+            if (!q) {
+                log("quest complete: '" + qid + "' is not active");
+                return;
+            }
+            for (auto& obj : q->objectives) obj.current_count = obj.target_count;
+            log("Objectives filled for: " + qid + " (hand in to complete)");
         } else if (args.size() >= 3 && args[1] == "finish") {
             // Force-complete an active quest by id (fires on_completed + DAG).
             const std::string& qid = args[2];
@@ -591,7 +604,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("Force-finished quest: " + qid);
         } else {
             log("Usage: quest kill|fetch|deliver|scout|story|fixture");
-            log("       quest begin <id> | quest finish <id>");
+            log("       quest begin <id> | quest complete <id> | quest finish <id>");
         }
     }
     else if (verb == "history") {
