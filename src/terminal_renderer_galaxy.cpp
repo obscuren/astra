@@ -1,4 +1,5 @@
 #include "astra/terminal_renderer.h"
+#include "astra/faction_territory.h"
 #include "astra/galaxy_map_desc.h"
 #include "astra/star_chart_viewer.h"  // for ChartZoom enum
 #include "astra/ui.h"
@@ -10,6 +11,39 @@
 #include <vector>
 
 namespace astra {
+
+// ---------------------------------------------------------------------------
+// Faction tint (galaxy-zoom only)
+// ---------------------------------------------------------------------------
+
+// Muted 256-color ANSI indexes that sit behind stars without fighting them.
+static Color faction_tint_color(FactionTerritory t) {
+    switch (t) {
+        case FactionTerritory::StellariConclave: return static_cast<Color>(53); // dim magenta
+        case FactionTerritory::TerranFederation: return static_cast<Color>(17); // dim blue
+        case FactionTerritory::KrethMiningGuild: return static_cast<Color>(58); // dim olive
+        case FactionTerritory::VeldraniAccord:   return static_cast<Color>(22); // dim teal
+        case FactionTerritory::Unclaimed:        return Color::Default;
+    }
+    return Color::Default;
+}
+
+// Read the FactionMap cell for a galaxy-space coord. Returns Unclaimed when
+// out-of-bounds or map empty. Kept local so the renderer avoids pulling in
+// NavigationData just for one lookup.
+static FactionTerritory faction_at(const FactionMap& m, float gx, float gy) {
+    if (m.empty()) return FactionTerritory::Unclaimed;
+    if (gx < m.gx_min || gx >= m.gx_max || gy < m.gy_min || gy >= m.gy_max) {
+        return FactionTerritory::Unclaimed;
+    }
+    const float cw = (m.gx_max - m.gx_min) / kFactionMapWidth;
+    const float ch = (m.gy_max - m.gy_min) / kFactionMapHeight;
+    int cx = static_cast<int>((gx - m.gx_min) / cw);
+    int cy = static_cast<int>((gy - m.gy_min) / ch);
+    cx = std::clamp(cx, 0, kFactionMapWidth - 1);
+    cy = std::clamp(cy, 0, kFactionMapHeight - 1);
+    return m.cells[cy * kFactionMapWidth + cx];
+}
 
 // ---------------------------------------------------------------------------
 // File-local projection helpers
@@ -102,26 +136,52 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
     float view_left = desc.view_cx - view_w / 2.0f;
     float view_top = desc.view_cy - view_h / 2.0f;
 
-    // Draw all systems
+    // --- Faction-territory tint ---------------------------------------------
+    // Build a per-cell bg table once, then use it for both the background
+    // pre-pass and every glyph we draw afterward (since draw_char always
+    // overwrites the cell's bg, we must re-pass the tint when writing stars).
+    std::vector<Color> tint(static_cast<size_t>(mw) * mh, Color::Default);
+    const bool paint_tint = desc.show_faction_tint && desc.faction_map != nullptr &&
+                            !desc.faction_map->empty();
+    if (paint_tint) {
+        for (int sy = 0; sy < mh; ++sy) {
+            for (int sx = 0; sx < mw; ++sx) {
+                float gx = view_left + (static_cast<float>(sx) + 0.5f) / mw * view_w;
+                float gy = view_top  + (static_cast<float>(sy) + 0.5f) / mh * view_h;
+                FactionTerritory t = faction_at(*desc.faction_map, gx, gy);
+                if (t == FactionTerritory::Unclaimed) continue;
+                Color bg = faction_tint_color(t);
+                tint[static_cast<size_t>(sy) * mw + sx] = bg;
+                ctx.put(sx, sy, ' ', Color::Default, bg);
+            }
+        }
+    }
+    auto bg_at = [&](int x, int y) -> Color {
+        if (!paint_tint || x < 0 || x >= mw || y < 0 || y >= mh) return Color::Default;
+        return tint[static_cast<size_t>(y) * mw + x];
+    };
+
+    // Draw all systems (pass tint bg so we don't clobber the background pass)
     for (size_t i = 0; i < desc.systems.size(); ++i) {
         const auto& sys = desc.systems[i];
         int sx = to_screen_x(sys.gx, view_left, view_w, mw);
         int sy = to_screen_y(sys.gy, view_top, view_h, mh);
         if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
 
+        Color bg = bg_at(sx, sy);
         if (sys.id == 0) {
             // Sgr A*
-            ctx.put(sx, sy, '+', Color::BrightMagenta);
+            ctx.put(sx, sy, '+', Color::BrightMagenta, bg);
         } else if (sys.id == 1) {
             // Sol
-            ctx.put(sx, sy, '*', Color::Yellow);
+            ctx.put(sx, sy, '*', Color::Yellow, bg);
         } else if (desc.player_system_index >= 0 &&
                    static_cast<int>(i) == desc.player_system_index) {
-            ctx.put(sx, sy, '@', Color::Green);
+            ctx.put(sx, sy, '@', Color::Green, bg);
         } else if (sys.discovered) {
-            ctx.put(sx, sy, '.', star_class_color(sys.star_class));
+            ctx.put(sx, sy, '.', star_class_color(sys.star_class), bg);
         } else {
-            ctx.put(sx, sy, '.', Color::DarkGray);
+            ctx.put(sx, sy, '.', Color::DarkGray, bg);
         }
     }
 
@@ -131,7 +191,7 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         int sx = to_screen_x(sys.gx, view_left, view_w, mw);
         int sy = to_screen_y(sys.gy, view_top, view_h, mh);
         if (sx < 0 || sx >= mw || sy < 0 || sy >= mh) continue;
-        if (sx + 1 < mw) ctx.put(sx + 1, sy, '!', Color::BrightYellow);
+        if (sx + 1 < mw) ctx.put(sx + 1, sy, '!', Color::BrightYellow, bg_at(sx + 1, sy));
     }
 
     // Lore markers — significant historical sites
@@ -143,7 +203,7 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         // Tier 3: bright cyan star, Tier 2: dim cyan dot
         Color c = (sys.lore.lore_tier >= 3) ? Color::Cyan : Color::DarkGray;
         char glyph = (sys.lore.lore_tier >= 3) ? '*' : '.';
-        ctx.put(sx, sy, glyph, c);
+        ctx.put(sx, sy, glyph, c, bg_at(sx, sy));
     }
 
     // Highlight system marker
@@ -153,7 +213,7 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         int sx = to_screen_x(hs.gx, view_left, view_w, mw);
         int sy = to_screen_y(hs.gy, view_top, view_h, mh);
         if (sx >= 0 && sx < mw && sy >= 0 && sy < mh) {
-            ctx.put(sx, sy, '*', Color::BrightYellow);
+            ctx.put(sx, sy, '*', Color::BrightYellow, bg_at(sx, sy));
         }
     }
 
@@ -162,16 +222,39 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         int lx = to_screen_x(label.gx, view_left, view_w, mw);
         int ly = to_screen_y(label.gy, view_top, view_h, mh);
         if (lx >= 0 && lx < mw - 6 && ly >= 0 && ly < mh) {
-            ctx.text(lx, ly, label.name, Color::DarkGray);
+            // text() doesn't take bg; fall back to per-char put() when tinted.
+            if (paint_tint) {
+                for (size_t ci = 0; ci < label.name.size(); ++ci) {
+                    int cx = lx + static_cast<int>(ci);
+                    if (cx >= mw) break;
+                    ctx.put(cx, ly, label.name[ci], Color::DarkGray, bg_at(cx, ly));
+                }
+            } else {
+                ctx.text(lx, ly, label.name, Color::DarkGray);
+            }
         }
     }
+
+    // Helper: draw text string with tint-aware bg when tinting is active.
+    auto put_text = [&](int x, int y, const char* s, Color fg) {
+        if (y < 0 || y >= mh) return;
+        if (paint_tint) {
+            for (int ci = 0; s[ci] != '\0'; ++ci) {
+                int cx = x + ci;
+                if (cx < 0 || cx >= mw) continue;
+                ctx.put(cx, y, s[ci], fg, bg_at(cx, y));
+            }
+        } else {
+            ctx.text(x, y, s, fg);
+        }
+    };
 
     // Sgr A* label
     {
         int cx = to_screen_x(0.0f, view_left, view_w, mw);
         int cy = to_screen_y(0.0f, view_top, view_h, mh);
         if (cx >= 0 && cx < mw - 6 && cy >= 1 && cy < mh) {
-            ctx.text(cx - 2, cy - 1, "Sgr A*", Color::BrightMagenta);
+            put_text(cx - 2, cy - 1, "Sgr A*", Color::BrightMagenta);
         }
     }
 
@@ -180,21 +263,21 @@ static void render_galaxy_zoom(UIContext& ctx, const GalaxyMapDesc& desc) {
         int sx = to_screen_x(180.0f, view_left, view_w, mw);
         int sy = to_screen_y(0.0f, view_top, view_h, mh);
         if (sx >= 0 && sx < mw - 3 && sy < mh - 1) {
-            ctx.text(sx - 1, sy + 1, "Sol", Color::Yellow);
+            put_text(sx - 1, sy + 1, "Sol", Color::Yellow);
         }
     }
 
-    // Crosshair reticle at viewport center
+    // Crosshair reticle at viewport center (preserve faction tint bg)
     {
         int cx = mw / 2;
         int cy = mh / 2;
-        if (cx > 1)      ctx.put(cx - 2, cy, '-', Color::White);
-        if (cx > 0)      ctx.put(cx - 1, cy, '-', Color::White);
-        if (cx < mw - 1) ctx.put(cx + 1, cy, '-', Color::White);
-        if (cx < mw - 2) ctx.put(cx + 2, cy, '-', Color::White);
-        if (cy > 0)      ctx.put(cx, cy - 1, '|', Color::White);
-        if (cy < mh - 1) ctx.put(cx, cy + 1, '|', Color::White);
-        ctx.put(cx, cy, '+', Color::White);
+        if (cx > 1)      ctx.put(cx - 2, cy, '-', Color::White, bg_at(cx - 2, cy));
+        if (cx > 0)      ctx.put(cx - 1, cy, '-', Color::White, bg_at(cx - 1, cy));
+        if (cx < mw - 1) ctx.put(cx + 1, cy, '-', Color::White, bg_at(cx + 1, cy));
+        if (cx < mw - 2) ctx.put(cx + 2, cy, '-', Color::White, bg_at(cx + 2, cy));
+        if (cy > 0)      ctx.put(cx, cy - 1, '|', Color::White, bg_at(cx, cy - 1));
+        if (cy < mh - 1) ctx.put(cx, cy + 1, '|', Color::White, bg_at(cx, cy + 1));
+        ctx.put(cx, cy, '+', Color::White, bg_at(cx, cy));
     }
 }
 

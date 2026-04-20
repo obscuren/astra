@@ -672,6 +672,10 @@ GalaxyMapDesc StarChartViewer::build_map_desc() const {
         }
     }
 
+    // Faction territory tinting (Galaxy zoom only)
+    desc.faction_map = &nav_->faction_map;
+    desc.show_faction_tint = show_faction_tint_;
+
 #ifdef ASTRA_DEV_MODE
     desc.show_station_types = show_station_types_;
 #endif
