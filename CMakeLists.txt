@@ -84,6 +84,7 @@ set(ASTRA_SOURCES
     src/generators/room_identifier.cpp
     src/generators/ruin_stamps.cpp
     src/generators/ruin_generator.cpp
+    src/generators/faction_territory.cpp
     src/overworld_stamps.cpp
     src/poi_budget.cpp
     src/playback_viewer.cpp

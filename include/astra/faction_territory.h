@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/faction_map.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -8,38 +10,6 @@ namespace astra {
 
 struct NavigationData;
 struct StarSystem;
-
-// ─── FactionMap ──────────────────────────────────────────────────
-// Precomputed galaxy-space → faction-index grid. Used by the renderer
-// to tint the background of every cell on the galaxy chart, including
-// the empty space between stars.
-
-constexpr int kFactionMapWidth  = 256;
-constexpr int kFactionMapHeight = 256;
-
-// Tight packing — one byte per cell, index into the faction palette.
-enum class FactionTerritory : uint8_t {
-    Unclaimed        = 0,
-    StellariConclave = 1,
-    TerranFederation = 2,
-    KrethMiningGuild = 3,
-    VeldraniAccord   = 4,
-};
-
-struct FactionMap {
-    // Row-major, size = kFactionMapWidth * kFactionMapHeight.
-    // Empty before assign_system_factions runs.
-    std::vector<FactionTerritory> cells;
-
-    // Galaxy-space bounds the grid covers (min/max gx, gy). Used to map
-    // floating-point coords to cell indexes.
-    float gx_min = 0.0f;
-    float gx_max = 0.0f;
-    float gy_min = 0.0f;
-    float gy_max = 0.0f;
-
-    bool empty() const { return cells.empty(); }
-};
 
 // ─── Generation ──────────────────────────────────────────────────
 

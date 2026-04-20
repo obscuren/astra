@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/celestial_body.h"
+#include "astra/faction_map.h"
 #include "astra/lore_types.h"
 #include "astra/renderer.h"
 #include "astra/station_type.h"
@@ -93,6 +94,7 @@ struct NavigationData {
     std::vector<StarSystem> systems;
     int navi_range = 1;
     uint32_t next_custom_system_id = 0x80000000u;
+    FactionMap faction_map;   // regenerated on load; not serialized
 };
 
 // Create a custom system and append it to nav.systems. Returns the allocated id.
