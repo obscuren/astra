@@ -922,10 +922,17 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             // Queue follow-up dialog for next frame
             aria_tutorial_followup_ = true;
         } else {
-            // Skip tutorial -- equip ship with starter components
+            // Skip tutorial -- equip ship with starter components and mark
+            // Getting Airborne complete so downstream arcs (Stellar Signal, etc.)
+            // unlock via the quest DAG.
             game.player().ship.engine = build_engine_coil_mk1();
             game.player().ship.hull = build_hull_plate();
             game.player().ship.navi_computer = build_navi_computer_mk2();
+            if (game.quests().accept_available(
+                    "story_getting_airborne", game, game.world().world_tick())) {
+                game.quests().complete_quest(
+                    "story_getting_airborne", game, game.world().world_tick());
+            }
             game.log("ARIA: \"All systems nominal. Where to, commander?\"");
         }
         return;

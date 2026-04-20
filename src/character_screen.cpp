@@ -2853,11 +2853,11 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
             ctx.text({.x = rx, .y = ry, .content = badge, .tag = badge_tag});
             ry += 2;
 
-            // Description
-            bool show_desc = true;
-            if (sel.qstate == QuestVisItem::QState::Locked &&
-                (rev == RevealPolicy::Hidden || rev == RevealPolicy::TitleOnly))
-                show_desc = false;
+            // Description — only reveal once the quest has been accepted
+            // (Active) or resolved (Completed). Available and Locked entries
+            // show title + status only; players learn details from the giver.
+            bool show_desc = (sel.qstate == QuestVisItem::QState::Active ||
+                              sel.qstate == QuestVisItem::QState::Completed);
             if (show_desc && q && !q->description.empty()) {
                 wrap(ry, q->description, UITag::TextDim);
                 ry++;
