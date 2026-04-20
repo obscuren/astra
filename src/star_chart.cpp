@@ -727,6 +727,14 @@ uint32_t add_custom_system(NavigationData& nav, CustomSystemSpec spec) {
     sys.gy = spec.gy;
     sys.discovered = spec.discovered;
     sys.lore = std::move(spec.lore);
+
+    // If caller explicitly provided a faction, record it. Otherwise the
+    // value remains "" — assign_system_factions or any subsequent call
+    // will populate it via the normal territorial pass.
+    if (spec.controlling_faction.has_value()) {
+        sys.controlling_faction = *spec.controlling_faction;
+    }
+
     sys.planet_count = 0;
     sys.asteroid_belts = 0;
     sys.danger_level = 1;

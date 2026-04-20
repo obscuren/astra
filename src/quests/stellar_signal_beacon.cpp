@@ -8,6 +8,8 @@
 #include "astra/scenario_effects.h"
 #include "astra/faction.h"
 
+#include <string>
+
 namespace astra {
 
 static const char* QUEST_ID_BEACON = "story_stellar_signal_beacon";
@@ -111,6 +113,7 @@ public:
             .gx = coords->first, .gy = coords->second,
             .star_class = StarClass::ClassM,
             .discovered = true,
+            .controlling_faction = std::string(""),  // Unclaimed — beyond charted space
             .bodies = { make_landable_asteroid("Beacon Core") },
         });
         game.world().stellar_signal_beacon_id() = beacon_id;
