@@ -46,6 +46,13 @@ public:
     OfferMode offer_mode() const override         { return OfferMode::NpcOffer; }
     std::string offer_giver_role() const override { return "Stellar Engineer"; }
 
+    void on_accepted(Game& game) override {
+        // Stage 4 begins the moment the player accepts the probe quest.
+        // The Stage 4 event-bus scenario gates on this flag so Conclave
+        // ambush / warning transmission fires only after this point.
+        set_world_flag(game, "stage4_active", true);
+    }
+
     void on_completed(Game& game) override {
         // The Conclave has now detected you — rep collapses, ambushes follow.
         shift_faction_standing(game, Faction_StellariConclave, -300);

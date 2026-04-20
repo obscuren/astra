@@ -157,8 +157,8 @@ public:
 
         // Stage 3 reveals the truth to the player; the Conclave doesn't
         // know you've heard it until you actually warp into their space.
-        // Rep drop moves with the probe quest's completion.
-        set_world_flag(game, "stage4_active", true);
+        // stage4_active flips when the probe quest is accepted (stage 4
+        // begins there), not when stage 3 ends.
     }
 };
 

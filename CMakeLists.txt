@@ -141,6 +141,7 @@ set(ASTRA_SOURCES
     src/quests/stellar_signal_echoes.cpp
     src/quests/stellar_signal_hook.cpp
     src/quests/stellar_signal_return.cpp
+    src/quests/stellar_signal_siege.cpp
     src/game_combat.cpp
     src/game_input.cpp
     src/game_interaction.cpp

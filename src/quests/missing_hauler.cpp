@@ -145,6 +145,7 @@ void register_stellar_signal_echoes(std::vector<std::unique_ptr<StoryQuest>>&);
 void register_stellar_signal_beacon(std::vector<std::unique_ptr<StoryQuest>>&);
 void register_stellar_signal_conclave_probe(std::vector<std::unique_ptr<StoryQuest>>&);
 void register_stellar_signal_return(std::vector<std::unique_ptr<StoryQuest>>& catalog);
+void register_stellar_signal_siege(std::vector<std::unique_ptr<StoryQuest>>& catalog);
 
 static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     std::vector<std::unique_ptr<StoryQuest>> catalog;
@@ -158,6 +159,7 @@ static std::vector<std::unique_ptr<StoryQuest>> build_catalog() {
     register_stellar_signal_beacon(catalog);
     register_stellar_signal_conclave_probe(catalog);
     register_stellar_signal_return(catalog);
+    register_stellar_signal_siege(catalog);
 
     // Give every story quest a chance to register its fixture defs.
     for (const auto& sq : catalog) {
