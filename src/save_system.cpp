@@ -2,6 +2,7 @@
 #include "astra/game.h"
 #include "astra/quest.h"
 #include "astra/star_chart.h"
+#include "astra/faction_territory.h"
 
 namespace astra {
 
@@ -215,6 +216,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.ambushed_systems() = std::move(data.ambushed_systems);
     world.lore() = std::move(data.lore);
     apply_lore_to_galaxy(world.navigation(), world.lore());
+    assign_system_factions(world.navigation(), world.seed());
 
     game.rebuild_star_chart_viewer();
 

@@ -2,6 +2,7 @@
 #include "astra/boot_sequence.h"
 #include "astra/scenarios.h"
 #include "astra/faction.h"
+#include "astra/faction_territory.h"
 #include "astra/debug_spawn.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
@@ -845,6 +846,7 @@ void Game::new_game() {
     }
     world_.navigation() = generate_galaxy(world_.seed());
     apply_lore_to_galaxy(world_.navigation(), world_.lore());
+    assign_system_factions(world_.navigation(), world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
@@ -1100,6 +1102,7 @@ void Game::new_game(const CreationResult& cr) {
     }
     world_.navigation() = generate_galaxy(world_.seed());
     apply_lore_to_galaxy(world_.navigation(), world_.lore());
+    assign_system_factions(world_.navigation(), world_.seed());
     world_.navigation().at_station = true;
     world_.navigation().current_body_index = -1;
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_);
