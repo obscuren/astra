@@ -41,9 +41,9 @@ public:
     std::vector<std::string> prerequisite_ids() const override {
         return {"story_stellar_signal_beacon"};
     }
-    RevealPolicy reveal_policy() const override { return RevealPolicy::TitleOnly; }
-    // Default offer_mode (NpcOffer) — Nova hands this quest out on the next
-    // conversation after the beacon debrief, instead of it auto-accepting.
+    RevealPolicy reveal_policy() const override   { return RevealPolicy::TitleOnly; }
+    OfferMode offer_mode() const override         { return OfferMode::NpcOffer; }
+    std::string offer_giver_role() const override { return "Stellar Engineer"; }
 
     void on_completed(Game& game) override {
         open_transmission(game,
