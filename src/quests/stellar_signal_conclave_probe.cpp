@@ -42,7 +42,8 @@ public:
         return {"story_stellar_signal_beacon"};
     }
     RevealPolicy reveal_policy() const override { return RevealPolicy::TitleOnly; }
-    OfferMode offer_mode() const override       { return OfferMode::Auto; }
+    // Default offer_mode (NpcOffer) — Nova hands this quest out on the next
+    // conversation after the beacon debrief, instead of it auto-accepting.
 
     void on_completed(Game& game) override {
         open_transmission(game,
