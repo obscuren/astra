@@ -65,6 +65,7 @@ struct StarSystem {
     std::vector<CelestialBody> bodies;
     bool bodies_generated = false;
     LoreAnnotation lore;                // populated by apply_lore_to_galaxy()
+    std::string controlling_faction;    // "" = Unclaimed; else one of Faction_* constants
 };
 
 struct CustomSystemSpec {
@@ -77,6 +78,9 @@ struct CustomSystemSpec {
     bool has_station = false;
     StationInfo station;   // honoured when has_station=true; default NormalHub/Generic
     LoreAnnotation lore = {};
+    // nullopt = compute from territorial assignment; else use this value verbatim
+    // (including "" for explicit Unclaimed).
+    std::optional<std::string> controlling_faction;
     std::vector<CelestialBody> bodies;        // empty = lazy procedural
 };
 
