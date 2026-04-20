@@ -131,7 +131,59 @@ void assign_system_factions(NavigationData& nav, uint32_t seed) {
     auto capitals = place_capitals(nav, rng);
     if (capitals.empty()) return;
 
-    // TODO next task: territorial assignment + noise + FactionMap precompute.
+    // ── Assign every system to the nearest capital within influence. ──
+    const float inf_sq = kInfluenceRadius * kInfluenceRadius;
+    for (size_t i = 0; i < nav.systems.size(); ++i) {
+        StarSystem& s = nav.systems[i];
+
+        // If this system is itself a capital, set its faction directly.
+        bool is_capital = false;
+        for (const auto& cap : capitals) {
+            if (cap.system_index == i) {
+                s.controlling_faction = faction_name_from_enum(cap.faction);
+                is_capital = true;
+                break;
+            }
+        }
+        if (is_capital) continue;
+
+        // Nearest-capital search.
+        FactionTerritory best = FactionTerritory::Unclaimed;
+        float best_sq = inf_sq;
+        for (const auto& cap : capitals) {
+            float d2 = dist_sq(s, nav.systems[cap.system_index]);
+            if (d2 <= best_sq) {
+                best_sq = d2;
+                best = cap.faction;
+            }
+        }
+        s.controlling_faction = faction_name_from_enum(best);
+    }
+
+    // ── Noise pass: enclaves. ──
+    // Deterministic per-system by seeding from (seed ^ system_id).
+    for (auto& s : nav.systems) {
+        if (s.controlling_faction.empty()) continue;  // no enclaves in wilderness
+
+        std::mt19937 r(seed ^ (s.id * 2654435761u));
+        std::uniform_real_distribution<float> roll(0.0f, 1.0f);
+        if (roll(r) >= kNoiseRate) continue;
+
+        // 80% swap to different territorial faction, 20% to Unclaimed.
+        if (roll(r) < 0.8f) {
+            FactionTerritory current = faction_enum_from_name(s.controlling_faction);
+            std::uniform_int_distribution<int> pick(1, 4);  // 1..4 = non-Unclaimed
+            FactionTerritory chosen;
+            do {
+                chosen = static_cast<FactionTerritory>(pick(r));
+            } while (chosen == current);
+            s.controlling_faction = faction_name_from_enum(chosen);
+        } else {
+            s.controlling_faction = "";
+        }
+    }
+
+    // TODO next task: FactionMap precompute.
 }
 
 std::string faction_at_coord(const NavigationData&, float, float) {
