@@ -252,8 +252,10 @@ void QuestManager::complete_quest(const std::string& quest_id, Game& game, int w
                 if (dep_sq) dep_sq->on_unlocked(game);
 
                 if (dep_sq && dep_sq->offer_mode() == OfferMode::Auto) {
+                    std::string dep_id_copy = unlocked.id;
                     accept_quest(std::move(unlocked), world_tick, game.player());
                     dep_sq->on_accepted(game);
+                    pending_announcements_.push_back(std::move(dep_id_copy));
                 } else {
                     unlocked.status = QuestStatus::Available;
                     available_.push_back(std::move(unlocked));
@@ -309,6 +311,17 @@ Quest* QuestManager::find_active(const std::string& id) {
         if (q.id == id) return &q;
     }
     return nullptr;
+}
+
+bool QuestManager::has_pending_announcement() const {
+    return !pending_announcements_.empty();
+}
+
+std::string QuestManager::pop_pending_announcement() {
+    if (pending_announcements_.empty()) return {};
+    std::string id = std::move(pending_announcements_.front());
+    pending_announcements_.pop_front();
+    return id;
 }
 
 QuestManager::Lookup QuestManager::find_quest(const std::string& id) const {
@@ -715,8 +728,10 @@ void QuestManager::init_from_catalog(Game& game) {
             sq->on_unlocked(game);
             q.status = QuestStatus::Active;
             q.accepted_tick = 0;
+            std::string id_copy = q.id;
             active_.push_back(std::move(q));
             sq->on_accepted(game);
+            pending_announcements_.push_back(std::move(id_copy));
         } else {
             q.status = QuestStatus::Available;
             available_.push_back(std::move(q));

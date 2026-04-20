@@ -2,6 +2,7 @@
 
 #include "astra/item.h"
 
+#include <deque>
 #include <memory>
 #include <random>
 #include <string>
@@ -127,6 +128,13 @@ public:
     bool has_active_quest(const std::string& id) const;
     Quest* find_active(const std::string& id);
 
+    // Auto-accept announcement queue. Session-local: quests auto-accepted
+    // through the OfferMode::Auto paths are enqueued here so Game can
+    // display the auto-accept popup once other modals are idle. Not
+    // persisted across save/load.
+    bool has_pending_announcement() const;
+    std::string pop_pending_announcement();  // empty string if none
+
     // Cross-pool lookup. Returns {nullptr, Unknown} if the id isn't in any pool.
     struct Lookup { const Quest* quest; QuestStatus status; };
     Lookup find_quest(const std::string& id) const;
@@ -177,6 +185,7 @@ private:
     std::vector<Quest> available_;
     std::vector<Quest> active_;
     std::vector<Quest> completed_;
+    std::deque<std::string> pending_announcements_;
 };
 
 // ── Story Quests ─────────────────────────────────────────────────────
