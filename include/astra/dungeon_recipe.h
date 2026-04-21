@@ -1,6 +1,6 @@
 #pragma once
 
-#include "astra/world_manager.h"  // LocationKey (std::tuple)
+#include "astra/location_key.h"
 
 #include <string>
 #include <vector>

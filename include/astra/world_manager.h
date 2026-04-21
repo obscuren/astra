@@ -1,6 +1,8 @@
 #pragma once
 
+#include "astra/dungeon_recipe.h"
 #include "astra/item.h"
+#include "astra/location_key.h"
 #include "astra/lore_influence_map.h"
 #include "astra/lore_types.h"
 #include "astra/npc.h"
@@ -19,9 +21,6 @@
 #include <unordered_set>
 
 namespace astra {
-
-// LocationKey: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}
-using LocationKey = std::tuple<uint32_t, int, int, bool, int, int, int>;
 
 static constexpr int zones_per_tile = 3; // 3x3 zone grid per overworld tile
 
@@ -137,6 +136,11 @@ public:
     std::map<LocationKey, QuestLocationMeta>& quest_locations() { return quest_locations_; }
     const std::map<LocationKey, QuestLocationMeta>& quest_locations() const { return quest_locations_; }
 
+    // Dungeon recipe registry — controls procedural generation for keyed locations
+    std::map<LocationKey, DungeonRecipe>& dungeon_recipes() { return dungeon_recipes_; }
+    const std::map<LocationKey, DungeonRecipe>& dungeon_recipes() const { return dungeon_recipes_; }
+    const DungeonRecipe* find_dungeon_recipe(const LocationKey& root) const;
+
     std::set<LocationKey>& pending_quest_cleanup() { return pending_quest_cleanup_; }
     const std::set<LocationKey>& pending_quest_cleanup() const { return pending_quest_cleanup_; }
 
@@ -207,6 +211,7 @@ private:
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;
     std::map<LocationKey, QuestLocationMeta> quest_locations_;
+    std::map<LocationKey, DungeonRecipe> dungeon_recipes_;
     std::set<LocationKey> pending_quest_cleanup_;
     LoreInfluenceMap lore_influence_;
     // Arc-specific state
