@@ -17,6 +17,7 @@ enum CivIndex : int {
     CIV_BAROQUE     = 1,
     CIV_CRYSTAL     = 2,
     CIV_INDUSTRIAL  = 3,
+    CIV_PRECURSOR   = 4,
 };
 
 struct CivConfig {
@@ -102,6 +103,7 @@ CivConfig civ_config_monolithic();
 CivConfig civ_config_baroque();
 CivConfig civ_config_crystal();
 CivConfig civ_config_industrial();
+CivConfig civ_config_precursor();
 CivConfig civ_config_for_architecture(Architecture arch);
 CivConfig civ_config_by_name(const std::string& name);
 

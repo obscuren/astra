@@ -59,6 +59,28 @@ CivConfig civ_config_crystal() {
     return c;
 }
 
+CivConfig civ_config_precursor() {
+    CivConfig c = civ_config_crystal();  // start from Crystal as a base
+    c.name = "Precursor";
+    c.civ_index = CIV_PRECURSOR;
+    // Deep violet primary, Stellari-resonance cyan accent
+    c.color_primary   = 93;    // deep violet
+    c.color_secondary = 135;   // Stellari resonance cyan
+    c.color_tint      = 93;
+    // Sparser, more open feel: thin walls, regular geometry
+    c.wall_thickness_bias = 0.5f;
+    c.split_regularity    = 0.65f;
+    // Accent glyphs: resonance markers
+    c.accent_glyphs = {"\xe2\x97\x8a", "\xe2\x97\x87", "\xe2\x96\xbd"};
+    // Preferred rooms: archives and observatories, befitting an ancient archive
+    c.preferred_rooms = {
+        BuildingType::Archive, BuildingType::Archive,
+        BuildingType::Observatory, BuildingType::GreatHall,
+    };
+    c.architecture = Architecture::LightWoven;
+    return c;
+}
+
 CivConfig civ_config_industrial() {
     CivConfig c;
     c.name = "Industrial";
@@ -94,6 +116,7 @@ CivConfig civ_config_by_name(const std::string& name) {
     if (name == "baroque")    return civ_config_baroque();
     if (name == "crystal")    return civ_config_crystal();
     if (name == "industrial") return civ_config_industrial();
+    if (name == "Precursor")  return civ_config_precursor();
     return civ_config_monolithic();  // default
 }
 
