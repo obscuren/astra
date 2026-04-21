@@ -271,6 +271,120 @@ bool MapGenerator::in_bounds(int x, int y) const {
     return x >= 0 && x < map_->width() && y >= 0 && y < map_->height();
 }
 
+void MapGenerator::seal_vacuum() {
+    if (!map_) return;
+    int w = map_->width();
+    int h = map_->height();
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            if (map_->get(x, y) != Tile::Floor) continue;
+            int floor_rid = map_->region_id(x, y);
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if (map_->get(nx, ny) == Tile::Empty) {
+                        map_->set(nx, ny, Tile::Wall);
+                        map_->set_region(nx, ny, floor_rid);
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::vector<int> MapGenerator::find_unreached_rooms(int root_idx) const {
+    std::vector<int> unreached;
+    if (!map_ || rooms_.empty()) return unreached;
+    if (root_idx < 0 || root_idx >= static_cast<int>(rooms_.size())) return unreached;
+
+    int w = map_->width();
+    int h = map_->height();
+    std::vector<uint8_t> visited(static_cast<size_t>(w) * h, 0);
+
+    auto room_center = [](const RoomRect& r) {
+        return std::pair<int,int>{(r.x1 + r.x2) / 2, (r.y1 + r.y2) / 2};
+    };
+
+    auto [sx, sy] = room_center(rooms_[root_idx]);
+    if (map_->get(sx, sy) != Tile::Floor) {
+        // Root's center isn't floor — nothing we can flood; treat all others
+        // as unreached so caller can patch.
+        for (size_t i = 0; i < rooms_.size(); ++i) {
+            if (static_cast<int>(i) != root_idx) unreached.push_back(static_cast<int>(i));
+        }
+        return unreached;
+    }
+
+    std::vector<std::pair<int,int>> stack;
+    stack.push_back({sx, sy});
+    visited[sy * w + sx] = 1;
+    while (!stack.empty()) {
+        auto [x, y] = stack.back();
+        stack.pop_back();
+        static constexpr int dx4[4] = {-1, 1, 0, 0};
+        static constexpr int dy4[4] = {0, 0, -1, 1};
+        for (int d = 0; d < 4; ++d) {
+            int nx = x + dx4[d];
+            int ny = y + dy4[d];
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            if (visited[ny * w + nx]) continue;
+            if (map_->get(nx, ny) != Tile::Floor) continue;
+            visited[ny * w + nx] = 1;
+            stack.push_back({nx, ny});
+        }
+    }
+
+    for (size_t i = 0; i < rooms_.size(); ++i) {
+        if (static_cast<int>(i) == root_idx) continue;
+        auto [cx, cy] = room_center(rooms_[i]);
+        if (cx < 0 || cx >= w || cy < 0 || cy >= h || !visited[cy * w + cx]) {
+            unreached.push_back(static_cast<int>(i));
+        }
+    }
+    return unreached;
+}
+
+bool MapGenerator::rooms_connected(int a, int b) const {
+    if (!map_ || rooms_.empty()) return false;
+    int n = static_cast<int>(rooms_.size());
+    if (a < 0 || a >= n || b < 0 || b >= n) return false;
+    if (a == b) return true;
+
+    int w = map_->width();
+    int h = map_->height();
+    int sx = (rooms_[a].x1 + rooms_[a].x2) / 2;
+    int sy = (rooms_[a].y1 + rooms_[a].y2) / 2;
+    int tx = (rooms_[b].x1 + rooms_[b].x2) / 2;
+    int ty = (rooms_[b].y1 + rooms_[b].y2) / 2;
+
+    if (map_->get(sx, sy) != Tile::Floor) return false;
+    if (map_->get(tx, ty) != Tile::Floor) return false;
+
+    std::vector<uint8_t> visited(static_cast<size_t>(w) * h, 0);
+    std::vector<std::pair<int,int>> stack;
+    stack.push_back({sx, sy});
+    visited[sy * w + sx] = 1;
+    while (!stack.empty()) {
+        auto [x, y] = stack.back();
+        stack.pop_back();
+        if (x == tx && y == ty) return true;
+        static constexpr int dx4[4] = {-1, 1, 0, 0};
+        static constexpr int dy4[4] = {0, 0, -1, 1};
+        for (int d = 0; d < 4; ++d) {
+            int nx = x + dx4[d];
+            int ny = y + dy4[d];
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            if (visited[ny * w + nx]) continue;
+            if (map_->get(nx, ny) != Tile::Floor) continue;
+            visited[ny * w + nx] = 1;
+            stack.push_back({nx, ny});
+        }
+    }
+    return false;
+}
+
 // --- default_properties factory ---
 
 MapProperties default_properties(MapType type) {

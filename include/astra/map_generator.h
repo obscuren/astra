@@ -31,6 +31,22 @@ protected:
     void carve_corridor_v(int y1, int y2, int x, int region_id);
     bool in_bounds(int x, int y) const;
 
+    // Post-generation cleanup helpers.
+    // seal_vacuum: any Floor tile adjacent (8-dir) to Tile::Empty gets its
+    // Empty neighbor turned into Wall, inheriting the floor's region id.
+    // Fixes vacuum exposure at corridor corners, doorway edges, etc.
+    void seal_vacuum();
+
+    // find_unreached_rooms: flood-fill from rooms_[root_idx]'s center over
+    // Tile::Floor tiles; returns indices of any rooms in rooms_ whose center
+    // wasn't reached. If rooms_ is empty or root_idx is invalid, returns {}.
+    std::vector<int> find_unreached_rooms(int root_idx = 0) const;
+
+    // rooms_connected: BFS over Floor tiles from rooms_[a]'s center; returns
+    // true if rooms_[b]'s center is reachable. Used to skip redundant
+    // corridor carving when two rooms are already linked.
+    bool rooms_connected(int a, int b) const;
+
     // Access during generation
     TileMap* map_ = nullptr;
     const MapProperties* props_ = nullptr;
