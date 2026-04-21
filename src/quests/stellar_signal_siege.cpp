@@ -121,6 +121,33 @@ public:
         recipe.levels      = build_conclave_archive_levels();
         game.world().dungeon_recipes()[k] = std::move(recipe);
 
+        // If the player has already visited Io, the overworld was
+        // generated without the Archive POI. Retro-stamp it now —
+        // Nova has told them where to look.
+        auto it = game.world().location_cache().find(k);
+        if (it != game.world().location_cache().end()) {
+            auto& state = it->second;
+            int cx = state.map.width() / 2;
+            int cy = state.map.height() / 2;
+            // Walk outward in rings for the first walkable, non-special tile.
+            for (int r = 0; r < std::max(state.map.width(), state.map.height()); ++r) {
+                bool placed = false;
+                for (int dy = -r; dy <= r && !placed; ++dy) {
+                    for (int dx = -r; dx <= r && !placed; ++dx) {
+                        if (std::abs(dx) != r && std::abs(dy) != r) continue;
+                        int px = cx + dx, py = cy + dy;
+                        if (px < 0 || py < 0 || px >= state.map.width() || py >= state.map.height()) continue;
+                        Tile t = state.map.get(px, py);
+                        if (t == Tile::OW_Mountains || t == Tile::OW_Lake ||
+                            t == Tile::OW_River || t == Tile::OW_Swamp) continue;
+                        state.map.set(px, py, Tile::OW_PrecursorArchive);
+                        placed = true;
+                    }
+                }
+                if (placed) break;
+            }
+        }
+
         // ARIA panics over ship comms the moment Nova's message lands.
         // The player sees this transmission first; the cascade in
         // QuestManager pushes this quest onto pending_announcements_
@@ -144,6 +171,26 @@ public:
         // becomes landable again. Full post-siege reshaping of the
         // station (NPC state, Observatory access) lives in that slice.
         set_world_flag(game, "tha_lockdown", false);
+
+        // The Archive is no longer a live quest location. Unregister the
+        // recipe so descending the hatch from here on is a no-op (the
+        // DungeonHatch handler bails when no recipe is present), and
+        // replace the bespoke POI tile on Io's overworld with a plain
+        // ruin so the map doesn't keep advertising a special landmark.
+        LocationKey k{1, 5, 0, false, -1, -1, 0};
+        game.world().dungeon_recipes().erase(k);
+        game.world().quest_locations().erase(k);
+        auto it = game.world().location_cache().find(k);
+        if (it != game.world().location_cache().end()) {
+            auto& state = it->second;
+            for (int y = 0; y < state.map.height(); ++y) {
+                for (int x = 0; x < state.map.width(); ++x) {
+                    if (state.map.get(x, y) == Tile::OW_PrecursorArchive) {
+                        state.map.set(x, y, Tile::OW_Ruins);
+                    }
+                }
+            }
+        }
     }
 };
 
