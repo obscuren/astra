@@ -372,6 +372,18 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
     if (target.is_player) {
         int dist = target.distance;
+
+        // Ranged attack: in range, has ranged weapon, and clear LOS.
+        if (npc.ai == NpcAi::Turret
+            && dist > 1
+            && dist <= npc.attack_range
+            && !npc.ranged_damage_dice.empty()
+            && los_clear(game.world().map(), npc.x, npc.y,
+                         game.player().x, game.player().y)) {
+            ranged_hit_player(npc, game);
+            return;
+        }
+
         if (dist <= 1) {
             auto& rng = game.world().rng();
 
@@ -434,6 +446,10 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             }
             return;
         }
+
+        // Turrets don't chase — they hold position when they can't shoot.
+        if (npc.ai == NpcAi::Turret) return;
+
         int dx = sign(game.player().x - npc.x);
         int dy = sign(game.player().y - npc.y);
         struct { int x, y; } candidates[] = {{dx, dy}, {dx, 0}, {0, dy}};
