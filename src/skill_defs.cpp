@@ -1,5 +1,6 @@
 #include "astra/skill_defs.h"
 #include "astra/player.h"
+#include "astra/renderer.h"
 
 namespace astra {
 
@@ -7,6 +8,23 @@ bool player_has_skill(const Player& player, SkillId id) {
     for (auto sid : player.learned_skills)
         if (sid == id) return true;
     return false;
+}
+
+static std::string tinkering_category_description() {
+    std::string s = "The art of repairing, modifying, and disassembling technology and equipment.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " Grants the ";
+    s += colored("Salvage", Color::Yellow);
+    s += " ability: ";
+    s += colored("40%", Color::Cyan);
+    s += " chance on mechanical kills to recover 1-2 ";
+    s += colored("Spare Parts", Color::Yellow);
+    s += " and ";
+    s += colored("30%", Color::Cyan);
+    s += " chance of ";
+    s += colored("Circuitry", Color::Cyan);
+    s += ".";
+    return s;
 }
 
 const std::vector<SkillCategory>& skill_catalog() {
@@ -62,7 +80,7 @@ const std::vector<SkillCategory>& skill_catalog() {
              false, 150, 17, "Willpower"},
         }},
         {SkillId::Cat_Tinkering, "Tinkering",
-         "The art of repairing, modifying, and disassembling technology and equipment.", 100, {
+         tinkering_category_description(), 100, {
             {SkillId::BasicRepair, "Basic Repair",
              "You can repair damaged equipment using scrap materials. "
              "Restores durability over time.",
