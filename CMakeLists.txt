@@ -89,6 +89,7 @@ set(ASTRA_SOURCES
     src/generators/ruin_stamps.cpp
     src/generators/ruin_generator.cpp
     src/generators/dungeon_level.cpp
+    src/dungeon/conclave_archive.cpp
     src/generators/faction_territory.cpp
     src/overworld_stamps.cpp
     src/poi_budget.cpp
