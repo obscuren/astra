@@ -860,32 +860,65 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if (!placed) log("spawn: no adjacent passable tile");
     }
     else if (verb == "fixtures") {
-        // Dump quest-fixture placements across all quest_locations so the
-        // dev can see what's been stamped where (and on which map key).
+        // Dump quest-fixture placements across all quest_locations PLUS
+        // notable navigation fixtures (stairs, hatches, anything with a
+        // quest_fixture_id) on the current map, so the dev can see
+        // what's been stamped where.
         const auto& qlocs = game.world().quest_locations();
-        if (qlocs.empty()) {
-            log("No quest_locations registered.");
-            return;
-        }
         int total = 0;
-        for (const auto& [key, meta] : qlocs) {
-            auto [sys, b, m, stn, ow_x, ow_y, d] = key;
-            for (const auto& p : meta.fixtures) {
-                ++total;
-                std::string loc = "sys=" + std::to_string(sys) +
-                                  " body=" + std::to_string(b) +
-                                  (m >= 0 ? " moon=" + std::to_string(m) : "") +
-                                  (stn ? " [station]" : "") +
-                                  (d > 0 ? " depth=" + std::to_string(d) : "");
-                if (p.x < 0 || p.y < 0) {
-                    log(p.fixture_id + " — " + loc + " — (unplaced)");
-                } else {
-                    log(p.fixture_id + " — " + loc + " — tile (" +
-                        std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+        if (!qlocs.empty()) {
+            log("-- quest_locations metadata --");
+            for (const auto& [key, meta] : qlocs) {
+                auto [sys, b, m, stn, ow_x, ow_y, d] = key;
+                for (const auto& p : meta.fixtures) {
+                    ++total;
+                    std::string loc = "sys=" + std::to_string(sys) +
+                                      " body=" + std::to_string(b) +
+                                      (m >= 0 ? " moon=" + std::to_string(m) : "") +
+                                      (stn ? " [station]" : "") +
+                                      (d > 0 ? " depth=" + std::to_string(d) : "");
+                    if (p.x < 0 || p.y < 0) {
+                        log(p.fixture_id + " — " + loc + " — (unplaced)");
+                    } else {
+                        log(p.fixture_id + " — " + loc + " — tile (" +
+                            std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+                    }
                 }
             }
         }
-        if (total == 0) log("No quest fixtures declared.");
+
+        // Current map scan for navigation fixtures and any quest-tagged
+        // fixture that doesn't appear in quest_locations (e.g. the
+        // Conclave Archive hatch, programmatically placed by poi_phase).
+        const auto& m = game.world().map();
+        int map_shown = 0;
+        for (int y = 0; y < m.height(); ++y) {
+            for (int x = 0; x < m.width(); ++x) {
+                int fidx = m.fixture_id(x, y);
+                if (fidx < 0) continue;
+                const auto& f = m.fixture(fidx);
+                const char* tname = nullptr;
+                switch (f.type) {
+                    case FixtureType::StairsUp:     tname = "stairs_up";     break;
+                    case FixtureType::StairsDown:   tname = "stairs_down";   break;
+                    case FixtureType::DungeonHatch: tname = "hatch";         break;
+                    case FixtureType::QuestFixture: tname = "quest_fixture"; break;
+                    default: break;
+                }
+                if (!tname) continue;
+                if (map_shown == 0) log("-- current map fixtures --");
+                std::string line = std::string(tname) + " (" +
+                                   std::to_string(x) + "," +
+                                   std::to_string(y) + ")";
+                if (!f.quest_fixture_id.empty())
+                    line += " id=" + f.quest_fixture_id;
+                log(line);
+                ++map_shown;
+            }
+        }
+
+        if (total == 0 && map_shown == 0)
+            log("No quest fixtures declared and no navigation fixtures on current map.");
     }
     else if (verb == "mapfix" && args.size() == 1) {
         // List every placed fixture on the current map.
