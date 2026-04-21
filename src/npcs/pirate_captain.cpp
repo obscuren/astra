@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/station_type.h"
@@ -57,6 +58,7 @@ Npc build_pirate_captain(const StationContext& ctx) {
         },
     };
 
+    npc.flags |= static_cast<uint64_t>(CreatureFlag::Biological);
     return npc;
 }
 

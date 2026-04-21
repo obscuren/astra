@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/faction.h"
 
@@ -78,6 +79,7 @@ Npc build_drifter(Race race, std::mt19937& rng) {
         },
     };
 
+    npc.flags |= static_cast<uint64_t>(CreatureFlag::Biological);
     return npc;
 }
 
