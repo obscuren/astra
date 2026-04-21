@@ -1,4 +1,5 @@
 #include "astra/quest.h"
+#include "astra/quest_fixture.h"
 #include "astra/game.h"
 #include "astra/scenario_effects.h"
 #include "astra/world_manager.h"
@@ -59,6 +60,35 @@ public:
     }
     RevealPolicy reveal_policy() const override { return RevealPolicy::Full; }
     OfferMode    offer_mode()    const override { return OfferMode::Auto; }
+
+    void register_fixtures() override {
+        register_quest_fixture({
+            "conclave_archive_entrance",
+            'v', 135,
+            "Descend into the Conclave Archive",
+            "You drop through the hatch into the ruin below.",
+            "", {}
+        });
+        register_quest_fixture({
+            "nova_resonance_crystal",
+            '*', 135,
+            "A small Stellari-resonance crystal hums on a Precursor pedestal. Activate it?",
+            "The crystal lights up. Nova's voice fills the chamber.",
+            "STELLARI RESONANCE CRYSTAL - FINAL LOG",
+            {
+                // Placeholder — user will replace with verbatim lines from
+                // /Users/jeffrey/dev/Unreal/lyra/nova-arc-the-stellar-signal.md
+                // lines 292-343.
+                "If you're hearing this, it means I'm probably gone.",
+                "Erased. Wiped. Whatever they call it.",
+                "",
+                "But listen, commander - and I mean *really* listen.",
+                "",
+                "The cycle is a choice. Always was.",
+                "(...crystal audio log to be completed...)",
+            },
+        });
+    }
 
     void on_accepted(Game& game) override {
         // Star chart marker: Sol = 1, Jupiter body = 5, Io moon = 0.

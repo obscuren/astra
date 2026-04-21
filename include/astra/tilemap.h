@@ -327,6 +327,7 @@ enum class RoomFlavor : uint8_t {
 
 enum class FixtureType : uint8_t {
     // Decorative (impassable, no interaction)
+    ResonancePillar,// '~'  — Precursor resonance pillar (cyan, decorative)
     Table,          // 'o'  — cantina tables, command tables
     Console,        // '#'  — computer terminals (decorative)
     Crate,          // '='  — cargo crates

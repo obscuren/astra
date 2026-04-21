@@ -533,6 +533,8 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             break;
         case FixtureType::Window:
             vis = {'O', nullptr, Color::Cyan, Color::Default}; break;
+        case FixtureType::ResonancePillar:
+            vis = {'~', "\xe2\x95\xa6", static_cast<Color>(135), Color::Default}; break; // ╦ cyan pillar
         case FixtureType::Table:
             vis = {'o', "\xc2\xa4", Color::DarkGray, Color::Default}; break;           // ¤
         case FixtureType::Console:
@@ -1759,8 +1761,9 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::FloraLichen:     return '.';
         case FixtureType::MineralOre:      return ',';
         case FixtureType::MineralCrystal:  return '*';
-        case FixtureType::ScrapComponent:  return '%';
-        case FixtureType::QuestFixture:    return '?';
+        case FixtureType::ScrapComponent:   return '%';
+        case FixtureType::ResonancePillar:  return '~';
+        case FixtureType::QuestFixture:     return '?';
     }
     return '?';
 }
