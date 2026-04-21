@@ -7,7 +7,7 @@ namespace astra {
 
 Npc build_archon_automaton(std::mt19937& /*rng*/) {
     Npc npc;
-    npc.race        = Race::Human;   // chassis race; irrelevant for a machine
+    npc.race        = Race::Mechanical;
     npc.npc_role    = NpcRole::ArchonAutomaton;
     npc.role        = "Archon Automaton";
     npc.name        = "Archon Automaton";

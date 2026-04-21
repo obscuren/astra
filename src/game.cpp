@@ -923,6 +923,7 @@ void Game::new_game(const CreationResult& cr) {
             case Race::Sylphari:   return Faction_SylphariWanderers;
             case Race::Human:      return Faction_TerranFederation;
             case Race::Xytomorph:  return Faction_XytomorphHive;
+            case Race::Mechanical: return "";  // machines carry no innate faction
         }
         return "";
     };

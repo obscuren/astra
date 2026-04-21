@@ -7,7 +7,7 @@ namespace astra {
 
 Npc build_archon_sentry_drone(std::mt19937& /*rng*/) {
     Npc npc;
-    npc.race        = Race::Human;
+    npc.race        = Race::Mechanical;
     npc.npc_role    = NpcRole::ArchonSentryDrone;
     npc.role        = "Archon Sentry Drone";
     npc.name        = "Archon Sentry Drone";

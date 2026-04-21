@@ -13,6 +13,7 @@ const char* race_name(Race r) {
         case Race::Sylphari:  return "Sylphari";
         case Race::Xytomorph: return "Xytomorph";
         case Race::Stellari:  return "Stellari";
+        case Race::Mechanical: return "Mechanical";
     }
     return "Unknown";
 }
@@ -62,6 +63,7 @@ std::string generate_name(Race race, std::mt19937& rng) {
         case Race::Sylphari:  return pick(sylphari_first, rng);
         case Race::Xytomorph: return pick(xytomorph_first, rng);
         case Race::Stellari:  return "Nova";
+        case Race::Mechanical: return "Unit";  // drones/automatons don't have personal names
     }
     return "Unknown";
 }
@@ -135,16 +137,16 @@ Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng) {
     if (role_name == "Station Keeper")   return create_npc(NpcRole::StationKeeper, Race::Human, rng);
     if (role_name == "Merchant")         return create_npc(NpcRole::Merchant, Race::Human, rng);
     if (role_name == "Drifter")          return create_npc(NpcRole::Drifter, Race::Human, rng);
-    if (role_name == "Archon Remnant")   return create_npc(NpcRole::ArchonRemnant, Race::Human, rng);
+    if (role_name == "Archon Remnant")   return create_npc(NpcRole::ArchonRemnant, Race::Mechanical, rng);
     if (role_name == "Void Reaver")      return create_npc(NpcRole::VoidReaver, Race::Human, rng);
-    if (role_name == "Archon Sentinel")  return create_npc(NpcRole::ArchonSentinel, Race::Human, rng);
+    if (role_name == "Archon Sentinel")  return create_npc(NpcRole::ArchonSentinel, Race::Mechanical, rng);
     if (role_name == "Conclave Sentry")  return create_npc(NpcRole::ConclaveSentry, Race::Stellari, rng);
     if (role_name == "Heavy Conclave Sentry") return create_npc(NpcRole::HeavyConclaveSentry, Race::Stellari, rng);
-    if (role_name == "Rust Hound")       return create_npc(NpcRole::RustHound, Race::Human, rng);
-    if (role_name == "Sentry Drone")     return create_npc(NpcRole::SentryDrone, Race::Human, rng);
-    if (role_name == "Conclave Sentry Drone") return create_npc(NpcRole::ConclaveSentryDrone, Race::Human, rng);
-    if (role_name == "Archon Sentry Drone")   return create_npc(NpcRole::ArchonSentryDrone, Race::Human, rng);
-    if (role_name == "Archon Automaton") return create_npc(NpcRole::ArchonAutomaton, Race::Human, rng);
+    if (role_name == "Rust Hound")       return create_npc(NpcRole::RustHound, Race::Mechanical, rng);
+    if (role_name == "Sentry Drone")     return create_npc(NpcRole::SentryDrone, Race::Mechanical, rng);
+    if (role_name == "Conclave Sentry Drone") return create_npc(NpcRole::ConclaveSentryDrone, Race::Mechanical, rng);
+    if (role_name == "Archon Sentry Drone")   return create_npc(NpcRole::ArchonSentryDrone, Race::Mechanical, rng);
+    if (role_name == "Archon Automaton") return create_npc(NpcRole::ArchonAutomaton, Race::Mechanical, rng);
     // Fallback: hostile xytomorph
     return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
 }

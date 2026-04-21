@@ -7,7 +7,7 @@ namespace astra {
 
 Npc build_conclave_sentry_drone(std::mt19937& /*rng*/) {
     Npc npc;
-    npc.race        = Race::Human;
+    npc.race        = Race::Mechanical;
     npc.npc_role    = NpcRole::ConclaveSentryDrone;
     npc.role        = "Conclave Sentry Drone";
     npc.name        = "Conclave Sentry Drone";
