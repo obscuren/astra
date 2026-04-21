@@ -126,6 +126,17 @@ Unarmed: 1d3 Kinetic
 - **Elite bonus**: HP x2, quickness x1.5, DV +2, AV +1
 - **Damage dice**: fixed (not scaled by level), elite NPCs get bonus dice
 
+### NPC Ranged Attacks
+
+Preconditions: attacker has `ai == NpcAi::Turret`, chebyshev distance in `[2, attack_range]`, non-empty `ranged_damage_dice`, and Bresenham LOS (no opaque tile between attacker and target).
+
+- Attack roll: `1d20 + level/2` vs target DV (player: `effective_dv()`; NPC: `dv`). Natural 1 always misses; natural 20 always hits.
+- Penetration: `1d10 + level/3` vs effective AV (+ `type_affinity` for NPC target). Natural 1 = no damage; natural 10 = always penetrates. Each 4 points of excess triggers another damage roll.
+- Shield (player only): penetration rolled against AV=0; damage scaled by `shield_affinity`; never bypasses shield.
+- Damage: `ranged_damage_dice` of `ranged_damage_type`, then `apply_resistance` (player) and `apply_damage_effects` (player or NPC).
+
+Turret AI holds position when out of range or LOS is blocked; it never pursues.
+
 ### Loot Drops
 
 - 50% chance on enemy kill

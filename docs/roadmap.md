@@ -34,7 +34,7 @@
 - [x] **Archaeology skill category** — Ruin Reader, Artifact ID, Excavation, Cultural Attunement, Precursor Linguist, Beacon Sense
 
 ### NPC Combat
-- [ ] **Ranged NPC attacks** — NPCs with ranged weapons shoot instead of chase
+- [x] **Ranged NPC attacks** — Turret AI holds position and fires at player/NPCs with LOS; Sentry Drone fires plasma bolts at 6 tiles
 - [x] **Flee behavior** — Intimidate causes NPCs to flee (move away from player)
 
 ---
