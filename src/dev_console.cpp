@@ -887,6 +887,15 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
         if (total == 0) log("No quest fixtures declared.");
     }
+    else if (verb == "regen" && args.size() == 1) {
+        // Purge the location cache so the current map and all dungeon
+        // levels regenerate on next entry. Useful when generator logic
+        // has changed and cached maps are stale. Does NOT affect the
+        // current map you're standing on until you leave and come back.
+        size_t n = game.world().location_cache().size();
+        game.world().location_cache().clear();
+        log("Purged " + std::to_string(n) + " cached locations. Leave and re-enter any map to regenerate.");
+    }
     else if (verb == "tp" && args.size() >= 3) {
         // Teleport player to (x, y) on the current map.
         int tx = std::atoi(args[1].c_str());

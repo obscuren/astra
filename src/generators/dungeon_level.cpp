@@ -184,8 +184,19 @@ void generate_dungeon_level(TileMap& map,
     // pattern in game_world.cpp (create TileMap, then run generator).
     map = TileMap(props.width, props.height, dtype);
 
+    // TileMap defaults tiles to Tile::Empty, which renders as vacuum on
+    // DerelictStation maps. RuinGenerator only writes tiles INSIDE the
+    // ruin footprint. Pre-fill with solid rock so the areas the generator
+    // doesn't touch become impassable wall, not open space.
+    for (int y = 0; y < map.height(); ++y) {
+        for (int x = 0; x < map.width(); ++x) {
+            map.set(x, y, Tile::Wall);
+        }
+    }
+
     // RuinGenerator wants a TerrainChannels canvas. For an interior
-    // dungeon level it can be blank — the generator fills the map.
+    // dungeon level it can be blank — the generator carves rooms and
+    // corridors on top of the pre-filled rock.
     TerrainChannels channels(props.width, props.height);
     std::mt19937 ruin_rng(seed);
     RuinGenerator ruin_gen;
