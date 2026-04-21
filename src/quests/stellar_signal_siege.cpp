@@ -3,6 +3,8 @@
 #include "astra/game.h"
 #include "astra/scenario_effects.h"
 #include "astra/world_manager.h"
+#include "astra/dungeon/conclave_archive.h"
+#include "astra/dungeon_recipe.h"
 
 #include <memory>
 #include <string>
@@ -37,19 +39,26 @@ public:
             "If I don't survive this... find it. Please.";
         q.giver_npc = "Stellar Engineer";
         q.is_story = true;
-        // Placeholder objective — Io Archive generation lands in a later
-        // iteration. This target currently has no driver.
         q.objectives = {
             {ObjectiveType::GoToLocation,
-             "Travel to Io and investigate the Conclave Archive",
-             1, 0, "Io"},
+             "Land on Io", 1, 0, "Io"},
+            {ObjectiveType::InteractFixture,
+             "Recover Nova's fragment from the Conclave Archive",
+             1, 0, "nova_resonance_crystal"},
         };
+        q.reward.xp      = 400;
+        q.reward.credits = 500;
         q.journal_on_accept =
             "Nova's locked herself in the observatory. She told me the "
             "Conclave isn't trying to kill her — they're trying to "
             "erase her, so the next cycle starts clean. There's "
             "something she buried on Io, in the Conclave Archive. If "
             "she doesn't make it, I need to find it.";
+        q.journal_on_complete =
+            "Played Nova's final message. Heard her three choices. "
+            "THA's comms are open again - the Conclave pulled back. "
+            "I think they didn't expect anyone to reach the vault. "
+            "Nova's voice is still in my head.";
         return q;
     }
 
@@ -99,7 +108,18 @@ public:
         meta.target_system_id = 1;
         meta.target_body_index = 5;
         meta.target_moon_index = 0;
+        meta.poi_type = Tile::OW_PrecursorArchive;
+        meta.npc_roles = {"Conclave Sentry", "Conclave Sentry", "Conclave Sentry"};
         game.world().quest_locations()[k] = std::move(meta);
+
+        // Register Conclave Archive dungeon recipe — 3 levels of Precursor
+        // ruin with Archon Sentinel boss on the deepest level.
+        DungeonRecipe recipe;
+        recipe.root        = k;
+        recipe.kind_tag    = "conclave_archive";
+        recipe.level_count = 3;
+        recipe.levels      = build_conclave_archive_levels();
+        game.world().dungeon_recipes()[k] = std::move(recipe);
 
         // ARIA panics over ship comms the moment Nova's message lands.
         // The player sees this transmission first; the cascade in
