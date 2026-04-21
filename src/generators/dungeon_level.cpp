@@ -1,9 +1,11 @@
 #include "astra/dungeon_level_generator.h"
 
-#include "astra/map_generator.h"
 #include "astra/map_properties.h"
+#include "astra/ruin_generator.h"
+#include "astra/terrain_channels.h"
 #include "astra/tilemap.h"
 
+#include <algorithm>
 #include <random>
 #include <utility>
 #include <vector>
@@ -165,27 +167,29 @@ void generate_dungeon_level(TileMap& map,
     if (depth < 1 || depth > static_cast<int>(recipe.levels.size())) return;
     const auto& spec = recipe.levels[depth - 1];
 
-    // The concrete ruin-style dungeon map type used throughout the codebase
-    // for Precursor / ancient-civ interiors is DerelictStation. See
-    // Game::enter_dungeon_from_detail for the reference dispatch.
-    //
-    // NOTE: MapProperties does NOT carry civ_name / decay_level fields —
-    // those are consumed by RuinGenerator::generate() directly, which is
-    // not reachable through the create_generator() factory. For this
-    // entry point we rely on biome (Corroded) to theme the level; a
-    // future pass should route spec.civ_name / spec.decay_level through
-    // a dedicated factory overload.
+    // Recipe-backed dungeon levels go through RuinGenerator directly so
+    // spec.civ_name (e.g. "Precursor") reaches select_civ. The abstract
+    // create_generator(DerelictStation) path would discard civ_name.
     const MapType dtype = MapType::DerelictStation;
     MapProperties props = default_properties(dtype);
     props.biome = Biome::Corroded;
     props.difficulty = std::max(1, spec.enemy_tier);
+    // Map integer decay level (0..3) to ruin decay modifier (0.0..1.0).
+    // 0 = pristine vault, 3 = heavy battle damage.
+    props.detail_ruin_decay =
+        std::clamp(static_cast<float>(spec.decay_level) / 3.0f, 0.0f, 1.0f);
+    props.detail_ruin_civ = spec.civ_name;
 
     // Recreate the underlying grid at the requested size. Matches the
     // pattern in game_world.cpp (create TileMap, then run generator).
     map = TileMap(props.width, props.height, dtype);
 
-    auto gen = create_generator(dtype);
-    gen->generate(map, props, seed);
+    // RuinGenerator wants a TerrainChannels canvas. For an interior
+    // dungeon level it can be blank — the generator fills the map.
+    TerrainChannels channels(props.width, props.height);
+    std::mt19937 ruin_rng(seed);
+    RuinGenerator ruin_gen;
+    ruin_gen.generate(map, channels, props, ruin_rng, spec.civ_name);
 
     // ---- StairsUp ----
     // Preferred: the tile the player descended from, if still passable
