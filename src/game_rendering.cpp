@@ -108,6 +108,7 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::SettlementProp:  return "Settlement Prop";
         case FixtureType::ShoreDebris:     return "Shore Debris";
         case FixtureType::CampStove:       return "Camp Stove";
+        case FixtureType::Kitchen:         return "Kitchen";
         case FixtureType::Lamp:            return "Lamp";
         case FixtureType::HoloLight:       return "Holo Light";
         case FixtureType::Locker:          return "Locker";
@@ -163,6 +164,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::SettlementProp:  return "A piece of settlement infrastructure.";
         case FixtureType::ShoreDebris:     return "Sand, rocks, and debris washed ashore.";
         case FixtureType::CampStove:       return "A portable cooking stove, still warm.";
+        case FixtureType::Kitchen:         return "A built-in cooking station. Burners idle, ready to cook.";
         case FixtureType::Lamp:            return "A warm-glowing lamp illuminates the area.";
         case FixtureType::HoloLight:       return "A holographic light source casts a cool glow.";
         case FixtureType::Locker:          return "A secure metal locker.";

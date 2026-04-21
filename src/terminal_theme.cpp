@@ -572,7 +572,7 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
         case FixtureType::RestPod:
             vis = {'=', "\xe2\x88\xa9", Color::Green, Color::Default}; break;           // ∩
         case FixtureType::ShipTerminal:
-            vis = {'>', "\xc2\xbb", Color::Yellow, Color::Default}; break;              // »
+            vis = {'#', "\xe2\x96\xa6", Color::Green, Color::White}; break;             // ▦
         case FixtureType::CommandTerminal:
             vis = {'#', "\xe2\x96\xa3", Color::Cyan, Color::Default}; break;            // ▣
         case FixtureType::DungeonHatch:
@@ -922,6 +922,8 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
         }
         case FixtureType::CampStove:
             vis = {'o', "\xe2\x97\x8b", Color::Red, Color::Default}; break;             // ○ red stove
+        case FixtureType::Kitchen:
+            vis = {'o', "\xe2\x8a\x9e", Color::Red, Color::Default}; break;             // ⊞ kitchen stove
         case FixtureType::Lamp:
             vis = {'*', "\xe2\x9c\xb6", Color::Yellow, Color::Default}; break;          // ✶ warm lamp
         case FixtureType::HoloLight:
@@ -1593,8 +1595,15 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
         }
         case AnimationType::ViewportShimmer: {
             static const ResolvedVisual frames[] = {
-                {'"', nullptr, Color::Cyan, Color::Default},
-                {'"', nullptr, Color::DarkGray, Color::Default},
+                {'"', "\xe2\x96\x91", Color::Cyan, Color::Default},     // ░
+                {'"', "\xe2\x96\x91", Color::DarkGray, Color::Default}, // ░
+            };
+            return frames[frame_index % 2];
+        }
+        case AnimationType::ShipTerminalBlink: {
+            static const ResolvedVisual frames[] = {
+                {'#', "\xe2\x96\xa6", Color::Black, Color::White}, // ▦
+                {'#', "\xe2\x96\xa6", Color::Green, Color::White}, // ▦
             };
             return frames[frame_index % 2];
         }
@@ -1701,7 +1710,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::SupplyLocker:    return '&';
         case FixtureType::StarChart:       return '*';
         case FixtureType::RestPod:         return '=';
-        case FixtureType::ShipTerminal:    return '>';
+        case FixtureType::ShipTerminal:    return '#';
         case FixtureType::CommandTerminal: return '#';
         case FixtureType::DungeonHatch:    return 'v';
         case FixtureType::StairsUp:        return '<';
@@ -1709,6 +1718,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::ShoreDebris:     return '.';
         case FixtureType::SettlementProp:  return '*';
         case FixtureType::CampStove:       return 'o';
+        case FixtureType::Kitchen:         return 'o';
         case FixtureType::Lamp:            return '*';
         case FixtureType::HoloLight:       return '*';
         case FixtureType::Locker:          return '=';

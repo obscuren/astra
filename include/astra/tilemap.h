@@ -377,6 +377,8 @@ enum class FixtureType : uint8_t {
     BridgeFloor,        // '.'  — bridge surface (passable)
     Planter,            // '"'  — decorative vegetation
 
+    Kitchen,            // '⊞'  — built-in cooking station (interactable, future cooking)
+
     // Ground resources (flora/mineral fixtures)
     FloraFlower,
     FloraHerb,

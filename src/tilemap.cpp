@@ -404,6 +404,9 @@ FixtureData make_fixture(FixtureType type) {
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::CampStove:
             fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Kitchen:
+            fd.passable = false; fd.interactable = true;
+            fd.light_radius = 2; break;
         case FixtureType::Lamp:
             fd.passable = true; fd.interactable = false;
             fd.light_radius = 6; break;

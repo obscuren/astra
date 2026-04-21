@@ -87,6 +87,12 @@ const AnimationDef anim_megastructure_shift = {
     true
 };
 
+const AnimationDef anim_ship_terminal_blink = {
+    AnimationType::ShipTerminalBlink,
+    {{700}, {700}},
+    true
+};
+
 // ─────────────────────────────────────────────────────────────────
 // AnimationManager
 // ─────────────────────────────────────────────────────────────────
@@ -227,6 +233,7 @@ static const AnimationDef* fixture_anim_for(FixtureType type) {
     switch (type) {
         case FixtureType::Console:         return &anim_console_blink;
         case FixtureType::CommandTerminal: return &anim_megastructure_shift;
+        case FixtureType::ShipTerminal:    return &anim_ship_terminal_blink;
         case FixtureType::Viewport:        return &anim_viewport_shimmer;
         case FixtureType::Torch:           return &anim_torch_flicker;
         default: return nullptr;
