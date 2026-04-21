@@ -13,7 +13,7 @@ Npc build_sentry_drone(std::mt19937& /*rng*/) {
     npc.name        = "Sentry Drone";
     npc.hp          = 14;
     npc.max_hp      = 14;
-    npc.faction     = Faction_Feral;   // use whatever rust_hound uses
+    npc.faction     = Faction_Feral;   // hostile station security, unaligned
     npc.quickness   = 100;
     npc.base_xp     = 35;
     npc.base_damage = 2;
