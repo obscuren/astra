@@ -109,7 +109,11 @@ public:
         meta.target_body_index = 5;
         meta.target_moon_index = 0;
         meta.poi_type = Tile::OW_PrecursorArchive;
-        meta.npc_roles = {"Conclave Sentry", "Conclave Sentry", "Conclave Sentry"};
+        meta.npc_roles = {
+            "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
+            "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
+            "Sentry Drone", "Sentry Drone",
+        };
         game.world().quest_locations()[k] = std::move(meta);
 
         // Register Conclave Archive dungeon recipe — 3 levels of Precursor
