@@ -15,6 +15,20 @@ namespace astra {
 // Helpers
 // ---------------------------------------------------------------------------
 
+namespace {
+// Scan the fixture_ids grid to find the (x,y) position of a given fixture id.
+static std::pair<int,int> fixture_xy_by_id(const TileMap& m, int fid) {
+    const auto& ids = m.fixture_ids();
+    const int w = m.width();
+    const int h = m.height();
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            if (ids[y * w + x] == fid)
+                return {x, y};
+    return {-1, -1};
+}
+} // namespace
+
 void DialogManager::reset_content(const std::string& title, float width_frac) {
     title_ = title;
     body_.clear();
@@ -397,6 +411,11 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             break;
         }
         case FixtureType::StairsUp: {
+            if (game.world().navigation().current_depth > 0) {
+                game.ascend_stairs();
+                break;
+            }
+            // Pre-existing non-recipe behavior:
             if (game.world().map().location_name() == "Maintenance Tunnels") {
                 game.exit_maintenance_tunnels();
             } else {
@@ -404,7 +423,28 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             }
             break;
         }
+        case FixtureType::StairsDown: {
+            auto xy = fixture_xy_by_id(game.world().map(), fid);
+            game.descend_stairs(xy);
+            break;
+        }
         case FixtureType::DungeonHatch: {
+            const auto& nav = game.world().navigation();
+            if (nav.current_depth == 0) {
+                LocationKey root{
+                    nav.current_system_id,
+                    nav.current_body_index,
+                    nav.current_moon_index,
+                    nav.at_station,
+                    -1, -1, 0
+                };
+                if (game.world().find_dungeon_recipe(root)) {
+                    auto xy = fixture_xy_by_id(game.world().map(), fid);
+                    game.descend_stairs(xy);
+                    break;
+                }
+            }
+            // Pre-existing maintenance-tunnel behavior:
             if (game.world().map().location_name() == "Maintenance Tunnels") {
                 game.exit_maintenance_tunnels();
                 break;
