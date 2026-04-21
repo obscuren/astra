@@ -176,4 +176,25 @@ const StampDef outpost_stamps[] = {
 };
 const int outpost_stamp_count = 2;
 
+// ---------------------------------------------------------------------------
+// Precursor Archive stamps (quest-driven ruin with descent hatch)
+// ---------------------------------------------------------------------------
+
+static const StampCell precursor_archive_3x3[] = {
+    {0, 0, Tile::OW_Ruins,           SG_Omega},
+    {1, 0, Tile::OW_Ruins,           SG_Pi},
+    {2, 0, Tile::OW_Ruins,           SG_Omega},
+    {0, 1, Tile::OW_Ruins,           SG_Section},
+    {1, 1, Tile::OW_PrecursorArchive, SG_DownTriangle},
+    {2, 1, Tile::OW_Ruins,           SG_Section},
+    {0, 2, Tile::OW_Ruins,           SG_Omega},
+    {1, 2, Tile::OW_Ruins,           SG_Pi},
+    {2, 2, Tile::OW_Ruins,           SG_Omega},
+};
+
+const StampDef precursor_archive_stamps[] = {
+    {3, 3, precursor_archive_3x3, 9},
+};
+const int precursor_archive_stamp_count = 1;
+
 } // namespace astra

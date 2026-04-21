@@ -222,6 +222,7 @@ static const char* tile_name(Tile t) {
         case Tile::OW_Outpost:     return "Outpost";
         case Tile::OW_Beacon:     return "Beacon";
         case Tile::OW_Megastructure: return "Megastructure";
+        case Tile::OW_PrecursorArchive: return "Precursor Archive";
         case Tile::OW_AlienTerrain: return "Alien Terrain";
         case Tile::OW_ScorchedEarth: return "Scorched Earth";
         case Tile::OW_GlassedCrater: return "Glassed Crater";

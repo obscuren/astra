@@ -688,7 +688,8 @@ MapProperties Game::build_detail_props(int ow_x, int ow_y) {
         if (t == Tile::OW_CaveEntrance || t == Tile::OW_Settlement ||
             t == Tile::OW_Ruins || t == Tile::OW_CrashedShip ||
             t == Tile::OW_Outpost ||
-            t == Tile::OW_Beacon || t == Tile::OW_Megastructure) {
+            t == Tile::OW_Beacon || t == Tile::OW_Megastructure ||
+            t == Tile::OW_PrecursorArchive) {
             props.detail_has_poi = true;
             props.detail_poi_type = t;
         }
@@ -849,6 +850,7 @@ void Game::enter_detail_map() {
         case Tile::OW_Ruins:        msg = "Ancient ruins surround you."; break;
         case Tile::OW_CrashedShip:  msg = "Wreckage of a starship lies scattered."; break;
         case Tile::OW_Outpost:      msg = "You approach the outpost."; break;
+        case Tile::OW_PrecursorArchive: msg = "Weathered Precursor walls rise around you."; break;
         case Tile::OW_Forest:       msg = "Dense forest surrounds you."; break;
         case Tile::OW_Desert:       msg = "Sand stretches in every direction."; break;
         case Tile::OW_IceField:     msg = "Ice formations glitter around you."; break;

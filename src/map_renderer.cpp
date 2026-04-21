@@ -44,6 +44,7 @@ static Color overworld_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Outpost:     return Color::Green;
         case Tile::OW_Beacon:      return Color::Cyan;
         case Tile::OW_Megastructure: return Color::Yellow;
+        case Tile::OW_PrecursorArchive: return static_cast<Color>(135); // cyan-violet Precursor branding
         case Tile::OW_AlienTerrain: return Color::BrightMagenta;
         case Tile::OW_ScorchedEarth: return static_cast<Color>(208);
         case Tile::OW_GlassedCrater: return static_cast<Color>(136);

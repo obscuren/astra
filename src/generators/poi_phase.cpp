@@ -84,6 +84,34 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
         return cave_gen.generate(map, channels, props, rng);
     }
 
+    if (props.detail_poi_type == Tile::OW_PrecursorArchive) {
+        // Generate a full Precursor ruin, then drop a quest-flagged
+        // DungeonHatch at the map center so the player can descend into
+        // Archive Level 1.
+        RuinGenerator ruin_gen;
+        std::string civ = props.detail_ruin_civ;
+        if (props.detail_poi_anchor.valid && !props.detail_poi_anchor.ruin_civ.empty())
+            civ = props.detail_poi_anchor.ruin_civ;
+        Rect footprint = ruin_gen.generate(map, channels, props, rng, civ);
+
+        int cx = map.width() / 2;
+        int cy = map.height() / 2;
+        // Clear the center cell so the hatch sits on passable floor.
+        map.set(cx, cy, Tile::IndoorFloor);
+        // Remove any existing fixture at the center (ruin furniture may
+        // have claimed the cell first).
+        if (map.fixture_id(cx, cy) >= 0) {
+            map.remove_fixture(cx, cy);
+        }
+
+        FixtureData hatch = make_fixture(FixtureType::DungeonHatch);
+        hatch.interactable = true;
+        hatch.quest_fixture_id = "conclave_archive_entrance";
+        map.add_fixture(cx, cy, hatch);
+
+        return footprint;
+    }
+
     // Stubbed POI types — generate terrain only, implementation pending
     if (props.detail_poi_type == Tile::OW_Beacon ||
         props.detail_poi_type == Tile::OW_Megastructure) {

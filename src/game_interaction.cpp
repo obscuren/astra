@@ -48,6 +48,7 @@ void Game::try_move(int dx, int dy) {
                 case Tile::OW_Ruins:        log("Ancient ruins. Press > to explore."); break;
                 case Tile::OW_CrashedShip:  log("Wreckage of a starship. Press > to investigate."); break;
                 case Tile::OW_Outpost:      log("An outpost. Press > to enter."); break;
+                case Tile::OW_PrecursorArchive: log("A Precursor ruin. Press > to investigate."); break;
                 default: break;
             }
         }

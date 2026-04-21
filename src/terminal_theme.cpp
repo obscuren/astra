@@ -127,6 +127,7 @@ static Color ow_tile_color(Tile tile, Biome biome) {
         case Tile::OW_Outpost:     return Color::Green;
         case Tile::OW_Beacon:      return Color::Cyan;
         case Tile::OW_Megastructure: return Color::Yellow;
+        case Tile::OW_PrecursorArchive: return static_cast<Color>(135); // cyan-violet Precursor branding
         case Tile::OW_AlienTerrain: return Color::BrightMagenta;
         case Tile::OW_ScorchedEarth: return static_cast<Color>(208); // orange
         case Tile::OW_GlassedCrater: return static_cast<Color>(136); // dark yellow/brown
@@ -254,6 +255,7 @@ static const char* ow_glyph(Tile t, uint8_t seed) {
         case Tile::OW_Outpost:     return "+";
         case Tile::OW_Beacon:      return "\xe2\x8c\xbe"; // ⌾
         case Tile::OW_Megastructure: return "\xe2\x97\x88"; // ◈
+        case Tile::OW_PrecursorArchive: return "\xe2\x96\xbc"; // ▼ — descent marker
         case Tile::OW_AlienTerrain: {
             static const char* g[] = {
                 "\xe2\x88\x97",  // ∗

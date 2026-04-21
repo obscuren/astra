@@ -62,6 +62,8 @@ Color Minimap::tile_color(Tile t, MapType map_type) {
             return Color::BrightMagenta;
         case Tile::OW_Outpost:
             return Color::BrightYellow;
+        case Tile::OW_PrecursorArchive:
+            return Color::BrightMagenta;
         case Tile::OW_Landing:
             return Color::Green;
 
@@ -96,6 +98,7 @@ bool Minimap::is_exit_tile(Tile t, const TileMap& map, int x, int y) {
         }
     }
     if (t == Tile::OW_CaveEntrance) return true;
+    if (t == Tile::OW_PrecursorArchive) return true;
     return false;
 }
 

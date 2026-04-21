@@ -61,4 +61,7 @@ extern const int cave_stamp_count;
 extern const StampDef outpost_stamps[];
 extern const int outpost_stamp_count;
 
+extern const StampDef precursor_archive_stamps[];
+extern const int precursor_archive_stamp_count;
+
 } // namespace astra
