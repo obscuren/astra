@@ -41,6 +41,7 @@ Npc build_archon_remnant(std::mt19937& rng);
 Npc build_void_reaver(std::mt19937& rng);
 Npc build_archon_sentinel(std::mt19937& rng);
 Npc build_conclave_sentry(std::mt19937& rng);
+Npc build_heavy_conclave_sentry(std::mt19937& rng);
 
 // Mechanical enemies
 Npc build_rust_hound(std::mt19937& rng);

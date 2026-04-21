@@ -37,6 +37,7 @@ enum class NpcRole : uint8_t {
     VoidReaver,
     ArchonSentinel,
     ConclaveSentry,
+    HeavyConclaveSentry,
     RustHound,
     SentryDrone,
     ArchonAutomaton,

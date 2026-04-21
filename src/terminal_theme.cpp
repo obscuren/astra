@@ -1123,6 +1123,7 @@ static ResolvedVisual resolve_npc(uint16_t type_id, uint8_t seed, uint8_t /*flag
         case NpcRole::VoidReaver:    return {'r', nullptr, Color::DarkGray, Color::Default};
         case NpcRole::ArchonSentinel: return {'S', nullptr, Color::BrightYellow, Color::Default};
         case NpcRole::ConclaveSentry: return {'S', nullptr, static_cast<Color>(135), Color::Default};
+        case NpcRole::HeavyConclaveSentry: return {'H', nullptr, Color::BrightMagenta, Color::Default};
         case NpcRole::RustHound:       return {'h', nullptr, Color::Yellow, Color::Default};
         case NpcRole::SentryDrone:     return {'d', nullptr, Color::Cyan, Color::Default};
         case NpcRole::ArchonAutomaton: return {'A', nullptr, Color::Red, Color::Default};
