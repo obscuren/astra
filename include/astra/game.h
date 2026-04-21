@@ -102,6 +102,17 @@ public:
     void enter_maintenance_tunnels();
     void exit_maintenance_tunnels();
     void exit_dungeon_to_detail();
+
+    // Descend into a recipe-backed dungeon level. `from_fixture_pos` is the
+    // (x,y) of the StairsDown / DungeonHatch the player interacted with.
+    // Saves current location, generates-or-restores the target depth, and
+    // places the player at the matching StairsUp.
+    void descend_stairs(std::pair<int,int> from_fixture_pos);
+
+    // Ascend to the parent level of the current dungeon. On depth 1, exits
+    // to the surface (depth 0) at the saved DungeonHatch position. Places
+    // the player at the matching StairsDown on the parent level.
+    void ascend_stairs();
     void advance_world(int cost);
 
     // Save system accessors

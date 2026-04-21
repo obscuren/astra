@@ -1,6 +1,8 @@
 #include "astra/game.h"
 #include "astra/civ_aesthetics.h"
 #include "astra/debug_spawn.h"
+#include "astra/dungeon_level_generator.h"
+#include "astra/dungeon_recipe.h"
 #include "astra/lore_influence_map.h"
 #include "astra/lore_types.h"
 #include "astra/tinkering.h"
@@ -40,6 +42,45 @@ std::pair<int, int> find_center_spawn(const TileMap& map) {
         }
     }
     return {cx, cy};
+}
+
+// Build a LocationKey from current navigation state at the given depth.
+// Dungeon keys use ow_x=-1, ow_y=-1 so they key off system/body/moon only —
+// dungeon recipes attach to those root coordinates regardless of which
+// overworld detail tile hosted the entry stairs.
+LocationKey make_location_key(const NavigationData& nav, int depth) {
+    return LocationKey{
+        nav.current_system_id,
+        nav.current_body_index,
+        nav.current_moon_index,
+        nav.at_station,
+        /*ow_x*/ -1, /*ow_y*/ -1,
+        depth
+    };
+}
+
+LocationKey with_depth(const LocationKey& k, int d) {
+    LocationKey out = k;
+    std::get<6>(out) = d;
+    return out;
+}
+
+// Scan the fixture_ids grid for the first DungeonHatch fixture.
+// Mirrors find_stairs_up / find_stairs_down in dungeon_level.cpp.
+std::pair<int, int> find_dungeon_hatch(const TileMap& m) {
+    const auto& ids = m.fixture_ids();
+    const int w = m.width();
+    const int h = m.height();
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int fid = ids[y * w + x];
+            if (fid < 0) continue;
+            if (m.fixture(fid).type == FixtureType::DungeonHatch) {
+                return {x, y};
+            }
+        }
+    }
+    return {-1, -1};
 }
 
 } // namespace
@@ -1069,6 +1110,115 @@ void Game::exit_dungeon_to_detail() {
     compute_camera();
     check_region_change();
     log("You return to the surface.");
+}
+
+void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
+    auto& nav = world_.navigation();
+    int cur_depth = nav.current_depth;
+    LocationKey cur_key = make_location_key(nav, cur_depth);
+    LocationKey root    = with_depth(cur_key, 0);
+
+    const DungeonRecipe* recipe = world_.find_dungeon_recipe(root);
+    if (!recipe) {
+        log("Nothing happens.");
+        return;
+    }
+    int next_depth = cur_depth + 1;
+    if (next_depth > recipe->level_count) {
+        log("The stairs end here.");
+        return;
+    }
+
+    save_current_location();
+
+    LocationKey target = with_depth(cur_key, next_depth);
+
+    if (world_.location_cache().count(target)) {
+        restore_location(target);
+    } else {
+        // Fresh generation.
+        auto props = default_properties(MapType::DerelictStation);
+        world_.map() = TileMap(props.width, props.height, MapType::DerelictStation);
+
+        uint32_t seed = dungeon_level_seed(world_.seed(), target);
+        generate_dungeon_level(world_.map(), *recipe, next_depth, seed,
+                               from_fixture_pos);
+        world_.map().set_location_name(recipe->kind_tag);
+
+        world_.npcs().clear();
+        world_.ground_items().clear();
+
+        // Spawn NPCs from the level spec into world_.npcs().
+        const auto& spec = recipe->levels[next_depth - 1];
+        std::mt19937 npc_rng(seed ^ 0x5A5Au);
+        std::vector<std::pair<int,int>> occupied;
+        auto up_for_spawn = find_stairs_up(world_.map());
+        int avoid_x = up_for_spawn.first >= 0 ? up_for_spawn.first : world_.map().width() / 2;
+        int avoid_y = up_for_spawn.second >= 0 ? up_for_spawn.second : world_.map().height() / 2;
+        for (const auto& role : spec.npc_roles) {
+            int nx = 0, ny = 0;
+            if (!world_.map().find_open_spot_other_room(
+                    avoid_x, avoid_y, nx, ny, occupied, &npc_rng))
+                continue;
+            Npc n = create_npc_by_role(role, npc_rng);
+            n.x = nx;
+            n.y = ny;
+            occupied.push_back({nx, ny});
+            world_.npcs().push_back(std::move(n));
+        }
+
+        // Player spawns at StairsUp (deterministic from generator).
+        if (up_for_spawn.first >= 0) {
+            player_.x = up_for_spawn.first;
+            player_.y = up_for_spawn.second;
+        }
+
+        world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    }
+
+    nav.current_depth = next_depth;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    world_.current_region() = -1;
+    recompute_fov();
+    compute_camera();
+    check_region_change();
+    log("You descend.");
+}
+
+void Game::ascend_stairs() {
+    auto& nav = world_.navigation();
+    int cur_depth = nav.current_depth;
+    if (cur_depth <= 0) return;
+
+    save_current_location();
+
+    LocationKey target = make_location_key(nav, cur_depth - 1);
+    if (world_.location_cache().count(target)) {
+        restore_location(target);
+    } else {
+        log("You climb, but find no way back.");
+        return;
+    }
+
+    // Place player at matching StairsDown on the parent level; if the parent
+    // is the surface (depth 0), use the DungeonHatch we descended through.
+    std::pair<int,int> spawn = {-1, -1};
+    if (cur_depth - 1 == 0) {
+        spawn = find_dungeon_hatch(world_.map());
+    } else {
+        spawn = find_stairs_down(world_.map());
+    }
+    if (spawn.first >= 0) {
+        player_.x = spawn.first;
+        player_.y = spawn.second;
+    }
+
+    nav.current_depth = cur_depth - 1;
+    world_.current_region() = -1;
+    recompute_fov();
+    compute_camera();
+    check_region_change();
+    log("You climb back up.");
 }
 
 void Game::transition_detail_edge(int dx, int dy) {
