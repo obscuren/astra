@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/creature_flags.h"
 
 #include <array>
 
@@ -134,6 +135,14 @@ Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng) {
     if (role_name == "Conclave Sentry")  return create_npc(NpcRole::ConclaveSentry, Race::Stellari, rng);
     // Fallback: hostile xytomorph
     return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
+}
+
+bool is_mechanical(const Npc& npc) {
+    return has_flag(npc.flags, CreatureFlag::Mechanical);
+}
+
+bool is_biological(const Npc& npc) {
+    return has_flag(npc.flags, CreatureFlag::Biological);
 }
 
 } // namespace astra
