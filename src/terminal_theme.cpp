@@ -548,7 +548,7 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
         case FixtureType::ShuttleClamp:
             vis = {'=', "\xe2\x95\xa4", Color::White, Color::Default}; break;           // ╤
         case FixtureType::Shelf:
-            vis = {'[', "\xe2\x95\x94", Color::DarkGray, Color::Default}; break;        // ╔
+            vis = {'=', "\xe2\x89\xa1", Color::DarkGray, Color::Default}; break;        // ≡
         case FixtureType::Viewport:
             vis = {'"', "\xe2\x96\x91", Color::Cyan, Color::Default}; break;            // ░
         case FixtureType::Torch:
@@ -1712,7 +1712,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::Rack:            return '|';
         case FixtureType::Conduit:         return '%';
         case FixtureType::ShuttleClamp:    return '=';
-        case FixtureType::Shelf:           return '[';
+        case FixtureType::Shelf:           return '=';
         case FixtureType::Viewport:        return '"';
         case FixtureType::Torch:           return '*';
         case FixtureType::Stool:           return 'o';

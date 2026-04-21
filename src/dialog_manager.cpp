@@ -381,9 +381,15 @@ void DialogManager::interact_fixture(int fid, Game& game) {
         case FixtureType::StarChart:
         case FixtureType::StarChartL:
         case FixtureType::StarChartR: {
-            game.star_chart_viewer().set_view_only(true);
+            // The star chart on the player's ship is a live navigation console
+            // (allow warping to another system); anywhere else (station
+            // observatories, labs) it's a view-only projector.
+            bool on_ship = (game.world().map().map_type() == MapType::Starship);
+            game.star_chart_viewer().set_view_only(!on_ship);
             game.star_chart_viewer().open();
-            game.log("The star chart hums to life, projecting a holographic galaxy map.");
+            game.log(on_ship
+                ? "The navigation console boots up. Plot a course to another system."
+                : "The star chart hums to life, projecting a holographic galaxy map.");
             break;
         }
         case FixtureType::WeaponDisplay: {

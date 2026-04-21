@@ -32,7 +32,7 @@ struct ShipRoom {
 // bench stack); other rooms are 6 or 8. Total span: x=2..47.
 static constexpr ShipRoom ship_rooms[] = {
     {40, 6,  8, 7},   // Cockpit (region 0, spawn) — east end, viewports on east wall
-    {26, 6, 12, 8},   // Command Center (region 1)
+    {25, 6, 13, 8},   // Command Center (region 1)
     {14, 7, 10, 6},   // Mess Hall (region 2)
     { 2, 6, 10, 8},   // Quarters (region 3) — west end
 };
@@ -148,29 +148,35 @@ void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
     }
 
     // --- Command Center (room 1) ---
+    // Layout (13x8 room):
+    //   █████████████
+    //   █...........█
+    //   █...........█
+    //   .............    corridor passes horizontally through the middle
+    //   █...........█
+    //   █....(*)....█    3-tile StarChart projector on the second-to-last row
+    //   █....╬╬╬....█    console triplet directly below the chart
+    //   █████████████
     {
         const auto& r = rooms_[1];
-        int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
+        int ix1 = r.x1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
         int cx = (ix1 + ix2) / 2;
-        int cy = (iy1 + iy2) / 2;
-        // StarChart projector — 3 tiles ( * ) centered on the room.
-        safe_place(*map_, r, cx - 1, cy, make_fixture(FixtureType::StarChartL));
-        safe_place(*map_, r, cx,     cy, make_fixture(FixtureType::StarChart));
-        safe_place(*map_, r, cx + 1, cy, make_fixture(FixtureType::StarChartR));
-        // Console row below
-        if (cy + 1 <= iy2) {
-            for (int x = cx - 1; x <= cx + 1; ++x) {
-                if (x >= ix1 && x <= ix2) {
-                    safe_place(*map_, r, x, cy + 1, make_fixture(FixtureType::Console));
-                }
-            }
+
+        // StarChart projector on iy2-1, centered horizontally.
+        safe_place(*map_, r, cx - 1, iy2 - 1, make_fixture(FixtureType::StarChartL));
+        safe_place(*map_, r, cx,     iy2 - 1, make_fixture(FixtureType::StarChart));
+        safe_place(*map_, r, cx + 1, iy2 - 1, make_fixture(FixtureType::StarChartR));
+
+        // Console triplet on iy2 directly below the chart.
+        for (int dx = -1; dx <= 1; ++dx) {
+            safe_place(*map_, r, cx + dx, iy2, make_fixture(FixtureType::Console));
         }
     }
 
     // --- Mess Hall (room 2) ---
     // Layout (10x6 room):
     //   ██████████
-    //   █.......$█   FoodTerminal in NE interior corner
+    //   █[[[[[[[$█   Shelves along north interior + FoodTerminal in NE corner
     //   ..........   corridor passage (doorways on east & west)
     //   █...║¤║..█   booth: Bench | Table | Bench
     //   █o..║¤║..█   Kitchen in SW interior corner, booth continues
@@ -178,6 +184,12 @@ void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
     {
         const auto& r = rooms_[2];
         int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
+
+        // Shelves along the north interior row, stopping before the
+        // FoodTerminal slot so they don't overwrite it.
+        for (int x = ix1; x < ix2; ++x) {
+            safe_place(*map_, r, x, iy1, make_fixture(FixtureType::Shelf));
+        }
 
         // FoodTerminal in the NE interior corner
         safe_place(*map_, r, ix2, iy1, make_fixture(FixtureType::FoodTerminal));
