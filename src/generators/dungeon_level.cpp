@@ -154,7 +154,7 @@ std::pair<int, int> find_stairs_up(const TileMap& m) {
 }
 
 std::pair<int, int> find_stairs_down(const TileMap& m) {
-    return find_fixture_xy(m, FixtureType::DungeonHatch);
+    return find_fixture_xy(m, FixtureType::StairsDown);
 }
 
 void generate_dungeon_level(TileMap& map,
@@ -244,7 +244,7 @@ void generate_dungeon_level(TileMap& map,
             std::vector<std::pair<int, int>> exclude{{ux, uy}};
             if (map.find_open_spot_in_region(r, rx, ry, exclude, &pick_rng)) {
                 FixtureData f;
-                f.type = FixtureType::DungeonHatch;
+                f.type = FixtureType::StairsDown;
                 f.interactable = true;
                 f.cooldown = 0;
                 map.add_fixture(rx, ry, f);
@@ -257,7 +257,7 @@ void generate_dungeon_level(TileMap& map,
             int cx = 0, cy = 0;
             if (map.find_open_spot_other_room(ux, uy, cx, cy)) {
                 FixtureData f;
-                f.type = FixtureType::DungeonHatch;
+                f.type = FixtureType::StairsDown;
                 f.interactable = true;
                 f.cooldown = 0;
                 map.add_fixture(cx, cy, f);

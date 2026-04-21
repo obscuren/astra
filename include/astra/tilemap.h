@@ -369,6 +369,7 @@ enum class FixtureType : uint8_t {
     CommandTerminal,// '#'  — ship AI terminal (ARIA)
     DungeonHatch,   // 'v'  — floor hatch leading to dungeon below
     StairsUp,       // '<'  — exit dungeon / return to previous location
+    StairsDown,     // '>'  — descend to deeper level within a dungeon
 
     NaturalObstacle,    // impassable natural feature — renderer resolves from biome + seed
     ShoreDebris,        // passable shore material (sand, rocks, dirt) — renderer resolves from biome
