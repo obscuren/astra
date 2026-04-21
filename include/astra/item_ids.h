@@ -74,6 +74,10 @@ constexpr uint16_t ITEM_COMPOSITE_BARRIER  = 44;
 constexpr uint16_t ITEM_HARDLIGHT_AEGIS    = 45;
 constexpr uint16_t ITEM_VOID_MANTLE        = 46;
 
+// Salvage resources (47-48)
+constexpr uint16_t ITEM_SPARE_PARTS         = 47;
+constexpr uint16_t ITEM_CIRCUITRY           = 48;
+
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;
 constexpr uint16_t ITEM_SYNTH_THRUSTER_PLATE    = 1001;

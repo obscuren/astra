@@ -32,6 +32,16 @@ void debug_spawn(TileMap& map,
             npcs.push_back(std::move(xyto));
         }
     }
+
+    // Rust Hound — mechanical enemy for salvage testing
+    {
+        Npc hound = create_npc(NpcRole::RustHound, Race::Human, rng);
+        if (map.find_open_spot_other_room(player_x, player_y,
+                                          hound.x, hound.y, occupied, &rng)) {
+            occupied.push_back({hound.x, hound.y});
+            npcs.push_back(std::move(hound));
+        }
+    }
 }
 
 } // namespace astra

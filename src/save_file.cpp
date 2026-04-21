@@ -250,6 +250,8 @@ static uint16_t item_def_id_from_name(const std::string& name) {
         {"Scrap Metal", ITEM_SCRAP_METAL},
         {"Broken Circuit", ITEM_BROKEN_CIRCUIT},
         {"Empty Casing", ITEM_EMPTY_CASING},
+        {"Spare Parts", ITEM_SPARE_PARTS},
+        {"Circuitry", ITEM_CIRCUITRY},
         {"Nano-Fiber", ITEM_NANO_FIBER},
         {"Power Core", ITEM_POWER_CORE},
         {"Circuit Board", ITEM_CIRCUIT_BOARD},
@@ -662,6 +664,9 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
             }
         }
     }
+
+    // v36: creature flags bitfield
+    w.write_u64(npc.flags);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -1463,6 +1468,11 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
             default:
                 break;
         }
+    }
+
+    // v36: creature flags bitfield
+    if (version >= 36) {
+        npc.flags = r.read_u64();
     }
 
     return npc;

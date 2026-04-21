@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/faction.h"
 
@@ -22,6 +23,7 @@ Npc build_void_reaver(std::mt19937& /*rng*/) {
     npc.damage_type = DamageType::Kinetic;
     // +1 kinetic (hardened armor vs. bullets).
     npc.type_affinity = {1, 0, 0, 0, 0};
+    npc.flags |= static_cast<uint64_t>(CreatureFlag::Biological);
     return npc;
 }
 

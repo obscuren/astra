@@ -31,6 +31,9 @@ enum class NpcRole : uint8_t {
     VoidReaver,
     ArchonSentinel,
     ConclaveSentry,
+    RustHound,
+    SentryDrone,
+    ArchonAutomaton,
 };
 
 struct Npc {
@@ -55,6 +58,7 @@ struct Npc {
     DamageType damage_type = DamageType::Kinetic;
     TypeAffinity type_affinity;
     NpcRole npc_role = NpcRole::Civilian;
+    uint64_t flags = 0;         // CreatureFlag bitfield (Mechanical, Biological, ...)
     InteractionData interactions;
 
     // When displaced by player swap, NPC tries to return here next tick

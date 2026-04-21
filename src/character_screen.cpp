@@ -1592,16 +1592,32 @@ void CharacterScreen::draw_skills(UIContext& ctx) {
     int rw = w - half - 3;
 
     // Helper: word-wrap text
-    auto wrap_text = [&](int start_y, const std::string& text, Color color) {
+    auto wrap_text = [&](int start_y, const std::string& text, Color default_color) {
         int dy = start_y;
         int line_x = 0;
+        Color cur = default_color;
         for (size_t i = 0; i < text.size(); ++i) {
+            unsigned char ch = static_cast<unsigned char>(text[i]);
+            if (ch == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < text.size()) {
+                cur = static_cast<Color>(static_cast<uint8_t>(text[i + 1]));
+                ++i;
+                continue;
+            }
+            if (ch == static_cast<unsigned char>(COLOR_END)) {
+                cur = default_color;
+                continue;
+            }
+            if (text[i] == '\n') {
+                dy++;
+                line_x = 0;
+                continue;
+            }
             if (text[i] == ' ' && line_x >= rw) {
                 dy++;
                 line_x = 0;
                 continue;
             }
-            ctx.put(rx + line_x, dy, text[i], color);
+            ctx.put(rx + line_x, dy, text[i], cur);
             line_x++;
             if (line_x >= rw) {
                 dy++;

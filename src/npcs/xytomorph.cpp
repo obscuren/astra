@@ -1,4 +1,5 @@
 #include "astra/npc_defs.h"
+#include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/faction.h"
 
@@ -19,6 +20,7 @@ Npc build_xytomorph(std::mt19937& /*rng*/) {
     npc.damage_dice = Dice::make(1, 6);
     npc.damage_type = DamageType::Acid;
     npc.type_affinity = {2, -2, 0, 0, 3};
+    npc.flags |= static_cast<uint64_t>(CreatureFlag::Biological);
     return npc;
 }
 
