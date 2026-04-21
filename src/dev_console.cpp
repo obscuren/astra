@@ -887,6 +887,27 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
         if (total == 0) log("No quest fixtures declared.");
     }
+    else if (verb == "mapfix" && args.size() == 1) {
+        // List every placed fixture on the current map.
+        const auto& m = game.world().map();
+        int shown = 0;
+        for (int y = 0; y < m.height(); ++y) {
+            for (int x = 0; x < m.width(); ++x) {
+                int fidx = m.fixture_id(x, y);
+                if (fidx < 0) continue;
+                const auto& f = m.fixture(fidx);
+                std::string line = "(" + std::to_string(x) + "," +
+                                   std::to_string(y) + ") type=" +
+                                   std::to_string(static_cast<int>(f.type));
+                if (!f.quest_fixture_id.empty())
+                    line += " id=" + f.quest_fixture_id;
+                log(line);
+                ++shown;
+            }
+        }
+        if (shown == 0) log("No fixtures on this map.");
+        else log("Total: " + std::to_string(shown));
+    }
     else if (verb == "regen" && args.size() == 1) {
         // Purge the location cache so the current map and all dungeon
         // levels regenerate on next entry. Useful when generator logic
@@ -910,13 +931,37 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("Teleported to (" + std::to_string(tx) + "," + std::to_string(ty) + ")");
     }
     else if (verb == "tp" && args.size() == 2) {
-        // Teleport to a quest fixture by id. Two passes:
-        //   (1) quest_locations metadata — for fixtures registered via
-        //       QuestLocationMeta.fixtures (Echo drones, etc.).
-        //   (2) actual fixtures on the current map — for POI-placed
-        //       fixtures like the Conclave Archive hatch, which aren't
-        //       listed in QuestLocationMeta.
+        // Teleport targets, in priority order:
+        //   (a) short keyword for FixtureType — "stairs_down", "stairs_up",
+        //       "hatch" — jumps to the first matching fixture on the map.
+        //   (b) quest fixture id in QuestLocationMeta.fixtures.
+        //   (c) quest_fixture_id set on an actual fixture on the current
+        //       map (for programmatically placed fixtures).
         const std::string& fid = args[1];
+        FixtureType ft_target = FixtureType::Table;
+        bool use_type = true;
+        if      (fid == "stairs_down") ft_target = FixtureType::StairsDown;
+        else if (fid == "stairs_up")   ft_target = FixtureType::StairsUp;
+        else if (fid == "hatch")       ft_target = FixtureType::DungeonHatch;
+        else use_type = false;
+
+        if (use_type) {
+            const auto& m = game.world().map();
+            for (int y = 0; y < m.height(); ++y) {
+                for (int x = 0; x < m.width(); ++x) {
+                    int fidx = m.fixture_id(x, y);
+                    if (fidx < 0) continue;
+                    if (m.fixture(fidx).type != ft_target) continue;
+                    game.player().x = x;
+                    game.player().y = y;
+                    log("Teleported to " + fid + " at (" +
+                        std::to_string(x) + "," + std::to_string(y) + ")");
+                    return;
+                }
+            }
+            log("tp: no " + fid + " on this map");
+            return;
+        }
         for (const auto& [key, meta] : game.world().quest_locations()) {
             for (const auto& p : meta.fixtures) {
                 if (p.fixture_id != fid) continue;
