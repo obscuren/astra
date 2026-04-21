@@ -119,6 +119,9 @@ Npc create_npc(NpcRole npc_role, Race race, std::mt19937& rng) {
         case NpcRole::VoidReaver:    return build_void_reaver(rng);
         case NpcRole::ArchonSentinel: return build_archon_sentinel(rng);
         case NpcRole::ConclaveSentry: return build_conclave_sentry(rng);
+        case NpcRole::RustHound:       return build_rust_hound(rng);
+        case NpcRole::SentryDrone:     return build_sentry_drone(rng);
+        case NpcRole::ArchonAutomaton: return build_archon_automaton(rng);
     }
     return {};
 }
@@ -133,6 +136,9 @@ Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng) {
     if (role_name == "Void Reaver")      return create_npc(NpcRole::VoidReaver, Race::Human, rng);
     if (role_name == "Archon Sentinel")  return create_npc(NpcRole::ArchonSentinel, Race::Human, rng);
     if (role_name == "Conclave Sentry")  return create_npc(NpcRole::ConclaveSentry, Race::Stellari, rng);
+    if (role_name == "Rust Hound")       return create_npc(NpcRole::RustHound, Race::Human, rng);
+    if (role_name == "Sentry Drone")     return create_npc(NpcRole::SentryDrone, Race::Human, rng);
+    if (role_name == "Archon Automaton") return create_npc(NpcRole::ArchonAutomaton, Race::Human, rng);
     // Fallback: hostile xytomorph
     return create_npc(NpcRole::Xytomorph, Race::Xytomorph, rng);
 }

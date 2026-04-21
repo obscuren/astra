@@ -37,6 +37,9 @@ set(ASTRA_SOURCES
     src/npcs/pirate_grunt.cpp
     src/npcs/black_market_vendor.cpp
     src/npcs/void_reaver.cpp
+    src/npcs/rust_hound.cpp
+    src/npcs/sentry_drone.cpp
+    src/npcs/archon_automaton.cpp
     src/npc_spawner.cpp
     src/debug_spawn.cpp
     src/tile_props.cpp
