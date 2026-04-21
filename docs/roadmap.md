@@ -71,7 +71,7 @@
 - [x] **Stage 4 — Conclave hostility & ambushes** — -300 rep drop on Stage 3 completion, one-shot transmission, per-system Conclave Sentry ambushes
 - [x] **System faction ownership** — controlling_faction per system, deterministic clustered generation, galaxy-view band rendering with `F` toggle, Stage 4 ambushes gated to Conclave space (2026-04-20)
 - [x] **Stage 4 — Station siege & lockdown** — THA unlandable during siege arc; Return quest completes on Sol arrival (ARIA panic + Siege popup); THA traffic control plays automated docking denial; flag cleared on Siege completion (2026-04-21)
-- [ ] **Stage 4 — Conclave Archive (Io)** — multi-level Precursor ruin, Stellari-resonance crystal fixture
+- [x] **Stage 4 — Conclave Archive (Io)** — 3-level Precursor ruin on Io with reusable multi-level DungeonRecipe generator, Archon Sentinel boss on the deepest level, Nova's resonance crystal fixture, Siege completion clears THA lockdown (2026-04-21)
 - [ ] **Stage 5 — The Long Way Home** — three branching endings, timed objective, Nova core extraction
 - [ ] **Nova companion NPC** — follower unlocked by Ending C, cross-run persistence
 - [ ] **New Game+ loop** — Ending A cycle-reset, knowledge carryover, meta-unlocks
