@@ -10,6 +10,7 @@
 #include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
 #include "astra/poi_placement.h"
+#include "astra/scenario_effects.h"
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
 
@@ -1275,6 +1276,26 @@ void Game::travel_to_destination(const ChartAction& action) {
             return;
         }
         case ChartActionType::TravelToStation: {
+            // The Heavens Above lockdown (Stage 4 — Station siege). While
+            // the tha_lockdown flag is set (Return quest accepted, Siege
+            // not yet completed), THA refuses all docking attempts. Play
+            // an automated traffic-control denial and leave the player
+            // in their ship — no map swap, no navigation mutation.
+            if (target_sys.id == 1 /* Sol */
+                && world_.world_flag("tha_lockdown")) {
+                open_transmission(*this,
+                    "AUTOMATED RESPONSE - THA TRAFFIC CONTROL",
+                    {
+                        "...this is The Heavens Above Traffic Control...",
+                        "...all docking permissions have been revoked...",
+                        "...station is under emergency lockdown...",
+                        "...do not attempt approach. Repeat: do not",
+                        "attempt approach...",
+                        "",
+                        "...end transmission...",
+                    });
+                return;
+            }
             dest_key = LocationKey{target_sys.id, -1, -1, true, -1, -1, 0};
             dest_type = (target_sys.station.type == StationType::Abandoned) ? MapType::DerelictStation
                                                                              : MapType::SpaceStation;

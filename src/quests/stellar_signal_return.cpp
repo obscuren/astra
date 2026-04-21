@@ -1,5 +1,6 @@
 #include "astra/quest.h"
 #include "astra/game.h"
+#include "astra/scenario_effects.h"
 #include "astra/world_manager.h"
 
 #include <memory>
@@ -22,8 +23,8 @@ public:
         q.is_story = true;
         q.objectives = {
             {ObjectiveType::GoToLocation,
-             "Return to The Heavens Above",
-             1, 0, "The Heavens Above"},
+             "Warp back to the Sol system",
+             1, 0, "Sol"},
         };
         q.reward.xp = 100;
         q.journal_on_accept =
@@ -31,9 +32,10 @@ public:
             "drive cooled — Nova was right about all of it. Heading back "
             "to The Heavens Above to hear what she wants to do next.";
         q.journal_on_complete =
-            "Landed at The Heavens Above. The station's not what I left "
-            "— ARIA's frantic on the comms, and the Conclave is already "
-            "here.";
+            "Never made it aboard. Sol's inbound channels were already "
+            "locked — ARIA broke through on the ship comms while THA "
+            "Traffic Control looped an automated denial. The Heavens "
+            "Above is under siege.";
         return q;
     }
 
@@ -46,7 +48,8 @@ public:
     OfferMode    offer_mode()    const override   { return OfferMode::Auto; }
 
     void on_accepted(Game& game) override {
-        // Sol = 1, Jupiter body index = 5 (THA's host).
+        // Star chart marker at Jupiter (Sol body 5) — the player still
+        // navigates "home" even though the station itself is unlandable.
         LocationKey k{1, 5, -1, false, -1, -1, 0};
         QuestLocationMeta meta;
         meta.quest_id = QUEST_ID_RETURN;
@@ -54,6 +57,10 @@ public:
         meta.target_system_id = 1;
         meta.target_body_index = 5;
         game.world().quest_locations()[k] = std::move(meta);
+
+        // THA goes into lockdown the moment the Conclave warning lands.
+        // Cleared when the Siege quest completes (Conclave Archive slice).
+        set_world_flag(game, "tha_lockdown", true);
     }
 };
 

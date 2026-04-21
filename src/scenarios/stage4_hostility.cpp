@@ -17,6 +17,8 @@ namespace astra {
 namespace {
 constexpr const char* kStage4Active = "stage4_active";
 constexpr const char* kQuestConclaveProbe = "story_stellar_signal_conclave_probe";
+constexpr const char* kQuestReturn = "story_stellar_signal_return";
+constexpr uint32_t kSolSystemId = 1;
 
 int ambush_count_for_level(int level) {
     if (level < 5) return 1;
@@ -32,6 +34,18 @@ void register_stage4_hostility_scenario(Game& game) {
             auto& world = g.world();
 
             if (!world.world_flag(kStage4Active)) return;
+
+            // Arriving in Sol while the Return quest is active finishes
+            // Stage 4's "go home" beat. THA is unlandable during siege,
+            // so completion is driven by warp-in, not by docking.
+            // The cascade then auto-accepts the Siege quest whose
+            // on_accepted fires ARIA's panic transmission.
+            if (payload.system_id == kSolSystemId
+                && g.quests().find_active(kQuestReturn)) {
+                g.quests().complete_quest(kQuestReturn, g, world.world_tick());
+                return;
+            }
+
             if (world.ambushed_systems().count(payload.system_id)) return;
 
             // Gate on Conclave-controlled space. No faction → no reaction.

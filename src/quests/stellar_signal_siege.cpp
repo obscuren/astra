@@ -88,6 +88,13 @@ public:
                 "out of there.",
             });
     }
+
+    void on_completed(Game& game) override {
+        // Siege resolves when the Conclave Archive arc wraps up; THA
+        // becomes landable again. Full post-siege reshaping of the
+        // station (NPC state, Observatory access) lives in that slice.
+        set_world_flag(game, "tha_lockdown", false);
+    }
 };
 
 void register_stellar_signal_siege(std::vector<std::unique_ptr<StoryQuest>>& catalog) {
