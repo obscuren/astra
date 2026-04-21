@@ -334,8 +334,13 @@ static void furnish_observatory(RoomContext& ctx) {
         ctx.map->add_fixture(x, ctx.wy2, make_fixture(FixtureType::Viewport));
     }
 
-    // StarChart terminal on one side of the interior
-    ctx.place(ctx.ix2, ctx.iy2 - 1, make_fixture(FixtureType::StarChart));
+    // StarChart projector — 3 tiles: ( * ) — placed along the interior north
+    // row, west of center so the viewport stools have room to the east.
+    int sc_cy = ctx.iy1 + 1;
+    int sc_cx = (ctx.ix1 + ctx.ix2) / 2 - 2;
+    ctx.place(sc_cx - 1, sc_cy, make_fixture(FixtureType::StarChartL));
+    ctx.place(sc_cx,     sc_cy, make_fixture(FixtureType::StarChart));
+    ctx.place(sc_cx + 1, sc_cy, make_fixture(FixtureType::StarChartR));
 
     // Stools facing the windows — passable, always safe
     for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 2) {
@@ -394,8 +399,15 @@ static void furnish_lab(RoomContext& ctx) {
     for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 3) {
         ctx.place(x, mid_y, make_fixture(FixtureType::RepairBench));
     }
-    // StarChart terminal on side wall
-    ctx.place(ctx.ix2, ctx.iy2, make_fixture(FixtureType::StarChart));
+    // StarChart projector — 3 tiles: ( * ) — along the south interior row.
+    int sc_cx = ctx.ix2 - 1;
+    if (sc_cx - 1 >= ctx.ix1) {
+        ctx.place(sc_cx - 1, ctx.iy2, make_fixture(FixtureType::StarChartL));
+        ctx.place(sc_cx,     ctx.iy2, make_fixture(FixtureType::StarChart));
+        ctx.place(sc_cx + 1, ctx.iy2, make_fixture(FixtureType::StarChartR));
+    } else {
+        ctx.place(ctx.ix2, ctx.iy2, make_fixture(FixtureType::StarChart));
+    }
 }
 
 static void furnish_market_hall(RoomContext& ctx) {

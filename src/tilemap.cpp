@@ -384,6 +384,8 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::SupplyLocker:
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::StarChart:
+        case FixtureType::StarChartL:
+        case FixtureType::StarChartR:
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::RestPod:
             fd.passable = false; fd.interactable = true;

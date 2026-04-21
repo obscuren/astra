@@ -353,6 +353,8 @@ enum class FixtureType : uint8_t {
     RepairBench,    // '%'  — repair gear (future)
     SupplyLocker,   // '&'  — search for random loot (future)
     StarChart,      // '*'  — observatory lore terminal (future)
+    StarChartL,     // '('  — silver left bracket of 3-tile StarChart, interactable
+    StarChartR,     // ')'  — silver right bracket of 3-tile StarChart, interactable
     RestPod,        // '='  — crew quarters rest (advance ticks, full heal)
     ShipTerminal,   // '>'  — board your starship
     CommandTerminal,// '#'  — ship AI terminal (ARIA)

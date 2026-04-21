@@ -378,7 +378,9 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             dialog_node_ = -3; // sentinel: stash main menu
             break;
         }
-        case FixtureType::StarChart: {
+        case FixtureType::StarChart:
+        case FixtureType::StarChartL:
+        case FixtureType::StarChartR: {
             game.star_chart_viewer().set_view_only(true);
             game.star_chart_viewer().open();
             game.log("The star chart hums to life, projecting a holographic galaxy map.");

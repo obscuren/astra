@@ -128,8 +128,10 @@ void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
         int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
         int cx = (ix1 + ix2) / 2;
         int cy = (iy1 + iy2) / 2;
-        // StarChart in center
-        safe_place(*map_, r, cx, cy, make_fixture(FixtureType::StarChart));
+        // StarChart projector — 3 tiles ( * ) centered on the room.
+        safe_place(*map_, r, cx - 1, cy, make_fixture(FixtureType::StarChartL));
+        safe_place(*map_, r, cx,     cy, make_fixture(FixtureType::StarChart));
+        safe_place(*map_, r, cx + 1, cy, make_fixture(FixtureType::StarChartR));
         // Console row below
         if (cy + 1 <= iy2) {
             for (int x = cx - 1; x <= cx + 1; ++x) {

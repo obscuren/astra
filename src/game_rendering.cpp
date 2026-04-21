@@ -99,6 +99,8 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::RepairBench:   return "Repair Bench";
         case FixtureType::SupplyLocker:  return "Supply Locker";
         case FixtureType::StarChart:     return "Star Chart";
+        case FixtureType::StarChartL:    return "Star Chart";
+        case FixtureType::StarChartR:    return "Star Chart";
         case FixtureType::RestPod:       return "Rest Pod";
         case FixtureType::ShipTerminal:  return "Ship Terminal";
         case FixtureType::CommandTerminal: return "Command Terminal";
@@ -155,6 +157,8 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::RepairBench:   return "A workbench with tools for equipment maintenance.";
         case FixtureType::SupplyLocker:  return "A secure locker for storing personal equipment.";
         case FixtureType::StarChart:     return "A holographic star chart projector.";
+        case FixtureType::StarChartL:    return "A holographic star chart projector.";
+        case FixtureType::StarChartR:    return "A holographic star chart projector.";
         case FixtureType::RestPod:       return "A padded pod for deep restorative sleep.";
         case FixtureType::ShipTerminal:  return "A terminal for boarding your docked starship.";
         case FixtureType::CommandTerminal: return "ARIA — the ship's autonomous intelligence. Manages all onboard systems.";

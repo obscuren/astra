@@ -569,6 +569,10 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'&', "\xe2\x96\xaa", Color::Yellow, Color::Default}; break;          // ▪
         case FixtureType::StarChart:
             vis = {'*', nullptr, Color::Cyan, Color::Default}; break;
+        case FixtureType::StarChartL:
+            vis = {'(', nullptr, static_cast<Color>(250), Color::Default}; break;       // silver
+        case FixtureType::StarChartR:
+            vis = {')', nullptr, static_cast<Color>(250), Color::Default}; break;       // silver
         case FixtureType::RestPod:
             vis = {'=', "\xe2\x88\xa9", Color::Green, Color::Default}; break;           // ∩
         case FixtureType::ShipTerminal:
@@ -1709,6 +1713,8 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::RepairBench:     return '%';
         case FixtureType::SupplyLocker:    return '&';
         case FixtureType::StarChart:       return '*';
+        case FixtureType::StarChartL:      return '(';
+        case FixtureType::StarChartR:      return ')';
         case FixtureType::RestPod:         return '=';
         case FixtureType::ShipTerminal:    return '#';
         case FixtureType::CommandTerminal: return '#';
