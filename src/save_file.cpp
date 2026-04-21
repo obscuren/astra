@@ -250,6 +250,8 @@ static uint16_t item_def_id_from_name(const std::string& name) {
         {"Scrap Metal", ITEM_SCRAP_METAL},
         {"Broken Circuit", ITEM_BROKEN_CIRCUIT},
         {"Empty Casing", ITEM_EMPTY_CASING},
+        {"Spare Parts", ITEM_SPARE_PARTS},
+        {"Circuitry", ITEM_CIRCUITRY},
         {"Nano-Fiber", ITEM_NANO_FIBER},
         {"Power Core", ITEM_POWER_CORE},
         {"Circuit Board", ITEM_CIRCUIT_BOARD},

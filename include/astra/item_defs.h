@@ -59,6 +59,10 @@ Item build_scrap_metal();
 Item build_broken_circuit();
 Item build_empty_casing();
 
+// --- Salvage ---
+Item build_spare_parts();
+Item build_circuitry();
+
 // --- Crafting materials ---
 Item build_nano_fiber();
 Item build_power_core();

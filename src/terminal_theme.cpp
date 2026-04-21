@@ -1180,6 +1180,8 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_SCRAP_METAL:         return {'~', nullptr, Color::DarkGray, Color::Default};
         case ITEM_BROKEN_CIRCUIT:      return {'~', nullptr, Color::DarkGray, Color::Default};
         case ITEM_EMPTY_CASING:        return {'~', nullptr, Color::DarkGray, Color::Default};
+        case ITEM_SPARE_PARTS:         return {'~', nullptr, Color::Yellow, Color::Default};
+        case ITEM_CIRCUITRY:           return {'~', nullptr, Color::Cyan, Color::Default};
 
         // Crafting materials (33-36)
         case ITEM_NANO_FIBER:          return {'+', nullptr, Color::Cyan, Color::Default};
