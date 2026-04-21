@@ -1,10 +1,13 @@
 #include "astra/combat_system.h"
 #include "astra/animation.h"
+#include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/item_defs.h"
 #include "astra/item_gen.h"
+#include "astra/skill_defs.h"
 
 #include <algorithm>
 #include <array>
@@ -23,6 +26,45 @@ static int roll_d20(std::mt19937& rng) {
 
 static int roll_d10(std::mt19937& rng) {
     return std::uniform_int_distribution<int>(1, 10)(rng);
+}
+
+static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
+    if (is_mechanical(npc)) {
+        // Gated: requires Cat_Tinkering. Mechanical kills do NOT roll the
+        // universal 5% floor-drop — machines have no flesh to scavenge.
+        if (!player_has_skill(game.player(), SkillId::Cat_Tinkering)) return;
+
+        if (std::uniform_int_distribution<int>(0, 99)(rng) >= 40) return;
+
+        int spare_count = 1 + std::uniform_int_distribution<int>(0, 1)(rng);
+        Item spare = build_spare_parts();
+        spare.stack_count = spare_count;
+        game.player().inventory.items.push_back(spare);
+
+        bool got_circuitry = std::uniform_int_distribution<int>(0, 99)(rng) < 30;
+        Item circ;
+        if (got_circuitry) {
+            circ = build_circuitry();
+            game.player().inventory.items.push_back(circ);
+        }
+
+        std::string msg;
+        if (got_circuitry) {
+            msg = "You salvage " + display_name(spare) + " and " +
+                  display_name(circ) + " from the " + npc.name + ".";
+        } else {
+            msg = "You salvage " + display_name(spare) +
+                  " from the " + npc.name + ".";
+        }
+        game.log(msg);
+        return;
+    }
+
+    // Ungated universal path: 5% chance to drop Spare Parts to the ground.
+    if (std::uniform_int_distribution<int>(0, 99)(rng) < 5) {
+        Item spare = build_spare_parts();
+        game.world().ground_items().push_back({npc.x, npc.y, std::move(spare)});
+    }
 }
 
 static int weapon_skill_bonus(const Player& player, WeaponClass wc) {
@@ -416,6 +458,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
             game.log("Dropped: " + display_name(loot));
             game.world().ground_items().push_back({npc.x, npc.y, std::move(loot)});
         }
+        apply_salvage_on_kill(game, npc, rng);
     }
 }
 
@@ -650,6 +693,7 @@ void CombatSystem::shoot_target(Game& game) {
             game.log("Dropped: " + display_name(loot));
             game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
         }
+        apply_salvage_on_kill(game, *target_npc_, rng);
         target_npc_ = nullptr;
     }
 
