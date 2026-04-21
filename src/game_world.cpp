@@ -857,6 +857,63 @@ void Game::enter_detail_map() {
 
                 place_quest_fixtures(world_.map(), qit->second,
                                      player_.x, player_.y, occupied, fixture_rng);
+
+                // Archive-specific: guaranteed hatch guards. The random
+                // distribution above can leave the DungeonHatch lightly
+                // defended — a fixed detachment right next to it makes
+                // the approach feel like a real objective.
+                if (props.detail_poi_type == Tile::OW_PrecursorArchive) {
+                    int hx = -1, hy = -1;
+                    for (int y = 0; y < world_.map().height() && hx < 0; ++y) {
+                        for (int x = 0; x < world_.map().width(); ++x) {
+                            int fidx = world_.map().fixture_id(x, y);
+                            if (fidx < 0) continue;
+                            const auto& f = world_.map().fixture(fidx);
+                            if (f.type == FixtureType::DungeonHatch &&
+                                f.quest_fixture_id == "conclave_archive_entrance") {
+                                hx = x; hy = y; break;
+                            }
+                        }
+                    }
+                    if (hx >= 0) {
+                        static const std::array<std::pair<int,int>, 8> ring = {{
+                            {-1,-1},{0,-1},{1,-1},
+                            {-1, 0},        {1, 0},
+                            {-1, 1},{0, 1},{1, 1},
+                        }};
+                        static const char* guard_roles[] = {
+                            "Heavy Conclave Sentry",
+                            "Conclave Sentry Drone",
+                            "Heavy Conclave Sentry",
+                            "Conclave Sentry Drone",
+                        };
+                        int placed = 0;
+                        std::mt19937 grd_rng(detail_seed ^ 0x6A7Du);
+                        std::vector<int> order(ring.size());
+                        std::iota(order.begin(), order.end(), 0);
+                        std::shuffle(order.begin(), order.end(), grd_rng);
+                        for (int oi : order) {
+                            if (placed >= 4) break;
+                            int gx = hx + ring[oi].first;
+                            int gy = hy + ring[oi].second;
+                            if (gx < 0 || gy < 0 ||
+                                gx >= world_.map().width() ||
+                                gy >= world_.map().height()) continue;
+                            if (!world_.map().passable(gx, gy)) continue;
+                            if (world_.map().fixture_id(gx, gy) >= 0) continue;
+                            bool taken = false;
+                            for (const auto& o : occupied)
+                                if (o.first == gx && o.second == gy) { taken = true; break; }
+                            if (taken) continue;
+                            Npc guard = create_npc_by_role(guard_roles[placed], grd_rng);
+                            guard.x = gx;
+                            guard.y = gy;
+                            occupied.push_back({gx, gy});
+                            world_.npcs().push_back(std::move(guard));
+                            ++placed;
+                        }
+                    }
+                }
             }
         }
 

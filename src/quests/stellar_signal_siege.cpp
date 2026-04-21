@@ -109,10 +109,20 @@ public:
         meta.target_body_index = 5;
         meta.target_moon_index = 0;
         meta.poi_type = Tile::OW_PrecursorArchive;
+        // Io surface ruin garrison — pure Stellari Conclave. Larger
+        // count than inner levels because the exterior is the front
+        // line of the siege. A dedicated hatch-guard detachment is
+        // stamped on top of this roster in enter_detail_map (see
+        // spawn_archive_hatch_guards).
         meta.npc_roles = {
             "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
             "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
-            "Sentry Drone", "Sentry Drone",
+            "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
+            "Conclave Sentry",
+            "Heavy Conclave Sentry", "Heavy Conclave Sentry",
+            "Heavy Conclave Sentry",
+            "Conclave Sentry Drone", "Conclave Sentry Drone",
+            "Conclave Sentry Drone",
         };
         game.world().quest_locations()[k] = std::move(meta);
 

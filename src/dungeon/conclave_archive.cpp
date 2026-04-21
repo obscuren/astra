@@ -6,7 +6,8 @@ std::vector<DungeonLevelSpec> build_conclave_archive_levels() {
     std::vector<DungeonLevelSpec> out;
     out.reserve(3);
 
-    // L1 — Outer Ruin. Conclave foothold, first Precursor drones waking.
+    // L1 — Outer Ruin. Pure Stellari Conclave occupation: Conclave has
+    // pushed this deep into the ruin but is stalled.
     {
         DungeonLevelSpec l1;
         l1.civ_name    = "Precursor";
@@ -15,33 +16,35 @@ std::vector<DungeonLevelSpec> build_conclave_archive_levels() {
         l1.npc_roles   = {
             "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
             "Conclave Sentry", "Conclave Sentry", "Conclave Sentry",
-            "Conclave Sentry",
-            "Sentry Drone", "Sentry Drone", "Sentry Drone",
-            "Rust Hound",
+            "Conclave Sentry", "Conclave Sentry",
+            "Heavy Conclave Sentry", "Heavy Conclave Sentry",
+            "Conclave Sentry Drone", "Conclave Sentry Drone",
+            "Conclave Sentry Drone", "Conclave Sentry Drone",
         };
         out.push_back(std::move(l1));
     }
 
-    // L2 — Inner Sanctum. Conclave presence thinning, Archon defenses
-    // reasserting across the galleries.
+    // L2 — Inner Sanctum. Pure Archon Remnants: Precursor defenses have
+    // reasserted and driven the Conclave back from these levels.
     {
         DungeonLevelSpec l2;
         l2.civ_name    = "Precursor";
         l2.decay_level = 2;
         l2.enemy_tier  = 2;
         l2.npc_roles   = {
-            "Heavy Conclave Sentry", "Heavy Conclave Sentry",
-            "Heavy Conclave Sentry", "Heavy Conclave Sentry",
-            "Heavy Conclave Sentry",
-            "Sentry Drone", "Sentry Drone", "Sentry Drone",
             "Archon Remnant", "Archon Remnant", "Archon Remnant",
-            "Rust Hound", "Rust Hound",
+            "Archon Remnant", "Archon Remnant", "Archon Remnant",
+            "Archon Remnant",
+            "Archon Automaton", "Archon Automaton",
+            "Archon Sentry Drone", "Archon Sentry Drone",
+            "Archon Sentry Drone", "Archon Sentry Drone",
+            "Archon Sentry Drone",
         };
         out.push_back(std::move(l2));
     }
 
-    // L3 — Crystal Vault. Fully Precursor. Archon Sentinel boss with a
-    // supporting detachment; the Conclave never held this level.
+    // L3 — Crystal Vault. Fully Archon. Sentinel boss with a supporting
+    // detachment; Conclave never held this level.
     {
         DungeonLevelSpec l3;
         l3.civ_name      = "Precursor";
@@ -49,9 +52,11 @@ std::vector<DungeonLevelSpec> build_conclave_archive_levels() {
         l3.enemy_tier    = 3;
         l3.is_boss_level = true;
         l3.npc_roles     = {
-            "Archon Automaton", "Archon Automaton",
+            "Archon Automaton", "Archon Automaton", "Archon Automaton",
             "Archon Remnant", "Archon Remnant", "Archon Remnant",
-            "Sentry Drone", "Sentry Drone",
+            "Archon Remnant",
+            "Archon Sentry Drone", "Archon Sentry Drone",
+            "Archon Sentry Drone",
             "Archon Sentinel",
         };
         l3.fixtures      = {

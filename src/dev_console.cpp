@@ -824,6 +824,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else if (role_arg == "heavy_conclave_sentry") role_name = "Heavy Conclave Sentry";
         else if (role_arg == "rust_hound")       role_name = "Rust Hound";
         else if (role_arg == "sentry_drone")     role_name = "Sentry Drone";
+        else if (role_arg == "conclave_sentry_drone") role_name = "Conclave Sentry Drone";
+        else if (role_arg == "archon_sentry_drone")   role_name = "Archon Sentry Drone";
         else if (role_arg == "archon_automaton") role_name = "Archon Automaton";
         else {
             log("spawn: unknown role '" + role_arg +

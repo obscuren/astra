@@ -40,6 +40,8 @@ set(ASTRA_SOURCES
     src/npcs/void_reaver.cpp
     src/npcs/rust_hound.cpp
     src/npcs/sentry_drone.cpp
+    src/npcs/conclave_sentry_drone.cpp
+    src/npcs/archon_sentry_drone.cpp
     src/npcs/archon_automaton.cpp
     src/npc_spawner.cpp
     src/debug_spawn.cpp

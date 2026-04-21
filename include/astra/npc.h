@@ -41,6 +41,8 @@ enum class NpcRole : uint8_t {
     RustHound,
     SentryDrone,
     ArchonAutomaton,
+    ConclaveSentryDrone,
+    ArchonSentryDrone,
 };
 
 struct Npc {
