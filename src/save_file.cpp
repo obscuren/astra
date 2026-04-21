@@ -664,6 +664,9 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
             }
         }
     }
+
+    // v36: creature flags bitfield
+    w.write_u64(npc.flags);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -1465,6 +1468,11 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
             default:
                 break;
         }
+    }
+
+    // v36: creature flags bitfield
+    if (version >= 36) {
+        npc.flags = r.read_u64();
     }
 
     return npc;
