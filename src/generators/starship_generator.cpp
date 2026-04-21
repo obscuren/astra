@@ -27,11 +27,11 @@ struct ShipRoom {
     int x, y, w, h;
 };
 
-// Ship is centered on the 50x20 map. Total span x=2..47 (left/right margin 2)
-// and y=6..13 (top/bottom margin 6), all rooms share cy=9 so the corridor
-// threads cleanly through the whole vessel.
+// Ship is centered on the 50x20 map. All rooms share cy=9 so the corridor
+// threads cleanly through the whole vessel. The cockpit is 7 tall (pilot
+// bench stack); other rooms are 6 or 8. Total span: x=2..47.
 static constexpr ShipRoom ship_rooms[] = {
-    {40, 7,  8, 6},   // Cockpit (region 0, spawn) — east end, viewports on east wall
+    {40, 6,  8, 7},   // Cockpit (region 0, spawn) — east end, viewports on east wall
     {26, 6, 12, 8},   // Command Center (region 1)
     {14, 7, 10, 6},   // Mess Hall (region 2)
     { 2, 6, 10, 8},   // Quarters (region 3) — west end
@@ -99,26 +99,51 @@ static bool safe_place(TileMap& map, const RoomRect& r, int x, int y, FixtureDat
 
 void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
     // --- Cockpit (room 0, east nose) ---
+    // Layout (8x7 room, interior 6x5):
+    //   ████████
+    //   █....╘╬░    TerminalCornerTop · Console · Viewport
+    //   █....o╬░    Chair             · Console · Viewport
+    //   ...o.╞╬░    corridor doorway (west), side Chair, TerminalSide · Console
+    //   █....o╠░    Chair             · TerminalJunction · Viewport
+    //   █▣...╒╬░    ARIA . . . TerminalCornerBot · Console · Viewport
+    //   ████████
+    //
+    // Chairs (Stool) are passable. Terminal variants are impassable console
+    // box-drawing glyphs forming a continuous column.
     {
         const auto& r = rooms_[0];
         int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
 
-        // Viewports replace the east wall tiles (fixtures overwrite the wall,
-        // stay impassable — no vacuum exposure, same pattern as the station
-        // observatory). Skip corners so the wall silhouette reads clean.
+        // East wall: Viewports replace each wall tile.
         for (int y = iy1; y <= iy2; ++y) {
-            if (map_->get(r.x2, y) != Tile::Wall) continue; // skip any doorway
+            if (map_->get(r.x2, y) != Tile::Wall) continue;
             map_->add_fixture(r.x2, y, make_fixture(FixtureType::Viewport));
         }
 
-        // Consoles aligned vertically against the viewports — one column west
-        // of the east wall, stepped every 2 tiles so the pilot has standing
-        // room between stations.
-        for (int y = iy1; y <= iy2; y += 2) {
-            safe_place(*map_, r, ix2, y, make_fixture(FixtureType::Console));
+        // Terminal column at ix2 (one west of viewports) — amber.
+        // Rows aligned with stools (iy1+1 and iy1+3) use TerminalJunction (╠),
+        // everything else uses TerminalCenter (╬) so the column reads as a
+        // continuous run of active controls.
+        for (int y = iy1; y <= iy2; ++y) {
+            FixtureType ft = (y == iy1 + 1 || y == iy1 + 3)
+                                 ? FixtureType::TerminalJunction
+                                 : FixtureType::TerminalCenter;
+            safe_place(*map_, r, ix2, y, make_fixture(ft));
         }
 
-        // ARIA (CommandTerminal) in the bottom-left corner of the cockpit.
+        // Terminal bench column at ix2-1 — box-drawing chars at rows 0/2/4
+        // of the interior, passable Chairs (Stool) at rows 1/3.
+        int bench_x = ix2 - 1;
+        safe_place(*map_, r, bench_x, iy1,     make_fixture(FixtureType::TerminalCornerTop));
+        safe_place(*map_, r, bench_x, iy1 + 1, make_fixture(FixtureType::Stool));
+        safe_place(*map_, r, bench_x, iy1 + 2, make_fixture(FixtureType::TerminalSide));
+        safe_place(*map_, r, bench_x, iy1 + 3, make_fixture(FixtureType::Stool));
+        safe_place(*map_, r, bench_x, iy2,     make_fixture(FixtureType::TerminalCornerBot));
+
+        // Side chair near the corridor entry (col 3 in the drawing).
+        safe_place(*map_, r, ix1 + 2, iy1 + 2, make_fixture(FixtureType::Stool));
+
+        // ARIA (CommandTerminal) in the SW interior corner.
         safe_place(*map_, r, ix1, iy2, make_fixture(FixtureType::CommandTerminal));
     }
 

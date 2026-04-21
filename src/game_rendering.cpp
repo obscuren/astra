@@ -101,6 +101,11 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::StarChart:     return "Star Chart";
         case FixtureType::StarChartL:    return "Star Chart";
         case FixtureType::StarChartR:    return "Star Chart";
+        case FixtureType::TerminalCornerTop: return "Terminal";
+        case FixtureType::TerminalSide:      return "Terminal";
+        case FixtureType::TerminalCornerBot: return "Terminal";
+        case FixtureType::TerminalJunction:  return "Terminal";
+        case FixtureType::TerminalCenter:    return "Terminal";
         case FixtureType::RestPod:       return "Rest Pod";
         case FixtureType::ShipTerminal:  return "Ship Terminal";
         case FixtureType::CommandTerminal: return "Command Terminal";
@@ -159,6 +164,11 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::StarChart:     return "A holographic star chart projector.";
         case FixtureType::StarChartL:    return "A holographic star chart projector.";
         case FixtureType::StarChartR:    return "A holographic star chart projector.";
+        case FixtureType::TerminalCornerTop: return "A terminal panel, humming with data.";
+        case FixtureType::TerminalSide:      return "A terminal panel, humming with data.";
+        case FixtureType::TerminalCornerBot: return "A terminal panel, humming with data.";
+        case FixtureType::TerminalJunction:  return "A terminal panel, humming with data.";
+        case FixtureType::TerminalCenter:    return "A terminal panel, humming with data.";
         case FixtureType::RestPod:       return "A padded pod for deep restorative sleep.";
         case FixtureType::ShipTerminal:  return "A terminal for boarding your docked starship.";
         case FixtureType::CommandTerminal: return "ARIA — the ship's autonomous intelligence. Manages all onboard systems.";

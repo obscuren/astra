@@ -387,6 +387,12 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::StarChartL:
         case FixtureType::StarChartR:
             fd.passable = false; fd.interactable = true; break;
+        case FixtureType::TerminalCornerTop:
+        case FixtureType::TerminalSide:
+        case FixtureType::TerminalCornerBot:
+        case FixtureType::TerminalJunction:
+        case FixtureType::TerminalCenter:
+            fd.passable = false; fd.interactable = false; break;
         case FixtureType::RestPod:
             fd.passable = false; fd.interactable = true;
             fd.cooldown = 50; break;

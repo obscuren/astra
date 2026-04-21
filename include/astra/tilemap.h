@@ -355,6 +355,14 @@ enum class FixtureType : uint8_t {
     StarChart,      // '*'  — observatory lore terminal (future)
     StarChartL,     // '('  — silver left bracket of 3-tile StarChart, interactable
     StarChartR,     // ')'  — silver right bracket of 3-tile StarChart, interactable
+
+    // Decorative terminal variants — box-drawing chars that form a
+    // continuous-looking console column (amber). Impassable, non-interactable.
+    TerminalCornerTop,  // '╘'
+    TerminalSide,       // '╞'
+    TerminalCornerBot,  // '╒'
+    TerminalJunction,   // '╠'
+    TerminalCenter,     // '╬'  — amber counterpart of the generic Console
     RestPod,        // '='  — crew quarters rest (advance ticks, full heal)
     ShipTerminal,   // '>'  — board your starship
     CommandTerminal,// '#'  — ship AI terminal (ARIA)

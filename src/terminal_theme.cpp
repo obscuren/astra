@@ -554,7 +554,7 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
         case FixtureType::Torch:
             vis = {'*', nullptr, Color::Yellow, Color::Default}; break;
         case FixtureType::Stool:
-            vis = {'o', "\xc2\xb7", Color::DarkGray, Color::Default}; break;            // ·
+            vis = {'o', nullptr, Color::DarkGray, Color::Default}; break;
         case FixtureType::Debris:
             vis = {',', nullptr, Color::DarkGray, Color::Default}; break;
         case FixtureType::HealPod:
@@ -573,6 +573,16 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'(', nullptr, static_cast<Color>(250), Color::Default}; break;       // silver
         case FixtureType::StarChartR:
             vis = {')', nullptr, static_cast<Color>(250), Color::Default}; break;       // silver
+        case FixtureType::TerminalCornerTop:
+            vis = {'`', "\xe2\x95\x98", static_cast<Color>(208), Color::Default}; break; // ╘ amber
+        case FixtureType::TerminalSide:
+            vis = {'|', "\xe2\x95\x9e", static_cast<Color>(208), Color::Default}; break; // ╞ amber
+        case FixtureType::TerminalCornerBot:
+            vis = {',', "\xe2\x95\x92", static_cast<Color>(208), Color::Default}; break; // ╒ amber
+        case FixtureType::TerminalJunction:
+            vis = {'|', "\xe2\x95\xa0", static_cast<Color>(208), Color::Default}; break; // ╠ amber
+        case FixtureType::TerminalCenter:
+            vis = {'#', "\xe2\x95\xac", static_cast<Color>(208), Color::Default}; break; // ╬ amber
         case FixtureType::RestPod:
             vis = {'=', "\xe2\x88\xa9", Color::Green, Color::Default}; break;           // ∩
         case FixtureType::ShipTerminal:
@@ -1715,6 +1725,11 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::StarChart:       return '*';
         case FixtureType::StarChartL:      return '(';
         case FixtureType::StarChartR:      return ')';
+        case FixtureType::TerminalCornerTop: return '`';
+        case FixtureType::TerminalSide:      return '|';
+        case FixtureType::TerminalCornerBot: return ',';
+        case FixtureType::TerminalJunction:  return '|';
+        case FixtureType::TerminalCenter:    return '#';
         case FixtureType::RestPod:         return '=';
         case FixtureType::ShipTerminal:    return '#';
         case FixtureType::CommandTerminal: return '#';
