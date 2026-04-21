@@ -100,16 +100,34 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
         const int cx = map.width() / 2;
         const int cy = map.height() / 2;
 
-        // Pick the passable tile at maximum Manhattan distance from the
-        // player's spawn (map center). Region-independent — RuinGenerator
-        // doesn't tag regions, so centroid-based room selection is a no-op.
+        // Pick the IndoorFloor tile (i.e. inside the ruin) at maximum
+        // Manhattan distance from the player's spawn (map center). Using
+        // IndoorFloor specifically — outdoor passable surface would pull
+        // the hatch to a map corner. Constrained further by the ruin's
+        // returned footprint when one was reported.
         int hx = cx, hy = cy;
         int best_d = -1;
+        const bool have_fp = !(footprint.empty() ||
+                               (footprint.w == 0 && footprint.h == 0));
         for (int y = 0; y < map.height(); ++y) {
             for (int x = 0; x < map.width(); ++x) {
-                if (!map.passable(x, y)) continue;
+                if (map.get(x, y) != Tile::IndoorFloor) continue;
+                if (have_fp && !footprint.contains(x, y)) continue;
                 int d = std::abs(x - cx) + std::abs(y - cy);
                 if (d > best_d) { best_d = d; hx = x; hy = y; }
+            }
+        }
+        // Fallback: if we somehow couldn't find an IndoorFloor tile at
+        // all (e.g. generator bailed), try any passable tile inside the
+        // footprint.
+        if (best_d < 0) {
+            for (int y = 0; y < map.height(); ++y) {
+                for (int x = 0; x < map.width(); ++x) {
+                    if (!map.passable(x, y)) continue;
+                    if (have_fp && !footprint.contains(x, y)) continue;
+                    int d = std::abs(x - cx) + std::abs(y - cy);
+                    if (d > best_d) { best_d = d; hx = x; hy = y; }
+                }
             }
         }
 
