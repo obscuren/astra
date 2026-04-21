@@ -883,7 +883,88 @@ static void write_navigation_section(BinaryWriter& w, const NavigationData& nav)
     }
     // v31: custom system id counter
     w.write_u32(nav.next_custom_system_id);
+    // v37: current_depth (0 = surface, >=1 = dungeon level)
+    w.write_i32(nav.current_depth);
     w.end_section(pos);
+}
+
+// ---------------------------------------------------------------------------
+// Dungeon recipes section (v37)
+// ---------------------------------------------------------------------------
+
+static void write_dungeon_recipes_section(BinaryWriter& w,
+                                          const std::map<LocationKey, DungeonRecipe>& recipes) {
+    auto pos = w.begin_section("DREC");
+    w.write_u32(static_cast<uint32_t>(recipes.size()));
+    for (const auto& [root, recipe] : recipes) {
+        // Root LocationKey (7 fields)
+        w.write_u32(std::get<0>(root));
+        w.write_i32(std::get<1>(root));
+        w.write_i32(std::get<2>(root));
+        w.write_u8(std::get<3>(root) ? 1 : 0);
+        w.write_i32(std::get<4>(root));
+        w.write_i32(std::get<5>(root));
+        w.write_i32(std::get<6>(root));
+
+        w.write_string(recipe.kind_tag);
+        w.write_u32(static_cast<uint32_t>(recipe.level_count));
+        w.write_u32(static_cast<uint32_t>(recipe.levels.size()));
+        for (const auto& lvl : recipe.levels) {
+            w.write_string(lvl.civ_name);
+            w.write_i32(lvl.decay_level);
+            w.write_i32(lvl.enemy_tier);
+            w.write_u8(lvl.is_side_branch ? 1 : 0);
+            w.write_u8(lvl.is_boss_level  ? 1 : 0);
+            w.write_u32(static_cast<uint32_t>(lvl.npc_roles.size()));
+            for (const auto& role : lvl.npc_roles) w.write_string(role);
+            w.write_u32(static_cast<uint32_t>(lvl.fixtures.size()));
+            for (const auto& fx : lvl.fixtures) {
+                w.write_string(fx.quest_fixture_id);
+                w.write_string(fx.placement_hint);
+            }
+        }
+    }
+    w.end_section(pos);
+}
+
+static void read_dungeon_recipes_section(BinaryReader& r, SaveData& data) {
+    uint32_t n = r.read_u32();
+    for (uint32_t i = 0; i < n; ++i) {
+        uint32_t sys = r.read_u32();
+        int body    = r.read_i32();
+        int moon    = r.read_i32();
+        bool is_st  = r.read_u8() != 0;
+        int ow_x    = r.read_i32();
+        int ow_y    = r.read_i32();
+        int depth   = r.read_i32();
+        LocationKey root{sys, body, moon, is_st, ow_x, ow_y, depth};
+
+        DungeonRecipe recipe;
+        recipe.root        = root;
+        recipe.kind_tag    = r.read_string();
+        recipe.level_count = static_cast<int>(r.read_u32());
+        uint32_t lc = r.read_u32();
+        recipe.levels.reserve(lc);
+        for (uint32_t j = 0; j < lc; ++j) {
+            DungeonLevelSpec lvl;
+            lvl.civ_name       = r.read_string();
+            lvl.decay_level    = r.read_i32();
+            lvl.enemy_tier     = r.read_i32();
+            lvl.is_side_branch = r.read_u8() != 0;
+            lvl.is_boss_level  = r.read_u8() != 0;
+            uint32_t rc = r.read_u32();
+            for (uint32_t k = 0; k < rc; ++k) lvl.npc_roles.push_back(r.read_string());
+            uint32_t fc = r.read_u32();
+            for (uint32_t k = 0; k < fc; ++k) {
+                PlannedFixture fx;
+                fx.quest_fixture_id = r.read_string();
+                fx.placement_hint   = r.read_string();
+                lvl.fixtures.push_back(std::move(fx));
+            }
+            recipe.levels.push_back(std::move(lvl));
+        }
+        data.dungeon_recipes[root] = std::move(recipe);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1761,6 +1842,12 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
         nav.next_custom_system_id = r.read_u32();
     }
     // else: default 0x80000000u from NavigationData's in-class initializer
+    // v37: current_depth
+    if (version >= 37) {
+        nav.current_depth = r.read_i32();
+    } else {
+        nav.current_depth = 0;
+    }
 }
 
 static void read_game_state_section(BinaryReader& r, SaveData& data) {
@@ -2036,6 +2123,9 @@ bool write_save(const std::string& name, const SaveData& data) {
         !data.quest_locations.empty()) {
         write_quest_section(w, data);
     }
+    if (!data.dungeon_recipes.empty()) {
+        write_dungeon_recipes_section(w, data.dungeon_recipes);
+    }
     if (data.lore.generated) {
         write_lore_section(w, data.lore);
     }
@@ -2090,6 +2180,8 @@ bool read_save(const std::string& name, SaveData& data) {
             read_navigation_section(r, data.navigation, data.version);
         } else if (std::memcmp(tag, "QUST", 4) == 0) {
             read_quest_section(r, data);
+        } else if (std::memcmp(tag, "DREC", 4) == 0) {
+            read_dungeon_recipes_section(r, data);
         } else if (std::memcmp(tag, "LORE", 4) == 0) {
             read_lore_section(r, data.lore);
         } else {

@@ -63,7 +63,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 36;   // v36: Npc.flags (CreatureFlag bitfield)
+    uint32_t version = 37;   // v37: dungeon recipes (DREC) + Navigation.current_depth
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
@@ -103,6 +103,9 @@ struct SaveData {
     // v34: scenario world flags and per-run ambushed systems set
     std::unordered_map<std::string, bool> world_flags;
     std::unordered_set<uint32_t> ambushed_systems;
+
+    // v37: persisted dungeon recipes keyed by surface-root LocationKey
+    std::map<LocationKey, DungeonRecipe> dungeon_recipes;
 
     // v20: world lore
     WorldLore lore;

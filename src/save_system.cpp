@@ -55,6 +55,7 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.stellar_signal_beacon_id = world.stellar_signal_beacon_id();
         data.world_flags = world.world_flags();
         data.ambushed_systems = world.ambushed_systems();
+        data.dungeon_recipes = world.dungeon_recipes();
         data.lore = world.lore();
     }
 
@@ -214,6 +215,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.stellar_signal_beacon_id() = data.stellar_signal_beacon_id;
     world.world_flags() = std::move(data.world_flags);
     world.ambushed_systems() = std::move(data.ambushed_systems);
+    world.dungeon_recipes() = std::move(data.dungeon_recipes);
     world.lore() = std::move(data.lore);
     apply_lore_to_galaxy(world.navigation(), world.lore());
     assign_system_factions(world.navigation(), world.seed());

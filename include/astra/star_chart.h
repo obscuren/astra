@@ -93,6 +93,7 @@ struct NavigationData {
     std::vector<StarSystem> systems;
     int navi_range = 1;
     uint32_t next_custom_system_id = 0x80000000u;
+    int current_depth = 0;        // v37: 0 = surface/overworld; >=1 = dungeon level
 };
 
 // Create a custom system and append it to nav.systems. Returns the allocated id.
