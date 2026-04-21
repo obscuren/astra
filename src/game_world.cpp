@@ -45,16 +45,20 @@ std::pair<int, int> find_center_spawn(const TileMap& map) {
 }
 
 // Build a LocationKey from current navigation state at the given depth.
-// Dungeon keys use ow_x=-1, ow_y=-1 so they key off system/body/moon only —
-// dungeon recipes attach to those root coordinates regardless of which
-// overworld detail tile hosted the entry stairs.
-LocationKey make_location_key(const NavigationData& nav, int depth) {
+// Dungeon keys carry the detail-map anchor (ow_x, ow_y) of the tile the
+// player entered from. Dungeons branching from a specific detail tile are
+// thereby distinct from each other and from the moon-level overworld key
+// (which uses -1, -1). Recipe lookup falls back from the detail-anchored
+// key to the moon-level key — recipes are registered at moon level but
+// dungeon levels save/load at detail-anchored keys.
+LocationKey make_location_key(const NavigationData& nav, int depth,
+                              int ow_x, int ow_y) {
     return LocationKey{
         nav.current_system_id,
         nav.current_body_index,
         nav.current_moon_index,
         nav.at_station,
-        /*ow_x*/ -1, /*ow_y*/ -1,
+        ow_x, ow_y,
         depth
     };
 }
@@ -169,9 +173,13 @@ void Game::save_current_location() {
         key = LocationKey{world_.navigation().current_system_id, world_.navigation().current_body_index,
                world_.navigation().current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 0};
     } else {
-        // Dungeon (depth=1)
+        // Dungeon — use nav.current_depth (NOT hardcoded 1) so each
+        // level of a multi-level dungeon caches at its own key. Anchor
+        // to the detail tile (overworld_x/y) the player entered from.
         key = LocationKey{world_.navigation().current_system_id, world_.navigation().current_body_index,
-               world_.navigation().current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 1};
+               world_.navigation().current_moon_index, false,
+               world_.overworld_x(), world_.overworld_y(),
+               world_.navigation().current_depth};
     }
     LocationState& state = world_.location_cache()[key];
     state.map = std::move(world_.map());
@@ -1135,10 +1143,20 @@ void Game::exit_dungeon_to_detail() {
 void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
     auto& nav = world_.navigation();
     int cur_depth = nav.current_depth;
-    LocationKey cur_key = make_location_key(nav, cur_depth);
-    LocationKey root    = with_depth(cur_key, 0);
+    int ow_x = world_.overworld_x();
+    int ow_y = world_.overworld_y();
 
-    const DungeonRecipe* recipe = world_.find_dungeon_recipe(root);
+    // The dungeon chain uses detail-anchored keys so each level round-
+    // trips correctly on save/restore. Recipe lookup tries the detail-
+    // anchored root first, then the moon-level key (where the Siege
+    // quest registered its recipe). This lets quest-seeded and POI-
+    // seeded dungeons coexist later.
+    LocationKey cur_key        = make_location_key(nav, cur_depth, ow_x, ow_y);
+    LocationKey detail_root    = with_depth(cur_key, 0);
+    LocationKey moon_root      = make_location_key(nav, 0, -1, -1);
+
+    const DungeonRecipe* recipe = world_.find_dungeon_recipe(detail_root);
+    if (!recipe) recipe = world_.find_dungeon_recipe(moon_root);
     if (!recipe) {
         log("Nothing happens.");
         return;
@@ -1214,9 +1232,16 @@ void Game::ascend_stairs() {
     int cur_depth = nav.current_depth;
     if (cur_depth <= 0) return;
 
+    int ow_x = world_.overworld_x();
+    int ow_y = world_.overworld_y();
+
     save_current_location();
 
-    LocationKey target = make_location_key(nav, cur_depth - 1);
+    // Parent level keys are detail-anchored with the same ow_x, ow_y as
+    // the current dungeon chain. If the parent is depth 0, the target is
+    // the detail map the player entered the dungeon from — NOT the
+    // moon-level overworld.
+    LocationKey target = make_location_key(nav, cur_depth - 1, ow_x, ow_y);
     if (world_.location_cache().count(target)) {
         restore_location(target);
     } else {
@@ -1238,6 +1263,10 @@ void Game::ascend_stairs() {
     }
 
     nav.current_depth = cur_depth - 1;
+    // Restore the correct surface mode for the parent: detail map when
+    // emerging to depth 0, dungeon when stepping up to a parent level.
+    world_.set_surface_mode(nav.current_depth == 0 ? SurfaceMode::DetailMap
+                                                   : SurfaceMode::Dungeon);
     world_.current_region() = -1;
     recompute_fov();
     compute_camera();
