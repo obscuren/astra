@@ -504,6 +504,9 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
         return;
     }
 
+    // Turrets never wander — no hostile in range means idle at post.
+    if (npc.ai == NpcAi::Turret) return;
+
     std::array<std::pair<int,int>, 4> dirs = {{{0,-1},{0,1},{-1,0},{1,0}}};
     std::shuffle(dirs.begin(), dirs.end(), game.world().rng());
     for (auto [dx, dy] : dirs) {

@@ -96,6 +96,12 @@ std::string Npc::label() const {
     if (role.empty()) {
         return prefix + name;
     }
+    if (name == role) {
+        // Machines / unnamed units set both fields to the model string.
+        // Drop the "the" interstitial — otherwise the label reads
+        // "Sentry Drone the Sentry Drone".
+        return prefix + role;
+    }
     return prefix + name + " the " + role;
 }
 
