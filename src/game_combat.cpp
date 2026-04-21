@@ -20,6 +20,27 @@ static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
 
+// Bresenham line-of-sight from (x0,y0) to (x1,y1). Endpoints are excluded
+// (attacker and target tiles are creatures, not obstacles). Returns false
+// if any intervening tile is opaque (walls, closed doors, blocks_vision
+// fixtures). Used by NPC ranged attacks.
+static bool los_clear(const TileMap& map, int x0, int y0, int x1, int y1) {
+    int dx = std::abs(x1 - x0);
+    int dy = std::abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx - dy;
+    int x = x0, y = y0;
+    while (x != x1 || y != y1) {
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 < dx)  { err += dx; y += sy; }
+        if (x == x1 && y == y1) break;
+        if (map.opaque(x, y)) return false;
+    }
+    return true;
+}
+
 static int roll_d20(std::mt19937& rng) {
     return std::uniform_int_distribution<int>(1, 20)(rng);
 }
