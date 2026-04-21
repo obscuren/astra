@@ -42,6 +42,11 @@ Npc build_void_reaver(std::mt19937& rng);
 Npc build_archon_sentinel(std::mt19937& rng);
 Npc build_conclave_sentry(std::mt19937& rng);
 
+// Mechanical enemies
+Npc build_rust_hound(std::mt19937& rng);
+Npc build_sentry_drone(std::mt19937& rng);
+Npc build_archon_automaton(std::mt19937& rng);
+
 // Scav station NPC builders
 Npc build_scav_keeper(Race race, std::mt19937& rng, const StationContext& ctx = {});
 Npc build_scav_junk_dealer(Race race, std::mt19937& rng);
