@@ -194,6 +194,100 @@ static HostileTarget find_nearest_hostile(Npc& self, Game& game) {
     return best;
 }
 
+static void ranged_hit_player(Npc& npc, Game& game) {
+    auto& rng = game.world().rng();
+    int natural = roll_d20(rng);
+    if (natural == 1) {
+        game.log("You evade " + display_name(npc) + "'s shot!");
+        return;
+    }
+    int attack_roll = natural + npc.level / 2;
+    if (natural != 20 && attack_roll < game.player().effective_dv()) {
+        game.log("You evade " + display_name(npc) + "'s shot!");
+        return;
+    }
+
+    const Dice& dmg = npc.ranged_damage_dice;
+    DamageType dtype = npc.ranged_damage_type;
+
+    if (game.player().shield_hp > 0) {
+        auto pen = roll_penetration(rng, npc.level / 3, 0, dmg);
+        if (pen.total_damage <= 0) {
+            game.log(display_name(npc) + "'s shot is absorbed by your shield.");
+            return;
+        }
+        int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
+        game.player().shield_hp -= absorbed;
+        if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+        game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
+        game.log(display_name(npc) + " shoots your shield for " +
+                 std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
+                 std::to_string(game.player().shield_hp) + "/" +
+                 std::to_string(game.player().shield_max_hp) + "]");
+        return;
+    }
+
+    int eff_av = game.player().effective_av(dtype);
+    auto pen = roll_penetration(rng, npc.level / 3, eff_av, dmg);
+    if (pen.total_damage <= 0) {
+        game.log(display_name(npc) + " shoots at you but deals no damage.");
+        return;
+    }
+
+    int damage = apply_resistance(pen.total_damage, dtype, game.player().resistances);
+    damage = apply_damage_effects(game.player().effects, damage);
+    if (damage <= 0) {
+        game.log(display_name(npc) + " shoots at you but deals no damage.");
+        return;
+    }
+    game.player().hp -= damage;
+    if (game.player().hp < 0) game.player().hp = 0;
+    game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
+    game.log(display_name(npc) + " shoots you for " +
+             std::to_string(damage) + " " + display_name(dtype) + " damage!");
+    if (game.player().hp <= 0) {
+        game.set_death_message("Shot by " + display_name(npc));
+    }
+}
+
+static void ranged_hit_npc(Npc& attacker, Npc& defender, Game& game) {
+    auto& rng = game.world().rng();
+    int natural = roll_d20(rng);
+    if (natural == 1) {
+        game.log(display_name(defender) + " evades " + display_name(attacker) + "'s shot!");
+        return;
+    }
+    int attack_roll = natural + attacker.level / 2;
+    if (natural != 20 && attack_roll < defender.dv) {
+        game.log(display_name(defender) + " evades " + display_name(attacker) + "'s shot!");
+        return;
+    }
+
+    const Dice& dmg = attacker.ranged_damage_dice;
+    DamageType dtype = attacker.ranged_damage_type;
+
+    int effective_av = defender.av + defender.type_affinity.for_type(dtype);
+    auto pen = roll_penetration(rng, attacker.level / 3, effective_av, dmg);
+    if (pen.total_damage <= 0) {
+        game.log(display_name(attacker) + "'s shot has no effect on " + display_name(defender) + ".");
+        return;
+    }
+
+    int damage = apply_damage_effects(defender.effects, pen.total_damage);
+    if (damage <= 0) {
+        game.log(display_name(attacker) + "'s shot has no effect on " + display_name(defender) + ".");
+        return;
+    }
+    defender.hp -= damage;
+    if (defender.hp < 0) defender.hp = 0;
+    game.animations().spawn_effect(anim_damage_flash, defender.x, defender.y);
+    game.log(display_name(attacker) + " shoots " + display_name(defender) +
+             " for " + std::to_string(damage) + " " + display_name(dtype) + " damage!");
+    if (!defender.alive()) {
+        game.log(display_name(defender) + " is destroyed by " + display_name(attacker) + "!");
+    }
+}
+
 void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
     auto& rng = game.world().rng();
 
