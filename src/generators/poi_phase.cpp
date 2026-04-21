@@ -86,28 +86,64 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
 
     if (props.detail_poi_type == Tile::OW_PrecursorArchive) {
         // Generate a full Precursor ruin, then drop a quest-flagged
-        // DungeonHatch at the map center so the player can descend into
-        // Archive Level 1.
+        // DungeonHatch in a back chamber. The player spawns at the map
+        // center on detail-map entry (game_world.cpp:enter_detail_map),
+        // so placing the hatch at the room whose centroid is furthest
+        // from center means the player has to traverse the ruin and
+        // fight through the Conclave Sentry patrols to reach it.
         RuinGenerator ruin_gen;
         std::string civ = props.detail_ruin_civ;
         if (props.detail_poi_anchor.valid && !props.detail_poi_anchor.ruin_civ.empty())
             civ = props.detail_poi_anchor.ruin_civ;
         Rect footprint = ruin_gen.generate(map, channels, props, rng, civ);
 
-        int cx = map.width() / 2;
-        int cy = map.height() / 2;
-        // Clear the center cell so the hatch sits on passable floor.
-        map.set(cx, cy, Tile::IndoorFloor);
-        // Remove any existing fixture at the center (ruin furniture may
-        // have claimed the cell first).
-        if (map.fixture_id(cx, cy) >= 0) {
-            map.remove_fixture(cx, cy);
+        const int cx = map.width() / 2;
+        const int cy = map.height() / 2;
+
+        // Compute per-region centroids from the region_ids grid.
+        const int rc = map.region_count();
+        std::vector<long long> sum_x(rc, 0), sum_y(rc, 0);
+        std::vector<int> count(rc, 0);
+        for (int y = 0; y < map.height(); ++y) {
+            for (int x = 0; x < map.width(); ++x) {
+                int rid = map.region_id(x, y);
+                if (rid < 0 || rid >= rc) continue;
+                sum_x[rid] += x;
+                sum_y[rid] += y;
+                count[rid] += 1;
+            }
         }
+
+        // Pick the Room region whose centroid is furthest from map center.
+        int best_rid = -1;
+        int best_d2 = -1;
+        for (int r = 0; r < rc; ++r) {
+            if (map.region(r).type != RegionType::Room) continue;
+            if (count[r] <= 0) continue;
+            int rcx = static_cast<int>(sum_x[r] / count[r]);
+            int rcy = static_cast<int>(sum_y[r] / count[r]);
+            int dx = rcx - cx, dy = rcy - cy;
+            int d2 = dx * dx + dy * dy;
+            if (d2 > best_d2) { best_d2 = d2; best_rid = r; }
+        }
+
+        int hx = cx, hy = cy;
+        if (best_rid >= 0) {
+            int rx = 0, ry = 0;
+            std::mt19937 pick_rng(static_cast<uint32_t>(best_rid) * 2654435761u);
+            if (map.find_open_spot_in_region(best_rid, rx, ry, {}, &pick_rng)) {
+                hx = rx; hy = ry;
+            }
+        }
+
+        // Clear the target tile so the hatch sits on passable floor.
+        map.set(hx, hy, Tile::IndoorFloor);
+        if (map.fixture_id(hx, hy) >= 0) map.remove_fixture(hx, hy);
 
         FixtureData hatch = make_fixture(FixtureType::DungeonHatch);
         hatch.interactable = true;
         hatch.quest_fixture_id = "conclave_archive_entrance";
-        map.add_fixture(cx, cy, hatch);
+        map.add_fixture(hx, hy, hatch);
 
         return footprint;
     }
