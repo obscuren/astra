@@ -184,11 +184,11 @@ bool CharacterScreen::handle_input(int key) {
                         else synth_bp2_ = sel;
                     }
                 } else if (tinker_focus_ == TinkerFocus::Slots && workbench_item_) {
-                    // Find the sel-th crafting material (non Nano-Fiber)
+                    // Find the sel-th crafting material that has a slot effect
                     int count = 0;
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
-                        if (it.type == ItemType::CraftingMaterial && it.id != 7001) {
+                        if (it.type == ItemType::CraftingMaterial && get_material_effect(it.id)) {
                             if (count == sel) {
                                 auto result = enhance_item(*workbench_item_, tinker_slot_cursor_, it.id, *player_);
                                 context_message_ = result.message;
@@ -467,7 +467,7 @@ bool CharacterScreen::handle_input(int key) {
                         context_menu_.title = "Select Material";
                         for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                             const auto& it = player_->inventory.items[i];
-                            if (it.type == ItemType::CraftingMaterial && it.id != 7001) {
+                            if (it.type == ItemType::CraftingMaterial && get_material_effect(it.id)) {
                                 char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
                                 context_menu_.add_option(key_ch, it.name);
                             }

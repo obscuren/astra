@@ -575,7 +575,7 @@ Item build_empty_casing() {
 Item build_spare_parts() {
     Item it;
     it.item_def_id = ITEM_SPARE_PARTS;
-    it.id = 6010; it.name = "Spare Parts"; it.type = ItemType::Junk;
+    it.id = 6010; it.name = "Spare Parts"; it.type = ItemType::CraftingMaterial;
     it.description = "Usable parts pulled from wreckage. Good for repairs.";
     it.weight = 1;
     it.stackable = true; it.sell_value = 4;
@@ -585,7 +585,7 @@ Item build_spare_parts() {
 Item build_circuitry() {
     Item it;
     it.item_def_id = ITEM_CIRCUITRY;
-    it.id = 6011; it.name = "Circuitry"; it.type = ItemType::Junk;
+    it.id = 6011; it.name = "Circuitry"; it.type = ItemType::CraftingMaterial;
     it.description = "Salvaged integrated circuits. Essential for advanced repair.";
     it.weight = 1;
     it.stackable = true; it.sell_value = 8;

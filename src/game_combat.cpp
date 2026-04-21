@@ -28,6 +28,18 @@ static int roll_d10(std::mt19937& rng) {
     return std::uniform_int_distribution<int>(1, 10)(rng);
 }
 
+static void add_to_inventory_stacked(Inventory& inv, Item item) {
+    if (item.stackable) {
+        for (auto& existing : inv.items) {
+            if (existing.item_def_id == item.item_def_id && existing.stackable) {
+                existing.stack_count += item.stack_count;
+                return;
+            }
+        }
+    }
+    inv.items.push_back(std::move(item));
+}
+
 static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
     if (is_mechanical(npc)) {
         // Gated: requires Cat_Tinkering. Mechanical kills do NOT roll the
@@ -39,13 +51,13 @@ static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
         int spare_count = 1 + std::uniform_int_distribution<int>(0, 1)(rng);
         Item spare = build_spare_parts();
         spare.stack_count = spare_count;
-        game.player().inventory.items.push_back(spare);
+        add_to_inventory_stacked(game.player().inventory, spare);
 
         bool got_circuitry = std::uniform_int_distribution<int>(0, 99)(rng) < 30;
         Item circ;
         if (got_circuitry) {
             circ = build_circuitry();
-            game.player().inventory.items.push_back(circ);
+            add_to_inventory_stacked(game.player().inventory, circ);
         }
 
         std::string msg;
