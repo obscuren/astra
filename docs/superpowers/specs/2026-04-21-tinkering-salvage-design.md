@@ -38,7 +38,7 @@ Two new items, both stackable junk/crafting resources.
 
 ### Spare Parts
 
-- `ITEM_SPARE_PARTS = 33` in `include/astra/item_ids.h`
+- `ITEM_SPARE_PARTS = 47` in `include/astra/item_ids.h` (next free slot after `ITEM_VOID_MANTLE = 46`; IDs 33–46 are already taken by crafting materials, ship components, and energy shields)
 - Name: `"Spare Parts"`, type `ItemType::Junk`, weight 1
 - Description: `"Usable parts pulled from wreckage. Good for repairs."`
 - Glyph: `~`, color dark-gray (matches existing junk visual language)
@@ -46,7 +46,7 @@ Two new items, both stackable junk/crafting resources.
 
 ### Circuitry
 
-- `ITEM_CIRCUITRY = 34` in `include/astra/item_ids.h`
+- `ITEM_CIRCUITRY = 48` in `include/astra/item_ids.h`
 - Name: `"Circuitry"`, type `ItemType::Junk`, weight 1
 - Description: `"Salvaged integrated circuits. Essential for advanced repair."`
 - Glyph: `~`, color cyan (distinct from generic scrap)
