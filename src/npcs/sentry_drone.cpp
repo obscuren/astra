@@ -20,8 +20,12 @@ Npc build_sentry_drone(std::mt19937& /*rng*/) {
     npc.dv          = 10;
     npc.av          = 4;
     npc.damage_dice = Dice::make(1, 6);
-    // TODO: ranged attack — ships as melee placeholder until ranged combat lands.
     npc.damage_type = DamageType::Plasma;
+    // Turret: ranged plasma bolt, holds position when it can't shoot.
+    npc.ai                 = NpcAi::Turret;
+    npc.attack_range       = 6;
+    npc.ranged_damage_dice = Dice::make(1, 6);
+    npc.ranged_damage_type = DamageType::Plasma;
     npc.type_affinity = {1, 2, -3, 0, 0};
     npc.flags       = static_cast<uint64_t>(CreatureFlag::Mechanical);
     return npc;

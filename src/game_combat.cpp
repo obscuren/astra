@@ -20,6 +20,27 @@ static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
 
+// Bresenham line-of-sight from (x0,y0) to (x1,y1). Endpoints are excluded
+// (attacker and target tiles are creatures, not obstacles). Returns false
+// if any intervening tile is opaque (walls, closed doors, blocks_vision
+// fixtures). Used by NPC ranged attacks.
+static bool los_clear(const TileMap& map, int x0, int y0, int x1, int y1) {
+    int dx = std::abs(x1 - x0);
+    int dy = std::abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx - dy;
+    int x = x0, y = y0;
+    while (x != x1 || y != y1) {
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 < dx)  { err += dx; y += sy; }
+        if (x == x1 && y == y1) break;
+        if (map.opaque(x, y)) return false;
+    }
+    return true;
+}
+
 static int roll_d20(std::mt19937& rng) {
     return std::uniform_int_distribution<int>(1, 20)(rng);
 }
@@ -173,6 +194,100 @@ static HostileTarget find_nearest_hostile(Npc& self, Game& game) {
     return best;
 }
 
+static void ranged_hit_player(Npc& npc, Game& game) {
+    auto& rng = game.world().rng();
+    int natural = roll_d20(rng);
+    if (natural == 1) {
+        game.log("You evade " + display_name(npc) + "'s shot!");
+        return;
+    }
+    int attack_roll = natural + npc.level / 2;
+    if (natural != 20 && attack_roll < game.player().effective_dv()) {
+        game.log("You evade " + display_name(npc) + "'s shot!");
+        return;
+    }
+
+    const Dice& dmg = npc.ranged_damage_dice;
+    DamageType dtype = npc.ranged_damage_type;
+
+    if (game.player().shield_hp > 0) {
+        auto pen = roll_penetration(rng, npc.level / 3, 0, dmg);
+        if (pen.total_damage <= 0) {
+            game.log(display_name(npc) + "'s shot is absorbed by your shield.");
+            return;
+        }
+        int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
+        game.player().shield_hp -= absorbed;
+        if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+        game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
+        game.log(display_name(npc) + " shoots your shield for " +
+                 std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
+                 std::to_string(game.player().shield_hp) + "/" +
+                 std::to_string(game.player().shield_max_hp) + "]");
+        return;
+    }
+
+    int eff_av = game.player().effective_av(dtype);
+    auto pen = roll_penetration(rng, npc.level / 3, eff_av, dmg);
+    if (pen.total_damage <= 0) {
+        game.log(display_name(npc) + " shoots at you but deals no damage.");
+        return;
+    }
+
+    int damage = apply_resistance(pen.total_damage, dtype, game.player().resistances);
+    damage = apply_damage_effects(game.player().effects, damage);
+    if (damage <= 0) {
+        game.log(display_name(npc) + " shoots at you but deals no damage.");
+        return;
+    }
+    game.player().hp -= damage;
+    if (game.player().hp < 0) game.player().hp = 0;
+    game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
+    game.log(display_name(npc) + " shoots you for " +
+             std::to_string(damage) + " " + display_name(dtype) + " damage!");
+    if (game.player().hp <= 0) {
+        game.set_death_message("Shot by " + display_name(npc));
+    }
+}
+
+static void ranged_hit_npc(Npc& attacker, Npc& defender, Game& game) {
+    auto& rng = game.world().rng();
+    int natural = roll_d20(rng);
+    if (natural == 1) {
+        game.log(display_name(defender) + " evades " + display_name(attacker) + "'s shot!");
+        return;
+    }
+    int attack_roll = natural + attacker.level / 2;
+    if (natural != 20 && attack_roll < defender.dv) {
+        game.log(display_name(defender) + " evades " + display_name(attacker) + "'s shot!");
+        return;
+    }
+
+    const Dice& dmg = attacker.ranged_damage_dice;
+    DamageType dtype = attacker.ranged_damage_type;
+
+    int effective_av = defender.av + defender.type_affinity.for_type(dtype);
+    auto pen = roll_penetration(rng, attacker.level / 3, effective_av, dmg);
+    if (pen.total_damage <= 0) {
+        game.log(display_name(attacker) + "'s shot has no effect on " + display_name(defender) + ".");
+        return;
+    }
+
+    int damage = apply_damage_effects(defender.effects, pen.total_damage);
+    if (damage <= 0) {
+        game.log(display_name(attacker) + "'s shot has no effect on " + display_name(defender) + ".");
+        return;
+    }
+    defender.hp -= damage;
+    if (defender.hp < 0) defender.hp = 0;
+    game.animations().spawn_effect(anim_damage_flash, defender.x, defender.y);
+    game.log(display_name(attacker) + " shoots " + display_name(defender) +
+             " for " + std::to_string(damage) + " " + display_name(dtype) + " damage!");
+    if (!defender.alive()) {
+        game.log(display_name(defender) + " is destroyed by " + display_name(attacker) + "!");
+    }
+}
+
 void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
     auto& rng = game.world().rng();
 
@@ -257,6 +372,18 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
     if (target.is_player) {
         int dist = target.distance;
+
+        // Ranged attack: in range, has ranged weapon, and clear LOS.
+        if (npc.ai == NpcAi::Turret
+            && dist > 1
+            && dist <= npc.attack_range
+            && !npc.ranged_damage_dice.empty()
+            && los_clear(game.world().map(), npc.x, npc.y,
+                         game.player().x, game.player().y)) {
+            ranged_hit_player(npc, game);
+            return;
+        }
+
         if (dist <= 1) {
             auto& rng = game.world().rng();
 
@@ -319,6 +446,10 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             }
             return;
         }
+
+        // Turrets don't chase — they hold position when they can't shoot.
+        if (npc.ai == NpcAi::Turret) return;
+
         int dx = sign(game.player().x - npc.x);
         int dy = sign(game.player().y - npc.y);
         struct { int x, y; } candidates[] = {{dx, dy}, {dx, 0}, {0, dy}};
@@ -337,10 +468,26 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
     if (target.npc) {
         int dist = target.distance;
+
+        // Ranged attack: in range, has ranged weapon, and clear LOS.
+        if (npc.ai == NpcAi::Turret
+            && dist > 1
+            && dist <= npc.attack_range
+            && !npc.ranged_damage_dice.empty()
+            && los_clear(game.world().map(), npc.x, npc.y,
+                         target.npc->x, target.npc->y)) {
+            ranged_hit_npc(npc, *target.npc, game);
+            return;
+        }
+
         if (dist <= 1) {
             attack_npc_vs_npc(npc, *target.npc, game);
             return;
         }
+
+        // Turrets don't chase — they hold position when they can't shoot.
+        if (npc.ai == NpcAi::Turret) return;
+
         int dx = sign(target.npc->x - npc.x);
         int dy = sign(target.npc->y - npc.y);
         struct { int x, y; } candidates[] = {{dx, dy}, {dx, 0}, {0, dy}};

@@ -11,6 +11,12 @@
 
 namespace astra {
 
+enum class NpcAi : uint8_t {
+    Melee,    // adjacency attacks only (default)
+    Turret,   // ranged attack in range+LOS, otherwise hold position
+    Kiter,    // reserved: ranged attack in range+LOS, otherwise close the gap
+};
+
 // NPC templates define the archetype; the factory fills in name/race.
 enum class NpcRole : uint8_t {
     StationKeeper,
@@ -56,6 +62,11 @@ struct Npc {
     int av = 0;
     Dice damage_dice;
     DamageType damage_type = DamageType::Kinetic;
+    // Ranged attack (empty ranged_damage_dice disables ranged path)
+    int attack_range = 1;              // chebyshev tiles; 1 = melee only
+    Dice ranged_damage_dice;           // empty by default
+    DamageType ranged_damage_type = DamageType::Kinetic;
+    NpcAi ai = NpcAi::Melee;
     TypeAffinity type_affinity;
     NpcRole npc_role = NpcRole::Civilian;
     uint64_t flags = 0;         // CreatureFlag bitfield (Mechanical, Biological, ...)
