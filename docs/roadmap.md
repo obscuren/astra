@@ -44,6 +44,7 @@
 - [ ] **More synthesis recipes** — expand beyond the initial 10
 - [ ] **Blueprint discovery flow** — find blueprints in dungeons, learn from analyzing loot
 - [x] **Repair bench fixture** — pay credits to restore durability, no skill required
+- [x] **Tinkering salvage system** — Spare Parts / Circuitry items, three mechanical enemies (Rust Hound, Sentry Drone, Archon Automaton), `Cat_Tinkering`-gated auto-salvage on mechanical kills, 5% ungated ground-drop on other kills (2026-04-21)
 
 ---
 
