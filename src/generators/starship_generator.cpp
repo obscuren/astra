@@ -7,9 +7,12 @@ namespace astra {
 // =========================================================================
 // Starship Generator — fixed-layout personal starship
 // =========================================================================
-// 4 rooms connected linearly left-to-right:
-//   Cockpit (region 0) → Command Center (region 1) → Mess Hall (region 2) → Quarters (region 3)
-// Corridors connect adjacent room centers horizontally.
+// 4 rooms centered on a 50x20 map, laid out along the x-axis.
+// The Cockpit (region 0, spawn) sits at the east end — its "nose" faces space
+// through viewports integrated into the east wall. Rooms are in array order
+// east→west; connect_rooms links adjacent entries.
+//
+//   Cockpit (0, east) → Command Center (1) → Mess Hall (2) → Quarters (3, west)
 
 class StarshipGenerator : public MapGenerator {
 protected:
@@ -24,11 +27,14 @@ struct ShipRoom {
     int x, y, w, h;
 };
 
+// Ship is centered on the 50x20 map. Total span x=2..47 (left/right margin 2)
+// and y=6..13 (top/bottom margin 6), all rooms share cy=9 so the corridor
+// threads cleanly through the whole vessel.
 static constexpr ShipRoom ship_rooms[] = {
-    { 2,  6, 8,  6},   // Cockpit (region 0, spawn)
-    {12,  5, 12, 8},   // Command Center (region 1)
-    {26,  6, 10, 6},   // Mess Hall (region 2)
-    {38,  5, 10, 8},   // Quarters (region 3)
+    {40, 7,  8, 6},   // Cockpit (region 0, spawn) — east end, viewports on east wall
+    {26, 6, 12, 8},   // Command Center (region 1)
+    {14, 7, 10, 6},   // Mess Hall (region 2)
+    { 2, 6, 10, 8},   // Quarters (region 3) — west end
 };
 static constexpr int ship_room_count = 4;
 
@@ -47,11 +53,12 @@ void StarshipGenerator::generate_layout(std::mt19937& /*rng*/) {
 }
 
 void StarshipGenerator::connect_rooms(std::mt19937& /*rng*/) {
-    // Connect adjacent rooms with horizontal corridors
+    // Rooms are laid out east-to-west in the array, so each pair's corridor
+    // runs from room[i]'s WEST wall (x1) to room[i+1]'s EAST wall (x2).
     for (int i = 0; i < ship_room_count - 1; ++i) {
         int cy = (rooms_[i].y1 + rooms_[i].y2) / 2;
-        int x1 = rooms_[i].x2;
-        int x2 = rooms_[i + 1].x1;
+        int x1 = rooms_[i].x1;
+        int x2 = rooms_[i + 1].x2;
 
         Region creg;
         creg.type = RegionType::Corridor;
@@ -91,20 +98,28 @@ static bool safe_place(TileMap& map, const RoomRect& r, int x, int y, FixtureDat
 }
 
 void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
-    // --- Cockpit (room 0) ---
+    // --- Cockpit (room 0, east nose) ---
     {
         const auto& r = rooms_[0];
-        int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1;
-        // Viewports along north wall
-        for (int x = ix1; x <= ix2; ++x) {
-            safe_place(*map_, r, x, iy1, make_fixture(FixtureType::Viewport));
+        int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
+
+        // Viewports replace the east wall tiles (fixtures overwrite the wall,
+        // stay impassable — no vacuum exposure, same pattern as the station
+        // observatory). Skip corners so the wall silhouette reads clean.
+        for (int y = iy1; y <= iy2; ++y) {
+            if (map_->get(r.x2, y) != Tile::Wall) continue; // skip any doorway
+            map_->add_fixture(r.x2, y, make_fixture(FixtureType::Viewport));
         }
-        // Consoles in front of viewports
-        if (iy1 + 1 <= r.y2 - 1) {
-            for (int x = ix1; x <= ix2; x += 2) {
-                safe_place(*map_, r, x, iy1 + 1, make_fixture(FixtureType::Console));
-            }
+
+        // Consoles aligned vertically against the viewports — one column west
+        // of the east wall, stepped every 2 tiles so the pilot has standing
+        // room between stations.
+        for (int y = iy1; y <= iy2; y += 2) {
+            safe_place(*map_, r, ix2, y, make_fixture(FixtureType::Console));
         }
+
+        // ARIA (CommandTerminal) in the bottom-left corner of the cockpit.
+        safe_place(*map_, r, ix1, iy2, make_fixture(FixtureType::CommandTerminal));
     }
 
     // --- Command Center (room 1) ---
@@ -115,9 +130,6 @@ void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
         int cy = (iy1 + iy2) / 2;
         // StarChart in center
         safe_place(*map_, r, cx, cy, make_fixture(FixtureType::StarChart));
-        // CommandTerminal (ARIA) to the left of star chart
-        if (cx - 2 >= ix1)
-            safe_place(*map_, r, cx - 2, cy, make_fixture(FixtureType::CommandTerminal));
         // Console row below
         if (cy + 1 <= iy2) {
             for (int x = cx - 1; x <= cx + 1; ++x) {
@@ -129,19 +141,34 @@ void StarshipGenerator::place_features(std::mt19937& /*rng*/) {
     }
 
     // --- Mess Hall (room 2) ---
+    // Layout (10x6 room):
+    //   ██████████
+    //   █.......$█   FoodTerminal in NE interior corner
+    //   ..........   corridor passage (doorways on east & west)
+    //   █...║¤║..█   booth: Bench | Table | Bench
+    //   █o..║¤║..█   Kitchen in SW interior corner, booth continues
+    //   ██████████
     {
         const auto& r = rooms_[2];
         int ix1 = r.x1 + 1, iy1 = r.y1 + 1, ix2 = r.x2 - 1, iy2 = r.y2 - 1;
-        int cx = (ix1 + ix2) / 2;
-        // Table in center
-        safe_place(*map_, r, cx, (iy1 + iy2) / 2, make_fixture(FixtureType::Table));
-        // Stools around table
-        if (cx - 1 >= ix1)
-            safe_place(*map_, r, cx - 1, (iy1 + iy2) / 2, make_fixture(FixtureType::Stool));
-        if (cx + 1 <= ix2)
-            safe_place(*map_, r, cx + 1, (iy1 + iy2) / 2, make_fixture(FixtureType::Stool));
-        // FoodTerminal on north wall
-        safe_place(*map_, r, cx, iy1, make_fixture(FixtureType::FoodTerminal));
+
+        // FoodTerminal in the NE interior corner
+        safe_place(*map_, r, ix2, iy1, make_fixture(FixtureType::FoodTerminal));
+
+        // Booth — bench / table / bench — spanning the two south rows.
+        // Positioned ~center of the interior so the corridor row above stays
+        // clear of obstructions.
+        int booth_x1 = ix1 + 3;  // left bench column
+        int booth_x2 = ix1 + 5;  // right bench column
+        int booth_tx = ix1 + 4;  // table column (center)
+        for (int y = iy2 - 1; y <= iy2; ++y) {
+            safe_place(*map_, r, booth_x1, y, make_fixture(FixtureType::Bench));
+            safe_place(*map_, r, booth_tx, y, make_fixture(FixtureType::Table));
+            safe_place(*map_, r, booth_x2, y, make_fixture(FixtureType::Bench));
+        }
+
+        // Kitchen in the SW interior corner (interactable, future cooking).
+        safe_place(*map_, r, ix1, iy2, make_fixture(FixtureType::Kitchen));
     }
 
     // --- Quarters (room 3) ---
