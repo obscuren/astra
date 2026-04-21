@@ -829,6 +829,19 @@ void Game::enter_detail_map() {
             if (qit != world_.quest_locations().end()) {
                 std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
                 for (const auto& npc : world_.npcs()) occupied.push_back({npc.x, npc.y});
+
+                // Spawn quest-specific NPCs (e.g. Archive surface patrols).
+                // Mirrors the dungeon-from-detail entry path.
+                std::mt19937 qnpc_rng(detail_seed ^ 0xE17Eu);
+                for (const auto& role : qit->second.npc_roles) {
+                    Npc npc = create_npc_by_role(role, qnpc_rng);
+                    if (world_.map().find_open_spot_other_room(
+                            player_.x, player_.y, npc.x, npc.y, occupied, &qnpc_rng)) {
+                        occupied.push_back({npc.x, npc.y});
+                        world_.npcs().push_back(std::move(npc));
+                    }
+                }
+
                 place_quest_fixtures(world_.map(), qit->second,
                                      player_.x, player_.y, occupied, fixture_rng);
             }
