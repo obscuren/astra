@@ -1595,6 +1595,18 @@ void Game::travel_to_destination(const ChartAction& action) {
                     alien_biome_for_architecture(props.lore_civ_architecture));
             world_.map().set_location_name(location_name);
 
+            // Quest-driven POI stamp: if a DungeonRecipe is registered for
+            // this overworld location, force-stamp its entry POI onto the
+            // map at the center-adjacent walkable tile. The DungeonHatch
+            // inside the stamped POI gets placed by poi_phase on detail
+            // entry (see src/generators/poi_phase.cpp OW_PrecursorArchive).
+            if (world_.find_dungeon_recipe(dest_key)) {
+                auto [pcx, pcy] = find_center_spawn(world_.map());
+                if (pcx >= 0 && pcy >= 0) {
+                    world_.map().set(pcx, pcy, Tile::OW_PrecursorArchive);
+                }
+            }
+
             // Store influence map for detail map generation
             if (!lore_infl.empty())
                 world_.set_lore_influence(std::move(lore_infl));
