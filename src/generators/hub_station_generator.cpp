@@ -1,6 +1,8 @@
 #include "astra/map_generator.h"
 #include "astra/station_type.h"
 
+#include <cstdlib>
+#include <limits>
 #include <vector>
 
 namespace astra {
@@ -97,22 +99,76 @@ struct RoomContext {
 static void furnish_docking_bay(RoomContext& ctx) {
     if (ctx.too_small()) return;
 
-    // ShuttleClamps along the south wall
-    for (int x = ctx.ix1; x <= ctx.ix2; ++x) {
-        ctx.place(x, ctx.iy2, make_fixture(FixtureType::ShuttleClamp));
+    int iw = ctx.iw;
+    int ih = ctx.ih;
+
+    // Berth capacity: each berth is 3 interior tiles wide, separated by
+    // 1-tile finger walls. N berths consume 3N + (N-1) = 4N - 1 interior
+    // columns, so 4 berths need iw >= 15, 3 need iw >= 11, 2 need iw >= 7.
+    int n_berths = 0;
+    if (iw >= 15) n_berths = 4;
+    else if (iw >= 11) n_berths = 3;
+    else if (iw >= 7)  n_berths = 2;
+
+    // Fallback for tiny rooms: single row of clamps along the south wall
+    // (the old layout). Keeps small scav/pirate-style bays functional.
+    if (n_berths == 0 || ih < 5) {
+        for (int x = ctx.ix1; x <= ctx.ix2; ++x) {
+            ctx.place(x, ctx.iy2, make_fixture(FixtureType::ShuttleClamp));
+        }
+        int mx = (ctx.ix1 + ctx.ix2) / 2;
+        int my = (ctx.iy1 + ctx.iy2) / 2;
+        ctx.place(mx, my, make_fixture(FixtureType::ShipTerminal));
+        return;
     }
 
-    // Crate clusters in corners
-    ctx.place(ctx.ix1, ctx.iy1, make_fixture(FixtureType::Crate));
-    ctx.place(ctx.ix1 + 1, ctx.iy1, make_fixture(FixtureType::Crate));
-    ctx.place(ctx.ix1, ctx.iy1 + 1, make_fixture(FixtureType::Crate));
-    ctx.place(ctx.ix2, ctx.iy1, make_fixture(FixtureType::Crate));
-    ctx.place(ctx.ix2 - 1, ctx.iy1, make_fixture(FixtureType::Crate));
+    // Every berth is exactly 3 interior tiles wide with 1-tile fingers between.
+    // Any leftover interior columns become symmetric padding on either side.
+    int berth_width = 3;
+    int fingers = n_berths - 1;
+    int needed = n_berths * berth_width + fingers;
+    int leftover = iw - needed;
 
-    // ShipTerminal near center of docking bay
-    int mid_x = (ctx.ix1 + ctx.ix2) / 2;
-    int mid_y = (ctx.iy1 + ctx.iy2) / 2;
-    ctx.place(mid_x, mid_y, make_fixture(FixtureType::ShipTerminal));
+    // Finger walls extend from the top wall into the interior for ~2/3 of
+    // the room's height, leaving the bottom third as an open walkway that
+    // links every berth to the corridor doorway.
+    int finger_depth = std::max(3, (ih * 2) / 3);
+
+    int cursor_x = ctx.ix1 + leftover / 2;
+    for (int b = 0; b < n_berths; ++b) {
+        int berth_x1 = cursor_x;
+        int berth_x2 = cursor_x + berth_width - 1;
+
+        // Clamp and terminal both sit in the north wall row (replacing wall
+        // tiles), side by side within the berth's wall head.
+        //   berth cols: [x1, x1+1, x1+2]
+        //   clamp at x1+1 (center), terminal at x1 (left of clamp)
+        int clamp_x    = (berth_x1 + berth_x2) / 2;
+        int terminal_x = berth_x1;
+
+        if (ctx.map->get(clamp_x, ctx.wy1) == Tile::Wall) {
+            ctx.map->add_fixture(clamp_x, ctx.wy1,
+                                 make_fixture(FixtureType::ShuttleClamp));
+        }
+        if (terminal_x != clamp_x &&
+            ctx.map->get(terminal_x, ctx.wy1) == Tile::Wall) {
+            ctx.map->add_fixture(terminal_x, ctx.wy1,
+                                 make_fixture(FixtureType::ShipTerminal));
+        }
+
+        // Finger wall to the east of this berth (not after the last berth).
+        if (b < n_berths - 1) {
+            int finger_x = berth_x2 + 1;
+            for (int y = ctx.iy1; y < ctx.iy1 + finger_depth && y <= ctx.iy2; ++y) {
+                if (ctx.map->get(finger_x, y) != Tile::Floor) continue;
+                if (ctx.is_door_zone(finger_x, y)) continue;
+                ctx.map->set(finger_x, y, Tile::Wall);
+            }
+            cursor_x = finger_x + 1;
+        } else {
+            cursor_x = berth_x2 + 1;
+        }
+    }
 }
 
 static void furnish_cantina(RoomContext& ctx) {
@@ -267,55 +323,24 @@ static void furnish_armory(RoomContext& ctx) {
 static void furnish_observatory(RoomContext& ctx) {
     if (ctx.too_small()) return;
 
-    // Open up the north wall to space where safe.
-    // Only convert wall tiles that have no corridor above them.
-    // Skip any north-wall floor tiles (doorways) — leave them as-is.
-    int obs_rid = ctx.map->region_id(ctx.ix1, ctx.iy1);
-
-    for (int x = ctx.wx1; x <= ctx.wx2; ++x) {
-        Tile t = ctx.map->get(x, ctx.wy1);
-        if (t == Tile::Floor) {
-            // Corridor doorway — do NOT seal it
-            continue;
-        }
-        int rid = ctx.map->region_id(x, ctx.wy1);
-        if (t == Tile::Wall && (rid == obs_rid || rid < 0)) {
-            // Check if there's a corridor above — if so, don't open to space
-            bool has_corridor_above = (ctx.wy1 > 0 &&
-                ctx.map->get(x, ctx.wy1 - 1) == Tile::Floor);
-            if (!has_corridor_above) {
-                ctx.map->set(x, ctx.wy1, Tile::Empty);
-                ctx.map->set_region(x, ctx.wy1, -1);
-            }
-        }
+    // Replace the SOUTH wall tiles with Viewport fixtures (windows). The
+    // observatory sits on the bottom row of the hub grid, so corridors only
+    // approach from the north — using the south wall keeps the window row
+    // uninterrupted. The viewport fixtures keep the wall solid and
+    // impassable (just a visual "window into space"), so no tiles get
+    // removed and no vacuum is exposed.
+    for (int x = ctx.wx1 + 1; x <= ctx.wx2 - 1; ++x) {
+        if (ctx.map->get(x, ctx.wy2) != Tile::Wall) continue; // skip doorways / corners
+        ctx.map->add_fixture(x, ctx.wy2, make_fixture(FixtureType::Viewport));
     }
 
-    // Seed starfield on the opened wall tiles and any empty space above
-    for (int x = ctx.wx1; x <= ctx.wx2; ++x) {
-        for (int y = ctx.wy1; y >= 0; --y) {
-            if (ctx.map->get(x, y) != Tile::Empty) break;
-            uint32_t h = static_cast<uint32_t>(x * 7 + y * 13 + 0xA5);
-            h ^= h >> 16; h *= 0x45d9f3b; h ^= h >> 16;
-            int density = (y == ctx.wy1) ? 15 : 8;
-            if (static_cast<int>(h % 100) < density) {
-                char star = (h % 10 < 6) ? '.' : ((h % 10 < 9) ? '*' : '+');
-                ctx.map->set_backdrop(x, y, star);
-            }
-        }
-    }
+    // StarChart terminal on one side of the interior
+    ctx.place(ctx.ix2, ctx.iy2 - 1, make_fixture(FixtureType::StarChart));
 
-    // Viewports along the interior north edge (now exposed to space)
-    for (int x = ctx.ix1; x <= ctx.ix2; ++x) {
-        ctx.place(x, ctx.iy1, make_fixture(FixtureType::Viewport));
-    }
-
-    // StarChart terminal on one side
-    ctx.place(ctx.ix2, ctx.iy1 + 1, make_fixture(FixtureType::StarChart));
-
-    // Stools facing the viewport — passable, always safe
+    // Stools facing the windows — passable, always safe
     for (int x = ctx.ix1 + 1; x <= ctx.ix2 - 1; x += 2) {
-        if (ctx.iy1 + 2 <= ctx.iy2) {
-            ctx.place(x, ctx.iy1 + 2, make_fixture(FixtureType::Stool));
+        if (ctx.iy2 - 2 >= ctx.iy1) {
+            ctx.place(x, ctx.iy2 - 2, make_fixture(FixtureType::Stool));
         }
     }
 }
@@ -619,6 +644,16 @@ void HubStationGenerator::generate_layout(std::mt19937& rng) {
         int rw = w_dist(rng);
         int rh = h_dist(rng);
 
+        // THA docking bay is enlarged to fit 4 berths (interior width >= 15,
+        // so room width >= 17). Non-THA hubs keep the default 10-14 size and
+        // end up with 2-3 berths based on how the size roll lands.
+        if (ctx_.is_tha && fixed_room(i).flavor == RoomFlavor::EmptyRoom) {
+            std::uniform_int_distribution<int> tha_w(17, 19);
+            std::uniform_int_distribution<int> tha_h(9, 11);
+            rw = tha_w(rng);
+            rh = tha_h(rng);
+        }
+
         int col = fixed_room(i).col;
         int row = fixed_room(i).row;
 
@@ -775,15 +810,21 @@ void HubStationGenerator::safe_corridor_v(int y1, int y2, int x, int crid) {
 }
 
 void HubStationGenerator::connect_rooms(std::mt19937& rng) {
-    for (size_t i = 1; i < rooms_.size(); ++i) {
-        int cx1 = (rooms_[i - 1].x1 + rooms_[i - 1].x2) / 2;
-        int cy1 = (rooms_[i - 1].y1 + rooms_[i - 1].y2) / 2;
-        int cx2 = (rooms_[i].x1 + rooms_[i].x2) / 2;
-        int cy2 = (rooms_[i].y1 + rooms_[i].y2) / 2;
+    auto connect_pair = [&](int i_from, int i_to) {
+        // Skip redundant carves: if the two rooms are already reachable from
+        // each other (e.g. an earlier L-shape grazed through one of them),
+        // a second corridor just duplicates the path and often ends up
+        // running parallel — visible as twin "chimneys" on a room's wall.
+        if (rooms_connected(i_from, i_to)) return;
+
+        int cx1 = (rooms_[i_from].x1 + rooms_[i_from].x2) / 2;
+        int cy1 = (rooms_[i_from].y1 + rooms_[i_from].y2) / 2;
+        int cx2 = (rooms_[i_to].x1 + rooms_[i_to].x2) / 2;
+        int cy2 = (rooms_[i_to].y1 + rooms_[i_to].y2) / 2;
 
         Region creg;
         creg.type = RegionType::Corridor;
-        creg.lit = false; // corridors require line-of-sight
+        creg.lit = false;
         int crid = map_->add_region(creg);
 
         if (rng() % 2 == 0) {
@@ -793,7 +834,45 @@ void HubStationGenerator::connect_rooms(std::mt19937& rng) {
             safe_corridor_v(cy1, cy2, cx1, crid);
             safe_corridor_h(cx1, cx2, cy2, crid);
         }
+    };
+
+    for (size_t i = 1; i < rooms_.size(); ++i) {
+        connect_pair(static_cast<int>(i - 1), static_cast<int>(i));
     }
+
+    // Reachability repair: flood-fill from room 0; reconnect any orphaned
+    // rooms to their nearest reached neighbor. Bounded to avoid pathological
+    // loops.
+    for (int pass = 0; pass < 4; ++pass) {
+        auto unreached = find_unreached_rooms(0);
+        if (unreached.empty()) break;
+
+        // Reached set for this pass
+        std::vector<uint8_t> is_unreached(rooms_.size(), 0);
+        for (int idx : unreached) is_unreached[idx] = 1;
+
+        for (int orphan : unreached) {
+            int ocx = (rooms_[orphan].x1 + rooms_[orphan].x2) / 2;
+            int ocy = (rooms_[orphan].y1 + rooms_[orphan].y2) / 2;
+
+            int best = -1;
+            int best_dist = std::numeric_limits<int>::max();
+            for (size_t j = 0; j < rooms_.size(); ++j) {
+                if (static_cast<int>(j) == orphan) continue;
+                if (is_unreached[j]) continue; // only link to reached rooms
+                int jcx = (rooms_[j].x1 + rooms_[j].x2) / 2;
+                int jcy = (rooms_[j].y1 + rooms_[j].y2) / 2;
+                int d = std::abs(jcx - ocx) + std::abs(jcy - ocy);
+                if (d < best_dist) { best_dist = d; best = static_cast<int>(j); }
+            }
+            if (best < 0) continue;
+            connect_pair(orphan, best);
+            is_unreached[orphan] = 0;
+        }
+    }
+
+    // Seal any vacuum exposed by corridor corners or wall-punch edges.
+    seal_vacuum();
 }
 
 void HubStationGenerator::place_features(std::mt19937& /*rng*/) {
