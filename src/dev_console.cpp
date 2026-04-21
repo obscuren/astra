@@ -159,6 +159,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
         log("  spawn <role> - spawn an enemy NPC adjacent to player");
+        log("    roles: archon_remnant, void_reaver, archon_sentinel, conclave_sentry,");
+        log("           rust_hound, sentry_drone, archon_automaton");
         log("  fixtures     - list quest fixtures (id, location key, tile)");
         log("  tp <x> <y>   - teleport to tile (x, y) on current map");
         log("  tp <fixture_id> - teleport to that quest fixture if it's on the current map");
@@ -810,18 +812,21 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     }
     else if (verb == "spawn") {
         if (args.size() < 2) {
-            log("Usage: spawn <role>  (archon_remnant|void_reaver|archon_sentinel|conclave_sentry)");
+            log("Usage: spawn <role>  (archon_remnant|void_reaver|archon_sentinel|conclave_sentry|rust_hound|sentry_drone|archon_automaton)");
             return;
         }
         std::string role_arg = args[1];
         std::string role_name;
-        if      (role_arg == "archon_remnant")  role_name = "Archon Remnant";
-        else if (role_arg == "void_reaver")     role_name = "Void Reaver";
-        else if (role_arg == "archon_sentinel") role_name = "Archon Sentinel";
-        else if (role_arg == "conclave_sentry") role_name = "Conclave Sentry";
+        if      (role_arg == "archon_remnant")   role_name = "Archon Remnant";
+        else if (role_arg == "void_reaver")      role_name = "Void Reaver";
+        else if (role_arg == "archon_sentinel")  role_name = "Archon Sentinel";
+        else if (role_arg == "conclave_sentry")  role_name = "Conclave Sentry";
+        else if (role_arg == "rust_hound")       role_name = "Rust Hound";
+        else if (role_arg == "sentry_drone")     role_name = "Sentry Drone";
+        else if (role_arg == "archon_automaton") role_name = "Archon Automaton";
         else {
             log("spawn: unknown role '" + role_arg +
-                "' (archon_remnant|void_reaver|archon_sentinel|conclave_sentry)");
+                "' (archon_remnant|void_reaver|archon_sentinel|conclave_sentry|rust_hound|sentry_drone|archon_automaton)");
             return;
         }
 
