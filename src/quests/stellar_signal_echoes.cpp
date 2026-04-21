@@ -43,7 +43,7 @@ public:
         q.journal_on_complete =
             "The three recordings are all in Nova's voice — but older, "
             "weathered, from a version of herself she has no memory of "
-            "being. One of them called me 'the one with green eyes.' "
+            "being. One of them called me 'the one who always finds her.' "
             "Nova thinks she may have lived this cycle before.";
         return q;
     }
@@ -91,11 +91,10 @@ public:
             "The drone locks onto the crystal. The final fragment plays.",
             "FRAGMENT — UNKNOWN VOICE, LATE CYCLE",
             {
-                "...find the one with green eyes.",
-                "He always finds you.",
-                "Don't forget him this time.",
-                "",
-                "And this time... try to stay.",
+                "...find the one who always finds you.",
+                "No matter the cycle. No matter how I forget.",
+                "They always come back.",
+                "Don't forget them this time.",
             },
         });
     }
@@ -149,8 +148,8 @@ public:
                 "I never recorded that. I've never even been off this station.",
                 "And yet...",
                 "",
-                "She knows you, commander. She called you 'the one with",
-                "green eyes.' How would she know that?",
+                "She knows you, commander. She said you always find me.",
+                "No matter the cycle. How would she know that?",
                 "",
                 "...Unless I've done this before.",
             });
