@@ -586,6 +586,15 @@ public:
                                   const std::vector<std::pair<int,int>>& exclude = {},
                                   std::mt19937* rng = nullptr) const;
 
+    // Find a passable (Floor / IndoorFloor) tile at Manhattan distance
+    // >= min_dist from (avoid_x, avoid_y). Region-independent — works on
+    // maps whose generator doesn't tag regions (e.g. RuinGenerator).
+    // Pass rng to pick randomly; nullptr picks the first match.
+    bool find_open_spot_far_from(int avoid_x, int avoid_y, int min_dist,
+                                 int& out_x, int& out_y,
+                                 const std::vector<std::pair<int,int>>& exclude = {},
+                                 std::mt19937* rng = nullptr) const;
+
 private:
     MapType map_type_ = MapType::SpaceStation;
     Biome biome_ = Biome::Station;

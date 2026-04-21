@@ -79,12 +79,13 @@ void place_planned_fixtures(TileMap& map,
                             const DungeonLevelSpec& spec,
                             std::mt19937& rng,
                             int entry_rid,
-                            int exit_rid) {
+                            int exit_rid,
+                            std::pair<int,int> stairs_up_pos) {
     for (const auto& pf : spec.fixtures) {
         int fx = -1, fy = -1;
 
         if (pf.placement_hint == "back_chamber") {
-            // Walk deepest rooms first, skipping entry/exit rooms when possible.
+            // Prefer a deep room region when the generator has tagged them.
             for (int r = map.region_count() - 1; r >= 0 && fx < 0; --r) {
                 if (map.region(r).type != RegionType::Room) continue;
                 if (r == entry_rid || r == exit_rid) continue;
@@ -94,6 +95,22 @@ void place_planned_fixtures(TileMap& map,
                 auto p = cells[d(rng)];
                 fx = p.first;
                 fy = p.second;
+            }
+            // Region-free fallback (RuinGenerator doesn't tag regions):
+            // pick the passable tile at max Manhattan distance from the
+            // StairsUp, so the fixture ends up as "deep" as the map allows.
+            if (fx < 0 && stairs_up_pos.first >= 0) {
+                int best_d = -1;
+                const auto& ids = map.fixture_ids();
+                for (int y = 0; y < map.height(); ++y) {
+                    for (int x = 0; x < map.width(); ++x) {
+                        if (!map.passable(x, y)) continue;
+                        if (ids[y * map.width() + x] >= 0) continue;
+                        int d = std::abs(x - stairs_up_pos.first) +
+                                std::abs(y - stairs_up_pos.second);
+                        if (d > best_d) { best_d = d; fx = x; fy = y; }
+                    }
+                }
             }
         } else if (pf.placement_hint == "center") {
             // Find the region nearest the map center.
@@ -244,30 +261,29 @@ void generate_dungeon_level(TileMap& map,
         map.add_fixture(ux, uy, f);
     }
 
-    int entry_rid = map.region_id(ux, uy);
-
     // ---- StairsDown ----
-    // Suppressed on boss levels. Otherwise place in the last room region
-    // that is distinct from the entry region.
+    // Ruin-generated maps don't tag regions, so use distance-based
+    // placement: pick a passable tile as far as possible from StairsUp.
     int exit_rid = -1;
     if (!spec.is_boss_level) {
-        for (int r = map.region_count() - 1; r >= 0 && exit_rid < 0; --r) {
-            if (map.region(r).type != RegionType::Room) continue;
-            if (r == entry_rid) continue;
+        std::mt19937 pick_rng(seed ^ 0xB007u);
+        // Start at half map-diagonal and relax until we find a spot.
+        int diag = map.width() + map.height();
+        for (int min_d = diag / 2; min_d >= 6 && exit_rid < 0; min_d -= 3) {
             int rx = 0, ry = 0;
-            std::mt19937 pick_rng(seed ^ 0xB007u);
-            std::vector<std::pair<int, int>> exclude{{ux, uy}};
-            if (map.find_open_spot_in_region(r, rx, ry, exclude, &pick_rng)) {
+            std::vector<std::pair<int,int>> exclude{{ux, uy}};
+            if (map.find_open_spot_far_from(ux, uy, min_d, rx, ry,
+                                            exclude, &pick_rng)) {
                 FixtureData f;
                 f.type = FixtureType::StairsDown;
                 f.interactable = true;
                 f.cooldown = 0;
                 map.add_fixture(rx, ry, f);
-                exit_rid = r;
+                exit_rid = 1;  // sentinel: placed
             }
         }
-        // If we couldn't find a distinct room (very small map), fall back
-        // to any open tile that isn't the stairs-up cell.
+        // If we still couldn't find a distinct spot (very tiny map), fall
+        // back to the legacy region-aware helper, then any open tile.
         if (exit_rid < 0) {
             int cx = 0, cy = 0;
             if (map.find_open_spot_other_room(ux, uy, cx, cy)) {
@@ -282,8 +298,12 @@ void generate_dungeon_level(TileMap& map,
     }
 
     // ---- Planned fixtures ----
+    // Entry region id is irrelevant for ruin-generated maps (RuinGenerator
+    // doesn't tag regions), but the helper still takes it as a hint.
     std::mt19937 fix_rng(seed ^ 0xA5A5u);
-    place_planned_fixtures(map, spec, fix_rng, entry_rid, exit_rid);
+    place_planned_fixtures(map, spec, fix_rng,
+                           map.region_id(ux, uy), exit_rid,
+                           {ux, uy});
 
     // NPC spawning is caller-owned (see task header).
     (void)recipe; // recipe already consumed via `spec`

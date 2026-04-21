@@ -831,15 +831,20 @@ void Game::enter_detail_map() {
                 for (const auto& npc : world_.npcs()) occupied.push_back({npc.x, npc.y});
 
                 // Spawn quest-specific NPCs (e.g. Archive surface patrols).
-                // Mirrors the dungeon-from-detail entry path.
+                // Uses the region-independent finder since ruin POIs don't
+                // tag regions.
                 std::mt19937 qnpc_rng(detail_seed ^ 0xE17Eu);
                 for (const auto& role : qit->second.npc_roles) {
+                    int nx = 0, ny = 0;
+                    if (!world_.map().find_open_spot_far_from(
+                            player_.x, player_.y, /*min_dist*/ 6,
+                            nx, ny, occupied, &qnpc_rng))
+                        continue;
                     Npc npc = create_npc_by_role(role, qnpc_rng);
-                    if (world_.map().find_open_spot_other_room(
-                            player_.x, player_.y, npc.x, npc.y, occupied, &qnpc_rng)) {
-                        occupied.push_back({npc.x, npc.y});
-                        world_.npcs().push_back(std::move(npc));
-                    }
+                    npc.x = nx;
+                    npc.y = ny;
+                    occupied.push_back({nx, ny});
+                    world_.npcs().push_back(std::move(npc));
                 }
 
                 place_quest_fixtures(world_.map(), qit->second,
@@ -1163,7 +1168,10 @@ void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
         world_.npcs().clear();
         world_.ground_items().clear();
 
-        // Spawn NPCs from the level spec into world_.npcs().
+        // Spawn NPCs from the level spec into world_.npcs(). Ruin-generated
+        // maps don't tag regions, so use the region-independent spawner
+        // (min_dist from the StairsUp so enemies aren't on the player's
+        // landing tile).
         const auto& spec = recipe->levels[next_depth - 1];
         std::mt19937 npc_rng(seed ^ 0x5A5Au);
         std::vector<std::pair<int,int>> occupied;
@@ -1172,8 +1180,9 @@ void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
         int avoid_y = up_for_spawn.second >= 0 ? up_for_spawn.second : world_.map().height() / 2;
         for (const auto& role : spec.npc_roles) {
             int nx = 0, ny = 0;
-            if (!world_.map().find_open_spot_other_room(
-                    avoid_x, avoid_y, nx, ny, occupied, &npc_rng))
+            if (!world_.map().find_open_spot_far_from(
+                    avoid_x, avoid_y, /*min_dist*/ 6,
+                    nx, ny, occupied, &npc_rng))
                 continue;
             Npc n = create_npc_by_role(role, npc_rng);
             n.x = nx;

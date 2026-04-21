@@ -278,6 +278,43 @@ bool TileMap::find_open_spot_other_room(int avoid_x, int avoid_y, int& out_x, in
     return true;
 }
 
+bool TileMap::find_open_spot_far_from(int avoid_x, int avoid_y, int min_dist,
+                                      int& out_x, int& out_y,
+                                      const std::vector<std::pair<int,int>>& exclude,
+                                      std::mt19937* rng) const {
+    std::vector<std::pair<int,int>> candidates;
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            Tile t_ = get(x, y);
+            if (t_ != Tile::Floor && t_ != Tile::IndoorFloor) continue;
+            if (fixture_ids_[y * width_ + x] >= 0) continue;
+            int md = std::abs(x - avoid_x) + std::abs(y - avoid_y);
+            if (md < min_dist) continue;
+
+            bool excluded = false;
+            for (const auto& [ex, ey] : exclude) {
+                if (x == ex && y == ey) { excluded = true; break; }
+            }
+            if (excluded) continue;
+
+            if (!rng) {
+                out_x = x;
+                out_y = y;
+                return true;
+            }
+            candidates.push_back({x, y});
+        }
+    }
+
+    if (candidates.empty()) return false;
+
+    std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+    auto [cx, cy] = candidates[dist(*rng)];
+    out_x = cx;
+    out_y = cy;
+    return true;
+}
+
 void TileMap::load_from(int w, int h, MapType type, Biome biome, std::string location,
                         std::vector<Tile> tiles, std::vector<int> rids,
                         std::vector<Region> regions, std::vector<char> backdrop) {

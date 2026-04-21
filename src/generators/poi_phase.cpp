@@ -100,39 +100,16 @@ Rect poi_phase(TileMap& map, const TerrainChannels& channels,
         const int cx = map.width() / 2;
         const int cy = map.height() / 2;
 
-        // Compute per-region centroids from the region_ids grid.
-        const int rc = map.region_count();
-        std::vector<long long> sum_x(rc, 0), sum_y(rc, 0);
-        std::vector<int> count(rc, 0);
+        // Pick the passable tile at maximum Manhattan distance from the
+        // player's spawn (map center). Region-independent — RuinGenerator
+        // doesn't tag regions, so centroid-based room selection is a no-op.
+        int hx = cx, hy = cy;
+        int best_d = -1;
         for (int y = 0; y < map.height(); ++y) {
             for (int x = 0; x < map.width(); ++x) {
-                int rid = map.region_id(x, y);
-                if (rid < 0 || rid >= rc) continue;
-                sum_x[rid] += x;
-                sum_y[rid] += y;
-                count[rid] += 1;
-            }
-        }
-
-        // Pick the Room region whose centroid is furthest from map center.
-        int best_rid = -1;
-        int best_d2 = -1;
-        for (int r = 0; r < rc; ++r) {
-            if (map.region(r).type != RegionType::Room) continue;
-            if (count[r] <= 0) continue;
-            int rcx = static_cast<int>(sum_x[r] / count[r]);
-            int rcy = static_cast<int>(sum_y[r] / count[r]);
-            int dx = rcx - cx, dy = rcy - cy;
-            int d2 = dx * dx + dy * dy;
-            if (d2 > best_d2) { best_d2 = d2; best_rid = r; }
-        }
-
-        int hx = cx, hy = cy;
-        if (best_rid >= 0) {
-            int rx = 0, ry = 0;
-            std::mt19937 pick_rng(static_cast<uint32_t>(best_rid) * 2654435761u);
-            if (map.find_open_spot_in_region(best_rid, rx, ry, {}, &pick_rng)) {
-                hx = rx; hy = ry;
+                if (!map.passable(x, y)) continue;
+                int d = std::abs(x - cx) + std::abs(y - cy);
+                if (d > best_d) { best_d = d; hx = x; hy = y; }
             }
         }
 
