@@ -901,7 +901,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("Teleported to (" + std::to_string(tx) + "," + std::to_string(ty) + ")");
     }
     else if (verb == "tp" && args.size() == 2) {
-        // Teleport to a quest fixture by id, if it's on the current map.
+        // Teleport to a quest fixture by id. Two passes:
+        //   (1) quest_locations metadata — for fixtures registered via
+        //       QuestLocationMeta.fixtures (Echo drones, etc.).
+        //   (2) actual fixtures on the current map — for POI-placed
+        //       fixtures like the Conclave Archive hatch, which aren't
+        //       listed in QuestLocationMeta.
         const std::string& fid = args[1];
         for (const auto& [key, meta] : game.world().quest_locations()) {
             for (const auto& p : meta.fixtures) {
@@ -919,6 +924,21 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 game.player().y = p.y;
                 log("Teleported to '" + fid + "' at (" +
                     std::to_string(p.x) + "," + std::to_string(p.y) + ")");
+                return;
+            }
+        }
+        // Pass 2: scan the current map's placed fixtures.
+        const auto& m = game.world().map();
+        for (int y = 0; y < m.height(); ++y) {
+            for (int x = 0; x < m.width(); ++x) {
+                int fidx = m.fixture_id(x, y);
+                if (fidx < 0) continue;
+                const auto& f = m.fixture(fidx);
+                if (f.quest_fixture_id != fid) continue;
+                game.player().x = x;
+                game.player().y = y;
+                log("Teleported to '" + fid + "' at (" +
+                    std::to_string(x) + "," + std::to_string(y) + ")");
                 return;
             }
         }
