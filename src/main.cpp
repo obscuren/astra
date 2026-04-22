@@ -44,6 +44,10 @@ int dump_dungeon_headless(const std::string& style_name,
         s.civ_name    = civ_name;
         s.decay_level = std::max(0, 3 - d);   // 3 at L1, 2 at L2, 0 at L3
         s.is_boss_level = (d == depth - 1);
+        if (s.is_boss_level) {
+            s.fixtures.push_back(
+                astra::PlannedFixture{ "nova_resonance_crystal", "required_plinth" });
+        }
         r.levels.push_back(s);
     }
 

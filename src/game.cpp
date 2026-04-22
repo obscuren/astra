@@ -591,6 +591,11 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
         s.decay_level = std::max(0, 3 - d);   // 3 at L1, 2 at L2, 0 at L3 (pristine)
         s.enemy_tier  = d + 1;
         s.is_boss_level = (d == r.level_count - 1);
+        // Put the Nova resonance crystal on the final level so the
+        // required_plinth / SanctumCenter mechanism is exercised by :dungen.
+        if (s.is_boss_level) {
+            s.fixtures.push_back(PlannedFixture{ "nova_resonance_crystal", "required_plinth" });
+        }
         r.levels.push_back(s);
     }
 

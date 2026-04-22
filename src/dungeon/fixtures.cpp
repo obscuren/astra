@@ -403,9 +403,12 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
         switch (rf.where) {
 
         case PlacementSlot::SanctumCenter: {
-            // Prefer the sanctum box (constrains placement even when the
-            // whole map flood-fills into a single region). Filter to cells
-            // inside the box that are open and safe for impassable kinds.
+            // Prefer the sanctum box. The chosen cell is the one FARTHEST
+            // from entry_pref within the box — this places the target (e.g.
+            // the plinth hosting the Nova crystal) at the back of the vault
+            // opposite the approach corridor, so the player walks across
+            // the room to reach it. If entry_pref is unset, fall back to
+            // centroid.
             auto cells = collect_region_open(map, ctx.sanctum_region_id);
             if (ctx.sanctum_box.x0 >= 0) {
                 cells.erase(
@@ -418,15 +421,25 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
             if (cells.empty()) break;
             if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
             if (cells.empty()) break;
-            long sx = 0, sy = 0;
-            for (auto& c : cells) { sx += c.first; sy += c.second; }
-            int cx = static_cast<int>(sx / static_cast<long>(cells.size()));
-            int cy = static_cast<int>(sy / static_cast<long>(cells.size()));
-            int best_d = INT_MAX;
+
             std::pair<int,int> p = cells.front();
-            for (auto& c : cells) {
-                int dd = std::abs(c.first - cx) + std::abs(c.second - cy);
-                if (dd < best_d) { best_d = dd; p = c; }
+            if (ctx.entry_pref.first >= 0 && ctx.entry_pref.second >= 0) {
+                int best_d = -1;
+                for (auto& c : cells) {
+                    int dd = std::abs(c.first - ctx.entry_pref.first) +
+                             std::abs(c.second - ctx.entry_pref.second);
+                    if (dd > best_d) { best_d = dd; p = c; }
+                }
+            } else {
+                long sx = 0, sy = 0;
+                for (auto& c : cells) { sx += c.first; sy += c.second; }
+                int cx = static_cast<int>(sx / static_cast<long>(cells.size()));
+                int cy = static_cast<int>(sy / static_cast<long>(cells.size()));
+                int best_d = INT_MAX;
+                for (auto& c : cells) {
+                    int dd = std::abs(c.first - cx) + std::abs(c.second - cy);
+                    if (dd < best_d) { best_d = dd; p = c; }
+                }
             }
             add_required_fixture(map, rf.kind, p.first, p.second, ctx, &civ, rng);
             reserved.push_back(p);
