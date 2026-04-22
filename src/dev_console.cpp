@@ -3,6 +3,7 @@
 #include "astra/biome_profile.h"
 #include "astra/body_presets.h"
 #include "astra/dungeon/dungeon_style.h"
+#include "astra/dungeon/puzzles.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
@@ -222,6 +223,17 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "heal") {
         player.hp = player.effective_max_hp();
         log("HP restored to " + std::to_string(player.hp));
+    }
+    else if (verb == "solve") {
+        auto& map = game.world().map();
+        int solved = 0;
+        for (int i = 0; i < map.puzzle_count(); ++i) {
+            auto& ps = map.puzzle_mut(i);
+            if (ps.solved) continue;
+            astra::dungeon::on_button_pressed(game, ps.id);
+            ++solved;
+        }
+        log("Solved " + std::to_string(solved) + " puzzle(s).");
     }
     else if (verb == "flash") {
         game.animations().spawn_effect(anim_damage_flash, player.x, player.y);

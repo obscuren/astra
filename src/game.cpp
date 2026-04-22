@@ -760,6 +760,18 @@ std::string Game::dev_command_dumpmap(const std::string& path_in) {
         out << '\n';
     }
 
+    out << "\n--- puzzles list ---\n";
+    for (int i = 0; i < m.puzzle_count(); ++i) {
+        const auto& p = m.puzzle(i);
+        out << "  [" << i << "] id=" << p.id
+            << " kind=" << static_cast<int>(p.kind)
+            << " solved=" << (p.solved ? "y" : "n")
+            << " button=(" << p.button_pos.first << "," << p.button_pos.second << ")"
+            << " stairs=(" << p.stairs_pos.first << "," << p.stairs_pos.second << ")"
+            << " sealed_tiles=" << p.sealed_tiles.size()
+            << '\n';
+    }
+
     out.close();
     return path;
 }
