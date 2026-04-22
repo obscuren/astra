@@ -44,6 +44,9 @@ struct CivConfig {
 
     // Map to lore architecture
     Architecture architecture = Architecture::Geometric;
+
+    // Flavor text drawn by Inscription required-fixtures (layer 6.iii).
+    std::vector<std::string> inscription_text_pool;
 };
 
 // --- Room discovered by flood-fill ---
@@ -107,6 +110,10 @@ CivConfig civ_config_industrial();
 CivConfig civ_config_precursor();
 CivConfig civ_config_for_architecture(Architecture arch);
 CivConfig civ_config_by_name(const std::string& name);
+
+// Pick a random inscription string from a civ's pool. Returns an empty
+// string reference if the pool is empty.
+const std::string& pick_inscription(const CivConfig& civ, std::mt19937& rng);
 
 // --- Post-processing stamps ---
 void apply_ruin_stamps(TileMap& map, const RuinPlan& plan,

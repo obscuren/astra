@@ -78,6 +78,16 @@ CivConfig civ_config_precursor() {
         BuildingType::Observatory, BuildingType::GreatHall,
     };
     c.architecture = Architecture::LightWoven;
+    c.inscription_text_pool = {
+        "The silence here is older than breath. We were asked to listen; we obeyed.",
+        "Seven stars, seven seals. One we broke ourselves.",
+        "Those who walk the nave without gift are asked only to remember.",
+        "The crystal hums the first name. The second was never written.",
+        "We sealed this vault so that hunger could not enter it.",
+        "Do not kneel. The architects did not want kneeling.",
+        "The rite of descent is simple: go down until the light changes.",
+        "What you carry out of this place you must carry forever.",
+    };
     return c;
 }
 
@@ -137,6 +147,13 @@ CivConfig civ_config_by_name(const std::string& name) {
     if (name == "Precursor")  return civ_config_precursor();
     if (name == "Natural")    return civ_config_natural();
     return civ_config_monolithic();  // default
+}
+
+const std::string& pick_inscription(const CivConfig& civ, std::mt19937& rng) {
+    static const std::string empty{};
+    if (civ.inscription_text_pool.empty()) return empty;
+    std::uniform_int_distribution<size_t> d(0, civ.inscription_text_pool.size() - 1);
+    return civ.inscription_text_pool[d(rng)];
 }
 
 } // namespace astra
