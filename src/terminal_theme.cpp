@@ -1710,6 +1710,18 @@ ResolvedVisual resolve_animation(AnimationType type, int frame_index) {
             };
             return frames[frame_index % 5];
         }
+        case AnimationType::CampfireFlicker: {
+            // Cycle red → orange (xterm 208) → yellow → orange → red → bright yellow.
+            static const ResolvedVisual frames[] = {
+                {'^', nullptr, Color::Red, Color::Default},
+                {'^', nullptr, static_cast<Color>(208), Color::Default},
+                {'^', nullptr, Color::Yellow, Color::Default},
+                {'^', nullptr, static_cast<Color>(208), Color::Default},
+                {'^', nullptr, Color::Red, Color::Default},
+                {'^', nullptr, Color::BrightYellow, Color::Default},
+            };
+            return frames[frame_index % 6];
+        }
         case AnimationType::DamageFlash: {
             static const ResolvedVisual frames[] = {
                 {'*', nullptr, Color::Red, Color::Default},

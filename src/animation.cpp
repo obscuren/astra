@@ -57,6 +57,12 @@ const AnimationDef anim_torch_flicker = {
     true
 };
 
+const AnimationDef anim_campfire_flicker = {
+    AnimationType::CampfireFlicker,
+    {{160}, {130}, {190}, {140}, {170}, {150}},
+    true
+};
+
 const AnimationDef anim_level_up = {
     AnimationType::LevelUp,
     {{150}, {150}, {150}},
@@ -236,6 +242,7 @@ static const AnimationDef* fixture_anim_for(FixtureType type) {
         case FixtureType::ShipTerminal:    return &anim_ship_terminal_blink;
         case FixtureType::Viewport:        return &anim_viewport_shimmer;
         case FixtureType::Torch:           return &anim_torch_flicker;
+        case FixtureType::Campfire:        return &anim_campfire_flicker;
         default: return nullptr;
     }
 }

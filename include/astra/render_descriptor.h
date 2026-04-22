@@ -49,6 +49,7 @@ enum class AnimationType : uint8_t {
     AlienPulse, ScarSmolder, BeaconGlow, MegastructureShift,
     LavaShimmer,
     ShipTerminalBlink,
+    CampfireFlicker,
 };
 
 // Deterministic position hash for visual variation.

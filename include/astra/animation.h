@@ -89,5 +89,6 @@ extern const AnimationDef anim_heal_pulse;
 extern const AnimationDef anim_projectile;
 extern const AnimationDef anim_level_up;
 extern const AnimationDef anim_torch_flicker;
+extern const AnimationDef anim_campfire_flicker;
 
 } // namespace astra
