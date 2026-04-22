@@ -95,6 +95,102 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     }
 }
 
+// Sets ctx.sanctum_region_id to the region id at the center of `terminal`.
+// Caller must run tag_connected_components first.
+[[maybe_unused]] void tag_sanctum(TileMap& map, LevelContext& ctx, const Rect& terminal) {
+    ctx.sanctum_region_id =
+        map.region_id(terminal.x + terminal.w / 2, terminal.y + terminal.h / 2);
+}
+
+[[maybe_unused]] void tag_chapels(TileMap& map, LevelContext& ctx,
+                                  const std::vector<Rect>& chapels) {
+    ctx.chapel_region_ids.clear();
+    ctx.chapel_region_ids.reserve(chapels.size());
+    for (const auto& r : chapels) {
+        int rid = map.region_id(r.x + r.w / 2, r.y + r.h / 2);
+        if (rid >= 0) ctx.chapel_region_ids.push_back(rid);
+    }
+}
+
+// Rubble-interrupted narrow corridor: carves a 1-wide line but leaves
+// impassable "rubble" gaps at ~20% density along the middle 60% of the run.
+[[maybe_unused]] void carve_corridor_broken_h(TileMap& m, int x1, int x2, int y,
+                                              std::mt19937& rng) {
+    if (x1 > x2) std::swap(x1, x2);
+    int len = x2 - x1;
+    int m0 = x1 + len * 20 / 100;
+    int m1 = x1 + len * 80 / 100;
+    std::uniform_int_distribution<int> d(0, 99);
+    for (int x = x1; x <= x2; ++x) {
+        if (!inbounds(m, x, y)) continue;
+        if (x > m0 && x < m1 && d(rng) < 20) {
+            // leave as Wall — creates a rubble-gap feel; pathable gaps on either side
+            continue;
+        }
+        m.set(x, y, Tile::Floor);
+    }
+}
+
+[[maybe_unused]] void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
+                                                std::mt19937& rng) {
+    const int W = map.width();
+    const int H = map.height();
+
+    // Entry room — upper-left quadrant.
+    Rect entry { 2, 2, 8, 6 };
+    // Terminal chamber — lower-right, medium size.
+    Rect terminal { W - 12, H - 9, 10, 7 };
+
+    carve_rect(map, entry);
+    carve_rect(map, terminal);
+
+    // 4-6 side rooms scattered between entry and terminal.
+    std::uniform_int_distribution<int> dcount(4, 6);
+    int n = dcount(rng);
+    std::vector<Rect> side_rooms;
+    side_rooms.reserve(n);
+    for (int i = 0; i < n; ++i) {
+        std::uniform_int_distribution<int> dw(4, 7);
+        std::uniform_int_distribution<int> dh(3, 5);
+        std::uniform_int_distribution<int> dx(entry.x + entry.w + 2, terminal.x - 6);
+        std::uniform_int_distribution<int> dy(2, H - 8);
+        int w = dw(rng), h = dh(rng);
+        int x = dx(rng), y = dy(rng);
+        Rect r { x, y, w, h };
+        // Reject overlaps.
+        bool overlap = false;
+        for (const auto& o : side_rooms) {
+            if (std::abs((r.x + r.w/2) - (o.x + o.w/2)) < (r.w + o.w)/2 + 1 &&
+                std::abs((r.y + r.h/2) - (o.y + o.h/2)) < (r.h + o.h)/2 + 1) {
+                overlap = true; break;
+            }
+        }
+        if (overlap) continue;
+        side_rooms.push_back(r);
+        carve_rect(map, r);
+    }
+
+    // Processional: rubble-broken 1-wide line from entry center to terminal center.
+    int ax = entry.x + entry.w / 2, ay = entry.y + entry.h / 2;
+    int bx = terminal.x + terminal.w / 2, by = terminal.y + terminal.h / 2;
+    carve_corridor_broken_h(map, ax, bx, ay, rng);
+    carve_v(map, ay, by, bx);
+
+    // Short 1-wide stubs from each side room to the processional.
+    for (const auto& r : side_rooms) {
+        int cx = r.x + r.w / 2;
+        int cy = r.y + r.h / 2;
+        carve_v(map, cy, ay, cx);
+    }
+
+    tag_connected_components(map, RegionType::Room);
+    ctx.entry_region_id = map.region_id(ax, ay);
+    ctx.exit_region_id  = map.region_id(bx, by);
+    tag_sanctum(map, ctx, terminal);
+    // No chapels on L1.
+    ctx.chapel_region_ids.clear();
+}
+
 void layout_bsp_rooms(TileMap& map, LevelContext& ctx, std::mt19937& rng) {
     std::vector<Rect> rooms;
     Rect full = { 1, 1, map.width() - 2, map.height() - 2 };
