@@ -246,6 +246,38 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     tag_chapels(map, ctx, chapels);
 }
 
+[[maybe_unused]] void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
+                                                std::mt19937& rng) {
+    (void)rng;
+    const int W = map.width();
+    const int H = map.height();
+
+    // Antechamber — left side, modest.
+    Rect antechamber { 2, H/2 - 3, 8, 6 };
+    // Vault — right side, dominant.
+    Rect vault { W - 18, H/2 - 7, 16, 14 };
+
+    carve_rect(map, antechamber);
+    carve_rect(map, vault);
+
+    // 3-wide ceremonial approach corridor.
+    int corridor_y0 = H / 2 - 1;
+    int corridor_x0 = antechamber.x + antechamber.w;
+    int corridor_x1 = vault.x;
+    for (int y = corridor_y0; y <= corridor_y0 + 2; ++y) {
+        carve_h(map, corridor_x0, corridor_x1, y);
+    }
+
+    tag_connected_components(map, RegionType::Room);
+
+    int ax = antechamber.x + antechamber.w / 2, ay = antechamber.y + antechamber.h / 2;
+    int bx = vault.x + vault.w / 2, by = vault.y + vault.h / 2;
+    ctx.entry_region_id = map.region_id(ax, ay);
+    ctx.exit_region_id  = map.region_id(bx, by);
+    tag_sanctum(map, ctx, vault);
+    ctx.chapel_region_ids.clear();
+}
+
 void layout_bsp_rooms(TileMap& map, LevelContext& ctx, std::mt19937& rng) {
     std::vector<Rect> rooms;
     Rect full = { 1, 1, map.width() - 2, map.height() - 2 };
