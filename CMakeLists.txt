@@ -100,6 +100,7 @@ set(ASTRA_SOURCES
     src/dungeon/overlay.cpp
     src/dungeon/decoration.cpp
     src/dungeon/fixtures.cpp
+    src/dungeon/puzzles.cpp
     src/generators/faction_territory.cpp
     src/overworld_stamps.cpp
     src/poi_budget.cpp

@@ -31,3 +31,18 @@ struct PuzzleState {
 };
 
 } // namespace astra::dungeon
+
+// -- forward decls for apply_puzzles signature --
+#include <random>
+
+namespace astra { class TileMap; }
+
+namespace astra::dungeon {
+
+struct DungeonStyle;
+struct LevelContext;
+
+void apply_puzzles(astra::TileMap& map, const DungeonStyle& style,
+                   LevelContext& ctx, std::mt19937& rng);
+
+} // namespace astra::dungeon

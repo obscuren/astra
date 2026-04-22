@@ -118,12 +118,17 @@ std::pair<int,int> region_center_open(const TileMap& m, int rid) {
     return best;
 }
 
+}  // anonymous namespace
+
 // Interior-wall cells adjacent to a given region's floor tiles.
+// Exposed in fixtures.h so other generation layers (e.g. puzzles) can reuse it.
 std::vector<std::pair<int,int>> region_wall_attached(const TileMap& m, int rid) {
     std::vector<std::pair<int,int>> out;
     if (rid < 0 || rid >= m.region_count()) return out;
     for (int y = 0; y < m.height(); ++y) {
         for (int x = 0; x < m.width(); ++x) {
+            // is_interior_wall / inbounds_fix live in the anonymous namespace
+            // above; still visible to this TU.
             if (!is_interior_wall(m, x, y)) continue;
             bool touches_rid = false;
             static const int dxs[4] = { 1,-1, 0, 0 };
@@ -138,6 +143,8 @@ std::vector<std::pair<int,int>> region_wall_attached(const TileMap& m, int rid) 
     }
     return out;
 }
+
+namespace {
 
 // Places a single required fixture. Inscription fixtures also stash
 // civ-drawn flavor text in FixtureData::quest_fixture_id (overloaded as a
