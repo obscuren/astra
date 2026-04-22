@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 
@@ -343,7 +344,7 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_i32(item.shield_hp);
 }
 
-static Item read_item(BinaryReader& r, uint32_t version = 14) {
+static Item read_item(BinaryReader& r) {
     Item item;
     item.id = r.read_u32();
     item.name = r.read_string();
@@ -352,14 +353,7 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
     bool has_slot = r.read_u8() != 0;
     if (has_slot) item.slot = static_cast<EquipSlot>(r.read_u8());
     item.rarity = static_cast<Rarity>(r.read_u8());
-    // v19: item_def_id replaces glyph+color (same 2 bytes)
-    if (version >= 19) {
-        item.item_def_id = r.read_u16();
-    } else {
-        r.read_u8();  // skip legacy glyph
-        r.read_u8();  // skip legacy color
-        // Reconstruct item_def_id from name after full read (below)
-    }
+    item.item_def_id = r.read_u16();
     item.weight = r.read_i32();
     item.stackable = r.read_u8() != 0;
     item.stack_count = r.read_i32();
@@ -395,33 +389,25 @@ static Item read_item(BinaryReader& r, uint32_t version = 14) {
         item.enhancements[i].bonus.view_radius = r.read_i32();
         item.enhancements[i].bonus.quickness = r.read_i32();
     }
-    // v14: ship component fields
-    if (version >= 14) {
-        bool has_ship_slot = r.read_u8() != 0;
-        if (has_ship_slot) item.ship_slot = static_cast<ShipSlot>(r.read_u8());
-        item.ship_modifiers.hull_hp = r.read_i32();
-        item.ship_modifiers.shield_hp = r.read_i32();
-        item.ship_modifiers.warp_range = r.read_i32();
-        item.ship_modifiers.cargo_capacity = r.read_i32();
-    }
-    // v26: dice combat fields
-    if (version >= 26) {
-        item.damage_type = static_cast<DamageType>(r.read_u8());
-        item.damage_dice.count = r.read_i32();
-        item.damage_dice.sides = r.read_i32();
-        item.damage_dice.modifier = r.read_i32();
-        item.type_affinity.kinetic = r.read_i32();
-        item.type_affinity.plasma = r.read_i32();
-        item.type_affinity.electrical = r.read_i32();
-        item.type_affinity.cryo = r.read_i32();
-        item.type_affinity.acid = r.read_i32();
-        item.shield_capacity = r.read_i32();
-        item.shield_hp = r.read_i32();
-    }
-    // Reconstruct item_def_id for pre-v19 saves
-    if (version < 19 && item.item_def_id == 0) {
-        item.item_def_id = item_def_id_from_name(item.name);
-    }
+    // Ship component fields
+    bool has_ship_slot = r.read_u8() != 0;
+    if (has_ship_slot) item.ship_slot = static_cast<ShipSlot>(r.read_u8());
+    item.ship_modifiers.hull_hp = r.read_i32();
+    item.ship_modifiers.shield_hp = r.read_i32();
+    item.ship_modifiers.warp_range = r.read_i32();
+    item.ship_modifiers.cargo_capacity = r.read_i32();
+    // Dice combat fields
+    item.damage_type = static_cast<DamageType>(r.read_u8());
+    item.damage_dice.count = r.read_i32();
+    item.damage_dice.sides = r.read_i32();
+    item.damage_dice.modifier = r.read_i32();
+    item.type_affinity.kinetic = r.read_i32();
+    item.type_affinity.plasma = r.read_i32();
+    item.type_affinity.electrical = r.read_i32();
+    item.type_affinity.cryo = r.read_i32();
+    item.type_affinity.acid = r.read_i32();
+    item.shield_capacity = r.read_i32();
+    item.shield_hp = r.read_i32();
     return item;
 }
 
@@ -430,8 +416,8 @@ static void write_optional_item(BinaryWriter& w, const std::optional<Item>& opt)
     if (opt) write_item(w, *opt);
 }
 
-static std::optional<Item> read_optional_item(BinaryReader& r, uint32_t version = 14) {
-    if (r.read_u8() != 0) return read_item(r, version);
+static std::optional<Item> read_optional_item(BinaryReader& r) {
+    if (r.read_u8() != 0) return read_item(r);
     return std::nullopt;
 }
 
@@ -452,33 +438,19 @@ static void write_equipment(BinaryWriter& w, const Equipment& eq) {
     write_optional_item(w, eq.shield);
 }
 
-static void read_equipment(BinaryReader& r, Equipment& eq, uint32_t version) {
-    if (version >= 12) {
-        eq.face = read_optional_item(r, version);
-        eq.head = read_optional_item(r, version);
-        eq.body = read_optional_item(r, version);
-        eq.left_arm = read_optional_item(r, version);
-        eq.right_arm = read_optional_item(r, version);
-        eq.left_hand = read_optional_item(r, version);
-        eq.right_hand = read_optional_item(r, version);
-        eq.back = read_optional_item(r, version);
-        eq.feet = read_optional_item(r, version);
-        eq.thrown = read_optional_item(r, version);
-        eq.missile = read_optional_item(r, version);
-        if (version >= 26) {
-            eq.shield = read_optional_item(r, version);
-        }
-    } else {
-        // Old 8-slot format: map to new slots
-        eq.head = read_optional_item(r, version);
-        eq.body = read_optional_item(r, version);
-        (void)read_optional_item(r, version);
-        eq.feet = read_optional_item(r, version);
-        eq.left_hand = read_optional_item(r, version);
-        eq.right_hand = read_optional_item(r, version);
-        eq.missile = read_optional_item(r, version);
-        (void)read_optional_item(r, version);
-    }
+static void read_equipment(BinaryReader& r, Equipment& eq) {
+    eq.face = read_optional_item(r);
+    eq.head = read_optional_item(r);
+    eq.body = read_optional_item(r);
+    eq.left_arm = read_optional_item(r);
+    eq.right_arm = read_optional_item(r);
+    eq.left_hand = read_optional_item(r);
+    eq.right_hand = read_optional_item(r);
+    eq.back = read_optional_item(r);
+    eq.feet = read_optional_item(r);
+    eq.thrown = read_optional_item(r);
+    eq.missile = read_optional_item(r);
+    eq.shield = read_optional_item(r);
 }
 
 static void write_inventory(BinaryWriter& w, const Inventory& inv) {
@@ -487,11 +459,11 @@ static void write_inventory(BinaryWriter& w, const Inventory& inv) {
     for (const auto& item : inv.items) write_item(w, item);
 }
 
-static void read_inventory(BinaryReader& r, Inventory& inv, uint32_t version = 14) {
+static void read_inventory(BinaryReader& r, Inventory& inv) {
     inv.max_carry_weight = r.read_i32();
     uint32_t count = r.read_u32();
     inv.items.resize(count);
-    for (uint32_t i = 0; i < count; ++i) inv.items[i] = read_item(r, version);
+    for (uint32_t i = 0; i < count; ++i) inv.items[i] = read_item(r);
 }
 
 // ---------------------------------------------------------------------------
@@ -957,14 +929,11 @@ static void read_dungeon_recipes_section(BinaryReader& r, SaveData& data) {
             lvl.enemy_tier     = r.read_i32();
             lvl.is_side_branch = r.read_u8() != 0;
             lvl.is_boss_level  = r.read_u8() != 0;
-            if (data.version >= 38) {
-                lvl.style_id = static_cast<dungeon::StyleId>(r.read_u8());
-                uint8_t oc = r.read_u8();
-                for (uint8_t k = 0; k < oc; ++k) {
-                    lvl.overlays.push_back(static_cast<dungeon::OverlayKind>(r.read_u8()));
-                }
+            lvl.style_id = static_cast<dungeon::StyleId>(r.read_u8());
+            uint8_t oc = r.read_u8();
+            for (uint8_t k = 0; k < oc; ++k) {
+                lvl.overlays.push_back(static_cast<dungeon::OverlayKind>(r.read_u8()));
             }
-            // else: keep defaults (SimpleRoomsAndCorridors + empty overlays)
             uint32_t rc = r.read_u32();
             for (uint32_t k = 0; k < rc; ++k) lvl.npc_roles.push_back(r.read_string());
             uint32_t fc = r.read_u32();
@@ -1024,36 +993,23 @@ static void write_quest(BinaryWriter& w, const Quest& q) {
     }
 }
 
-static Quest read_quest(BinaryReader& r, uint32_t version) {
+static Quest read_quest(BinaryReader& r) {
     Quest q;
     q.id = r.read_string();
     q.title = r.read_string();
     q.description = r.read_string();
     q.giver_npc = r.read_string();
-    uint8_t raw_status = r.read_u8();
-    if (version < 28) {
-        // v27 and earlier order: Available=0, Active=1, Completed=2, Failed=3
-        static constexpr QuestStatus v27_map[] = {
-            QuestStatus::Available, QuestStatus::Active,
-            QuestStatus::Completed, QuestStatus::Failed,
-        };
-        q.status = raw_status < 4 ? v27_map[raw_status] : QuestStatus::Failed;
-    } else {
-        q.status = static_cast<QuestStatus>(raw_status);
-    }
+    q.status = static_cast<QuestStatus>(r.read_u8());
     q.is_story = r.read_u8() != 0;
     q.accepted_tick = r.read_i32();
     q.target_system_id = r.read_u32();
     q.target_body_index = r.read_i32();
 
-    // v28: chain fields
-    if (version >= 28) {
-        q.arc_id = r.read_string();
-        uint32_t pc = r.read_u32();
-        q.prerequisite_ids.resize(pc);
-        for (auto& p : q.prerequisite_ids) p = r.read_string();
-        q.reveal = static_cast<RevealPolicy>(r.read_u8());
-    }
+    q.arc_id = r.read_string();
+    uint32_t pc = r.read_u32();
+    q.prerequisite_ids.resize(pc);
+    for (auto& p : q.prerequisite_ids) p = r.read_string();
+    q.reveal = static_cast<RevealPolicy>(r.read_u8());
 
     uint32_t obj_count = r.read_u32();
     q.objectives.resize(obj_count);
@@ -1068,24 +1024,16 @@ static Quest read_quest(BinaryReader& r, uint32_t version) {
     q.reward.xp = r.read_i32();
     q.reward.credits = r.read_i32();
     q.reward.skill_points = r.read_i32();
-    if (version >= 29) {
-        uint32_t n = r.read_u32();
-        q.reward.items.reserve(n);
-        for (uint32_t i = 0; i < n; ++i) q.reward.items.push_back(read_item(r, version));
-        uint32_t fn = r.read_u32();
-        q.reward.factions.reserve(fn);
-        for (uint32_t i = 0; i < fn; ++i) {
-            FactionReward fr;
-            fr.faction_name = r.read_string();
-            fr.reputation_change = r.read_i32();
-            q.reward.factions.push_back(std::move(fr));
-        }
-    } else {
-        (void)r.read_string();  // legacy item_name, discarded
+    uint32_t n = r.read_u32();
+    q.reward.items.reserve(n);
+    for (uint32_t i = 0; i < n; ++i) q.reward.items.push_back(read_item(r));
+    uint32_t fn = r.read_u32();
+    q.reward.factions.reserve(fn);
+    for (uint32_t i = 0; i < fn; ++i) {
         FactionReward fr;
         fr.faction_name = r.read_string();
         fr.reputation_change = r.read_i32();
-        if (!fr.faction_name.empty()) q.reward.factions.push_back(std::move(fr));
+        q.reward.factions.push_back(std::move(fr));
     }
 
     return q;
@@ -1182,25 +1130,19 @@ static void write_quest_section(BinaryWriter& w, const SaveData& data) {
 static void read_quest_section(BinaryReader& r, SaveData& data) {
     uint32_t active_count = r.read_u32();
     data.active_quests.resize(active_count);
-    for (auto& q : data.active_quests) {
-        q = read_quest(r, data.version);
-    }
+    for (auto& q : data.active_quests) q = read_quest(r);
 
     uint32_t completed_count = r.read_u32();
     data.completed_quests.resize(completed_count);
-    for (auto& q : data.completed_quests) {
-        q = read_quest(r, data.version);
-    }
+    for (auto& q : data.completed_quests) q = read_quest(r);
 
-    if (data.version >= 28) {
-        uint32_t lc = r.read_u32();
-        data.locked_quests.resize(lc);
-        for (auto& q : data.locked_quests) q = read_quest(r, data.version);
+    uint32_t lc = r.read_u32();
+    data.locked_quests.resize(lc);
+    for (auto& q : data.locked_quests) q = read_quest(r);
 
-        uint32_t ac = r.read_u32();
-        data.available_quests.resize(ac);
-        for (auto& q : data.available_quests) q = read_quest(r, data.version);
-    }
+    uint32_t ac = r.read_u32();
+    data.available_quests.resize(ac);
+    for (auto& q : data.available_quests) q = read_quest(r);
 
     uint32_t loc_count = r.read_u32();
     for (uint32_t i = 0; i < loc_count; ++i) {
@@ -1211,11 +1153,6 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
         int ow_x = r.read_i32();
         int ow_y = r.read_i32();
         int depth = r.read_i32();
-        // Legacy: skip zone_x, zone_y if present in old saves (v16-v20)
-        if (data.version >= 16 && data.version <= 20) {
-            r.read_i32(); // zone_x (discarded)
-            r.read_i32(); // zone_y (discarded)
-        }
         LocationKey key = LocationKey{sys_id, body_idx, moon_idx, is_station, ow_x, ow_y, depth};
 
         QuestLocationMeta meta;
@@ -1232,53 +1169,43 @@ static void read_quest_section(BinaryReader& r, SaveData& data) {
         meta.remove_on_completion = r.read_u8() != 0;
         meta.target_system_id = r.read_u32();
         meta.target_body_index = r.read_i32();
-        if (data.version >= 35) {
-            meta.target_moon_index = r.read_i32();
-        }
+        meta.target_moon_index = r.read_i32();
 
-        if (data.version >= 30) {
-            uint32_t fc = r.read_u32();
-            meta.fixtures.resize(fc);
-            for (auto& p : meta.fixtures) {
-                p.fixture_id = r.read_string();
-                p.x = r.read_i32();
-                p.y = r.read_i32();
-            }
+        uint32_t fc = r.read_u32();
+        meta.fixtures.resize(fc);
+        for (auto& p : meta.fixtures) {
+            p.fixture_id = r.read_string();
+            p.x = r.read_i32();
+            p.y = r.read_i32();
         }
 
         data.quest_locations[key] = std::move(meta);
     }
 
-    if (data.version >= 30) {
-        uint32_t pc = r.read_u32();
-        for (uint32_t i = 0; i < pc; ++i) {
-            uint32_t sys = r.read_u32();
-            int b = r.read_i32();
-            int m = r.read_i32();
-            bool stn = r.read_u8() != 0;
-            int ow_x = r.read_i32();
-            int ow_y = r.read_i32();
-            int d = r.read_i32();
-            data.pending_quest_cleanup.insert(LocationKey{sys, b, m, stn, ow_x, ow_y, d});
-        }
+    uint32_t pc = r.read_u32();
+    for (uint32_t i = 0; i < pc; ++i) {
+        uint32_t sys = r.read_u32();
+        int b = r.read_i32();
+        int m = r.read_i32();
+        bool stn = r.read_u8() != 0;
+        int ow_x = r.read_i32();
+        int ow_y = r.read_i32();
+        int d = r.read_i32();
+        data.pending_quest_cleanup.insert(LocationKey{sys, b, m, stn, ow_x, ow_y, d});
     }
 
-    if (data.version >= 33) {
-        for (auto& id : data.stellar_signal_echo_ids) id = r.read_u32();
-        data.stellar_signal_beacon_id = r.read_u32();
-    }
+    for (auto& id : data.stellar_signal_echo_ids) id = r.read_u32();
+    data.stellar_signal_beacon_id = r.read_u32();
 
-    if (data.version >= 34) {
-        uint32_t flag_count = r.read_u32();
-        for (uint32_t i = 0; i < flag_count; ++i) {
-            std::string k = r.read_string();
-            bool v = r.read_u8() != 0;
-            data.world_flags[k] = v;
-        }
-        uint32_t ambush_count = r.read_u32();
-        for (uint32_t i = 0; i < ambush_count; ++i) {
-            data.ambushed_systems.insert(r.read_u32());
-        }
+    uint32_t flag_count = r.read_u32();
+    for (uint32_t i = 0; i < flag_count; ++i) {
+        std::string k = r.read_string();
+        bool v = r.read_u8() != 0;
+        data.world_flags[k] = v;
+    }
+    uint32_t ambush_count = r.read_u32();
+    for (uint32_t i = 0; i < ambush_count; ++i) {
+        data.ambushed_systems.insert(r.read_u32());
     }
 }
 
@@ -1337,7 +1264,7 @@ static void read_dialog_nodes(BinaryReader& r, std::vector<DialogNode>& nodes) {
     }
 }
 
-static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
+static void read_player_section(BinaryReader& r, Player& p) {
     p.x = r.read_i32();
     p.y = r.read_i32();
     p.hp = r.read_i32();
@@ -1357,140 +1284,91 @@ static void read_player_section(BinaryReader& r, Player& p, uint32_t version) {
     p.energy = r.read_i32();
     p.kills = r.read_i32();
     p.regen_counter = r.read_i32();
-    if (version >= 10) {
-        p.light_radius = r.read_i32();
+    p.light_radius = r.read_i32();
+    read_equipment(r, p.equipment);
+    read_inventory(r, p.inventory);
+    p.name = r.read_string();
+    p.race = static_cast<Race>(r.read_u8());
+    p.player_class = static_cast<PlayerClass>(r.read_u8());
+    p.attributes.strength = r.read_i32();
+    p.attributes.agility = r.read_i32();
+    p.attributes.toughness = r.read_i32();
+    p.attributes.intelligence = r.read_i32();
+    p.attributes.willpower = r.read_i32();
+    p.attributes.luck = r.read_i32();
+    p.attribute_points = r.read_i32();
+    p.dodge_value = r.read_i32();
+    p.resistances.acid = r.read_i32();
+    p.resistances.electrical = r.read_i32();
+    p.resistances.cold = r.read_i32();
+    p.resistances.heat = r.read_i32();
+    p.skill_points = r.read_i32();
+    uint32_t skill_count = r.read_u32();
+    p.learned_skills.resize(skill_count);
+    for (uint32_t i = 0; i < skill_count; ++i) {
+        p.learned_skills[i] = static_cast<SkillId>(r.read_u32());
     }
-    read_equipment(r, p.equipment, version);
-    read_inventory(r, p.inventory, version);
-    // v12: character identity, attributes, skills, reputation
-    if (version >= 12) {
-        p.name = r.read_string();
-        p.race = static_cast<Race>(r.read_u8());
-        p.player_class = static_cast<PlayerClass>(r.read_u8());
-        p.attributes.strength = r.read_i32();
-        p.attributes.agility = r.read_i32();
-        p.attributes.toughness = r.read_i32();
-        p.attributes.intelligence = r.read_i32();
-        p.attributes.willpower = r.read_i32();
-        p.attributes.luck = r.read_i32();
-        p.attribute_points = r.read_i32();
-        p.dodge_value = r.read_i32();
-        p.resistances.acid = r.read_i32();
-        p.resistances.electrical = r.read_i32();
-        p.resistances.cold = r.read_i32();
-        p.resistances.heat = r.read_i32();
-        p.skill_points = r.read_i32();
-        uint32_t skill_count = r.read_u32();
-        p.learned_skills.resize(skill_count);
-        for (uint32_t i = 0; i < skill_count; ++i) {
-            p.learned_skills[i] = static_cast<SkillId>(r.read_u32());
-        }
-        uint32_t rep_count = r.read_u32();
-        p.reputation.resize(rep_count);
-        for (uint32_t i = 0; i < rep_count; ++i) {
-            p.reputation[i].faction_name = r.read_string();
-            p.reputation[i].reputation = r.read_i32();
-        }
-        // Scale old reputation values to new range
-        if (version < 25) {
-            for (auto& fs : p.reputation) {
-                fs.reputation = std::clamp(fs.reputation * 6, -600, 600);
-            }
-        }
-        // Blueprints
-        uint32_t bp_count = r.read_u32();
-        p.learned_blueprints.resize(bp_count);
-        for (uint32_t i = 0; i < bp_count; ++i) {
-            p.learned_blueprints[i].source_item_id = r.read_u32();
-            p.learned_blueprints[i].name = r.read_string();
-            p.learned_blueprints[i].description = r.read_string();
-        }
-        // Journal
-        uint32_t journal_count = r.read_u32();
-        p.journal.resize(journal_count);
-        for (uint32_t i = 0; i < journal_count; ++i) {
-            p.journal[i].category = static_cast<JournalCategory>(r.read_u8());
-            p.journal[i].title = r.read_string();
-            p.journal[i].technical = r.read_string();
-            p.journal[i].personal = r.read_string();
-            p.journal[i].timestamp = r.read_string();
-            p.journal[i].world_tick = r.read_i32();
-            if (version >= 16) {
-                p.journal[i].quest_id = r.read_string();
-            }
-            if (version >= 23) {
-                p.journal[i].has_discovery_location = (r.read_u8() != 0);
-                p.journal[i].discovery_system_id    = r.read_i32();
-                p.journal[i].discovery_body_index   = r.read_i32();
-                p.journal[i].discovery_moon_index   = r.read_i32();
-                p.journal[i].discovery_overworld_x  = r.read_i32();
-                p.journal[i].discovery_overworld_y  = r.read_i32();
-                p.journal[i].discovery_location_name = r.read_string();
-            }
-        }
+    uint32_t rep_count = r.read_u32();
+    p.reputation.resize(rep_count);
+    for (uint32_t i = 0; i < rep_count; ++i) {
+        p.reputation[i].faction_name = r.read_string();
+        p.reputation[i].reputation = r.read_i32();
     }
-    // v14: starship
-    if (version >= 14) {
-        p.ship.name = r.read_string();
-        p.ship.type = r.read_string();
-        for (int i = 0; i < ship_slot_count; ++i) {
-            p.ship.slot_ref(static_cast<ShipSlot>(i)) = read_optional_item(r, version);
-        }
-        // Ship cargo
-        uint32_t cargo_count = r.read_u32();
-        p.ship.cargo.resize(cargo_count);
-        for (uint32_t i = 0; i < cargo_count; ++i) {
-            p.ship.cargo[i] = read_item(r, version);
-        }
+    // Blueprints
+    uint32_t bp_count = r.read_u32();
+    p.learned_blueprints.resize(bp_count);
+    for (uint32_t i = 0; i < bp_count; ++i) {
+        p.learned_blueprints[i].source_item_id = r.read_u32();
+        p.learned_blueprints[i].name = r.read_string();
+        p.learned_blueprints[i].description = r.read_string();
     }
-    // v15: tab help seen
-    if (version >= 15) {
-        p.tab_help_seen = r.read_u16();
+    // Journal
+    uint32_t journal_count = r.read_u32();
+    p.journal.resize(journal_count);
+    for (uint32_t i = 0; i < journal_count; ++i) {
+        p.journal[i].category = static_cast<JournalCategory>(r.read_u8());
+        p.journal[i].title = r.read_string();
+        p.journal[i].technical = r.read_string();
+        p.journal[i].personal = r.read_string();
+        p.journal[i].timestamp = r.read_string();
+        p.journal[i].world_tick = r.read_i32();
+        p.journal[i].quest_id = r.read_string();
+        p.journal[i].has_discovery_location = (r.read_u8() != 0);
+        p.journal[i].discovery_system_id    = r.read_i32();
+        p.journal[i].discovery_body_index   = r.read_i32();
+        p.journal[i].discovery_moon_index   = r.read_i32();
+        p.journal[i].discovery_overworld_x  = r.read_i32();
+        p.journal[i].discovery_overworld_y  = r.read_i32();
+        p.journal[i].discovery_location_name = r.read_string();
     }
-    // v26: shield HP and kinetic resistance
-    if (version >= 26) {
-        p.shield_hp = r.read_i32();
-        p.shield_max_hp = r.read_i32();
-        p.resistances.kinetic = r.read_i32();
+    // Starship
+    p.ship.name = r.read_string();
+    p.ship.type = r.read_string();
+    for (int i = 0; i < ship_slot_count; ++i) {
+        p.ship.slot_ref(static_cast<ShipSlot>(i)) = read_optional_item(r);
     }
+    uint32_t cargo_count = r.read_u32();
+    p.ship.cargo.resize(cargo_count);
+    for (uint32_t i = 0; i < cargo_count; ++i) {
+        p.ship.cargo[i] = read_item(r);
+    }
+    p.tab_help_seen = r.read_u16();
+    p.shield_hp = r.read_i32();
+    p.shield_max_hp = r.read_i32();
+    p.resistances.kinetic = r.read_i32();
 }
 
-static Npc read_npc(BinaryReader& r, uint32_t version) {
+static Npc read_npc(BinaryReader& r) {
     Npc npc;
     npc.x = r.read_i32();
     npc.y = r.read_i32();
-    if (version >= 18) {
-        npc.npc_role = static_cast<NpcRole>(r.read_u8());
-    } else {
-        r.read_u8();  // skip legacy glyph
-        r.read_u8();  // skip legacy color
-    }
+    npc.npc_role = static_cast<NpcRole>(r.read_u8());
     npc.name = r.read_string();
     npc.role = r.read_string();
     npc.race = static_cast<Race>(r.read_u8());
-
-    // Reconstruct npc_role from role string for pre-v18 saves
-    if (version < 18) {
-        if (npc.role == "Station Keeper") npc.npc_role = NpcRole::StationKeeper;
-        else if (npc.role == "Merchant") npc.npc_role = NpcRole::Merchant;
-        else if (npc.role == "Drifter") npc.npc_role = NpcRole::Drifter;
-        else if (npc.role == "Xytomorph") npc.npc_role = NpcRole::Xytomorph;
-        else if (npc.role == "Food Merchant") npc.npc_role = NpcRole::FoodMerchant;
-        else if (npc.role == "Medic") npc.npc_role = NpcRole::Medic;
-        else if (npc.role == "Station Commander") npc.npc_role = NpcRole::Commander;
-        else if (npc.role == "Arms Dealer") npc.npc_role = NpcRole::ArmsDealer;
-        else if (npc.role == "Astronomer") npc.npc_role = NpcRole::Astronomer;
-        else if (npc.role == "Engineer") npc.npc_role = NpcRole::Engineer;
-        else if (npc.role == "Stellar Engineer") npc.npc_role = NpcRole::Nova;
-        // Default is Civilian (covers all civilian role titles)
-    }
     npc.hp = r.read_i32();
     npc.max_hp = r.read_i32();
-    if (version >= 25) {
-        npc.faction = r.read_string();
-    } else {
-        r.read_u8(); // legacy disposition byte, discard
-    }
+    npc.faction = r.read_string();
     { bool was_invulnerable = r.read_u8() != 0;
       if (was_invulnerable) add_effect(npc.effects, make_invulnerable()); }
     npc.quickness = r.read_i32();
@@ -1499,20 +1377,17 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     npc.elite = r.read_u8() != 0;
     npc.base_xp = r.read_i32();
     npc.base_damage = r.read_i32();
-    // v26: dice combat stats
-    if (version >= 26) {
-        npc.dv = r.read_i32();
-        npc.av = r.read_i32();
-        npc.damage_dice.count = r.read_i32();
-        npc.damage_dice.sides = r.read_i32();
-        npc.damage_dice.modifier = r.read_i32();
-        npc.damage_type = static_cast<DamageType>(r.read_u8());
-        npc.type_affinity.kinetic = r.read_i32();
-        npc.type_affinity.plasma = r.read_i32();
-        npc.type_affinity.electrical = r.read_i32();
-        npc.type_affinity.cryo = r.read_i32();
-        npc.type_affinity.acid = r.read_i32();
-    }
+    npc.dv = r.read_i32();
+    npc.av = r.read_i32();
+    npc.damage_dice.count = r.read_i32();
+    npc.damage_dice.sides = r.read_i32();
+    npc.damage_dice.modifier = r.read_i32();
+    npc.damage_type = static_cast<DamageType>(r.read_u8());
+    npc.type_affinity.kinetic = r.read_i32();
+    npc.type_affinity.plasma = r.read_i32();
+    npc.type_affinity.electrical = r.read_i32();
+    npc.type_affinity.cryo = r.read_i32();
+    npc.type_affinity.acid = r.read_i32();
 
     uint8_t has_talk = r.read_u8();
     uint8_t has_shop = r.read_u8();
@@ -1527,11 +1402,9 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
     if (has_shop) {
         ShopTrait s;
         s.shop_name = r.read_string();
-        if (version >= 11) {
-            uint32_t count = r.read_u32();
-            s.inventory.resize(count);
-            for (uint32_t i = 0; i < count; ++i) s.inventory[i] = read_item(r, version);
-        }
+        uint32_t count = r.read_u32();
+        s.inventory.resize(count);
+        for (uint32_t i = 0; i < count; ++i) s.inventory[i] = read_item(r);
         npc.interactions.shop = std::move(s);
     }
     if (has_quest) {
@@ -1541,46 +1414,15 @@ static Npc read_npc(BinaryReader& r, uint32_t version) {
         npc.interactions.quest = std::move(q);
     }
 
-    // Legacy: assign faction from role for pre-v25 saves
-    if (version < 25 && npc.faction.empty()) {
-        switch (npc.npc_role) {
-            case NpcRole::StationKeeper:
-            case NpcRole::Medic:
-            case NpcRole::Commander:
-            case NpcRole::Astronomer:
-            case NpcRole::Engineer:
-                npc.faction = Faction_StellariConclave;
-                break;
-            case NpcRole::Merchant:
-            case NpcRole::FoodMerchant:
-            case NpcRole::ArmsDealer:
-                npc.faction = Faction_KrethMiningGuild;
-                break;
-            case NpcRole::Xytomorph:
-                npc.faction = Faction_XytomorphHive;
-                break;
-            default:
-                break;
-        }
-    }
-
-    // v36: creature flags bitfield
-    if (version >= 36) {
-        npc.flags = r.read_u64();
-    }
+    npc.flags = r.read_u64();
 
     return npc;
 }
 
-static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
+static void read_map_section(BinaryReader& r, MapState& ms) {
     ms.map_id = r.read_u32();
     auto map_type = static_cast<MapType>(r.read_u8());
-    Biome biome = Biome::Station;
-    if (version >= 2) {
-        biome = static_cast<Biome>(r.read_u8());
-    } else {
-        biome = (map_type == MapType::SpaceStation) ? Biome::Station : Biome::Rocky;
-    }
+    Biome biome = static_cast<Biome>(r.read_u8());
     int width = r.read_i32();
     int height = r.read_i32();
     std::string location = r.read_string();
@@ -1599,11 +1441,7 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         reg.type = static_cast<RegionType>(r.read_u8());
         reg.lit = r.read_u8() != 0;
         reg.flavor = static_cast<RoomFlavor>(r.read_u8());
-        if (version >= 3) {
-            reg.features = static_cast<RoomFeature>(r.read_u16());
-        } else {
-            reg.features = default_features(reg.flavor);
-        }
+        reg.features = static_cast<RoomFeature>(r.read_u16());
         reg.name = r.read_string();
         reg.enter_message = r.read_string();
     }
@@ -1611,11 +1449,8 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
     std::vector<char> backdrop(area);
     r.read_bytes(backdrop.data(), area);
 
-    // Glyph overrides (v8+)
     std::vector<uint8_t> glyph_ov(area, 0);
-    if (version >= 8) {
-        r.read_bytes(glyph_ov.data(), area);
-    }
+    r.read_bytes(glyph_ov.data(), area);
 
     ms.tilemap.load_from(width, height, map_type, biome, std::move(location),
                          std::move(tiles), std::move(rids),
@@ -1631,57 +1466,32 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
     uint32_t npc_count = r.read_u32();
     ms.npcs.resize(npc_count);
     for (uint32_t i = 0; i < npc_count; ++i) {
-        ms.npcs[i] = read_npc(r, version);
+        ms.npcs[i] = read_npc(r);
     }
 
-    // Ground items — may be absent in old saves (section guard handles it)
+    // Ground items
     uint32_t gi_count = r.read_u32();
     ms.ground_items.resize(gi_count);
     for (uint32_t i = 0; i < gi_count; ++i) {
         ms.ground_items[i].x = r.read_i32();
         ms.ground_items[i].y = r.read_i32();
-        ms.ground_items[i].item = read_item(r, version);
+        ms.ground_items[i].item = read_item(r);
     }
 
-    // Fixtures (v3+)
-    if (version >= 3) {
+    // Fixtures
+    {
         uint32_t fixture_count = r.read_u32();
         std::vector<FixtureData> fixtures(fixture_count);
         for (auto& f : fixtures) {
             f.type = static_cast<FixtureType>(r.read_u8());
-            if (version < 17) {
-                r.read_u8();  // skip legacy glyph
-                r.read_u8();  // skip legacy color
-            }
             f.passable = r.read_u8() != 0;
             f.interactable = r.read_u8() != 0;
             f.cooldown = r.read_i32();
             f.last_used_tick = r.read_i32();
-            if (version >= 30) {
-                f.quest_fixture_id = r.read_string();
-            }
+            f.quest_fixture_id = r.read_string();
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
-
-        // Migrate Debris fixtures from old saves (v3-v16)
-        if (version < 17) {
-            for (int i = 0; i < area; ++i) {
-                int fid = fids[i];
-                if (fid >= 0 && fid < static_cast<int>(fixtures.size())) {
-                    auto& f = fixtures[fid];
-                    if (f.type == FixtureType::Debris) {
-                        if (f.passable) {
-                            // Passable debris becomes floor — remove fixture
-                            fids[i] = -1;
-                            ms.tilemap.set(i % width, i / width, Tile::Floor);
-                        } else {
-                            f.type = FixtureType::NaturalObstacle;
-                        }
-                    }
-                }
-            }
-        }
 
         ms.tilemap.load_fixtures(std::move(fixtures), std::move(fids));
 
@@ -1689,8 +1499,8 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         ms.tilemap.set_hub(hub);
     }
 
-    // v23: PoiBudget, hidden POIs, anchor hints
-    if (version >= 23) {
+    // PoiBudget, hidden POIs, anchor hints
+    {
         ms.poi_budget.settlements     = static_cast<int>(r.read_u32());
         ms.poi_budget.outposts        = static_cast<int>(r.read_u32());
         ms.poi_budget.caves.natural   = static_cast<int>(r.read_u32());
@@ -1742,18 +1552,16 @@ static void read_map_section(BinaryReader& r, MapState& ms, uint32_t version) {
         }
     }
 
-    // v24: Location cache key + player position
-    if (version >= 24) {
-        ms.loc_system_id = r.read_u32();
-        ms.loc_body_index = r.read_i32();
-        ms.loc_moon_index = r.read_i32();
-        ms.loc_is_station = (r.read_u8() != 0);
-        ms.loc_ow_x = r.read_i32();
-        ms.loc_ow_y = r.read_i32();
-        ms.loc_depth = r.read_i32();
-        ms.player_x = r.read_i32();
-        ms.player_y = r.read_i32();
-    }
+    // Location cache key + player position
+    ms.loc_system_id = r.read_u32();
+    ms.loc_body_index = r.read_i32();
+    ms.loc_moon_index = r.read_i32();
+    ms.loc_is_station = (r.read_u8() != 0);
+    ms.loc_ow_x = r.read_i32();
+    ms.loc_ow_y = r.read_i32();
+    ms.loc_depth = r.read_i32();
+    ms.player_x = r.read_i32();
+    ms.player_y = r.read_i32();
 }
 
 static void read_messages_section(BinaryReader& r, std::deque<std::string>& msgs) {
@@ -1764,32 +1572,19 @@ static void read_messages_section(BinaryReader& r, std::deque<std::string>& msgs
     }
 }
 
-static void read_stash_section(BinaryReader& r, std::vector<Item>& stash, uint32_t version = 14) {
+static void read_stash_section(BinaryReader& r, std::vector<Item>& stash) {
     uint32_t count = r.read_u32();
     stash.resize(count);
-    for (uint32_t i = 0; i < count; ++i) stash[i] = read_item(r, version);
+    for (uint32_t i = 0; i < count; ++i) stash[i] = read_item(r);
 }
 
-static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32_t version) {
+static void read_navigation_section(BinaryReader& r, NavigationData& nav) {
     nav.current_system_id = r.read_u32();
     nav.navi_range = r.read_i32();
-    if (version >= 5) {
-        nav.current_body_index = r.read_i32();
-        if (version >= 6) {
-            nav.current_moon_index = r.read_i32();
-            nav.at_station = r.read_u8() != 0;
-            nav.on_ship = r.read_u8() != 0;
-        } else {
-            nav.current_moon_index = -1;
-            nav.at_station = r.read_u8() != 0;
-            nav.on_ship = false;
-        }
-    } else {
-        nav.current_body_index = -1;
-        nav.current_moon_index = -1;
-        nav.at_station = true;
-        nav.on_ship = false;
-    }
+    nav.current_body_index = r.read_i32();
+    nav.current_moon_index = r.read_i32();
+    nav.at_station = r.read_u8() != 0;
+    nav.on_ship = r.read_u8() != 0;
     uint32_t count = r.read_u32();
     nav.systems.resize(count);
     for (uint32_t i = 0; i < count; ++i) {
@@ -1799,17 +1594,10 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
         sys.star_class = static_cast<StarClass>(r.read_u8());
         sys.binary = r.read_u8() != 0;
         sys.has_station = r.read_u8() != 0;
-        // v27: station type/specialty/keeper_seed; pre-v27 saves regenerate defaults from seed
         if (sys.has_station) {
-            if (version >= 27) {
-                sys.station.type     = static_cast<StationType>(r.read_u8());
-                sys.station.specialty = static_cast<StationSpecialty>(r.read_u8());
-                sys.station.keeper_seed = r.read_u64();
-            } else {
-                sys.station.type     = StationType::NormalHub;
-                sys.station.specialty = StationSpecialty::Generic;
-                sys.station.keeper_seed = 0;
-            }
+            sys.station.type     = static_cast<StationType>(r.read_u8());
+            sys.station.specialty = static_cast<StationSpecialty>(r.read_u8());
+            sys.station.keeper_seed = r.read_u64();
         }
         sys.planet_count = r.read_i32();
         sys.asteroid_belts = r.read_i32();
@@ -1818,103 +1606,61 @@ static void read_navigation_section(BinaryReader& r, NavigationData& nav, uint32
         sys.gy = r.read_f32();
         sys.discovered = r.read_u8() != 0;
 
-        // v4: celestial bodies
-        if (version >= 4) {
-            sys.bodies_generated = r.read_u8() != 0;
-            if (sys.bodies_generated) {
-                uint16_t body_count = r.read_u16();
-                sys.bodies.resize(body_count);
-                for (auto& body : sys.bodies) {
-                    body.name = r.read_string();
-                    body.type = static_cast<BodyType>(r.read_u8());
-                    body.atmosphere = static_cast<Atmosphere>(r.read_u8());
-                    body.temperature = static_cast<Temperature>(r.read_u8());
-                    body.resources = r.read_u16();
-                    body.size = r.read_u8();
-                    body.moons = r.read_u8();
-                    body.orbital_distance = r.read_f32();
-                    body.landable = r.read_u8() != 0;
-                    body.explored = r.read_u8() != 0;
-                    body.has_dungeon = r.read_u8() != 0;
-                    body.danger_level = r.read_i32();
-                    // v10: day length
-                    if (version >= 10) {
-                        body.day_length = r.read_i32();
-                    }
-                    if (version >= 32) {
-                        if (r.read_u8() != 0) {
-                            body.biome_override = static_cast<Biome>(r.read_u8());
-                        }
-                        // else: leaves optional as nullopt
-                    }
+        // Celestial bodies
+        sys.bodies_generated = r.read_u8() != 0;
+        if (sys.bodies_generated) {
+            uint16_t body_count = r.read_u16();
+            sys.bodies.resize(body_count);
+            for (auto& body : sys.bodies) {
+                body.name = r.read_string();
+                body.type = static_cast<BodyType>(r.read_u8());
+                body.atmosphere = static_cast<Atmosphere>(r.read_u8());
+                body.temperature = static_cast<Temperature>(r.read_u8());
+                body.resources = r.read_u16();
+                body.size = r.read_u8();
+                body.moons = r.read_u8();
+                body.orbital_distance = r.read_f32();
+                body.landable = r.read_u8() != 0;
+                body.explored = r.read_u8() != 0;
+                body.has_dungeon = r.read_u8() != 0;
+                body.danger_level = r.read_i32();
+                body.day_length = r.read_i32();
+                if (r.read_u8() != 0) {
+                    body.biome_override = static_cast<Biome>(r.read_u8());
                 }
             }
         }
     }
-    if (version >= 31) {
-        nav.next_custom_system_id = r.read_u32();
-    }
-    // else: default 0x80000000u from NavigationData's in-class initializer
-    // v37: current_depth
-    if (version >= 37) {
-        nav.current_depth = r.read_i32();
-    } else {
-        nav.current_depth = 0;
-    }
+    nav.next_custom_system_id = r.read_u32();
+    nav.current_depth = r.read_i32();
 }
 
 static void read_game_state_section(BinaryReader& r, SaveData& data) {
     data.current_region = r.read_i32();
-    // v20: widget bitfield replaces active_tab (was i32)
-    if (data.version >= 20) {
-        data.active_widgets = r.read_u8();
-        data.focused_widget = r.read_u8();
-    } else {
-        // Migrate: old active_tab was i32 (0=Messages,1=Equip,2=Ship,3=Wait)
-        int old_tab = r.read_i32();
-        data.active_widgets = 1; // Messages on
-        if (old_tab == 3) data.active_widgets |= (1 << 1); // Wait was active
-        data.focused_widget = (old_tab == 3) ? 1 : 0;
-    }
+    data.active_widgets = r.read_u8();
+    data.focused_widget = r.read_u8();
     data.panel_visible = r.read_u8() != 0;
     data.death_message = r.read_string();
-    // v7/v9: surface mode (v7-8 stored bool on_overworld, v9+ stores surface_mode u8)
-    if (data.version >= 9) {
-        data.surface_mode = r.read_u8();
-        data.overworld_x = r.read_i32();
-        data.overworld_y = r.read_i32();
-    } else if (data.version >= 7) {
-        bool on_ow = r.read_u8() != 0;
-        data.surface_mode = on_ow ? 2 : 0; // 2=Overworld, 0=Dungeon
-        data.overworld_x = r.read_i32();
-        data.overworld_y = r.read_i32();
-    }
-    // v16: zone position + lost state
-    if (data.version >= 16) {
-        data.zone_x = r.read_i32();
-        data.zone_y = r.read_i32();
-        data.lost = r.read_u8() != 0;
-        data.lost_moves = r.read_i32();
-    }
-    // v10: day clock
-    if (data.version >= 10) {
-        data.local_tick = r.read_i32();
-        data.local_ticks_per_day = r.read_i32();
-    }
-    // v22: overworld return position for Board Ship
-    if (data.version >= 22) {
-        data.overworld_return_valid = r.read_u8() != 0;
-        data.overworld_return_x = r.read_i32();
-        data.overworld_return_y = r.read_i32();
-        uint32_t sys = r.read_u32();
-        int body = r.read_i32();
-        int moon = r.read_i32();
-        bool stn = r.read_u8() != 0;
-        int ox = r.read_i32();
-        int oy = r.read_i32();
-        int depth = r.read_i32();
-        data.overworld_return_body_key = LocationKey{sys, body, moon, stn, ox, oy, depth};
-    }
+    data.surface_mode = r.read_u8();
+    data.overworld_x = r.read_i32();
+    data.overworld_y = r.read_i32();
+    data.zone_x = r.read_i32();
+    data.zone_y = r.read_i32();
+    data.lost = r.read_u8() != 0;
+    data.lost_moves = r.read_i32();
+    data.local_tick = r.read_i32();
+    data.local_ticks_per_day = r.read_i32();
+    data.overworld_return_valid = r.read_u8() != 0;
+    data.overworld_return_x = r.read_i32();
+    data.overworld_return_y = r.read_i32();
+    uint32_t sys = r.read_u32();
+    int body = r.read_i32();
+    int moon = r.read_i32();
+    bool stn = r.read_u8() != 0;
+    int ox = r.read_i32();
+    int oy = r.read_i32();
+    int depth = r.read_i32();
+    data.overworld_return_body_key = LocationKey{sys, body, moon, stn, ox, oy, depth};
 }
 
 // ---------------------------------------------------------------------------
@@ -1935,6 +1681,7 @@ std::vector<SaveSlot> list_saves() {
 
         SaveHeader h{};
         if (!read_header(in, h)) continue;
+        if (h.version != SAVE_FILE_VERSION) continue;   // ignore stale-schema saves
 
         SaveSlot slot;
         slot.filename = entry.path().stem().string();
@@ -2159,6 +1906,14 @@ bool read_save(const std::string& name, SaveData& data) {
     SaveHeader h{};
     if (!read_header(in, h)) return false;
 
+    if (h.version != SAVE_FILE_VERSION) {
+        std::fprintf(stderr,
+            "astra: rejecting save '%s': schema version %u, expected %u. "
+            "Pre-release builds do not support backward compatibility.\n",
+            name.c_str(), h.version, SAVE_FILE_VERSION);
+        return false;
+    }
+
     data.version = h.version;
     data.seed = h.seed;
     data.world_tick = h.world_tick;
@@ -2178,19 +1933,19 @@ bool read_save(const std::string& name, SaveData& data) {
         std::streampos section_start = in.tellg();
 
         if (std::memcmp(tag, "PLYR", 4) == 0) {
-            read_player_section(r, data.player, data.version);
+            read_player_section(r, data.player);
         } else if (std::memcmp(tag, "MPDT", 4) == 0) {
             MapState ms;
-            read_map_section(r, ms, data.version);
+            read_map_section(r, ms);
             data.maps.push_back(std::move(ms));
         } else if (std::memcmp(tag, "MSGS", 4) == 0) {
             read_messages_section(r, data.messages);
         } else if (std::memcmp(tag, "GSTA", 4) == 0) {
             read_game_state_section(r, data);
         } else if (std::memcmp(tag, "STSH", 4) == 0) {
-            read_stash_section(r, data.stash, data.version);
+            read_stash_section(r, data.stash);
         } else if (std::memcmp(tag, "STAR", 4) == 0) {
-            read_navigation_section(r, data.navigation, data.version);
+            read_navigation_section(r, data.navigation);
         } else if (std::memcmp(tag, "QUST", 4) == 0) {
             read_quest_section(r, data);
         } else if (std::memcmp(tag, "DREC", 4) == 0) {

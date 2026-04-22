@@ -23,6 +23,10 @@
 
 namespace astra {
 
+// Current save-file schema version. Pre-release: saves with any other
+// version are rejected on load; no backward-compatibility or migration code.
+inline constexpr uint32_t SAVE_FILE_VERSION = 39;   // was 38 — Archive migration
+
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
     std::string location;
@@ -63,7 +67,7 @@ struct MapState {
 };
 
 struct SaveData {
-    uint32_t version = 38;   // v38: DungeonLevelSpec adds style_id + overlays
+    uint32_t version = SAVE_FILE_VERSION;   // v39: Archive dungeon migration
     uint32_t seed = 0;
     int world_tick = 0;
     bool dead = false;
