@@ -1125,7 +1125,7 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = v[seed % 3]; break;
         }
         case FixtureType::PrecursorButton:
-            vis = {'o', "\xe2\x97\x98", Color::BrightYellow, Color::Default}; break;     // ◘ gold
+            vis = {'o', "\xe2\x97\x98", Color::BrightYellow, Color::DarkGray}; break;    // ◘ gold on grey stonework
         case FixtureType::QuestFixture:
             // Registry lookup requires FixtureData (quest_fixture_id string),
             // which RenderDescriptor doesn't carry. Render placeholder here;

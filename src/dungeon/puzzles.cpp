@@ -49,46 +49,45 @@ std::vector<std::pair<int,int>> find_exterior_doorway_tiles(
     return out;
 }
 
-// Is (x,y) a walkable tile with at least one non-walkable orthogonal neighbor?
-bool is_wall_attached_floor(const astra::TileMap& m, int x, int y) {
-    if (!m.passable(x, y)) return false;
-    static const int dxs[4] = { 1,-1, 0, 0 };
-    static const int dys[4] = { 0, 0, 1,-1 };
-    for (int i = 0; i < 4; ++i) {
-        int nx = x + dxs[i], ny = y + dys[i];
-        if (nx < 0 || ny < 0 || nx >= m.width() || ny >= m.height()) return true;
-        if (!m.passable(nx, ny)) return true;
-    }
-    return false;
-}
-
 bool pos_in_box(int x, int y, const LevelContext::Box& b) {
     return b.x0 >= 0 && b.contains(x, y);
 }
 
-// Pick a wall-attached floor cell outside entry + sanctum boxes. Falls back to
-// any open floor outside those boxes if no wall-attached candidate exists.
-// Box-based (not region-based) because PrecursorVault L1 flood-fills into a
-// single region — region filtering would exclude the whole map.
+// Is (x,y) a wall tile with at least one passable 4-neighbor that sits
+// OUTSIDE entry_box and sanctum_box? If so, the wall is a valid candidate
+// for a recessed button: it reads as part of the wall, and the adjacent
+// walkable tile is where the player stands to interact.
+bool is_valid_button_wall(const astra::TileMap& m, int x, int y,
+                          const LevelContext& ctx) {
+    if (m.passable(x, y)) return false;   // must be a wall
+    static const int dxs[4] = { 1,-1, 0, 0 };
+    static const int dys[4] = { 0, 0, 1,-1 };
+    for (int i = 0; i < 4; ++i) {
+        int nx = x + dxs[i], ny = y + dys[i];
+        if (nx < 0 || ny < 0 || nx >= m.width() || ny >= m.height()) continue;
+        if (!m.passable(nx, ny)) continue;
+        if (pos_in_box(nx, ny, ctx.entry_box)) continue;
+        if (pos_in_box(nx, ny, ctx.sanctum_box)) continue;
+        return true;
+    }
+    return false;
+}
+
+// Pick a wall tile bordering a corridor or side-room floor tile (i.e. the
+// floor the player will stand on when interacting). Filters out walls that
+// only border entry/sanctum floors. Box-based because PrecursorVault L1
+// flood-fills into a single region, so region filtering is useless here.
 std::pair<int,int> pick_button_position(
     const astra::TileMap& m, const LevelContext& ctx, std::mt19937& rng)
 {
-    std::vector<std::pair<int,int>> wall_attached;
-    std::vector<std::pair<int,int>> any_open;
-
+    std::vector<std::pair<int,int>> candidates;
     for (int y = 0; y < m.height(); ++y) {
         for (int x = 0; x < m.width(); ++x) {
-            if (!m.passable(x, y)) continue;
-            if (pos_in_box(x, y, ctx.entry_box)) continue;
-            if (pos_in_box(x, y, ctx.sanctum_box)) continue;
-            any_open.emplace_back(x, y);
-            if (is_wall_attached_floor(m, x, y)) {
-                wall_attached.emplace_back(x, y);
+            if (is_valid_button_wall(m, x, y, ctx)) {
+                candidates.emplace_back(x, y);
             }
         }
     }
-
-    const auto& candidates = !wall_attached.empty() ? wall_attached : any_open;
     if (candidates.empty()) return { -1, -1 };
     std::uniform_int_distribution<size_t> pick(0, candidates.size() - 1);
     return candidates[pick(rng)];
