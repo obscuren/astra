@@ -15,6 +15,7 @@
 #include "astra/scenario_effects.h"
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
+#include "astra/world_constants.h"
 
 #include <numeric>
 
@@ -2149,6 +2150,49 @@ void Game::advance_world(int cost) {
         }
     }
 
+    // ── Camp Making: expire time-limited fixtures, apply Cozy aura ──
+    {
+        auto& map = world_.map();
+        const int tick = world_.world_tick();
+
+        // 1) Sweep the current map for expired time-limited fixtures.
+        //    Currently only FixtureType::Campfire uses spawn_tick.
+        for (int y = 0; y < map.height(); ++y) {
+            for (int x = 0; x < map.width(); ++x) {
+                int fid = map.fixture_id(x, y);
+                if (fid < 0) continue;
+                const auto& fd = map.fixture(fid);
+                if (fd.spawn_tick < 0) continue;
+                if (tick - fd.spawn_tick >= world::campfire_lifetime_ticks) {
+                    map.remove_fixture(x, y);
+                }
+            }
+        }
+
+        // 2) Proximity scan — if the player stands within cozy_radius
+        //    (Chebyshev) of any Campfire, (re-)apply Cozy with duration 1.
+        //    The effect naturally expires on the next tick if the player
+        //    steps out of range.
+        const int px = player_.x, py = player_.y;
+        bool near_fire = false;
+        const int y0 = std::max(0, py - world::cozy_radius);
+        const int y1 = std::min(map.height() - 1, py + world::cozy_radius);
+        const int x0 = std::max(0, px - world::cozy_radius);
+        const int x1 = std::min(map.width() - 1, px + world::cozy_radius);
+        for (int y = y0; y <= y1 && !near_fire; ++y) {
+            for (int x = x0; x <= x1 && !near_fire; ++x) {
+                int fid = map.fixture_id(x, y);
+                if (fid < 0) continue;
+                if (map.fixture(fid).type == FixtureType::Campfire) {
+                    near_fire = true;
+                }
+            }
+        }
+        if (near_fire) {
+            add_effect(player_.effects, make_cozy());
+        }
+    }
+
     // Water/lava damage
     if (player_.hp > 0 && world_.map().get(player_.x, player_.y) == Tile::Water) {
         Biome biome = world_.map().biome();
@@ -2189,6 +2233,9 @@ void Game::advance_world(int cost) {
     // Passive health regeneration
     if (player_.hp > 0 && player_.hp < player_.max_hp) {
         int interval = regen_interval(player_.hunger);
+        if (has_effect(player_.effects, EffectId::Cozy)) {
+            interval = std::max(1, interval / 2);
+        }
         if (interval > 0) {
             ++player_.regen_counter;
             if (player_.regen_counter >= interval) {
