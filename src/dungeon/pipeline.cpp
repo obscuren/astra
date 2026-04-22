@@ -6,6 +6,7 @@
 #include "astra/dungeon/fixtures.h"
 #include "astra/dungeon/layout.h"
 #include "astra/dungeon/overlay.h"
+#include "astra/dungeon/puzzles.h"
 
 namespace astra::dungeon {
 
@@ -21,6 +22,7 @@ void run(TileMap& map, const DungeonStyle& style, const CivConfig& civ,
     auto rng_ovl   = sub(ctx.seed, 0x0FEB0FEBu);
     auto rng_dec   = sub(ctx.seed, 0xDEC02011u);
     auto rng_fix   = sub(ctx.seed, 0xF12F12F1u);
+    auto rng_puz   = sub(ctx.seed, 0x5EA1EDEDu);
 
     apply_backdrop    (map, style, civ,            rng_back);
     apply_layout      (map, style, civ, ctx,       rng_lay);
@@ -28,6 +30,7 @@ void run(TileMap& map, const DungeonStyle& style, const CivConfig& civ,
     apply_overlays    (map, style, spec,           rng_ovl);
     apply_decoration  (map, style, civ, spec,      rng_dec);
     apply_fixtures    (map, style, civ, spec, ctx, rng_fix);
+    apply_puzzles     (map, style, ctx,            rng_puz);
 }
 
 } // namespace astra::dungeon
