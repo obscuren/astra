@@ -719,6 +719,8 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_u16(f.puzzle_id);             // v41
         w.write_string(f.proximity_message);  // v41
         w.write_u8(f.proximity_radius);       // v41
+        w.write_u64(f.tags);                  // v42
+        w.write_i32(f.spawn_tick);            // v42
     }
     // Fixture IDs (parallel to tiles)
     const auto& fids = tm.fixture_ids();
@@ -1515,6 +1517,8 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
             f.puzzle_id = r.read_u16();                // v41
             f.proximity_message = r.read_string();     // v41
             f.proximity_radius = r.read_u8();          // v41
+            f.tags = r.read_u64();                     // v42
+            f.spawn_tick = r.read_i32();               // v42
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
