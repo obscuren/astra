@@ -22,11 +22,13 @@ void decorate_ruin_debris(TileMap& map, const CivConfig& civ,
 }
 
 // Precursor vault — tile-only decoration pack for the Archive dungeon.
-// Paints rubble (wall→floor collapse) and wall runes (CF_RUIN_TINT) scaled
-// by decay_level. Decorative fixtures (pillars, braziers) are handled by
-// the prop layer; this pack adds no fixtures. Reuses the tile-painting
-// subset of ruin_decay: wall-to-floor collapse + CF_RUIN_TINT on walls.
-// Floor runes are intentionally skipped — no tile-level representation
+// Non-destructive: tags a handful of interior walls per room with
+// CF_RUIN_TINT (the renderer colour-shifts tagged walls, reading as
+// glyph-etched runes). Decorative fixtures (pillars, braziers) are
+// handled by the prop layer; this pack adds no fixtures and — crucially
+// — never collapses walls to floor. Room and corridor structure is
+// sacred; decay is expressed by rune density, not by dissolving geometry.
+// Floor runes are intentionally skipped: no tile-level representation
 // exists for them in this slice.
 void decorate_precursor_vault(TileMap& map, const CivConfig& civ,
                               const DungeonLevelSpec& spec,
@@ -34,37 +36,13 @@ void decorate_precursor_vault(TileMap& map, const CivConfig& civ,
     (void)civ;
     const int decay = std::clamp(spec.decay_level, 0, 3);
 
-    // Rubble (wall collapse) chance per wall tile, in percent.
-    const int rubble_chance =
-        (decay == 0) ? 0 :
-        (decay == 1) ? 2 :
-        (decay == 2) ? 4 : 12;
-
     // Wall runes per room (CF_RUIN_TINT marks on interior walls).
     const int wall_runes_per_room =
         (decay == 0) ? 1 :
         (decay == 1) ? 2 :
         (decay == 2) ? 2 : 3;
 
-    std::uniform_int_distribution<int> d100(0, 99);
-
-    // 1. Rubble — collapse walls to floor with probability scaled by decay.
-    //    Mirrors ruin_decay.cpp stage 1 (wall → Floor), minus the fixture
-    //    emission (precursor_vault is tiles-only).
-    if (rubble_chance > 0) {
-        for (int y = 1; y < map.height() - 1; ++y) {
-            for (int x = 1; x < map.width() - 1; ++x) {
-                Tile t = map.get(x, y);
-                if (t != Tile::Wall && t != Tile::StructuralWall) continue;
-                if (map.fixture_id(x, y) >= 0) continue;
-                if (d100(rng) < rubble_chance) {
-                    map.set(x, y, Tile::Floor);
-                }
-            }
-        }
-    }
-
-    // 2. Wall runes — tag a handful of interior walls per room with
+    // Wall runes — tag a handful of interior walls per room with
     //    CF_RUIN_TINT (the same wall-mark mechanism used by ruin_decay
     //    stage 4). The renderer colour-shifts tagged walls; for the
     //    Archive this reads as glyph-etched runes.
