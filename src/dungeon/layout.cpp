@@ -1,6 +1,7 @@
 #include "astra/dungeon/layout.h"
 
 #include "astra/room_identifier.h"
+#include "astra/ruin_decay.h"     // CF_SANCTUM
 #include "astra/ruin_types.h"
 #include "astra/tilemap.h"
 
@@ -270,6 +271,16 @@ void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
     carve_rect(map, antechamber);
     carve_rect(map, pillar_hall);
     carve_rect(map, vault);
+
+    // Tag the vault (floors + surrounding walls) with CF_SANCTUM so the
+    // renderer paints it in gold-crystal "ancient but preserved" colors,
+    // distinct from the rest of the dungeon.
+    for (int y = vault.y - 1; y <= vault.y + vault.h; ++y) {
+        for (int x = vault.x - 1; x <= vault.x + vault.w; ++x) {
+            if (x < 0 || y < 0 || x >= map.width() || y >= map.height()) continue;
+            map.set_custom_flag(x, y, CF_SANCTUM);
+        }
+    }
 
     // 3-wide ceremonial approach corridor — split into two segments with
     // the pillar hall in between. Each carve punches through the pillar

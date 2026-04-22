@@ -1463,6 +1463,20 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     }
 
     if (tile == Tile::Wall) {
+        // Sanctum override: ancient gold-crystal wall. Different glyph per
+        // position variant; color biased to gold/amber. Takes precedence over
+        // ruin tinting (a sanctum is intact; decay doesn't touch it).
+        if (flags & RF_Sanctum) {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓ dense gold crystal
+                "\xe2\x97\x86",  // ◆ facet
+                "\xe2\x96\x93",  // ▓
+                "\xe2\x95\xac",  // ╬ joined facets
+            };
+            const char* utf8 = g[seed & 0x03];
+            Color c = remembered ? bc.remembered : static_cast<Color>(220); // rich gold
+            return {'#', utf8, c, Color::Default};
+        }
         bool ruin_tint = (seed & 0x80) != 0;
         uint8_t clean_seed = seed & 0x7F;
         if (ruin_tint) {
@@ -1613,6 +1627,18 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     }
 
     if (tile == Tile::Floor) {
+        if (flags & RF_Sanctum) {
+            // Polished sanctum floor — faint gold inlays on dark stone.
+            static const char* g[] = {
+                "\xc2\xb7",      // · middle dot
+                ".",
+                "\xc2\xb7",      // ·
+                "\xe2\x80\xa2",  // • bullet (bright inlay)
+            };
+            const char* utf8 = g[seed & 0x03];
+            Color c = remembered ? bc.remembered : static_cast<Color>(178); // muted gold
+            return {'.', utf8, c, Color::Default};
+        }
         if (remembered) {
             return {'.', nullptr, bc.remembered, Color::Default};
         }

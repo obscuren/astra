@@ -15,7 +15,7 @@ enum class RenderCategory : uint8_t {
     Player,
 };
 
-enum RenderFlag : uint8_t {
+enum RenderFlag : uint16_t {
     RF_None         = 0,
     RF_Remembered   = 1 << 0,
     RF_Hostile      = 1 << 1,
@@ -25,13 +25,14 @@ enum RenderFlag : uint8_t {
     RF_Equipped     = 1 << 5,
     RF_Starfield    = 1 << 6,  // tile is in a starfield zone (Station Empty tiles)
     RF_Open         = 1 << 7,  // door is open
+    RF_Sanctum      = 1 << 8,  // tile is inside a sanctum box (gold-crystal rendering)
 };
 
 struct RenderDescriptor {
     RenderCategory category = RenderCategory::Tile;
     uint16_t type_id  = 0;
     uint8_t  seed     = 0;
-    uint8_t  flags    = RF_None;
+    uint16_t flags    = RF_None;
     Biome    biome    = Biome::Station;
     Rarity   rarity   = Rarity::Common;
 };

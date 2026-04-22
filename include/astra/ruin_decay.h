@@ -15,6 +15,12 @@ static constexpr uint8_t CF_RUIN_TINT = 0x02;
 static constexpr uint8_t CF_CIV_SHIFT = 2;
 static constexpr uint8_t CF_CIV_MASK  = 0x1C;  // bits 2-4
 
+// Sanctum flag -- bit 5 of custom_flags_. Applied to walls + floors within
+// a dungeon's sanctum chamber so the renderer can paint them with gold-
+// crystal "ancient but preserved" visuals instead of the generic dungeon
+// palette.
+static constexpr uint8_t CF_SANCTUM = 0x20;
+
 inline void set_ruin_civ(TileMap& map, int x, int y, int civ_index) {
     uint8_t flags = map.get_custom_flags(x, y);
     flags = (flags & ~CF_CIV_MASK) | (static_cast<uint8_t>(civ_index & 0x07) << CF_CIV_SHIFT);

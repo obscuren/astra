@@ -286,6 +286,13 @@ void render_map(const MapRenderContext& rc) {
                     desc.flags = RF_Remembered;
                 }
 
+                // Sanctum override: walls and floors tagged with CF_SANCTUM
+                // get gold-crystal rendering in the terminal theme.
+                if ((tile_at == Tile::Wall || tile_at == Tile::Floor) &&
+                    rc.world.map().has_custom_flag(mx, my, 0x20)) {
+                    desc.flags |= RF_Sanctum;
+                }
+
                 wctx.put(sx, sy, desc);
             }
         }
