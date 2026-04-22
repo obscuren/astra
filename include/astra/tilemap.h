@@ -267,6 +267,8 @@ enum class Biome : uint8_t {
     // Scar terrain
     ScarredGlassed,
     ScarredScorched,
+    // Underground / interior
+    Dungeon,  // underground / interior — renders Tile::Empty as block char
 };
 
 struct BiomeColors {
@@ -281,6 +283,7 @@ BiomeColors biome_colors(Biome b);
 enum class RegionType : uint8_t {
     Room,
     Corridor,
+    Cave,
 };
 
 enum class RoomFlavor : uint8_t {

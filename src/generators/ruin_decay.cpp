@@ -187,4 +187,24 @@ void RuinDecay::apply(TileMap& map, const Rect& footprint,
     }
 }
 
+// ---------------------------------------------------------------------------
+// apply_decay — plan-free entry point for the dungeon decoration pipeline.
+//
+// Builds a flat DecayContext from `intensity` (no gradient, no sectoral
+// variance) and applies it across the entire map footprint.  The biome is
+// fixed to Dungeon so that the overgrowth pass is kept at a minimal level
+// appropriate for underground / interior tile grids.
+// ---------------------------------------------------------------------------
+void apply_decay(TileMap& map, const CivConfig& /*civ*/,
+                 float intensity, std::mt19937& rng) {
+    DecayContext ctx;
+    ctx.age_decay      = 0.12f * std::clamp(intensity, 0.0f, 1.0f);
+    ctx.use_gradient   = false;
+    ctx.use_sectoral   = false;
+
+    Rect footprint{0, 0, map.width(), map.height()};
+    RuinDecay decay;
+    decay.apply(map, footprint, ctx, Biome::Dungeon, rng);
+}
+
 } // namespace astra

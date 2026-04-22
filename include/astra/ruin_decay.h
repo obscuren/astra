@@ -2,6 +2,7 @@
 
 #include "astra/tilemap.h"
 #include "astra/settlement_types.h"
+#include "astra/ruin_types.h"
 
 #include <random>
 
@@ -45,5 +46,11 @@ public:
                const DecayContext& ctx, Biome biome,
                std::mt19937& rng) const;
 };
+
+// Apply ruin decay (stain tiles, crumble walls) in-place.
+// Intensity is 0.0..1.0; 0 = pristine, 1 = heavy damage.
+// Safe to call on any tile grid — stays inside passable/wall cells.
+void apply_decay(TileMap& map, const CivConfig& civ,
+                 float intensity, std::mt19937& rng);
 
 } // namespace astra

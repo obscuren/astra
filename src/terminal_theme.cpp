@@ -63,6 +63,9 @@ ThemeBiomeColors biome_palette(Biome biome) {
             return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(136), REMEMBERED_COLOR};
         case Biome::ScarredScorched:
             return {Color::DarkGray, static_cast<Color>(52), Color::DarkGray, REMEMBERED_COLOR};
+        case Biome::Dungeon:
+            // warm stone grey wall, dim floor, subterranean pool, dim remembered
+            return {static_cast<Color>(102), static_cast<Color>(236), static_cast<Color>(24), REMEMBERED_COLOR};
     }
     return {Color::White, Color::Default, Color::Blue, REMEMBERED_COLOR};
 }
@@ -1283,6 +1286,11 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
     // --- Starfield (Station Empty tiles) ---
     if (flags & RF_Starfield) {
         return resolve_starfield(seed);
+    }
+
+    // --- Dungeon empty tile — render as light shade block (░) ---
+    if (biome == Biome::Dungeon && tile == Tile::Empty) {
+        return {' ', "\xE2\x96\x91", bc.wall, Color::Default};
     }
 
     // --- Empty tile ---

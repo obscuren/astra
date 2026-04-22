@@ -132,4 +132,67 @@ BuildingType RoomIdentifier::theme_for_geometry(const RuinRoom& room,
     return BuildingType::Observatory;
 }
 
+// ---------------------------------------------------------------------------
+// tag_connected_components — safety-net flood-fill for untagged layouts
+// ---------------------------------------------------------------------------
+
+void tag_connected_components(TileMap& map, RegionType default_type) {
+    const int w = map.width();
+    const int h = map.height();
+
+    // visited grid — track cells already enqueued to avoid double-visiting
+    std::vector<bool> visited(w * h, false);
+
+    // Pre-mark non-passable and already-tagged cells as visited
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            if (!map.passable(x, y) || map.region_id(x, y) >= 0) {
+                visited[y * w + x] = true;
+            }
+        }
+    }
+
+    // 4-directional offsets
+    static constexpr int dx[] = {0, 0, -1, 1};
+    static constexpr int dy[] = {-1, 1, 0, 0};
+
+    // BFS from each unvisited passable, untagged cell
+    for (int sy = 0; sy < h; ++sy) {
+        for (int sx = 0; sx < w; ++sx) {
+            if (visited[sy * w + sx]) continue;
+
+            // Flood-fill one connected component
+            std::vector<std::pair<int,int>> component;
+            std::queue<std::pair<int,int>> q;
+            q.push({sx, sy});
+            visited[sy * w + sx] = true;
+
+            while (!q.empty()) {
+                auto [cx, cy] = q.front();
+                q.pop();
+
+                component.push_back({cx, cy});
+
+                for (int d = 0; d < 4; ++d) {
+                    int nx = cx + dx[d];
+                    int ny = cy + dy[d];
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    if (visited[ny * w + nx]) continue;
+                    visited[ny * w + nx] = true;
+                    q.push({nx, ny});
+                }
+            }
+
+            // Register the component as a new region
+            Region reg;
+            reg.type = default_type;
+            int rid = map.add_region(std::move(reg));
+
+            for (auto [cx, cy] : component) {
+                map.set_region(cx, cy, rid);
+            }
+        }
+    }
+}
+
 } // namespace astra

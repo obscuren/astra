@@ -18,4 +18,9 @@ private:
                                    std::mt19937& rng) const;
 };
 
+// Flood-fill every connected passable component that is not already
+// inside a tagged region, and register each as a new region with the
+// given default type. Safety-net for layouts that don't tag regions.
+void tag_connected_components(TileMap& map, RegionType default_type);
+
 } // namespace astra

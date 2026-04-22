@@ -565,6 +565,9 @@ BiomeColors biome_colors(Biome b) {
             return {static_cast<Color>(208), static_cast<Color>(94), static_cast<Color>(58), Color::DarkGray};
         case Biome::ScarredScorched:
             return {Color::DarkGray, static_cast<Color>(52), Color::Red, Color::DarkGray};
+        case Biome::Dungeon:
+            // warm stone grey wall, dim floor, subterranean pool, dim remembered
+            return {static_cast<Color>(102), static_cast<Color>(236), static_cast<Color>(24), static_cast<Color>(238)};
     }
     return {Color::White, Color::Default, Color::Blue, Color::Blue};
 }
