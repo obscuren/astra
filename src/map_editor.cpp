@@ -50,6 +50,7 @@ void MapEditor::init_fixture_palette() {
         FixtureType::RestPod, FixtureType::ShipTerminal, FixtureType::CommandTerminal,
         FixtureType::DungeonHatch, FixtureType::StairsUp,
         FixtureType::NaturalObstacle, FixtureType::SettlementProp,
+        FixtureType::PrecursorButton,
     };
     fixture_cursor_ = 0;
 }
@@ -284,6 +285,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::MineralOre:      return "Mineral: Ore";
         case FixtureType::MineralCrystal:  return "Mineral: Crystal";
         case FixtureType::ScrapComponent:  return "Scrap Component";
+        case FixtureType::PrecursorButton: return "Precursor stud";
         case FixtureType::QuestFixture:    return "Quest Fixture";
         case FixtureType::ResonancePillar: return "Resonance Pillar";
         case FixtureType::ResonancePillarTop: return "Resonance Pillar (top)";

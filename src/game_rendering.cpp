@@ -135,6 +135,7 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::MineralOre:      return "Ore Deposit";
         case FixtureType::MineralCrystal:  return "Crystal Shard";
         case FixtureType::ScrapComponent:  return "Salvage";
+        case FixtureType::PrecursorButton: return "Precursor stud";
         case FixtureType::QuestFixture:    return "Quest Fixture";
         case FixtureType::ResonancePillar: return "Resonance Pillar";
         case FixtureType::ResonancePillarTop: return "Resonance Pillar";
@@ -209,6 +210,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::MineralOre:      return "Raw mineral ore exposed at the surface.";
         case FixtureType::MineralCrystal:  return "A crystalline formation juts from the ground.";
         case FixtureType::ScrapComponent:  return "Salvageable scrap metal and circuitry.";
+        case FixtureType::PrecursorButton: return "A recessed Precursor stud, dimly lit.";
         case FixtureType::QuestFixture:    return "A quest-related object.";
         case FixtureType::ResonancePillar: return "A Precursor resonance pillar humming with stored energy.";
         case FixtureType::ResonancePillarTop: return "A capped Precursor pillar, inscribed along its upper ring.";

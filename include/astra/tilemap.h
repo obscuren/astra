@@ -416,6 +416,7 @@ enum class FixtureType : uint8_t {
     MineralOre,
     MineralCrystal,
     ScrapComponent,
+    PrecursorButton,   // '◘' — gold Precursor stud, unlocks a linked puzzle
     QuestFixture,   // generic quest-driven interactable; visuals/prompt via quest_fixture.h registry
 };
 

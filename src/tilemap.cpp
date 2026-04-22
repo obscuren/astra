@@ -488,6 +488,12 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::MineralCrystal:
         case FixtureType::ScrapComponent:
             fd.passable = true; fd.interactable = false; break;
+        case FixtureType::PrecursorButton:
+            fd.passable = false;
+            fd.interactable = true;
+            fd.proximity_message = "A button flashes faintly.";
+            fd.proximity_radius = 4;
+            break;
         case FixtureType::QuestFixture:
             // Per-fixture behavior is authored via QuestFixtureDef at placement
             // time; the factory just provides sensible interactable defaults.
