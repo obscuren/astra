@@ -333,6 +333,10 @@ enum class RoomFlavor : uint8_t {
 enum class FixtureType : uint8_t {
     // Decorative (impassable, no interaction)
     ResonancePillar,// '~'  — Precursor resonance pillar (cyan, decorative)
+    ResonancePillarTop,// '╩' — capped Precursor pillar (blue), flanks ABOVE a sanctum target
+    ResonancePillarBot,// '╦' — capped Precursor pillar (blue), flanks BELOW a sanctum target
+    PrecursorBracketL,// '(' — silver left bracket, passable, frames a sanctum quest fixture
+    PrecursorBracketR,// ')' — silver right bracket, passable, frames a sanctum quest fixture
     Plinth,         // 'T'  — Precursor stone pedestal (impassable, hosts quest fixture)
     Altar,          // 'A'  — Precursor altar (impassable, interactable for flavor prompt)
     Inscription,    // 'i'  — wall-attached Precursor rune tablet (interactable, shows text)

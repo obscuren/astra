@@ -406,6 +406,24 @@ void place_quest_fixtures(TileMap& map, const DungeonLevelSpec& spec,
         fd.cooldown = -1;
         fd.quest_fixture_id = pf.quest_fixture_id;
         map.add_fixture(fx, fy, fd);
+
+        // Sanctum bracket frame: when the quest fixture replaces a plinth,
+        // flank it east/west with silver decorative brackets so it reads as
+        //    ╩
+        //   (*)
+        //    ╦
+        // Brackets are passable — the player walks through them to reach
+        // the fixture and press 'e'.
+        if (pf.placement_hint == "required_plinth") {
+            auto try_bracket = [&](int bx, int by, FixtureType bt) {
+                if (!inbounds_fix(map, bx, by)) return;
+                if (!map.passable(bx, by)) return;
+                if (map.fixture_id(bx, by) >= 0) return;
+                map.add_fixture(bx, by, make_fixture(bt));
+            };
+            try_bracket(fx - 1, fy, FixtureType::PrecursorBracketL);
+            try_bracket(fx + 1, fy, FixtureType::PrecursorBracketR);
+        }
     }
 }
 
@@ -560,9 +578,35 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
             for (const auto& tgt : *targets) {
                 auto cells = flanking_cells_for(map, tgt, reserved, rng);
                 if (cells.size() != 2) continue;
-                for (auto& c : cells) {
-                    add_required_fixture(map, rf.kind, c.first, c.second, ctx, &civ, rng);
-                    reserved.push_back(c);
+                // Detect axis: vertical flanks differ in y, horizontal in x.
+                bool vertical = (cells[0].first == cells[1].first);
+                // Orient a/b so that a is top (lower y) / left (lower x).
+                auto a = cells[0], b = cells[1];
+                if (vertical) {
+                    if (a.second > b.second) std::swap(a, b);   // a = top, b = bot
+                } else {
+                    if (a.first  > b.first)  std::swap(a, b);   // a = left, b = right
+                }
+                // ResonancePillar gets distinct top/bottom variants on a
+                // vertical axis (╩ / ╦ blue capped pillars). All other
+                // kinds use the generic to_fixture_type mapping.
+                auto spawn = [&](FixtureKind k, FixtureType ft, int x, int y) {
+                    FixtureData fd;
+                    fd.type = ft;
+                    fd.passable = false;
+                    fd.interactable = false;
+                    map.add_fixture(x, y, fd);
+                    ctx.placed_required_fixtures[kind_key(k)].emplace_back(x, y);
+                    reserved.push_back({x, y});
+                };
+                if (rf.kind == FixtureKind::ResonancePillar && vertical) {
+                    spawn(rf.kind, FixtureType::ResonancePillarTop, a.first, a.second);
+                    spawn(rf.kind, FixtureType::ResonancePillarBot, b.first, b.second);
+                } else {
+                    add_required_fixture(map, rf.kind, a.first, a.second, ctx, &civ, rng);
+                    reserved.push_back(a);
+                    add_required_fixture(map, rf.kind, b.first, b.second, ctx, &civ, rng);
+                    reserved.push_back(b);
                 }
             }
             break;

@@ -286,6 +286,10 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::ScrapComponent:  return "Scrap Component";
         case FixtureType::QuestFixture:    return "Quest Fixture";
         case FixtureType::ResonancePillar: return "Resonance Pillar";
+        case FixtureType::ResonancePillarTop: return "Resonance Pillar (top)";
+        case FixtureType::ResonancePillarBot: return "Resonance Pillar (bottom)";
+        case FixtureType::PrecursorBracketL: return "Precursor Frame (left)";
+        case FixtureType::PrecursorBracketR: return "Precursor Frame (right)";
         case FixtureType::Plinth:          return "Plinth";
         case FixtureType::Altar:           return "Altar";
         case FixtureType::Inscription:     return "Inscription";

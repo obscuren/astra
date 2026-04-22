@@ -706,6 +706,10 @@ std::string Game::dev_command_dumpmap(const std::string& path_in) {
             case FixtureType::Pillar:           return 'I';
             case FixtureType::Brazier:          return '*';
             case FixtureType::ResonancePillar:  return '%';
+            case FixtureType::ResonancePillarTop:return '^';
+            case FixtureType::ResonancePillarBot:return 'v';
+            case FixtureType::PrecursorBracketL:return '(';
+            case FixtureType::PrecursorBracketR:return ')';
             case FixtureType::QuestFixture:     return 'Q';
             case FixtureType::Door:             return '+';
             default:                            return 'F';  // generic fixture

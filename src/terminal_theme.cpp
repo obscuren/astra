@@ -548,6 +548,14 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'O', nullptr, Color::Cyan, Color::Default}; break;
         case FixtureType::ResonancePillar:
             vis = {'~', "\xe2\x95\xa6", static_cast<Color>(135), Color::Default}; break; // ╦ cyan pillar
+        case FixtureType::ResonancePillarTop:
+            vis = {'^', "\xe2\x95\xa9", static_cast<Color>(33),  Color::Default}; break; // ╩ blue top-capped pillar
+        case FixtureType::ResonancePillarBot:
+            vis = {'v', "\xe2\x95\xa6", static_cast<Color>(33),  Color::Default}; break; // ╦ blue bottom-capped pillar
+        case FixtureType::PrecursorBracketL:
+            vis = {'(', nullptr,        static_cast<Color>(250), Color::Default}; break; // silver left bracket
+        case FixtureType::PrecursorBracketR:
+            vis = {')', nullptr,        static_cast<Color>(250), Color::Default}; break; // silver right bracket
         case FixtureType::Plinth:
             vis = {'T', nullptr, static_cast<Color>(145), Color::Default}; break;       // warm stone pedestal
         case FixtureType::Altar:
@@ -1796,6 +1804,10 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::MineralCrystal:  return '*';
         case FixtureType::ScrapComponent:   return '%';
         case FixtureType::ResonancePillar:  return '~';
+        case FixtureType::ResonancePillarTop:return '^';
+        case FixtureType::ResonancePillarBot:return 'v';
+        case FixtureType::PrecursorBracketL:return '(';
+        case FixtureType::PrecursorBracketR:return ')';
         case FixtureType::Plinth:           return 'T';
         case FixtureType::Altar:            return 'A';
         case FixtureType::Inscription:      return 'i';

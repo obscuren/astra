@@ -504,6 +504,16 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::Brazier:
             fd.passable = false; fd.interactable = false;
             fd.light_radius = 4; break;
+        case FixtureType::ResonancePillarTop:
+        case FixtureType::ResonancePillarBot:
+            fd.passable = false; fd.interactable = false;
+            fd.blocks_vision = true; break;
+        case FixtureType::PrecursorBracketL:
+        case FixtureType::PrecursorBracketR:
+            // Decorative silver brackets framing a sanctum quest fixture.
+            // Passable — the player walks through them to interact with the
+            // fixture between them.
+            fd.passable = true; fd.interactable = false; break;
     }
     return fd;
 }
