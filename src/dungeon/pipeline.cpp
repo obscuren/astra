@@ -27,7 +27,7 @@ void run(TileMap& map, const DungeonStyle& style, const CivConfig& civ,
     apply_connectivity(map, style,      ctx,       rng_con);
     apply_overlays    (map, style, spec,           rng_ovl);
     apply_decoration  (map, style, civ, spec,      rng_dec);
-    apply_fixtures    (map, style, spec, ctx,      rng_fix);
+    apply_fixtures    (map, style, civ, spec, ctx, rng_fix);
 }
 
 } // namespace astra::dungeon
