@@ -44,6 +44,10 @@ const std::vector<RequiredFixture> kPrecursorRuinRequiredFixtures = {
       depth_mask_all(3) },
 };
 
+const std::vector<RequiredPuzzle> kPrecursorRuinRequiredPuzzles = {
+    { PuzzleKind::SealedStairsDown, depth_mask_bit(1) },
+};
+
 const DungeonStyle kPrecursorRuin = [] {
     DungeonStyle s;
     s.id                    = StyleId::PrecursorRuin;
@@ -55,6 +59,7 @@ const DungeonStyle kPrecursorRuin = [] {
     s.decoration_pack       = "precursor_vault";
     s.connectivity_required = true;
     s.required_fixtures     = kPrecursorRuinRequiredFixtures;
+    s.required_puzzles      = kPrecursorRuinRequiredPuzzles;
     return s;
 }();
 
