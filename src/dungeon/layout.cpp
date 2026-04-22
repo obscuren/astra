@@ -97,13 +97,13 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
 
 // Sets ctx.sanctum_region_id to the region id at the center of `terminal`.
 // Caller must run tag_connected_components first.
-[[maybe_unused]] void tag_sanctum(TileMap& map, LevelContext& ctx, const Rect& terminal) {
+void tag_sanctum(TileMap& map, LevelContext& ctx, const Rect& terminal) {
     ctx.sanctum_region_id =
         map.region_id(terminal.x + terminal.w / 2, terminal.y + terminal.h / 2);
 }
 
-[[maybe_unused]] void tag_chapels(TileMap& map, LevelContext& ctx,
-                                  const std::vector<Rect>& chapels) {
+void tag_chapels(TileMap& map, LevelContext& ctx,
+                 const std::vector<Rect>& chapels) {
     ctx.chapel_region_ids.clear();
     ctx.chapel_region_ids.reserve(chapels.size());
     for (const auto& r : chapels) {
@@ -114,8 +114,8 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
 
 // Rubble-interrupted narrow corridor: carves a 1-wide line but leaves
 // impassable "rubble" gaps at ~20% density along the middle 60% of the run.
-[[maybe_unused]] void carve_corridor_broken_h(TileMap& m, int x1, int x2, int y,
-                                              std::mt19937& rng) {
+void carve_corridor_broken_h(TileMap& m, int x1, int x2, int y,
+                             std::mt19937& rng) {
     if (x1 > x2) std::swap(x1, x2);
     int len = x2 - x1;
     int m0 = x1 + len * 20 / 100;
@@ -131,8 +131,8 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     }
 }
 
-[[maybe_unused]] void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
-                                                std::mt19937& rng) {
+void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
+                               std::mt19937& rng) {
     const int W = map.width();
     const int H = map.height();
 
@@ -191,8 +191,8 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     ctx.chapel_region_ids.clear();
 }
 
-[[maybe_unused]] void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
-                                                std::mt19937& rng) {
+void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
+                               std::mt19937& rng) {
     const int W = map.width();
     const int H = map.height();
 
@@ -246,8 +246,8 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     tag_chapels(map, ctx, chapels);
 }
 
-[[maybe_unused]] void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
-                                                std::mt19937& rng) {
+void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
+                               std::mt19937& rng) {
     (void)rng;
     const int W = map.width();
     const int H = map.height();
@@ -276,6 +276,19 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     ctx.exit_region_id  = map.region_id(bx, by);
     tag_sanctum(map, ctx, vault);
     ctx.chapel_region_ids.clear();
+}
+
+void layout_precursor_vault(TileMap& map, LevelContext& ctx,
+                            std::mt19937& rng) {
+    switch (ctx.depth) {
+    case 1: layout_precursor_vault_l1(map, ctx, rng); break;
+    case 2: layout_precursor_vault_l2(map, ctx, rng); break;
+    case 3: layout_precursor_vault_l3(map, ctx, rng); break;
+    default:
+        // Beyond L3: reuse L3 for safety (should not occur for Archive).
+        layout_precursor_vault_l3(map, ctx, rng);
+        break;
+    }
 }
 
 void layout_bsp_rooms(TileMap& map, LevelContext& ctx, std::mt19937& rng) {
@@ -310,6 +323,9 @@ void apply_layout(TileMap& map, const DungeonStyle& style,
     switch (style.layout) {
     case LayoutKind::BSPRooms:
         layout_bsp_rooms(map, ctx, rng);
+        break;
+    case LayoutKind::PrecursorVault:
+        layout_precursor_vault(map, ctx, rng);
         break;
     case LayoutKind::OpenCave:
     case LayoutKind::TunnelCave:
