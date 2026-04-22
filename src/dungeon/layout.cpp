@@ -260,16 +260,46 @@ void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
     Rect antechamber { 2, H/2 - 3, 8, 6 };
     // Vault — right side, dominant.
     Rect vault { W - 18, H/2 - 7, 16, 14 };
+    // Pillar hall — large columned chamber between antechamber and vault.
+    // Interior 43x15, 3-wide ceremonial corridor (y=29/30/31) passes through
+    // its vertical centerline, with 10 columns × 8 rows of crystal columns
+    // filling the non-centerline rows so the player weaves between pillars
+    // on the approach.
+    Rect pillar_hall { 25, H/2 - 7, 43, 15 };
 
     carve_rect(map, antechamber);
+    carve_rect(map, pillar_hall);
     carve_rect(map, vault);
 
-    // 3-wide ceremonial approach corridor.
-    int corridor_y0 = H / 2 - 1;
-    int corridor_x0 = antechamber.x + antechamber.w;
-    int corridor_x1 = vault.x;
+    // 3-wide ceremonial approach corridor — split into two segments with
+    // the pillar hall in between. Each carve punches through the pillar
+    // hall's east/west wall at y=29/30/31.
+    int corridor_y0  = H / 2 - 1;
+    int corridor_ax0 = antechamber.x + antechamber.w;       // 10
+    int corridor_ax1 = pillar_hall.x - 1;                   // 24
+    int corridor_bx0 = pillar_hall.x + pillar_hall.w;       // 70
+    int corridor_bx1 = vault.x - 1;                         // 101
     for (int y = corridor_y0; y <= corridor_y0 + 2; ++y) {
-        carve_h(map, corridor_x0, corridor_x1, y);
+        carve_h(map, corridor_ax0, corridor_ax1, y);
+        carve_h(map, corridor_bx0, corridor_bx1, y);
+    }
+
+    // Crystal-column grid inside the pillar hall. Pillars every 4 columns
+    // starting 3 tiles in from the west wall, every 2 rows starting at the
+    // top interior row. The corridor's center row (y=30) falls naturally
+    // between the odd pillar rows (y=29 and y=31), so the player has an
+    // unobstructed east-west line down the middle with pillars flanking.
+    for (int py = pillar_hall.y; py < pillar_hall.y + pillar_hall.h; py += 2) {
+        for (int px = pillar_hall.x + 3;
+             px < pillar_hall.x + pillar_hall.w;
+             px += 4) {
+            FixtureData fd;
+            fd.type = FixtureType::CrystalColumn;
+            fd.passable = false;
+            fd.interactable = false;
+            fd.blocks_vision = true;
+            map.add_fixture(px, py, fd);
+        }
     }
 
     tag_connected_components(map, RegionType::Room);
