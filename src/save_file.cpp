@@ -915,6 +915,11 @@ static void write_dungeon_recipes_section(BinaryWriter& w,
             w.write_i32(lvl.enemy_tier);
             w.write_u8(lvl.is_side_branch ? 1 : 0);
             w.write_u8(lvl.is_boss_level  ? 1 : 0);
+            w.write_u8(static_cast<uint8_t>(lvl.style_id));
+            w.write_u8(static_cast<uint8_t>(lvl.overlays.size()));
+            for (auto ov : lvl.overlays) {
+                w.write_u8(static_cast<uint8_t>(ov));
+            }
             w.write_u32(static_cast<uint32_t>(lvl.npc_roles.size()));
             for (const auto& role : lvl.npc_roles) w.write_string(role);
             w.write_u32(static_cast<uint32_t>(lvl.fixtures.size()));
@@ -952,6 +957,14 @@ static void read_dungeon_recipes_section(BinaryReader& r, SaveData& data) {
             lvl.enemy_tier     = r.read_i32();
             lvl.is_side_branch = r.read_u8() != 0;
             lvl.is_boss_level  = r.read_u8() != 0;
+            if (data.version >= 38) {
+                lvl.style_id = static_cast<dungeon::StyleId>(r.read_u8());
+                uint8_t oc = r.read_u8();
+                for (uint8_t k = 0; k < oc; ++k) {
+                    lvl.overlays.push_back(static_cast<dungeon::OverlayKind>(r.read_u8()));
+                }
+            }
+            // else: keep defaults (SimpleRoomsAndCorridors + empty overlays)
             uint32_t rc = r.read_u32();
             for (uint32_t k = 0; k < rc; ++k) lvl.npc_roles.push_back(r.read_string());
             uint32_t fc = r.read_u32();
