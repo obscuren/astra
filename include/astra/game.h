@@ -39,6 +39,7 @@
 #include <random>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <vector>
 
 namespace astra {
@@ -378,6 +379,10 @@ private:
     // Message log
     std::deque<std::string> messages_;
     static constexpr size_t max_messages_ = 200;
+
+    // Proximity-trigger state: fixture ids whose radius the player is
+    // currently inside. Ephemeral (not serialised).
+    std::unordered_set<int> proximity_fixtures_in_range_;
 
     // Location cache — preserves visited locations
     // Key: {system_id, body_index, moon_index, is_station, ow_x, ow_y, depth}

@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cmath>
+#include <unordered_set>
 #include "astra/ability.h"
 #include "astra/display_name.h"
 #include "astra/faction.h"
@@ -687,6 +690,39 @@ void Game::update() {
             if (look.quest) {
                 dialog_.show_auto_accept(*this, *look.quest);
             }
+        }
+
+        // Fixture proximity triggers: iterate fixtures near the player,
+        // fire messages on entering a radius, evict on exit. Ephemeral
+        // set — not serialised, cleared on level transitions.
+        {
+            const auto& map = world_.map();
+            const int px = player_.x;
+            const int py = player_.y;
+            std::unordered_set<int> still_in_range;
+
+            constexpr int kMaxRadius = 16;  // conservative upper bound
+            for (int dy = -kMaxRadius; dy <= kMaxRadius; ++dy) {
+                int y = py + dy;
+                if (y < 0 || y >= map.height()) continue;
+                for (int dx = -kMaxRadius; dx <= kMaxRadius; ++dx) {
+                    int x = px + dx;
+                    if (x < 0 || x >= map.width()) continue;
+                    int fid = map.fixture_id(x, y);
+                    if (fid < 0) continue;
+                    const auto& f = map.fixture(fid);
+                    if (f.proximity_radius == 0 || f.proximity_message.empty()) continue;
+                    int cheby = std::max(std::abs(dx), std::abs(dy));
+                    if (cheby > static_cast<int>(f.proximity_radius)) continue;
+                    if (still_in_range.count(fid)) continue;
+                    still_in_range.insert(fid);
+                    if (proximity_fixtures_in_range_.find(fid)
+                            == proximity_fixtures_in_range_.end()) {
+                        log(f.proximity_message);
+                    }
+                }
+            }
+            proximity_fixtures_in_range_ = std::move(still_in_range);
         }
     }
 }

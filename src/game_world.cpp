@@ -1142,6 +1142,7 @@ void Game::enter_dungeon_from_detail() {
     recompute_fov();
     compute_camera();
     check_region_change();
+    proximity_fixtures_in_range_.clear();
     if (player_has_skill(player_, SkillId::Cat_Archaeology))
         log(lore_entry_message(enter_msg, world_.navigation(), world_.lore()));
     else
@@ -1194,6 +1195,7 @@ void Game::exit_dungeon_to_detail() {
     recompute_fov();
     compute_camera();
     check_region_change();
+    proximity_fixtures_in_range_.clear();
     log("You return to the surface.");
 }
 
@@ -1281,6 +1283,7 @@ void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
     recompute_fov();
     compute_camera();
     check_region_change();
+    proximity_fixtures_in_range_.clear();
     log("You descend.");
 }
 
@@ -1328,6 +1331,7 @@ void Game::ascend_stairs() {
     recompute_fov();
     compute_camera();
     check_region_change();
+    proximity_fixtures_in_range_.clear();
     log("You climb back up.");
 }
 
