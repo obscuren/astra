@@ -92,6 +92,14 @@ set(ASTRA_SOURCES
     src/generators/ruin_generator.cpp
     src/generators/dungeon_level.cpp
     src/dungeon/conclave_archive.cpp
+    src/dungeon/style_configs.cpp
+    src/dungeon/pipeline.cpp
+    src/dungeon/backdrop.cpp
+    src/dungeon/layout.cpp
+    src/dungeon/connectivity.cpp
+    src/dungeon/overlay.cpp
+    src/dungeon/decoration.cpp
+    src/dungeon/fixtures.cpp
     src/generators/faction_territory.cpp
     src/overworld_stamps.cpp
     src/poi_budget.cpp
