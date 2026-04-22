@@ -29,6 +29,7 @@
 ### Wayfinding Skills
 - [x] **Scout's Eye** — show NPCs on minimap (75 SP, INT 13)
 - [x] **Cartographer** — show items and POIs on minimap (100 SP, INT 14)
+- [x] **Camp Making** — place a campfire, 150-tick lifetime, Cozy aura (2× natural regen) within 6 tiles (50 SP, INT 12)
 
 ### Archaeology Skills
 - [x] **Archaeology skill category** — Ruin Reader, Artifact ID, Excavation, Cultural Attunement, Precursor Linguist, Beacon Sense

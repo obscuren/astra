@@ -556,3 +556,29 @@ Each layer of the dungeon generator pipeline derives its own
 
 This prevents adding or removing an overlay from reshuffling
 decoration or fixture placement.
+
+## Cozy (Campfire aura)
+
+Applied while the player is within Chebyshev distance ≤ 6 of one of
+their own `FixtureType::Campfire` fixtures. Re-applied each world tick
+with `duration = 1`, so it disappears automatically the tick after the
+player leaves the radius.
+
+Effect:
+
+```
+regen_interval_cozy = max(1, regen_interval(hunger) / 2)
+```
+
+Natural HP regeneration ticks roughly twice as fast while Cozy is
+active. No effect on hunger, other effects, or any other regen source.
+
+## Camp Making
+
+- Cooldown: 300 world ticks (`EffectId::CooldownCampMaking`)
+- Action cost: 100
+- Campfire lifetime: 150 world ticks from the `world_tick` at which it
+  was placed; the fixture is removed cleanly on expiry.
+- Placement: 8-neighbour scan in fixed order (NW, N, NE, W, E, SW, S,
+  SE); first passable tile with no fixture wins. Fails with no cooldown
+  if no space is available.
