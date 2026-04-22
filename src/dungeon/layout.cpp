@@ -191,6 +191,61 @@ void connect_rooms(TileMap& m, const std::vector<Rect>& rooms, std::mt19937& rng
     ctx.chapel_region_ids.clear();
 }
 
+[[maybe_unused]] void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
+                                                std::mt19937& rng) {
+    const int W = map.width();
+    const int H = map.height();
+
+    // Entry room — left end, small.
+    Rect entry { 2, H/2 - 3, 8, 6 };
+    // Terminal chamber — right end, grand.
+    Rect terminal { W - 14, H/2 - 5, 12, 10 };
+
+    carve_rect(map, entry);
+    carve_rect(map, terminal);
+
+    // 3-wide central nave spanning entry -> terminal, y-centered.
+    int nave_y_top = H / 2 - 1;
+    int nave_x0 = entry.x + entry.w;
+    int nave_x1 = terminal.x;
+    for (int y = nave_y_top; y <= nave_y_top + 2; ++y) {
+        carve_h(map, nave_x0, nave_x1, y);
+    }
+
+    // Symmetric chapels — 2..4 per side.
+    std::uniform_int_distribution<int> dchap(2, 4);
+    int per_side = dchap(rng);
+    std::vector<Rect> chapels;
+
+    int span = nave_x1 - nave_x0;
+    int step = span / (per_side + 1);
+    for (int i = 1; i <= per_side; ++i) {
+        int x_center = nave_x0 + step * i;
+        // North chapel.
+        Rect north { x_center - 3, nave_y_top - 6, 6, 5 };
+        // South chapel.
+        Rect south { x_center - 3, nave_y_top + 3 + 1, 6, 5 };
+
+        carve_rect(map, north);
+        carve_rect(map, south);
+        // 1-wide branches from chapel door to nave edge.
+        carve_v(map, north.y + north.h, nave_y_top, x_center);
+        carve_v(map, nave_y_top + 3, south.y, x_center);
+
+        chapels.push_back(north);
+        chapels.push_back(south);
+    }
+
+    tag_connected_components(map, RegionType::Room);
+
+    int ax = entry.x + entry.w / 2, ay = entry.y + entry.h / 2;
+    int bx = terminal.x + terminal.w / 2, by = terminal.y + terminal.h / 2;
+    ctx.entry_region_id = map.region_id(ax, ay);
+    ctx.exit_region_id  = map.region_id(bx, by);
+    tag_sanctum(map, ctx, terminal);
+    tag_chapels(map, ctx, chapels);
+}
+
 void layout_bsp_rooms(TileMap& map, LevelContext& ctx, std::mt19937& rng) {
     std::vector<Rect> rooms;
     Rect full = { 1, 1, map.width() - 2, map.height() - 2 };
