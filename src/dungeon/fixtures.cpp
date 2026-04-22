@@ -403,9 +403,18 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
         switch (rf.where) {
 
         case PlacementSlot::SanctumCenter: {
-            // Prefer a cell near the centroid, skipping narrow-passage cells
-            // for impassable kinds.
+            // Prefer the sanctum box (constrains placement even when the
+            // whole map flood-fills into a single region). Filter to cells
+            // inside the box that are open and safe for impassable kinds.
             auto cells = collect_region_open(map, ctx.sanctum_region_id);
+            if (ctx.sanctum_box.x0 >= 0) {
+                cells.erase(
+                    std::remove_if(cells.begin(), cells.end(),
+                        [&](const std::pair<int,int>& c) {
+                            return !ctx.sanctum_box.contains(c.first, c.second);
+                        }),
+                    cells.end());
+            }
             if (cells.empty()) break;
             if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
             if (cells.empty()) break;
@@ -425,9 +434,20 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
         }
 
         case PlacementSlot::ChapelCenter: {
-            for (int rid : ctx.chapel_region_ids) {
+            // Iterate chapel boxes (authored rects). For each, gather open
+            // cells inside the box, apply narrow-passage filter for impassable
+            // kinds, and place up to `count` per chapel.
+            for (const auto& box : ctx.chapel_boxes) {
                 int n = sample_count(rf.count, rng);
-                auto cells = collect_region_open(map, rid);
+                if (n <= 0) continue;
+                std::vector<std::pair<int,int>> cells;
+                for (int y = box.y0; y <= box.y1; ++y) {
+                    for (int x = box.x0; x <= box.x1; ++x) {
+                        if (!map.passable(x, y)) continue;
+                        if (map.fixture_id(x, y) >= 0) continue;
+                        cells.emplace_back(x, y);
+                    }
+                }
                 if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
                 std::shuffle(cells.begin(), cells.end(), rng);
                 int placed = 0;

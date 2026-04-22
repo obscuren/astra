@@ -174,8 +174,11 @@ void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
     ctx.entry_pref = { ax, ay };
     ctx.exit_pref  = { bx, by };
     tag_sanctum(map, ctx, terminal);
+    ctx.sanctum_box = { terminal.x, terminal.y,
+                        terminal.x + terminal.w - 1, terminal.y + terminal.h - 1 };
     // No chapels on L1.
     ctx.chapel_region_ids.clear();
+    ctx.chapel_boxes.clear();
 }
 
 void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
@@ -233,6 +236,14 @@ void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
     ctx.exit_pref  = { bx, by };
     tag_sanctum(map, ctx, terminal);
     tag_chapels(map, ctx, chapels);
+    ctx.sanctum_box = { terminal.x, terminal.y,
+                        terminal.x + terminal.w - 1, terminal.y + terminal.h - 1 };
+    ctx.chapel_boxes.clear();
+    ctx.chapel_boxes.reserve(chapels.size());
+    for (const auto& r : chapels) {
+        ctx.chapel_boxes.push_back(
+            { r.x, r.y, r.x + r.w - 1, r.y + r.h - 1 });
+    }
 }
 
 void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
@@ -266,7 +277,10 @@ void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
     ctx.entry_pref = { ax, ay };
     ctx.exit_pref  = { bx, by };
     tag_sanctum(map, ctx, vault);
+    ctx.sanctum_box = { vault.x, vault.y,
+                        vault.x + vault.w - 1, vault.y + vault.h - 1 };
     ctx.chapel_region_ids.clear();
+    ctx.chapel_boxes.clear();
 }
 
 void layout_precursor_vault(TileMap& map, LevelContext& ctx,

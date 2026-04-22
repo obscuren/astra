@@ -26,6 +26,19 @@ struct LevelContext {
     int                              sanctum_region_id = -1;       // terminal chamber
     std::vector<int>                 chapel_region_ids;            // symmetric side chapels
 
+    // Layout-authored bounding boxes for the terminal chamber and chapels.
+    // Used by placement slots (SanctumCenter, ChapelCenter) to constrain
+    // placement to a specific rect when the whole map flood-fills into a
+    // single region. Stored as inclusive (x0, y0) / (x1, y1) pairs.
+    struct Box {
+        int x0, y0, x1, y1;
+        bool contains(int x, int y) const {
+            return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+        }
+    };
+    Box                              sanctum_box { -1, -1, -1, -1 };
+    std::vector<Box>                 chapel_boxes;
+
     // Authored-layout stair placement hints. If set (>= 0), the stairs
     // placer picks the open cell closest to these points — this constrains
     // stairs to specific rooms even when the whole map is one connected
