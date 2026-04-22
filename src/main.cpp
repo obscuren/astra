@@ -42,7 +42,8 @@ int dump_dungeon_headless(const std::string& style_name,
         astra::DungeonLevelSpec s;
         s.style_id    = sid;
         s.civ_name    = civ_name;
-        s.decay_level = 1;
+        s.decay_level = std::max(0, 3 - d);   // 3 at L1, 2 at L2, 0 at L3
+        s.is_boss_level = (d == depth - 1);
         r.levels.push_back(s);
     }
 
@@ -82,6 +83,11 @@ int dump_dungeon_headless(const std::string& style_name,
                     case astra::FixtureType::Brazier:          c = '*'; break;
                     case astra::FixtureType::ResonancePillar:  c = '%'; break;
                     case astra::FixtureType::QuestFixture:     c = 'Q'; break;
+                    case astra::FixtureType::Debris:           c = ','; break;
+                    case astra::FixtureType::Crate:            c = 'x'; break;
+                    case astra::FixtureType::Shelf:            c = '['; break;
+                    case astra::FixtureType::Table:            c = 'o'; break;
+                    case astra::FixtureType::DungeonHatch:     c = 'v'; break;
                     default:                                    c = 'F'; break;
                 }
                 out << c;
