@@ -23,10 +23,13 @@ const DungeonStyle kSimpleRoomsAndCorridors = [] {
 }();
 
 const std::vector<RequiredFixture> kPrecursorRuinRequiredFixtures = {
-    // L3 vault — plinth first so FlankPair entries resolve against it.
+    // L3 vault — plinth first, flanked vertically by resonance pillars so
+    // the east/west sides stay open and the player can step adjacent and
+    // interact with the crystal that replaces the plinth. Braziers are
+    // intentionally NOT flank-paired on L3 (they would take the second
+    // axis and wall the crystal in on all four sides).
     { FixtureKind::Plinth,          PlacementSlot::SanctumCenter, {1,1}, depth_mask_bit(3) },
     { FixtureKind::ResonancePillar, PlacementSlot::FlankPair,     {2,2}, depth_mask_bit(3) },
-    { FixtureKind::Brazier,         PlacementSlot::FlankPair,     {2,2}, depth_mask_bit(3) },
 
     // L2 chapels (1–2 altars per chapel).
     { FixtureKind::Altar,           PlacementSlot::ChapelCenter,  {1,2}, depth_mask_bit(2) },

@@ -174,27 +174,34 @@ std::vector<std::pair<int,int>> flanking_cells_for(
     struct Axis { std::pair<int,int> a, b; };
     std::vector<Axis> candidates;
 
+    // Flanking is by construction adjacent to an already-placed impassable
+    // target, which drops the flank cell's passable-neighbor count below
+    // the narrow-passage threshold used for free-standing placements. The
+    // TARGET's placement already ensured we're in a roomy spot, so we only
+    // need the flank cell itself to be open.
     auto free_for_fixture = [&](int x, int y) {
         return open_at(m, x, y) &&
-               safe_for_impassable_fixture(m, x, y) &&
                std::find(reserved.begin(), reserved.end(),
                          std::pair<int,int>{x,y}) == reserved.end();
     };
 
+    // Vertical flank FIRST — this keeps east/west sides of the target open
+    // for the player to step adjacent and interact. (Sanctum plinth hosting
+    // a quest fixture relies on this: if we flanked horizontally the player
+    // could not reach the crystal at all in a narrow vault.)
+    if (free_for_fixture(target.first, target.second - 1) &&
+        free_for_fixture(target.first, target.second + 1)) {
+        candidates.push_back({
+            {target.first, target.second - 1},
+            {target.first, target.second + 1}
+        });
+    }
     // Horizontal flank.
     if (free_for_fixture(target.first - 1, target.second) &&
         free_for_fixture(target.first + 1, target.second)) {
         candidates.push_back({
             {target.first - 1, target.second},
             {target.first + 1, target.second}
-        });
-    }
-    // Vertical flank.
-    if (free_for_fixture(target.first, target.second - 1) &&
-        free_for_fixture(target.first, target.second + 1)) {
-        candidates.push_back({
-            {target.first, target.second - 1},
-            {target.first, target.second + 1}
         });
     }
     // Diagonal fallback (NE-SW).
@@ -215,8 +222,12 @@ std::vector<std::pair<int,int>> flanking_cells_for(
     }
 
     if (candidates.empty()) return {};
-    std::uniform_int_distribution<size_t> d(0, candidates.size() - 1);
-    auto& pick = candidates[d(rng)];
+    // Candidates are inserted in preference order (vertical > horizontal >
+    // diagonals), so always pick the first viable axis. RNG is unused for
+    // flank orientation to keep the authored "approach from the side" feel
+    // deterministic across seeds.
+    (void)rng;
+    auto& pick = candidates.front();
     return { pick.a, pick.b };
 }
 
@@ -411,12 +422,12 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
         switch (rf.where) {
 
         case PlacementSlot::SanctumCenter: {
-            // Prefer the sanctum box. The chosen cell is the one FARTHEST
-            // from the player's actual entry (stairs_up if set, otherwise
-            // entry_pref) — this places the target (e.g. the plinth hosting
-            // the Nova crystal) at the back of the vault opposite the point
-            // the player arrives at. If neither stairs_up nor entry_pref
-            // is set, fall back to centroid.
+            // Place at the CENTROID of the sanctum box. The sanctum's target
+            // (plinth / crystal) is a ritual centerpiece and should read as
+            // centered. We also require a viable vertical flank axis so
+            // subsequent FlankPair entries land above/below (leaving the
+            // east/west sides open so the player can step adjacent and
+            // interact with the target).
             auto cells = collect_region_open(map, ctx.sanctum_region_id);
             if (ctx.sanctum_box.x0 >= 0) {
                 cells.erase(
@@ -430,31 +441,35 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
             if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
             if (cells.empty()) break;
 
-            std::pair<int,int> reference {-1, -1};
-            if (ctx.stairs_up.first >= 0 && ctx.stairs_up.second >= 0) {
-                reference = ctx.stairs_up;
-            } else if (ctx.entry_pref.first >= 0 && ctx.entry_pref.second >= 0) {
-                reference = ctx.entry_pref;
-            }
-
-            std::pair<int,int> p = cells.front();
-            if (reference.first >= 0) {
-                int best_d = -1;
-                for (auto& c : cells) {
-                    int dd = std::abs(c.first - reference.first) +
-                             std::abs(c.second - reference.second);
-                    if (dd > best_d) { best_d = dd; p = c; }
+            // Prefer cells with a vertical flank axis (floor above AND below).
+            // Fall back to any remaining cell if the box is too tight.
+            auto floor_here = [&](int nx, int ny) { return open_at(map, nx, ny); };
+            std::vector<std::pair<int,int>> vflank_ok;
+            for (const auto& c : cells) {
+                if (floor_here(c.first, c.second - 1) &&
+                    floor_here(c.first, c.second + 1)) {
+                    vflank_ok.push_back(c);
                 }
+            }
+            std::vector<std::pair<int,int>>& pool =
+                !vflank_ok.empty() ? vflank_ok : cells;
+
+            // Pick the cell closest to the sanctum box centroid.
+            int cx, cy;
+            if (ctx.sanctum_box.x0 >= 0) {
+                cx = (ctx.sanctum_box.x0 + ctx.sanctum_box.x1) / 2;
+                cy = (ctx.sanctum_box.y0 + ctx.sanctum_box.y1) / 2;
             } else {
                 long sx = 0, sy = 0;
-                for (auto& c : cells) { sx += c.first; sy += c.second; }
-                int cx = static_cast<int>(sx / static_cast<long>(cells.size()));
-                int cy = static_cast<int>(sy / static_cast<long>(cells.size()));
-                int best_d = INT_MAX;
-                for (auto& c : cells) {
-                    int dd = std::abs(c.first - cx) + std::abs(c.second - cy);
-                    if (dd < best_d) { best_d = dd; p = c; }
-                }
+                for (auto& c : pool) { sx += c.first; sy += c.second; }
+                cx = static_cast<int>(sx / static_cast<long>(pool.size()));
+                cy = static_cast<int>(sy / static_cast<long>(pool.size()));
+            }
+            int best_d = INT_MAX;
+            std::pair<int,int> p = pool.front();
+            for (auto& c : pool) {
+                int dd = std::abs(c.first - cx) + std::abs(c.second - cy);
+                if (dd < best_d) { best_d = dd; p = c; }
             }
             add_required_fixture(map, rf.kind, p.first, p.second, ctx, &civ, rng);
             reserved.push_back(p);
