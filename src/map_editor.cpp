@@ -290,6 +290,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::ResonancePillarBot: return "Resonance Pillar (bottom)";
         case FixtureType::PrecursorBracketL: return "Precursor Frame (left)";
         case FixtureType::PrecursorBracketR: return "Precursor Frame (right)";
+        case FixtureType::CrystalColumn: return "Crystal Column";
         case FixtureType::Plinth:          return "Plinth";
         case FixtureType::Altar:           return "Altar";
         case FixtureType::Inscription:     return "Inscription";

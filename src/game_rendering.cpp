@@ -141,6 +141,7 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::ResonancePillarBot: return "Resonance Pillar";
         case FixtureType::PrecursorBracketL: return "Precursor Frame";
         case FixtureType::PrecursorBracketR: return "Precursor Frame";
+        case FixtureType::CrystalColumn: return "Crystal Column";
         case FixtureType::Plinth:          return "Plinth";
         case FixtureType::Altar:           return "Altar";
         case FixtureType::Inscription:     return "Inscription";
@@ -214,6 +215,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::ResonancePillarBot: return "A capped Precursor pillar, inscribed along its lower ring.";
         case FixtureType::PrecursorBracketL: return "A silver sanctum frame marks the ritual ground.";
         case FixtureType::PrecursorBracketR: return "A silver sanctum frame marks the ritual ground.";
+        case FixtureType::CrystalColumn: return "A Precursor crystal column, tall and faceted.";
         case FixtureType::Plinth:          return "A weathered stone pedestal, worn smooth by ages.";
         case FixtureType::Altar:           return "A Precursor altar carved from a single slab of warm stone.";
         case FixtureType::Inscription:     return "A wall-mounted tablet etched with Precursor runes.";

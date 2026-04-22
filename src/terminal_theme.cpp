@@ -556,6 +556,8 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'(', nullptr,        static_cast<Color>(250), Color::Default}; break; // silver left bracket
         case FixtureType::PrecursorBracketR:
             vis = {')', nullptr,        static_cast<Color>(250), Color::Default}; break; // silver right bracket
+        case FixtureType::CrystalColumn:
+            vis = {'*', "\xe2\x97\x86", static_cast<Color>(51), Color::Default}; break; // ◆ bright cyan crystal column
         case FixtureType::Plinth:
             vis = {'T', nullptr, static_cast<Color>(145), Color::Default}; break;       // warm stone pedestal
         case FixtureType::Altar:
@@ -1808,6 +1810,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::ResonancePillarBot:return 'v';
         case FixtureType::PrecursorBracketL:return '(';
         case FixtureType::PrecursorBracketR:return ')';
+        case FixtureType::CrystalColumn:    return '*';
         case FixtureType::Plinth:           return 'T';
         case FixtureType::Altar:            return 'A';
         case FixtureType::Inscription:      return 'i';

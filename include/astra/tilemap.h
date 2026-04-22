@@ -337,6 +337,8 @@ enum class FixtureType : uint8_t {
     ResonancePillarBot,// '╦' — capped Precursor pillar (blue), flanks BELOW a sanctum target
     PrecursorBracketL,// '(' — silver left bracket, passable, frames a sanctum quest fixture
     PrecursorBracketR,// ')' — silver right bracket, passable, frames a sanctum quest fixture
+    CrystalColumn,  // '◆' — standing crystal column, impassable, blocks vision
+
     Plinth,         // 'T'  — Precursor stone pedestal (impassable, hosts quest fixture)
     Altar,          // 'A'  — Precursor altar (impassable, interactable for flavor prompt)
     Inscription,    // 'i'  — wall-attached Precursor rune tablet (interactable, shows text)

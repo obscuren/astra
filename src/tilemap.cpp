@@ -508,6 +508,9 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::ResonancePillarBot:
             fd.passable = false; fd.interactable = false;
             fd.blocks_vision = true; break;
+        case FixtureType::CrystalColumn:
+            fd.passable = false; fd.interactable = false;
+            fd.blocks_vision = true; break;
         case FixtureType::PrecursorBracketL:
         case FixtureType::PrecursorBracketR:
             // Decorative silver brackets framing a sanctum quest fixture.

@@ -90,6 +90,7 @@ int dump_dungeon_headless(const std::string& style_name,
                     case astra::FixtureType::ResonancePillarBot:c = 'v'; break;
                     case astra::FixtureType::PrecursorBracketL:c = '('; break;
                     case astra::FixtureType::PrecursorBracketR:c = ')'; break;
+                    case astra::FixtureType::CrystalColumn:    c = 'D'; break;
                     case astra::FixtureType::QuestFixture:     c = 'Q'; break;
                     case astra::FixtureType::Debris:           c = ','; break;
                     case astra::FixtureType::Crate:            c = 'x'; break;
