@@ -3,6 +3,7 @@
 #include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/world_constants.h"
 
 namespace astra {
 
@@ -148,6 +149,55 @@ public:
     }
 };
 
+class CampMakingAbility : public Ability {
+public:
+    CampMakingAbility() {
+        skill_id = SkillId::CampMaking;
+        name = "Camp Making";
+        description = "Build a campfire on an adjacent tile. "
+                      "Grants Cozy (2x regen) within 6 tiles.";
+        cooldown_ticks = world::camp_making_cooldown_ticks;
+        cooldown_effect = EffectId::CooldownCampMaking;
+        needs_adjacent_target = false;
+        required_weapon = WeaponClass::None;
+        action_cost = world::camp_making_action_cost;
+    }
+
+    bool execute(Game& game, Npc* /*target*/) override {
+        auto& map = game.world().map();
+        const int px = game.player().x;
+        const int py = game.player().y;
+
+        // 8-neighbour scan in a fixed order. Pick the first adjacent tile
+        // that is passable and has no fixture already on it.
+        static constexpr int dx8[8] = {-1,  0,  1, -1, 1, -1, 0, 1};
+        static constexpr int dy8[8] = {-1, -1, -1,  0, 0,  1, 1, 1};
+
+        int target_x = -1, target_y = -1;
+        for (int i = 0; i < 8; ++i) {
+            int tx = px + dx8[i], ty = py + dy8[i];
+            if (tx < 0 || tx >= map.width() || ty < 0 || ty >= map.height()) continue;
+            if (!map.passable(tx, ty)) continue;
+            if (map.fixture_id(tx, ty) >= 0) continue;
+            target_x = tx;
+            target_y = ty;
+            break;
+        }
+
+        if (target_x < 0) {
+            game.log("No space to build a camp.");
+            return false;
+        }
+
+        FixtureData fd = make_fixture(FixtureType::Campfire);
+        fd.spawn_tick = game.world().world_tick();
+        map.add_fixture(target_x, target_y, std::move(fd));
+
+        game.log("You build a crackling campfire.");
+        return true;
+    }
+};
+
 // ── Catalog ─────────────────────────────────────────────────────────
 
 static std::vector<std::unique_ptr<Ability>> build_catalog() {
@@ -156,6 +206,7 @@ static std::vector<std::unique_ptr<Ability>> build_catalog() {
     cat.push_back(std::make_unique<CleaveAbility>());
     cat.push_back(std::make_unique<QuickdrawAbility>());
     cat.push_back(std::make_unique<IntimidateAbility>());
+    cat.push_back(std::make_unique<CampMakingAbility>());
     return cat;
 }
 
