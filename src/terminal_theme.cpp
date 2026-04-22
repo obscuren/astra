@@ -417,6 +417,14 @@ static const char* wall_glyph_for_biome(Biome biome, uint8_t seed) {
             };
             return select_variant(g, seed);
         }
+        case Biome::Dungeon: {
+            static const char* g[] = {
+                "\xe2\x96\x93",  // ▓ dense stone
+                "\xe2\x96\x92",  // ▒ mid stone
+                "\xe2\x96\x93",  // ▓
+            };
+            return select_variant(g, seed);
+        }
         default:
             return "#";
     }
