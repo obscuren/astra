@@ -1305,7 +1305,7 @@ ResolvedVisual resolve(const RenderDescriptor& desc) {
 
     auto tile = static_cast<Tile>(desc.type_id);
     uint8_t seed = desc.seed;
-    uint8_t flags = desc.flags;
+    uint16_t flags = desc.flags;
     Biome biome = desc.biome;
     bool remembered = (flags & RF_Remembered) != 0;
 
