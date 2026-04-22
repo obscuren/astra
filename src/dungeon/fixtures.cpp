@@ -248,10 +248,18 @@ std::pair<int,int> pick_cell_in_region(const TileMap& map, int rid,
 
 void place_stairs_entry_exit(TileMap& map, const DungeonLevelSpec& spec,
                              LevelContext& ctx, std::mt19937& rng) {
-    // Up: prefer entered_from if still open, else entry_pref if set, else random
-    // in entry_region.
+    // Up: prefer entered_from if it's open AND inside the authored entry box
+    // (so the player arrives where the layout expects, not at whatever column
+    // the previous level's stairs_down happened to share). If entry_box is
+    // unset (non-authored layouts), any open entered_from is accepted.
     int ux = -1, uy = -1;
-    if (open_at(map, ctx.entered_from.first, ctx.entered_from.second)) {
+    bool entered_from_ok =
+        open_at(map, ctx.entered_from.first, ctx.entered_from.second);
+    if (entered_from_ok && ctx.entry_box.x0 >= 0) {
+        entered_from_ok = ctx.entry_box.contains(ctx.entered_from.first,
+                                                 ctx.entered_from.second);
+    }
+    if (entered_from_ok) {
         ux = ctx.entered_from.first;
         uy = ctx.entered_from.second;
     } else {
@@ -404,11 +412,11 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
 
         case PlacementSlot::SanctumCenter: {
             // Prefer the sanctum box. The chosen cell is the one FARTHEST
-            // from entry_pref within the box — this places the target (e.g.
-            // the plinth hosting the Nova crystal) at the back of the vault
-            // opposite the approach corridor, so the player walks across
-            // the room to reach it. If entry_pref is unset, fall back to
-            // centroid.
+            // from the player's actual entry (stairs_up if set, otherwise
+            // entry_pref) — this places the target (e.g. the plinth hosting
+            // the Nova crystal) at the back of the vault opposite the point
+            // the player arrives at. If neither stairs_up nor entry_pref
+            // is set, fall back to centroid.
             auto cells = collect_region_open(map, ctx.sanctum_region_id);
             if (ctx.sanctum_box.x0 >= 0) {
                 cells.erase(
@@ -422,12 +430,19 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
             if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
             if (cells.empty()) break;
 
+            std::pair<int,int> reference {-1, -1};
+            if (ctx.stairs_up.first >= 0 && ctx.stairs_up.second >= 0) {
+                reference = ctx.stairs_up;
+            } else if (ctx.entry_pref.first >= 0 && ctx.entry_pref.second >= 0) {
+                reference = ctx.entry_pref;
+            }
+
             std::pair<int,int> p = cells.front();
-            if (ctx.entry_pref.first >= 0 && ctx.entry_pref.second >= 0) {
+            if (reference.first >= 0) {
                 int best_d = -1;
                 for (auto& c : cells) {
-                    int dd = std::abs(c.first - ctx.entry_pref.first) +
-                             std::abs(c.second - ctx.entry_pref.second);
+                    int dd = std::abs(c.first - reference.first) +
+                             std::abs(c.second - reference.second);
                     if (dd > best_d) { best_d = dd; p = c; }
                 }
             } else {

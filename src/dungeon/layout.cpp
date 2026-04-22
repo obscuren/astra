@@ -176,6 +176,8 @@ void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
     tag_sanctum(map, ctx, terminal);
     ctx.sanctum_box = { terminal.x, terminal.y,
                         terminal.x + terminal.w - 1, terminal.y + terminal.h - 1 };
+    ctx.entry_box   = { entry.x, entry.y,
+                        entry.x + entry.w - 1, entry.y + entry.h - 1 };
     // No chapels on L1.
     ctx.chapel_region_ids.clear();
     ctx.chapel_boxes.clear();
@@ -238,6 +240,8 @@ void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
     tag_chapels(map, ctx, chapels);
     ctx.sanctum_box = { terminal.x, terminal.y,
                         terminal.x + terminal.w - 1, terminal.y + terminal.h - 1 };
+    ctx.entry_box   = { entry.x, entry.y,
+                        entry.x + entry.w - 1, entry.y + entry.h - 1 };
     ctx.chapel_boxes.clear();
     ctx.chapel_boxes.reserve(chapels.size());
     for (const auto& r : chapels) {
@@ -279,6 +283,9 @@ void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
     tag_sanctum(map, ctx, vault);
     ctx.sanctum_box = { vault.x, vault.y,
                         vault.x + vault.w - 1, vault.y + vault.h - 1 };
+    ctx.entry_box   = { antechamber.x, antechamber.y,
+                        antechamber.x + antechamber.w - 1,
+                        antechamber.y + antechamber.h - 1 };
     ctx.chapel_region_ids.clear();
     ctx.chapel_boxes.clear();
 }

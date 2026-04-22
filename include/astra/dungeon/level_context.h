@@ -37,6 +37,7 @@ struct LevelContext {
         }
     };
     Box                              sanctum_box { -1, -1, -1, -1 };
+    Box                              entry_box   { -1, -1, -1, -1 };
     std::vector<Box>                 chapel_boxes;
 
     // Authored-layout stair placement hints. If set (>= 0), the stairs
