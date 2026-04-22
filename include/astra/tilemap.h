@@ -459,6 +459,10 @@ struct FixtureData {
 
     uint64_t tags = 0;   // bitmask of FixtureTag values
 
+    // World-tick when this fixture was placed. -1 = permanent (not time-limited).
+    // Used by time-limited fixtures like Campfire (see kCampfireLifetimeTicks).
+    int spawn_tick = -1;
+
     // Puzzle framework (layer 7)
     uint16_t    puzzle_id         = 0;   // 0 = not linked to any puzzle
     std::string proximity_message;       // empty = no proximity trigger
