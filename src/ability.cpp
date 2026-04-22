@@ -242,7 +242,9 @@ static Effect make_cooldown(EffectId id, const std::string& name, int duration) 
     e.color = Color::DarkGray;
     e.duration = duration;
     e.remaining = duration;
-    e.show_in_bar = true;
+    // Cooldowns are not shown in the effect bar — the ability-bar UI
+    // already surfaces remaining cooldown per slot.
+    e.show_in_bar = false;
     return e;
 }
 
