@@ -219,4 +219,18 @@ Effect make_flee(int duration) {
     return e;
 }
 
+Effect make_cozy() {
+    Effect e;
+    e.id = EffectId::Cozy;
+    e.name = "Cozy";
+    // Orange — matches the campfire palette. 208 is xterm orange.
+    e.color = static_cast<Color>(208);
+    // Refreshed each tick by the proximity scanner; when the player steps
+    // out of range it naturally expires on the next tick.
+    e.duration = 1;
+    e.remaining = 1;
+    e.show_in_bar = true;
+    return e;
+}
+
 } // namespace astra

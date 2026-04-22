@@ -27,7 +27,11 @@ enum class EffectId : uint32_t {
     CooldownQuickdraw   = 102,
     CooldownIntimidate  = 103,
     CooldownSuppressing = 104,
+    CooldownCampMaking  = 105,
     Flee                = 200,
+
+    // Environmental buffs (300+)
+    Cozy                = 300,
 };
 
 struct Effect {
@@ -92,5 +96,6 @@ Effect make_defense_boost(int duration, int amount);
 Effect make_haggle();
 Effect make_thick_skin();
 Effect make_flee(int duration);
+Effect make_cozy();
 
 } // namespace astra
