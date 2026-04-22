@@ -716,6 +716,9 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_i32(f.cooldown);
         w.write_i32(f.last_used_tick);
         w.write_string(f.quest_fixture_id);   // v30
+        w.write_u16(f.puzzle_id);             // v41
+        w.write_string(f.proximity_message);  // v41
+        w.write_u8(f.proximity_radius);       // v41
     }
     // Fixture IDs (parallel to tiles)
     const auto& fids = tm.fixture_ids();
@@ -723,6 +726,26 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
 
     // Hub flag
     w.write_u8(tm.is_hub() ? 1 : 0);
+
+    // Puzzles (v41+)
+    {
+        const auto& puzzles = tm.puzzles_vec();
+        w.write_u32(static_cast<uint32_t>(puzzles.size()));
+        for (const auto& p : puzzles) {
+            w.write_u16(p.id);
+            w.write_u8(static_cast<uint8_t>(p.kind));
+            w.write_u8(p.solved ? 1 : 0);
+            w.write_u32(static_cast<uint32_t>(p.sealed_tiles.size()));
+            for (const auto& [x, y] : p.sealed_tiles) {
+                w.write_i32(x);
+                w.write_i32(y);
+            }
+            w.write_i32(p.button_pos.first);
+            w.write_i32(p.button_pos.second);
+            w.write_i32(p.stairs_pos.first);
+            w.write_i32(p.stairs_pos.second);
+        }
+    }
 
     // v23: PoiBudget
     w.write_u32(static_cast<uint32_t>(ms.poi_budget.settlements));
@@ -1489,6 +1512,9 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
             f.cooldown = r.read_i32();
             f.last_used_tick = r.read_i32();
             f.quest_fixture_id = r.read_string();
+            f.puzzle_id = r.read_u16();                // v41
+            f.proximity_message = r.read_string();     // v41
+            f.proximity_radius = r.read_u8();          // v41
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
@@ -1497,6 +1523,26 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
 
         bool hub = r.read_u8() != 0;
         ms.tilemap.set_hub(hub);
+
+        // Puzzles (v41+)
+        uint32_t puzzle_count = r.read_u32();
+        std::vector<astra::dungeon::PuzzleState> puzzles(puzzle_count);
+        for (auto& p : puzzles) {
+            p.id = r.read_u16();
+            p.kind = static_cast<astra::dungeon::PuzzleKind>(r.read_u8());
+            p.solved = r.read_u8() != 0;
+            uint32_t n = r.read_u32();
+            p.sealed_tiles.resize(n);
+            for (auto& [x, y] : p.sealed_tiles) {
+                x = r.read_i32();
+                y = r.read_i32();
+            }
+            p.button_pos.first  = r.read_i32();
+            p.button_pos.second = r.read_i32();
+            p.stairs_pos.first  = r.read_i32();
+            p.stairs_pos.second = r.read_i32();
+        }
+        ms.tilemap.load_puzzles(std::move(puzzles));
     }
 
     // PoiBudget, hidden POIs, anchor hints

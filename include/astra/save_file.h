@@ -25,7 +25,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 40;   // sanctum frame fixture types inserted mid-enum
+inline constexpr uint32_t SAVE_FILE_VERSION = 41;   // puzzle framework + FixtureData extensions
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
