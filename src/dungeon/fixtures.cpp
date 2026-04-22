@@ -35,6 +35,42 @@ std::vector<std::pair<int,int>> collect_region_open(const TileMap& m, int rid) {
     return out;
 }
 
+// Returns true if placing an impassable fixture at (x, y) would block
+// movement in a narrow passage. A "safe" placement has at least three
+// passable orthogonal neighbors — this excludes 1-wide corridors (2
+// neighbors along the axis) and dead-end stubs (1 neighbor). Cells in
+// proper rooms generally have 4 passable orthogonal neighbors.
+bool safe_for_impassable_fixture(const TileMap& m, int x, int y) {
+    static const int dxs[4] = { 1,-1, 0, 0 };
+    static const int dys[4] = { 0, 0, 1,-1 };
+    int passable_neighbors = 0;
+    for (int i = 0; i < 4; ++i) {
+        int nx = x + dxs[i], ny = y + dys[i];
+        if (nx < 0 || ny < 0 || nx >= m.width() || ny >= m.height()) continue;
+        if (m.passable(nx, ny)) ++passable_neighbors;
+    }
+    return passable_neighbors >= 3;
+}
+
+// Inscription is the only wall-attached kind and remains impassable by design
+// (it replaces a wall tile). Every other FixtureKind lands on floor and should
+// respect narrow-passage safety.
+bool kind_places_on_floor(FixtureKind k) {
+    return k != FixtureKind::Inscription;
+}
+
+// In-place filter: strips cells that would block a narrow passage if a
+// floor-placed impassable fixture lands there.
+void filter_safe_for_impassable(const TileMap& m,
+                                std::vector<std::pair<int,int>>& cells) {
+    cells.erase(
+        std::remove_if(cells.begin(), cells.end(),
+            [&](const std::pair<int,int>& c) {
+                return !safe_for_impassable_fixture(m, c.first, c.second);
+            }),
+        cells.end());
+}
+
 // Bound check (private copy so we don't depend on `inbounds` from other TUs).
 bool inbounds_fix(const TileMap& m, int x, int y) {
     return x >= 0 && y >= 0 && x < m.width() && y < m.height();
@@ -140,6 +176,7 @@ std::vector<std::pair<int,int>> flanking_cells_for(
 
     auto free_for_fixture = [&](int x, int y) {
         return open_at(m, x, y) &&
+               safe_for_impassable_fixture(m, x, y) &&
                std::find(reserved.begin(), reserved.end(),
                          std::pair<int,int>{x,y}) == reserved.end();
     };
@@ -366,8 +403,22 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
         switch (rf.where) {
 
         case PlacementSlot::SanctumCenter: {
-            auto p = region_center_open(map, ctx.sanctum_region_id);
-            if (p.first < 0) break;
+            // Prefer a cell near the centroid, skipping narrow-passage cells
+            // for impassable kinds.
+            auto cells = collect_region_open(map, ctx.sanctum_region_id);
+            if (cells.empty()) break;
+            if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
+            if (cells.empty()) break;
+            long sx = 0, sy = 0;
+            for (auto& c : cells) { sx += c.first; sy += c.second; }
+            int cx = static_cast<int>(sx / static_cast<long>(cells.size()));
+            int cy = static_cast<int>(sy / static_cast<long>(cells.size()));
+            int best_d = INT_MAX;
+            std::pair<int,int> p = cells.front();
+            for (auto& c : cells) {
+                int dd = std::abs(c.first - cx) + std::abs(c.second - cy);
+                if (dd < best_d) { best_d = dd; p = c; }
+            }
             add_required_fixture(map, rf.kind, p.first, p.second, ctx, &civ, rng);
             reserved.push_back(p);
             break;
@@ -377,6 +428,7 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
             for (int rid : ctx.chapel_region_ids) {
                 int n = sample_count(rf.count, rng);
                 auto cells = collect_region_open(map, rid);
+                if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
                 std::shuffle(cells.begin(), cells.end(), rng);
                 int placed = 0;
                 for (auto& c : cells) {
@@ -397,6 +449,7 @@ void place_required_fixtures(TileMap& map, const DungeonStyle& style,
                 int n = sample_count(rf.count, rng);
                 if (n <= 0) continue;
                 auto cells = collect_region_open(map, rid);
+                if (kind_places_on_floor(rf.kind)) filter_safe_for_impassable(map, cells);
                 std::shuffle(cells.begin(), cells.end(), rng);
                 int placed = 0;
                 for (auto& c : cells) {
