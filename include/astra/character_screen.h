@@ -4,6 +4,7 @@
 #include "astra/quest.h"
 #include "astra/ui.h"
 
+#include <cstdint>
 #include <optional>
 #include <random>
 #include <string>

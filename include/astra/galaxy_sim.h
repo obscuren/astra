@@ -3,6 +3,7 @@
 #include "astra/lore_types.h"
 #include "astra/name_generator.h"
 
+#include <cstdint>
 #include <functional>
 #include <random>
 #include <string>

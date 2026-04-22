@@ -16,6 +16,8 @@
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
 
+#include <numeric>
+
 namespace astra {
 
 namespace {

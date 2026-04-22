@@ -2,6 +2,7 @@
 
 #include "astra/tilemap.h"
 
+#include <cstdint>
 #include <vector>
 
 namespace astra {

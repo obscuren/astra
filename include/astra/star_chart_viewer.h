@@ -5,6 +5,8 @@
 #include "astra/galaxy_map_desc.h"
 #include "astra/ui.h"
 
+#include <cstdint>
+
 namespace astra {
 
 class WorldManager;

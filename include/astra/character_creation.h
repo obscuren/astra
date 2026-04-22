@@ -5,6 +5,7 @@
 #include "astra/renderer.h"
 #include "astra/ui.h"
 
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>

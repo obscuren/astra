@@ -4,6 +4,7 @@
 #include "astra/settlement_types.h"
 #include "astra/ruin_types.h"
 
+#include <cstdint>
 #include <random>
 
 namespace astra {

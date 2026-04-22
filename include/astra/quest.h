@@ -2,6 +2,7 @@
 
 #include "astra/item.h"
 
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <random>

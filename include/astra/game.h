@@ -33,6 +33,7 @@
 #include "astra/tilemap.h"
 #include "astra/ui.h"
 #include "astra/visibility_map.h"
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <memory>

@@ -3,6 +3,7 @@
 #include "astra/settlement_types.h"
 #include "astra/lore_types.h"
 
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>

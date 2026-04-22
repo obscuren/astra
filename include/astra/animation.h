@@ -5,6 +5,7 @@
 #include "astra/tilemap.h"
 #include "astra/visibility_map.h"
 
+#include <cstdint>
 #include <chrono>
 #include <optional>
 #include <unordered_map>

@@ -3,6 +3,7 @@
 #include "astra/crashed_ship_types.h"
 #include "astra/tilemap.h"
 
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>

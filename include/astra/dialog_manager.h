@@ -5,6 +5,7 @@
 #include "astra/ui.h"
 #include "astra/ui_types.h"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 

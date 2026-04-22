@@ -4,6 +4,7 @@
 #include "astra/rect.h"
 #include "astra/tilemap.h"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>

@@ -3,6 +3,7 @@
 #include "astra/item.h"
 #include "astra/skill_defs.h"
 
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>
