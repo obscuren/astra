@@ -187,22 +187,39 @@ void add_stair(TileMap& m, FixtureType ft, int x, int y) {
     m.add_fixture(x, y, make_fixture(ft));
 }
 
+// Picks an open cell in `rid`, preferring the one closest to `pref` if set.
+// Falls back to a random cell if `pref` is unset (< 0) or no region open cells.
+std::pair<int,int> pick_cell_in_region(const TileMap& map, int rid,
+                                       std::pair<int,int> pref,
+                                       std::mt19937& rng) {
+    auto cells = collect_region_open(map, rid);
+    if (cells.empty()) return {-1, -1};
+    if (pref.first >= 0 && pref.second >= 0) {
+        int best_d = INT_MAX;
+        std::pair<int,int> best = cells.front();
+        for (const auto& c : cells) {
+            int dd = std::abs(c.first - pref.first) + std::abs(c.second - pref.second);
+            if (dd < best_d) { best_d = dd; best = c; }
+        }
+        return best;
+    }
+    std::uniform_int_distribution<size_t> d(0, cells.size() - 1);
+    return cells[d(rng)];
+}
+
 // ---- Stairs strategies ----
 
 void place_stairs_entry_exit(TileMap& map, const DungeonLevelSpec& spec,
                              LevelContext& ctx, std::mt19937& rng) {
-    // Up: prefer entered_from if still open.
+    // Up: prefer entered_from if still open, else entry_pref if set, else random
+    // in entry_region.
     int ux = -1, uy = -1;
     if (open_at(map, ctx.entered_from.first, ctx.entered_from.second)) {
         ux = ctx.entered_from.first;
         uy = ctx.entered_from.second;
     } else {
-        auto cells = collect_region_open(map, ctx.entry_region_id);
-        if (!cells.empty()) {
-            std::uniform_int_distribution<size_t> d(0, cells.size() - 1);
-            auto p = cells[d(rng)];
-            ux = p.first; uy = p.second;
-        }
+        auto p = pick_cell_in_region(map, ctx.entry_region_id, ctx.entry_pref, rng);
+        ux = p.first; uy = p.second;
     }
     if (ux >= 0) {
         add_stair(map, FixtureType::StairsUp, ux, uy);
@@ -211,10 +228,8 @@ void place_stairs_entry_exit(TileMap& map, const DungeonLevelSpec& spec,
 
     if (spec.is_boss_level) return;
 
-    auto cells = collect_region_open(map, ctx.exit_region_id);
-    if (cells.empty()) return;
-    std::uniform_int_distribution<size_t> d(0, cells.size() - 1);
-    auto p = cells[d(rng)];
+    auto p = pick_cell_in_region(map, ctx.exit_region_id, ctx.exit_pref, rng);
+    if (p.first < 0) return;
     add_stair(map, FixtureType::StairsDown, p.first, p.second);
     ctx.stairs_dn = { p.first, p.second };
 }

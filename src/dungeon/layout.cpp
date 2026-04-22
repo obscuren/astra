@@ -112,24 +112,9 @@ void tag_chapels(TileMap& map, LevelContext& ctx,
     }
 }
 
-// Rubble-interrupted narrow corridor: carves a 1-wide line but leaves
-// impassable "rubble" gaps at ~20% density along the middle 60% of the run.
-void carve_corridor_broken_h(TileMap& m, int x1, int x2, int y,
-                             std::mt19937& rng) {
-    if (x1 > x2) std::swap(x1, x2);
-    int len = x2 - x1;
-    int m0 = x1 + len * 20 / 100;
-    int m1 = x1 + len * 80 / 100;
-    std::uniform_int_distribution<int> d(0, 99);
-    for (int x = x1; x <= x2; ++x) {
-        if (!inbounds(m, x, y)) continue;
-        if (x > m0 && x < m1 && d(rng) < 20) {
-            // leave as Wall — creates a rubble-gap feel; pathable gaps on either side
-            continue;
-        }
-        m.set(x, y, Tile::Floor);
-    }
-}
+// (Formerly carve_corridor_broken_h — removed. Rubble gaps broke connectivity.
+// Aesthetic "fractured" feel is now carried by irregular side rooms and the
+// BattleScarred overlay, not by gaps in the main processional.)
 
 void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
                                std::mt19937& rng) {
@@ -170,10 +155,10 @@ void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
         carve_rect(map, r);
     }
 
-    // Processional: rubble-broken 1-wide line from entry center to terminal center.
+    // Processional: solid 1-wide L from entry center to terminal center.
     int ax = entry.x + entry.w / 2, ay = entry.y + entry.h / 2;
     int bx = terminal.x + terminal.w / 2, by = terminal.y + terminal.h / 2;
-    carve_corridor_broken_h(map, ax, bx, ay, rng);
+    carve_h(map, ax, bx, ay);
     carve_v(map, ay, by, bx);
 
     // Short 1-wide stubs from each side room to the processional.
@@ -186,6 +171,8 @@ void layout_precursor_vault_l1(TileMap& map, LevelContext& ctx,
     tag_connected_components(map, RegionType::Room);
     ctx.entry_region_id = map.region_id(ax, ay);
     ctx.exit_region_id  = map.region_id(bx, by);
+    ctx.entry_pref = { ax, ay };
+    ctx.exit_pref  = { bx, by };
     tag_sanctum(map, ctx, terminal);
     // No chapels on L1.
     ctx.chapel_region_ids.clear();
@@ -242,6 +229,8 @@ void layout_precursor_vault_l2(TileMap& map, LevelContext& ctx,
     int bx = terminal.x + terminal.w / 2, by = terminal.y + terminal.h / 2;
     ctx.entry_region_id = map.region_id(ax, ay);
     ctx.exit_region_id  = map.region_id(bx, by);
+    ctx.entry_pref = { ax, ay };
+    ctx.exit_pref  = { bx, by };
     tag_sanctum(map, ctx, terminal);
     tag_chapels(map, ctx, chapels);
 }
@@ -274,6 +263,8 @@ void layout_precursor_vault_l3(TileMap& map, LevelContext& ctx,
     int bx = vault.x + vault.w / 2, by = vault.y + vault.h / 2;
     ctx.entry_region_id = map.region_id(ax, ay);
     ctx.exit_region_id  = map.region_id(bx, by);
+    ctx.entry_pref = { ax, ay };
+    ctx.exit_pref  = { bx, by };
     tag_sanctum(map, ctx, vault);
     ctx.chapel_region_ids.clear();
 }
