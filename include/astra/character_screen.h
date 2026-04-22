@@ -90,14 +90,21 @@ private:
     const Item* look_item_ = nullptr;
 
     // Tinkering tab
-    enum class TinkerFocus { Workbench, Slots, Synthesizer, Materials };
+    enum class TinkerFocus { Workbench, Slots, Synthesizer, Materials, Catalog };
     TinkerFocus tinker_focus_ = TinkerFocus::Workbench;
+    // Last non-catalog focus — restored when Tab returns from catalog.
+    TinkerFocus tinker_prev_left_focus_ = TinkerFocus::Workbench;
     int tinker_slot_cursor_ = 0;     // which enhancement slot (0-2)
     int synth_bp_cursor_ = 0;        // 0 = left blueprint box, 1 = right
     int synth_bp1_ = -1;             // index into player's learned_blueprints
     int synth_bp2_ = -1;
     Item* workbench_item_ = nullptr; // pointer into player inventory or equipment
     int workbench_inv_idx_ = -1;     // index in player inventory, or -1 if from equipment
+
+    // Blueprint Catalog (right pane): cursor indexes blueprints; collapsed names hide recipes.
+    int catalog_cursor_ = 0;
+    int catalog_scroll_ = 0;
+    std::unordered_set<std::string> catalog_collapsed_;
 
     void draw_tinkering(UIContext& ctx);
     void draw_journal(UIContext& ctx);
@@ -170,8 +177,10 @@ private:
                        const char* label, int value,
                        bool selected, int modifier = -999,
                        int pending = 0, bool can_allocate = false);
+    // right_edge = -1 falls back to ctx.width()/2 (left panel default).
     void draw_section_header(UIContext& ctx, int y,
-                             const char* title, int left_margin = 1);
+                             const char* title, int left_margin = 1,
+                             int right_edge = -1);
 };
 
 } // namespace astra

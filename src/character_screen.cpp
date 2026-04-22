@@ -416,6 +416,43 @@ bool CharacterScreen::handle_input(int key) {
             }
         }
     } else if (active_tab_ == CharTab::Tinkering) {
+        // Tab: swap focus between left-cluster (workbench/slots/synth/materials) and right catalog.
+        if (key == '\t') {
+            if (tinker_focus_ == TinkerFocus::Catalog) {
+                tinker_focus_ = tinker_prev_left_focus_;
+            } else {
+                tinker_prev_left_focus_ = tinker_focus_;
+                tinker_focus_ = TinkerFocus::Catalog;
+            }
+            return true;
+        }
+
+        // Catalog focus: navigate unlocked recipes + toggle expand/collapse by result name.
+        if (tinker_focus_ == TinkerFocus::Catalog) {
+            // Build the same `known` recipe list used by the renderer.
+            auto player_knows_k = [&](const char* bp_name) {
+                for (const auto& bp : player_->learned_blueprints)
+                    if (bp.name == bp_name) return true;
+                return false;
+            };
+            std::vector<const SynthesisRecipe*> known;
+            for (const auto& r : synthesis_recipes()) {
+                if (player_knows_k(r.blueprint_1) || player_knows_k(r.blueprint_2))
+                    known.push_back(&r);
+            }
+            int rcount = static_cast<int>(known.size());
+            if (key == KEY_UP && catalog_cursor_ > 0) --catalog_cursor_;
+            if (key == KEY_DOWN && catalog_cursor_ < rcount - 1) ++catalog_cursor_;
+            if (key == ' ' && rcount > 0
+                && catalog_cursor_ >= 0 && catalog_cursor_ < rcount) {
+                std::string name = known[catalog_cursor_]->result_name;
+                auto it = catalog_collapsed_.find(name);
+                if (it == catalog_collapsed_.end()) catalog_collapsed_.insert(name);
+                else catalog_collapsed_.erase(it);
+            }
+            return true;
+        }
+
         // Navigation between workbench, slots, materials
         if (key == KEY_UP) {
             if (tinker_focus_ == TinkerFocus::Materials) tinker_focus_ = TinkerFocus::Synthesizer;
@@ -1040,7 +1077,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     // Compute footer text based on active tab
     std::string footer_text;
     if (active_tab_ == CharTab::Tinkering) {
-        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth";
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth";
     } else if (active_tab_ == CharTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
     } else if (active_tab_ == CharTab::Equipment) {
@@ -1201,9 +1238,10 @@ void CharacterScreen::draw_stat_box(UIContext& ctx, int x, int y,
 }
 
 void CharacterScreen::draw_section_header(UIContext& ctx, int y,
-                                           const char* title, int left_margin) {
-    // ──┤ TITLE ├──────── (stops before the vertical divider)
-    int divider_x = ctx.width() / 2;
+                                           const char* title, int left_margin,
+                                           int right_edge) {
+    // ──┤ TITLE ├──────── (stops before right_edge)
+    if (right_edge < 0) right_edge = ctx.width() / 2;
     // Leading ──
     ctx.put(left_margin, y, BoxDraw::H, Color::DarkGray);
     ctx.put(left_margin + 1, y, BoxDraw::H, Color::DarkGray);
@@ -1217,7 +1255,7 @@ void CharacterScreen::draw_section_header(UIContext& ctx, int y,
     // ├
     ctx.put(after_title + 1, y, BoxDraw::LT, Color::DarkGray);
     // Trailing ──
-    for (int x = after_title + 2; x < divider_x; ++x) {
+    for (int x = after_title + 2; x < right_edge; ++x) {
         ctx.put(x, y, BoxDraw::H, Color::DarkGray);
     }
 }
@@ -2104,24 +2142,12 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
         ctx.text({.x = 3, .y = mat_y, .content = "No crafting materials.", .tag = UITag::TextDim});
     }
 
-    // Right panel — split into upper (detail/actions) and lower (catalog)
+    // Right panel — upper (compact detail) + lower (blueprint catalog).
     int rx = half + 3;
     int rw_avail = w - half - 4;
+    int right_edge = w - 1;  // end-of-screen for section-header line
 
-    // Calculate catalog height (fixed at bottom)
-    int catalog_lines = 0;
-    for (const auto& bp : player_->learned_blueprints) {
-        catalog_lines++; // blueprint name
-        for (const auto& recipe : synthesis_recipes()) {
-            if (bp.name == recipe.blueprint_1 || bp.name == recipe.blueprint_2)
-                catalog_lines++;
-        }
-        catalog_lines++; // gap
-    }
-    int catalog_h = std::min(catalog_lines + 3, ctx.height() / 2); // cap at half height
-    int split_y = ctx.height() - catalog_h;
-
-    // --- Upper pane: detail + actions ---
+    // --- Upper pane: item detail only (no action list — hotkeys live in the footer bar) ---
     int ry = 1;
 
     if (workbench_item_) {
@@ -2148,7 +2174,6 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
                              .value = std::to_string(item.modifiers.dv), .value_tag = UITag::StatDefense});
 
         if (item.max_durability > 0) {
-            ry++;
             ctx.text({.x = rx, .y = ry, .content = "Durabl: ", .tag = UITag::TextDim});
             int bar_w = std::min(14, rw_avail - 14);
             if (bar_w > 0) {
@@ -2161,94 +2186,205 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
             ry++;
         }
 
-        // Enhancement slot details
-        if (ry + 5 < split_y) {
-            ry++;
-            for (int si = 0; si < 3; ++si) {
-                bool locked = (si >= item.enhancement_slots);
-                std::string slot_label = "[" + std::to_string(si + 1) + "] ";
-                ctx.text({.x = rx, .y = ry, .content = slot_label, .tag = UITag::TextBright});
-                if (locked) ctx.text({.x = rx + 4, .y = ry, .content = "locked", .tag = UITag::TextDim});
-                else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled)
-                {
-                    const auto& enh = item.enhancements[si];
-                    std::string label = enh.material_name;
-                    if (!enh.committed) label += " (pending)";
-                    ctx.text({.x = rx + 4, .y = ry, .content = label,
-                              .tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning});
-                }
-                else ctx.text({.x = rx + 4, .y = ry, .content = "empty", .tag = UITag::TextDim});
-                ry++;
+        // Enhancement slot details (compact)
+        ry++;
+        for (int si = 0; si < 3; ++si) {
+            bool locked = (si >= item.enhancement_slots);
+            std::string slot_label = "[" + std::to_string(si + 1) + "] ";
+            ctx.text({.x = rx, .y = ry, .content = slot_label, .tag = UITag::TextBright});
+            if (locked) ctx.text({.x = rx + 4, .y = ry, .content = "locked", .tag = UITag::TextDim});
+            else if (si < static_cast<int>(item.enhancements.size()) && item.enhancements[si].filled)
+            {
+                const auto& enh = item.enhancements[si];
+                std::string label = enh.material_name;
+                if (!enh.committed) label += " (pending)";
+                ctx.text({.x = rx + 4, .y = ry, .content = label,
+                          .tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning});
             }
-        }
-
-        // Actions
-        if (ry + 5 < split_y) {
-            ry += 2;
-            bool has_repair = player_has_skill(*player_, SkillId::BasicRepair);
-            bool has_analyze = player_has_skill(*player_, SkillId::Cat_Tinkering);
-            bool has_salvage = player_has_skill(*player_, SkillId::Disassemble);
-
-            int cost = repair_cost(item);
-            std::string repair_label = "[r] Repair";
-            if (cost > 0) repair_label += "  (" + std::to_string(cost) + " Nano-Fiber)";
-            ctx.text({.x = rx, .y = ry++, .content = repair_label,
-                      .tag = has_repair ? UITag::TextBright : UITag::TextDim});
-            ctx.text({.x = rx, .y = ry++, .content = "[a] Analyze",
-                      .tag = has_analyze ? UITag::TextBright : UITag::TextDim});
-            ctx.text({.x = rx, .y = ry++, .content = "[s] Salvage",
-                      .tag = has_salvage ? UITag::TextBright : UITag::TextDim});
-
-            bool pending = has_pending_enhancements(item);
-            ctx.text({.x = rx, .y = ry++, .content = "[f] Assemble",
-                      .tag = pending ? UITag::TextWarning : UITag::TextDim});
-            ctx.text({.x = rx, .y = ry++, .content = "[x] Clear slot", .tag = UITag::TextDim});
+            else ctx.text({.x = rx + 4, .y = ry, .content = "empty", .tag = UITag::TextDim});
+            ry++;
         }
     } else {
-        ctx.text({.x = rx, .y = 3, .content = "Place an item on the", .tag = UITag::TextDim});
-        ctx.text({.x = rx, .y = 4, .content = "workbench to begin.", .tag = UITag::TextDim});
-        ctx.text({.x = rx, .y = 6, .content = "1. Select workbench", .tag = UITag::TextDim});
-        ctx.text({.x = rx, .y = 7, .content = "2. Press [Space] to place", .tag = UITag::TextDim});
-        ctx.text({.x = rx, .y = 8, .content = "3. Use [r] [a] [s] actions", .tag = UITag::TextDim});
-        ctx.text({.x = rx, .y = 9, .content = "4. Select slots to enhance", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 1, .content = "Place an item on the", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 2, .content = "workbench to begin.", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 4, .content = "1. Select workbench", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 5, .content = "2. Press [Space] to place", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 6, .content = "3. Use [r] [a] [s] actions", .tag = UITag::TextDim});
+        ctx.text({.x = rx, .y = 7, .content = "4. Select slots to enhance", .tag = UITag::TextDim});
+        ry = 9;
     }
 
-    // --- Horizontal separator ---
-    for (int sx = half + 1; sx < w; ++sx)
-        ctx.put(sx, split_y, BoxDraw::H, Color::DarkGray);
+    // --- Blueprint Catalog header (right-panel section header) ---
+    int cat_hdr_y = ry + 1;
+    draw_section_header(ctx, cat_hdr_y, "BLUEPRINT CATALOG", half + 1, right_edge);
+    int cy = cat_hdr_y + 2;
+    int cy_max = ctx.height() - 1;
 
-    // --- Lower pane: Blueprint Catalog (always visible) ---
-    int cy = split_y + 1;
-    ctx.text({.x = rx, .y = cy, .content = "BLUEPRINT CATALOG", .tag = UITag::TextBright});
-    cy += 2;
+    // Collect recipes the player has unlocked (at least one ingredient known).
+    auto player_knows = [&](const char* bp_name) {
+        for (const auto& bp : player_->learned_blueprints)
+            if (bp.name == bp_name) return true;
+        return false;
+    };
+    struct KnownRecipe {
+        const SynthesisRecipe* rec;
+        bool has_bp1;
+        bool has_bp2;
+    };
+    std::vector<KnownRecipe> known;
+    for (const auto& r : synthesis_recipes()) {
+        bool h1 = player_knows(r.blueprint_1);
+        bool h2 = player_knows(r.blueprint_2);
+        if (h1 || h2) known.push_back({&r, h1, h2});
+    }
 
-    if (player_->learned_blueprints.empty()) {
+    if (known.empty()) {
         ctx.text({.x = rx, .y = cy, .content = "No blueprints learned.", .tag = UITag::TextDim});
     } else {
-        for (const auto& bp : player_->learned_blueprints) {
-            if (cy >= ctx.height() - 1) break;
-            ctx.styled_text({.x = rx, .y = cy, .segments = {
-                {"+", UITag::TextAccent}, {" ", UITag::TextDefault}, {bp.name, UITag::TextAccent},
-            }});
-            cy++;
-
-            for (const auto& recipe : synthesis_recipes()) {
-                if (cy >= ctx.height() - 1) break;
-                if (bp.name == recipe.blueprint_1 || bp.name == recipe.blueprint_2) {
-                    const char* other = (bp.name == recipe.blueprint_1)
-                        ? recipe.blueprint_2 : recipe.blueprint_1;
-                    bool has_other = false;
-                    for (const auto& obp : player_->learned_blueprints)
-                        if (obp.name == other) { has_other = true; break; }
-
-                    std::string line = "  + " + std::string(other) + " = " + recipe.result_name;
-                    ctx.text({.x = rx, .y = cy, .content = line,
-                              .tag = has_other ? UITag::TextSuccess : UITag::TextDim});
-                    cy++;
-                }
-            }
-            cy++;
+        // Material counts in inventory, indexed to match material_cost[].
+        static const uint32_t s_material_ids[4] = {7001, 7002, 7003, 7004};
+        int have_mat[4] = {0, 0, 0, 0};
+        for (const auto& it : player_->inventory.items) {
+            for (int m = 0; m < 4; ++m)
+                if (it.id == s_material_ids[m]) have_mat[m] += it.stack_count;
         }
+
+        // Flattened display lines. is_header → clickable category bar (keyed by result).
+        // is_cost → special styled row, pulls segments from recipe.
+        struct Line {
+            bool is_header = false;
+            bool is_cost = false;
+            int recipe_idx = 0;        // index into `known`
+            std::string text;
+            UITag tag = UITag::TextDim;
+        };
+        std::vector<Line> lines;
+
+        int panel_w = (w - (half + 1)) - 2; // usable text width inside right panel
+        if (panel_w < 10) panel_w = 10;
+
+        auto wrap = [](const std::string& s, int width) {
+            std::vector<std::string> out;
+            std::string cur;
+            size_t i = 0;
+            while (i < s.size()) {
+                size_t j = s.find(' ', i);
+                std::string word = (j == std::string::npos) ? s.substr(i) : s.substr(i, j - i);
+                if (cur.empty()) cur = word;
+                else if (static_cast<int>(cur.size() + 1 + word.size()) <= width) cur += " " + word;
+                else { out.push_back(cur); cur = word; }
+                if (j == std::string::npos) break;
+                i = j + 1;
+            }
+            if (!cur.empty()) out.push_back(cur);
+            return out;
+        };
+
+        for (int ri = 0; ri < static_cast<int>(known.size()); ++ri) {
+            const auto& kr = known[ri];
+            const auto& r = *kr.rec;
+            bool collapsed = catalog_collapsed_.count(r.result_name) > 0;
+
+            Line hdr; hdr.is_header = true; hdr.recipe_idx = ri;
+            hdr.text = r.result_name; hdr.tag = UITag::TextAccent;
+            lines.push_back(hdr);
+
+            if (!collapsed) {
+                Line bp1; bp1.recipe_idx = ri;
+                bp1.text = std::string("  + ") + r.blueprint_1;
+                bp1.tag = kr.has_bp1 ? UITag::TextSuccess : UITag::TextDim;
+                lines.push_back(bp1);
+
+                Line bp2; bp2.recipe_idx = ri;
+                bp2.text = std::string("  + ") + r.blueprint_2;
+                bp2.tag = kr.has_bp2 ? UITag::TextSuccess : UITag::TextDim;
+                lines.push_back(bp2);
+
+                Line cost; cost.is_cost = true; cost.recipe_idx = ri;
+                lines.push_back(cost);
+
+                // Description (wrapped).
+                if (r.result_desc && *r.result_desc) {
+                    lines.push_back({});  // blank
+                    for (const auto& wl : wrap(r.result_desc, panel_w - 2)) {
+                        Line d; d.recipe_idx = ri; d.text = "  " + wl; d.tag = UITag::TextDim;
+                        lines.push_back(d);
+                    }
+                }
+                lines.push_back({});  // trailing blank
+            }
+        }
+
+        int recipe_count = static_cast<int>(known.size());
+        if (catalog_cursor_ >= recipe_count) catalog_cursor_ = recipe_count - 1;
+        if (catalog_cursor_ < 0) catalog_cursor_ = 0;
+
+        int cursor_line_idx = 0;
+        for (int li = 0; li < static_cast<int>(lines.size()); ++li) {
+            if (lines[li].is_header && lines[li].recipe_idx == catalog_cursor_) {
+                cursor_line_idx = li; break;
+            }
+        }
+
+        int visible_rows = cy_max - cy;
+        if (visible_rows < 1) visible_rows = 1;
+        if (cursor_line_idx < catalog_scroll_) catalog_scroll_ = cursor_line_idx;
+        if (cursor_line_idx >= catalog_scroll_ + visible_rows)
+            catalog_scroll_ = cursor_line_idx - visible_rows + 1;
+        if (catalog_scroll_ < 0) catalog_scroll_ = 0;
+
+        int total_lines = static_cast<int>(lines.size());
+        int end_line = std::min(total_lines, catalog_scroll_ + visible_rows);
+
+        int bar_x0 = half + 1;
+        int bar_x1 = w;
+        for (int li = catalog_scroll_; li < end_line; ++li) {
+            const auto& L = lines[li];
+            int y = cy + (li - catalog_scroll_);
+
+            if (L.is_header) {
+                bool cursor_here = (tinker_focus_ == TinkerFocus::Catalog
+                                    && L.recipe_idx == catalog_cursor_);
+                const auto& r = *known[L.recipe_idx].rec;
+                bool collapsed = catalog_collapsed_.count(r.result_name) > 0;
+
+                Color bar_bg = cursor_here ? static_cast<Color>(235) : static_cast<Color>(233);
+                for (int fx = bar_x0; fx < bar_x1; ++fx)
+                    ctx.put(fx, y, ' ', bar_bg, bar_bg);
+
+                const char* tri = collapsed ? "\xe2\x96\xb8" : "\xe2\x96\xbe";
+                ctx.put(bar_x0 + 1, y, tri, Color::DarkGray);
+                ctx.put(bar_x0 + 3, y, BoxDraw::V, Color::Black);
+
+                Color name_fg = cursor_here ? Color::Yellow : Color::White;
+                int lx = bar_x0 + 5;
+                for (const char* p = r.result_name; *p && lx < bar_x1 - 1; ++p, ++lx)
+                    ctx.put(lx, y, *p, name_fg, bar_bg);
+            } else if (L.is_cost) {
+                const auto& r = *known[L.recipe_idx].rec;
+                const char* mat_names[] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
+                std::vector<astra::TextSegment> segs;
+                segs.push_back({"  Cost: ", UITag::TextDim});
+                bool any = false;
+                for (int m = 0; m < 4; ++m) {
+                    if (r.material_cost[m] <= 0) continue;
+                    if (any) segs.push_back({", ", UITag::TextDim});
+                    any = true;
+                    bool enough = have_mat[m] >= r.material_cost[m];
+                    UITag tag = enough ? UITag::TextSuccess : UITag::TextDim;
+                    segs.push_back({std::to_string(r.material_cost[m]) + "x " + mat_names[m], tag});
+                }
+                if (!any) segs.push_back({"none", UITag::TextDim});
+                ctx.styled_text({.x = rx, .y = y, .segments = segs});
+            } else if (!L.text.empty()) {
+                ctx.text({.x = rx, .y = y, .content = L.text, .tag = L.tag});
+            }
+        }
+
+        if (catalog_scroll_ > 0)
+            ctx.put(right_edge - 1, cy, '^', Color::DarkGray);
+        if (end_line < total_lines)
+            ctx.put(right_edge - 1, cy_max - 1, 'v', Color::DarkGray);
     }
 }
 
