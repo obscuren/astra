@@ -307,6 +307,17 @@ void place_quest_fixtures(TileMap& map, const DungeonLevelSpec& spec,
                 auto p = cells[d(rng)];
                 fx = p.first; fy = p.second;
             }
+        } else if (pf.placement_hint == "required_plinth") {
+            auto it = ctx.placed_required_fixtures.find(kind_key(FixtureKind::Plinth));
+            if (it != ctx.placed_required_fixtures.end() && !it->second.empty()) {
+                std::uniform_int_distribution<size_t> d(0, it->second.size() - 1);
+                auto p = it->second[d(rng)];
+                // Replace the plinth's fixture with the quest fixture at the same tile.
+                map.remove_fixture(p.first, p.second);
+                fx = p.first; fy = p.second;
+            }
+            // If no plinth was placed (misconfiguration or failed placement),
+            // fall through to the global-open fallback below.
         }
 
         if (fx < 0) {
