@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/action.h"
+#include "astra/dungeon/dungeon_style.h"
 #include "astra/animation.h"
 #include "astra/map_editor.h"
 #include "astra/minimap.h"
@@ -166,6 +167,9 @@ public:
                                 bool connected = false,
                                 const std::string& civ_name = "",
                                 float ruin_decay = -1.0f);
+    void dev_command_dungen(dungeon::StyleId style_id,
+                            const std::string& civ_name,
+                            uint32_t seed);
 
 private:
     // LocationKey moved to world_manager.h

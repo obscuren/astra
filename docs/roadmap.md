@@ -95,6 +95,7 @@
 - [ ] **Archaeology skill effects** — Excavation active ability, Precursor Linguist sealed doors, Beacon Sense on star chart, Cultural Attunement stat bonuses
 - [ ] **Civilization-themed dungeon aesthetics** — tile palette, fixture types, room flavors per precursor civilization
 - [ ] **Archaeological strata** — deeper dungeon levels = older civilization layers
+- [x] Layered dungeon generator pipeline (6 layers: backdrop, layout, connectivity, overlay, decoration, fixtures) — Conclave Archive migration pending in follow-up slice
 - [ ] New dungeon generator types / biomes
 - [x] **Outpost POI** — fenced fort with main building, exterior tents, campfires, biome-themed palisade
 - [ ] **Outpost dungeon portal** — rare (~20%) chance of a dungeon entrance beneath an outpost
