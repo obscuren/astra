@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "astra/dungeon/puzzles.h"
+
 namespace astra::dungeon {
 
 enum class StyleId : uint8_t {
@@ -84,6 +86,7 @@ struct DungeonStyle {
     std::string                  decoration_pack;
     bool                         connectivity_required;
     std::vector<RequiredFixture> required_fixtures;   // layer 6.iii catalog
+    std::vector<RequiredPuzzle>  required_puzzles;   // layer 7 catalog
 };
 
 const DungeonStyle& style_config(StyleId id);
