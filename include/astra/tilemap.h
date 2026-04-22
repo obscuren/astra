@@ -430,6 +430,11 @@ struct FixtureData {
     int light_radius = 0;      // FOV extension radius (0 = no light emission)
     bool blocks_vision = false; // passable but opaque (tall trees, large mushrooms)
     std::string quest_fixture_id;   // set only when type == FixtureType::QuestFixture
+
+    // Puzzle framework (layer 7)
+    uint16_t    puzzle_id         = 0;   // 0 = not linked to any puzzle
+    std::string proximity_message;       // empty = no proximity trigger
+    uint8_t     proximity_radius  = 0;   // 0 = disabled; Chebyshev distance from player
 };
 
 FixtureData make_fixture(FixtureType type);
