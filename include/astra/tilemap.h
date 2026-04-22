@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/dungeon/puzzles.h"
 #include "astra/rect.h"
 #include "astra/renderer.h"
 
@@ -550,6 +551,15 @@ public:
     const std::vector<FixtureData>& fixtures_vec() const { return fixtures_; }
     const std::vector<int>& fixture_ids() const { return fixture_ids_; }
 
+    // Puzzle accessors
+    int puzzle_count() const { return static_cast<int>(puzzles_.size()); }
+    const astra::dungeon::PuzzleState& puzzle(int idx) const { return puzzles_[idx]; }
+    astra::dungeon::PuzzleState& puzzle_mut(int idx) { return puzzles_[idx]; }
+    const std::vector<astra::dungeon::PuzzleState>& puzzles_vec() const { return puzzles_; }
+    int add_puzzle(astra::dungeon::PuzzleState ps);
+    void load_puzzles(std::vector<astra::dungeon::PuzzleState> ps);
+    astra::dungeon::PuzzleState* find_puzzle_by_id(uint16_t id);
+
     // Hub flag
     bool is_hub() const { return hub_; }
     void set_hub(bool h) { hub_ = h; }
@@ -632,6 +642,7 @@ private:
     std::vector<Region> regions_;
     std::vector<FixtureData> fixtures_;
     std::vector<int> fixture_ids_;  // parallel to tiles_, -1 if no fixture
+    std::vector<astra::dungeon::PuzzleState> puzzles_;
     std::vector<uint8_t> glyph_override_;  // parallel to tiles_, 0 = no override
     std::vector<uint8_t> custom_flags_;   // parallel to tiles_, 1 = custom detail (overworld only)
     std::unique_ptr<PoiBudget> poi_budget_;

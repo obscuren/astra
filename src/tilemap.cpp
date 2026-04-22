@@ -719,4 +719,20 @@ const std::unordered_map<uint64_t, PoiAnchorHint>& TileMap::anchor_hints() const
     return anchor_hints_;
 }
 
+int TileMap::add_puzzle(astra::dungeon::PuzzleState ps) {
+    puzzles_.push_back(std::move(ps));
+    return static_cast<int>(puzzles_.size() - 1);
+}
+
+void TileMap::load_puzzles(std::vector<astra::dungeon::PuzzleState> ps) {
+    puzzles_ = std::move(ps);
+}
+
+astra::dungeon::PuzzleState* TileMap::find_puzzle_by_id(uint16_t id) {
+    for (auto& p : puzzles_) {
+        if (p.id == id) return &p;
+    }
+    return nullptr;
+}
+
 } // namespace astra
