@@ -404,7 +404,9 @@ FixtureData make_fixture(FixtureType type) {
             fd.light_radius = 1; break;
         case FixtureType::Torch:
             fd.passable = true; fd.interactable = false;
-            fd.light_radius = 8; break;
+            fd.light_radius = 8;
+            fd.tags = static_cast<uint64_t>(FixtureTag::LightSource);
+            break;
         case FixtureType::Stool:
             fd.passable = true; fd.interactable = false; break;
         case FixtureType::Debris:
@@ -455,16 +457,26 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::SettlementProp:
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::CampStove:
-            fd.passable = false; fd.interactable = false; break;
+            fd.passable = false; fd.interactable = false;
+            fd.tags = static_cast<uint64_t>(
+                FixtureTag::CookingSource | FixtureTag::HeatSource);
+            break;
         case FixtureType::Kitchen:
             fd.passable = false; fd.interactable = true;
-            fd.light_radius = 2; break;
+            fd.light_radius = 2;
+            fd.tags = static_cast<uint64_t>(
+                FixtureTag::CookingSource | FixtureTag::HeatSource);
+            break;
         case FixtureType::Lamp:
             fd.passable = true; fd.interactable = false;
-            fd.light_radius = 6; break;
+            fd.light_radius = 6;
+            fd.tags = static_cast<uint64_t>(FixtureTag::LightSource);
+            break;
         case FixtureType::HoloLight:
             fd.passable = true; fd.interactable = false;
-            fd.light_radius = 8; break;
+            fd.light_radius = 8;
+            fd.tags = static_cast<uint64_t>(FixtureTag::LightSource);
+            break;
         case FixtureType::Locker:
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::BookCabinet:
@@ -514,7 +526,10 @@ FixtureData make_fixture(FixtureType type) {
             fd.blocks_vision = true; break;
         case FixtureType::Brazier:
             fd.passable = false; fd.interactable = false;
-            fd.light_radius = 4; break;
+            fd.light_radius = 4;
+            fd.tags = static_cast<uint64_t>(
+                FixtureTag::HeatSource | FixtureTag::LightSource);
+            break;
         case FixtureType::ResonancePillarTop:
         case FixtureType::ResonancePillarBot:
             fd.passable = false; fd.interactable = false;
