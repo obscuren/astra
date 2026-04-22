@@ -79,7 +79,7 @@ void Game::try_move(int dx, int dy) {
                         case FixtureType::Window:         log("You peer through the window."); break;
                         case FixtureType::Door:           log("The door is closed."); break;
                         case FixtureType::CampStove:      log("A warm stove. Something was cooking here."); break;
-                        case FixtureType::Campfire:       log("A crackling campfire. You feel cozy nearby."); break;
+                        case FixtureType::Campfire:       log("A crackling campfire. You feel the warmth radiating."); break;
                         case FixtureType::Kitchen:        log("A cooking station. You could prepare a meal here."); break;
                         case FixtureType::Locker:         log("A locked storage locker."); break;
                         case FixtureType::BookCabinet:    log("Shelves of worn volumes and data pads."); break;
