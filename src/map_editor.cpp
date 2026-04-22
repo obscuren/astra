@@ -285,6 +285,21 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::MineralCrystal:  return "Mineral: Crystal";
         case FixtureType::ScrapComponent:  return "Scrap Component";
         case FixtureType::QuestFixture:    return "Quest Fixture";
+        case FixtureType::ResonancePillar: return "Resonance Pillar";
+        case FixtureType::Plinth:          return "Plinth";
+        case FixtureType::Altar:           return "Altar";
+        case FixtureType::Inscription:     return "Inscription";
+        case FixtureType::Pillar:          return "Pillar";
+        case FixtureType::Brazier:         return "Brazier";
+        case FixtureType::StairsDown:      return "Stairs Down";
+        case FixtureType::TerminalCornerTop:
+        case FixtureType::TerminalSide:
+        case FixtureType::TerminalCornerBot:
+        case FixtureType::TerminalJunction:
+        case FixtureType::TerminalCenter:  return "Terminal";
+        case FixtureType::StarChartL:
+        case FixtureType::StarChartR:      return "Star Chart";
+        case FixtureType::Kitchen:         return "Kitchen";
     }
     return "?";
 }

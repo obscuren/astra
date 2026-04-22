@@ -333,6 +333,11 @@ enum class RoomFlavor : uint8_t {
 enum class FixtureType : uint8_t {
     // Decorative (impassable, no interaction)
     ResonancePillar,// '~'  — Precursor resonance pillar (cyan, decorative)
+    Plinth,         // 'T'  — Precursor stone pedestal (impassable, hosts quest fixture)
+    Altar,          // 'A'  — Precursor altar (impassable, interactable for flavor prompt)
+    Inscription,    // 'i'  — wall-attached Precursor rune tablet (interactable, shows text)
+    Pillar,         // 'I'  — structural pillar (impassable, blocks LoS)
+    Brazier,        // '*'  — Precursor brazier (impassable, light source flavor)
     Table,          // 'o'  — cantina tables, command tables
     Console,        // '#'  — computer terminals (decorative)
     Crate,          // '='  — cargo crates

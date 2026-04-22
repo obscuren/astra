@@ -136,6 +136,12 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::MineralCrystal:  return "Crystal Shard";
         case FixtureType::ScrapComponent:  return "Salvage";
         case FixtureType::QuestFixture:    return "Quest Fixture";
+        case FixtureType::ResonancePillar: return "Resonance Pillar";
+        case FixtureType::Plinth:          return "Plinth";
+        case FixtureType::Altar:           return "Altar";
+        case FixtureType::Inscription:     return "Inscription";
+        case FixtureType::Pillar:          return "Pillar";
+        case FixtureType::Brazier:         return "Brazier";
     }
     return "Unknown";
 }
@@ -199,6 +205,12 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::MineralCrystal:  return "A crystalline formation juts from the ground.";
         case FixtureType::ScrapComponent:  return "Salvageable scrap metal and circuitry.";
         case FixtureType::QuestFixture:    return "A quest-related object.";
+        case FixtureType::ResonancePillar: return "A Precursor resonance pillar humming with stored energy.";
+        case FixtureType::Plinth:          return "A weathered stone pedestal, worn smooth by ages.";
+        case FixtureType::Altar:           return "A Precursor altar carved from a single slab of warm stone.";
+        case FixtureType::Inscription:     return "A wall-mounted tablet etched with Precursor runes.";
+        case FixtureType::Pillar:          return "A load-bearing stone pillar.";
+        case FixtureType::Brazier:         return "A stone brazier, embers glowing faintly within.";
     }
     return "";
 }

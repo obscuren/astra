@@ -490,6 +490,18 @@ FixtureData make_fixture(FixtureType type) {
             // Per-fixture behavior is authored via QuestFixtureDef at placement
             // time; the factory just provides sensible interactable defaults.
             fd.passable = true; fd.interactable = true; break;
+        case FixtureType::Plinth:
+            fd.passable = false; fd.interactable = false; break;
+        case FixtureType::Altar:
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::Inscription:
+            fd.passable = false; fd.interactable = true; break;
+        case FixtureType::Pillar:
+            fd.passable = false; fd.interactable = false;
+            fd.blocks_vision = true; break;
+        case FixtureType::Brazier:
+            fd.passable = false; fd.interactable = false;
+            fd.light_radius = 4; break;
     }
     return fd;
 }

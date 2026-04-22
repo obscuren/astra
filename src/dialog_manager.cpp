@@ -565,6 +565,21 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             f.last_used_tick = game.world().world_tick();
             break;
         }
+        case FixtureType::Altar: {
+            game.log("A weathered Precursor altar. The stone is warm.");
+            break;
+        }
+        case FixtureType::Inscription: {
+            // Layer 6.iii stores per-fixture flavor text in quest_fixture_id
+            // (overloaded as a generic per-fixture string for non-QuestFixture
+            // types). Display it verbatim; fall back if unset.
+            if (!f.quest_fixture_id.empty()) {
+                game.log(f.quest_fixture_id);
+            } else {
+                game.log("The runes are worn smooth; you cannot decipher them.");
+            }
+            break;
+        }
         default:
             game.log("Nothing happens.");
             break;

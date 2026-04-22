@@ -540,6 +540,16 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'O', nullptr, Color::Cyan, Color::Default}; break;
         case FixtureType::ResonancePillar:
             vis = {'~', "\xe2\x95\xa6", static_cast<Color>(135), Color::Default}; break; // ╦ cyan pillar
+        case FixtureType::Plinth:
+            vis = {'T', nullptr, static_cast<Color>(145), Color::Default}; break;       // warm stone pedestal
+        case FixtureType::Altar:
+            vis = {'A', nullptr, static_cast<Color>(179), Color::Default}; break;       // muted gold altar
+        case FixtureType::Inscription:
+            vis = {'i', nullptr, static_cast<Color>(109), Color::Default}; break;       // faded rune tablet
+        case FixtureType::Pillar:
+            vis = {'I', nullptr, static_cast<Color>(145), Color::Default}; break;       // warm stone pillar
+        case FixtureType::Brazier:
+            vis = {'*', nullptr, static_cast<Color>(208), Color::Default}; break;       // ember brazier
         case FixtureType::Table:
             vis = {'o', "\xc2\xa4", Color::DarkGray, Color::Default}; break;           // ¤
         case FixtureType::Console:
@@ -1778,6 +1788,11 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::MineralCrystal:  return '*';
         case FixtureType::ScrapComponent:   return '%';
         case FixtureType::ResonancePillar:  return '~';
+        case FixtureType::Plinth:           return 'T';
+        case FixtureType::Altar:            return 'A';
+        case FixtureType::Inscription:      return 'i';
+        case FixtureType::Pillar:           return 'I';
+        case FixtureType::Brazier:          return '*';
         case FixtureType::QuestFixture:     return '?';
     }
     return '?';
