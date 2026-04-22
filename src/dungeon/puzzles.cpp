@@ -49,33 +49,46 @@ std::vector<std::pair<int,int>> find_exterior_doorway_tiles(
     return out;
 }
 
-// Pick a wall-attached cell outside the entry + sanctum regions, with
-// a two-step fallback for pathological levels.
+// Is (x,y) a walkable tile with at least one non-walkable orthogonal neighbor?
+bool is_wall_attached_floor(const astra::TileMap& m, int x, int y) {
+    if (!m.passable(x, y)) return false;
+    static const int dxs[4] = { 1,-1, 0, 0 };
+    static const int dys[4] = { 0, 0, 1,-1 };
+    for (int i = 0; i < 4; ++i) {
+        int nx = x + dxs[i], ny = y + dys[i];
+        if (nx < 0 || ny < 0 || nx >= m.width() || ny >= m.height()) return true;
+        if (!m.passable(nx, ny)) return true;
+    }
+    return false;
+}
+
+bool pos_in_box(int x, int y, const LevelContext::Box& b) {
+    return b.x0 >= 0 && b.contains(x, y);
+}
+
+// Pick a wall-attached floor cell outside entry + sanctum boxes. Falls back to
+// any open floor outside those boxes if no wall-attached candidate exists.
+// Box-based (not region-based) because PrecursorVault L1 flood-fills into a
+// single region — region filtering would exclude the whole map.
 std::pair<int,int> pick_button_position(
     const astra::TileMap& m, const LevelContext& ctx, std::mt19937& rng)
 {
-    std::vector<std::pair<int,int>> candidates;
+    std::vector<std::pair<int,int>> wall_attached;
+    std::vector<std::pair<int,int>> any_open;
 
-    for (int rid = 0; rid < m.region_count(); ++rid) {
-        if (rid == ctx.entry_region_id) continue;
-        if (rid == ctx.sanctum_region_id) continue;
-        auto wa = region_wall_attached(m, rid);
-        candidates.insert(candidates.end(), wa.begin(), wa.end());
-    }
-
-    if (candidates.empty()) {
-        // Fallback: any open floor outside entry+sanctum regions.
-        for (int y = 0; y < m.height(); ++y) {
-            for (int x = 0; x < m.width(); ++x) {
-                if (!m.passable(x, y)) continue;
-                int rid = m.region_id(x, y);
-                if (rid == ctx.entry_region_id) continue;
-                if (rid == ctx.sanctum_region_id) continue;
-                candidates.emplace_back(x, y);
+    for (int y = 0; y < m.height(); ++y) {
+        for (int x = 0; x < m.width(); ++x) {
+            if (!m.passable(x, y)) continue;
+            if (pos_in_box(x, y, ctx.entry_box)) continue;
+            if (pos_in_box(x, y, ctx.sanctum_box)) continue;
+            any_open.emplace_back(x, y);
+            if (is_wall_attached_floor(m, x, y)) {
+                wall_attached.emplace_back(x, y);
             }
         }
     }
 
+    const auto& candidates = !wall_attached.empty() ? wall_attached : any_open;
     if (candidates.empty()) return { -1, -1 };
     std::uniform_int_distribution<size_t> pick(0, candidates.size() - 1);
     return candidates[pick(rng)];
