@@ -35,7 +35,7 @@ struct PuzzleState {
 // -- forward decls for apply_puzzles signature --
 #include <random>
 
-namespace astra { class TileMap; }
+namespace astra { class TileMap; class Game; }
 
 namespace astra::dungeon {
 
@@ -44,5 +44,10 @@ struct LevelContext;
 
 void apply_puzzles(astra::TileMap& map, const DungeonStyle& style,
                    LevelContext& ctx, std::mt19937& rng);
+
+// Runtime unlock entry point. Invoked from dialog_manager when the player
+// interacts with a PrecursorButton. `puzzle_id` comes from the fixture's
+// puzzle_id field. Safe to call on unknown / already-solved ids (no-op).
+void on_button_pressed(astra::Game& game, uint16_t puzzle_id);
 
 } // namespace astra::dungeon

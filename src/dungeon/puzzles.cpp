@@ -3,7 +3,9 @@
 #include "astra/dungeon/dungeon_style.h"
 #include "astra/dungeon/fixtures.h"
 #include "astra/dungeon/level_context.h"
+#include "astra/game.h"
 #include "astra/tilemap.h"
+#include "astra/world_manager.h"
 
 #include <algorithm>
 #include <random>
@@ -115,6 +117,32 @@ void resolve_sealed_stairs_down(
     map.add_puzzle(std::move(ps));
 }
 
+void unlock_sealed_stairs_down(astra::Game& game, PuzzleState& ps) {
+    auto& map = game.world().map();
+
+    // 1. Unseal the doorway tiles.
+    for (const auto& [x, y] : ps.sealed_tiles) {
+        map.set(x, y, Tile::Floor);
+    }
+
+    // 2. Swap the stairs fixture from StairsDown to StairsDownPrecursor.
+    const auto [sx, sy] = ps.stairs_pos;
+    if (sx >= 0 && sy >= 0) {
+        int fid = map.fixture_id(sx, sy);
+        if (fid >= 0) {
+            map.remove_fixture(sx, sy);
+        }
+        FixtureData stairs = make_fixture(FixtureType::StairsDownPrecursor);
+        map.add_fixture(sx, sy, std::move(stairs));
+    }
+
+    // 3. Flavor log.
+    game.log("You hear a faint rumbling in the distance, rock scraping against rock. "
+             "With a sudden thud it stops, the floor shakes slightly.");
+
+    ps.solved = true;
+}
+
 }  // anonymous namespace
 
 void apply_puzzles(astra::TileMap& map, const DungeonStyle& style,
@@ -128,6 +156,19 @@ void apply_puzzles(astra::TileMap& map, const DungeonStyle& style,
                 resolve_sealed_stairs_down(map, ctx, rng, id);
                 break;
         }
+    }
+}
+
+void on_button_pressed(astra::Game& game, uint16_t puzzle_id) {
+    if (puzzle_id == 0) return;
+    auto& map = game.world().map();
+    auto* ps = map.find_puzzle_by_id(puzzle_id);
+    if (!ps || ps->solved) return;
+
+    switch (ps->kind) {
+        case PuzzleKind::SealedStairsDown:
+            unlock_sealed_stairs_down(game, *ps);
+            break;
     }
 }
 
