@@ -24,6 +24,7 @@
 #include <array>
 #include <cstdlib>
 #include <ctime>
+#include <fstream>
 
 namespace astra {
 
@@ -637,6 +638,99 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
     recompute_fov();
     compute_camera();
     check_region_change();
+}
+
+std::string Game::dev_command_dumpmap(const std::string& path_in) {
+    const TileMap& m = world_.map();
+    const int w = m.width();
+    const int h = m.height();
+
+    std::string path = path_in;
+    if (path.empty()) path = "/tmp/astra_map.txt";
+
+    std::ofstream out(path);
+    if (!out) return {};
+
+    out << "=== astra dumpmap ===\n";
+    out << "size: " << w << "x" << h << "\n";
+    out << "regions: " << m.region_count() << "\n";
+    out << "fixtures: " << m.fixture_count() << "\n";
+    out << "\n--- tiles (glyph view; fixtures overlay) ---\n";
+
+    auto tile_glyph = [](Tile t) -> char {
+        switch (t) {
+            case Tile::Floor:          return '.';
+            case Tile::Wall:           return '#';
+            case Tile::StructuralWall: return 'H';
+            case Tile::Water:          return '~';
+            case Tile::Ice:            return 'i';
+            case Tile::Portal:         return 'O';
+            case Tile::Empty:          return ' ';
+            default:                   return '?';
+        }
+    };
+
+    auto fix_glyph = [](FixtureType ft) -> char {
+        switch (ft) {
+            case FixtureType::StairsUp:         return '<';
+            case FixtureType::StairsDown:       return '>';
+            case FixtureType::DungeonHatch:     return 'v';
+            case FixtureType::Plinth:           return 'T';
+            case FixtureType::Altar:            return 'A';
+            case FixtureType::Inscription:      return 'i';
+            case FixtureType::Pillar:           return 'I';
+            case FixtureType::Brazier:          return '*';
+            case FixtureType::ResonancePillar:  return '%';
+            case FixtureType::QuestFixture:     return 'Q';
+            case FixtureType::Door:             return '+';
+            default:                            return 'F';  // generic fixture
+        }
+    };
+
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int fid = m.fixture_id(x, y);
+            if (fid >= 0) {
+                out << fix_glyph(m.fixture(fid).type);
+            } else {
+                out << tile_glyph(m.get(x, y));
+            }
+        }
+        out << '\n';
+    }
+
+    out << "\n--- region ids ---\n";
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int rid = m.region_id(x, y);
+            if (rid < 0)      out << '.';
+            else if (rid < 10) out << static_cast<char>('0' + rid);
+            else if (rid < 36) out << static_cast<char>('a' + (rid - 10));
+            else              out << '+';
+        }
+        out << '\n';
+    }
+
+    out << "\n--- fixtures list ---\n";
+    for (int i = 0; i < m.fixture_count(); ++i) {
+        const auto& f = m.fixture(i);
+        // Find first tile owning this fixture id.
+        int fx = -1, fy = -1;
+        for (int y = 0; y < h && fx < 0; ++y) {
+            for (int x = 0; x < w && fx < 0; ++x) {
+                if (m.fixture_id(x, y) == i) { fx = x; fy = y; }
+            }
+        }
+        out << "  [" << i << "] type=" << static_cast<int>(f.type)
+            << " at (" << fx << "," << fy << ")"
+            << " passable=" << (f.passable ? 'y' : 'n')
+            << " interactable=" << (f.interactable ? 'y' : 'n');
+        if (!f.quest_fixture_id.empty()) out << " qid=\"" << f.quest_fixture_id << "\"";
+        out << '\n';
+    }
+
+    out.close();
+    return path;
 }
 
 void Game::new_game() {

@@ -170,6 +170,9 @@ public:
     void dev_command_dungen(dungeon::StyleId style_id,
                             const std::string& civ_name,
                             uint32_t seed);
+    // Dump the current map to a text file as ASCII for diagnostic inspection.
+    // Returns the path written to, or empty string on failure.
+    std::string dev_command_dumpmap(const std::string& path = "");
 
 private:
     // LocationKey moved to world_manager.h

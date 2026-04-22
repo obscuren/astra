@@ -377,6 +377,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
 
         log("generated dungeon: " + args[1] + " / " + civ_name);
     }
+    else if (verb == "dumpmap") {
+        std::string path = args.size() >= 2 ? args[1] : std::string{};
+        std::string written = game.dev_command_dumpmap(path);
+        if (written.empty()) log("dumpmap: failed to write file");
+        else                 log("dumpmap: wrote " + written);
+    }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
         Item item;
         if (args[2] == "engine") item = build_engine_coil_mk1();

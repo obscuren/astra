@@ -26,6 +26,13 @@ struct LevelContext {
     int                              sanctum_region_id = -1;       // terminal chamber
     std::vector<int>                 chapel_region_ids;            // symmetric side chapels
 
+    // Authored-layout stair placement hints. If set (>= 0), the stairs
+    // placer picks the open cell closest to these points — this constrains
+    // stairs to specific rooms even when the whole map is one connected
+    // component. Layouts that don't care leave them -1.
+    std::pair<int,int>               entry_pref        {-1, -1};
+    std::pair<int,int>               exit_pref         {-1, -1};
+
     // Layer 6.iii output: fixture-kind -> list of placed tile positions.
     std::unordered_map<int, std::vector<std::pair<int,int>>>
                                      placed_required_fixtures;
