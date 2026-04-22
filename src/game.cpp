@@ -578,16 +578,33 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
                               uint32_t seed) {
     animations_.clear();
 
-    // Build a scratch single-level recipe that routes through the new pipeline
-    // (kind_tag != "conclave_archive" so the legacy branch is not taken).
+    // Build a 3-level recipe and register it in the world so descend_stairs /
+    // ascend_stairs can traverse between levels. The last level is a boss
+    // level (no StairsDown) so the final floor is a dead-end.
     DungeonRecipe r;
     r.kind_tag    = "dev_dungen";
-    r.level_count = 1;
-    DungeonLevelSpec s;
-    s.style_id    = style_id;
-    s.civ_name    = civ_name;
-    s.decay_level = 1;
-    r.levels.push_back(s);
+    r.level_count = 3;
+    for (int d = 0; d < r.level_count; ++d) {
+        DungeonLevelSpec s;
+        s.style_id    = style_id;
+        s.civ_name    = civ_name;
+        s.decay_level = std::max(0, 3 - d);   // 3 at L1, 2 at L2, 0 at L3 (pristine)
+        s.enemy_tier  = d + 1;
+        s.is_boss_level = (d == r.level_count - 1);
+        r.levels.push_back(s);
+    }
+
+    // Register the recipe at the moon-root LocationKey so descend_stairs'
+    // fallback lookup finds it (moon_root uses ow_x = ow_y = -1).
+    auto& nav = world_.navigation();
+    LocationKey moon_root{
+        nav.current_system_id,
+        nav.current_body_index,
+        nav.current_moon_index,
+        nav.at_station,
+        -1, -1, 0
+    };
+    world_.dungeon_recipes()[moon_root] = r;
 
     auto props = default_properties(MapType::DerelictStation);
     world_.map() = TileMap(props.width, props.height, MapType::DerelictStation);
@@ -610,9 +627,7 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
         world_.map().find_open_spot(player_.x, player_.y);
     }
 
-    // Smoke-test hostiles. NPC spawning is caller-owned outside the pipeline
-    // (production uses spec.npc_roles in descend_stairs); this dev path seeds
-    // a small default squad so combat/FOV behaviour is exercisable.
+    // Smoke-test hostiles on L1.
     {
         std::mt19937 npc_rng(seed ^ 0x5A5Au);
         std::vector<std::pair<int,int>> occupied;
@@ -631,6 +646,11 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
             world_.npcs().push_back(std::move(n));
         }
     }
+
+    // Mark that we're on L1 of this dev dungeon so descend_stairs treats it
+    // as a real dungeon chain (otherwise descend would think we're at depth 0
+    // which expects a DungeonHatch entry rather than StairsDown).
+    nav.current_depth = 1;
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     world_.set_surface_mode(SurfaceMode::Dungeon);

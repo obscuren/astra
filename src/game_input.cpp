@@ -395,6 +395,17 @@ void Game::handle_play_input(int key) {
                 if (t == Tile::Portal) {
                     enter_dungeon_from_detail();
                 }
+            } else if (world_.surface_mode() == SurfaceMode::Dungeon) {
+                // Descend: player must be standing on StairsDown or DungeonHatch.
+                int fid = world_.map().fixture_id(player_.x, player_.y);
+                if (fid >= 0) {
+                    auto ft = world_.map().fixture(fid).type;
+                    if (ft == FixtureType::StairsDown || ft == FixtureType::DungeonHatch) {
+                        descend_stairs({player_.x, player_.y});
+                        break;
+                    }
+                }
+                log("There are no stairs down here.");
             }
             break;
         }
@@ -407,7 +418,19 @@ void Game::handle_play_input(int key) {
                 exit_detail_to_overworld();
             } else if (world_.surface_mode() == SurfaceMode::Dungeon &&
                        !world_.navigation().at_station && !world_.navigation().on_ship) {
-                exit_dungeon_to_detail();
+                // If standing on StairsUp at depth > 0, ascend within the
+                // dungeon; otherwise exit to the detail map.
+                int fid = world_.map().fixture_id(player_.x, player_.y);
+                bool on_stairs_up = false;
+                if (fid >= 0 &&
+                    world_.map().fixture(fid).type == FixtureType::StairsUp) {
+                    on_stairs_up = true;
+                }
+                if (on_stairs_up && world_.navigation().current_depth > 0) {
+                    ascend_stairs();
+                } else {
+                    exit_dungeon_to_detail();
+                }
             }
             break;
         }
