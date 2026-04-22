@@ -422,6 +422,29 @@ enum class FixtureType : uint8_t {
     QuestFixture,   // generic quest-driven interactable; visuals/prompt via quest_fixture.h registry
 };
 
+// Bitflags describing a fixture's affordances. Used for proximity queries
+// such as "is there a cooking source nearby?" without hard-coding fixture
+// types at each call site. Bit assignments are stable — reserved bits must
+// not be reused.
+enum class FixtureTag : uint64_t {
+    None          = 0,
+    CookingSource = 1ull << 0,  // cooking proximity (campfire, stove, kitchen)
+    HeatSource    = 1ull << 1,  // warmth (fires, braziers) — future heat gates
+    LightSource   = 1ull << 2,  // illumination (torch, lamp, holo light)
+};
+
+inline FixtureTag operator|(FixtureTag a, FixtureTag b) {
+    return static_cast<FixtureTag>(
+        static_cast<uint64_t>(a) | static_cast<uint64_t>(b));
+}
+inline FixtureTag operator&(FixtureTag a, FixtureTag b) {
+    return static_cast<FixtureTag>(
+        static_cast<uint64_t>(a) & static_cast<uint64_t>(b));
+}
+inline FixtureTag& operator|=(FixtureTag& a, FixtureTag b) {
+    a = a | b; return a;
+}
+
 struct FixtureData {
     FixtureType type = FixtureType::Table;
     bool passable = false;
@@ -434,11 +457,19 @@ struct FixtureData {
     bool blocks_vision = false; // passable but opaque (tall trees, large mushrooms)
     std::string quest_fixture_id;   // set only when type == FixtureType::QuestFixture
 
+    uint64_t tags = 0;   // bitmask of FixtureTag values
+
     // Puzzle framework (layer 7)
     uint16_t    puzzle_id         = 0;   // 0 = not linked to any puzzle
     std::string proximity_message;       // empty = no proximity trigger
     uint8_t     proximity_radius  = 0;   // 0 = disabled; Chebyshev distance from player
 };
+
+// Returns true if `fd` carries all bits set in `tag`.
+inline bool fixture_has_tag(const FixtureData& fd, FixtureTag tag) {
+    auto t = static_cast<uint64_t>(tag);
+    return t != 0 && (fd.tags & t) == t;
+}
 
 FixtureData make_fixture(FixtureType type);
 
