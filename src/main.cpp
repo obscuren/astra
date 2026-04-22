@@ -80,6 +80,7 @@ int dump_dungeon_headless(const std::string& style_name,
                 switch (ft) {
                     case astra::FixtureType::StairsUp:         c = '<'; break;
                     case astra::FixtureType::StairsDown:       c = '>'; break;
+                    case astra::FixtureType::StairsDownPrecursor: c = '>'; break;
                     case astra::FixtureType::Plinth:           c = 'T'; break;
                     case astra::FixtureType::Altar:            c = 'A'; break;
                     case astra::FixtureType::Inscription:      c = 'i'; break;

@@ -51,7 +51,8 @@ std::pair<int, int> find_stairs_down(const TileMap& m) {
         for (int x = 0; x < w; ++x) {
             int fid = ids[y * w + x];
             if (fid < 0) continue;
-            if (m.fixture(fid).type == FixtureType::StairsDown) {
+            if (m.fixture(fid).type == FixtureType::StairsDown ||
+                m.fixture(fid).type == FixtureType::StairsDownPrecursor) {
                 return {x, y};
             }
         }

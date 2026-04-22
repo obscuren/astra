@@ -630,6 +630,8 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             vis = {'<', "\xe2\x96\xb2", Color::White, Color::Default}; break;           // ▲
         case FixtureType::StairsDown:
             vis = {'>', "\xe2\x96\xbc", Color::White, Color::Default}; break;           // ▼
+        case FixtureType::StairsDownPrecursor:
+            vis = {'>', "\xe2\x96\xbc", Color::BrightMagenta, Color::Default}; break;   // ▼ violet
         case FixtureType::NaturalObstacle: {
             switch (biome) {
                 case Biome::Grassland: {
@@ -1809,6 +1811,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::DungeonHatch:    return 'v';
         case FixtureType::StairsUp:        return '<';
         case FixtureType::StairsDown:      return '>';
+        case FixtureType::StairsDownPrecursor: return '>';
         case FixtureType::NaturalObstacle: return 'o';
         case FixtureType::ShoreDebris:     return '.';
         case FixtureType::SettlementProp:  return '*';

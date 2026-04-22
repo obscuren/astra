@@ -931,6 +931,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 switch (f.type) {
                     case FixtureType::StairsUp:     tname = "stairs_up";     break;
                     case FixtureType::StairsDown:   tname = "stairs_down";   break;
+                    case FixtureType::StairsDownPrecursor: tname = "stairs_down_precursor"; break;
                     case FixtureType::DungeonHatch: tname = "hatch";         break;
                     case FixtureType::QuestFixture: tname = "quest_fixture"; break;
                     default: break;
@@ -1004,6 +1005,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         FixtureType ft_target = FixtureType::Table;
         bool use_type = true;
         if      (fid == "stairs_down") ft_target = FixtureType::StairsDown;
+        else if (fid == "stairs_down_precursor") ft_target = FixtureType::StairsDownPrecursor;
         else if (fid == "stairs_up")   ft_target = FixtureType::StairsUp;
         else if (fid == "hatch")       ft_target = FixtureType::DungeonHatch;
         else use_type = false;

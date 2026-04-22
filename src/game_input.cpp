@@ -400,7 +400,7 @@ void Game::handle_play_input(int key) {
                 int fid = world_.map().fixture_id(player_.x, player_.y);
                 if (fid >= 0) {
                     auto ft = world_.map().fixture(fid).type;
-                    if (ft == FixtureType::StairsDown || ft == FixtureType::DungeonHatch) {
+                    if (ft == FixtureType::StairsDown || ft == FixtureType::StairsDownPrecursor || ft == FixtureType::DungeonHatch) {
                         descend_stairs({player_.x, player_.y});
                         break;
                     }

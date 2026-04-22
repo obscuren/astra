@@ -386,6 +386,7 @@ enum class FixtureType : uint8_t {
     DungeonHatch,   // 'v'  — floor hatch leading to dungeon below
     StairsUp,       // '<'  — exit dungeon / return to previous location
     StairsDown,     // '>'  — descend to deeper level within a dungeon
+    StairsDownPrecursor, // '>'  — descend, Nova violet — post-unlock Precursor variant
 
     NaturalObstacle,    // impassable natural feature — renderer resolves from biome + seed
     ShoreDebris,        // passable shore material (sand, rocks, dirt) — renderer resolves from biome

@@ -699,6 +699,7 @@ std::string Game::dev_command_dumpmap(const std::string& path_in) {
         switch (ft) {
             case FixtureType::StairsUp:         return '<';
             case FixtureType::StairsDown:       return '>';
+            case FixtureType::StairsDownPrecursor: return '>';
             case FixtureType::DungeonHatch:     return 'v';
             case FixtureType::Plinth:           return 'T';
             case FixtureType::Altar:            return 'A';

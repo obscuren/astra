@@ -299,6 +299,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::Pillar:          return "Pillar";
         case FixtureType::Brazier:         return "Brazier";
         case FixtureType::StairsDown:      return "Stairs Down";
+        case FixtureType::StairsDownPrecursor: return "Stairs Down (Precursor)";
         case FixtureType::TerminalCornerTop:
         case FixtureType::TerminalSide:
         case FixtureType::TerminalCornerBot:

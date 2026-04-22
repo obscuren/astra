@@ -423,7 +423,8 @@ void DialogManager::interact_fixture(int fid, Game& game) {
             }
             break;
         }
-        case FixtureType::StairsDown: {
+        case FixtureType::StairsDown:
+        case FixtureType::StairsDownPrecursor: {
             auto xy = fixture_xy_by_id(game.world().map(), fid);
             game.descend_stairs(xy);
             break;

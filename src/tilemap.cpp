@@ -443,6 +443,11 @@ FixtureData make_fixture(FixtureType type) {
             fd.passable = true; fd.interactable = true; break;
         case FixtureType::StairsDown:
             fd.passable = true; fd.interactable = true; break;
+        case FixtureType::StairsDownPrecursor:
+            fd.passable = true; fd.interactable = true;
+            fd.proximity_message = "The stairs pulse faintly with a familiar violet light. Not Conclave work.";
+            fd.proximity_radius = 4;
+            break;
         case FixtureType::NaturalObstacle:
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::ShoreDebris:
