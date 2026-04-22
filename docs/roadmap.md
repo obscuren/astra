@@ -95,7 +95,8 @@
 - [ ] **Archaeology skill effects** — Excavation active ability, Precursor Linguist sealed doors, Beacon Sense on star chart, Cultural Attunement stat bonuses
 - [ ] **Civilization-themed dungeon aesthetics** — tile palette, fixture types, room flavors per precursor civilization
 - [ ] **Archaeological strata** — deeper dungeon levels = older civilization layers
-- [x] Layered dungeon generator pipeline (6 layers: backdrop, layout, connectivity, overlay, decoration, fixtures) — Conclave Archive migration pending in follow-up slice
+- [x] Layered dungeon generator pipeline (6 layers: backdrop, layout, connectivity, overlay, decoration, fixtures)
+- [x] **Archive Dungeon Migration** — `StyleId::PrecursorRuin` + `LayoutKind::PrecursorVault` (per-depth authored topologies: L1 fractured outer ruin, L2 nave+chapels, L3 antechamber→approach→vault); pipeline layer 6.iii style-required fixtures (Plinth/Altar/Inscription/Pillar/ResonancePillar/Brazier × SanctumCenter/ChapelCenter/EachRoomOnce/WallAttached/FlankPair); `precursor_vault` decoration pack; `required_plinth` quest-fixture hint. `old_impl::` legacy body deleted; `SAVE_FILE_VERSION` bumped 38→39 with no backcompat (2026-04-22)
 - [ ] New dungeon generator types / biomes
 - [x] **Outpost POI** — fenced fort with main building, exterior tents, campfires, biome-themed palisade
 - [ ] **Outpost dungeon portal** — rare (~20%) chance of a dungeon entrance beneath an outpost
