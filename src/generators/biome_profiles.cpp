@@ -277,6 +277,7 @@ const BiomeProfile& biome_profile(Biome b) {
         case Biome::ScarredScorched:   return scarred_scorched;
         case Biome::ScarredGlassed:    return scarred_glassed;
         case Biome::Station:           return station;
+        case Biome::Dungeon:           return station; // underground — no surface profile needed
     }
     return station; // unreachable fallback
 }

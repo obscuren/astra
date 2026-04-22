@@ -32,6 +32,7 @@ struct CivConfig {
     int color_primary   = 250;   // main wall color
     int color_secondary = 245;   // accent/highlight color
     int color_tint      = 245;   // ruin tint for custom_flags_
+    int backdrop_tint   = 237;   // color for Biome::Dungeon block-char fill
 
     // Architectural tendencies
     float wall_thickness_bias = 1.0f;  // multiplier on base thickness (>1 = thicker)

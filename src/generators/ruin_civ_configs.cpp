@@ -100,6 +100,24 @@ CivConfig civ_config_industrial() {
     return c;
 }
 
+CivConfig civ_config_natural() {
+    CivConfig c;
+    c.name = "Natural";
+    c.civ_index = CIV_MONOLITHIC;  // no dedicated renderer slot yet
+    c.wall_glyphs = {"\xe2\x96\x93"};   // ▓ dark shade — natural stone
+    c.accent_glyphs = {"\xe2\x96\x92"}; // ▒ medium shade
+    c.color_primary = 240;
+    c.color_secondary = 244;
+    c.color_tint = 240;
+    c.backdrop_tint = 237;
+    c.wall_thickness_bias = 1.0f;
+    c.max_wall_thickness = 3;
+    c.split_regularity = 0.15f;
+    c.preferred_rooms = {};
+    c.architecture = Architecture::Geometric;
+    return c;
+}
+
 CivConfig civ_config_for_architecture(Architecture arch) {
     switch (arch) {
         case Architecture::Geometric:   return civ_config_monolithic();
@@ -117,6 +135,7 @@ CivConfig civ_config_by_name(const std::string& name) {
     if (name == "crystal")    return civ_config_crystal();
     if (name == "industrial") return civ_config_industrial();
     if (name == "Precursor")  return civ_config_precursor();
+    if (name == "Natural")    return civ_config_natural();
     return civ_config_monolithic();  // default
 }
 

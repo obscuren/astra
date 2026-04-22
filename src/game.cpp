@@ -1,5 +1,7 @@
 #include "astra/game.h"
 #include "astra/boot_sequence.h"
+#include "astra/dungeon_level_generator.h"
+#include "astra/dungeon_recipe.h"
 #include "astra/scenarios.h"
 #include "astra/faction.h"
 #include "astra/faction_territory.h"
@@ -567,6 +569,73 @@ void Game::dev_command_biome_test(Biome biome, int layer,
     world_.current_region() = -1;
     world_.set_surface_mode(SurfaceMode::Dungeon);
 
+    check_region_change();
+}
+
+void Game::dev_command_dungen(dungeon::StyleId style_id,
+                              const std::string& civ_name,
+                              uint32_t seed) {
+    animations_.clear();
+
+    // Build a scratch single-level recipe that routes through the new pipeline
+    // (kind_tag != "conclave_archive" so the legacy branch is not taken).
+    DungeonRecipe r;
+    r.kind_tag    = "dev_dungen";
+    r.level_count = 1;
+    DungeonLevelSpec s;
+    s.style_id    = style_id;
+    s.civ_name    = civ_name;
+    s.decay_level = 1;
+    r.levels.push_back(s);
+
+    auto props = default_properties(MapType::DerelictStation);
+    world_.map() = TileMap(props.width, props.height, MapType::DerelictStation);
+
+    generate_dungeon_level(world_.map(), r, 1, seed, {-1, -1});
+
+    const auto& sc = dungeon::style_config(style_id);
+    world_.map().set_location_name(
+        std::string("[DEV] dungen: ") + sc.debug_name + " / " + civ_name);
+
+    world_.npcs().clear();
+    world_.ground_items().clear();
+
+    // Place player at StairsUp; fall back to any open spot.
+    auto up_pos = find_stairs_up(world_.map());
+    if (up_pos.first >= 0) {
+        player_.x = up_pos.first;
+        player_.y = up_pos.second;
+    } else {
+        world_.map().find_open_spot(player_.x, player_.y);
+    }
+
+    // Smoke-test hostiles. NPC spawning is caller-owned outside the pipeline
+    // (production uses spec.npc_roles in descend_stairs); this dev path seeds
+    // a small default squad so combat/FOV behaviour is exercisable.
+    {
+        std::mt19937 npc_rng(seed ^ 0x5A5Au);
+        std::vector<std::pair<int,int>> occupied;
+        const int avoid_x = player_.x;
+        const int avoid_y = player_.y;
+        for (int i = 0; i < 4; ++i) {
+            int nx = 0, ny = 0;
+            if (!world_.map().find_open_spot_far_from(
+                    avoid_x, avoid_y, /*min_dist*/ 6,
+                    nx, ny, occupied, &npc_rng))
+                break;
+            Npc n = create_npc_by_role("rust_hound", npc_rng);
+            n.x = nx;
+            n.y = ny;
+            occupied.push_back({nx, ny});
+            world_.npcs().push_back(std::move(n));
+        }
+    }
+
+    world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    world_.current_region() = -1;
+    recompute_fov();
+    compute_camera();
     check_region_change();
 }
 

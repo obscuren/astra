@@ -539,3 +539,20 @@ keeper_seed = splitmix(station_seed ^ 0xC3)
 ```
 
 THA (Sol, id=1) is hardcoded NormalHub + Generic with is_tha=true.
+
+## Dungeon Generation
+
+### Dungeon layer sub-seeding
+
+Each layer of the dungeon generator pipeline derives its own
+`std::mt19937` from the level seed:
+
+    backdrop     = seed ^ 0xBDBDBDBD
+    layout       = seed ^ 0x1A1A1A1A
+    connectivity = seed ^ 0xC0FFEE00
+    overlays     = seed ^ 0x0FEB0FEB
+    decoration   = seed ^ 0xDEC02011
+    fixtures     = seed ^ 0xF12F12F1
+
+This prevents adding or removing an overlay from reshuffling
+decoration or fixture placement.

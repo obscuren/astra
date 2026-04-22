@@ -2,6 +2,7 @@
 #include "astra/animation.h"
 #include "astra/biome_profile.h"
 #include "astra/body_presets.h"
+#include "astra/dungeon/dungeon_style.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
@@ -13,6 +14,7 @@
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
 
+#include <ctime>
 #include <sstream>
 
 namespace astra {
@@ -178,6 +180,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("    outpost: fenced fort with main building, tents, campfires");
         log("    ship: crashed wreck; class optional (auto = lore-weighted)");
         log("    cave: dungeon entrance; variant optional (natural/mine/excavation)");
+        log("  dungen <style> [civ] - generate a pipeline dungeon (style: simple_rooms)");
         log("  editor             - open map editor");
         log("  clear              - clear console");
     }
@@ -354,6 +357,25 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             if (!poi_style.empty()) msg += " (" + poi_style + ")";
         }
         log(msg);
+    }
+    else if (verb == "dungen") {
+        if (args.size() < 2) {
+            log("usage: dungen <style_id> [civ_name]");
+            log("  styles: simple_rooms");
+            return;
+        }
+
+        dungeon::StyleId sid;
+        if (!dungeon::parse_style_id(args[1], sid)) {
+            log("unknown style: " + args[1]);
+            return;
+        }
+        const std::string civ_name = args.size() >= 3 ? args[2] : "Natural";
+
+        uint32_t seed = static_cast<uint32_t>(std::time(nullptr));
+        game.dev_command_dungen(sid, civ_name, seed);
+
+        log("generated dungeon: " + args[1] + " / " + civ_name);
     }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
         Item item;

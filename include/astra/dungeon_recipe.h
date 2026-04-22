@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/dungeon/dungeon_style.h"   // StyleId, OverlayKind
 #include "astra/location_key.h"
 
 #include <string>
@@ -20,13 +21,15 @@ struct PlannedFixture {
 // Per-level configuration. The generator dispatches on civ_name into
 // civ_config_by_name (see ruin_civ_configs.cpp).
 struct DungeonLevelSpec {
-    std::string              civ_name    = "Precursor";
-    int                      decay_level = 2;   // 0..3, mirrors ruin_generator scale
-    int                      enemy_tier  = 1;   // 1..3 (informational)
-    std::vector<std::string> npc_roles;         // names resolved via create_npc_by_role
-    std::vector<PlannedFixture> fixtures;
-    bool is_side_branch = false;                // decoration only for this slice
-    bool is_boss_level  = false;                // suppresses StairsDown generation
+    dungeon::StyleId              style_id    = dungeon::StyleId::SimpleRoomsAndCorridors;
+    std::string                   civ_name    = "Precursor";
+    int                           decay_level = 2;   // 0..3, mirrors ruin_generator scale
+    int                           enemy_tier  = 1;   // 1..3 (informational)
+    std::vector<std::string>      npc_roles;          // names resolved via create_npc_by_role
+    std::vector<PlannedFixture>   fixtures;
+    std::vector<dungeon::OverlayKind> overlays;
+    bool is_side_branch = false;                      // decoration only for this slice
+    bool is_boss_level  = false;                      // suppresses StairsDown generation
 };
 
 // A registered multi-level dungeon. root is the top-level surface key
