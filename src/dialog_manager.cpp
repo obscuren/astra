@@ -1,6 +1,7 @@
 #include "astra/dialog_manager.h"
 #include "astra/character.h"
 #include "astra/display_name.h"
+#include "astra/dungeon/puzzles.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
 #include "astra/playback_viewer.h"
@@ -427,6 +428,11 @@ void DialogManager::interact_fixture(int fid, Game& game) {
         case FixtureType::StairsDownPrecursor: {
             auto xy = fixture_xy_by_id(game.world().map(), fid);
             game.descend_stairs(xy);
+            break;
+        }
+        case FixtureType::PrecursorButton: {
+            const auto& f = game.world().map().fixture(fid);
+            astra::dungeon::on_button_pressed(game, f.puzzle_id);
             break;
         }
         case FixtureType::DungeonHatch: {
