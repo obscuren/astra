@@ -50,6 +50,7 @@ void MapEditor::init_fixture_palette() {
         FixtureType::RestPod, FixtureType::ShipTerminal, FixtureType::CommandTerminal,
         FixtureType::DungeonHatch, FixtureType::StairsUp,
         FixtureType::NaturalObstacle, FixtureType::SettlementProp,
+        FixtureType::Campfire,
         FixtureType::PrecursorButton,
     };
     fixture_cursor_ = 0;
@@ -266,6 +267,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::ShoreDebris:    return "Shore Debris";
         case FixtureType::SettlementProp: return "Settlement Prop";
         case FixtureType::CampStove:      return "Camp Stove";
+        case FixtureType::Campfire:       return "Campfire";
         case FixtureType::Lamp:           return "Lamp";
         case FixtureType::HoloLight:      return "Holo Light";
         case FixtureType::Locker:         return "Locker";

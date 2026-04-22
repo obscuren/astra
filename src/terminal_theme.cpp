@@ -975,6 +975,10 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
         }
         case FixtureType::CampStove:
             vis = {'o', "\xe2\x97\x8b", Color::Red, Color::Default}; break;             // ○ red stove
+        case FixtureType::Campfire:
+            // Static fallback; animated palette is applied in map_renderer.cpp
+            // per (x, y, world_tick) so adjacent fires desync.
+            vis = {'^', nullptr, Color::Red, Color::Default}; break;
         case FixtureType::Kitchen:
             vis = {'o', "\xe2\x8a\x9e", Color::Red, Color::Default}; break;             // ⊞ kitchen stove
         case FixtureType::Lamp:
@@ -1816,6 +1820,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::ShoreDebris:     return '.';
         case FixtureType::SettlementProp:  return '*';
         case FixtureType::CampStove:       return 'o';
+        case FixtureType::Campfire:        return '^';
         case FixtureType::Kitchen:         return 'o';
         case FixtureType::Lamp:            return '*';
         case FixtureType::HoloLight:       return '*';

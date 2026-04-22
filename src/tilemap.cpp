@@ -461,6 +461,14 @@ FixtureData make_fixture(FixtureType type) {
             fd.tags = static_cast<uint64_t>(
                 FixtureTag::CookingSource | FixtureTag::HeatSource);
             break;
+        case FixtureType::Campfire:
+            fd.passable = false; fd.interactable = false;
+            fd.light_radius = 4;
+            fd.tags = static_cast<uint64_t>(
+                FixtureTag::CookingSource
+                | FixtureTag::HeatSource
+                | FixtureTag::LightSource);
+            break;
         case FixtureType::Kitchen:
             fd.passable = false; fd.interactable = true;
             fd.light_radius = 2;

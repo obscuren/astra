@@ -395,6 +395,7 @@ enum class FixtureType : uint8_t {
 
     // Settlement furniture (Phase 6)
     CampStove,          // 'o'  — frontier cooking
+    Campfire,           // '^'  — player-placed, animated fire; expires after campfire_lifetime_ticks
     Lamp,               // '*'  — frontier/advanced lighting
     HoloLight,          // '*'  — advanced lighting (blue tint)
     Locker,             // '='  — advanced storage
