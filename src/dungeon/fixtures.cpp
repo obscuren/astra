@@ -184,11 +184,7 @@ std::vector<std::pair<int,int>> flanking_cells_for(
 }
 
 void add_stair(TileMap& m, FixtureType ft, int x, int y) {
-    FixtureData f;
-    f.type = ft;
-    f.interactable = true;
-    f.cooldown = 0;
-    m.add_fixture(x, y, f);
+    m.add_fixture(x, y, make_fixture(ft));
 }
 
 // ---- Stairs strategies ----

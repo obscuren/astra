@@ -440,7 +440,9 @@ FixtureData make_fixture(FixtureType type) {
         case FixtureType::DungeonHatch:
             fd.passable = false; fd.interactable = true; break;
         case FixtureType::StairsUp:
-            fd.passable = false; fd.interactable = true; break;
+            fd.passable = true; fd.interactable = true; break;
+        case FixtureType::StairsDown:
+            fd.passable = true; fd.interactable = true; break;
         case FixtureType::NaturalObstacle:
             fd.passable = false; fd.interactable = false; break;
         case FixtureType::ShoreDebris:
