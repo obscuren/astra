@@ -14,7 +14,7 @@ Npc build_food_merchant(Race race, std::mt19937& rng, int faction_rep) {
     npc.max_hp = 12;
 
     npc.faction = Faction_KrethMiningGuild;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -57,7 +57,7 @@ Npc build_medic(Race race, std::mt19937& rng) {
     npc.max_hp = 10;
 
     npc.faction = Faction_StellariConclave;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -99,7 +99,7 @@ Npc build_commander(Race race, std::mt19937& rng, const StationContext& ctx) {
     npc.max_hp = 25;
 
     npc.faction = Faction_StellariConclave;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -194,7 +194,7 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
     npc.max_hp = 20;
 
     npc.faction = Faction_KrethMiningGuild;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -240,7 +240,7 @@ Npc build_astronomer(Race race, std::mt19937& rng) {
     npc.max_hp = 8;
 
     npc.faction = Faction_StellariConclave;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 
@@ -282,7 +282,7 @@ Npc build_engineer(Race race, std::mt19937& rng) {
     npc.max_hp = 15;
 
     npc.faction = Faction_StellariConclave;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 

@@ -13,7 +13,7 @@ Npc build_scav_keeper(Race race, std::mt19937& rng, const StationContext& ctx) {
     npc.hp       = 20;
     npc.max_hp   = 20;
     npc.faction  = "";  // Scav stations are unaligned
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = pick_scav_keeper_name(ctx.keeper_seed);
 

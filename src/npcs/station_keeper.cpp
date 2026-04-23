@@ -25,7 +25,7 @@ Npc build_station_keeper(Race race, std::mt19937& rng, const StationContext& ctx
     npc.hp = 20;
     npc.max_hp = 20;
     npc.faction = Faction_StellariConclave;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 

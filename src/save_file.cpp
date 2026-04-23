@@ -1395,7 +1395,7 @@ static Npc read_npc(BinaryReader& r) {
     npc.max_hp = r.read_i32();
     npc.faction = r.read_string();
     { bool was_invulnerable = r.read_u8() != 0;
-      if (was_invulnerable) add_effect(npc.effects, make_invulnerable()); }
+      if (was_invulnerable) add_effect(npc.effects, make_invulnerable_ge()); }
     npc.quickness = r.read_i32();
     npc.energy = r.read_i32();
     npc.level = r.read_i32();

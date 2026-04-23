@@ -405,9 +405,9 @@ bool CharacterScreen::handle_input(int key) {
                             player_->skill_points -= sk.sp_cost;
                             player_->learned_skills.push_back(sk.id);
                             if (sk.id == SkillId::Haggle)
-                                add_effect(player_->effects, make_haggle());
+                                add_effect(player_->effects, make_haggle_ge());
                             if (sk.id == SkillId::ThickSkin)
-                                add_effect(player_->effects, make_thick_skin());
+                                add_effect(player_->effects, make_thick_skin_ge());
                             context_message_ = "Learned " + sk.name + "!";
                             context_msg_timer_ = 3;
                         }

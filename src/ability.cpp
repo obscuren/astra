@@ -141,7 +141,7 @@ public:
     bool execute(Game& game, Npc* target) override {
         int duration = 3 + (game.player().attributes.willpower - 10) / 2;
         if (duration < 2) duration = 2;
-        add_effect(target->effects, make_flee(duration));
+        add_effect(target->effects, make_flee_ge(duration));
         game.log("You intimidate " + display_name(*target) + "!");
         game.log(display_name(*target) + " flees in fear! (" +
                  std::to_string(duration) + " ticks)");

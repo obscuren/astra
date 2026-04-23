@@ -921,7 +921,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             if (has_effect(game.player().effects, EffectId::Invulnerable))
                 remove_effect(game.player().effects, EffectId::Invulnerable);
             else
-                add_effect(game.player().effects, make_invulnerable());
+                add_effect(game.player().effects, make_invulnerable_ge());
             bool inv = has_effect(game.player().effects, EffectId::Invulnerable);
             game.log(std::string("[DEV] Invulnerability: ") + (inv ? "ON" : "OFF"));
             // Re-open the menu with updated label

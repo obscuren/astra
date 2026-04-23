@@ -2189,7 +2189,7 @@ void Game::advance_world(int cost) {
             }
         }
         if (near_fire) {
-            add_effect(player_.effects, make_cozy());
+            add_effect(player_.effects, make_cozy_ge());
         }
     }
 

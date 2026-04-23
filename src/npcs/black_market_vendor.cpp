@@ -15,7 +15,7 @@ Npc build_black_market_vendor(const StationContext& ctx) {
     npc.hp       = 15;
     npc.max_hp   = 15;
     npc.faction  = "";  // Neutral — operates on both sides of the law
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
 
     // Seed merchant stock from keeper_seed for determinism.

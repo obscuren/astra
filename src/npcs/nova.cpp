@@ -12,7 +12,7 @@ Npc build_nova() {
     npc.role = "Stellar Engineer";
     npc.hp = 100;
     npc.max_hp = 100;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
 
     // --- Talk: cheeky, warm, knows things ---

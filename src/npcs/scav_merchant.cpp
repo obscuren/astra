@@ -12,7 +12,7 @@ Npc build_scav_junk_dealer(Race race, std::mt19937& rng) {
     npc.hp       = 15;
     npc.max_hp   = 15;
     npc.faction  = "";  // Unaligned
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     // Task 13 will roll a real name.
     npc.name = "Junk Dealer";

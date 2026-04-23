@@ -466,7 +466,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 remove_effect(player.effects, EffectId::Invulnerable);
                 log("Invulnerability OFF");
             } else {
-                add_effect(player.effects, make_invulnerable());
+                add_effect(player.effects, make_invulnerable_ge());
                 log("Invulnerability ON");
             }
         } else if (args[1] == "level" && args.size() >= 3) {
@@ -489,15 +489,15 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("All effects cleared.");
         } else if (args[1] == "burn") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
-            add_effect(player.effects, make_burn(dur, 1));
+            add_effect(player.effects, make_burn_ge(dur, 1));
             log("Burn applied for " + std::to_string(dur) + " ticks.");
         } else if (args[1] == "regen") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
-            add_effect(player.effects, make_regen(dur, 1));
+            add_effect(player.effects, make_regen_ge(dur, 1));
             log("Regen applied for " + std::to_string(dur) + " ticks.");
         } else if (args[1] == "poison") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
-            add_effect(player.effects, make_poison(dur, 1));
+            add_effect(player.effects, make_poison_ge(dur, 1));
             log("Poison applied for " + std::to_string(dur) + " ticks.");
         } else {
             log("Unknown effect: " + args[1]);

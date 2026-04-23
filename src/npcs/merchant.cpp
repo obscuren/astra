@@ -12,7 +12,7 @@ Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
     npc.hp = 15;
     npc.max_hp = 15;
     npc.faction = Faction_KrethMiningGuild;
-    add_effect(npc.effects, make_invulnerable());
+    add_effect(npc.effects, make_invulnerable_ge());
     npc.quickness = 0;
     npc.name = generate_name(race, rng);
 

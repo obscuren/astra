@@ -86,16 +86,16 @@ int effect_sell_price_pct(const EffectList& effects);
 int apply_damage_effects(const EffectList& effects, int raw_damage);
 
 // Factories
-Effect make_invulnerable(int duration = -1);
-Effect make_burn(int duration, int damage_per_tick);
-Effect make_poison(int duration, int damage_per_tick);
-Effect make_regen(int duration, int heal_per_tick);
-Effect make_dodge_boost(int duration, int amount);
-Effect make_attack_boost(int duration, int amount);
-Effect make_defense_boost(int duration, int amount);
-Effect make_haggle();
-Effect make_thick_skin();
-Effect make_flee(int duration);
-Effect make_cozy();
+Effect make_invulnerable_ge(int duration = -1);
+Effect make_burn_ge(int duration, int damage_per_tick);
+Effect make_poison_ge(int duration, int damage_per_tick);
+Effect make_regen_ge(int duration, int heal_per_tick);
+Effect make_dodge_boost_ge(int duration, int amount);
+Effect make_attack_boost_ge(int duration, int amount);
+Effect make_defense_boost_ge(int duration, int amount);
+Effect make_haggle_ge();
+Effect make_thick_skin_ge();
+Effect make_flee_ge(int duration);
+Effect make_cozy_ge();
 
 } // namespace astra

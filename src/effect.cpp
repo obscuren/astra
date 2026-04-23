@@ -99,7 +99,7 @@ int apply_damage_effects(const EffectList& effects, int raw_damage) {
 
 // ── Factories ───────────────────────────────────────────────────────
 
-Effect make_invulnerable(int duration) {
+Effect make_invulnerable_ge(int duration) {
     Effect e;
     e.id = EffectId::Invulnerable;
     e.name = "Invulnerable";
@@ -111,7 +111,7 @@ Effect make_invulnerable(int duration) {
     return e;
 }
 
-Effect make_burn(int duration, int damage_per_tick) {
+Effect make_burn_ge(int duration, int damage_per_tick) {
     Effect e;
     e.id = EffectId::Burn;
     e.name = "Burning";
@@ -123,7 +123,7 @@ Effect make_burn(int duration, int damage_per_tick) {
     return e;
 }
 
-Effect make_poison(int duration, int damage_per_tick) {
+Effect make_poison_ge(int duration, int damage_per_tick) {
     Effect e;
     e.id = EffectId::Poison;
     e.name = "Poisoned";
@@ -135,7 +135,7 @@ Effect make_poison(int duration, int damage_per_tick) {
     return e;
 }
 
-Effect make_regen(int duration, int heal_per_tick) {
+Effect make_regen_ge(int duration, int heal_per_tick) {
     Effect e;
     e.id = EffectId::Regen;
     e.name = "Regen";
@@ -147,7 +147,7 @@ Effect make_regen(int duration, int heal_per_tick) {
     return e;
 }
 
-Effect make_dodge_boost(int duration, int amount) {
+Effect make_dodge_boost_ge(int duration, int amount) {
     Effect e;
     e.id = EffectId::DodgeBoost;
     e.name = "Evasion";
@@ -159,7 +159,7 @@ Effect make_dodge_boost(int duration, int amount) {
     return e;
 }
 
-Effect make_attack_boost(int duration, int amount) {
+Effect make_attack_boost_ge(int duration, int amount) {
     Effect e;
     e.id = EffectId::AttackBoost;
     e.name = "Empowered";
@@ -171,7 +171,7 @@ Effect make_attack_boost(int duration, int amount) {
     return e;
 }
 
-Effect make_defense_boost(int duration, int amount) {
+Effect make_defense_boost_ge(int duration, int amount) {
     Effect e;
     e.id = EffectId::DefenseBoost;
     e.name = "Fortified";
@@ -183,7 +183,7 @@ Effect make_defense_boost(int duration, int amount) {
     return e;
 }
 
-Effect make_haggle() {
+Effect make_haggle_ge() {
     Effect e;
     e.id = EffectId::Haggle;
     e.name = "Haggle";
@@ -196,7 +196,7 @@ Effect make_haggle() {
     return e;
 }
 
-Effect make_thick_skin() {
+Effect make_thick_skin_ge() {
     Effect e;
     e.id = EffectId::ThickSkin;
     e.name = "Thick Skin";
@@ -208,7 +208,7 @@ Effect make_thick_skin() {
     return e;
 }
 
-Effect make_flee(int duration) {
+Effect make_flee_ge(int duration) {
     Effect e;
     e.id = EffectId::Flee;
     e.name = "Fleeing";
@@ -219,7 +219,7 @@ Effect make_flee(int duration) {
     return e;
 }
 
-Effect make_cozy() {
+Effect make_cozy_ge() {
     Effect e;
     e.id = EffectId::Cozy;
     e.name = "Cozy";
