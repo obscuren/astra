@@ -939,6 +939,10 @@ void Game::render_play() {
     render_map({renderer_.get(), map_rect_, world_, player_, combat_, input_,
                 camera_x_, camera_y_, &animations_, &quest_manager_});
 
+    telegraph_.render(renderer_.get(), camera_x_, camera_y_,
+                      map_rect_.w, map_rect_.h,
+                      map_rect_.x, map_rect_.y);
+
     if (panel_visible_) {
         render_side_panel();
     }

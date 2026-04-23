@@ -27,6 +27,7 @@
 #include "astra/repair_bench.h"
 #include "astra/world_manager.h"
 #include "astra/star_chart_viewer.h"
+#include "astra/telegraph.h"
 #include "astra/trade_window.h"
 #include "astra/tile_props.h"
 #include "astra/time_of_day.h"
@@ -91,6 +92,7 @@ public:
     Player& player() { return player_; }
     std::vector<Npc>& npcs() { return world_.npcs(); }
     WorldManager& world() { return world_; }
+    const WorldManager& world() const { return world_; }
     Renderer* renderer() { return renderer_.get(); }
     TradeWindow& trade_window() { return trade_window_; }
     StarChartViewer& star_chart_viewer() { return star_chart_viewer_; }
@@ -136,6 +138,8 @@ public:
     void set_lost(bool v, int moves = 0) { lost_ = v; lost_moves_ = moves; }
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
+    Telegraph& telegraph() { return telegraph_; }
+    void refresh_view() { recompute_fov(); compute_camera(); }
     QuestManager& quests() { return quest_manager_; }
     AnimationManager& animations() { return animations_; }
     EventBus& event_bus() { return event_bus_; }
@@ -298,6 +302,7 @@ private:
     CharacterScreen character_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
+    Telegraph telegraph_;
     QuestManager quest_manager_;
     RepairBench repair_bench_;
     AnimationManager animations_;

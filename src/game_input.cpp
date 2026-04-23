@@ -218,6 +218,14 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Telegraph mode intercept — consumes every key while active,
+    // mirroring the combat-targeting pattern below so players can't
+    // accidentally trigger other actions mid-telegraph.
+    if (telegraph_.active()) {
+        telegraph_.handle_input(key, *this);
+        return;
+    }
+
     // Targeting mode intercept
     if (combat_.targeting()) {
         combat_.handle_targeting_input(key, *this);
