@@ -2154,13 +2154,13 @@ void Game::advance_world(int cost) {
     // effect tick/expire so duration=1 auras are cleanly refreshed here.
     aura_system_.tick(*this);
 
-    // ── Camp Making: expire time-limited fixtures, apply Cozy aura ──
+    // ── Camp Making: expire time-limited fixtures ──
     {
         auto& map = world_.map();
         const int tick = world_.world_tick();
 
-        // 1) Sweep the current map for expired time-limited fixtures.
-        //    Currently only FixtureType::Campfire uses spawn_tick.
+        // Sweep the current map for expired time-limited fixtures.
+        // Currently only FixtureType::Campfire uses spawn_tick.
         for (int y = 0; y < map.height(); ++y) {
             for (int x = 0; x < map.width(); ++x) {
                 int fid = map.fixture_id(x, y);
@@ -2171,29 +2171,6 @@ void Game::advance_world(int cost) {
                     map.remove_fixture(x, y);
                 }
             }
-        }
-
-        // 2) Proximity scan — if the player stands within cozy_radius
-        //    (Chebyshev) of any Campfire, (re-)apply Cozy with duration 1.
-        //    The effect naturally expires on the next tick if the player
-        //    steps out of range.
-        const int px = player_.x, py = player_.y;
-        bool near_fire = false;
-        const int y0 = std::max(0, py - world::cozy_radius);
-        const int y1 = std::min(map.height() - 1, py + world::cozy_radius);
-        const int x0 = std::max(0, px - world::cozy_radius);
-        const int x1 = std::min(map.width() - 1, px + world::cozy_radius);
-        for (int y = y0; y <= y1 && !near_fire; ++y) {
-            for (int x = x0; x <= x1 && !near_fire; ++x) {
-                int fid = map.fixture_id(x, y);
-                if (fid < 0) continue;
-                if (map.fixture(fid).type == FixtureType::Campfire) {
-                    near_fire = true;
-                }
-            }
-        }
-        if (near_fire) {
-            add_effect(player_.effects, make_cozy_ge());
         }
     }
 

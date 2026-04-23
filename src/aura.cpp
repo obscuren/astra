@@ -1,8 +1,10 @@
 #include "astra/aura.h"
 
+#include "astra/effect.h"
 #include "astra/item.h"
 #include "astra/npc.h"
 #include "astra/player.h"
+#include "astra/world_constants.h"
 
 #include <algorithm>
 
@@ -24,9 +26,22 @@ static const std::vector<std::pair<FixtureTag, Aura>>& tag_auras() {
 // emits something its tag class shouldn't universally emit (Cozy is
 // campfire-only, not HeatSource-wide).
 static const std::vector<std::pair<FixtureType, std::vector<Aura>>>& type_auras() {
-    static const std::vector<std::pair<FixtureType, std::vector<Aura>>> table = {
-        // populated by later tasks
-    };
+    static const std::vector<std::pair<FixtureType, std::vector<Aura>>> table = [] {
+        std::vector<std::pair<FixtureType, std::vector<Aura>>> t;
+
+        // Campfire → Cozy. Deliberately fixture-type specific (not
+        // HeatSource-wide): only the player's own campfires grant Cozy,
+        // not every heat source in the game world.
+        Aura cozy;
+        cozy.template_effect = make_cozy_ge();   // duration=1 baked in
+        cozy.radius          = astra::world::cozy_radius;
+        cozy.target_mask     = AuraTarget::Player;
+        cozy.source          = AuraSource::Fixture;
+        cozy.source_id       = 0;
+        t.push_back({FixtureType::Campfire, {cozy}});
+
+        return t;
+    }();
     return table;
 }
 
