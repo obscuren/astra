@@ -92,6 +92,15 @@ struct SkillCategory {
     std::vector<SkillDef> skills;
 };
 
+struct SkillDetail {
+    std::string header;
+    std::string body;
+    std::string cost_line;
+    std::string requirement_line;
+};
+
+SkillDetail skill_detail(SkillId id);
+
 // Returns the full skill catalog (static, built once).
 const std::vector<SkillCategory>& skill_catalog();
 

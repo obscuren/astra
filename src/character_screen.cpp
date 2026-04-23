@@ -1568,12 +1568,19 @@ void CharacterScreen::draw_skills(UIContext& ctx) {
     if (skill_cursor_ < 0) skill_cursor_ = 0;
 
     // Draw list on left side
-    int y = 2;
     int list_h = ctx.height() - 2;
+
+    // Scroll so cursor is visible
+    if (skill_cursor_ < skill_scroll_) skill_scroll_ = skill_cursor_;
+    if (skill_cursor_ >= skill_scroll_ + list_h)
+        skill_scroll_ = skill_cursor_ - list_h + 1;
+    if (skill_scroll_ < 0) skill_scroll_ = 0;
+
+    int y = 2;
     const SkillDef* selected_skill = nullptr;
     int selected_cat_idx = -1; // category index if a category row is selected
 
-    for (int i = 0; i < static_cast<int>(visible.size()); ++i) {
+    for (int i = skill_scroll_; i < static_cast<int>(visible.size()); ++i) {
         if (y - 2 >= list_h) break;
         const auto& ve = visible[i];
         bool selected = (skill_cursor_ == i);
@@ -1714,50 +1721,26 @@ void CharacterScreen::draw_skills(UIContext& ctx) {
         return dy;
     };
 
+    SkillId detail_id = SkillId::Cat_Acrobatics;
+    bool have = false;
     if (selected_cat_idx >= 0 && !selected_skill) {
-        // Category detail
-        const auto& cat = catalog[selected_cat_idx];
-        bool unlocked = false;
-        for (auto sid : player_->learned_skills)
-            if (sid == cat.unlock_id) { unlocked = true; break; }
-
-        ctx.text({.x = rx, .y = 2, .content = cat.name, .tag = UITag::TextBright});
-        ctx.text({.x = rx, .y = 3, .content = unlocked ? "[Learned]" : "[Unlearned]",
-                  .tag = unlocked ? UITag::TextSuccess : UITag::TextDanger});
-
-        std::string cost_str = ":: " + std::to_string(cat.sp_cost) + " SP ::";
-        ctx.text({.x = rx, .y = 5, .content = cost_str, .tag = UITag::TextWarning});
-
-        wrap_text(7, cat.description, Color::DarkGray);
+        detail_id = catalog[selected_cat_idx].unlock_id;
+        have = true;
     } else if (selected_skill) {
-        const auto& sk = *selected_skill;
-        bool learned = false;
-        for (auto sid : player_->learned_skills) {
-            if (sid == sk.id) { learned = true; break; }
-        }
-
-        ctx.text({.x = rx, .y = 2, .content = sk.name, .tag = UITag::TextBright});
-        ctx.text({.x = rx, .y = 3, .content = sk.passive ? "[Passive]" : "[Active]",
-                  .tag = UITag::TextAccent});
-        ctx.text({.x = rx, .y = 4, .content = "Cost: " + std::to_string(sk.sp_cost) + " SP",
-                  .tag = UITag::TextWarning});
-
-        int dy = 5;
-        if (sk.attribute_req > 0 && sk.attribute_name) {
-            std::string req = "Requires: " + std::to_string(sk.attribute_req)
-                            + " " + sk.attribute_name;
-            ctx.text({.x = rx, .y = dy, .content = req, .tag = UITag::TextDim});
-            dy++;
-        }
-        dy++;
-
-        if (learned) {
-            ctx.text({.x = rx, .y = dy, .content = "LEARNED", .tag = UITag::TextSuccess});
-            dy += 2;
-        }
-
-        wrap_text(dy, sk.description, Color::DarkGray);
+        detail_id = selected_skill->id;
+        have = true;
     }
+    if (!have) return;
+
+    SkillDetail det = skill_detail(detail_id);
+    int dy = 2;
+    ctx.text({.x = rx, .y = dy++, .content = det.header, .tag = UITag::TextBright});
+    if (!det.cost_line.empty())
+        ctx.text({.x = rx, .y = dy++, .content = det.cost_line, .tag = UITag::TextWarning});
+    if (!det.requirement_line.empty())
+        ctx.text({.x = rx, .y = dy++, .content = det.requirement_line, .tag = UITag::TextDim});
+    dy++;
+    wrap_text(dy, det.body, Color::DarkGray);
 }
 
 // ─────────────────────────────────────────────────────────────────
