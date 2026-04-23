@@ -407,11 +407,9 @@ bool CharacterScreen::handle_input(int key) {
                             player_->learned_skills.push_back(sk.id);
                             if (sk.id == SkillId::Haggle) {
                                 add_effect(player_->effects, make_haggle_ge());
-                                rebuild_auras_from_sources(*player_);
                             }
                             if (sk.id == SkillId::ThickSkin) {
                                 add_effect(player_->effects, make_thick_skin_ge());
-                                rebuild_auras_from_sources(*player_);
                             }
                             // Learning a skill itself may add skill-sourced auras.
                             rebuild_auras_from_sources(*player_);

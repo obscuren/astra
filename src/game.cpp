@@ -1399,13 +1399,12 @@ void Game::apply_passive_skill_effects() {
     if (player_has_skill(player_, SkillId::Haggle) &&
         !has_effect(player_.effects, EffectId::Haggle)) {
         add_effect(player_.effects, make_haggle_ge());
-        rebuild_auras_from_sources(player_);
     }
     if (player_has_skill(player_, SkillId::ThickSkin) &&
         !has_effect(player_.effects, EffectId::ThickSkin)) {
         add_effect(player_.effects, make_thick_skin_ge());
-        rebuild_auras_from_sources(player_);
     }
+    rebuild_auras_from_sources(player_);
 }
 
 } // namespace astra

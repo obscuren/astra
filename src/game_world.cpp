@@ -2149,6 +2149,7 @@ void Game::advance_world(int cost) {
         if (npc.alive()) {
             tick_effects(npc.effects, npc.hp, npc.max_hp);
             expire_effects(npc.effects);
+            rebuild_auras_from_sources(npc);
         }
     }
 

@@ -48,8 +48,8 @@ struct Player;
 struct Npc;
 
 // Wipe all non-Manual entries from entity.auras and re-populate from
-// the entity's sources (items / effects / skills). Implementations
-// land in later tasks; for now these are stubs.
+// the entity's sources (equipment, active effects, learned skills).
+// Call after any mutation to those sources.
 void rebuild_auras_from_sources(Player& p);
 void rebuild_auras_from_sources(Npc& n);
 
