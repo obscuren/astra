@@ -47,6 +47,10 @@
 - [x] **Repair bench fixture** — pay credits to restore durability, no skill required
 - [x] **Tinkering salvage system** — Spare Parts / Circuitry items, three mechanical enemies (Rust Hound, Sentry Drone, Archon Automaton), `Cat_Tinkering`-gated auto-salvage on mechanical kills, 5% ungated ground-drop on other kills (2026-04-21)
 
+### Cooking
+- [x] **Cooking system v1** — `Cat_Cooking` skill category, three-slot pot UI in a new character tab, aura-gated via `CookingFireAura` on any `FixtureTag::CookingSource` fixture, 6 recipes (3 Basic starters + 3 cookbook-obtained), 5 stackable ingredients, `DishOutput` driving hunger/HP/GE on consumption, Burnt Slop on experiment miss, `AdvancedFireMaking` sub-skill cuts Camp Making cooldown 40% (2026-04-23)
+- [ ] **Cooking v2 — skill-driven failure and raw edibility** — Cooking sub-skills gate recipe complexity and reduce burn chance; survival path for eating raw ingredients
+
 ---
 
 ## Content

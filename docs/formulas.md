@@ -632,3 +632,28 @@ interval. See
 design rationale and
 `docs/superpowers/plans/2026-04-23-aura-system.md` for the phased
 rollout.
+
+## Cooking
+
+Cooking resolves in the character screen's Cooking tab when the player
+is within a `CookingSource` fixture's aura (`CookingFireAura`, Chebyshev
+radius 2). Three pot slots accept ingredient type + quantity; the slot
+bag is matched order-independently against `recipe_catalog()`.
+
+- **Match**: exact set of `(item_def_id, qty)` pairs (UI prevents
+  duplicate def_ids across slots). Known recipes consume ingredients
+  and produce the dish. Unknown recipes additionally teach the recipe.
+  No match produces one Burnt Slop.
+- **Consumption** (reading `Item::dish`):
+  - `hunger_shift` added to the `HungerState` ordinal (Satiated=0,
+    Normal=1, Hungry=2, Starving=3) and clamped to `[0, 3]`. Negative
+    values heal hunger.
+  - `hp_restore` added to current HP, clamped to
+    `player.effective_max_hp()`.
+  - `granted` EffectIds are applied via `add_effect`, materialised by
+    `effect_for_id`.
+- **Advanced Fire Making skill**: reduces `camp_making_cooldown_ticks`
+  by 40% for the player (`effective_cooldown = ticks * 60 / 100`).
+
+See `docs/superpowers/specs/2026-04-23-cooking-system-design.md` and
+`docs/superpowers/plans/2026-04-23-cooking-system.md`.
