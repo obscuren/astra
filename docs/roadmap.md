@@ -24,12 +24,19 @@
 - [x] **Quickdraw** — fast ranged shot, 3 tick cooldown (Pistol)
 - [x] **Intimidate** — frighten adjacent enemy, flee for WIL-scaled duration
 - [ ] **SuppressingFire** — cone AoE, apply slow, 8 turn cooldown
-- [ ] **Tumble** — reactive dodge on melee hit (complex)
+- [x] **Tumble** — active 3-tile telegraphed dash (Line telegraph, Agility 17), 25-tick cooldown
 
 ### Wayfinding Skills
 - [x] **Scout's Eye** — show NPCs on minimap (75 SP, INT 13)
 - [x] **Cartographer** — show items and POIs on minimap (100 SP, INT 14)
 - [x] **Camp Making** — place a campfire, 150-tick lifetime, Cozy aura (2× natural regen) within 6 tiles (50 SP, INT 12)
+
+### Acrobatics Skills
+- [x] **Category passive** — +1 DV always-on while Cat_Acrobatics is learned
+- [x] **Swiftness** — +5 DV vs ranged attacks (passive, 50 SP)
+- [x] **Sidestep** — +2 DV while a hostile is adjacent (passive, 75 SP, AGI 13)
+- [x] **Sure-Footed** — dungeon move cost −10% (passive, 75 SP, AGI 15)
+- [x] **Adrenaline Rush** — self-cast, +2 DV and +25% quickness for 3 ticks, 40-tick cooldown (active, 150 SP, WIL 14)
 
 ### Archaeology Skills
 - [x] **Archaeology skill category** — Ruin Reader, Artifact ID, Excavation, Cultural Attunement, Precursor Linguist, Beacon Sense

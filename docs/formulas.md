@@ -657,3 +657,14 @@ bag is matched order-independently against `recipe_catalog()`.
 
 See `docs/superpowers/specs/2026-04-23-cooking-system-design.md` and
 `docs/superpowers/plans/2026-04-23-cooking-system.md`.
+
+### Acrobatics
+- Cat_Acrobatics: +1 DV (always-on aura via make_acrobatics_ge)
+- Swiftness: +5 DV applied only at ranged attack resolution against the player
+- Sidestep: +2 DV applied at melee resolution when any hostile NPC sits at Chebyshev distance == 1
+- Sure-Footed: dungeon move cost = floor(ActionCost::move * 9 / 10) = 45 (vs 50 baseline)
+- Tumble: dash up to range 3 in one of 8 directions via Line telegraph; ignores enemies in path; landing tile must be passable and unoccupied; cooldown 25 ticks; action cost 50
+- Adrenaline Rush: +2 DV, +25% quickness for 3 ticks; cooldown 40 ticks; self-cast; action cost 25
+
+### Telegraph System
+Reusable targeting/preview system for abilities. Shapes supported: Line (implemented). Declared but pending implementation: Ray, Cone, Burst, Adjacent. Consumed by abilities that set `Ability::telegraph = TelegraphSpec{...}` — `use_ability` routes through `Game::telegraph()` and invokes `execute_telegraphed(game, result)` on Enter confirm. Cancel (Esc) incurs no cooldown/turn cost.
