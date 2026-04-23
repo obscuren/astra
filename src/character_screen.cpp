@@ -1,4 +1,5 @@
 #include "astra/character_screen.h"
+#include "astra/aura.h"
 #include "astra/character.h"
 #include "astra/display_name.h"
 #include "astra/effect.h"
@@ -404,10 +405,16 @@ bool CharacterScreen::handle_input(int key) {
                         if (meets_req) {
                             player_->skill_points -= sk.sp_cost;
                             player_->learned_skills.push_back(sk.id);
-                            if (sk.id == SkillId::Haggle)
+                            if (sk.id == SkillId::Haggle) {
                                 add_effect(player_->effects, make_haggle_ge());
-                            if (sk.id == SkillId::ThickSkin)
+                                rebuild_auras_from_sources(*player_);
+                            }
+                            if (sk.id == SkillId::ThickSkin) {
                                 add_effect(player_->effects, make_thick_skin_ge());
+                                rebuild_auras_from_sources(*player_);
+                            }
+                            // Learning a skill itself may add skill-sourced auras.
+                            rebuild_auras_from_sources(*player_);
                             context_message_ = "Learned " + sk.name + "!";
                             context_msg_timer_ = 3;
                         }

@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/aura.h"
 #include "astra/boot_sequence.h"
 #include "astra/dungeon_level_generator.h"
 #include "astra/dungeon_recipe.h"
@@ -799,6 +800,7 @@ void Game::new_game() {
     player_.money = 50;
     if (dev_mode_) {
         add_effect(player_.effects, make_invulnerable_ge());
+        rebuild_auras_from_sources(player_);
         player_.name = "Dev Commander";
         player_.race = Race::Human;
         player_.player_class = PlayerClass::DevCommander;
@@ -1397,10 +1399,12 @@ void Game::apply_passive_skill_effects() {
     if (player_has_skill(player_, SkillId::Haggle) &&
         !has_effect(player_.effects, EffectId::Haggle)) {
         add_effect(player_.effects, make_haggle_ge());
+        rebuild_auras_from_sources(player_);
     }
     if (player_has_skill(player_, SkillId::ThickSkin) &&
         !has_effect(player_.effects, EffectId::ThickSkin)) {
         add_effect(player_.effects, make_thick_skin_ge());
+        rebuild_auras_from_sources(player_);
     }
 }
 

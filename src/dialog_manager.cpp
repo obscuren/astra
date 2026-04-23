@@ -1,4 +1,5 @@
 #include "astra/dialog_manager.h"
+#include "astra/aura.h"
 #include "astra/character.h"
 #include "astra/display_name.h"
 #include "astra/dungeon/puzzles.h"
@@ -922,6 +923,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 remove_effect(game.player().effects, EffectId::Invulnerable);
             else
                 add_effect(game.player().effects, make_invulnerable_ge());
+            rebuild_auras_from_sources(game.player());
             bool inv = has_effect(game.player().effects, EffectId::Invulnerable);
             game.log(std::string("[DEV] Invulnerability: ") + (inv ? "ON" : "OFF"));
             // Re-open the menu with updated label

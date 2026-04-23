@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/aura.h"
 #include "astra/dice.h"
 #include "astra/effect.h"
 #include "astra/interaction.h"
@@ -8,6 +9,7 @@
 #include <cstdint>
 #include <random>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -55,6 +57,7 @@ struct Npc {
     int max_hp = 1;
     std::string faction;        // faction name (empty = unaligned)
     EffectList effects;
+    std::vector<Aura> auras;
     int quickness = 100;
     int energy = 0;
     int level = 1;

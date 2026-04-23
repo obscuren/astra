@@ -2,6 +2,7 @@
 #include <cmath>
 #include <unordered_set>
 #include "astra/ability.h"
+#include "astra/aura.h"
 #include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
@@ -564,6 +565,7 @@ void Game::equip_item(int index) {
     }
     log("You equip " + to_equip.name + ".");
     slot = std::move(to_equip);
+    rebuild_auras_from_sources(player_);
 }
 
 void Game::unequip_slot(int index) {
@@ -584,6 +586,7 @@ void Game::unequip_slot(int index) {
     }
     log("You unequip " + item.name + ".");
     player_.inventory.items.push_back(std::move(item));
+    rebuild_auras_from_sources(player_);
 }
 
 

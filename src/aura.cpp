@@ -7,6 +7,7 @@
 #include "astra/world_constants.h"
 
 #include <algorithm>
+#include <optional>
 
 namespace astra {
 
@@ -66,9 +67,82 @@ std::vector<Aura> skill_auras(SkillId /*id*/) {
 }
 
 // ── Rebuild from sources ───────────────────────────────────────────
-// Stubs until Task 6 wires item/effect/skill contributions.
 
-void rebuild_auras_from_sources(Player& /*p*/) {}
-void rebuild_auras_from_sources(Npc& /*n*/) {}
+namespace {
+
+Aura materialise_grant(const AuraGrant& g, AuraSource source, uint32_t source_id) {
+    Aura a;
+    a.template_effect = g.make_effect ? g.make_effect() : Effect{};
+    a.radius          = g.radius;
+    a.target_mask     = g.target_mask;
+    a.source          = source;
+    a.source_id       = source_id;
+    return a;
+}
+
+void strip_non_manual(std::vector<Aura>& v) {
+    v.erase(std::remove_if(v.begin(), v.end(),
+              [](const Aura& a) { return a.source != AuraSource::Manual; }),
+            v.end());
+}
+
+} // anonymous
+
+void rebuild_auras_from_sources(Player& p) {
+    strip_non_manual(p.auras);
+
+    // Items — equipment slots
+    auto add_item_grants = [&](const std::optional<Item>& it) {
+        if (!it) return;
+        for (const auto& g : it->granted_auras) {
+            p.auras.push_back(materialise_grant(g, AuraSource::Item, it->id));
+        }
+    };
+    add_item_grants(p.equipment.face);
+    add_item_grants(p.equipment.head);
+    add_item_grants(p.equipment.body);
+    add_item_grants(p.equipment.left_arm);
+    add_item_grants(p.equipment.right_arm);
+    add_item_grants(p.equipment.left_hand);
+    add_item_grants(p.equipment.right_hand);
+    add_item_grants(p.equipment.back);
+    add_item_grants(p.equipment.feet);
+    add_item_grants(p.equipment.thrown);
+    add_item_grants(p.equipment.missile);
+    add_item_grants(p.equipment.shield);
+
+    // Effects
+    for (const auto& e : p.effects) {
+        for (const auto& g : e.granted_auras) {
+            p.auras.push_back(materialise_grant(g,
+                                                AuraSource::Effect,
+                                                static_cast<uint32_t>(e.id)));
+        }
+    }
+
+    // Skills
+    for (SkillId sid : p.learned_skills) {
+        for (const Aura& sa : skill_auras(sid)) {
+            Aura copy = sa;
+            copy.source    = AuraSource::Skill;
+            copy.source_id = static_cast<uint32_t>(sid);
+            p.auras.push_back(std::move(copy));
+        }
+    }
+}
+
+void rebuild_auras_from_sources(Npc& n) {
+    strip_non_manual(n.auras);
+
+    // NPCs carry no equipment or skills in the current model; only
+    // effect-sourced auras.
+    for (const auto& e : n.effects) {
+        for (const auto& g : e.granted_auras) {
+            n.auras.push_back(materialise_grant(g,
+                                                AuraSource::Effect,
+                                                static_cast<uint32_t>(e.id)));
+        }
+    }
+}
 
 } // namespace astra

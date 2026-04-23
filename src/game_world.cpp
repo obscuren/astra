@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/aura.h"
 #include "astra/civ_aesthetics.h"
 #include "astra/debug_spawn.h"
 #include "astra/dungeon_level_generator.h"
@@ -2143,6 +2144,7 @@ void Game::advance_world(int cost) {
     // Tick and expire effects
     tick_effects(player_.effects, player_.hp, player_.effective_max_hp());
     expire_effects(player_.effects);
+    rebuild_auras_from_sources(player_);
     for (auto& npc : world_.npcs()) {
         if (npc.alive()) {
             tick_effects(npc.effects, npc.hp, npc.max_hp);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/aura_grant.h"
 #include "astra/item.h"     // StatModifiers
 #include "astra/renderer.h" // Color
 
@@ -61,6 +62,10 @@ struct Effect {
     // Trade price modifiers (percentage: -10 = 10% cheaper buy, +10 = 10% better sell)
     int buy_price_pct = 0;
     int sell_price_pct = 0;
+
+    // Auras this effect contributes while active. Consumed by
+    // rebuild_auras_from_sources on the owning entity.
+    std::vector<AuraGrant> granted_auras;
 };
 
 using EffectList = std::vector<Effect>;

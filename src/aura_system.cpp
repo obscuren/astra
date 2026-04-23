@@ -81,17 +81,17 @@ void AuraSystem::tick(Game& game) {
         }
     }
 
-    // 2) Player emitter — TODO(task-6): enable when Player::auras lands.
-    // auto& player = game.player();
-    // apply_auras_at(player.auras, player.x, player.y, game,
-    //                /*emitter_is_player*/true, /*self_npc*/nullptr);
+    // 2) Player emitter
+    auto& player = game.player();
+    apply_auras_at(player.auras, player.x, player.y, game,
+                   /*emitter_is_player*/true, /*self_npc*/nullptr);
 
-    // 3) NPC emitters — TODO(task-6): enable when Npc::auras lands.
-    // for (auto& npc : game.world().npcs()) {
-    //     if (!npc.alive()) continue;
-    //     apply_auras_at(npc.auras, npc.x, npc.y, game,
-    //                    /*emitter_is_player*/false, /*self_npc*/&npc);
-    // }
+    // 3) NPC emitters
+    for (auto& npc : game.world().npcs()) {
+        if (!npc.alive()) continue;
+        apply_auras_at(npc.auras, npc.x, npc.y, game,
+                       /*emitter_is_player*/false, /*self_npc*/&npc);
+    }
 }
 
 } // namespace astra

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/aura.h"
 #include "astra/character.h"
 #include "astra/dice.h"
 #include "astra/effect.h"
@@ -82,6 +83,11 @@ struct Player {
 
     // Effects
     EffectList effects;
+
+    // Auras this entity currently emits. Rebuilt from equipment,
+    // effects, and skills by rebuild_auras_from_sources; Manual
+    // entries persist across rebuilds.
+    std::vector<Aura> auras;
 
     // Equipment & inventory
     Equipment equipment;

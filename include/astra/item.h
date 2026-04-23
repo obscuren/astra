@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/aura_grant.h"
 #include "astra/dice.h"
 #include "astra/renderer.h"
 #include "astra/ui_types.h"
@@ -181,6 +182,9 @@ struct Item {
 
     int enhancement_slots = 0;
     std::vector<EnhancementSlot> enhancements;
+
+    // Auras this item contributes while equipped.
+    std::vector<AuraGrant> granted_auras;
 
     // Ship component fields (only meaningful when type == ShipComponent)
     std::optional<ShipSlot> ship_slot;

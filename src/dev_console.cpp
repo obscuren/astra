@@ -1,5 +1,6 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
+#include "astra/aura.h"
 #include "astra/biome_profile.h"
 #include "astra/body_presets.h"
 #include "astra/dungeon/dungeon_style.h"
@@ -469,6 +470,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 add_effect(player.effects, make_invulnerable_ge());
                 log("Invulnerability ON");
             }
+            rebuild_auras_from_sources(player);
         } else if (args[1] == "level" && args.size() >= 3) {
             int lvl = 0;
             try { lvl = std::stoi(args[2]); } catch (...) {
@@ -487,17 +489,21 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if (args[1] == "clear") {
             player.effects.clear();
             log("All effects cleared.");
+            rebuild_auras_from_sources(player);
         } else if (args[1] == "burn") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
             add_effect(player.effects, make_burn_ge(dur, 1));
+            rebuild_auras_from_sources(player);
             log("Burn applied for " + std::to_string(dur) + " ticks.");
         } else if (args[1] == "regen") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
             add_effect(player.effects, make_regen_ge(dur, 1));
+            rebuild_auras_from_sources(player);
             log("Regen applied for " + std::to_string(dur) + " ticks.");
         } else if (args[1] == "poison") {
             int dur = (args.size() >= 3) ? std::stoi(args[2]) : 10;
             add_effect(player.effects, make_poison_ge(dur, 1));
+            rebuild_auras_from_sources(player);
             log("Poison applied for " + std::to_string(dur) + " ticks.");
         } else {
             log("Unknown effect: " + args[1]);
