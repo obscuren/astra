@@ -7,10 +7,12 @@
 #include "astra/item.h"
 #include "astra/journal.h"
 #include "astra/race.h"
+#include "astra/recipe.h"
 #include "astra/ship.h"
 #include "astra/skill_defs.h"
 #include "astra/tinkering.h"
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -105,6 +107,10 @@ struct Player {
 
     // Tinkering
     std::vector<BlueprintSignature> learned_blueprints;
+
+    // Cooking
+    std::vector<uint16_t> known_recipes;
+    std::array<PotSlot, 3> cooking_slots;
 
     // Journal
     std::vector<JournalEntry> journal;

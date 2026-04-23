@@ -811,10 +811,31 @@ void Game::new_game() {
         player_.resistances = tmpl.resistances;
         player_.max_hp += tmpl.bonus_hp;
         player_.inventory.max_carry_weight += tmpl.bonus_carry_weight;
-        player_.learned_skills = tmpl.starting_skills;
+        // Dev Commander learns every skill and category for testing.
+        player_.learned_skills.clear();
+        for (const auto& cat : skill_catalog()) {
+            player_.learned_skills.push_back(cat.unlock_id);
+            for (const auto& sk : cat.skills) {
+                player_.learned_skills.push_back(sk.id);
+            }
+        }
         player_.skill_points = tmpl.starting_sp;
         player_.money += tmpl.starting_money;
         player_.attribute_points = 10;
+
+        // Dev Commander: knows the three Basic recipes, carries a full
+        // ingredient pantry, and gets one of each cookbook in inventory so
+        // the whole discovery/read flow can be exercised in-game.
+        player_.known_recipes = { 1, 2, 3 };
+        auto stack_of = [](Item it, int n) { it.stack_count = n; return it; };
+        player_.inventory.items.push_back(stack_of(build_raw_meat(),       10));
+        player_.inventory.items.push_back(stack_of(build_carrot(),         10));
+        player_.inventory.items.push_back(stack_of(build_flour(),          10));
+        player_.inventory.items.push_back(stack_of(build_herbs(),          10));
+        player_.inventory.items.push_back(stack_of(build_synth_protein(), 10));
+        player_.inventory.items.push_back(build_cookbook_hearty_stew());
+        player_.inventory.items.push_back(build_cookbook_protein_bake());
+        player_.inventory.items.push_back(build_cookbook_heros_feast());
 
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
@@ -1118,6 +1139,9 @@ void Game::new_game(const CreationResult& cr) {
     player_.learned_skills = tmpl.starting_skills;
     player_.skill_points = tmpl.starting_sp;
     player_.money += tmpl.starting_money;
+
+    // All players start knowing the three Basic recipes.
+    player_.known_recipes = { 1, 2, 3 };
 
     player_.max_hp = player_.effective_max_hp();
     player_.hp = player_.max_hp;

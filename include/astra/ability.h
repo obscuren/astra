@@ -21,6 +21,11 @@ public:
     // Execute the ability. Target may be nullptr for self/AoE abilities.
     virtual bool execute(Game& game, Npc* target) = 0;
 
+    // Cooldown ticks to apply after a successful use. Defaults to
+    // the static cooldown_ticks field; overrides can scale based on
+    // player state (e.g., reduced by a skill).
+    virtual int effective_cooldown(const Player& player) const;
+
     SkillId skill_id;
     std::string name;
     std::string description;

@@ -33,6 +33,10 @@ enum class EffectId : uint32_t {
 
     // Environmental buffs (300+)
     Cozy                = 300,
+    CookingFireAura     = 301,
+    WarmMeal            = 302,
+    WellFed             = 303,
+    Hearty              = 304,
 };
 
 struct Effect {
@@ -102,5 +106,15 @@ Effect make_haggle_ge();
 Effect make_thick_skin_ge();
 Effect make_flee_ge(int duration);
 Effect make_cozy_ge();
+Effect make_cooking_fire_aura_ge();
+Effect make_warm_meal_ge();
+Effect make_well_fed_ge();
+Effect make_hearty_ge();
+
+// Build a runtime Effect from its EffectId. Used by systems (cooking,
+// aura system) that store EffectIds in data and need to materialise
+// them via the canonical factories. Returns a default-constructed
+// Effect for unknown/unhandled ids.
+Effect effect_for_id(EffectId id);
 
 } // namespace astra

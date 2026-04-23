@@ -4,9 +4,11 @@
 #include "astra/ability.h"
 #include "astra/aura.h"
 #include "astra/display_name.h"
+#include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/map_renderer.h"
+#include "astra/recipe.h"
 #include "astra/skill_defs.h"
 #include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
@@ -498,14 +500,29 @@ void Game::use_item(int index) {
     auto& item = items[index];
     switch (item.type) {
         case ItemType::Food: {
-            int heal = item.buy_value * 5; // scale heal with item value
-            if (heal < 5) heal = 5;
-            player_.hp = std::min(player_.hp + heal, player_.max_hp);
-            if (player_.hunger > HungerState::Satiated)
-                player_.hunger = static_cast<HungerState>(
-                    static_cast<uint8_t>(player_.hunger) - 1);
-            log("You eat the " + item.name + ". (+" +
-                std::to_string(heal) + " HP)");
+            if (!item.dish) {
+                log("You can't eat the " + item.name + ".");
+                return;  // do not consume
+            }
+            const auto& d = *item.dish;
+            // Hunger shift — negative moves toward Satiated. Clamp to
+            // the valid state range.
+            int h = static_cast<int>(player_.hunger) + d.hunger_shift;
+            int min_h = static_cast<int>(HungerState::Satiated);
+            int max_h = static_cast<int>(HungerState::Starving);
+            if (h < min_h) h = min_h;
+            if (h > max_h) h = max_h;
+            player_.hunger = static_cast<HungerState>(h);
+            // HP restore — clamp to effective_max_hp.
+            if (d.hp_restore > 0) {
+                int cap = player_.effective_max_hp();
+                player_.hp = std::min(player_.hp + d.hp_restore, cap);
+            }
+            // Granted GEs.
+            for (EffectId eid : d.granted) {
+                add_effect(player_.effects, effect_for_id(eid));
+            }
+            log("You eat the " + item.name + ".");
             break;
         }
         case ItemType::Stim: {
@@ -528,6 +545,23 @@ void Game::use_item(int index) {
             int added = std::min(5, rd.charge_capacity - rd.current_charge);
             rd.current_charge += added;
             log("You recharge " + eq->name + ". (+" + std::to_string(added) + " charge)");
+            break;
+        }
+        case ItemType::Cookbook: {
+            uint16_t rid = item.teaches_recipe_id;
+            if (rid == 0) {
+                log("This cookbook is blank.");
+                return;
+            }
+            auto& known = player_.known_recipes;
+            if (std::find(known.begin(), known.end(), rid) != known.end()) {
+                log("You already know this recipe.");
+                return;  // do not consume
+            }
+            known.push_back(rid);
+            const Recipe* r = find_recipe(rid);
+            std::string name = r ? r->name : std::string{"a new recipe"};
+            log("You learn to cook " + name + ".");
             break;
         }
         default:

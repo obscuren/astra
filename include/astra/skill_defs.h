@@ -65,6 +65,10 @@ enum class SkillId : uint32_t {
     CulturalAttunement = 1003,
     PrecursorLinguist = 1004,
     BeaconSense = 1005,
+
+    // Cooking
+    Cat_Cooking         = 11,
+    AdvancedFireMaking  = 1100,
 };
 
 struct SkillDef {

@@ -22,6 +22,8 @@ const char* item_type_name(ItemType t) {
         case ItemType::CraftingMaterial: return "Crafting Materials";
         case ItemType::ShipComponent:    return "Ship Components";
         case ItemType::QuestItem:        return "Quest Items";
+        case ItemType::Ingredient:       return "Ingredients";
+        case ItemType::Cookbook:         return "Cookbooks";
     }
     return "Unknown";
 }

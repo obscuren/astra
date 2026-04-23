@@ -25,7 +25,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 43;   // entity auras (Manual only)
+inline constexpr uint32_t SAVE_FILE_VERSION = 44;   // cooking: DishOutput, known_recipes, cooking_slots
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

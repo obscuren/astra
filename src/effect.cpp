@@ -233,4 +233,66 @@ Effect make_cozy_ge() {
     return e;
 }
 
+Effect make_cooking_fire_aura_ge() {
+    Effect e;
+    e.id = EffectId::CookingFireAura;
+    e.name = "Cooking Fire";
+    // Orange — matches the campfire/cozy palette.
+    e.color = static_cast<Color>(208);
+    // Capability marker: refreshed each tick by the aura system when near a
+    // cooking fire; expires immediately when the player steps away.
+    e.duration = 1;
+    e.remaining = 1;
+    e.show_in_bar = false;
+    return e;
+}
+
+Effect make_warm_meal_ge() {
+    Effect e;
+    e.id = EffectId::WarmMeal;
+    e.name = "Warm Meal";
+    e.color = Color::Yellow;
+    e.duration = 100;
+    e.remaining = 100;
+    e.show_in_bar = true;
+    e.tick_damage = -1; // +1 HP regen per tick
+    return e;
+}
+
+Effect make_well_fed_ge() {
+    Effect e;
+    e.id = EffectId::WellFed;
+    e.name = "Well Fed";
+    e.color = Color::Green;
+    e.duration = 300;
+    e.remaining = 300;
+    e.show_in_bar = true;
+    e.tick_damage = -1; // +1 HP regen per tick
+    return e;
+}
+
+Effect make_hearty_ge() {
+    Effect e;
+    e.id = EffectId::Hearty;
+    e.name = "Hearty";
+    // Warm red — signals robust vitality.
+    e.color = Color::Red;
+    e.duration = 500;
+    e.remaining = 500;
+    e.show_in_bar = true;
+    e.modifiers.av = 1;
+    e.modifiers.max_hp = 5;
+    return e;
+}
+
+Effect effect_for_id(EffectId id) {
+    switch (id) {
+        case EffectId::CookingFireAura: return make_cooking_fire_aura_ge();
+        case EffectId::WarmMeal:        return make_warm_meal_ge();
+        case EffectId::WellFed:         return make_well_fed_ge();
+        case EffectId::Hearty:          return make_hearty_ge();
+        default: return Effect{};
+    }
+}
+
 } // namespace astra

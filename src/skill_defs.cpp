@@ -181,6 +181,13 @@ const std::vector<SkillCategory>& skill_catalog() {
              "Feel the ancient signal toward the center.",
              true, 100, 16, "Intelligence"},
         }},
+        {SkillId::Cat_Cooking, "Cooking",
+         "The art of turning raw ingredients into nourishing meals. Unlocks the "
+         "kitchen tab for preparing recipes at a cooking fire.", 50, {
+            {SkillId::AdvancedFireMaking, "Advanced Fire Making",
+             "Requires Camp Making. Reduces the Camp Making cooldown by 40%.",
+             true, 75, 0, nullptr},
+        }},
     };
     return catalog;
 }

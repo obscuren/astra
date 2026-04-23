@@ -54,6 +54,27 @@ Item build_battery();
 Item build_ration_pack();
 Item build_combat_stim();
 
+// --- Ingredients ---
+Item build_raw_meat();
+Item build_carrot();
+Item build_flour();
+Item build_herbs();
+Item build_synth_protein();
+
+// --- Cooked dishes ---
+Item build_cooked_meat();
+Item build_bowl_of_broth();
+Item build_flatbread();
+Item build_hearty_stew();
+Item build_protein_bake();
+Item build_heros_feast();
+Item build_burnt_slop();
+
+// --- Cookbooks ---
+Item build_cookbook_hearty_stew();
+Item build_cookbook_protein_bake();
+Item build_cookbook_heros_feast();
+
 // --- Junk ---
 Item build_scrap_metal();
 Item build_broken_circuit();
@@ -74,6 +95,12 @@ Item build_engine_coil_mk1();
 Item build_hull_plate();
 Item build_shield_generator();
 Item build_navi_computer_mk2();
+
+// Reconstruct an Item from its item_def_id by dispatching to the
+// appropriate build_* function. Only cooking-related defs are
+// supported today (ingredients, cooked dishes, Burnt Slop,
+// cookbooks). Returns a default Item{} if id is unknown.
+Item build_by_def_id(uint16_t def_id);
 
 // Random item pickers
 Item random_ranged_weapon(std::mt19937& rng);

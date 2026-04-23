@@ -123,6 +123,7 @@ set(ASTRA_SOURCES
     src/galaxy_sim.cpp
     src/item_defs.cpp
     src/item_gen.cpp
+    src/recipe_defs.cpp
     src/journal.cpp
     src/tinkering.cpp
     src/skill_defs.cpp

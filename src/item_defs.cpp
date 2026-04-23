@@ -1,6 +1,7 @@
 #include "astra/item_defs.h"
 #include "astra/dice.h"
 #include "astra/item_ids.h"
+#include "astra/effect.h"  // EffectId for DishOutput::granted
 
 namespace astra {
 
@@ -151,6 +152,7 @@ Item build_ration_pack() {
     it.buy_value = 10;
     it.sell_value = 3;
     it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -1, .hp_restore = 5, .granted = {} };
     return it;
 }
 
@@ -168,6 +170,281 @@ Item build_combat_stim() {
     it.buy_value = 50;
     it.sell_value = 18;
     it.usable = true;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Ingredients
+// ---------------------------------------------------------------------------
+
+Item build_raw_meat() {
+    Item it;
+    it.item_def_id = ITEM_RAW_MEAT;
+    it.id = 2100;
+    it.name = "Raw Meat";
+    it.description = "A cut of uncooked meat. Needs cooking to be edible.";
+    it.type = ItemType::Ingredient;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 4;
+    it.sell_value = 1;
+    return it;
+}
+
+Item build_carrot() {
+    Item it;
+    it.item_def_id = ITEM_CARROT;
+    it.id = 2101;
+    it.name = "Carrot";
+    it.description = "A crunchy root vegetable.";
+    it.type = ItemType::Ingredient;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 2;
+    it.sell_value = 1;
+    return it;
+}
+
+Item build_flour() {
+    Item it;
+    it.item_def_id = ITEM_FLOUR;
+    it.id = 2102;
+    it.name = "Flour";
+    it.description = "A sack of milled grain.";
+    it.type = ItemType::Ingredient;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 2;
+    it.sell_value = 1;
+    return it;
+}
+
+Item build_herbs() {
+    Item it;
+    it.item_def_id = ITEM_HERBS;
+    it.id = 2103;
+    it.name = "Herbs";
+    it.description = "A bundle of aromatic herbs.";
+    it.type = ItemType::Ingredient;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 3;
+    it.sell_value = 1;
+    return it;
+}
+
+Item build_synth_protein() {
+    Item it;
+    it.item_def_id = ITEM_SYNTH_PROTEIN;
+    it.id = 2104;
+    it.name = "Synth-Protein";
+    it.description = "A brick of station-processed protein.";
+    it.type = ItemType::Ingredient;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 5;
+    it.sell_value = 2;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Cooked dishes
+// ---------------------------------------------------------------------------
+
+Item build_cooked_meat() {
+    Item it;
+    it.item_def_id = ITEM_COOKED_MEAT;
+    it.id = 2200;
+    it.name = "Cooked Meat";
+    it.description = "Meat cooked over a fire. Simple and satisfying.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 8;
+    it.sell_value = 2;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -1, .hp_restore = 3, .granted = {} };
+    return it;
+}
+
+Item build_bowl_of_broth() {
+    Item it;
+    it.item_def_id = ITEM_BOWL_OF_BROTH;
+    it.id = 2201;
+    it.name = "Bowl of Broth";
+    it.description = "A simple vegetable broth. Warms the bones.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 10;
+    it.sell_value = 3;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -1, .hp_restore = 2,
+                          .granted = { EffectId::WarmMeal } };
+    return it;
+}
+
+Item build_flatbread() {
+    Item it;
+    it.item_def_id = ITEM_FLATBREAD;
+    it.id = 2202;
+    it.name = "Flatbread";
+    it.description = "Flatbread cooked on a hot stone.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 6;
+    it.sell_value = 2;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -2, .hp_restore = 1, .granted = {} };
+    return it;
+}
+
+Item build_hearty_stew() {
+    Item it;
+    it.item_def_id = ITEM_HEARTY_STEW;
+    it.id = 2203;
+    it.name = "Hearty Stew";
+    it.description = "A thick, meaty stew. Restores stamina and fortifies you.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Uncommon;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 20;
+    it.sell_value = 5;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -2, .hp_restore = 5,
+                          .granted = { EffectId::WellFed } };
+    return it;
+}
+
+Item build_protein_bake() {
+    Item it;
+    it.item_def_id = ITEM_PROTEIN_BAKE;
+    it.id = 2204;
+    it.name = "Protein Bake";
+    it.description = "Synth-protein baked into a filling loaf.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Uncommon;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 18;
+    it.sell_value = 5;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -2, .hp_restore = 4, .granted = {} };
+    return it;
+}
+
+Item build_heros_feast() {
+    Item it;
+    it.item_def_id = ITEM_HEROS_FEAST;
+    it.id = 2205;
+    it.name = "Hero's Feast";
+    it.description = "A legendary dish said to steel a warrior for any trial.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Rare;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 80;
+    it.sell_value = 20;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -3, .hp_restore = 10,
+                          .granted = { EffectId::Hearty } };
+    return it;
+}
+
+Item build_burnt_slop() {
+    Item it;
+    it.item_def_id = ITEM_BURNT_SLOP;
+    it.id = 2206;
+    it.name = "Burnt Slop";
+    it.description = "A charred, inedible-looking mass. Better than nothing.";
+    it.type = ItemType::Food;
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 0;
+    it.sell_value = 0;
+    it.usable = true;
+    it.dish = DishOutput{ .hunger_shift = -1, .hp_restore = 0, .granted = {} };
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Cookbooks
+// ---------------------------------------------------------------------------
+
+Item build_cookbook_hearty_stew() {
+    Item it;
+    it.item_def_id = ITEM_COOKBOOK_HEARTY_STEW;
+    it.id = 2300;
+    it.name = "Cookbook: Hearty Stew";
+    it.description = "A well-thumbed recipe card for a hearty stew.";
+    it.type = ItemType::Cookbook;
+    it.rarity = Rarity::Uncommon;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = 40;
+    it.sell_value = 10;
+    it.usable = true;
+    it.teaches_recipe_id = 10;  // matches Recipe::id in Task 7
+    return it;
+}
+
+Item build_cookbook_protein_bake() {
+    Item it;
+    it.item_def_id = ITEM_COOKBOOK_PROTEIN_BAKE;
+    it.id = 2301;
+    it.name = "Cookbook: Protein Bake";
+    it.description = "A station-issue ration-hall recipe for a protein bake.";
+    it.type = ItemType::Cookbook;
+    it.rarity = Rarity::Uncommon;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = 35;
+    it.sell_value = 9;
+    it.usable = true;
+    it.teaches_recipe_id = 11;
+    return it;
+}
+
+Item build_cookbook_heros_feast() {
+    Item it;
+    it.item_def_id = ITEM_COOKBOOK_HEROS_FEAST;
+    it.id = 2302;
+    it.name = "Cookbook: Hero's Feast";
+    it.description = "An ancient recipe whispered to grant a warrior's courage.";
+    it.type = ItemType::Cookbook;
+    it.rarity = Rarity::Rare;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = 80;
+    it.sell_value = 20;
+    it.usable = true;
+    it.teaches_recipe_id = 12;
     return it;
 }
 
@@ -793,13 +1070,54 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
 std::vector<Item> generate_food_merchant_stock(std::mt19937& rng, int faction_rep) {
     (void)rng;
     std::vector<Item> stock;
+    // Baseline consumables
     stock.push_back(make_stack(build_ration_pack(), 10));
     stock.push_back(make_stack(build_combat_stim(), 3));
+
+    // Cooking ingredients — always in stock at food merchants.
+    stock.push_back(make_stack(build_raw_meat(), 5));
+    stock.push_back(make_stack(build_carrot(), 5));
+    stock.push_back(make_stack(build_flour(), 5));
+    stock.push_back(make_stack(build_herbs(), 3));
+    stock.push_back(make_stack(build_synth_protein(), 3));
+
+    // Reputation-gated extras.
     if (faction_rep >= 10) { // Liked+
         stock.push_back(make_stack(build_ration_pack(), 5));
         stock.push_back(make_stack(build_combat_stim(), 2));
     }
+
+    // Cookbooks — tiered by reputation.
+    stock.push_back(build_cookbook_hearty_stew());         // always available
+    if (faction_rep >= 60) {                                // Liked+
+        stock.push_back(build_cookbook_protein_bake());
+    }
+    if (faction_rep >= 300) {                               // Trusted
+        stock.push_back(build_cookbook_heros_feast());
+    }
+
     return stock;
+}
+
+Item build_by_def_id(uint16_t def_id) {
+    switch (def_id) {
+        case ITEM_RAW_MEAT:                return build_raw_meat();
+        case ITEM_CARROT:                  return build_carrot();
+        case ITEM_FLOUR:                   return build_flour();
+        case ITEM_HERBS:                   return build_herbs();
+        case ITEM_SYNTH_PROTEIN:           return build_synth_protein();
+        case ITEM_COOKED_MEAT:             return build_cooked_meat();
+        case ITEM_BOWL_OF_BROTH:           return build_bowl_of_broth();
+        case ITEM_FLATBREAD:               return build_flatbread();
+        case ITEM_HEARTY_STEW:             return build_hearty_stew();
+        case ITEM_PROTEIN_BAKE:            return build_protein_bake();
+        case ITEM_HEROS_FEAST:             return build_heros_feast();
+        case ITEM_BURNT_SLOP:              return build_burnt_slop();
+        case ITEM_COOKBOOK_HEARTY_STEW:    return build_cookbook_hearty_stew();
+        case ITEM_COOKBOOK_PROTEIN_BAKE:   return build_cookbook_protein_bake();
+        case ITEM_COOKBOOK_HEROS_FEAST:    return build_cookbook_heros_feast();
+    }
+    return Item{};
 }
 
 } // namespace astra

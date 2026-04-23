@@ -12,6 +12,11 @@
 
 namespace astra {
 
+// Forward-declared to avoid a cycle with effect.h (which already
+// includes item.h for StatModifiers). DishOutput stores EffectIds
+// but never uses their full definition here.
+enum class EffectId : uint32_t;
+
 enum class ItemType : uint8_t {
     Equipment = 0,  // legacy — kept for save compat
     Trash,
@@ -32,6 +37,8 @@ enum class ItemType : uint8_t {
     CraftingMaterial,
     ShipComponent,
     QuestItem,
+    Ingredient,   // cooking raw material
+    Cookbook,     // teaches a recipe when read
 };
 
 const char* item_type_name(ItemType t);
@@ -140,6 +147,14 @@ struct EnhancementSlot {
     StatModifiers bonus;
 };
 
+// Effect of consuming a Food item (cooked dish, ration pack, looted meal).
+// Set on the Item definition so eating is symmetric across sources.
+struct DishOutput {
+    int hunger_shift = 0;            // negative moves toward Satiated
+    int hp_restore = 0;              // instant heal on consume, clamped
+    std::vector<EffectId> granted;   // GEs applied via add_effect
+};
+
 struct RangedData {
     int charge_capacity = 0;
     int charge_per_shot = 1;
@@ -189,6 +204,12 @@ struct Item {
     // Ship component fields (only meaningful when type == ShipComponent)
     std::optional<ShipSlot> ship_slot;
     ShipModifiers ship_modifiers;
+
+    // Food consumption output. Only populated on ItemType::Food defs.
+    std::optional<DishOutput> dish;
+
+    // Cookbook payload. Non-zero only when type == ItemType::Cookbook.
+    uint16_t teaches_recipe_id = 0;
 
     // Plain-text label: "name - 1d6" for weapons, just "name" otherwise
     std::string label() const {

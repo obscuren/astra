@@ -78,6 +78,29 @@ constexpr uint16_t ITEM_VOID_MANTLE        = 46;
 constexpr uint16_t ITEM_SPARE_PARTS         = 47;
 constexpr uint16_t ITEM_CIRCUITRY           = 48;
 
+// Cooking ingredients (49-53)
+constexpr uint16_t ITEM_RAW_MEAT            = 49;
+constexpr uint16_t ITEM_CARROT              = 50;
+constexpr uint16_t ITEM_FLOUR               = 51;
+constexpr uint16_t ITEM_HERBS               = 52;
+constexpr uint16_t ITEM_SYNTH_PROTEIN       = 53;
+
+// Cooked dishes (54-59)
+constexpr uint16_t ITEM_COOKED_MEAT         = 54;
+constexpr uint16_t ITEM_BOWL_OF_BROTH       = 55;
+constexpr uint16_t ITEM_FLATBREAD           = 56;
+constexpr uint16_t ITEM_HEARTY_STEW         = 57;
+constexpr uint16_t ITEM_PROTEIN_BAKE        = 58;
+constexpr uint16_t ITEM_HEROS_FEAST         = 59;
+
+// Burnt Slop (60) — failure output from mismatched recipes
+constexpr uint16_t ITEM_BURNT_SLOP          = 60;
+
+// Cookbooks (61-63)
+constexpr uint16_t ITEM_COOKBOOK_HEARTY_STEW   = 61;
+constexpr uint16_t ITEM_COOKBOOK_PROTEIN_BAKE  = 62;
+constexpr uint16_t ITEM_COOKBOOK_HEROS_FEAST   = 63;
+
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;
 constexpr uint16_t ITEM_SYNTH_THRUSTER_PLATE    = 1001;

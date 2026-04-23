@@ -3,6 +3,7 @@
 #include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/player.h"
 #include "astra/world_constants.h"
 
 namespace astra {
@@ -163,6 +164,13 @@ public:
         action_cost = world::camp_making_action_cost;
     }
 
+    int effective_cooldown(const Player& player) const override {
+        if (player_has_skill(player, SkillId::AdvancedFireMaking)) {
+            return (cooldown_ticks * 60) / 100;   // -40%
+        }
+        return cooldown_ticks;
+    }
+
     bool execute(Game& game, Npc* /*target*/) override {
         auto& map = game.world().map();
         const int px = game.player().x;
@@ -197,6 +205,12 @@ public:
         return true;
     }
 };
+
+// ── Default virtual implementations ─────────────────────────────────
+
+int Ability::effective_cooldown(const Player& /*player*/) const {
+    return cooldown_ticks;
+}
 
 // ── Catalog ─────────────────────────────────────────────────────────
 
@@ -306,7 +320,8 @@ bool use_ability(int slot, Game& game) {
 
     // Apply cooldown
     add_effect(game.player().effects, make_cooldown(
-        ability->cooldown_effect, ability->name, ability->cooldown_ticks));
+        ability->cooldown_effect, ability->name,
+        ability->effective_cooldown(game.player())));
 
     // Advance world
     game.advance_world(ability->action_cost);

@@ -17,9 +17,22 @@ namespace astra {
 // the listed aura. Keep this list small and generic — prefer type
 // auras for anything fixture-specific.
 static const std::vector<std::pair<FixtureTag, Aura>>& tag_auras() {
-    static const std::vector<std::pair<FixtureTag, Aura>> table = {
-        // populated by later tasks
-    };
+    static const std::vector<std::pair<FixtureTag, Aura>> table = [] {
+        std::vector<std::pair<FixtureTag, Aura>> t;
+
+        // CookingSource → CookingFireAura. Any fixture tagged
+        // CookingSource (Campfire, CampStove, Kitchen, …) lets the
+        // player cook when in range.
+        Aura cooking;
+        cooking.template_effect = make_cooking_fire_aura_ge();
+        cooking.radius          = astra::world::cooking_source_radius;
+        cooking.target_mask     = AuraTarget::Player;
+        cooking.source          = AuraSource::Fixture;
+        cooking.source_id       = 0;
+        t.push_back({FixtureTag::CookingSource, cooking});
+
+        return t;
+    }();
     return table;
 }
 

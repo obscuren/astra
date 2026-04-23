@@ -343,6 +343,17 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_i32(item.type_affinity.acid);
     w.write_i32(item.shield_capacity);
     w.write_i32(item.shield_hp);
+    // v44: cooking — DishOutput on Food, teaches_recipe_id on Cookbook
+    w.write_u8(item.dish.has_value() ? 1 : 0);
+    if (item.dish) {
+        w.write_i32(item.dish->hunger_shift);
+        w.write_i32(item.dish->hp_restore);
+        w.write_u32(static_cast<uint32_t>(item.dish->granted.size()));
+        for (EffectId eid : item.dish->granted) {
+            w.write_u32(static_cast<uint32_t>(eid));
+        }
+    }
+    w.write_u16(item.teaches_recipe_id);
 }
 
 static Item read_item(BinaryReader& r) {
@@ -409,6 +420,20 @@ static Item read_item(BinaryReader& r) {
     item.type_affinity.acid = r.read_i32();
     item.shield_capacity = r.read_i32();
     item.shield_hp = r.read_i32();
+    // v44: cooking fields
+    bool has_dish = r.read_u8() != 0;
+    if (has_dish) {
+        DishOutput d;
+        d.hunger_shift = r.read_i32();
+        d.hp_restore = r.read_i32();
+        uint32_t gn = r.read_u32();
+        d.granted.resize(gn);
+        for (uint32_t i = 0; i < gn; ++i) {
+            d.granted[i] = static_cast<EffectId>(r.read_u32());
+        }
+        item.dish = std::move(d);
+    }
+    item.teaches_recipe_id = r.read_u16();
     return item;
 }
 
@@ -641,6 +666,13 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
             if (a.source != AuraSource::Manual) continue;
             write_manual_aura(w, a);
         }
+    }
+    // v44: cooking — known recipes + pot slots
+    w.write_u32(static_cast<uint32_t>(p.known_recipes.size()));
+    for (uint16_t rid : p.known_recipes) w.write_u16(rid);
+    for (int i = 0; i < 3; ++i) {
+        w.write_u16(p.cooking_slots[i].item_def_id);
+        w.write_i32(p.cooking_slots[i].qty);
     }
     w.end_section(pos);
 }
@@ -1481,6 +1513,14 @@ static void read_player_section(BinaryReader& r, Player& p) {
         for (uint32_t i = 0; i < player_manual_auras; ++i) {
             p.auras.push_back(read_manual_aura(r));
         }
+    }
+    // v44: cooking — known recipes + pot slots
+    uint32_t kr = r.read_u32();
+    p.known_recipes.resize(kr);
+    for (uint32_t i = 0; i < kr; ++i) p.known_recipes[i] = r.read_u16();
+    for (int i = 0; i < 3; ++i) {
+        p.cooking_slots[i].item_def_id = r.read_u16();
+        p.cooking_slots[i].qty = r.read_i32();
     }
 }
 

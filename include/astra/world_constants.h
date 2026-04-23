@@ -29,6 +29,7 @@ constexpr float scar_heavy_threshold     = 0.7f;   // glassed/crater
 // --- Camp Making ---
 constexpr int campfire_lifetime_ticks     = 150;  // world ticks until campfire expires
 constexpr int cozy_radius                 = 6;    // Chebyshev tiles from a player campfire
+constexpr int cooking_source_radius       = 2;    // Chebyshev tiles from a cooking-source fixture
 constexpr int camp_making_cooldown_ticks  = 300;  // ability cooldown
 constexpr int camp_making_action_cost     = 100;  // action cost to build camp
 
