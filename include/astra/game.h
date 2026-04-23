@@ -3,6 +3,7 @@
 #include "astra/action.h"
 #include "astra/dungeon/dungeon_style.h"
 #include "astra/animation.h"
+#include "astra/aura_system.h"
 #include "astra/map_editor.h"
 #include "astra/minimap.h"
 #include "astra/lore_viewer.h"
@@ -291,6 +292,7 @@ private:
     // Gameplay
     Player player_;
     WorldManager world_;
+    AuraSystem aura_system_;
     StarChartViewer star_chart_viewer_;
     TradeWindow trade_window_;
     CharacterScreen character_screen_;

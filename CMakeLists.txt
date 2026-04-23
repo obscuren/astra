@@ -133,6 +133,7 @@ set(ASTRA_SOURCES
     src/character_creation.cpp
     src/effect.cpp
     src/aura.cpp
+    src/aura_system.cpp
     src/event_bus.cpp
     src/scenario_effects.cpp
     src/scenarios/stage4_hostility.cpp

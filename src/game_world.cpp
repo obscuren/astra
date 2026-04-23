@@ -2150,6 +2150,10 @@ void Game::advance_world(int cost) {
         }
     }
 
+    // Aura system — emitters push GEs to receivers in range. Runs after
+    // effect tick/expire so duration=1 auras are cleanly refreshed here.
+    aura_system_.tick(*this);
+
     // ── Camp Making: expire time-limited fixtures, apply Cozy aura ──
     {
         auto& map = world_.map();
