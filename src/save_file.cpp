@@ -1,4 +1,5 @@
 #include "astra/save_file.h"
+#include "astra/aura.h"
 #include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/item_ids.h"
@@ -467,6 +468,72 @@ static void read_inventory(BinaryReader& r, Inventory& inv) {
 }
 
 // ---------------------------------------------------------------------------
+// Aura serialisation
+// ---------------------------------------------------------------------------
+//
+// Only Manual-sourced auras reach these helpers; non-Manual auras are
+// re-derived from items/effects/skills by rebuild_auras_from_sources
+// after load. We round-trip the runtime fields of Aura::template_effect;
+// Effect::granted_auras is intentionally not persisted (it's static
+// source data, irrelevant for a template_effect consumed as an aura).
+
+static void write_effect_runtime(BinaryWriter& w, const Effect& e) {
+    w.write_u32(static_cast<uint32_t>(e.id));
+    w.write_string(e.name);
+    w.write_u8(static_cast<uint8_t>(e.color));
+    w.write_i32(e.duration);
+    w.write_i32(e.remaining);
+    w.write_i32(e.applied_tick);
+    w.write_u8(e.show_in_bar ? 1 : 0);
+    w.write_i32(e.tick_damage);
+    write_stat_modifiers(w, e.modifiers);
+    w.write_i32(e.dodge_mod);
+    w.write_i32(e.move_speed_mod);
+    w.write_i32(e.damage_multiplier);
+    w.write_i32(e.damage_flat_mod);
+    w.write_i32(e.buy_price_pct);
+    w.write_i32(e.sell_price_pct);
+}
+
+static Effect read_effect_runtime(BinaryReader& r) {
+    Effect e;
+    e.id            = static_cast<EffectId>(r.read_u32());
+    e.name          = r.read_string();
+    e.color         = static_cast<Color>(r.read_u8());
+    e.duration      = r.read_i32();
+    e.remaining     = r.read_i32();
+    e.applied_tick  = r.read_i32();
+    e.show_in_bar   = r.read_u8() != 0;
+    e.tick_damage   = r.read_i32();
+    e.modifiers     = read_stat_modifiers(r);
+    e.dodge_mod     = r.read_i32();
+    e.move_speed_mod = r.read_i32();
+    e.damage_multiplier = r.read_i32();
+    e.damage_flat_mod = r.read_i32();
+    e.buy_price_pct = r.read_i32();
+    e.sell_price_pct = r.read_i32();
+    return e;
+}
+
+static void write_manual_aura(BinaryWriter& w, const Aura& a) {
+    write_effect_runtime(w, a.template_effect);
+    w.write_i32(a.radius);
+    w.write_u32(a.target_mask);
+    w.write_u32(a.source_id);
+    // source is implicit: Manual (non-Manual auras aren't written).
+}
+
+static Aura read_manual_aura(BinaryReader& r) {
+    Aura a;
+    a.template_effect = read_effect_runtime(r);
+    a.radius          = r.read_i32();
+    a.target_mask     = r.read_u32();
+    a.source          = AuraSource::Manual;
+    a.source_id       = r.read_u32();
+    return a;
+}
+
+// ---------------------------------------------------------------------------
 // Section writers
 // ---------------------------------------------------------------------------
 
@@ -563,6 +630,18 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.shield_hp);
     w.write_i32(p.shield_max_hp);
     w.write_i32(p.resistances.kinetic);
+    // v43: manual-sourced auras (item/effect/skill-sourced re-derive on load)
+    {
+        uint32_t player_manual_auras = 0;
+        for (const auto& a : p.auras) {
+            if (a.source == AuraSource::Manual) ++player_manual_auras;
+        }
+        w.write_u32(player_manual_auras);
+        for (const auto& a : p.auras) {
+            if (a.source != AuraSource::Manual) continue;
+            write_manual_aura(w, a);
+        }
+    }
     w.end_section(pos);
 }
 
@@ -639,6 +718,19 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
 
     // v36: creature flags bitfield
     w.write_u64(npc.flags);
+
+    // v43: manual-sourced auras (other sources re-derive on load)
+    {
+        uint32_t npc_manual_auras = 0;
+        for (const auto& a : npc.auras) {
+            if (a.source == AuraSource::Manual) ++npc_manual_auras;
+        }
+        w.write_u32(npc_manual_auras);
+        for (const auto& a : npc.auras) {
+            if (a.source != AuraSource::Manual) continue;
+            write_manual_aura(w, a);
+        }
+    }
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -1381,6 +1473,15 @@ static void read_player_section(BinaryReader& r, Player& p) {
     p.shield_hp = r.read_i32();
     p.shield_max_hp = r.read_i32();
     p.resistances.kinetic = r.read_i32();
+    // v43: manual-sourced auras; derived auras repopulated after load
+    {
+        uint32_t player_manual_auras = r.read_u32();
+        p.auras.clear();
+        p.auras.reserve(player_manual_auras);
+        for (uint32_t i = 0; i < player_manual_auras; ++i) {
+            p.auras.push_back(read_manual_aura(r));
+        }
+    }
 }
 
 static Npc read_npc(BinaryReader& r) {
@@ -1440,6 +1541,16 @@ static Npc read_npc(BinaryReader& r) {
     }
 
     npc.flags = r.read_u64();
+
+    // v43: manual-sourced auras; derived auras repopulated after load
+    {
+        uint32_t npc_manual_auras = r.read_u32();
+        npc.auras.clear();
+        npc.auras.reserve(npc_manual_auras);
+        for (uint32_t i = 0; i < npc_manual_auras; ++i) {
+            npc.auras.push_back(read_manual_aura(r));
+        }
+    }
 
     return npc;
 }
@@ -2017,6 +2128,17 @@ bool read_save(const std::string& name, SaveData& data) {
     }
 
     data.current_map_id = h.current_map_id;
+
+    // v43: repopulate item/effect/skill-derived auras now that all sources
+    // (equipment, effects, learned skills) are fully loaded. Manual auras
+    // were already restored per-entity above.
+    rebuild_auras_from_sources(data.player);
+    for (auto& ms : data.maps) {
+        for (auto& npc : ms.npcs) {
+            rebuild_auras_from_sources(npc);
+        }
+    }
+
     return in.good() || in.eof();
 }
 
