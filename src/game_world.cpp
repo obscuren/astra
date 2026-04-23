@@ -2154,25 +2154,9 @@ void Game::advance_world(int cost) {
     // effect tick/expire so duration=1 auras are cleanly refreshed here.
     aura_system_.tick(*this);
 
-    // ── Camp Making: expire time-limited fixtures ──
-    {
-        auto& map = world_.map();
-        const int tick = world_.world_tick();
-
-        // Sweep the current map for expired time-limited fixtures.
-        // Currently only FixtureType::Campfire uses spawn_tick.
-        for (int y = 0; y < map.height(); ++y) {
-            for (int x = 0; x < map.width(); ++x) {
-                int fid = map.fixture_id(x, y);
-                if (fid < 0) continue;
-                const auto& fd = map.fixture(fid);
-                if (fd.spawn_tick < 0) continue;
-                if (tick - fd.spawn_tick >= world::campfire_lifetime_ticks) {
-                    map.remove_fixture(x, y);
-                }
-            }
-        }
-    }
+    // Time-limited fixtures (e.g. campfires) — remove once expired.
+    world_.map().sweep_expired_fixtures(world_.world_tick(),
+                                        world::campfire_lifetime_ticks);
 
     // Water/lava damage
     if (player_.hp > 0 && world_.map().get(player_.x, player_.y) == Tile::Water) {

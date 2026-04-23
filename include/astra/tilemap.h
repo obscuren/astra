@@ -583,6 +583,10 @@ public:
     FixtureData& fixture_mut(int id) { return fixtures_[id]; }
     int add_fixture(int x, int y, FixtureData fd);
     void remove_fixture(int x, int y);
+    // Remove any time-limited fixture (spawn_tick >= 0) that has exceeded
+    // its lifetime. `lifetime_ticks` is compared against
+    // `current_tick - spawn_tick`. Call on the currently-active map only.
+    void sweep_expired_fixtures(int current_tick, int lifetime_ticks);
     int fixture_count() const { return static_cast<int>(fixtures_.size()); }
     const std::vector<FixtureData>& fixtures_vec() const { return fixtures_; }
     const std::vector<int>& fixture_ids() const { return fixture_ids_; }

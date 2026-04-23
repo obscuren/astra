@@ -87,6 +87,20 @@ void TileMap::remove_fixture(int x, int y) {
     }
 }
 
+void TileMap::sweep_expired_fixtures(int current_tick, int lifetime_ticks) {
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            int fid = fixture_id(x, y);
+            if (fid < 0) continue;
+            const auto& fd = fixtures_[fid];
+            if (fd.spawn_tick < 0) continue;
+            if (current_tick - fd.spawn_tick >= lifetime_ticks) {
+                remove_fixture(x, y);
+            }
+        }
+    }
+}
+
 int TileMap::region_id(int x, int y) const {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return -1;
     return region_ids_[y * width_ + x];
