@@ -24,6 +24,9 @@ enum class SkillId : uint32_t {
     // Acrobatics
     Swiftness = 100,
     Tumble = 101,
+    Sidestep = 102,
+    SureFooted = 103,
+    AdrenalineRush = 104,
     // Short Blade
     ShortBladeExpertise = 200,
     Jab = 201,

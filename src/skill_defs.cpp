@@ -10,6 +10,15 @@ bool player_has_skill(const Player& player, SkillId id) {
     return false;
 }
 
+static std::string acrobatics_category_description() {
+    std::string s = "Mastery of agile movement and evasion in any environment.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " +";
+    s += colored("1 DV", Color::Cyan);
+    s += " while this category is learned.";
+    return s;
+}
+
 static std::string tinkering_category_description() {
     std::string s = "The art of repairing, modifying, and disassembling technology and equipment.\n\n";
     s += colored("Passive:", Color::White);
@@ -30,13 +39,26 @@ static std::string tinkering_category_description() {
 const std::vector<SkillCategory>& skill_catalog() {
     static const std::vector<SkillCategory> catalog = {
         {SkillId::Cat_Acrobatics, "Acrobatics",
-         "Mastery of agile movement and evasion. Improves dodge and mobility in combat.", 50, {
+         acrobatics_category_description(), 50, {
             {SkillId::Swiftness, "Swiftness",
-             "You get +5 bonus to DV when attacked with missile weapons.",
+             "You get +5 DV when attacked with ranged weapons.",
              true, 50, 0, nullptr},
+            {SkillId::Sidestep, "Sidestep",
+             "You get +2 DV while at least one hostile is adjacent. "
+             "Stacks with Swiftness against adjacent ranged foes.",
+             true, 75, 13, "Agility"},
+            {SkillId::SureFooted, "Sure-Footed",
+             "Your movement is lithe and efficient. Dungeon move "
+             "actions cost 10% less time.",
+             true, 75, 15, "Agility"},
             {SkillId::Tumble, "Tumble",
-             "Dodge away when hit, reducing damage and repositioning.",
+             "Dash up to 3 tiles in any direction, ignoring anything "
+             "in between. Telegraphed. 25-tick cooldown.",
              false, 100, 17, "Agility"},
+            {SkillId::AdrenalineRush, "Adrenaline Rush",
+             "Self-cast surge: +2 DV and +25% quickness for 3 ticks. "
+             "40-tick cooldown.",
+             false, 150, 14, "Willpower"},
         }},
         {SkillId::Cat_ShortBlade, "Short Blade",
          "Proficiency with knives, daggers, and other short-edged weapons. Fast and precise.", 50, {

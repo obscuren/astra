@@ -150,6 +150,67 @@ public:
     }
 };
 
+class TumbleAbility : public Ability {
+public:
+    TumbleAbility() {
+        skill_id = SkillId::Tumble;
+        name = "Tumble";
+        description = "Dash up to 3 tiles, ignoring anything in between.";
+        cooldown_ticks = 25;
+        cooldown_effect = EffectId::CooldownTumble;
+        needs_adjacent_target = false;
+        required_weapon = WeaponClass::None;
+        action_cost = 50;
+        telegraph = TelegraphSpec{
+            .shape = TelegraphShape::Line,
+            .range = 3,
+            .width = 1,
+            .diagonals = true,
+            .stop_at_wall = true,
+            .stop_at_enemy = false,
+            .require_walkable_dest = true,
+        };
+    }
+
+    bool execute(Game&, Npc*) override { return false; }
+
+    bool execute_telegraphed(Game& game, const TelegraphResult& res) override {
+        if (res.dest_x < 0 || res.dest_y < 0) return false;
+        if (res.dest_x == game.player().x && res.dest_y == game.player().y) return false;
+        for (const auto& npc : game.world().npcs()) {
+            if (npc.alive() && npc.x == res.dest_x && npc.y == res.dest_y) {
+                game.log("Landing blocked by " + npc.label() + ".");
+                return false;
+            }
+        }
+        game.player().x = res.dest_x;
+        game.player().y = res.dest_y;
+        game.refresh_view();
+        game.log("You tumble to a new position.");
+        return true;
+    }
+};
+
+class AdrenalineRushAbility : public Ability {
+public:
+    AdrenalineRushAbility() {
+        skill_id = SkillId::AdrenalineRush;
+        name = "Adrenaline Rush";
+        description = "+2 DV and +25% quickness for 3 ticks.";
+        cooldown_ticks = 40;
+        cooldown_effect = EffectId::CooldownAdrenaline;
+        needs_adjacent_target = false;
+        required_weapon = WeaponClass::None;
+        action_cost = 25;
+    }
+
+    bool execute(Game& game, Npc* /*target*/) override {
+        add_effect(game.player().effects, make_adrenaline_rush_ge(3));
+        game.log("Adrenaline floods your system!");
+        return true;
+    }
+};
+
 class CampMakingAbility : public Ability {
 public:
     CampMakingAbility() {
@@ -220,6 +281,8 @@ static std::vector<std::unique_ptr<Ability>> build_catalog() {
     cat.push_back(std::make_unique<CleaveAbility>());
     cat.push_back(std::make_unique<QuickdrawAbility>());
     cat.push_back(std::make_unique<IntimidateAbility>());
+    cat.push_back(std::make_unique<TumbleAbility>());
+    cat.push_back(std::make_unique<AdrenalineRushAbility>());
     cat.push_back(std::make_unique<CampMakingAbility>());
     return cat;
 }
@@ -314,18 +377,31 @@ bool use_ability(int slot, Game& game) {
     }
 
     // Execute
+    auto finalize = [ability, &game]() {
+        add_effect(game.player().effects, make_cooldown(
+            ability->cooldown_effect, ability->name,
+            ability->effective_cooldown(game.player())));
+        game.advance_world(ability->action_cost);
+    };
+
+    if (ability->telegraph.has_value()) {
+        game.telegraph().begin(
+            *ability->telegraph,
+            game.player().x, game.player().y,
+            [ability, finalize, &game](const TelegraphResult& res) {
+                if (!ability->execute_telegraphed(game, res)) {
+                    return;
+                }
+                finalize();
+            });
+        game.log(ability->name + ": pick a direction, Enter to dash, Esc to cancel.");
+        return true;
+    }
+
     if (!ability->execute(game, target)) {
         return false;
     }
-
-    // Apply cooldown
-    add_effect(game.player().effects, make_cooldown(
-        ability->cooldown_effect, ability->name,
-        ability->effective_cooldown(game.player())));
-
-    // Advance world
-    game.advance_world(ability->action_cost);
-
+    finalize();
     return true;
 }
 

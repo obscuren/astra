@@ -3,8 +3,10 @@
 #include "astra/effect.h"
 #include "astra/item.h"
 #include "astra/skill_defs.h"
+#include "astra/telegraph.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +22,11 @@ public:
 
     // Execute the ability. Target may be nullptr for self/AoE abilities.
     virtual bool execute(Game& game, Npc* target) = 0;
+
+    // Optional telegraph spec. When present, use_ability() routes through the
+    // Telegraph subsystem and invokes execute_telegraphed() on confirmation.
+    std::optional<TelegraphSpec> telegraph;
+    virtual bool execute_telegraphed(Game&, const TelegraphResult&) { return false; }
 
     // Cooldown ticks to apply after a successful use. Defaults to
     // the static cooldown_ticks field; overrides can scale based on

@@ -22,6 +22,8 @@ enum class EffectId : uint32_t {
     Haste        = 9,
     Haggle       = 10,
     ThickSkin    = 11,
+    Acrobatics       = 12,
+    AdrenalineRush   = 13,
     // Ability cooldowns (100+)
     CooldownJab         = 100,
     CooldownCleave      = 101,
@@ -29,6 +31,8 @@ enum class EffectId : uint32_t {
     CooldownIntimidate  = 103,
     CooldownSuppressing = 104,
     CooldownCampMaking  = 105,
+    CooldownTumble      = 106,
+    CooldownAdrenaline  = 107,
     Flee                = 200,
 
     // Environmental buffs (300+)
@@ -104,6 +108,8 @@ Effect make_attack_boost_ge(int duration, int amount);
 Effect make_defense_boost_ge(int duration, int amount);
 Effect make_haggle_ge();
 Effect make_thick_skin_ge();
+Effect make_acrobatics_ge();
+Effect make_adrenaline_rush_ge(int duration);
 Effect make_flee_ge(int duration);
 Effect make_cozy_ge();
 Effect make_cooking_fire_aura_ge();

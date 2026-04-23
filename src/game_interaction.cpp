@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/faction.h"
+#include "astra/skill_defs.h"
 #include "astra/tile_props.h"
 #include "astra/tinkering.h"
 
@@ -7,6 +8,19 @@
 #include <vector>
 
 namespace astra {
+
+namespace {
+constexpr int kSureFootedNum = 9;
+constexpr int kSureFootedDen = 10;
+}  // namespace
+
+static int move_action_cost(const Player& player) {
+    int cost = ActionCost::move;
+    if (player_has_skill(player, SkillId::SureFooted)) {
+        cost = (cost * kSureFootedNum) / kSureFootedDen;
+    }
+    return cost;
+}
 
 void Game::try_move(int dx, int dy) {
     int nx = player_.x + dx;
@@ -107,7 +121,7 @@ void Game::try_move(int dx, int dy) {
         if (npc.alive() && npc.x == nx && npc.y == ny) {
             if (is_hostile_to_player(npc.faction, player_)) {
                 combat_.attack_npc(npc, *this);
-                advance_world(ActionCost::move);
+                advance_world(move_action_cost(player_));
                 return;
             }
             // Swap positions with friendly/neutral NPC
@@ -119,7 +133,7 @@ void Game::try_move(int dx, int dy) {
             player_.y = ny;
             recompute_fov();
             compute_camera();
-            advance_world(ActionCost::move);
+            advance_world(move_action_cost(player_));
             return;
         }
     }
@@ -161,7 +175,7 @@ void Game::try_move(int dx, int dy) {
     recompute_fov();
     compute_camera();
     check_region_change();
-    advance_world(ActionCost::move);
+    advance_world(move_action_cost(player_));
 
     // Check if player regains bearings while lost on detail map
     if (lost_ && world_.on_detail_map()) {

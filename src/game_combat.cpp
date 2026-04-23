@@ -14,6 +14,11 @@
 
 namespace astra {
 
+namespace {
+constexpr int kSwiftnessDv = 5;
+constexpr int kSidestepDv  = 2;
+}  // namespace
+
 static int sign(int v) { return (v > 0) - (v < 0); }
 
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
@@ -114,6 +119,25 @@ static int weapon_skill_bonus(const Player& player, WeaponClass wc) {
     }
 }
 
+enum class AttackKind { Melee, Ranged };
+
+static int player_contextual_dv(const Player& player, const Game& game, AttackKind kind) {
+    int bonus = 0;
+    if (kind == AttackKind::Ranged && player_has_skill(player, SkillId::Swiftness)) {
+        bonus += kSwiftnessDv;
+    }
+    if (kind == AttackKind::Melee && player_has_skill(player, SkillId::Sidestep)) {
+        int px = player.x, py = player.y;
+        for (const auto& npc : game.world().npcs()) {
+            if (!npc.alive()) continue;
+            if (!is_hostile_to_player(npc.faction, player)) continue;
+            int dx = std::abs(npc.x - px), dy = std::abs(npc.y - py);
+            if (std::max(dx, dy) == 1) { bonus += kSidestepDv; break; }
+        }
+    }
+    return player.effective_dv() + bonus;
+}
+
 static int apply_resistance(int damage, DamageType type, const Resistances& res) {
     int pct = 0;
     switch (type) {
@@ -202,7 +226,8 @@ static void ranged_hit_player(Npc& npc, Game& game) {
         return;
     }
     int attack_roll = natural + npc.level / 2;
-    if (natural != 20 && attack_roll < game.player().effective_dv()) {
+    int player_dv = player_contextual_dv(game.player(), game, AttackKind::Ranged);
+    if (natural != 20 && attack_roll < player_dv) {
         game.log("You evade " + display_name(npc) + "'s shot!");
         return;
     }
@@ -394,7 +419,8 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
                 return;
             }
             int attack_roll = natural + npc.level / 2;
-            if (natural != 20 && attack_roll < game.player().effective_dv()) {
+            int player_dv = player_contextual_dv(game.player(), game, AttackKind::Melee);
+            if (natural != 20 && attack_roll < player_dv) {
                 game.log("You dodge " + display_name(npc) + "'s attack!");
                 return;
             }

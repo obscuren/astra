@@ -208,6 +208,31 @@ Effect make_thick_skin_ge() {
     return e;
 }
 
+Effect make_acrobatics_ge() {
+    Effect e;
+    e.id = EffectId::Acrobatics;
+    e.name = "Acrobatics";
+    e.color = Color::Cyan;
+    e.duration = -1;
+    e.remaining = -1;
+    e.show_in_bar = false;
+    e.modifiers.dv = 1;
+    return e;
+}
+
+Effect make_adrenaline_rush_ge(int duration) {
+    Effect e;
+    e.id = EffectId::AdrenalineRush;
+    e.name = "Adrenaline Rush";
+    e.color = Color::Red;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    e.modifiers.dv = 2;
+    e.modifiers.quickness = 25;
+    return e;
+}
+
 Effect make_flee_ge(int duration) {
     Effect e;
     e.id = EffectId::Flee;

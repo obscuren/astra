@@ -1428,6 +1428,10 @@ void Game::apply_passive_skill_effects() {
         !has_effect(player_.effects, EffectId::ThickSkin)) {
         add_effect(player_.effects, make_thick_skin_ge());
     }
+    if (player_has_skill(player_, SkillId::Cat_Acrobatics) &&
+        !has_effect(player_.effects, EffectId::Acrobatics)) {
+        add_effect(player_.effects, make_acrobatics_ge());
+    }
     rebuild_auras_from_sources(player_);
 }
 
