@@ -134,6 +134,9 @@ void Game::handle_play_input(int key) {
             log("You drop " + dropped.name + ".");
             world_.ground_items().push_back({player_.x, player_.y, std::move(dropped)});
         }
+        if (character_screen_.has_use_item_request()) {
+            use_item(character_screen_.consume_use_item_request());
+        }
         auto installed_slot = character_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {
             quest_manager_.on_ship_component_installed(installed_slot);

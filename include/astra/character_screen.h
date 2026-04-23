@@ -2,6 +2,7 @@
 
 #include "astra/player.h"
 #include "astra/quest.h"
+#include "astra/recipe.h"
 #include "astra/ui.h"
 
 #include <cstdint>
@@ -19,13 +20,14 @@ enum class CharTab : uint8_t {
     Attributes,
     Equipment,
     Tinkering,
+    Cooking,
     Journal,
     Quests,
     Reputation,
     Ship,
 };
 
-static constexpr int char_tab_count = 8;
+static constexpr int char_tab_count = 9;
 
 class CharacterScreen {
 public:
@@ -107,6 +109,36 @@ private:
     std::unordered_set<std::string> catalog_collapsed_;
 
     void draw_tinkering(UIContext& ctx);
+
+    // Cooking tab
+    enum class CookingFocus : uint8_t { Slots, Cookbook };
+    CookingFocus cooking_focus_ = CookingFocus::Slots;
+    int cooking_slot_cursor_ = 0;       // 0..2 (which pot slot)
+    int cooking_cookbook_cursor_ = 0;   // index into known recipe list
+    std::unordered_set<uint16_t> cooking_collapsed_recipes_;  // recipe ids that are currently collapsed
+    int cooking_cookbook_scroll_ = 0;
+    // Ingredient picker modal (opened from a pot slot).
+    bool cooking_picker_active_ = false;
+    int  cooking_picker_cursor_ = 0;    // index into filtered ingredient list
+    int  cooking_picker_slot_ = 0;      // which pot slot (0..2) we're filling
+    // Quantity prompt (follows the picker once an ingredient is chosen).
+    bool cooking_qty_prompt_active_ = false;
+    bool cooking_qty_prompt_edited_ = false;  // first digit replaces prefill
+    int  cooking_qty_prompt_value_ = 1;
+    uint16_t cooking_qty_prompt_item_def_id_ = 0;
+
+    void handle_cooking_key(int key);
+    void handle_cooking_picker_key(int key);
+    void handle_cooking_qty_prompt_key(int key);
+    void cooking_open_picker_for_slot(int slot_idx);
+    void cooking_picker_confirm();
+    void cooking_commit_qty_prompt();
+    void cooking_clear_slot(int idx);
+    void cooking_toggle_recipe(uint16_t recipe_id);
+    void cooking_attempt_cook();
+
+    void draw_cooking(UIContext& ctx);
+
     void draw_journal(UIContext& ctx);
     int journal_cursor_ = 0;
     int journal_scroll_ = 0;
@@ -138,11 +170,15 @@ private:
     // Drop output — Game reads this after handle_input
     bool has_dropped_item_ = false;
     Item dropped_item_;
+    // Use-item output — Game reads this after handle_input and calls use_item(idx)
+    int use_item_request_idx_ = -1;
     // Ship component install output — Game reads this to update quests
     std::string installed_ship_slot_;
 public:
     bool has_dropped_item() const { return has_dropped_item_; }
     Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
+    bool has_use_item_request() const { return use_item_request_idx_ >= 0; }
+    int consume_use_item_request() { int i = use_item_request_idx_; use_item_request_idx_ = -1; return i; }
     std::string consume_installed_ship_slot() {
         std::string s = std::move(installed_ship_slot_);
         installed_ship_slot_.clear();
