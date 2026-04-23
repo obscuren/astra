@@ -582,3 +582,53 @@ active. No effect on hunger, other effects, or any other regen source.
 - Placement: 8-neighbour scan in fixed order (NW, N, NE, W, E, SW, S,
   SE); first passable tile with no fixture wins. Fails with no cooldown
   if no space is available.
+
+## Aura System
+
+Fixtures, the player, and NPCs can all emit gameplay effects to entities
+in range each world tick. Auras are pure data:
+
+```
+Aura {
+    template_effect   // Effect copied onto each receiver on apply
+    radius            // Chebyshev tiles
+    target_mask       // Player | FriendlyNpc | HostileNpc (bitflags)
+    source / source_id
+}
+```
+
+Emission runs inside `Game::advance_world` after effect tick/expire
+and before passive regen. Each tick, every emitter's auras are applied
+to every in-range receiver via `add_effect`, which replaces any existing
+effect of the same `EffectId` — so repeated emission acts as a refresh
+and multiple overlapping emitters collapse to the most recently written.
+
+Default aura duration is 1 world tick (baked into the `template_effect`)
+so an aura drops the tick after a receiver steps out of range. Longer
+lifetimes are expressed as larger `duration` values on the template
+(e.g. `duration = 5` gives a 5-tick grace period).
+
+Fixture auras come from two registries:
+
+- **Tag-derived** — any `FixtureData` carrying a specific `FixtureTag`
+  contributes an aura (e.g. every `CookingSource` fixture could grant
+  `CookingFireAura`).
+- **Type-specific** — a specific `FixtureType` contributes an aura
+  regardless of tags (e.g. `FixtureType::Campfire → Cozy`, deliberately
+  not `HeatSource`-wide).
+
+Player and NPC auras live on `Entity::auras` and are rebuilt from sources
+(equipment, active effects, learned skills) by
+`rebuild_auras_from_sources`. Manual entries (dev-console) persist
+untouched across rebuilds.
+
+Only `Manual`-sourced entity auras are serialised; everything else
+reconstructs from items/effects/skills after save-load.
+
+Cozy (campfire aura) is the first tenant: `FixtureType::Campfire`
+emits Cozy to the player within 6 tiles, halving the natural regen
+interval. See
+`docs/superpowers/specs/2026-04-23-aura-system-design.md` for the full
+design rationale and
+`docs/superpowers/plans/2026-04-23-aura-system.md` for the phased
+rollout.
