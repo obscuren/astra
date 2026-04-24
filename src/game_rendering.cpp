@@ -2,6 +2,7 @@
 #include <cmath>
 #include <unordered_set>
 #include "astra/ability.h"
+#include "astra/ability_bar.h"
 #include "astra/aura.h"
 #include "astra/display_name.h"
 #include "astra/effect.h"
@@ -1514,31 +1515,72 @@ void Game::render_effects_bar() {
 void Game::render_abilities_bar() {
     UIContext ctx(renderer_.get(), abilities_rect_);
 
-    std::vector<TextSegment> segs;
-    segs.push_back({"ABILITIES: ", UITag::TextDim});
+    const int rows = ability_bar::row_count(player_);
+    ability_bar::clamp_visible_row(ability_bar_row_, player_);
 
-    auto bar = get_ability_bar(player_);
-    if (bar.empty()) {
-        segs.push_back({"[none]", UITag::TextDim});
-    } else {
-        for (int i = 0; i < 5 && i < static_cast<int>(bar.size()); ++i) {
-            const auto* ab = find_ability(bar[i]);
-            if (!ab) continue;
-            bool on_cd = has_effect(player_.effects, ab->cooldown_effect);
-            const auto* cd_eff = find_effect(player_.effects, ab->cooldown_effect);
+    // Arrows: bright when pressing the key would reveal a new row, dim
+    // when it would wrap back around. Both dim if there's only one row.
+    const UITag up_tag   = (ability_bar_row_ > 0)         ? UITag::TextDefault : UITag::TextDim;
+    const UITag down_tag = (ability_bar_row_ < rows - 1)  ? UITag::TextDefault : UITag::TextDim;
 
-            std::string label = "[" + std::to_string(i + 1) + "] " + ab->name;
-            if (on_cd && cd_eff && cd_eff->remaining > 0) {
-                label += "(" + std::to_string(cd_eff->remaining) + ")";
-            }
-            label += "  ";
-
-            UITag tag = on_cd ? UITag::TextDim : UITag::TextWarning;
-            segs.push_back({label, tag});
-        }
+    // --- Row 0: hint + up arrow --------------------------------------
+    {
+        // ▲ = \xe2\x96\xb2, rendered immediately after the hint.
+        ctx.styled_text({.x = 1, .y = 0,
+                         .segments = {
+                             {"(PgUp/PgDn)  ", UITag::TextDim},
+                             {"\xe2\x96\xb2",  up_tag},
+                         }});
     }
 
-    ctx.styled_text({.x = 1, .y = 0, .segments = segs});
+    // --- Row 1: hotbar ------------------------------------------------
+    {
+        std::vector<TextSegment> mid;
+        mid.push_back({" ABILITIES:  ", UITag::TextBright});
+        mid.push_back({std::to_string(ability_bar_row_ + 1) + "  ", UITag::TextDefault});
+
+        if (player_.ability_slots.empty()) {
+            mid.push_back({"[none]", UITag::TextDim});
+        } else {
+            for (int col = 0; col < ability_bar::kSlotsPerRow; ++col) {
+                auto slot = ability_bar::slot_at(player_, ability_bar_row_, col);
+                std::string key_tag = "<" + std::to_string(col + 1) + "> ";
+                if (!slot.has_value()) {
+                    mid.push_back({key_tag + "---  ", UITag::TextDim});
+                    continue;
+                }
+                const auto* ab = find_ability(*slot);
+                if (!ab) {
+                    // Defensive — orphaned SkillId in the bar
+                    mid.push_back({key_tag + "???  ", UITag::TextDim});
+                    continue;
+                }
+                bool on_cd = has_effect(player_.effects, ab->cooldown_effect);
+                const auto* cd_eff = find_effect(player_.effects, ab->cooldown_effect);
+
+                std::string label = key_tag + ab->name;
+                if (on_cd && cd_eff && cd_eff->remaining > 0) {
+                    label += "(" + std::to_string(cd_eff->remaining) + ")";
+                }
+                label += "  ";
+
+                mid.push_back({label, on_cd ? UITag::TextDim : UITag::TextWarning});
+            }
+        }
+        ctx.styled_text({.x = 1, .y = 1, .segments = mid});
+    }
+
+    // --- Row 2: page indicator + down arrow --------------------------
+    {
+        // ▼ = \xe2\x96\xbc, rendered immediately after the page indicator.
+        std::string page = "Page " + std::to_string(ability_bar_row_ + 1)
+                         + " of "  + std::to_string(rows) + "  ";
+        ctx.styled_text({.x = 1, .y = 2,
+                         .segments = {
+                             {page,            UITag::TextDim},
+                             {"\xe2\x96\xbc",  down_tag},
+                         }});
+    }
 }
 
 void Game::render_gameover() {

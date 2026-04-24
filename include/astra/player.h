@@ -98,6 +98,9 @@ struct Player {
     // Skills
     int skill_points = 0;
     std::vector<SkillId> learned_skills;
+    // Ability hotbar slot assignments. Flat, dense, compact — no sentinels,
+    // no duplicates. Flat index N maps to (row, col) via ability_bar::kSlotsPerRow.
+    std::vector<SkillId> ability_slots;
 
     // Reputation
     std::vector<FactionStanding> reputation;

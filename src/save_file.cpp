@@ -1,4 +1,5 @@
 #include "astra/save_file.h"
+#include "astra/ability_bar.h"
 #include "astra/aura.h"
 #include "astra/dice.h"
 #include "astra/faction.h"
@@ -606,6 +607,11 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     w.write_i32(p.skill_points);
     w.write_u32(static_cast<uint32_t>(p.learned_skills.size()));
     for (const auto& sid : p.learned_skills) {
+        w.write_u32(static_cast<uint32_t>(sid));
+    }
+    // v45: ability bar slot assignments (flat, compact)
+    w.write_u32(static_cast<uint32_t>(p.ability_slots.size()));
+    for (const auto& sid : p.ability_slots) {
         w.write_u32(static_cast<uint32_t>(sid));
     }
     w.write_u32(static_cast<uint32_t>(p.reputation.size()));
@@ -1457,6 +1463,16 @@ static void read_player_section(BinaryReader& r, Player& p) {
     for (uint32_t i = 0; i < skill_count; ++i) {
         p.learned_skills[i] = static_cast<SkillId>(r.read_u32());
     }
+    // v45: ability bar slot assignments
+    uint32_t ability_count = r.read_u32();
+    p.ability_slots.resize(ability_count);
+    for (uint32_t i = 0; i < ability_count; ++i) {
+        p.ability_slots[i] = static_cast<SkillId>(r.read_u32());
+    }
+    // Post-load: drop stale or duplicate entries; the bar may reference
+    // SkillIds removed by data revisions or duplicated by a bug in older
+    // builds.
+    ability_bar::validate_and_dedupe(p);
     uint32_t rep_count = r.read_u32();
     p.reputation.resize(rep_count);
     for (uint32_t i = 0; i < rep_count; ++i) {

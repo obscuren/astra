@@ -376,6 +376,8 @@ private:
     Rect effects_rect_;
     Rect abilities_rect_;
 
+    int ability_bar_row_ = 0;  // currently visible row of the ability bar (transient, not saved)
+
     // Save/load
     std::vector<SaveSlot> save_slots_;
     int load_selection_ = 0;

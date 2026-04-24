@@ -8,6 +8,7 @@
 #include "astra/faction.h"
 #include "astra/race.h"
 #include "astra/skill_defs.h"
+#include "astra/skill_grant.h"
 #include "astra/journal.h"
 #include "astra/quest.h"
 #include "astra/quest_graph.h"
@@ -392,7 +393,7 @@ bool CharacterScreen::handle_input(int key) {
                     const auto& cat = skill_catalog()[v.ci];
                     if (!has_skill(cat.unlock_id) && player_->skill_points >= cat.sp_cost) {
                         player_->skill_points -= cat.sp_cost;
-                        player_->learned_skills.push_back(cat.unlock_id);
+                        grant_skill(*player_, cat.unlock_id);
                         skill_cat_expanded_[v.ci] = true;
                         context_message_ = "Unlocked " + cat.name + "!";
                         context_msg_timer_ = 3;
@@ -424,7 +425,7 @@ bool CharacterScreen::handle_input(int key) {
                         }
                         if (meets_req) {
                             player_->skill_points -= sk.sp_cost;
-                            player_->learned_skills.push_back(sk.id);
+                            grant_skill(*player_, sk.id);
                             if (sk.id == SkillId::Haggle) {
                                 add_effect(player_->effects, make_haggle_ge());
                             }

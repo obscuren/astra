@@ -146,6 +146,8 @@ set(ASTRA_SOURCES
     src/input_manager.cpp
     src/dialog_manager.cpp
     src/ability.cpp
+    src/ability_bar.cpp
+    src/skill_grant.cpp
     src/telegraph.cpp
     src/quest.cpp
     src/quest_fixture.cpp

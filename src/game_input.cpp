@@ -1,4 +1,4 @@
-#include "astra/ability.h"
+#include "astra/ability_bar.h"
 #include "astra/game.h"
 
 namespace astra {
@@ -445,16 +445,26 @@ void Game::handle_play_input(int key) {
             }
             break;
         }
+        case KEY_PAGE_UP:
+            ability_bar::page_up(ability_bar_row_, player_);
+            break;
+        case KEY_PAGE_DOWN:
+            ability_bar::page_down(ability_bar_row_, player_);
+            break;
         case '\n': case '\r':
-        case '1': case '2': case '3': case '4': case '5': case '6': {
+        case '1': case '2': case '3': case '4': case '5': case '6':
+        case '7': case '8': case '9': {
             bool wait_focused = static_cast<Widget>(focused_widget_) == Widget::Wait
                                 && widget_active(active_widgets_, Widget::Wait);
-            // Number keys 1-5: abilities (unless Wait widget is focused)
-            if (key >= '1' && key <= '5' && !wait_focused) {
-                use_ability(key - '1', *this);
+            // Number keys 1..kSlotsPerRow: abilities (unless Wait widget is focused)
+            if (key >= '1' && key <= ('0' + ability_bar::kSlotsPerRow) && !wait_focused) {
+                ability_bar::use_slot(*this, ability_bar_row_, key - '1');
                 break;
             }
-            if (key == '6' && !wait_focused) break;
+            // Digits above kSlotsPerRow fall through to the wait-widget handler below
+            // (so e.g. the wait widget can still use 1-6). Non-wait presses of those
+            // digits are no-ops.
+            if (key > ('0' + ability_bar::kSlotsPerRow) && key <= '9' && !wait_focused) break;
             // Overworld: enter detail map for the tile underneath the player
             if (world_.on_overworld() && (key == '\n' || key == '\r')) {
                 Tile t = world_.map().get(player_.x, player_.y);

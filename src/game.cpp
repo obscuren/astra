@@ -18,6 +18,8 @@
 #include "astra/overworld_stamps.h"
 #include "astra/npc_defs.h"
 #include "astra/npc_spawner.h"
+#include "astra/skill_grant.h"
+#include "astra/ability_bar.h"
 #include "astra/station_type.h"
 #include "astra/shop.h"
 
@@ -122,7 +124,7 @@ void Game::compute_layout() {
         fill(),      // [4] main content
         fixed(1),    // [5] bottom separator
         fixed(1),    // [6] effects
-        fixed(1),    // [7] abilities
+        fixed(3),    // [7] abilities (3 rows: arrows hint, hotbar, page indicator)
     });
 
     stats_bar_rect_ = vrows[0].bounds();
@@ -151,7 +153,11 @@ void Game::compute_layout() {
     if (panel_visible_) {
         auto main_cols = vrows[4].columns({fill(), fixed(1), fixed(panel_w)});
         map_rect_ = main_cols[0].bounds();
-        separator_rect_ = {sep_x, vrows[1].bounds().y, 1, screen_h_ - 3};
+        // Separator spans from the HP-bar row down through the bottom
+        // separator row, stopping before the effects and abilities rows.
+        int sep_y      = vrows[1].bounds().y;
+        int sep_height = vrows[5].bounds().y - sep_y + 1;
+        separator_rect_ = {sep_x, sep_y, 1, sep_height};
         // Shift the side panel down one row so the tabs-row separator
         // doesn't overwrite the first widget row.
         auto sp = main_cols[2].bounds();
@@ -813,12 +819,14 @@ void Game::new_game() {
         player_.inventory.max_carry_weight += tmpl.bonus_carry_weight;
         // Dev Commander learns every skill and category for testing.
         player_.learned_skills.clear();
+        player_.ability_slots.clear();
         for (const auto& cat : skill_catalog()) {
-            player_.learned_skills.push_back(cat.unlock_id);
+            grant_skill(player_, cat.unlock_id);
             for (const auto& sk : cat.skills) {
-                player_.learned_skills.push_back(sk.id);
+                grant_skill(player_, sk.id);
             }
         }
+        ability_bar::reconcile_from_learned(player_);
         player_.skill_points = tmpl.starting_sp;
         player_.money += tmpl.starting_money;
         player_.attribute_points = 10;
@@ -1136,7 +1144,12 @@ void Game::new_game(const CreationResult& cr) {
     const auto& tmpl = class_template(cr.player_class);
     player_.max_hp += tmpl.bonus_hp;
     player_.inventory.max_carry_weight += tmpl.bonus_carry_weight;
-    player_.learned_skills = tmpl.starting_skills;
+    player_.learned_skills.clear();
+    player_.ability_slots.clear();
+    for (SkillId id : tmpl.starting_skills) {
+        grant_skill(player_, id);
+    }
+    ability_bar::reconcile_from_learned(player_);
     player_.skill_points = tmpl.starting_sp;
     player_.money += tmpl.starting_money;
 
@@ -1410,6 +1423,7 @@ void Game::reset_interaction_state() {
 void Game::post_load() {
     // Apply passive skill effects
     apply_passive_skill_effects();
+    ability_bar::reconcile_from_learned(player_);
     compute_layout();
     recompute_fov();
     compute_camera();
