@@ -1460,7 +1460,7 @@ void Game::render_effects_bar() {
         std::string charge_num = std::to_string(rd.current_charge);
         std::string cap_num    = std::to_string(rd.charge_capacity);
         // "[t]arget [s]hoot [r]eload " = 26 chars; charge = num + '/' + num
-        int hint_width = 26 + static_cast<int>(charge_num.size())
+        int hint_width = 30 + static_cast<int>(charge_num.size())
                             + 1
                             + static_cast<int>(cap_num.size());
         int ix = ctx.width() - hint_width - 1;
@@ -1474,7 +1474,7 @@ void Game::render_effects_bar() {
             x += static_cast<int>(s.size());
         };
 
-        int x = ix;
+        int x = ix + 2; // Padding left of 2
         put(x, "[",      Color::White);
         put(x, "t",      Color::Yellow);
         put(x, "]arget ", Color::White);
@@ -1487,6 +1487,7 @@ void Game::render_effects_bar() {
         put(x, charge_num, charge_color);
         put(x, "/",      Color::White);
         put(x, cap_num,  charge_color);
+        put(x, "   ",     Color::White);
     }
 
     // --- Section dividers (black |) --------------------------------------
@@ -1522,8 +1523,8 @@ void Game::render_effects_bar() {
     }
 
     // --- TARGET section --------------------------------------------------
-    int tx = left_sep_x + 2;  // one space of padding after the │
-    ctx.text(tx, 0, "TARGET:", Color::White, bg);
+    int tx = target_x + 2;  // one space of padding after the │
+    ctx.text(tx, 0, " TARGET:", Color::White, bg);
     tx += 7;
     if (combat_.target_npc() && combat_.target_npc()->alive()) {
         std::string info = " " + combat_.target_npc()->label() +
