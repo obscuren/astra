@@ -107,10 +107,13 @@ static void sigcont_handler(int) {
     s_needs_redraw = 1;
 }
 
-// Append a 256-color foreground escape sequence, or reset for Default.
+// Append a 256-color foreground escape sequence, or fg-only reset for Default.
+// Uses \033[39m (default-foreground-only) instead of \033[0m (reset-all) so
+// that a cell with fg=Default, bg=<non-default> correctly preserves the bg
+// when fg flips back from a colored value to Default mid-row.
 static void append_color(std::string& buf, Color c) {
     if (c == Color::Default) {
-        buf += "\033[0m";
+        buf += "\033[39m";
     } else {
         char seq[16];
         int len = std::snprintf(seq, sizeof(seq), "\033[38;5;%dm",
