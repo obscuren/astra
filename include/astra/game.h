@@ -372,7 +372,6 @@ private:
     Rect map_rect_;
     Rect separator_rect_;
     Rect side_panel_rect_;
-    Rect bottom_sep_rect_;
     Rect effects_rect_;
     Rect abilities_rect_;
 

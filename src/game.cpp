@@ -114,7 +114,7 @@ void Game::compute_layout() {
 
     screen_rect_ = {0, 0, screen_w_, screen_h_};
 
-    // Vertical layout: stats | HP/tabs | shield | XP/tab-sep | main | bottom-sep | effects | abilities
+    // Vertical layout: stats | HP/tabs | shield | XP/tab-sep | main | effects | abilities
     UIContext root(renderer_.get(), screen_rect_);
     auto vrows = root.rows({
         fixed(1),    // [0] stats bar
@@ -122,15 +122,13 @@ void Game::compute_layout() {
         fixed(1),    // [2] shield bar
         fixed(1),    // [3] XP bar / tab separator row
         fill(),      // [4] main content
-        fixed(1),    // [5] bottom separator
-        fixed(1),    // [6] effects
-        fixed(3),    // [7] abilities (3 rows: arrows hint, hotbar, page indicator)
+        fixed(1),    // [5] effects
+        fixed(3),    // [6] abilities (3 rows: arrows hint, hotbar, page indicator)
     });
 
     stats_bar_rect_ = vrows[0].bounds();
-    bottom_sep_rect_ = vrows[5].bounds();
-    effects_rect_ = vrows[6].bounds();
-    abilities_rect_ = vrows[7].bounds();
+    effects_rect_ = vrows[5].bounds();
+    abilities_rect_ = vrows[6].bounds();
 
     // Panel width calculation
     int panel_w = screen_w_ * 35 / 100;
@@ -153,10 +151,10 @@ void Game::compute_layout() {
     if (panel_visible_) {
         auto main_cols = vrows[4].columns({fill(), fixed(1), fixed(panel_w)});
         map_rect_ = main_cols[0].bounds();
-        // Separator spans from the HP-bar row down through the bottom
-        // separator row, stopping before the effects and abilities rows.
+        // Separator spans from the HP-bar row down to the last row of main
+        // content, stopping before the effects bar (which owns its own bg).
         int sep_y      = vrows[1].bounds().y;
-        int sep_height = vrows[5].bounds().y - sep_y + 1;
+        int sep_height = vrows[5].bounds().y - sep_y;
         separator_rect_ = {sep_x, sep_y, 1, sep_height};
         // Shift the side panel down one row so the tabs-row separator
         // doesn't overwrite the first widget row.

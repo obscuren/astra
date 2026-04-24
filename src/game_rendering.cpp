@@ -947,8 +947,6 @@ void Game::render_play() {
     if (panel_visible_) {
         render_side_panel();
     }
-    UIContext bottom_sep(renderer_.get(), bottom_sep_rect_);
-    bottom_sep.separator({});
 
     render_effects_bar();
     render_abilities_bar();
@@ -1448,38 +1446,85 @@ void Game::render_interactables_widget(UIContext& ctx) {
 void Game::render_effects_bar() {
     UIContext ctx(renderer_.get(), effects_rect_);
 
-    // EFFECTS label + items — effects use per-effect Color, so we keep them
-    // on the old text() API. Only the label and [none] use styled_text().
-    std::vector<TextSegment> eff_segs;
-    eff_segs.push_back({"EFFECTS: ", UITag::TextDim});
+    // Bar background — a single dark-gray strip spanning the whole row.
+    const Color bg = Color::DarkGray;
+    ctx.text(0, 0, std::string(ctx.width(), ' '), Color::Default, bg);
 
+    // --- Ranged weapon hints (right-aligned) -----------------------------
+    // Rendered first so we know how much width it consumes and can place
+    // the right-hand separator before it.
+    const auto& rw = player_.equipment.missile;
+    int ranged_start = ctx.width();  // sentinel: no ranged hint
+    if (rw && rw->ranged) {
+        const auto& rd = *rw->ranged;
+        std::string charge_num = std::to_string(rd.current_charge);
+        std::string cap_num    = std::to_string(rd.charge_capacity);
+        // "[t]arget [s]hoot [r]eload " = 26 chars; charge = num + '/' + num
+        int hint_width = 26 + static_cast<int>(charge_num.size())
+                            + 1
+                            + static_cast<int>(cap_num.size());
+        int ix = ctx.width() - hint_width - 1;
+        ranged_start = ix - 2;  // room for " | " before
+
+        const Color charge_color = (rd.current_charge >= rd.charge_per_shot)
+            ? Color::Cyan : Color::Red;
+
+        auto put = [&](int& x, std::string_view s, Color fg) {
+            ctx.text(x, 0, s, fg, bg);
+            x += static_cast<int>(s.size());
+        };
+
+        int x = ix;
+        put(x, "[",      Color::White);
+        put(x, "t",      Color::Yellow);
+        put(x, "]arget ", Color::White);
+        put(x, "[",      Color::White);
+        put(x, "s",      Color::Yellow);
+        put(x, "]hoot ", Color::White);
+        put(x, "[",      Color::White);
+        put(x, "r",      Color::Yellow);
+        put(x, "]eload ", Color::White);
+        put(x, charge_num, charge_color);
+        put(x, "/",      Color::White);
+        put(x, cap_num,  charge_color);
+    }
+
+    // --- Section dividers (black |) --------------------------------------
+    const int target_x = ctx.width() / 2;          // column where TARGET begins
+    const int left_sep_x = target_x - 1;            // | between EFFECTS and TARGET
+    const int right_sep_x = ranged_start;           // | before ranged hint (if any)
+
+    // Box-drawing vertical (U+2502) for a cleaner visual than ASCII '|'.
+    const char* vdiv = "\xe2\x94\x82";
+    ctx.text(left_sep_x, 0, vdiv, Color::Black, bg);
+    if (right_sep_x < ctx.width()) {
+        ctx.text(right_sep_x, 0, vdiv, Color::Black, bg);
+    }
+
+    // --- EFFECTS section -------------------------------------------------
+    ctx.text(1, 0, "EFFECTS:", Color::White, bg);
+    int ex = 1 + 8 + 1;  // after "EFFECTS: "
     bool any_effect = false;
     for (const auto& e : player_.effects) {
         if (!e.show_in_bar) continue;
         any_effect = true;
+        std::string label = e.name;
+        if (e.remaining > 0) {
+            label += "(" + std::to_string(e.remaining) + ")";
+        }
+        // Stop if we'd overflow into the left separator.
+        if (ex + static_cast<int>(label.size()) >= left_sep_x) break;
+        ctx.text(ex, 0, label, e.color, bg);
+        ex += static_cast<int>(label.size()) + 1;
     }
     if (!any_effect) {
-        eff_segs.push_back({"[none]", UITag::TextDim});
-    }
-    ctx.styled_text({.x = 1, .y = 0, .segments = eff_segs});
-
-    // Per-effect items use raw Color (e.color varies per effect)
-    if (any_effect) {
-        int x = 1 + 9; // after "EFFECTS: "
-        for (const auto& e : player_.effects) {
-            if (!e.show_in_bar) continue;
-            std::string label = e.name;
-            if (e.remaining > 0) {
-                label += "(" + std::to_string(e.remaining) + ")";
-            }
-            ctx.text(x, 0, label, e.color);
-            x += static_cast<int>(label.size()) + 1;
-        }
+        ctx.text(ex, 0, "[none]", Color::DarkGray, bg);
     }
 
-    // TARGET section — uses NPC disposition color, stays on old API
-    int mid = ctx.width() / 3;
-    ctx.text(mid, 0, "TARGET:", Color::DarkGray);
+    // --- TARGET section --------------------------------------------------
+    int tx = left_sep_x + 2;  // one space of padding after the │
+    ctx.text(tx, 0, "TARGET:", Color::White, bg);
+    tx += 7;
     if (combat_.target_npc() && combat_.target_npc()->alive()) {
         std::string info = " " + combat_.target_npc()->label() +
             " (" + std::to_string(combat_.target_npc()->hp) + "/" +
@@ -1491,24 +1536,9 @@ void Game::render_effects_bar() {
             auto tier = reputation_tier(reputation_for(player_, combat_.target_npc()->faction));
             tc = (tier <= ReputationTier::Disliked) ? Color::Yellow : Color::Green;
         }
-        ctx.text(mid + 7, 0, info, tc);
+        ctx.text(tx, 0, info, tc, bg);
     } else {
-        ctx.text(mid + 7, 0, " [none]", Color::DarkGray);
-    }
-
-    // Ranged weapon hints (right-aligned) — uses dynamic charge color, stays on old API
-    const auto& rw = player_.equipment.missile;
-    if (rw && rw->ranged) {
-        const auto& rd = *rw->ranged;
-        std::string keys = "[t]arget [s]hoot [r]eload ";
-        std::string charge = std::to_string(rd.current_charge) + "/" +
-                             std::to_string(rd.charge_capacity);
-        std::string full = keys + charge;
-        int ix = ctx.width() - static_cast<int>(full.size()) - 1;
-        Color charge_color = (rd.current_charge >= rd.charge_per_shot)
-            ? Color::Cyan : Color::Red;
-        ctx.text(ix, 0, keys, Color::DarkGray);
-        ctx.text(ix + static_cast<int>(keys.size()), 0, charge, charge_color);
+        ctx.text(tx, 0, " [none]", Color::DarkGray, bg);
     }
 }
 
