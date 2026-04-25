@@ -141,6 +141,10 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  give ap <n>        - set attribute points");
         log("  give rep <faction> <n> - set faction reputation");
         log("  give ship <component>  - install ship component (engine/hull/navi/shield)");
+        log("  give item <name>   - drop item in inventory (cell_small, cell_standard,");
+        log("                       cell_large, cell_industrial, cell_antimatter,");
+        log("                       solar_panel, solar_panel_uncommon, solar_panel_rare,");
+        log("                       plasma_pistol, ion_blaster, pulse_rifle, arc_caster, void_lance)");
         log("  set invuln         - toggle invulnerability");
         log("  set level <n>      - set player level");
         log("  effect burn <dur>  - apply burn effect");
@@ -408,6 +412,29 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
         log("Added " + item.name + " to ship cargo.");
         player.ship.cargo.push_back(std::move(item));
+    }
+    else if (verb == "give" && args.size() >= 3 && args[1] == "item") {
+        const std::string& name = args[2];
+        Item item;
+        if      (name == "cell_small")          item = build_small_energy_cell();
+        else if (name == "cell_standard")       item = build_standard_energy_cell();
+        else if (name == "cell_large")          item = build_large_energy_cell();
+        else if (name == "cell_industrial")     item = build_industrial_energy_cell();
+        else if (name == "cell_antimatter")     item = build_antimatter_cell();
+        else if (name == "solar_panel")         item = build_solar_panel_common();
+        else if (name == "solar_panel_uncommon") item = build_solar_panel_uncommon();
+        else if (name == "solar_panel_rare")    item = build_solar_panel_rare();
+        else if (name == "plasma_pistol")       item = build_plasma_pistol();
+        else if (name == "ion_blaster")         item = build_ion_blaster();
+        else if (name == "pulse_rifle")         item = build_pulse_rifle();
+        else if (name == "arc_caster")          item = build_arc_caster();
+        else if (name == "void_lance")          item = build_void_lance();
+        else {
+            log("Unknown item: " + name);
+            return;
+        }
+        log("Added " + item.name + " to inventory.");
+        player.inventory.items.push_back(std::move(item));
     }
     else if (verb == "give" && args.size() >= 3) {
         int val = 0;
