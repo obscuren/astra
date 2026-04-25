@@ -139,6 +139,7 @@
 - [ ] New weapon types
 - [x] **Ship components and upgrades** — ShipSlot system, Mk1 components, cargo hold
 - [ ] Consumables with effects (stims, shields, scanners)
+- [x] **Energy system** — persistent multi-tier cells, Solar Panel tinkering mod, normalized recharge for weapons and shields
 
 ### Starship
 - [x] **Ship component system** — 6 equipment slots, Ship tab in character pane, install/uninstall

@@ -668,3 +668,51 @@ See `docs/superpowers/specs/2026-04-23-cooking-system-design.md` and
 
 ### Telegraph System
 Reusable targeting/preview system for abilities. Shapes supported: Line (implemented). Declared but pending implementation: Ray, Cone, Burst, Adjacent. Consumed by abilities that set `Ability::telegraph = TelegraphSpec{...}` — `use_ability` routes through `Game::telegraph()` and invokes `execute_telegraphed(game, result)` on Enter confirm. Cancel (Esc) incurs no cooldown/turn cost.
+
+## Energy System
+
+Player-side energy is stored on items via `EnergyStore { current, capacity }`. Consumers spend `EnergyConsumer { energy_per_use }` per action.
+
+### Cell tiers
+
+| Tier | Capacity | Tinker Slots |
+|---|---|---|
+| Small Energy Cell | 60 | 1 |
+| Standard Energy Cell | 150 | 1 |
+| Large Energy Cell | 400 | 2 |
+| Industrial Energy Cell | 800 | 2 |
+| Antimatter Cell | 2000 | 3 |
+
+### Weapon energy cost
+
+| Weapon | Capacity | Cost / shot |
+|---|---|---|
+| Plasma Pistol | 20 | 1 |
+| Ion Blaster | 15 | 2 |
+| Pulse Rifle | 30 | 2 |
+| Arc Caster | 12 | 3 |
+| Void Lance | 10 | 4 |
+
+### Solar Panel rates
+
+Solar Panels deposit energy into their host item only when the player is outdoors (overworld or detail map). Indoor zones (dungeons, ship interiors, station interiors) do not advance the panel's accumulator.
+
+| Tier | energy / tick | tick interval |
+|---|---|---|
+| Solar Panel | 5 | 2 |
+| Polished Solar Panel | 8 | 2 |
+| Prismatic Solar Panel | 12 | 2 |
+
+`charge_rate_bonus` from a host's committed enhancements adds an integer-percent bonus to each deposit (`deposit + deposit * pct / 100`).
+
+### Recharge actions
+
+- `r` — recharge equipped weapon (drains inventory cells highest-charge-first into `equipment.missile->energy`).
+- `b` — recharge equipped shield (same flow, `shield_energy()` target).
+- `Shift-R` / `Shift-B` — manual cell picker for weapon / shield. Pick which cell to drain.
+- Inventory interact (`space` on an item with `EnergyStore`) — open the picker for that item, including cell-from-cell transfers.
+- Cost: one `ActionCost::wait` tick. Auto-recharge during `s` (shoot) is free (the shot itself already costs one tick).
+
+### Discharge efficiency
+
+`EnergyModifiers::discharge_efficiency` from any committed slot on the source cell adds +1 free unit to the destination for every N units actually drained (`bonus = drained / N`, `0` disables).
