@@ -166,8 +166,27 @@ void UIContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
 }
 
 void UIContext::text(int x, int y, std::string_view s, Color fg, Color bg) {
-    for (int i = 0; i < static_cast<int>(s.size()); ++i) {
-        put(x + i, y, s[i], fg, bg);
+    int col = 0;
+    int i = 0;
+    int len = static_cast<int>(s.size());
+    while (i < len) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c < 0x80) {
+            put(x + col, y, s[i], fg, bg);
+            ++i;
+        } else {
+            int seq_len = 1;
+            if ((c & 0xE0) == 0xC0) seq_len = 2;
+            else if ((c & 0xF0) == 0xE0) seq_len = 3;
+            else if ((c & 0xF8) == 0xF0) seq_len = 4;
+            char buf[5] = {};
+            for (int j = 0; j < seq_len && i + j < len; ++j) {
+                buf[j] = s[i + j];
+            }
+            put(x + col, y, buf, fg, bg);
+            i += seq_len;
+        }
+        ++col;
     }
 }
 
