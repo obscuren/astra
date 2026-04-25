@@ -769,7 +769,7 @@ void CombatSystem::shoot_target(Game& game) {
     auto& estore = *weapon->energy;
     int per_shot = weapon->consumer->energy_per_use;
     if (estore.current < per_shot) {
-        bool recharged = recharge_weapon(game, /*log_full=*/false);
+        bool recharged = recharge_weapon(game, /*log_full=*/false, /*advance=*/false);
         if (!recharged || estore.current < per_shot) {
             game.log("Weapon empty. No charged cells available.");
             return;
@@ -901,7 +901,7 @@ int CombatSystem::recharge_target_(Game& game, EnergyStore& target) {
     return total;
 }
 
-bool CombatSystem::recharge_weapon(Game& game, bool log_full) {
+bool CombatSystem::recharge_weapon(Game& game, bool log_full, bool advance) {
     auto& weapon = game.player().equipment.missile;
     if (!weapon || !weapon->energy) {
         if (log_full) game.log("No ranged weapon equipped.");
@@ -920,11 +920,11 @@ bool CombatSystem::recharge_weapon(Game& game, bool log_full) {
     game.log("Recharged " + weapon->label() + ". (+" + std::to_string(moved) +
              " charge, " + std::to_string(estore.current) + "/" +
              std::to_string(estore.capacity) + ")");
-    game.advance_world(ActionCost::wait);
+    if (advance) game.advance_world(ActionCost::wait);
     return true;
 }
 
-bool CombatSystem::recharge_shield(Game& game, bool log_full) {
+bool CombatSystem::recharge_shield(Game& game, bool log_full, bool advance) {
     auto* sh = game.player().shield_energy();
     if (!sh) {
         if (log_full) game.log("No energy shield equipped.");
@@ -941,7 +941,7 @@ bool CombatSystem::recharge_shield(Game& game, bool log_full) {
     }
     game.log("Recharged shield. (+" + std::to_string(moved) + " charge, " +
              std::to_string(sh->current) + "/" + std::to_string(sh->capacity) + ")");
-    game.advance_world(ActionCost::wait);
+    if (advance) game.advance_world(ActionCost::wait);
     return true;
 }
 
