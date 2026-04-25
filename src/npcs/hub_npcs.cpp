@@ -1,5 +1,6 @@
 #include "astra/npc_defs.h"
-#include "astra/item_defs.h"
+#include "astra/item_ids.h"
+#include "astra/loot_table.h"
 #include "astra/faction.h"
 #include "astra/station_type.h"
 
@@ -40,9 +41,26 @@ Npc build_food_merchant(Race race, std::mt19937& rng, int faction_rep) {
         },
     };
 
+    static const std::vector<StockManifestEntry> s_food_merchant_manifest = {
+        { StockManifestEntry::Mode::Always, ITEM_RATION_PACK,           Category::Consumable, 10 },
+        { StockManifestEntry::Mode::Always, ITEM_COMBAT_STIM,           Category::Consumable,  3 },
+        { StockManifestEntry::Mode::Always, ITEM_RAW_MEAT,              Category::Ingredient,  5 },
+        { StockManifestEntry::Mode::Always, ITEM_CARROT,                Category::Ingredient,  5 },
+        { StockManifestEntry::Mode::Always, ITEM_FLOUR,                 Category::Ingredient,  5 },
+        { StockManifestEntry::Mode::Always, ITEM_SYNTH_PROTEIN,         Category::Ingredient,  5 },
+        { StockManifestEntry::Mode::Always, ITEM_HERBS,                 Category::Ingredient,  3 },
+        { StockManifestEntry::Mode::Always, ITEM_COOKBOOK_HEARTY_STEW,  Category::Cookbook,    1 },
+
+        { StockManifestEntry::Mode::Always, ITEM_RATION_PACK,           Category::Consumable,  5, /*min_rep=*/10 },
+        { StockManifestEntry::Mode::Always, ITEM_COMBAT_STIM,           Category::Consumable,  2, /*min_rep=*/10 },
+        { StockManifestEntry::Mode::Always, ITEM_COOKBOOK_PROTEIN_BAKE, Category::Cookbook,    1, /*min_rep=*/60 },
+        { StockManifestEntry::Mode::Always, ITEM_COOKBOOK_HEROS_FEAST,  Category::Cookbook,    1, /*min_rep=*/300 },
+    };
+
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Kitchen",
-        generate_food_merchant_stock(rng, faction_rep),
+        assemble_stock(s_food_merchant_manifest, LootSource::MerchantFood,
+                       faction_rep, /*level=*/1, rng),
     };
 
     return npc;
@@ -223,9 +241,39 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
         },
     };
 
+    static const std::vector<StockManifestEntry> s_arms_dealer_manifest = {
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,        2 },
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,        1 },
+        { StockManifestEntry::Mode::Always, ITEM_SMALL_ENERGY_CELL,     Category::Battery,    2 },
+        { StockManifestEntry::Mode::Always, ITEM_STANDARD_ENERGY_CELL,  Category::Battery,    1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Armor,         1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Shield,        1 },
+        { StockManifestEntry::Mode::Always, ITEM_EMP_GRENADE,           Category::Consumable, 2 },
+        { StockManifestEntry::Mode::Always, ITEM_SOLAR_PANEL_COMMON,    Category::EnergyMod,  1 },
+        { StockManifestEntry::Mode::Always, ITEM_CAPACITOR_COIL,        Category::EnergyMod,  1 },
+        { StockManifestEntry::Mode::Always, ITEM_REINFORCED_CASING,     Category::EnergyMod,  1 },
+        { StockManifestEntry::Mode::Always, ITEM_RECEPTOR_PLATE,        Category::EnergyMod,  1 },
+        { StockManifestEntry::Mode::Always, ITEM_BRASS_CONDUIT,         Category::EnergyMod,  1 },
+
+        // Liked tier
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,        1, /*min_rep=*/10 },
+        { StockManifestEntry::Mode::Always, ITEM_EMP_GRENADE,           Category::Consumable, 2, 10 },
+        { StockManifestEntry::Mode::Always, ITEM_SOLAR_PANEL_UNCOMMON,  Category::EnergyMod,  1, 10 },
+        { StockManifestEntry::Mode::Always, ITEM_CHARGE_CATALYST,       Category::EnergyMod,  1, 10 },
+        { StockManifestEntry::Mode::Always, ITEM_POWER_JUNCTION,        Category::EnergyMod,  1, 10 },
+
+        // Trusted tier
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,        1, /*min_rep=*/50 },
+        { StockManifestEntry::Mode::Random, 0, Category::Armor,         1, 50 },
+        { StockManifestEntry::Mode::Always, ITEM_SOLAR_PANEL_RARE,      Category::EnergyMod,  1, 50 },
+        { StockManifestEntry::Mode::Always, ITEM_POLISHED_CONDUIT,      Category::EnergyMod,  1, 50 },
+        { StockManifestEntry::Mode::Always, ITEM_TUNED_CATALYST,        Category::EnergyMod,  1, 50 },
+    };
+
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Arsenal",
-        generate_arms_dealer_stock(rng, faction_rep),
+        assemble_stock(s_arms_dealer_manifest, LootSource::MerchantArms,
+                       faction_rep, /*level=*/1, rng),
     };
 
     return npc;

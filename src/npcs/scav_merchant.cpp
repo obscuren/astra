@@ -1,6 +1,6 @@
 #include "astra/npc_defs.h"
-#include "astra/item_defs.h"
-#include "astra/faction.h"
+#include "astra/item_ids.h"
+#include "astra/loot_table.h"
 
 namespace astra {
 
@@ -43,9 +43,24 @@ Npc build_scav_junk_dealer(Race race, std::mt19937& rng) {
 
     // --- Shop ---
     // TODO(scav-pricing): discount scav merchants relative to hub merchants.
+    static const std::vector<StockManifestEntry> s_scav_merchant_manifest = {
+        { StockManifestEntry::Mode::Always, ITEM_SMALL_ENERGY_CELL, Category::Battery,          2 },
+        { StockManifestEntry::Mode::Always, ITEM_RATION_PACK,       Category::Consumable,       3 },
+        { StockManifestEntry::Mode::Always, ITEM_COMBAT_STIM,       Category::Consumable,       1 },
+        { StockManifestEntry::Mode::Always, ITEM_SCRAP_METAL,       Category::Junk,             5 },
+        { StockManifestEntry::Mode::Always, ITEM_BROKEN_CIRCUIT,    Category::Junk,             3 },
+
+        { StockManifestEntry::Mode::Random, 0, Category::CraftingMaterial, 3 },
+        { StockManifestEntry::Mode::Random, 0, Category::EnergyMod,        2 },
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,           1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Armor,            1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Accessory,        1 },
+    };
+
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Salvage",
-        generate_merchant_stock(rng, 0),
+        assemble_stock(s_scav_merchant_manifest, LootSource::ScavMerchant,
+                       /*faction_rep=*/0, /*level=*/1, rng),
     };
 
     return npc;

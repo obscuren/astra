@@ -1,5 +1,6 @@
 #include "astra/npc_defs.h"
-#include "astra/item_defs.h"
+#include "astra/item_ids.h"
+#include "astra/loot_table.h"
 #include "astra/faction.h"
 
 namespace astra {
@@ -51,9 +52,35 @@ Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
     };
 
     // --- Shop ---
+    static const std::vector<StockManifestEntry> s_general_merchant_manifest = {
+        // Always-stocked basics
+        { StockManifestEntry::Mode::Always, ITEM_SMALL_ENERGY_CELL,    Category::Battery,       2 },
+        { StockManifestEntry::Mode::Always, ITEM_STANDARD_ENERGY_CELL, Category::Battery,       1 },
+        { StockManifestEntry::Mode::Always, ITEM_RATION_PACK,          Category::Consumable,    5 },
+        { StockManifestEntry::Mode::Always, ITEM_COMBAT_STIM,          Category::Consumable,    2 },
+        { StockManifestEntry::Mode::Always, ITEM_FRAG_GRENADE,         Category::Consumable,    3 },
+        { StockManifestEntry::Mode::Always, ITEM_NIGHT_GOGGLES,        Category::Accessory,     1 },
+        { StockManifestEntry::Mode::Always, ITEM_HULL_PLATE,           Category::ShipComponent, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_SHIELD_GENERATOR,     Category::ShipComponent, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_SOLAR_PANEL_COMMON,   Category::EnergyMod,     1 },
+
+        // Random rotating stock
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon, 1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Armor,  1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Shield, 1 },
+
+        // Liked tier (rep >= 10): more weapons + stims
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,     1, /*min_rep=*/10 },
+        { StockManifestEntry::Mode::Always, ITEM_COMBAT_STIM, Category::Consumable, 3, /*min_rep=*/10 },
+
+        // Trusted tier (rep >= 50): more armor
+        { StockManifestEntry::Mode::Random, 0, Category::Armor, 1, /*min_rep=*/50 },
+    };
+
     npc.interactions.shop = ShopTrait{
         npc.name + "'s Supplies",
-        generate_merchant_stock(rng, faction_rep),
+        assemble_stock(s_general_merchant_manifest, LootSource::MerchantGeneral,
+                       faction_rep, /*level=*/1, rng),
     };
 
     // --- Quest: supply runs ---

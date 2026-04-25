@@ -2,8 +2,6 @@
 
 #include "astra/item.h"
 
-#include <random>
-
 namespace astra {
 
 // --- Ranged weapons ---
@@ -36,7 +34,6 @@ Item build_ion_barrier();
 Item build_composite_barrier();
 Item build_hardlight_aegis();
 Item build_void_mantle();
-Item random_shield(std::mt19937& rng);
 
 // --- Accessories ---
 Item build_recon_visor();
@@ -122,16 +119,5 @@ Item build_navi_computer_mk2();
 // supported today (ingredients, cooked dishes, Burnt Slop,
 // cookbooks). Returns a default Item{} if id is unknown.
 Item build_by_def_id(uint16_t def_id);
-
-// Random item pickers
-Item random_ranged_weapon(std::mt19937& rng);
-Item random_melee_weapon(std::mt19937& rng);
-Item random_armor(std::mt19937& rng);
-Item random_junk(std::mt19937& rng);
-
-// Merchant stock generators (faction_rep controls tiered availability)
-std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep = 0);
-std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep = 0);
-std::vector<Item> generate_food_merchant_stock(std::mt19937& rng, int faction_rep = 0);
 
 } // namespace astra

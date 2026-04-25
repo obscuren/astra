@@ -1,6 +1,6 @@
 #include "astra/npc_defs.h"
-#include "astra/item_defs.h"
-#include "astra/faction.h"
+#include "astra/item_ids.h"
+#include "astra/loot_table.h"
 #include "astra/station_type.h"
 
 namespace astra {
@@ -49,9 +49,21 @@ Npc build_black_market_vendor(const StationContext& ctx) {
     };
 
     // --- Shop ---
+    static const std::vector<StockManifestEntry> s_black_market_manifest = {
+        { StockManifestEntry::Mode::Random, 0, Category::Weapon,    2 },
+        { StockManifestEntry::Mode::Random, 0, Category::Armor,     1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Shield,    1 },
+        { StockManifestEntry::Mode::Random, 0, Category::Battery,   2 },
+        { StockManifestEntry::Mode::Random, 0, Category::EnergyMod, 2 },
+        { StockManifestEntry::Mode::Random, 0, Category::Accessory, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_CRYO_GRENADE, Category::Consumable, 2 },
+        { StockManifestEntry::Mode::Always, ITEM_EMP_GRENADE,  Category::Consumable, 2 },
+    };
+
     npc.interactions.shop = ShopTrait{
         "Fixer's Wares",
-        generate_merchant_stock(stock_rng, 0),
+        assemble_stock(s_black_market_manifest, LootSource::BlackMarket,
+                       /*faction_rep=*/0, /*level=*/1, stock_rng),
     };
 
     return npc;
