@@ -94,6 +94,7 @@ public:
     void set_surface_mode(SurfaceMode m) { surface_mode_ = m; }
     bool on_overworld() const { return surface_mode_ == SurfaceMode::Overworld; }
     bool on_detail_map() const { return surface_mode_ == SurfaceMode::DetailMap; }
+    bool is_outdoor() const { return on_overworld() || on_detail_map(); }
 
     int& overworld_x() { return overworld_x_; }
     int& overworld_y() { return overworld_y_; }
