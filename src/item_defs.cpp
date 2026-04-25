@@ -2,6 +2,7 @@
 #include "astra/dice.h"
 #include "astra/item_ids.h"
 #include "astra/effect.h"  // EffectId for DishOutput::granted
+#include "astra/energy.h"
 
 namespace astra {
 
@@ -27,6 +28,8 @@ Item build_plasma_pistol() {
     it.max_durability = 80;
     it.durability = 80;
     it.ranged = RangedData{20, 1, 20, 6};
+    it.energy = EnergyStore{20, 20};
+    it.consumer = EnergyConsumer{1};
     return it;
 }
 
@@ -48,6 +51,8 @@ Item build_ion_blaster() {
     it.max_durability = 60;
     it.durability = 60;
     it.ranged = RangedData{15, 2, 15, 8};
+    it.energy = EnergyStore{15, 15};
+    it.consumer = EnergyConsumer{2};
     return it;
 }
 
@@ -70,6 +75,8 @@ Item build_pulse_rifle() {
     it.max_durability = 100;
     it.durability = 100;
     it.ranged = RangedData{30, 2, 30, 12};
+    it.energy = EnergyStore{30, 30};
+    it.consumer = EnergyConsumer{2};
     return it;
 }
 
@@ -92,6 +99,8 @@ Item build_arc_caster() {
     it.max_durability = 50;
     it.durability = 50;
     it.ranged = RangedData{12, 3, 12, 5};
+    it.energy = EnergyStore{12, 12};
+    it.consumer = EnergyConsumer{3};
     return it;
 }
 
@@ -114,6 +123,8 @@ Item build_void_lance() {
     it.max_durability = 40;
     it.durability = 40;
     it.ranged = RangedData{10, 4, 10, 15};
+    it.energy = EnergyStore{10, 10};
+    it.consumer = EnergyConsumer{4};
     return it;
 }
 
