@@ -85,6 +85,9 @@ struct SynthesisRecipe {
     StatModifiers base_modifiers;
     int base_durability;
     int material_cost[4]; // [0]=Nano-Fiber, [1]=Power Core, [2]=Circuit Board, [3]=Alloy Ingot
+    // When set, the result is constructed by calling this builder verbatim
+    // (skipping the equipment-result fields and the rarity/scaling pass).
+    Item (*custom_builder)() = nullptr;
 };
 
 const std::vector<SynthesisRecipe>& synthesis_recipes();

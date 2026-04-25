@@ -424,6 +424,23 @@ const std::vector<SynthesisRecipe>& synthesis_recipes() {
          "A thick, heavy blade reinforced with armor plating. Hits like a wall.",
          ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
          {5, 3, 0, 0, 0}, 90, {0, 0, 0, 2}},
+
+        // Energy mod recipes — produce tinkering materials directly via custom builders.
+        // Equipment-only fields (modifiers, durability, slot, glyph) are unused for these.
+        {"Plating Alloy", "Storage Frame", "Reinforced Casing",
+         "Energy mod. Adds +10 capacity to the host cell.",
+         ItemType::CraftingMaterial, EquipSlot::Back, '*',
+         {}, 0, {1, 0, 0, 1}, &build_reinforced_casing},
+
+        {"Optic Module", "Power Conduit", "Receptor Plate",
+         "Energy mod. +10% to incoming charge rate.",
+         ItemType::CraftingMaterial, EquipSlot::Back, '*',
+         {}, 0, {0, 1, 1, 0}, &build_receptor_plate},
+
+        {"Power Conduit", "Plating Alloy", "Brass Conduit",
+         "Energy mod. +1 free unit per 10 transferred.",
+         ItemType::CraftingMaterial, EquipSlot::Back, '*',
+         {}, 0, {0, 1, 0, 1}, &build_brass_conduit},
     };
     return recipes;
 }
@@ -481,41 +498,44 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
         }
     }
 
-    // Create result item
+    // Create result item.
     Item item;
-    item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
-    item.item_def_id = ITEM_SYNTH_PLASMA_EDGE + static_cast<uint16_t>(&*recipe - &synthesis_recipes()[0]);
-    item.name = recipe->result_name;
-    item.description = recipe->result_desc;
-    item.type = recipe->result_type;
-    if (recipe->result_slot != EquipSlot::Back || recipe->result_type != ItemType::ShipComponent)
-        item.slot = recipe->result_slot;
-    else
-        item.slot = std::nullopt; // ship components have no equip slot
-    item.modifiers = recipe->base_modifiers;
-    item.max_durability = recipe->base_durability;
-    item.durability = recipe->base_durability;
-    item.weight = 3;
+    if (recipe->custom_builder) {
+        // Material recipes (energy mods, etc.) — predefined builder fully populates the item.
+        item = recipe->custom_builder();
+    } else {
+        // Equipment recipes — synthesize from recipe fields, scaled and rarity-rolled.
+        item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
+        item.item_def_id = ITEM_SYNTH_PLASMA_EDGE + static_cast<uint16_t>(&*recipe - &synthesis_recipes()[0]);
+        item.name = recipe->result_name;
+        item.description = recipe->result_desc;
+        item.type = recipe->result_type;
+        if (recipe->result_slot != EquipSlot::Back || recipe->result_type != ItemType::ShipComponent)
+            item.slot = recipe->result_slot;
+        else
+            item.slot = std::nullopt; // ship components have no equip slot
+        item.modifiers = recipe->base_modifiers;
+        item.max_durability = recipe->base_durability;
+        item.durability = recipe->base_durability;
+        item.weight = 3;
 
-    // Scale by player level
-    scale_item_to_level(item, player.level);
+        scale_item_to_level(item, player.level);
 
-    // Roll rarity influenced by Luck
-    int luck_bonus = std::max(0, (player.attributes.luck - 10)) * 2;
-    std::uniform_int_distribution<int> dist(0, 99);
-    int roll = dist(rng) + luck_bonus;
-    if (roll >= 99) item.rarity = Rarity::Legendary;
-    else if (roll >= 95) item.rarity = Rarity::Epic;
-    else if (roll >= 80) item.rarity = Rarity::Rare;
-    else if (roll >= 50) item.rarity = Rarity::Uncommon;
-    else item.rarity = Rarity::Common;
+        int luck_bonus = std::max(0, (player.attributes.luck - 10)) * 2;
+        std::uniform_int_distribution<int> dist(0, 99);
+        int roll = dist(rng) + luck_bonus;
+        if (roll >= 99) item.rarity = Rarity::Legendary;
+        else if (roll >= 95) item.rarity = Rarity::Epic;
+        else if (roll >= 80) item.rarity = Rarity::Rare;
+        else if (roll >= 50) item.rarity = Rarity::Uncommon;
+        else item.rarity = Rarity::Common;
 
-    init_enhancement_slots(item);
+        init_enhancement_slots(item);
 
-    // Set buy/sell based on rarity
-    int rarity_mult = 1 + static_cast<int>(item.rarity);
-    item.buy_value = 100 * rarity_mult;
-    item.sell_value = item.buy_value / 3;
+        int rarity_mult = 1 + static_cast<int>(item.rarity);
+        item.buy_value = 100 * rarity_mult;
+        item.sell_value = item.buy_value / 3;
+    }
 
     std::string result_name = item.name;
     player.inventory.items.push_back(std::move(item));
