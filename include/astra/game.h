@@ -226,7 +226,7 @@ private:
     void use_item(int index);
     void equip_item(int index);
     void unequip_slot(int index);
-    void reload_weapon();
+    void recharge_weapon();
     void remove_dead_npcs();
     void check_player_death();
     void check_level_up();

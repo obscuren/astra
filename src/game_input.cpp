@@ -365,7 +365,7 @@ void Game::handle_play_input(int key) {
             break;
         case 't': combat_.begin_targeting(*this); break;
         case 's': combat_.shoot_target(*this); break;
-        case 'r': combat_.reload_weapon(*this); break;
+        case 'r': combat_.recharge_weapon(*this); break;
         case 'g': pickup_ground_item(); break;
         case '?': help_screen_.open(); break;
         case 'm':

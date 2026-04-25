@@ -1,5 +1,6 @@
 #include "astra/combat_system.h"
 #include "astra/animation.h"
+#include "astra/energy.h"
 #include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/display_name.h"
@@ -757,37 +758,23 @@ void CombatSystem::shoot_target(Game& game) {
         return;
     }
 
-    // Check charge — auto-reload if empty
-    if (rd.current_charge < rd.charge_per_shot) {
-        // Try auto-reload from inventory
-        bool reloaded = false;
-        for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
-            if (game.player().inventory.items[i].type == ItemType::Battery) {
-                int added = std::min(5, rd.charge_capacity - rd.current_charge);
-                rd.current_charge += added;
-                game.log("Auto-reload: +" + std::to_string(added) + " charge.");
-                auto& cell = game.player().inventory.items[i];
-                if (cell.stackable && cell.stack_count > 1) {
-                    --cell.stack_count;
-                } else {
-                    game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
-                }
-                reloaded = true;
-                break;
-            }
-        }
-        if (!reloaded) {
-            game.log("Weapon empty. No energy cells to reload.");
-            return;
-        }
-        if (rd.current_charge < rd.charge_per_shot) {
-            game.log("Not enough charge to fire.");
+    // Energy check — auto-recharge if below per-shot cost
+    if (!weapon->energy || !weapon->consumer) {
+        game.log("Weapon has no energy system.");
+        return;
+    }
+    auto& estore = *weapon->energy;
+    int per_shot = weapon->consumer->energy_per_use;
+    if (estore.current < per_shot) {
+        bool recharged = recharge_weapon(game, /*log_full=*/false);
+        if (!recharged || estore.current < per_shot) {
+            game.log("Weapon empty. No charged cells available.");
             return;
         }
     }
 
-    // Consume charge
-    rd.current_charge -= rd.charge_per_shot;
+    // Spend energy
+    estore.current -= per_shot;
 
     auto& rng = game.world().rng();
 
@@ -852,8 +839,8 @@ void CombatSystem::shoot_target(Game& game) {
     std::string hit_msg = is_crit ? "CRITICAL HIT! You shoot " : "You shoot ";
     game.log(hit_msg + display_name(*target_npc_) + " for " +
         std::to_string(damage) + " " + display_name(dtype) + " damage. [" +
-        std::to_string(rd.current_charge) + "/" +
-        std::to_string(rd.charge_capacity) + "]");
+        std::to_string(estore.current) + "/" +
+        std::to_string(estore.capacity) + "]");
 
     if (!target_npc_->alive()) {
         game.log(display_name(*target_npc_) + " is destroyed!");
@@ -888,38 +875,33 @@ void CombatSystem::shoot_target(Game& game) {
     game.advance_world(ActionCost::shoot);
 }
 
-void CombatSystem::reload_weapon(Game& game) {
+bool CombatSystem::recharge_weapon(Game& game, bool log_full) {
     auto& weapon = game.player().equipment.missile;
-    if (!weapon || !weapon->ranged) {
-        game.log("No ranged weapon equipped.");
-        return;
+    if (!weapon || !weapon->energy) {
+        if (log_full) game.log("No ranged weapon equipped.");
+        return false;
     }
-
-    auto& rd = *weapon->ranged;
-    if (rd.current_charge >= rd.charge_capacity) {
-        game.log(weapon->label() + " is fully charged.");
-        return;
+    auto& estore = *weapon->energy;
+    if (is_full(estore)) {
+        if (log_full) game.log(weapon->label() + " is fully charged.");
+        return false;
     }
-
-    for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
-        if (game.player().inventory.items[i].type == ItemType::Battery) {
-            int added = std::min(5, rd.charge_capacity - rd.current_charge);
-            rd.current_charge += added;
-            game.log("Reloaded " + weapon->label() + ". (+" + std::to_string(added) +
-                " charge, " + std::to_string(rd.current_charge) + "/" +
-                std::to_string(rd.charge_capacity) + ")");
-            auto& cell = game.player().inventory.items[i];
-            if (cell.stackable && cell.stack_count > 1) {
-                --cell.stack_count;
-            } else {
-                game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
-            }
-            game.advance_world(ActionCost::wait);
-            return;
-        }
+    int total = 0;
+    for (auto& it : game.player().inventory.items) {
+        if (is_full(estore)) break;
+        if (it.type != ItemType::Battery || !it.energy) continue;
+        if (it.energy->current <= 0) continue;
+        total += transfer_energy(*it.energy, estore, deficit(estore));
     }
-
-    game.log("No energy cells to reload.");
+    if (total == 0) {
+        if (log_full) game.log("No charged cells to recharge from.");
+        return false;
+    }
+    game.log("Recharged " + weapon->label() + ". (+" + std::to_string(total) +
+             " charge, " + std::to_string(estore.current) + "/" +
+             std::to_string(estore.capacity) + ")");
+    game.advance_world(ActionCost::wait);
+    return true;
 }
 
 
