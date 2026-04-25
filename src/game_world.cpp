@@ -2213,6 +2213,8 @@ void Game::advance_world(int cost) {
             }
         }
     }
+
+    energy_.tick(player_, world_, cost);
 }
 
 

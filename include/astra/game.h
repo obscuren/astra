@@ -17,6 +17,7 @@
 #include "astra/character_creation.h"
 #include "astra/character_screen.h"
 #include "astra/combat_system.h"
+#include "astra/energy_system.h"
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
 #include "astra/event_bus.h"
@@ -302,6 +303,7 @@ private:
     CharacterScreen character_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
+    EnergySystem energy_;
     Telegraph telegraph_;
     QuestManager quest_manager_;
     RepairBench repair_bench_;
