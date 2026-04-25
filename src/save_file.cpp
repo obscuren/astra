@@ -311,6 +311,16 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_i32(item.ranged->current_charge);
         w.write_i32(item.ranged->max_range);
     }
+    // v46: energy / consumer
+    w.write_u8(item.energy.has_value() ? 1 : 0);
+    if (item.energy) {
+        w.write_i32(item.energy->current);
+        w.write_i32(item.energy->capacity);
+    }
+    w.write_u8(item.consumer.has_value() ? 1 : 0);
+    if (item.consumer) {
+        w.write_i32(item.consumer->energy_per_use);
+    }
     // Enhancement slots
     w.write_i32(item.enhancement_slots);
     w.write_u32(static_cast<uint32_t>(item.enhancements.size()));
@@ -397,6 +407,20 @@ static Item read_item(BinaryReader& r) {
         rd.current_charge = r.read_i32();
         rd.max_range = r.read_i32();
         item.ranged = rd;
+    }
+    // v46: energy / consumer
+    bool has_energy = r.read_u8() != 0;
+    if (has_energy) {
+        EnergyStore e;
+        e.current = r.read_i32();
+        e.capacity = r.read_i32();
+        item.energy = e;
+    }
+    bool has_consumer = r.read_u8() != 0;
+    if (has_consumer) {
+        EnergyConsumer c;
+        c.energy_per_use = r.read_i32();
+        item.consumer = c;
     }
     // Enhancement slots
     item.enhancement_slots = r.read_i32();

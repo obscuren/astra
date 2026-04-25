@@ -186,6 +186,8 @@ struct Item {
     int max_durability = 0;
     bool usable = false;
     std::optional<RangedData> ranged;
+    std::optional<EnergyStore> energy;
+    std::optional<EnergyConsumer> consumer;
 
     // Combat dice (weapons)
     Dice damage_dice;
