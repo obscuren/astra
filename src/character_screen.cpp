@@ -761,8 +761,19 @@ void CharacterScreen::open_context_menu() {
         if (!item) return;
         context_menu_.add_option('l', "look");
         context_menu_.add_option('r', "remove");
+        if (item->energy) {
+            context_menu_.add_option('c', "recharge");
+        }
         if (item->ranged) {
             context_menu_.add_option('u', "unload");
+        }
+        for (const auto& enh : item->enhancements) {
+            if (enh.committed && enh.solar_panel) {
+                context_menu_.add_option('g', enh.solar_panel->active
+                                              ? "disable solar panel"
+                                              : "enable solar panel");
+                break;
+            }
         }
     } else {
         if (player_->inventory.items.empty()) return;
@@ -778,10 +789,22 @@ void CharacterScreen::open_context_menu() {
                 context_menu_.add_option('e', "equip");
             }
         }
+        if (item.energy) {
+            context_menu_.add_option('r', "recharge");
+        }
         if (item.ranged) {
-            context_menu_.add_option('r', "reload");
             context_menu_.add_option('u', "unload");
-        } else if (item.usable) {
+        }
+        // Solar Panel toggle if any committed slot has one
+        for (const auto& enh : item.enhancements) {
+            if (enh.committed && enh.solar_panel) {
+                context_menu_.add_option('g', enh.solar_panel->active
+                                              ? "disable solar panel"
+                                              : "enable solar panel");
+                break;
+            }
+        }
+        if (!item.energy && item.usable) {
             const char* verb = "use";
             if (item.type == ItemType::Food)     verb = "eat";
             else if (item.type == ItemType::Cookbook) verb = "read";
@@ -855,6 +878,23 @@ void CharacterScreen::execute_context_action(char key) {
             }
             player_->inventory.items.push_back(std::move(*equipped));
             equipped.reset();
+        } else if (key == 'c') {
+            // Recharge equipped item — route to weapon or shield picker
+            if (slot == EquipSlot::Shield) {
+                recharge_equipped_request_ = 1;  // shield
+            } else if (slot == EquipSlot::Missile) {
+                recharge_equipped_request_ = 0;  // weapon
+            }
+        } else if (key == 'g') {
+            for (auto& enh : equipped->enhancements) {
+                if (enh.committed && enh.solar_panel) {
+                    enh.solar_panel->active = !enh.solar_panel->active;
+                    context_message_ = std::string("Solar Panel ") +
+                                       (enh.solar_panel->active ? "enabled." : "disabled.");
+                    context_msg_timer_ = 3;
+                    break;
+                }
+            }
         } else if (key == 'u') {
             if (equipped->ranged && equipped->energy && equipped->energy->current > 0) {
                 context_message_ = "Unloaded " + std::to_string(equipped->energy->current) + " charge.";
@@ -898,8 +938,18 @@ void CharacterScreen::execute_context_action(char key) {
                     --inv_cursor_;
             }
         } else if (key == 'r') {
-            context_message_ = "Reload not yet implemented.";
-            context_msg_timer_ = 3;
+            recharge_request_idx_ = inv_cursor_;
+        } else if (key == 'g') {
+            auto& item = items[inv_cursor_];
+            for (auto& enh : item.enhancements) {
+                if (enh.committed && enh.solar_panel) {
+                    enh.solar_panel->active = !enh.solar_panel->active;
+                    context_message_ = std::string("Solar Panel ") +
+                                       (enh.solar_panel->active ? "enabled." : "disabled.");
+                    context_msg_timer_ = 3;
+                    break;
+                }
+            }
         } else if (key == 'u') {
             auto& item = items[inv_cursor_];
             if (item.ranged) {

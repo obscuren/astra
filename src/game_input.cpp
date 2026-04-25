@@ -137,6 +137,14 @@ void Game::handle_play_input(int key) {
         if (character_screen_.has_use_item_request()) {
             use_item(character_screen_.consume_use_item_request());
         }
+        if (auto idx = character_screen_.recharge_request_idx(); idx >= 0) {
+            open_cell_picker_for_item(idx);
+            character_screen_.clear_recharge_request();
+        }
+        if (auto req = character_screen_.recharge_equipped_request(); req >= 0) {
+            open_cell_picker(/*target_is_shield=*/req == 1);
+            character_screen_.clear_recharge_equipped_request();
+        }
         auto installed_slot = character_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {
             quest_manager_.on_ship_component_installed(installed_slot);

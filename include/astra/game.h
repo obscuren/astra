@@ -152,6 +152,7 @@ public:
     void open_repair_bench();
     void open_lore_viewer() { lore_viewer_.open(world_.lore()); }
     void open_cell_picker(bool target_is_shield);
+    void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
     bool handle_cell_picker_input(int key);  // returns true if input was consumed
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
@@ -366,8 +367,10 @@ private:
     MenuState quit_confirm_;
 
     // Cell picker — manual single-cell recharge modal
+    enum class CellPickerTarget : uint8_t { EquippedWeapon, EquippedShield, InventoryItem };
     MenuState cell_picker_;
-    bool cell_picker_target_is_shield_ = false;  // false = recharge weapon
+    CellPickerTarget cell_picker_target_kind_ = CellPickerTarget::EquippedWeapon;
+    int cell_picker_target_inv_idx_ = -1;       // used when target_kind_ == InventoryItem
     std::vector<int> cell_picker_indices_;        // parallel inv-index list
 
     // UI layout (computed from screen size)

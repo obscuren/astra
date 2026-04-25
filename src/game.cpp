@@ -1447,8 +1447,53 @@ void Game::open_cell_picker(bool target_is_shield) {
     }
     cell_picker_.selection = 0;
     cell_picker_.open = true;
-    cell_picker_target_is_shield_ = target_is_shield;
+    cell_picker_target_kind_ = target_is_shield
+        ? CellPickerTarget::EquippedShield
+        : CellPickerTarget::EquippedWeapon;
+    cell_picker_target_inv_idx_ = -1;
 
+    cell_picker_indices_.clear();
+    for (const auto& e : entries) cell_picker_indices_.push_back(e.inv_idx);
+}
+
+void Game::open_cell_picker_for_item(int inventory_index) {
+    if (inventory_index < 0 || inventory_index >= (int)player_.inventory.items.size()) return;
+    auto& target_item = player_.inventory.items[inventory_index];
+    if (!target_item.energy) return;
+    if (is_full(*target_item.energy)) {
+        log(target_item.label() + " is fully charged.");
+        return;
+    }
+
+    struct CellEntry { int inv_idx; int charge; int capacity; std::string name; };
+    std::vector<CellEntry> entries;
+    for (int i = 0; i < (int)player_.inventory.items.size(); ++i) {
+        if (i == inventory_index) continue;
+        const auto& it = player_.inventory.items[i];
+        if (it.type == ItemType::Battery && it.energy && it.energy->current > 0) {
+            entries.push_back({i, it.energy->current, it.energy->capacity, it.name});
+        }
+    }
+    if (entries.empty()) {
+        log("No charged cells in inventory.");
+        return;
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const CellEntry& a, const CellEntry& b) { return a.charge > b.charge; });
+
+    cell_picker_.reset();
+    cell_picker_.title = "Recharge " + target_item.name + " from...";
+    char hk = '1';
+    for (const auto& e : entries) {
+        std::string label = e.name + " - " + std::to_string(e.charge) + "/" +
+                            std::to_string(e.capacity) + " charge";
+        cell_picker_.add_option(hk++, label);
+        if (hk > '9') hk = 'a';
+    }
+    cell_picker_.selection = 0;
+    cell_picker_.open = true;
+    cell_picker_target_kind_ = CellPickerTarget::InventoryItem;
+    cell_picker_target_inv_idx_ = inventory_index;
     cell_picker_indices_.clear();
     for (const auto& e : entries) cell_picker_indices_.push_back(e.inv_idx);
 }
@@ -1462,16 +1507,35 @@ bool Game::handle_cell_picker_input(int key) {
             int inv_idx = cell_picker_indices_[sel];
             auto& cell = player_.inventory.items[inv_idx];
 
-            EnergyStore* target = cell_picker_target_is_shield_
-                ? player_.shield_energy()
-                : (player_.equipment.missile && player_.equipment.missile->energy
-                   ? &*player_.equipment.missile->energy : nullptr);
+            EnergyStore* target = nullptr;
+            std::string target_name;
+            switch (cell_picker_target_kind_) {
+                case CellPickerTarget::EquippedShield:
+                    target = player_.shield_energy();
+                    target_name = "shield";
+                    break;
+                case CellPickerTarget::EquippedWeapon:
+                    if (player_.equipment.missile && player_.equipment.missile->energy)
+                        target = &*player_.equipment.missile->energy;
+                    target_name = "weapon";
+                    break;
+                case CellPickerTarget::InventoryItem:
+                    if (cell_picker_target_inv_idx_ >= 0 &&
+                        cell_picker_target_inv_idx_ < (int)player_.inventory.items.size()) {
+                        auto& t = player_.inventory.items[cell_picker_target_inv_idx_];
+                        if (t.energy) {
+                            target = &*t.energy;
+                            target_name = t.name;
+                        }
+                    }
+                    break;
+            }
             if (target && cell.energy) {
                 int eff = 0;
                 for (const auto& enh : cell.enhancements)
                     if (enh.committed) eff += enh.energy_bonus.discharge_efficiency;
                 int moved = transfer_energy(*cell.energy, *target, deficit(*target), eff);
-                log("Recharged " + std::string(cell_picker_target_is_shield_ ? "shield" : "weapon")
+                log("Recharged " + target_name
                     + ". (+" + std::to_string(moved) + " from " + cell.name + ")");
                 advance_world(ActionCost::wait);
             }

@@ -172,6 +172,10 @@ private:
     Item dropped_item_;
     // Use-item output — Game reads this after handle_input and calls use_item(idx)
     int use_item_request_idx_ = -1;
+    // Recharge-item output — Game reads this and opens cell picker for the item
+    int recharge_request_idx_ = -1;
+    // Recharge-equipped output: -1=none, 0=weapon, 1=shield
+    int recharge_equipped_request_ = -1;
     // Ship component install output — Game reads this to update quests
     std::string installed_ship_slot_;
 public:
@@ -179,6 +183,10 @@ public:
     Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
     bool has_use_item_request() const { return use_item_request_idx_ >= 0; }
     int consume_use_item_request() { int i = use_item_request_idx_; use_item_request_idx_ = -1; return i; }
+    int recharge_request_idx() const { return recharge_request_idx_; }
+    void clear_recharge_request() { recharge_request_idx_ = -1; }
+    int recharge_equipped_request() const { return recharge_equipped_request_; }
+    void clear_recharge_equipped_request() { recharge_equipped_request_ = -1; }
     std::string consume_installed_ship_slot() {
         std::string s = std::move(installed_ship_slot_);
         installed_ship_slot_.clear();
