@@ -424,24 +424,57 @@ void draw_item_info(UIContext& ctx, const Item& item) {
         y++;
     }
 
+    if (item.energy) {
+        const auto& e = *item.energy;
+        ctx.text(0, y, "Charge: ", Color::DarkGray);
+        int bar_w = std::min(16, ctx.width() - 10);
+        if (bar_w > 0) {
+            ctx.bar(8, y, bar_w, e.current, e.capacity,
+                    Color::Cyan, Color::DarkGray);
+        }
+        std::string charge_str = std::to_string(e.current) + "/"
+                               + std::to_string(e.capacity);
+        ctx.text(8 + bar_w + 1, y, charge_str, Color::Cyan);
+        y++;
+    }
+    if (item.consumer) {
+        ctx.label_value(0, y, "Energy/use:", Color::DarkGray,
+            std::to_string(item.consumer->energy_per_use), Color::White);
+        y++;
+    }
     if (item.ranged) {
-        const auto& rd = *item.ranged;
-        if (item.energy) {
-            const auto& e = *item.energy;
-            ctx.text(0, y, "Charge: ", Color::DarkGray);
-            int bar_w = std::min(16, ctx.width() - 10);
-            if (bar_w > 0) {
-                ctx.bar(8, y, bar_w, e.current, e.capacity,
-                        Color::Cyan, Color::DarkGray);
-            }
-            std::string charge_str = std::to_string(e.current) + "/"
-                                   + std::to_string(e.capacity);
-            ctx.text(8 + bar_w + 1, y, charge_str, Color::Cyan);
+        ctx.label_value(0, y, "Range:     ", Color::DarkGray,
+            std::to_string(item.ranged->max_range), Color::White);
+        y++;
+    }
+    for (const auto& enh : item.enhancements) {
+        if (!enh.committed) continue;
+        if (enh.solar_panel) {
+            const auto& sp = *enh.solar_panel;
+            std::string mod = std::string(sp.active ? "Solar Panel (active, +" : "Solar Panel (off, +") +
+                              std::to_string(sp.energy_per_tick) + "/" +
+                              std::to_string(sp.tick_interval) + " turns)";
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray, mod, Color::Yellow);
             y++;
         }
-        ctx.label_value(0, y, "Range:     ", Color::DarkGray,
-            std::to_string(rd.max_range), Color::White);
-        y++;
+        if (enh.energy_bonus.capacity_bonus) {
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray,
+                "+" + std::to_string(enh.energy_bonus.capacity_bonus) + " capacity",
+                Color::Yellow);
+            y++;
+        }
+        if (enh.energy_bonus.charge_rate_bonus) {
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray,
+                "+" + std::to_string(enh.energy_bonus.charge_rate_bonus) + "% charge rate",
+                Color::Yellow);
+            y++;
+        }
+        if (enh.energy_bonus.discharge_efficiency) {
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray,
+                "+1 free per " + std::to_string(enh.energy_bonus.discharge_efficiency) + " transferred",
+                Color::Yellow);
+            y++;
+        }
     }
 
     if (item.max_durability > 0 && y < ctx.height()) {
