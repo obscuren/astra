@@ -143,6 +143,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  give ship <component>  - install ship component (engine/hull/navi/shield)");
         log("  give item <name>   - drop item in inventory (cell_small, cell_standard,");
         log("                       cell_large, cell_industrial, cell_antimatter,");
+        log("                       cell_bulwark, cell_volatile, cell_adrenal,");
         log("                       solar_panel, solar_panel_uncommon, solar_panel_rare,");
         log("                       capacitor_coil, charge_catalyst, polished_conduit,");
         log("                       plasma_pistol, ion_blaster, pulse_rifle, arc_caster, void_lance)");
@@ -422,6 +423,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else if (name == "cell_large")          item = build_large_energy_cell();
         else if (name == "cell_industrial")     item = build_industrial_energy_cell();
         else if (name == "cell_antimatter")     item = build_antimatter_cell();
+        else if (name == "cell_bulwark")        item = build_bulwark_cell();
+        else if (name == "cell_volatile")       item = build_volatile_cell();
+        else if (name == "cell_adrenal")        item = build_adrenal_cell();
         else if (name == "solar_panel")         item = build_solar_panel_common();
         else if (name == "solar_panel_uncommon") item = build_solar_panel_uncommon();
         else if (name == "solar_panel_rare")    item = build_solar_panel_rare();

@@ -2,10 +2,13 @@
 
 #include "astra/npc.h"
 
+#include <cstdint>
+
 namespace astra {
 
 class Game; // forward declare
 struct EnergyStore; // forward declare
+struct Item; // forward declare
 
 class CombatSystem {
 public:
@@ -33,10 +36,17 @@ public:
 
     void reset();
 
+    // Recharge target type — used to gate cell proc effects.
+    enum class RechargeTargetKind : uint8_t {
+        Generic = 0,         // a non-equipped inventory item
+        EquippedWeapon = 1,
+        EquippedShield = 2,
+    };
+
 private:
     // Drain cells from inventory (highest-charge first) into target until full.
     // Returns total energy deposited.
-    int recharge_target_(Game& game, EnergyStore& target);
+    int recharge_target_(Game& game, EnergyStore& target, RechargeTargetKind kind);
 
     bool targeting_ = false;
     int target_x_ = 0;
@@ -44,5 +54,11 @@ private:
     int blink_phase_ = 0;
     Npc* target_npc_ = nullptr;
 };
+
+// Fire any cell proc owned by `cell` after `drained` units flowed out of it.
+// Side-effects only: may modify `target` (overcharge), or add a player effect.
+void apply_cell_proc(Item& cell, int drained,
+                     CombatSystem::RechargeTargetKind kind,
+                     EnergyStore* target, Game& game);
 
 } // namespace astra

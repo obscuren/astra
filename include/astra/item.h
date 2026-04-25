@@ -185,6 +185,7 @@ struct Item {
     std::optional<RangedData> ranged;
     std::optional<EnergyStore> energy;
     std::optional<EnergyConsumer> consumer;
+    std::optional<CellProc> proc;          // cells fire this on drain
 
     // Combat dice (weapons)
     Dice damage_dice;

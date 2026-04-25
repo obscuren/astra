@@ -25,7 +25,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 46;   // v46: energy system (EnhancementSlot energy_bonus + solar_panel)
+inline constexpr uint32_t SAVE_FILE_VERSION = 47;   // v47: cell procs (Item::proc)
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

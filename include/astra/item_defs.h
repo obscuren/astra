@@ -56,6 +56,9 @@ Item build_standard_energy_cell();
 Item build_large_energy_cell();
 Item build_industrial_energy_cell();
 Item build_antimatter_cell();
+Item build_bulwark_cell();
+Item build_volatile_cell();
+Item build_adrenal_cell();
 Item build_ration_pack();
 Item build_combat_stim();
 

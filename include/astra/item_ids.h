@@ -111,6 +111,11 @@ constexpr uint16_t ITEM_CAPACITOR_COIL          = 83;
 constexpr uint16_t ITEM_CHARGE_CATALYST         = 84;
 constexpr uint16_t ITEM_POLISHED_CONDUIT        = 85;
 
+// Legendary specialty cells with procs (86-88)
+constexpr uint16_t ITEM_BULWARK_CELL            = 86;
+constexpr uint16_t ITEM_VOLATILE_CELL           = 87;
+constexpr uint16_t ITEM_ADRENAL_CELL            = 88;
+
 // Energy cells (70-74)
 constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
 constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;

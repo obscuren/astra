@@ -1541,6 +1541,15 @@ bool Game::handle_cell_picker_input(int key) {
                 int moved = transfer_energy(*cell.energy, *target, deficit(*target), eff);
                 log("Recharged " + target_name
                     + ". (+" + std::to_string(moved) + " from " + display_name(cell) + ")");
+
+                // Fire any cell proc.
+                CombatSystem::RechargeTargetKind rk = CombatSystem::RechargeTargetKind::Generic;
+                if (cell_picker_target_kind_ == CellPickerTarget::EquippedShield)
+                    rk = CombatSystem::RechargeTargetKind::EquippedShield;
+                else if (cell_picker_target_kind_ == CellPickerTarget::EquippedWeapon)
+                    rk = CombatSystem::RechargeTargetKind::EquippedWeapon;
+                if (moved > 0) apply_cell_proc(cell, moved, rk, target, *this);
+
                 advance_world(ActionCost::wait);
             }
         }

@@ -318,6 +318,15 @@ static void write_item(BinaryWriter& w, const Item& item) {
     if (item.consumer) {
         w.write_i32(item.consumer->energy_per_use);
     }
+    // v47: cell proc
+    w.write_u8(item.proc.has_value() ? 1 : 0);
+    if (item.proc) {
+        w.write_u8(static_cast<uint8_t>(item.proc->kind));
+        w.write_i32(item.proc->magnitude);
+        w.write_i32(item.proc->duration);
+        w.write_i32(item.proc->threshold);
+        w.write_i32(item.proc->accumulator);
+    }
     // Enhancement slots
     w.write_i32(item.enhancement_slots);
     w.write_u32(static_cast<uint32_t>(item.enhancements.size()));
@@ -413,6 +422,17 @@ static Item read_item(BinaryReader& r) {
         EnergyConsumer c;
         c.energy_per_use = r.read_i32();
         item.consumer = c;
+    }
+    // v47: cell proc
+    bool has_proc = r.read_u8() != 0;
+    if (has_proc) {
+        CellProc p;
+        p.kind = static_cast<CellProcKind>(r.read_u8());
+        p.magnitude = r.read_i32();
+        p.duration = r.read_i32();
+        p.threshold = r.read_i32();
+        p.accumulator = r.read_i32();
+        item.proc = p;
     }
     // Enhancement slots
     item.enhancement_slots = r.read_i32();

@@ -161,6 +161,32 @@ Item build_large_energy_cell()      { return build_cell(ITEM_LARGE_ENERGY_CELL, 
 Item build_industrial_energy_cell() { return build_cell(ITEM_INDUSTRIAL_ENERGY_CELL, 2012, "Industrial Energy Cell", Rarity::Rare,     800,  3, 220, 70, /*slot_override=*/2); }
 Item build_antimatter_cell()        { return build_cell(ITEM_ANTIMATTER_CELL,        2013, "Antimatter Cell",        Rarity::Epic,     2000, 3, 650, 200); }
 
+// Legendary specialty cells: standard build_cell + a CellProc bonus.
+Item build_bulwark_cell() {
+    Item it = build_cell(ITEM_BULWARK_CELL, 2020, "Bulwark Cell",
+                         Rarity::Legendary, 1500, 3, 900, 280);
+    it.description = "Reinforced cell. Channels overflow into the shield matrix.";
+    it.proc = CellProc{ CellProcKind::ShieldOvercharge, /*magnitude=*/25, /*duration=*/0,
+                        /*threshold=*/250, /*accumulator=*/0 };
+    return it;
+}
+Item build_volatile_cell() {
+    Item it = build_cell(ITEM_VOLATILE_CELL, 2021, "Volatile Cell",
+                         Rarity::Legendary, 1500, 3, 900, 280);
+    it.description = "Unstable cell. Surges past safe limits when discharged into a weapon.";
+    it.proc = CellProc{ CellProcKind::WeaponOvercharge, /*magnitude=*/15, /*duration=*/0,
+                        /*threshold=*/150, /*accumulator=*/0 };
+    return it;
+}
+Item build_adrenal_cell() {
+    Item it = build_cell(ITEM_ADRENAL_CELL, 2022, "Adrenal Cell",
+                         Rarity::Legendary, 1500, 3, 900, 280);
+    it.description = "Bio-coupled cell. Triggers an adrenal surge when drained.";
+    it.proc = CellProc{ CellProcKind::AdrenalineRush, /*magnitude=*/0, /*duration=*/5,
+                        /*threshold=*/300, /*accumulator=*/0 };
+    return it;
+}
+
 // Legacy alias so existing callers compile. Returns a Standard cell.
 Item build_battery() { return build_standard_energy_cell(); }
 

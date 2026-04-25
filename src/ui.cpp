@@ -484,6 +484,41 @@ void draw_item_info(UIContext& ctx, const Item& item) {
             std::to_string(item.ranged->max_range), Color::White);
         y++;
     }
+    if (item.proc && item.proc->kind != CellProcKind::None) {
+        const auto& p = *item.proc;
+        std::string desc;
+        switch (p.kind) {
+            case CellProcKind::ShieldOvercharge:
+                desc = "+" + std::to_string(p.magnitude) + " shield overcharge per " +
+                       std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::WeaponOvercharge:
+                desc = "+" + std::to_string(p.magnitude) + " weapon overcharge per " +
+                       std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::DefenseBoost:
+                desc = "+" + std::to_string(p.magnitude) + " DV for " +
+                       std::to_string(p.duration) + " turns per " +
+                       std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::AdrenalineRush:
+                desc = "Adrenaline (" + std::to_string(p.duration) +
+                       " turns) per " + std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::None:
+                break;
+        }
+        if (!desc.empty()) {
+            ctx.label_value(0, y, "Proc:      ", Color::DarkGray, desc, Color::Magenta);
+            y++;
+            if (p.accumulator > 0) {
+                ctx.label_value(0, y, "  charge:  ", Color::DarkGray,
+                    std::to_string(p.accumulator) + "/" + std::to_string(p.threshold),
+                    Color::DarkGray);
+                y++;
+            }
+        }
+    }
     for (const auto& enh : item.enhancements) {
         if (!enh.committed) continue;
         if (enh.solar_panel) {

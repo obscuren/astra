@@ -4,6 +4,7 @@
 #include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/display_name.h"
+#include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
@@ -878,7 +879,63 @@ void CombatSystem::shoot_target(Game& game) {
     game.advance_world(ActionCost::shoot);
 }
 
-int CombatSystem::recharge_target_(Game& game, EnergyStore& target) {
+// Fire any proc owned by `cell` after `drained` units of energy have been
+// transferred out of it. Procs are gated by target kind for the overcharge
+// kinds; player-buff kinds always fire when the threshold is reached.
+// Returns nothing — side effects only.
+void apply_cell_proc(Item& cell, int drained,
+                     CombatSystem::RechargeTargetKind kind,
+                     EnergyStore* target, Game& game) {
+    if (!cell.proc || drained <= 0) return;
+    auto& p = *cell.proc;
+    if (p.kind == CellProcKind::None || p.threshold <= 0) return;
+
+    // Gate by target type for overcharge kinds.
+    bool applicable = true;
+    if (p.kind == CellProcKind::ShieldOvercharge)
+        applicable = (kind == CombatSystem::RechargeTargetKind::EquippedShield);
+    else if (p.kind == CellProcKind::WeaponOvercharge)
+        applicable = (kind == CombatSystem::RechargeTargetKind::EquippedWeapon);
+    if (!applicable) return;
+
+    p.accumulator += drained;
+    while (p.accumulator >= p.threshold) {
+        p.accumulator -= p.threshold;
+        switch (p.kind) {
+            case CellProcKind::ShieldOvercharge:
+                if (target) {
+                    target->current += p.magnitude;
+                    game.log("Shield overcharged by +" + std::to_string(p.magnitude) +
+                             "! [" + std::to_string(target->current) + "/" +
+                             std::to_string(target->capacity) + "]");
+                }
+                break;
+            case CellProcKind::WeaponOvercharge:
+                if (target) {
+                    target->current += p.magnitude;
+                    game.log("Weapon overcharged by +" + std::to_string(p.magnitude) +
+                             "! [" + std::to_string(target->current) + "/" +
+                             std::to_string(target->capacity) + "]");
+                }
+                break;
+            case CellProcKind::DefenseBoost:
+                add_effect(game.player().effects,
+                           make_defense_boost_ge(p.duration, p.magnitude));
+                game.log("Defense surge: +" + std::to_string(p.magnitude) +
+                         " DV for " + std::to_string(p.duration) + " turns.");
+                break;
+            case CellProcKind::AdrenalineRush:
+                add_effect(game.player().effects, make_adrenaline_rush_ge(p.duration));
+                game.log("Adrenaline rush! (" + std::to_string(p.duration) + " turns)");
+                break;
+            case CellProcKind::None:
+                break;
+        }
+    }
+}
+
+int CombatSystem::recharge_target_(Game& game, EnergyStore& target,
+                                   RechargeTargetKind kind) {
     auto& items = game.player().inventory.items;
     std::vector<int> idxs;
     for (int i = 0; i < (int)items.size(); ++i) {
@@ -896,7 +953,9 @@ int CombatSystem::recharge_target_(Game& game, EnergyStore& target) {
         int eff = 0;
         for (const auto& enh : items[i].enhancements)
             if (enh.committed) eff += enh.energy_bonus.discharge_efficiency;
-        total += transfer_energy(*items[i].energy, target, deficit(target), eff);
+        int moved = transfer_energy(*items[i].energy, target, deficit(target), eff);
+        if (moved > 0) apply_cell_proc(items[i], moved, kind, &target, game);
+        total += moved;
     }
     return total;
 }
@@ -912,7 +971,7 @@ bool CombatSystem::recharge_weapon(Game& game, bool log_full, bool advance) {
         if (log_full) game.log(weapon->label() + " is fully charged.");
         return false;
     }
-    int moved = recharge_target_(game, estore);
+    int moved = recharge_target_(game, estore, RechargeTargetKind::EquippedWeapon);
     if (moved == 0) {
         if (log_full) game.log("No charged cells to recharge from.");
         return false;
@@ -934,7 +993,7 @@ bool CombatSystem::recharge_shield(Game& game, bool log_full, bool advance) {
         if (log_full) game.log("Shield is at full charge.");
         return false;
     }
-    int moved = recharge_target_(game, *sh);
+    int moved = recharge_target_(game, *sh, RechargeTargetKind::EquippedShield);
     if (moved == 0) {
         if (log_full) game.log("No charged cells to recharge shield.");
         return false;

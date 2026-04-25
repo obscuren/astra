@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace astra {
 
 // Anything that holds energy.
@@ -26,6 +28,25 @@ struct SolarPanelData {
     int energy_per_tick = 5;     // tier-based: 5 / 8 / 12
     int tick_interval = 2;       // game-ticks between deposits
     int accumulator = 0;         // ticks accrued since last deposit
+};
+
+// What a cell does when its proc fires.
+enum class CellProcKind : uint8_t {
+    None,
+    ShieldOvercharge,    // +magnitude to shield current (allowed past capacity)
+    WeaponOvercharge,    // +magnitude to weapon current (allowed past capacity)
+    DefenseBoost,        // grants attack-boost-style buff for duration turns
+    AdrenalineRush,      // grants adrenaline_rush effect for duration turns
+};
+
+// Bonus a cell fires once per `threshold` units actually drained from it.
+// Stored on Item. The accumulator persists across drains (per-instance state).
+struct CellProc {
+    CellProcKind kind = CellProcKind::None;
+    int magnitude = 0;     // overcharge units, or stat amount for buffs
+    int duration = 0;      // turns (for status-effect kinds)
+    int threshold = 100;   // fires once per N units drained
+    int accumulator = 0;   // per-instance accumulated drain
 };
 
 inline bool is_full(const EnergyStore& s)  { return s.current >= s.capacity; }
