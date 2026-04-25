@@ -10,13 +10,13 @@ namespace astra {
 enum class LootSource : uint64_t {
     None              = 0,
     NpcDrop           = 1ULL << 0,
-    Chest             = 1ULL << 1,
+    Chest             = 1ULL << 1,  // TODO: chest loot integration deferred (loot table populated, caller pending)
     MerchantGeneral   = 1ULL << 2,
     MerchantArms      = 1ULL << 3,
     MerchantFood      = 1ULL << 4,
     ScavMerchant      = 1ULL << 5,
     BlackMarket       = 1ULL << 6,
-    MaintenanceTunnel = 1ULL << 7,
+    MaintenanceTunnel = 1ULL << 7,  // TODO: maintenance tunnel loot deferred (loot table populated, caller pending)
 };
 
 constexpr uint64_t loot_source_bit(LootSource s) {

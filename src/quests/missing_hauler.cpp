@@ -3,6 +3,7 @@
 #include "astra/game.h"
 #include "astra/celestial_body.h"
 #include "astra/item_defs.h"
+#include "astra/item_ids.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -36,7 +37,7 @@ public:
 
         q.reward.xp = 200;
         q.reward.credits = 100;
-        q.reward.items.push_back(build_plasma_pistol());
+        q.reward.items.push_back(build_by_def_id(ITEM_PLASMA_PISTOL));
         q.reward.factions.push_back({Faction_StellariConclave, 10});
         q.reward.factions.push_back({Faction_KrethMiningGuild, 5});
         return q;

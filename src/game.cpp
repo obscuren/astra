@@ -835,14 +835,14 @@ void Game::new_game() {
         // the whole discovery/read flow can be exercised in-game.
         player_.known_recipes = { 1, 2, 3 };
         auto stack_of = [](Item it, int n) { it.stack_count = n; return it; };
-        player_.inventory.items.push_back(stack_of(build_raw_meat(),       10));
-        player_.inventory.items.push_back(stack_of(build_carrot(),         10));
-        player_.inventory.items.push_back(stack_of(build_flour(),          10));
-        player_.inventory.items.push_back(stack_of(build_herbs(),          10));
-        player_.inventory.items.push_back(stack_of(build_synth_protein(), 10));
-        player_.inventory.items.push_back(build_cookbook_hearty_stew());
-        player_.inventory.items.push_back(build_cookbook_protein_bake());
-        player_.inventory.items.push_back(build_cookbook_heros_feast());
+        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_RAW_MEAT),       10));
+        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_CARROT),         10));
+        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_FLOUR),          10));
+        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_HERBS),          10));
+        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_SYNTH_PROTEIN), 10));
+        player_.inventory.items.push_back(build_by_def_id(ITEM_COOKBOOK_HEARTY_STEW));
+        player_.inventory.items.push_back(build_by_def_id(ITEM_COOKBOOK_PROTEIN_BAKE));
+        player_.inventory.items.push_back(build_by_def_id(ITEM_COOKBOOK_HEROS_FEAST));
 
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
@@ -895,9 +895,9 @@ void Game::new_game() {
     player_.ship.name = generate_ship_name(world_.rng());
     if (dev_mode_) {
         // Dev mode: ship fully equipped
-        player_.ship.engine = build_engine_coil_mk1();
-        player_.ship.hull = build_hull_plate();
-        player_.ship.navi_computer = build_navi_computer_mk2();
+        player_.ship.engine = build_engine_coil_mk1(); // sanctioned one-off
+        player_.ship.hull = build_by_def_id(ITEM_HULL_PLATE);
+        player_.ship.navi_computer = build_by_def_id(ITEM_NAVI_COMPUTER_MK2);
     }
 
     if (dev_mode_) {
@@ -911,33 +911,33 @@ void Game::new_game() {
     // Starter gear
     if (dev_mode_) {
         // Dev Commander gets a full loadout
-        player_.equipment.head = build_tactical_helmet();
-        player_.equipment.body = build_composite_armor();
-        player_.equipment.feet = build_mag_lock_boots();
-        player_.equipment.left_arm = build_arm_guard();
-        auto right_arm = build_arm_guard();
+        player_.equipment.head = build_by_def_id(ITEM_TACTICAL_HELMET);
+        player_.equipment.body = build_by_def_id(ITEM_COMPOSITE_ARMOR);
+        player_.equipment.feet = build_by_def_id(ITEM_MAG_LOCK_BOOTS);
+        player_.equipment.left_arm = build_by_def_id(ITEM_ARM_GUARD);
+        auto right_arm = build_by_def_id(ITEM_ARM_GUARD);
         right_arm.slot = EquipSlot::RightArm;
         player_.equipment.right_arm = right_arm;
-        player_.equipment.right_hand = build_vibro_blade();
-        player_.equipment.missile = build_ion_blaster();
-        player_.equipment.face = build_recon_visor();
-        player_.equipment.back = build_jetpack();
-        player_.equipment.thrown = build_frag_grenade();
+        player_.equipment.right_hand = build_by_def_id(ITEM_VIBRO_BLADE);
+        player_.equipment.missile = build_by_def_id(ITEM_ION_BLASTER);
+        player_.equipment.face = build_by_def_id(ITEM_RECON_VISOR);
+        player_.equipment.back = build_by_def_id(ITEM_JETPACK);
+        player_.equipment.thrown = build_by_def_id(ITEM_FRAG_GRENADE);
         player_.equipment.thrown->stack_count = 5;
 
         // Inventory: consumables + crafting mats + extras
         auto stack = [](Item it, int n) { it.stack_count = n; return it; };
-        player_.inventory.items.push_back(stack(build_battery(), 5));
-        player_.inventory.items.push_back(stack(build_ration_pack(), 10));
-        player_.inventory.items.push_back(stack(build_combat_stim(), 3));
-        player_.inventory.items.push_back(stack(build_nano_fiber(), 10));
-        player_.inventory.items.push_back(stack(build_power_core(), 10));
-        player_.inventory.items.push_back(stack(build_circuit_board(), 10));
-        player_.inventory.items.push_back(stack(build_alloy_ingot(), 10));
-        player_.inventory.items.push_back(build_combat_knife());
-        player_.inventory.items.push_back(build_plasma_pistol());
-        player_.inventory.items.push_back(stack(build_emp_grenade(), 2));
-        player_.inventory.items.push_back(build_composite_barrier());
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_BATTERY), 5));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_RATION_PACK), 10));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_COMBAT_STIM), 3));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_NANO_FIBER), 10));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_POWER_CORE), 10));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_CIRCUIT_BOARD), 10));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_ALLOY_INGOT), 10));
+        player_.inventory.items.push_back(build_by_def_id(ITEM_COMBAT_KNIFE));
+        player_.inventory.items.push_back(build_by_def_id(ITEM_PLASMA_PISTOL));
+        player_.inventory.items.push_back(stack(build_by_def_id(ITEM_EMP_GRENADE), 2));
+        player_.inventory.items.push_back(build_by_def_id(ITEM_COMPOSITE_BARRIER));
 
         // Pre-learn some blueprints for Synthesizer testing
         player_.learned_blueprints.push_back({1001, "Plasma Emitter", "A superheated plasma projection system."});
@@ -970,7 +970,7 @@ void Game::new_game() {
     }
     log("You are armed with a " + weapon.name + ".");
 
-    Item battery = build_battery();
+    Item battery = build_by_def_id(ITEM_BATTERY);
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 
@@ -1235,7 +1235,7 @@ void Game::new_game(const CreationResult& cr) {
     }
     log("You are armed with a " + weapon.name + ".");
 
-    Item battery = build_battery();
+    Item battery = build_by_def_id(ITEM_BATTERY);
     battery.stack_count = 3;
     player_.inventory.items.push_back(battery);
 

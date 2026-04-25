@@ -114,10 +114,11 @@ Item build_hull_plate();
 Item build_shield_generator();
 Item build_navi_computer_mk2();
 
-// Reconstruct an Item from its item_def_id by dispatching to the
-// appropriate build_* function. Only cooking-related defs are
-// supported today (ingredients, cooked dishes, Burnt Slop,
-// cookbooks). Returns a default Item{} if id is unknown.
+// Universal item constructor: rebuild an Item from its item_def_id by
+// dispatching to the appropriate build_*() function. Covers every item
+// in s_loot_table plus a few legacy/utility defs (ITEM_BATTERY alias,
+// cookbook recipes, ingredients, dishes). Returns a default Item{}
+// if def_id is unknown.
 Item build_by_def_id(uint16_t def_id);
 
 } // namespace astra

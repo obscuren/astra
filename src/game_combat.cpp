@@ -8,6 +8,7 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
+#include "astra/item_ids.h"
 #include "astra/loot_table.h"
 #include "astra/skill_defs.h"
 
@@ -78,14 +79,14 @@ static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
         if (std::uniform_int_distribution<int>(0, 99)(rng) >= 40) return;
 
         int spare_count = 1 + std::uniform_int_distribution<int>(0, 1)(rng);
-        Item spare = build_spare_parts();
+        Item spare = build_by_def_id(ITEM_SPARE_PARTS);
         spare.stack_count = spare_count;
         add_to_inventory_stacked(game.player().inventory, spare);
 
         bool got_circuitry = std::uniform_int_distribution<int>(0, 99)(rng) < 30;
         Item circ;
         if (got_circuitry) {
-            circ = build_circuitry();
+            circ = build_by_def_id(ITEM_CIRCUITRY);
             add_to_inventory_stacked(game.player().inventory, circ);
         }
 
@@ -103,7 +104,7 @@ static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
 
     // Ungated universal path: 5% chance to drop Spare Parts to the ground.
     if (std::uniform_int_distribution<int>(0, 99)(rng) < 5) {
-        Item spare = build_spare_parts();
+        Item spare = build_by_def_id(ITEM_SPARE_PARTS);
         game.world().ground_items().push_back({npc.x, npc.y, std::move(spare)});
     }
 }

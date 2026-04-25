@@ -1,5 +1,6 @@
 #include "astra/shop.h"
 #include "astra/item_defs.h"
+#include "astra/item_ids.h"
 
 #include <algorithm>
 
@@ -11,7 +12,7 @@ std::vector<FoodMenuItem> food_terminal_menu() {
     menu.push_back({"Synth-Brew Meal",  5, 25, false, {}});
     menu.push_back({"Spiced Void-Eel",  8, -1, false, {}});
     menu.push_back({"Ration Pack",      3,  0, true,  [] {
-        Item r = build_ration_pack();
+        Item r = build_by_def_id(ITEM_RATION_PACK);
         r.buy_value = 3;
         r.sell_value = 1;
         return r;

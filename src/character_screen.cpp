@@ -2,6 +2,7 @@
 #include "astra/aura.h"
 #include "astra/character.h"
 #include "astra/item_defs.h"
+#include "astra/item_ids.h"
 #include "astra/recipe.h"
 #include "astra/display_name.h"
 #include "astra/effect.h"
@@ -3995,7 +3996,7 @@ void CharacterScreen::cooking_attempt_cook() {
         }
         context_msg_timer_ = 3;
     } else {
-        player_->inventory.items.push_back(build_burnt_slop());
+        player_->inventory.items.push_back(build_by_def_id(ITEM_BURNT_SLOP));
         context_message_ = "The result is inedible. You produce Burnt Slop.";
         context_msg_timer_ = 3;
     }

@@ -5,6 +5,7 @@
 #include "astra/dungeon/puzzles.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
+#include "astra/item_ids.h"
 #include "astra/playback_viewer.h"
 #include "astra/player.h"
 #include "astra/quest_fixture.h"
@@ -997,9 +998,9 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             // Skip tutorial -- equip ship with starter components and mark
             // Getting Airborne complete so downstream arcs (Stellar Signal, etc.)
             // unlock via the quest DAG.
-            game.player().ship.engine = build_engine_coil_mk1();
-            game.player().ship.hull = build_hull_plate();
-            game.player().ship.navi_computer = build_navi_computer_mk2();
+            game.player().ship.engine = build_engine_coil_mk1(); // sanctioned one-off
+            game.player().ship.hull = build_by_def_id(ITEM_HULL_PLATE);
+            game.player().ship.navi_computer = build_by_def_id(ITEM_NAVI_COMPUTER_MK2);
             if (game.quests().accept_available(
                     "story_getting_airborne", game, game.world().world_tick())) {
                 game.quests().complete_quest(
