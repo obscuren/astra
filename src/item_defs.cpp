@@ -3,6 +3,7 @@
 #include "astra/item_ids.h"
 #include "astra/effect.h"  // EffectId for DishOutput::granted
 #include "astra/energy.h"
+#include "astra/tinkering.h"
 
 namespace astra {
 
@@ -132,22 +133,36 @@ Item build_void_lance() {
 // Consumables
 // ---------------------------------------------------------------------------
 
-Item build_battery() {
+static Item build_cell(uint16_t def_id, uint32_t id, const char* name,
+                       Rarity rarity, int capacity, int weight,
+                       int buy, int sell, int slot_override = -1) {
     Item it;
-    it.item_def_id = ITEM_BATTERY;
-    it.id = 2001;
-    it.name = "Energy Cell";
-    it.description = "Standard power cell. Recharges ranged weapons.";
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = "Persistent power cell. Holds energy for weapons, shields, and gadgets.";
     it.type = ItemType::Battery;
-    it.rarity = Rarity::Common;
-    it.weight = 1;
-    it.stackable = true;
+    it.rarity = rarity;
+    it.weight = weight;
+    it.stackable = false;
     it.stack_count = 1;
-    it.buy_value = 15;
-    it.sell_value = 5;
+    it.buy_value = buy;
+    it.sell_value = sell;
     it.usable = true;
+    it.energy = EnergyStore{capacity, capacity};
+    init_enhancement_slots(it);
+    if (slot_override >= 0) it.enhancement_slots = slot_override;
     return it;
 }
+
+Item build_small_energy_cell()      { return build_cell(ITEM_SMALL_ENERGY_CELL,      2001, "Small Energy Cell",      Rarity::Common,   60,   1, 15,  5); }
+Item build_standard_energy_cell()   { return build_cell(ITEM_STANDARD_ENERGY_CELL,   2010, "Standard Energy Cell",   Rarity::Common,   150,  1, 35,  12); }
+Item build_large_energy_cell()      { return build_cell(ITEM_LARGE_ENERGY_CELL,      2011, "Large Energy Cell",      Rarity::Uncommon, 400,  2, 90,  30); }
+Item build_industrial_energy_cell() { return build_cell(ITEM_INDUSTRIAL_ENERGY_CELL, 2012, "Industrial Energy Cell", Rarity::Rare,     800,  3, 220, 70, /*slot_override=*/2); }
+Item build_antimatter_cell()        { return build_cell(ITEM_ANTIMATTER_CELL,        2013, "Antimatter Cell",        Rarity::Epic,     2000, 3, 650, 200); }
+
+// Legacy alias so existing callers compile. Returns a Standard cell.
+Item build_battery() { return build_standard_energy_cell(); }
 
 Item build_ration_pack() {
     Item it;
@@ -1034,7 +1049,9 @@ static Item make_stack(Item item, int count) {
 
 std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     std::vector<Item> stock;
-    stock.push_back(make_stack(build_battery(), 3));
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_standard_energy_cell());
     stock.push_back(make_stack(build_ration_pack(), 5));
     stock.push_back(make_stack(build_combat_stim(), 2));
     stock.push_back(random_ranged_weapon(rng));
@@ -1063,7 +1080,9 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
         stock.push_back(random_ranged_weapon(rng));
     }
     stock.push_back(random_melee_weapon(rng));
-    stock.push_back(make_stack(build_battery(), 5));
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_standard_energy_cell());
     stock.push_back(random_armor(rng));
     stock.push_back(random_shield(rng));
     stock.push_back(make_stack(build_emp_grenade(), 2));

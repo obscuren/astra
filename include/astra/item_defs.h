@@ -51,6 +51,11 @@ Item build_cryo_grenade();
 
 // --- Consumables ---
 Item build_battery();
+Item build_small_energy_cell();
+Item build_standard_energy_cell();
+Item build_large_energy_cell();
+Item build_industrial_energy_cell();
+Item build_antimatter_cell();
 Item build_ration_pack();
 Item build_combat_stim();
 

@@ -101,6 +101,13 @@ constexpr uint16_t ITEM_COOKBOOK_HEARTY_STEW   = 61;
 constexpr uint16_t ITEM_COOKBOOK_PROTEIN_BAKE  = 62;
 constexpr uint16_t ITEM_COOKBOOK_HEROS_FEAST   = 63;
 
+// Energy cells (70-74)
+constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
+constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;
+constexpr uint16_t ITEM_LARGE_ENERGY_CELL       = 72;
+constexpr uint16_t ITEM_INDUSTRIAL_ENERGY_CELL  = 73;
+constexpr uint16_t ITEM_ANTIMATTER_CELL         = 74;
+
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;
 constexpr uint16_t ITEM_SYNTH_THRUSTER_PLATE    = 1001;
