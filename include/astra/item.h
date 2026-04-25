@@ -196,10 +196,6 @@ struct Item {
     // Armor/shield type affinities
     TypeAffinity type_affinity;
 
-    // Shield fields (only meaningful when slot == EquipSlot::Shield)
-    int shield_capacity = 0;
-    int shield_hp = 0;
-
     int enhancement_slots = 0;
     std::vector<EnhancementSlot> enhancements;
 

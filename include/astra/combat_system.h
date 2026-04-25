@@ -26,7 +26,7 @@ public:
     void handle_targeting_input(int key, Game& game);
     void shoot_target(Game& game);
     bool recharge_weapon(Game& game, bool log_full = true);
-    void reload_shield(Game& game);
+    bool recharge_shield(Game& game, bool log_full = true);
     void remove_dead_npcs(Game& game);
     void check_level_up(Game& game);
 

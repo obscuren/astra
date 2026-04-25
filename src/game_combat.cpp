@@ -236,20 +236,21 @@ static void ranged_hit_player(Npc& npc, Game& game) {
     const Dice& dmg = npc.ranged_damage_dice;
     DamageType dtype = npc.ranged_damage_type;
 
-    if (game.player().shield_hp > 0) {
+    auto* sh_ranged = game.player().shield_energy();
+    if (sh_ranged && sh_ranged->current > 0) {
         auto pen = roll_penetration(rng, npc.level / 3, 0, dmg);
         if (pen.total_damage <= 0) {
             game.log(display_name(npc) + "'s shot is absorbed by your shield.");
             return;
         }
         int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
-        game.player().shield_hp -= absorbed;
-        if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+        sh_ranged->current -= absorbed;
+        if (sh_ranged->current < 0) sh_ranged->current = 0;
         game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
         game.log(display_name(npc) + " shoots your shield for " +
                  std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
-                 std::to_string(game.player().shield_hp) + "/" +
-                 std::to_string(game.player().shield_max_hp) + "]");
+                 std::to_string(sh_ranged->current) + "/" +
+                 std::to_string(sh_ranged->capacity) + "]");
         return;
     }
 
@@ -431,7 +432,8 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             DamageType dtype = npc.damage_type;
 
             // Shield check
-            if (game.player().shield_hp > 0) {
+            auto* sh_melee = game.player().shield_energy();
+            if (sh_melee && sh_melee->current > 0) {
                 // Penetrate shield as AV=0
                 auto pen = roll_penetration(rng, npc.level / 3, 0, dmg_dice);
                 if (pen.total_damage <= 0) {
@@ -439,13 +441,13 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
                     return;
                 }
                 int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
-                game.player().shield_hp -= absorbed;
-                if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+                sh_melee->current -= absorbed;
+                if (sh_melee->current < 0) sh_melee->current = 0;
                 game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
                 game.log(display_name(npc) + " hits your shield for " +
                          std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
-                         std::to_string(game.player().shield_hp) + "/" +
-                         std::to_string(game.player().shield_max_hp) + "]");
+                         std::to_string(sh_melee->current) + "/" +
+                         std::to_string(sh_melee->capacity) + "]");
                 return;
             }
 
@@ -906,34 +908,31 @@ bool CombatSystem::recharge_weapon(Game& game, bool log_full) {
 
 
 
-void CombatSystem::reload_shield(Game& game) {
-    auto& shield = game.player().equipment.shield;
-    if (!shield || shield->shield_capacity <= 0) {
-        game.log("No energy shield equipped.");
-        return;
+bool CombatSystem::recharge_shield(Game& game, bool log_full) {
+    auto* sh = game.player().shield_energy();
+    if (!sh) {
+        if (log_full) game.log("No energy shield equipped.");
+        return false;
     }
-    if (game.player().shield_hp >= game.player().shield_max_hp) {
-        game.log("Shield is at full charge.");
-        return;
+    if (is_full(*sh)) {
+        if (log_full) game.log("Shield is at full charge.");
+        return false;
     }
-    for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
-        if (game.player().inventory.items[i].type == ItemType::Battery) {
-            int added = std::min(5, game.player().shield_max_hp - game.player().shield_hp);
-            game.player().shield_hp += added;
-            game.log("Shield recharged +" + std::to_string(added) + " HP. (" +
-                     std::to_string(game.player().shield_hp) + "/" +
-                     std::to_string(game.player().shield_max_hp) + ")");
-            auto& cell = game.player().inventory.items[i];
-            if (cell.stackable && cell.stack_count > 1) {
-                --cell.stack_count;
-            } else {
-                game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
-            }
-            game.advance_world(ActionCost::wait);
-            return;
-        }
+    int total = 0;
+    for (auto& it : game.player().inventory.items) {
+        if (is_full(*sh)) break;
+        if (it.type != ItemType::Battery || !it.energy) continue;
+        if (it.energy->current <= 0) continue;
+        total += transfer_energy(*it.energy, *sh, deficit(*sh));
     }
-    game.log("No energy cells to recharge shield.");
+    if (total == 0) {
+        if (log_full) game.log("No charged cells to recharge shield.");
+        return false;
+    }
+    game.log("Recharged shield. (+" + std::to_string(total) + " charge, " +
+             std::to_string(sh->current) + "/" + std::to_string(sh->capacity) + ")");
+    game.advance_world(ActionCost::wait);
+    return true;
 }
 
 void CombatSystem::remove_dead_npcs(Game& game) {

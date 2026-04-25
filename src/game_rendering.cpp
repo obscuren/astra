@@ -1099,18 +1099,19 @@ void Game::render_bars() {
 
     // Shield bar (always visible)
     {
-        std::string sh_val = player_.shield_max_hp > 0
-            ? std::to_string(player_.shield_hp) + "/" + std::to_string(player_.shield_max_hp)
+        const EnergyStore* sh = player_.shield_energy();
+        std::string sh_val = sh
+            ? std::to_string(sh->current) + "/" + std::to_string(sh->capacity)
             : "---";
         while (static_cast<int>(sh_val.size()) < val_w) sh_val = " " + sh_val;
         UIContext ctx(renderer_.get(), shield_bar_rect_);
         ctx.text(1, 0, "SH:", Color::DarkGray);
-        ctx.text(4, 0, sh_val, player_.shield_max_hp > 0 ? Color::Cyan : Color::DarkGray);
+        ctx.text(4, 0, sh_val, sh ? Color::Cyan : Color::DarkGray);
         int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
             ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
-                              .value=player_.shield_hp,
-                              .max=std::max(player_.shield_max_hp, 1),
+                              .value=sh ? sh->current : 0,
+                              .max=sh ? std::max(sh->capacity, 1) : 1,
                               .tag=UITag::TextBright});
         }
     }

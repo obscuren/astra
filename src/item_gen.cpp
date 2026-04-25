@@ -65,9 +65,10 @@ void scale_item_to_level(Item& item, int level) {
         item.ranged->charge_capacity = scale(item.ranged->charge_capacity);
         item.ranged->current_charge = item.ranged->charge_capacity;
     }
-    if (item.shield_capacity > 0) {
-        item.shield_capacity = scale(item.shield_capacity);
-        item.shield_hp = item.shield_capacity;
+    if (item.energy && item.type == ItemType::Shield) {
+        int scaled = scale(item.energy->capacity);
+        item.energy->capacity = scaled;
+        item.energy->current = scaled;
     }
 }
 

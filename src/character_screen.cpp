@@ -849,11 +849,8 @@ void CharacterScreen::execute_context_action(char key) {
             }
             context_message_ = "Removed " + equipped->label() + ".";
             context_msg_timer_ = 3;
-            // Save shield charge back to item before unequipping
+            // Clear shield affinity on unequip
             if (slot == EquipSlot::Shield) {
-                equipped->shield_hp = player_->shield_hp;
-                player_->shield_hp = 0;
-                player_->shield_max_hp = 0;
                 player_->shield_affinity = {};
             }
             player_->inventory.items.push_back(std::move(*equipped));
@@ -885,19 +882,14 @@ void CharacterScreen::execute_context_action(char key) {
                 auto& sl = player_->equipment.slot_ref(target_slot);
                 Item to_equip = std::move(item);
                 items.erase(items.begin() + inv_cursor_);
-                // Save shield charge back to old item before unequipping
+                // Clear shield affinity when swapping out old shield
                 if (target_slot == EquipSlot::Shield && sl) {
-                    sl->shield_hp = player_->shield_hp;
-                    player_->shield_hp = 0;
-                    player_->shield_max_hp = 0;
                     player_->shield_affinity = {};
                 }
                 if (sl) items.push_back(std::move(*sl));
                 sl = std::move(to_equip);
-                // Sync shield HP from newly equipped shield
+                // Sync shield affinity from newly equipped shield
                 if (target_slot == EquipSlot::Shield) {
-                    player_->shield_max_hp = sl->shield_capacity;
-                    player_->shield_hp = sl->shield_hp;
                     player_->shield_affinity = sl->type_affinity;
                 }
                 context_message_ = "Equipped " + sl->label() + ".";

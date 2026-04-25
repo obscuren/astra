@@ -664,7 +664,7 @@ Item build_basic_deflector() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Common;
     it.weight = 2;
     it.buy_value = 100; it.sell_value = 35;
-    it.shield_capacity = 10; it.shield_hp = 10;
+    it.energy = EnergyStore{10, 10};
     it.type_affinity = {0, 0, 0, 0, 0};
     return it;
 }
@@ -677,7 +677,7 @@ Item build_plasma_screen() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Uncommon;
     it.weight = 3;
     it.buy_value = 250; it.sell_value = 85;
-    it.shield_capacity = 15; it.shield_hp = 15;
+    it.energy = EnergyStore{15, 15};
     it.type_affinity = {0, 3, 0, 0, -1};
     return it;
 }
@@ -690,7 +690,7 @@ Item build_ion_barrier() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Uncommon;
     it.weight = 3;
     it.buy_value = 250; it.sell_value = 85;
-    it.shield_capacity = 15; it.shield_hp = 15;
+    it.energy = EnergyStore{15, 15};
     it.type_affinity = {0, -1, 3, 0, 0};
     return it;
 }
@@ -703,7 +703,7 @@ Item build_composite_barrier() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Rare;
     it.weight = 4;
     it.buy_value = 500; it.sell_value = 170;
-    it.shield_capacity = 20; it.shield_hp = 20;
+    it.energy = EnergyStore{20, 20};
     it.type_affinity = {1, 1, 1, 1, 1};
     return it;
 }
@@ -716,7 +716,7 @@ Item build_hardlight_aegis() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Epic;
     it.weight = 3;
     it.buy_value = 900; it.sell_value = 300;
-    it.shield_capacity = 30; it.shield_hp = 30;
+    it.energy = EnergyStore{30, 30};
     it.type_affinity = {3, 1, -1, 0, 0};
     return it;
 }
@@ -729,7 +729,7 @@ Item build_void_mantle() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Legendary;
     it.weight = 2;
     it.buy_value = 2500; it.sell_value = 800;
-    it.shield_capacity = 40; it.shield_hp = 40;
+    it.energy = EnergyStore{40, 40};
     it.type_affinity = {2, 2, 2, 2, 2};
     return it;
 }

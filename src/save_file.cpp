@@ -363,8 +363,6 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_i32(item.type_affinity.electrical);
     w.write_i32(item.type_affinity.cryo);
     w.write_i32(item.type_affinity.acid);
-    w.write_i32(item.shield_capacity);
-    w.write_i32(item.shield_hp);
     // v44: cooking — DishOutput on Food, teaches_recipe_id on Cookbook
     w.write_u8(item.dish.has_value() ? 1 : 0);
     if (item.dish) {
@@ -465,8 +463,6 @@ static Item read_item(BinaryReader& r) {
     item.type_affinity.electrical = r.read_i32();
     item.type_affinity.cryo = r.read_i32();
     item.type_affinity.acid = r.read_i32();
-    item.shield_capacity = r.read_i32();
-    item.shield_hp = r.read_i32();
     // v44: cooking fields
     bool has_dish = r.read_u8() != 0;
     if (has_dish) {
@@ -703,9 +699,7 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     for (const auto& item : p.ship.cargo) write_item(w, item);
     // v15: tab help seen bitfield
     w.write_u16(p.tab_help_seen);
-    // v26: shield HP and kinetic resistance
-    w.write_i32(p.shield_hp);
-    w.write_i32(p.shield_max_hp);
+    // v26: kinetic resistance
     w.write_i32(p.resistances.kinetic);
     // v43: manual-sourced auras (item/effect/skill-sourced re-derive on load)
     {
@@ -1564,8 +1558,6 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.ship.cargo[i] = read_item(r);
     }
     p.tab_help_seen = r.read_u16();
-    p.shield_hp = r.read_i32();
-    p.shield_max_hp = r.read_i32();
     p.resistances.kinetic = r.read_i32();
     // v43: manual-sourced auras; derived auras repopulated after load
     {
