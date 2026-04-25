@@ -176,11 +176,12 @@ bool CharacterScreen::handle_input(int key) {
                 // Tinkering item/material picker result
                 int sel = context_menu_.selection;
                 if (tinker_focus_ == TinkerFocus::Workbench && !workbench_item_) {
-                    // Find the sel-th equippable/repairable item in inventory
+                    // Find the sel-th workbench-eligible item in inventory.
+                    // Filter must match the one used to populate the picker (search "Place Item").
                     int count = 0;
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
-                        if (it.slot.has_value() || it.max_durability > 0) {
+                        if (it.slot.has_value() || it.max_durability > 0 || it.enhancement_slots > 0) {
                             if (count == sel) {
                                 workbench_inv_idx_ = i;
                                 workbench_item_ = &player_->inventory.items[i];
@@ -510,7 +511,7 @@ bool CharacterScreen::handle_input(int key) {
                     context_menu_.title = "Place Item";
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
-                        if (it.slot.has_value() || it.max_durability > 0) {
+                        if (it.slot.has_value() || it.max_durability > 0 || it.enhancement_slots > 0) {
                             char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
                             context_menu_.add_option(key_ch, it.name);
                         }
