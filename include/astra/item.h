@@ -209,10 +209,13 @@ struct Item {
     // Cookbook payload. Non-zero only when type == ItemType::Cookbook.
     uint16_t teaches_recipe_id = 0;
 
-    // Plain-text label: "name - 1d6" for weapons, just "name" otherwise
+    // Plain-text label: "name - 1d6" for weapons, "name - cur/cap charge" for cells, plain name otherwise
     std::string label() const {
         if (!damage_dice.empty())
             return name + " - " + damage_dice.to_string();
+        if (type == ItemType::Battery && energy)
+            return name + " - " + std::to_string(energy->current) + "/" +
+                   std::to_string(energy->capacity) + " charge";
         return name;
     }
 };
