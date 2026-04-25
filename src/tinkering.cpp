@@ -17,9 +17,10 @@ static const MaterialEffect s_material_effects[] = {
     {7002, "Power Core",    {2, 0, 0, 0, 0}, {}, std::nullopt},  // +2 AV
     {7003, "Circuit Board", {0, 0, 0, 1, 0}, {}, std::nullopt},  // +1 view
     {7004, "Alloy Ingot",   {0, 2, 0, 0, 0}, {}, std::nullopt},  // +2 DV
-    {ITEM_SOLAR_PANEL_COMMON,   "Solar Panel",           {}, {}, SolarPanelData{ true,  5, 2, 0 }},
-    {ITEM_SOLAR_PANEL_UNCOMMON, "Polished Solar Panel",  {}, {}, SolarPanelData{ true,  8, 2, 0 }},
-    {ITEM_SOLAR_PANEL_RARE,     "Prismatic Solar Panel", {}, {}, SolarPanelData{ true, 12, 2, 0 }},
+    // material_id matches Item::id from build_solar_panel_*, not the item_def_id constant.
+    {2050, "Solar Panel",           {}, {}, SolarPanelData{ true,  5, 2, 0 }},
+    {2051, "Polished Solar Panel",  {}, {}, SolarPanelData{ true,  8, 2, 0 }},
+    {2052, "Prismatic Solar Panel", {}, {}, SolarPanelData{ true, 12, 2, 0 }},
 };
 
 const MaterialEffect* get_material_effect(uint32_t material_id) {
@@ -228,9 +229,9 @@ TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) 
             else if (slot.material_id == 7002) mat.item_def_id = ITEM_POWER_CORE;
             else if (slot.material_id == 7003) mat.item_def_id = ITEM_CIRCUIT_BOARD;
             else if (slot.material_id == 7004) mat.item_def_id = ITEM_ALLOY_INGOT;
-            else if (slot.material_id == ITEM_SOLAR_PANEL_COMMON)   mat.item_def_id = ITEM_SOLAR_PANEL_COMMON;
-            else if (slot.material_id == ITEM_SOLAR_PANEL_UNCOMMON) mat.item_def_id = ITEM_SOLAR_PANEL_UNCOMMON;
-            else if (slot.material_id == ITEM_SOLAR_PANEL_RARE)     mat.item_def_id = ITEM_SOLAR_PANEL_RARE;
+            else if (slot.material_id == 2050) mat.item_def_id = ITEM_SOLAR_PANEL_COMMON;
+            else if (slot.material_id == 2051) mat.item_def_id = ITEM_SOLAR_PANEL_UNCOMMON;
+            else if (slot.material_id == 2052) mat.item_def_id = ITEM_SOLAR_PANEL_RARE;
             mat.stackable = true;
             mat.stack_count = 1;
             mat.weight = 1;
