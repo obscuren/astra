@@ -963,6 +963,27 @@ Item build_solar_panel_common()   { return build_solar_panel_(ITEM_SOLAR_PANEL_C
 Item build_solar_panel_uncommon() { return build_solar_panel_(ITEM_SOLAR_PANEL_UNCOMMON, 2051, "Polished Solar Panel",  Rarity::Uncommon, 180, 60); }
 Item build_solar_panel_rare()     { return build_solar_panel_(ITEM_SOLAR_PANEL_RARE,     2052, "Prismatic Solar Panel", Rarity::Rare,     500, 170); }
 
+static Item build_energy_mod_(uint16_t def_id, uint32_t id, const char* name,
+                              const char* desc, Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = desc;
+    it.type = ItemType::CraftingMaterial;
+    it.rarity = rarity;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    return it;
+}
+
+Item build_capacitor_coil()    { return build_energy_mod_(ITEM_CAPACITOR_COIL,    2053, "Capacitor Coil",    "Energy mod. Slotted into a cell to add +30 capacity.",                       Rarity::Uncommon, 140, 50); }
+Item build_charge_catalyst()   { return build_energy_mod_(ITEM_CHARGE_CATALYST,   2054, "Charge Catalyst",   "Energy mod. Slotted into a cell to boost incoming charge rate by +25%.",      Rarity::Uncommon, 160, 55); }
+Item build_polished_conduit()  { return build_energy_mod_(ITEM_POLISHED_CONDUIT,  2055, "Polished Conduit",  "Energy mod. Slotted into a cell so every 5 units transferred yields +1 free.", Rarity::Rare,    220, 75); }
+
 // ---------------------------------------------------------------------------
 // Ship components
 // ---------------------------------------------------------------------------
@@ -1114,15 +1135,18 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
     stock.push_back(make_stack(build_emp_grenade(), 2));
     // Solar panel mods — tinkering supplies at arms dealers
     stock.push_back(build_solar_panel_common());
+    stock.push_back(build_capacitor_coil());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_emp_grenade(), 2));
         stock.push_back(build_solar_panel_uncommon());
+        stock.push_back(build_charge_catalyst());
     }
     if (faction_rep >= 50) { // Trusted
         stock.push_back(random_melee_weapon(rng));
         stock.push_back(random_armor(rng));
         stock.push_back(build_solar_panel_rare());
+        stock.push_back(build_polished_conduit());
     }
     return stock;
 }

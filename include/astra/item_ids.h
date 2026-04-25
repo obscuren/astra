@@ -106,6 +106,11 @@ constexpr uint16_t ITEM_SOLAR_PANEL_COMMON      = 80;
 constexpr uint16_t ITEM_SOLAR_PANEL_UNCOMMON    = 81;
 constexpr uint16_t ITEM_SOLAR_PANEL_RARE        = 82;
 
+// Energy enhancement mods (83-85)
+constexpr uint16_t ITEM_CAPACITOR_COIL          = 83;
+constexpr uint16_t ITEM_CHARGE_CATALYST         = 84;
+constexpr uint16_t ITEM_POLISHED_CONDUIT        = 85;
+
 // Energy cells (70-74)
 constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
 constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;

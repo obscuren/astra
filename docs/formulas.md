@@ -716,3 +716,18 @@ Solar Panels deposit energy into their host item only when the player is outdoor
 ### Discharge efficiency
 
 `EnergyModifiers::discharge_efficiency` from any committed slot on the source cell adds +1 free unit to the destination for every N units actually drained (`bonus = drained / N`, `0` disables).
+
+### Energy mod materials (tinkering)
+
+Slotted into a cell's enhancement slots like any tinkering material. Bonuses apply once committed.
+
+| Material | Rarity | Effect |
+|---|---|---|
+| Capacitor Coil | Uncommon | `+30` capacity (raises the cell's effective max) |
+| Charge Catalyst | Uncommon | `+25%` charge rate (boosts incoming Solar Panel deposits) |
+| Polished Conduit | Rare | `discharge_efficiency = 5` (+1 free unit per 5 drained) |
+| Solar Panel | Common | `+5` energy / 2 turns when outdoors |
+| Polished Solar Panel | Uncommon | `+8` energy / 2 turns when outdoors |
+| Prismatic Solar Panel | Rare | `+12` energy / 2 turns when outdoors |
+
+Multiple mods on the same cell stack: the system sums `capacity_bonus`, `charge_rate_bonus`, and `discharge_efficiency` across all committed slots.

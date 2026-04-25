@@ -18,9 +18,13 @@ static const MaterialEffect s_material_effects[] = {
     {7003, "Circuit Board", {0, 0, 0, 1, 0}, {}, std::nullopt},  // +1 view
     {7004, "Alloy Ingot",   {0, 2, 0, 0, 0}, {}, std::nullopt},  // +2 DV
     // material_id matches Item::id from build_solar_panel_*, not the item_def_id constant.
-    {2050, "Solar Panel",           {}, {}, SolarPanelData{ true,  5, 2, 0 }},
-    {2051, "Polished Solar Panel",  {}, {}, SolarPanelData{ true,  8, 2, 0 }},
-    {2052, "Prismatic Solar Panel", {}, {}, SolarPanelData{ true, 12, 2, 0 }},
+    {2050, "Solar Panel",           {}, {},                      SolarPanelData{ true,  5, 2, 0 }},
+    {2051, "Polished Solar Panel",  {}, {},                      SolarPanelData{ true,  8, 2, 0 }},
+    {2052, "Prismatic Solar Panel", {}, {},                      SolarPanelData{ true, 12, 2, 0 }},
+    // Energy mods: capacity / charge_rate / discharge_efficiency
+    {2053, "Capacitor Coil",        {}, {30, 0, 0},              std::nullopt},
+    {2054, "Charge Catalyst",       {}, { 0, 25, 0},             std::nullopt},
+    {2055, "Polished Conduit",      {}, { 0, 0, 5},              std::nullopt},
 };
 
 const MaterialEffect* get_material_effect(uint32_t material_id) {
@@ -232,6 +236,9 @@ TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) 
             else if (slot.material_id == 2050) mat.item_def_id = ITEM_SOLAR_PANEL_COMMON;
             else if (slot.material_id == 2051) mat.item_def_id = ITEM_SOLAR_PANEL_UNCOMMON;
             else if (slot.material_id == 2052) mat.item_def_id = ITEM_SOLAR_PANEL_RARE;
+            else if (slot.material_id == 2053) mat.item_def_id = ITEM_CAPACITOR_COIL;
+            else if (slot.material_id == 2054) mat.item_def_id = ITEM_CHARGE_CATALYST;
+            else if (slot.material_id == 2055) mat.item_def_id = ITEM_POLISHED_CONDUIT;
             mat.stackable = true;
             mat.stack_count = 1;
             mat.weight = 1;

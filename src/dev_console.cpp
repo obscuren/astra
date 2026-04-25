@@ -144,6 +144,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  give item <name>   - drop item in inventory (cell_small, cell_standard,");
         log("                       cell_large, cell_industrial, cell_antimatter,");
         log("                       solar_panel, solar_panel_uncommon, solar_panel_rare,");
+        log("                       capacitor_coil, charge_catalyst, polished_conduit,");
         log("                       plasma_pistol, ion_blaster, pulse_rifle, arc_caster, void_lance)");
         log("  set invuln         - toggle invulnerability");
         log("  set level <n>      - set player level");
@@ -424,6 +425,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else if (name == "solar_panel")         item = build_solar_panel_common();
         else if (name == "solar_panel_uncommon") item = build_solar_panel_uncommon();
         else if (name == "solar_panel_rare")    item = build_solar_panel_rare();
+        else if (name == "capacitor_coil")      item = build_capacitor_coil();
+        else if (name == "charge_catalyst")     item = build_charge_catalyst();
+        else if (name == "polished_conduit")    item = build_polished_conduit();
         else if (name == "plasma_pistol")       item = build_plasma_pistol();
         else if (name == "ion_blaster")         item = build_ion_blaster();
         else if (name == "pulse_rifle")         item = build_pulse_rifle();

@@ -1107,7 +1107,7 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     }});
     y++;
 
-    // Item name centered, colored by rarity; dice suffix in white
+    // Item name centered, colored by rarity; dice or charge suffix dim/cyan.
     std::string full_display = item.label();
     int name_x = (cw - static_cast<int>(full_display.size())) / 2;
     if (name_x < 1) name_x = 1;
@@ -1116,6 +1116,18 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
         panel_content.styled_text({.x = name_x, .y = y, .segments = {
             {item.name, rarity_tag(item.rarity)},
             {dice_str, UITag::TextDim},
+        }});
+    } else if (item.type == ItemType::Battery && item.energy) {
+        std::string cur = std::to_string(item.energy->current);
+        std::string cap = std::to_string(item.energy->capacity);
+        UITag charge_tag = (item.energy->current > 0) ? UITag::TextBright : UITag::TextWarning;
+        panel_content.styled_text({.x = name_x, .y = y, .segments = {
+            {item.name, rarity_tag(item.rarity)},
+            {" - ", UITag::TextDim},
+            {cur, charge_tag},
+            {"/", UITag::TextDim},
+            {cap, charge_tag},
+            {" charge", UITag::TextDim},
         }});
     } else {
         panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
@@ -2233,6 +2245,18 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
             ctx.styled_text({.x = rx, .y = ry, .segments = {
                 {item.name, rarity_tag(item.rarity)},
                 {dice_str, UITag::TextDim},
+            }});
+        } else if (item.type == ItemType::Battery && item.energy) {
+            std::string cur = std::to_string(item.energy->current);
+            std::string cap = std::to_string(item.energy->capacity);
+            UITag charge_tag = (item.energy->current > 0) ? UITag::TextBright : UITag::TextWarning;
+            ctx.styled_text({.x = rx, .y = ry, .segments = {
+                {item.name, rarity_tag(item.rarity)},
+                {" - ", UITag::TextDim},
+                {cur, charge_tag},
+                {"/", UITag::TextDim},
+                {cap, charge_tag},
+                {" charge", UITag::TextDim},
             }});
         } else {
             ctx.text({.x = rx, .y = ry, .content = item.name, .tag = rarity_tag(item.rarity)});

@@ -370,6 +370,24 @@ int draw_item_name(UIContext& ctx, int x, int y, const Item& item, bool selected
         x += static_cast<int>(dice.size());
     }
 
+    // Charge suffix for energy cells: " - <cyan>cur/cap</cyan> charge"
+    if (item.type == ItemType::Battery && item.energy) {
+        std::string sep = " - ";
+        ctx.text(x, y, sep, Color::DarkGray);
+        x += (int)sep.size();
+        std::string cur = std::to_string(item.energy->current);
+        std::string cap = std::to_string(item.energy->capacity);
+        Color num_color = (item.energy->current > 0) ? Color::Cyan : Color::Red;
+        ctx.text(x, y, cur, num_color);
+        x += (int)cur.size();
+        ctx.text(x, y, "/", Color::DarkGray);
+        x += 1;
+        ctx.text(x, y, cap, num_color);
+        x += (int)cap.size();
+        ctx.text(x, y, " charge", Color::DarkGray);
+        x += 7;
+    }
+
     if (item.stackable && item.stack_count > 1) {
         std::string stack = " x" + std::to_string(item.stack_count);
         ctx.text(x, y, stack, Color::White);
