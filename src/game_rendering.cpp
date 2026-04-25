@@ -1456,6 +1456,11 @@ void Game::render_effects_bar() {
     const Color bg = Color::DarkGray;
     ctx.text(0, 0, std::string(ctx.width(), ' '), Color::Default, bg);
 
+    auto put = [&](int& x, std::string_view s, Color fg) {
+        ctx.text(x, 0, s, fg, bg);
+        x += static_cast<int>(s.size());
+    };
+
     // --- Ranged weapon hints (right-aligned) -----------------------------
     // Rendered first so we know how much width it consumes and can place
     // the right-hand separator before it.
@@ -1466,8 +1471,8 @@ void Game::render_effects_bar() {
         int energy_per_use = (rw->consumer) ? rw->consumer->energy_per_use : 1;
         std::string charge_num = std::to_string(e.current);
         std::string cap_num    = std::to_string(e.capacity);
-        // "[t]arget [s]hoot [r]eload " = 26 chars; charge = num + '/' + num
-        int hint_width = 30 + static_cast<int>(charge_num.size())
+        // "[t]arget [s]hoot [r]echarge " = 28 chars; plus charge num + '/' + cap num
+        int hint_width = 32 + static_cast<int>(charge_num.size())
                             + 1
                             + static_cast<int>(cap_num.size());
         int ix = ctx.width() - hint_width - 1;
@@ -1476,31 +1481,54 @@ void Game::render_effects_bar() {
         const Color charge_color = (e.current >= energy_per_use)
             ? Color::Cyan : Color::Red;
 
-        auto put = [&](int& x, std::string_view s, Color fg) {
-            ctx.text(x, 0, s, fg, bg);
-            x += static_cast<int>(s.size());
-        };
-
         int x = ix + 2; // Padding left of 2
-        put(x, "[",      Color::White);
-        put(x, "t",      Color::Yellow);
-        put(x, "]arget ", Color::White);
-        put(x, "[",      Color::White);
-        put(x, "s",      Color::Yellow);
-        put(x, "]hoot ", Color::White);
-        put(x, "[",      Color::White);
-        put(x, "r",      Color::Yellow);
-        put(x, "]eload ", Color::White);
-        put(x, charge_num, charge_color);
-        put(x, "/",      Color::White);
-        put(x, cap_num,  charge_color);
-        put(x, "   ",     Color::White);
+        put(x, "[",         Color::White);
+        put(x, "t",         Color::Yellow);
+        put(x, "]arget ",   Color::White);
+        put(x, "[",         Color::White);
+        put(x, "s",         Color::Yellow);
+        put(x, "]hoot ",    Color::White);
+        put(x, "[",         Color::White);
+        put(x, "r",         Color::Yellow);
+        put(x, "]echarge ", Color::White);
+        put(x, charge_num,  charge_color);
+        put(x, "/",         Color::White);
+        put(x, cap_num,     charge_color);
+        put(x, "   ",       Color::White);
+    }
+
+    // --- Shield hint (left of weapon hint, or right-aligned alone) -------
+    int shield_start = ranged_start;
+    const EnergyStore* sh = player_.shield_energy();
+    if (sh) {
+        std::string scur = std::to_string(sh->current);
+        std::string scap = std::to_string(sh->capacity);
+        // "[b] N/M" = 4 + len(cur) + 1 + len(cap)
+        int shint_width = 4 + (int)scur.size() + 1 + (int)scap.size();
+        int sx;
+        if (rw && rw->energy) {
+            sx = ranged_start - shint_width - 2;
+            shield_start = sx - 2;
+            // separator between shield section and weapon section
+            ctx.text(ranged_start - 1, 0, "\xe2\x94\x82", Color::Black, bg);
+        } else {
+            sx = ctx.width() - shint_width - 1;
+            shield_start = sx - 2;
+        }
+        const Color sc = (sh->current > 0) ? Color::Cyan : Color::Red;
+        int x = sx;
+        put(x, "[", Color::White);
+        put(x, "b", Color::Yellow);
+        put(x, "] ", Color::White);
+        put(x, scur, sc);
+        put(x, "/", Color::White);
+        put(x, scap, sc);
     }
 
     // --- Section dividers (black |) --------------------------------------
     const int target_x = ctx.width() / 2;          // column where TARGET begins
     const int left_sep_x = target_x - 1;            // | between EFFECTS and TARGET
-    const int right_sep_x = ranged_start;           // | before ranged hint (if any)
+    const int right_sep_x = shield_start;           // | before leftmost right-section
 
     // Box-drawing vertical (U+2502) for a cleaner visual than ASCII '|'.
     const char* vdiv = "\xe2\x94\x82";
