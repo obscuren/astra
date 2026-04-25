@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/loot_table.h"
 #include "astra/options.h"
 #include "astra/terminal_renderer.h"
 #include "astra/dungeon_level_generator.h"
@@ -13,6 +14,7 @@
 #include <SDL3/SDL_main.h>
 #endif
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -172,6 +174,15 @@ int main(int argc, char* argv[]) {
         }
 
         auto opts = astra::Options::parse(argc, argv);
+
+#ifdef ASTRA_DEV_MODE
+        if (!astra::verify_dispatch_coverage()) {
+            std::fprintf(stderr,
+                "[FATAL] loot table has entries without build_by_def_id dispatch.\n"
+                "        See errors above. Exiting.\n");
+            return 1;
+        }
+#endif
 
         std::unique_ptr<astra::Renderer> renderer;
 

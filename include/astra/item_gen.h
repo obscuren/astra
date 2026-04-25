@@ -23,6 +23,10 @@ void scale_item_to_level(Item& item, int level);
 // buy/sell value. Idempotent if you pass Common.
 void scale_item_to_rarity(Item& item, Rarity rarity);
 
+// Apply affixes to an item based on its rarity (modifies name and stats in place).
+// Common: no affixes; Uncommon: 1; Rare: 2; Epic: 2 (top-half pool); Legendary: fixed top-tier.
+void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng);
+
 // Apply an affix to an item (modifies name and stats in place)
 void apply_affix(Item& item, const ItemAffix& affix);
 

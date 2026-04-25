@@ -154,7 +154,7 @@ Rarity roll_rarity(std::mt19937& rng) {
 // Random generation
 // ---------------------------------------------------------------------------
 
-static void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng) {
+void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng) {
     item.rarity = rarity;
     // Color now resolved from item_def_id via terminal_theme
 
