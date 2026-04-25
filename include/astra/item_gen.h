@@ -33,10 +33,4 @@ void apply_affix(Item& item, const ItemAffix& affix);
 // Roll a random rarity
 Rarity roll_rarity(std::mt19937& rng);
 
-// Generate a fully random item: picks base, applies level scaling, rolls
-// rarity, and adds affixes based on rarity.
-Item generate_random_weapon(std::mt19937& rng, int level);
-Item generate_random_armor(std::mt19937& rng, int level);
-Item generate_loot_drop(std::mt19937& rng, int level);
-
 } // namespace astra

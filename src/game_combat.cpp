@@ -8,7 +8,7 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
-#include "astra/item_gen.h"
+#include "astra/loot_table.h"
 #include "astra/skill_defs.h"
 
 #include <algorithm>
@@ -647,9 +647,10 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         }
         // Loot drop (50% chance)
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
-            Item loot = generate_loot_drop(rng, npc.level);
-            game.log("Dropped: " + display_name(loot));
-            game.world().ground_items().push_back({npc.x, npc.y, std::move(loot)});
+            if (auto loot = roll_loot(LootSource::NpcDrop, npc.level, rng)) {
+                game.log("Dropped: " + display_name(*loot));
+                game.world().ground_items().push_back({npc.x, npc.y, std::move(*loot)});
+            }
         }
         apply_salvage_on_kill(game, npc, rng);
     }
@@ -868,9 +869,10 @@ void CombatSystem::shoot_target(Game& game) {
         }
         // Loot drop (50% chance)
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
-            Item loot = generate_loot_drop(rng, target_npc_->level);
-            game.log("Dropped: " + display_name(loot));
-            game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(loot)});
+            if (auto loot = roll_loot(LootSource::NpcDrop, target_npc_->level, rng)) {
+                game.log("Dropped: " + display_name(*loot));
+                game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(*loot)});
+            }
         }
         apply_salvage_on_kill(game, *target_npc_, rng);
         target_npc_ = nullptr;

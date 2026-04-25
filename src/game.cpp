@@ -9,7 +9,7 @@
 #include "astra/debug_spawn.h"
 #include "astra/display_name.h"
 #include "astra/item_defs.h"
-#include "astra/item_gen.h"
+#include "astra/item_ids.h"
 #include "astra/journal.h"
 #include "astra/galaxy_sim.h"
 #include "astra/lore_generator.h"
@@ -962,7 +962,7 @@ void Game::new_game() {
         log("Full loadout equipped.");
     }
 
-    Item weapon = random_ranged_weapon(world_.rng());
+    Item weapon = build_by_def_id(ITEM_PLASMA_PISTOL);
     if (!player_.equipment.missile) {
         player_.equipment.missile = weapon;
     } else {
@@ -1227,7 +1227,7 @@ void Game::new_game(const CreationResult& cr) {
     check_region_change();
 
     // Starter gear: random ranged weapon + batteries
-    Item weapon = random_ranged_weapon(world_.rng());
+    Item weapon = build_by_def_id(ITEM_PLASMA_PISTOL);
     if (!player_.equipment.missile) {
         player_.equipment.missile = weapon;
     } else {

@@ -1,5 +1,4 @@
 #include "astra/item_gen.h"
-#include "astra/item_defs.h"
 
 #include <cmath>
 
@@ -190,56 +189,6 @@ void apply_rarity_affixes(Item& item, Rarity rarity, std::mt19937& rng) {
             break;
     }
 
-}
-
-Item generate_random_weapon(std::mt19937& rng, int level) {
-    Item item;
-    if (std::uniform_int_distribution<int>(0, 1)(rng) == 0)
-        item = random_ranged_weapon(rng);
-    else
-        item = random_melee_weapon(rng);
-
-    scale_item_to_level(item, level);
-    apply_rarity_affixes(item, roll_rarity(rng), rng);
-    return item;
-}
-
-Item generate_random_armor(std::mt19937& rng, int level) {
-    Item item = random_armor(rng);
-    scale_item_to_level(item, level);
-    apply_rarity_affixes(item, roll_rarity(rng), rng);
-    return item;
-}
-
-Item generate_loot_drop(std::mt19937& rng, int level) {
-    // Weighted: 30% weapon, 25% armor, 20% consumable, 15% junk, 10% crafting
-    std::uniform_int_distribution<int> dist(0, 99);
-    int roll = dist(rng);
-
-    if (roll < 30) {
-        return generate_random_weapon(rng, level);
-    } else if (roll < 55) {
-        return generate_random_armor(rng, level);
-    } else if (roll < 75) {
-        // Random consumable
-        switch (std::uniform_int_distribution<int>(0, 2)(rng)) {
-            case 0: return build_battery();
-            case 1: return build_ration_pack();
-            default: return build_combat_stim();
-        }
-    } else if (roll < 90) {
-        Item junk = random_junk(rng);
-        junk.stack_count = std::uniform_int_distribution<int>(1, 3)(rng);
-        return junk;
-    } else {
-        // Crafting material
-        switch (std::uniform_int_distribution<int>(0, 3)(rng)) {
-            case 0: return build_nano_fiber();
-            case 1: return build_power_core();
-            case 2: return build_circuit_board();
-            default: return build_alloy_ingot();
-        }
-    }
 }
 
 } // namespace astra
