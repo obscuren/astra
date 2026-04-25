@@ -7,6 +7,7 @@
 #include "astra/faction.h"
 #include "astra/faction_territory.h"
 #include "astra/debug_spawn.h"
+#include "astra/display_name.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
 #include "astra/journal.h"
@@ -1511,13 +1512,16 @@ bool Game::handle_cell_picker_input(int key) {
             std::string target_name;
             switch (cell_picker_target_kind_) {
                 case CellPickerTarget::EquippedShield:
-                    target = player_.shield_energy();
-                    target_name = "shield";
+                    if (player_.equipment.shield) {
+                        target = player_.shield_energy();
+                        target_name = display_name(*player_.equipment.shield);
+                    }
                     break;
                 case CellPickerTarget::EquippedWeapon:
-                    if (player_.equipment.missile && player_.equipment.missile->energy)
+                    if (player_.equipment.missile && player_.equipment.missile->energy) {
                         target = &*player_.equipment.missile->energy;
-                    target_name = "weapon";
+                        target_name = display_name(*player_.equipment.missile);
+                    }
                     break;
                 case CellPickerTarget::InventoryItem:
                     if (cell_picker_target_inv_idx_ >= 0 &&
@@ -1525,7 +1529,7 @@ bool Game::handle_cell_picker_input(int key) {
                         auto& t = player_.inventory.items[cell_picker_target_inv_idx_];
                         if (t.energy) {
                             target = &*t.energy;
-                            target_name = t.name;
+                            target_name = display_name(t);
                         }
                     }
                     break;
@@ -1536,7 +1540,7 @@ bool Game::handle_cell_picker_input(int key) {
                     if (enh.committed) eff += enh.energy_bonus.discharge_efficiency;
                 int moved = transfer_energy(*cell.energy, *target, deficit(*target), eff);
                 log("Recharged " + target_name
-                    + ". (+" + std::to_string(moved) + " from " + cell.name + ")");
+                    + ". (+" + std::to_string(moved) + " from " + display_name(cell) + ")");
                 advance_world(ActionCost::wait);
             }
         }

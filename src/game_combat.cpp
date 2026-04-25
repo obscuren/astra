@@ -917,7 +917,7 @@ bool CombatSystem::recharge_weapon(Game& game, bool log_full, bool advance) {
         if (log_full) game.log("No charged cells to recharge from.");
         return false;
     }
-    game.log("Recharged " + weapon->label() + ". (+" + std::to_string(moved) +
+    game.log("Recharged " + display_name(*weapon) + ". (+" + std::to_string(moved) +
              " charge, " + std::to_string(estore.current) + "/" +
              std::to_string(estore.capacity) + ")");
     if (advance) game.advance_world(ActionCost::wait);
@@ -939,8 +939,9 @@ bool CombatSystem::recharge_shield(Game& game, bool log_full, bool advance) {
         if (log_full) game.log("No charged cells to recharge shield.");
         return false;
     }
-    game.log("Recharged shield. (+" + std::to_string(moved) + " charge, " +
-             std::to_string(sh->current) + "/" + std::to_string(sh->capacity) + ")");
+    const auto& shield_item = *game.player().equipment.shield;
+    game.log("Recharged " + display_name(shield_item) + ". (+" + std::to_string(moved) +
+             " charge, " + std::to_string(sh->current) + "/" + std::to_string(sh->capacity) + ")");
     if (advance) game.advance_world(ActionCost::wait);
     return true;
 }
