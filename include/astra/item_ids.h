@@ -116,6 +116,13 @@ constexpr uint16_t ITEM_BULWARK_CELL            = 86;
 constexpr uint16_t ITEM_VOLATILE_CELL           = 87;
 constexpr uint16_t ITEM_ADRENAL_CELL            = 88;
 
+// Minor energy mods for cell customization (89-93)
+constexpr uint16_t ITEM_REINFORCED_CASING       = 89;
+constexpr uint16_t ITEM_RECEPTOR_PLATE          = 90;
+constexpr uint16_t ITEM_BRASS_CONDUIT           = 91;
+constexpr uint16_t ITEM_POWER_JUNCTION          = 92;
+constexpr uint16_t ITEM_TUNED_CATALYST          = 93;
+
 // Energy cells (70-74)
 constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
 constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;

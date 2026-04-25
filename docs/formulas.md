@@ -723,9 +723,14 @@ Slotted into a cell's enhancement slots like any tinkering material. Bonuses app
 
 | Material | Rarity | Effect |
 |---|---|---|
-| Capacitor Coil | Uncommon | `+30` capacity (raises the cell's effective max) |
-| Charge Catalyst | Uncommon | `+25%` charge rate (boosts incoming Solar Panel deposits) |
+| Capacitor Coil | Uncommon | `+30` capacity |
+| Charge Catalyst | Uncommon | `+25%` charge rate |
 | Polished Conduit | Rare | `discharge_efficiency = 5` (+1 free unit per 5 drained) |
+| Reinforced Casing | Common | `+10` capacity |
+| Receptor Plate | Common | `+10%` charge rate |
+| Brass Conduit | Common | `discharge_efficiency = 10` (+1 free unit per 10 drained) |
+| Power Junction | Uncommon | `+15` capacity, `+10%` charge rate |
+| Tuned Catalyst | Rare | `+15%` charge rate, `discharge_efficiency = 8` |
 | Solar Panel | Common | `+5` energy / 2 turns when outdoors |
 | Polished Solar Panel | Uncommon | `+8` energy / 2 turns when outdoors |
 | Prismatic Solar Panel | Rare | `+12` energy / 2 turns when outdoors |

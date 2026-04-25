@@ -1010,6 +1010,13 @@ Item build_capacitor_coil()    { return build_energy_mod_(ITEM_CAPACITOR_COIL,  
 Item build_charge_catalyst()   { return build_energy_mod_(ITEM_CHARGE_CATALYST,   2054, "Charge Catalyst",   "Energy mod. Slotted into a cell to boost incoming charge rate by +25%.",      Rarity::Uncommon, 160, 55); }
 Item build_polished_conduit()  { return build_energy_mod_(ITEM_POLISHED_CONDUIT,  2055, "Polished Conduit",  "Energy mod. Slotted into a cell so every 5 units transferred yields +1 free.", Rarity::Rare,    220, 75); }
 
+// Minor mods — small magnitudes meant to stack across multiple slots for custom cell builds.
+Item build_reinforced_casing() { return build_energy_mod_(ITEM_REINFORCED_CASING, 2056, "Reinforced Casing", "Minor energy mod. Adds +10 capacity to the host cell.",                       Rarity::Common,   25,  8); }
+Item build_receptor_plate()    { return build_energy_mod_(ITEM_RECEPTOR_PLATE,    2057, "Receptor Plate",    "Minor energy mod. +10% to incoming charge rate (Solar Panels, stations).",   Rarity::Common,   30, 10); }
+Item build_brass_conduit()     { return build_energy_mod_(ITEM_BRASS_CONDUIT,     2058, "Brass Conduit",     "Minor energy mod. +1 free unit per 10 transferred.",                          Rarity::Common,   35, 12); }
+Item build_power_junction()    { return build_energy_mod_(ITEM_POWER_JUNCTION,    2059, "Power Junction",    "Hybrid energy mod. +15 capacity and +10% charge rate.",                       Rarity::Uncommon, 100, 30); }
+Item build_tuned_catalyst()    { return build_energy_mod_(ITEM_TUNED_CATALYST,    2060, "Tuned Catalyst",    "Hybrid energy mod. +15% charge rate and +1 free per 8 transferred.",          Rarity::Rare,    200, 70); }
+
 // ---------------------------------------------------------------------------
 // Ship components
 // ---------------------------------------------------------------------------
@@ -1162,17 +1169,23 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
     // Solar panel mods — tinkering supplies at arms dealers
     stock.push_back(build_solar_panel_common());
     stock.push_back(build_capacitor_coil());
+    // Minor mods always available — affordable variety for early customization.
+    stock.push_back(build_reinforced_casing());
+    stock.push_back(build_receptor_plate());
+    stock.push_back(build_brass_conduit());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_emp_grenade(), 2));
         stock.push_back(build_solar_panel_uncommon());
         stock.push_back(build_charge_catalyst());
+        stock.push_back(build_power_junction());
     }
     if (faction_rep >= 50) { // Trusted
         stock.push_back(random_melee_weapon(rng));
         stock.push_back(random_armor(rng));
         stock.push_back(build_solar_panel_rare());
         stock.push_back(build_polished_conduit());
+        stock.push_back(build_tuned_catalyst());
     }
     return stock;
 }

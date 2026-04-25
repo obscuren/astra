@@ -25,6 +25,12 @@ static const MaterialEffect s_material_effects[] = {
     {2053, "Capacitor Coil",        {}, {30, 0, 0},              std::nullopt},
     {2054, "Charge Catalyst",       {}, { 0, 25, 0},             std::nullopt},
     {2055, "Polished Conduit",      {}, { 0, 0, 5},              std::nullopt},
+    // Minor energy mods for custom cell builds (smaller magnitudes; meant to stack).
+    {2056, "Reinforced Casing",     {}, {10, 0, 0},              std::nullopt},
+    {2057, "Receptor Plate",        {}, { 0, 10, 0},             std::nullopt},
+    {2058, "Brass Conduit",         {}, { 0, 0, 10},             std::nullopt},
+    {2059, "Power Junction",        {}, {15, 10, 0},             std::nullopt},
+    {2060, "Tuned Catalyst",        {}, { 0, 15, 8},             std::nullopt},
 };
 
 const MaterialEffect* get_material_effect(uint32_t material_id) {
@@ -239,6 +245,11 @@ TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) 
             else if (slot.material_id == 2053) mat.item_def_id = ITEM_CAPACITOR_COIL;
             else if (slot.material_id == 2054) mat.item_def_id = ITEM_CHARGE_CATALYST;
             else if (slot.material_id == 2055) mat.item_def_id = ITEM_POLISHED_CONDUIT;
+            else if (slot.material_id == 2056) mat.item_def_id = ITEM_REINFORCED_CASING;
+            else if (slot.material_id == 2057) mat.item_def_id = ITEM_RECEPTOR_PLATE;
+            else if (slot.material_id == 2058) mat.item_def_id = ITEM_BRASS_CONDUIT;
+            else if (slot.material_id == 2059) mat.item_def_id = ITEM_POWER_JUNCTION;
+            else if (slot.material_id == 2060) mat.item_def_id = ITEM_TUNED_CATALYST;
             mat.stackable = true;
             mat.stack_count = 1;
             mat.weight = 1;

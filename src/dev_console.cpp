@@ -146,6 +146,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("                       cell_bulwark, cell_volatile, cell_adrenal,");
         log("                       solar_panel, solar_panel_uncommon, solar_panel_rare,");
         log("                       capacitor_coil, charge_catalyst, polished_conduit,");
+        log("                       reinforced_casing, receptor_plate, brass_conduit,");
+        log("                       power_junction, tuned_catalyst,");
         log("                       plasma_pistol, ion_blaster, pulse_rifle, arc_caster, void_lance)");
         log("  set invuln         - toggle invulnerability");
         log("  set level <n>      - set player level");
@@ -432,6 +434,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else if (name == "capacitor_coil")      item = build_capacitor_coil();
         else if (name == "charge_catalyst")     item = build_charge_catalyst();
         else if (name == "polished_conduit")    item = build_polished_conduit();
+        else if (name == "reinforced_casing")   item = build_reinforced_casing();
+        else if (name == "receptor_plate")      item = build_receptor_plate();
+        else if (name == "brass_conduit")       item = build_brass_conduit();
+        else if (name == "power_junction")      item = build_power_junction();
+        else if (name == "tuned_catalyst")      item = build_tuned_catalyst();
         else if (name == "plasma_pistol")       item = build_plasma_pistol();
         else if (name == "ion_blaster")         item = build_ion_blaster();
         else if (name == "pulse_rifle")         item = build_pulse_rifle();

@@ -105,6 +105,11 @@ Item build_solar_panel_rare();
 Item build_capacitor_coil();
 Item build_charge_catalyst();
 Item build_polished_conduit();
+Item build_reinforced_casing();
+Item build_receptor_plate();
+Item build_brass_conduit();
+Item build_power_junction();
+Item build_tuned_catalyst();
 
 // --- Ship components ---
 Item build_engine_coil_mk1();
