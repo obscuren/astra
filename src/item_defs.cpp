@@ -940,6 +940,30 @@ Item build_alloy_ingot() {
 }
 
 // ---------------------------------------------------------------------------
+// Solar panel crafting materials
+// ---------------------------------------------------------------------------
+
+static Item build_solar_panel_(uint16_t def_id, uint32_t id, const char* name, Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = "Photovoltaic mod. Slots into any energy item; recharges it while outdoors.";
+    it.type = ItemType::CraftingMaterial;
+    it.rarity = rarity;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    return it;
+}
+
+Item build_solar_panel_common()   { return build_solar_panel_(ITEM_SOLAR_PANEL_COMMON,   2050, "Solar Panel",           Rarity::Common,   60,  20); }
+Item build_solar_panel_uncommon() { return build_solar_panel_(ITEM_SOLAR_PANEL_UNCOMMON, 2051, "Polished Solar Panel",  Rarity::Uncommon, 180, 60); }
+Item build_solar_panel_rare()     { return build_solar_panel_(ITEM_SOLAR_PANEL_RARE,     2052, "Prismatic Solar Panel", Rarity::Rare,     500, 170); }
+
+// ---------------------------------------------------------------------------
 // Ship components
 // ---------------------------------------------------------------------------
 
@@ -1062,6 +1086,8 @@ std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     // Ship components
     stock.push_back(build_hull_plate());
     stock.push_back(build_shield_generator());
+    // Solar panel mods — always available at the base merchant
+    stock.push_back(build_solar_panel_common());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_combat_stim(), 3));
@@ -1086,13 +1112,17 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
     stock.push_back(random_armor(rng));
     stock.push_back(random_shield(rng));
     stock.push_back(make_stack(build_emp_grenade(), 2));
+    // Solar panel mods — tinkering supplies at arms dealers
+    stock.push_back(build_solar_panel_common());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_emp_grenade(), 2));
+        stock.push_back(build_solar_panel_uncommon());
     }
     if (faction_rep >= 50) { // Trusted
         stock.push_back(random_melee_weapon(rng));
         stock.push_back(random_armor(rng));
+        stock.push_back(build_solar_panel_rare());
     }
     return stock;
 }

@@ -4,6 +4,7 @@
 #include "astra/skill_defs.h"
 
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -24,6 +25,8 @@ struct MaterialEffect {
     uint32_t material_id;
     const char* name;
     StatModifiers stat_bonus;
+    EnergyModifiers energy_bonus;
+    std::optional<SolarPanelData> solar_panel;
 };
 
 // Get the enhancement bonus for a crafting material

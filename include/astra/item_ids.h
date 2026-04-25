@@ -101,6 +101,11 @@ constexpr uint16_t ITEM_COOKBOOK_HEARTY_STEW   = 61;
 constexpr uint16_t ITEM_COOKBOOK_PROTEIN_BAKE  = 62;
 constexpr uint16_t ITEM_COOKBOOK_HEROS_FEAST   = 63;
 
+// Solar panel mods (80-82)
+constexpr uint16_t ITEM_SOLAR_PANEL_COMMON      = 80;
+constexpr uint16_t ITEM_SOLAR_PANEL_UNCOMMON    = 81;
+constexpr uint16_t ITEM_SOLAR_PANEL_RARE        = 82;
+
 // Energy cells (70-74)
 constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
 constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;

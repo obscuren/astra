@@ -95,6 +95,11 @@ Item build_power_core();
 Item build_circuit_board();
 Item build_alloy_ingot();
 
+// --- Solar panel mods ---
+Item build_solar_panel_common();
+Item build_solar_panel_uncommon();
+Item build_solar_panel_rare();
+
 // --- Ship components ---
 Item build_engine_coil_mk1();
 Item build_hull_plate();
