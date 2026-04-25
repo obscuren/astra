@@ -9,6 +9,8 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
+#include "astra/item_gen.h"
+#include "astra/loot_table.h"
 #include "astra/lore_generator.h"
 #include "astra/npc.h"
 #include "astra/quest_fixture.h"
@@ -16,10 +18,41 @@
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
 
+#include <cctype>
 #include <ctime>
+#include <map>
 #include <sstream>
 
 namespace astra {
+
+static std::optional<Rarity> parse_rarity_arg(std::string_view s) {
+    auto eq_ci = [](std::string_view a, std::string_view b) {
+        if (a.size() != b.size()) return false;
+        for (size_t i = 0; i < a.size(); ++i) {
+            char ca = static_cast<char>(std::tolower(static_cast<unsigned char>(a[i])));
+            char cb = static_cast<char>(std::tolower(static_cast<unsigned char>(b[i])));
+            if (ca != cb) return false;
+        }
+        return true;
+    };
+    if (eq_ci(s, "c") || eq_ci(s, "common"))    return Rarity::Common;
+    if (eq_ci(s, "u") || eq_ci(s, "uncommon"))  return Rarity::Uncommon;
+    if (eq_ci(s, "r") || eq_ci(s, "rare"))      return Rarity::Rare;
+    if (eq_ci(s, "e") || eq_ci(s, "epic"))      return Rarity::Epic;
+    if (eq_ci(s, "l") || eq_ci(s, "legendary")) return Rarity::Legendary;
+    return std::nullopt;
+}
+
+static std::string_view rarity_short_name(Rarity r) {
+    switch (r) {
+        case Rarity::Common:    return "common";
+        case Rarity::Uncommon:  return "uncommon";
+        case Rarity::Rare:      return "rare";
+        case Rarity::Epic:      return "epic";
+        case Rarity::Legendary: return "legendary";
+    }
+    return "?";
+}
 
 void DevConsole::toggle() {
     open_ = !open_;
@@ -140,15 +173,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  give sp <n>        - set skill points");
         log("  give ap <n>        - set attribute points");
         log("  give rep <faction> <n> - set faction reputation");
-        log("  give ship <component>  - install ship component (engine/hull/navi/shield)");
-        log("  give item <name>   - drop item in inventory (cell_small, cell_standard,");
-        log("                       cell_large, cell_industrial, cell_antimatter,");
-        log("                       cell_bulwark, cell_volatile, cell_adrenal,");
-        log("                       solar_panel, solar_panel_uncommon, solar_panel_rare,");
-        log("                       capacitor_coil, charge_catalyst, polished_conduit,");
-        log("                       reinforced_casing, receptor_plate, brass_conduit,");
-        log("                       power_junction, tuned_catalyst,");
-        log("                       plasma_pistol, ion_blaster, pulse_rifle, arc_caster, void_lance)");
+        log("  give ship <component>         - install ship component (engine [or engine_coil_mk1], hull_plate, shield_generator, navi_computer_mk2)");
+        log("  give item                     - list all items (identifier, category, rarity range)");
+        log("  give item <identifier>        - spawn item at Common, level 1");
+        log("  give item <id> <rarity>       - spawn at given rarity, level 1");
+        log("  give item <id> <rarity> <lvl> - fully specified (rarity: c/u/r/e/l)");
         log("  set invuln         - toggle invulnerability");
         log("  set level <n>      - set player level");
         log("  effect burn <dur>  - apply burn effect");
@@ -406,49 +435,89 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     }
     else if (verb == "give" && args.size() >= 3 && args[1] == "ship") {
         Item item;
-        if (args[2] == "engine") item = build_engine_coil_mk1();
-        else if (args[2] == "hull") item = build_hull_plate();
-        else if (args[2] == "navi") item = build_navi_computer_mk2();
-        else if (args[2] == "shield") item = build_shield_generator();
-        else {
-            log("Unknown component: " + args[2] + ". Options: engine, hull, navi, shield");
-            return;
+        if (args[2] == "engine" || args[2] == "engine_coil_mk1") {
+            item = build_engine_coil_mk1();
+        } else {
+            const LootEntry* entry = find_entry_by_identifier(args[2]);
+            if (entry == nullptr || entry->category != Category::ShipComponent) {
+                log("give ship: unknown component '" + args[2]
+                    + "' (try: engine, hull_plate, shield_generator, navi_computer_mk2)");
+                return;
+            }
+            item = build_by_def_id(entry->item_def_id);
         }
         log("Added " + item.name + " to ship cargo.");
         player.ship.cargo.push_back(std::move(item));
     }
-    else if (verb == "give" && args.size() >= 3 && args[1] == "item") {
-        const std::string& name = args[2];
-        Item item;
-        if      (name == "cell_small")          item = build_small_energy_cell();
-        else if (name == "cell_standard")       item = build_standard_energy_cell();
-        else if (name == "cell_large")          item = build_large_energy_cell();
-        else if (name == "cell_industrial")     item = build_industrial_energy_cell();
-        else if (name == "cell_antimatter")     item = build_antimatter_cell();
-        else if (name == "cell_bulwark")        item = build_bulwark_cell();
-        else if (name == "cell_volatile")       item = build_volatile_cell();
-        else if (name == "cell_adrenal")        item = build_adrenal_cell();
-        else if (name == "solar_panel")         item = build_solar_panel_common();
-        else if (name == "solar_panel_uncommon") item = build_solar_panel_uncommon();
-        else if (name == "solar_panel_rare")    item = build_solar_panel_rare();
-        else if (name == "capacitor_coil")      item = build_capacitor_coil();
-        else if (name == "charge_catalyst")     item = build_charge_catalyst();
-        else if (name == "polished_conduit")    item = build_polished_conduit();
-        else if (name == "reinforced_casing")   item = build_reinforced_casing();
-        else if (name == "receptor_plate")      item = build_receptor_plate();
-        else if (name == "brass_conduit")       item = build_brass_conduit();
-        else if (name == "power_junction")      item = build_power_junction();
-        else if (name == "tuned_catalyst")      item = build_tuned_catalyst();
-        else if (name == "plasma_pistol")       item = build_plasma_pistol();
-        else if (name == "ion_blaster")         item = build_ion_blaster();
-        else if (name == "pulse_rifle")         item = build_pulse_rifle();
-        else if (name == "arc_caster")          item = build_arc_caster();
-        else if (name == "void_lance")          item = build_void_lance();
-        else {
-            log("Unknown item: " + name);
+    else if (verb == "give" && args.size() >= 2 && args[1] == "item") {
+        // Subcommand: list mode (no identifier given)
+        if (args.size() == 2) {
+            const auto& entries = loot_table_all_entries();
+
+            // Group by category for readability.
+            std::map<Category, std::vector<const LootEntry*>> by_cat;
+            for (const auto& e : entries) by_cat[e.category].push_back(&e);
+
+            log("Loot table — " + std::to_string(entries.size()) + " items");
+            for (const auto& [cat, list] : by_cat) {
+                log("  [" + std::string(category_name(cat)) + "]");
+                for (const auto* e : list) {
+                    Item probe = build_by_def_id(e->item_def_id);
+                    std::string line = "    " + e->identifier + "  " + probe.name
+                                     + "  (" + std::string(rarity_short_name(e->min_rarity))
+                                     + ".." + std::string(rarity_short_name(e->max_rarity))
+                                     + ")";
+                    log(line);
+                }
+            }
             return;
         }
-        log("Added " + item.name + " to inventory.");
+
+        // Subcommand: spawn an item
+        std::string_view identifier = args[2];
+        Rarity rarity = Rarity::Common;
+        int level = 1;
+
+        if (args.size() >= 4) {
+            auto parsed = parse_rarity_arg(args[3]);
+            if (!parsed.has_value()) {
+                log("give item: unknown rarity '" + args[3]
+                    + "' (expected c/u/r/e/l or full name)");
+                return;
+            }
+            rarity = *parsed;
+        }
+        if (args.size() >= 5) {
+            try {
+                level = std::stoi(args[4]);
+            } catch (...) {
+                log("give item: level must be an integer");
+                return;
+            }
+            if (level < 1) level = 1;
+        }
+
+        const LootEntry* entry = find_entry_by_identifier(identifier);
+        if (entry == nullptr) {
+            log("give item: unknown identifier '" + std::string(identifier)
+                + "' (try `give item` with no args to list)");
+            return;
+        }
+        if (rarity < entry->min_rarity || rarity > entry->max_rarity) {
+            log("give item: '" + entry->identifier + "' rarity out of range ("
+                + std::string(rarity_short_name(entry->min_rarity)) + ".."
+                + std::string(rarity_short_name(entry->max_rarity)) + ")");
+            return;
+        }
+
+        Item item = build_by_def_id(entry->item_def_id);
+        scale_item_to_rarity(item, rarity);
+        scale_item_to_level(item, level);
+        // No affixes — dev command stays deterministic.
+
+        log("Added " + entry->identifier + " ("
+            + std::string(rarity_short_name(rarity)) + ", lvl "
+            + std::to_string(level) + ") to inventory.");
         player.inventory.items.push_back(std::move(item));
     }
     else if (verb == "give" && args.size() >= 3) {
