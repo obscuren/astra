@@ -2,6 +2,7 @@
 
 #include "astra/aura_grant.h"
 #include "astra/dice.h"
+#include "astra/energy.h"
 #include "astra/renderer.h"
 #include "astra/ui_types.h"
 
@@ -144,7 +145,9 @@ struct EnhancementSlot {
     bool committed = false;   // true after assemble, false while staged
     uint32_t material_id = 0;
     std::string material_name;
-    StatModifiers bonus;
+    StatModifiers stat_bonus;
+    EnergyModifiers energy_bonus;
+    std::optional<SolarPanelData> solar_panel;
 };
 
 // Effect of consuming a Food item (cooked dish, ration pack, looted meal).

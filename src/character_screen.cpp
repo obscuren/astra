@@ -2057,9 +2057,9 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
                    && workbench_item_->enhancements[si].filled) {
             const auto& enh = workbench_item_->enhancements[si];
             std::string bonus;
-            if (enh.bonus.av) bonus = "+" + std::to_string(enh.bonus.av) + "AV";
-            else if (enh.bonus.dv) bonus = "+" + std::to_string(enh.bonus.dv) + "DV";
-            else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
+            if (enh.stat_bonus.av) bonus = "+" + std::to_string(enh.stat_bonus.av) + "AV";
+            else if (enh.stat_bonus.dv) bonus = "+" + std::to_string(enh.stat_bonus.dv) + "DV";
+            else if (enh.stat_bonus.view_radius) bonus = "+" + std::to_string(enh.stat_bonus.view_radius) + "VIS";
             UITag enh_tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning;
         {
             int bpad = (slot_w - 2 - static_cast<int>(bonus.size())) / 2;

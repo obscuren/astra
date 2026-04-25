@@ -23,7 +23,7 @@ struct BlueprintSignature {
 struct MaterialEffect {
     uint32_t material_id;
     const char* name;
-    StatModifiers bonus;
+    StatModifiers stat_bonus;
 };
 
 // Get the enhancement bonus for a crafting material

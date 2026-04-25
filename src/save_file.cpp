@@ -319,11 +319,22 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_u8(enh.committed ? 1 : 0);
         w.write_u32(enh.material_id);
         w.write_string(enh.material_name);
-        w.write_i32(enh.bonus.av);
-        w.write_i32(enh.bonus.dv);
-        w.write_i32(enh.bonus.max_hp);
-        w.write_i32(enh.bonus.view_radius);
-        w.write_i32(enh.bonus.quickness);
+        w.write_i32(enh.stat_bonus.av);
+        w.write_i32(enh.stat_bonus.dv);
+        w.write_i32(enh.stat_bonus.max_hp);
+        w.write_i32(enh.stat_bonus.view_radius);
+        w.write_i32(enh.stat_bonus.quickness);
+        // v46: energy_bonus + solar_panel
+        w.write_i32(enh.energy_bonus.capacity_bonus);
+        w.write_i32(enh.energy_bonus.charge_rate_bonus);
+        w.write_i32(enh.energy_bonus.discharge_efficiency);
+        w.write_u8(enh.solar_panel.has_value() ? 1 : 0);
+        if (enh.solar_panel) {
+            w.write_u8(enh.solar_panel->active ? 1 : 0);
+            w.write_i32(enh.solar_panel->energy_per_tick);
+            w.write_i32(enh.solar_panel->tick_interval);
+            w.write_i32(enh.solar_panel->accumulator);
+        }
     }
     // v14: ship component fields
     w.write_u8(item.ship_slot.has_value() ? 1 : 0);
@@ -396,11 +407,22 @@ static Item read_item(BinaryReader& r) {
         item.enhancements[i].committed = r.read_u8() != 0;
         item.enhancements[i].material_id = r.read_u32();
         item.enhancements[i].material_name = r.read_string();
-        item.enhancements[i].bonus.av = r.read_i32();
-        item.enhancements[i].bonus.dv = r.read_i32();
-        item.enhancements[i].bonus.max_hp = r.read_i32();
-        item.enhancements[i].bonus.view_radius = r.read_i32();
-        item.enhancements[i].bonus.quickness = r.read_i32();
+        item.enhancements[i].stat_bonus.av = r.read_i32();
+        item.enhancements[i].stat_bonus.dv = r.read_i32();
+        item.enhancements[i].stat_bonus.max_hp = r.read_i32();
+        item.enhancements[i].stat_bonus.view_radius = r.read_i32();
+        item.enhancements[i].stat_bonus.quickness = r.read_i32();
+        item.enhancements[i].energy_bonus.capacity_bonus = r.read_i32();
+        item.enhancements[i].energy_bonus.charge_rate_bonus = r.read_i32();
+        item.enhancements[i].energy_bonus.discharge_efficiency = r.read_i32();
+        if (r.read_u8() != 0) {
+            SolarPanelData sp;
+            sp.active = r.read_u8() != 0;
+            sp.energy_per_tick = r.read_i32();
+            sp.tick_interval = r.read_i32();
+            sp.accumulator = r.read_i32();
+            item.enhancements[i].solar_panel = sp;
+        }
     }
     // Ship component fields
     bool has_ship_slot = r.read_u8() != 0;

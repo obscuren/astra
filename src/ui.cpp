@@ -475,10 +475,10 @@ void draw_item_info(UIContext& ctx, const Item& item) {
             if (enh.filled) {
                 std::string line = " [" + std::to_string(si + 1) + "] " + enh.material_name;
                 std::string bonus;
-                if (enh.bonus.av) bonus += " AV+" + std::to_string(enh.bonus.av);
-                if (enh.bonus.dv) bonus += " DV+" + std::to_string(enh.bonus.dv);
-                if (enh.bonus.view_radius) bonus += " VIS+" + std::to_string(enh.bonus.view_radius);
-                if (enh.bonus.quickness) bonus += " QCK+" + std::to_string(enh.bonus.quickness);
+                if (enh.stat_bonus.av) bonus += " AV+" + std::to_string(enh.stat_bonus.av);
+                if (enh.stat_bonus.dv) bonus += " DV+" + std::to_string(enh.stat_bonus.dv);
+                if (enh.stat_bonus.view_radius) bonus += " VIS+" + std::to_string(enh.stat_bonus.view_radius);
+                if (enh.stat_bonus.quickness) bonus += " QCK+" + std::to_string(enh.stat_bonus.quickness);
                 ctx.text(0, y, line, Color::Green);
                 if (!bonus.empty()) ctx.text(static_cast<int>(line.size()), y, bonus, Color::Cyan);
             } else {

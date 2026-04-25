@@ -167,7 +167,7 @@ TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Play
     slot.filled = true;
     slot.material_id = material_id;
     slot.material_name = effect->name;
-    slot.bonus = effect->bonus;
+    slot.stat_bonus = effect->stat_bonus;
 
     return {true, "Slotted " + std::string(effect->name) + ". [f] Assemble to apply."};
 }
@@ -177,11 +177,11 @@ TinkerResult commit_enhancements(Item& item) {
     for (auto& slot : item.enhancements) {
         if (slot.filled && !slot.committed) {
             // Apply bonus permanently
-            item.modifiers.av += slot.bonus.av;
-            item.modifiers.dv += slot.bonus.dv;
-            item.modifiers.max_hp += slot.bonus.max_hp;
-            item.modifiers.view_radius += slot.bonus.view_radius;
-            item.modifiers.quickness += slot.bonus.quickness;
+            item.modifiers.av += slot.stat_bonus.av;
+            item.modifiers.dv += slot.stat_bonus.dv;
+            item.modifiers.max_hp += slot.stat_bonus.max_hp;
+            item.modifiers.view_radius += slot.stat_bonus.view_radius;
+            item.modifiers.quickness += slot.stat_bonus.quickness;
             slot.committed = true;
             applied++;
         }
