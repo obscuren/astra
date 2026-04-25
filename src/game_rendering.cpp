@@ -970,6 +970,7 @@ void Game::render_play() {
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
+    render_cell_picker();
 
     // Welcome screen overlay
     if (show_welcome_) {
@@ -1974,6 +1975,54 @@ void Game::render_quit_confirm() {
     if (list_h > 0) {
         auto list_area = ctx.sub(Rect{0, y, cw, list_h});
         list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cell picker modal — manual single-cell recharge
+// ---------------------------------------------------------------------------
+
+void Game::render_cell_picker() {
+    if (!cell_picker_.open) return;
+
+    int option_count = static_cast<int>(cell_picker_.options.size());
+    if (option_count == 0) return;
+
+    int content_w = 0;
+    for (const auto& opt : cell_picker_.options) {
+        int w = 6 + static_cast<int>(opt.label.size());
+        if (w > content_w) content_w = w;
+    }
+    int win_w = content_w + 6;
+    if (win_w < 36) win_w = 36;
+    int max_w = static_cast<int>(screen_w_ * 0.55f);
+    if (win_w > max_w) win_w = max_w;
+
+    int content_h = 1 + option_count * 2 - 1 + 1;
+    int chrome_h = 2 + 2 + 1; // border + title+sep + footer
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = cell_picker_.title, .footer = "[Esc] Cancel"});
+
+    std::vector<ListItem> items;
+    int sel = cell_picker_.selection;
+    for (int i = 0; i < option_count; ++i) {
+        std::string label = "[" + std::string(1, cell_picker_.options[i].key) + "] " +
+                            cell_picker_.options[i].label;
+        items.push_back({label, UITag::OptionNormal, i == sel});
+    }
+    int y = 1;
+    int list_h = ctx.height() - y;
+    if (list_h > 0) {
+        int scroll = 0;
+        if (sel >= list_h) scroll = sel - list_h + 1;
+        auto list_area = ctx.sub(Rect{0, y, ctx.width(), list_h});
+        list_area.list({.items = items, .scroll_offset = scroll,
+                        .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
     }
 }
 

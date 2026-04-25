@@ -151,6 +151,8 @@ public:
     std::pair<int,int> bfs_step_toward(int gx, int gy) const;
     void open_repair_bench();
     void open_lore_viewer() { lore_viewer_.open(world_.lore()); }
+    void open_cell_picker(bool target_is_shield);
+    bool handle_cell_picker_input(int key);  // returns true if input was consumed
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
     void rebuild_star_chart_viewer();
@@ -257,6 +259,7 @@ private:
     void render_lost_popup();
     void render_pause_menu();
     void render_quit_confirm();
+    void render_cell_picker();
 
     // Layout
     void compute_layout();
@@ -361,6 +364,11 @@ private:
     DialogManager dialog_;
     MenuState pause_menu_;
     MenuState quit_confirm_;
+
+    // Cell picker — manual single-cell recharge modal
+    MenuState cell_picker_;
+    bool cell_picker_target_is_shield_ = false;  // false = recharge weapon
+    std::vector<int> cell_picker_indices_;        // parallel inv-index list
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

@@ -170,6 +170,9 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Cell picker intercepts when open
+    if (handle_cell_picker_input(key)) return;
+
     // Lost popup intercepts when open
     if (lost_popup_.open) {
         MenuResult r = lost_popup_.handle_input(key);
@@ -366,6 +369,9 @@ void Game::handle_play_input(int key) {
         case 't': combat_.begin_targeting(*this); break;
         case 's': combat_.shoot_target(*this); break;
         case 'r': combat_.recharge_weapon(*this); break;
+        case 'b': combat_.recharge_shield(*this); break;
+        case 'R': open_cell_picker(/*target_is_shield=*/false); break;
+        case 'B': open_cell_picker(/*target_is_shield=*/true); break;
         case 'g': pickup_ground_item(); break;
         case '?': help_screen_.open(); break;
         case 'm':

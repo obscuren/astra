@@ -1402,6 +1402,87 @@ void Game::open_repair_bench() {
     repair_bench_.open(&player_, renderer_.get());
 }
 
+void Game::open_cell_picker(bool target_is_shield) {
+    // Validate target exists and isn't full
+    EnergyStore* target = nullptr;
+    if (target_is_shield) {
+        target = player_.shield_energy();
+    } else if (player_.equipment.missile && player_.equipment.missile->energy) {
+        target = &*player_.equipment.missile->energy;
+    }
+
+    if (!target) {
+        log(target_is_shield ? "No energy shield equipped." : "No ranged weapon equipped.");
+        return;
+    }
+    if (is_full(*target)) {
+        log(target_is_shield ? "Shield is at full charge." : "Weapon is fully charged.");
+        return;
+    }
+
+    // Build option list: cells with current > 0, sorted by charge descending
+    struct CellEntry { int inv_idx; int charge; int capacity; std::string name; };
+    std::vector<CellEntry> entries;
+    for (int i = 0; i < (int)player_.inventory.items.size(); ++i) {
+        const auto& it = player_.inventory.items[i];
+        if (it.type == ItemType::Battery && it.energy && it.energy->current > 0) {
+            entries.push_back({i, it.energy->current, it.energy->capacity, it.name});
+        }
+    }
+    if (entries.empty()) {
+        log("No charged cells in inventory.");
+        return;
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const CellEntry& a, const CellEntry& b) { return a.charge > b.charge; });
+
+    cell_picker_.reset();
+    cell_picker_.title = target_is_shield ? "Recharge Shield from..." : "Recharge Weapon from...";
+    char hk = '1';
+    for (const auto& e : entries) {
+        std::string label = e.name + " - " + std::to_string(e.charge) + "/" +
+                            std::to_string(e.capacity) + " charge";
+        cell_picker_.add_option(hk++, label);
+        if (hk > '9') hk = 'a';
+    }
+    cell_picker_.selection = 0;
+    cell_picker_.open = true;
+    cell_picker_target_is_shield_ = target_is_shield;
+
+    cell_picker_indices_.clear();
+    for (const auto& e : entries) cell_picker_indices_.push_back(e.inv_idx);
+}
+
+bool Game::handle_cell_picker_input(int key) {
+    if (!cell_picker_.open) return false;
+    auto result = cell_picker_.handle_input(key);
+    if (result == MenuResult::Selected) {
+        int sel = cell_picker_.selection;
+        if (sel >= 0 && sel < (int)cell_picker_indices_.size()) {
+            int inv_idx = cell_picker_indices_[sel];
+            auto& cell = player_.inventory.items[inv_idx];
+
+            EnergyStore* target = cell_picker_target_is_shield_
+                ? player_.shield_energy()
+                : (player_.equipment.missile && player_.equipment.missile->energy
+                   ? &*player_.equipment.missile->energy : nullptr);
+            if (target && cell.energy) {
+                int eff = 0;
+                for (const auto& enh : cell.enhancements)
+                    if (enh.committed) eff += enh.energy_bonus.discharge_efficiency;
+                int moved = transfer_energy(*cell.energy, *target, deficit(*target), eff);
+                log("Recharged " + std::string(cell_picker_target_is_shield_ ? "shield" : "weapon")
+                    + ". (+" + std::to_string(moved) + " from " + cell.name + ")");
+                advance_world(ActionCost::wait);
+            }
+        }
+        cell_picker_.reset();
+    } else if (result == MenuResult::Closed) {
+        cell_picker_.reset();
+    }
+    return true;
+}
+
 void Game::rebuild_star_chart_viewer() {
     star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(), &world_, &quest_manager_);
 #ifdef ASTRA_DEV_MODE
