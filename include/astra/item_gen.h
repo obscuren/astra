@@ -17,6 +17,12 @@ struct ItemAffix {
 // Apply level scaling to an item's stats (modifies in place)
 void scale_item_to_level(Item& item, int level);
 
+// Apply a flat rarity multiplier on top of base stats.
+// Multipliers: Common 1.00, Uncommon 1.10, Rare 1.25, Epic 1.45, Legendary 1.75.
+// Scales: damage_dice.modifier, av, dv, max_hp, durability, energy capacity,
+// buy/sell value. Idempotent if you pass Common.
+void scale_item_to_rarity(Item& item, Rarity rarity);
+
 // Apply an affix to an item (modifies name and stats in place)
 void apply_affix(Item& item, const ItemAffix& affix);
 

@@ -73,6 +73,43 @@ void scale_item_to_level(Item& item, int level) {
     }
 }
 
+void scale_item_to_rarity(Item& item, Rarity rarity) {
+    float mult = 1.0f;
+    switch (rarity) {
+        case Rarity::Common:    mult = 1.00f; break;
+        case Rarity::Uncommon:  mult = 1.10f; break;
+        case Rarity::Rare:      mult = 1.25f; break;
+        case Rarity::Epic:      mult = 1.45f; break;
+        case Rarity::Legendary: mult = 1.75f; break;
+    }
+    if (mult == 1.0f) {
+        item.rarity = rarity;
+        return;
+    }
+
+    auto scale = [mult](int v) -> int {
+        return static_cast<int>(std::round(v * mult));
+    };
+
+    item.rarity = rarity;
+    item.damage_dice.modifier = scale(item.damage_dice.modifier);
+    item.modifiers.av         = scale(item.modifiers.av);
+    item.modifiers.dv         = scale(item.modifiers.dv);
+    item.modifiers.max_hp     = scale(item.modifiers.max_hp);
+    item.max_durability       = scale(item.max_durability);
+    item.durability           = item.max_durability;
+    item.buy_value            = scale(item.buy_value);
+    item.sell_value           = scale(item.sell_value);
+
+    // Only scale energy on weapons and shields. Cells/batteries also carry
+    // EnergyStore but their capacity is not rarity-scaled.
+    if (item.energy && (item.ranged || item.type == ItemType::Shield)) {
+        int scaled = scale(item.energy->capacity);
+        item.energy->capacity = scaled;
+        item.energy->current  = scaled;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Affix application
 // ---------------------------------------------------------------------------

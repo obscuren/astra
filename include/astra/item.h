@@ -254,16 +254,4 @@ struct Inventory {
     bool can_add(const Item& item) const;
 };
 
-struct LootEntry {
-    uint32_t item_id = 0;
-    float drop_chance = 0.0f;
-    int min_qty = 1;
-    int max_qty = 1;
-};
-
-struct LootTable {
-    uint8_t npc_role = 0; // cast to/from NpcRole without circular include
-    std::vector<LootEntry> entries;
-};
-
 } // namespace astra

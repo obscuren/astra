@@ -1224,11 +1224,106 @@ std::vector<Item> generate_food_merchant_stock(std::mt19937& rng, int faction_re
 
 Item build_by_def_id(uint16_t def_id) {
     switch (def_id) {
+        // Ranged weapons
+        case ITEM_PLASMA_PISTOL:           return build_plasma_pistol();
+        case ITEM_ION_BLASTER:             return build_ion_blaster();
+        case ITEM_PULSE_RIFLE:             return build_pulse_rifle();
+        case ITEM_ARC_CASTER:              return build_arc_caster();
+        case ITEM_VOID_LANCE:              return build_void_lance();
+
+        // Melee weapons
+        case ITEM_COMBAT_KNIFE:            return build_combat_knife();
+        case ITEM_VIBRO_BLADE:             return build_vibro_blade();
+        case ITEM_PLASMA_SABER:            return build_plasma_saber();
+        case ITEM_STUN_BATON:              return build_stun_baton();
+        case ITEM_ANCIENT_MONO_EDGE:       return build_ancient_mono_edge();
+
+        // Armor
+        case ITEM_PADDED_VEST:             return build_padded_vest();
+        case ITEM_COMPOSITE_ARMOR:         return build_composite_armor();
+        case ITEM_EXO_SUIT:                return build_exo_suit();
+        case ITEM_FLIGHT_HELMET:           return build_flight_helmet();
+        case ITEM_TACTICAL_HELMET:         return build_tactical_helmet();
+        case ITEM_COMBAT_BOOTS:            return build_combat_boots();
+        case ITEM_MAG_LOCK_BOOTS:          return build_mag_lock_boots();
+        case ITEM_ARM_GUARD:               return build_arm_guard();
+
+        // Shields
+        case ITEM_BASIC_DEFLECTOR:         return build_basic_deflector();
+        case ITEM_PLASMA_SCREEN:           return build_plasma_screen();
+        case ITEM_ION_BARRIER:             return build_ion_barrier();
+        case ITEM_COMPOSITE_BARRIER:       return build_composite_barrier();
+        case ITEM_HARDLIGHT_AEGIS:         return build_hardlight_aegis();
+        case ITEM_VOID_MANTLE:             return build_void_mantle();
+
+        // Accessories
+        case ITEM_RECON_VISOR:             return build_recon_visor();
+        case ITEM_NIGHT_GOGGLES:           return build_night_goggles();
+        case ITEM_JETPACK:                 return build_jetpack();
+        case ITEM_CARGO_PACK:              return build_cargo_pack();
+
+        // Grenades
+        case ITEM_FRAG_GRENADE:            return build_frag_grenade();
+        case ITEM_EMP_GRENADE:             return build_emp_grenade();
+        case ITEM_CRYO_GRENADE:            return build_cryo_grenade();
+
+        // Consumables
+        case ITEM_BATTERY:                 return build_battery();
+        case ITEM_RATION_PACK:             return build_ration_pack();
+        case ITEM_COMBAT_STIM:             return build_combat_stim();
+
+        // Energy cells
+        case ITEM_SMALL_ENERGY_CELL:       return build_small_energy_cell();
+        case ITEM_STANDARD_ENERGY_CELL:    return build_standard_energy_cell();
+        case ITEM_LARGE_ENERGY_CELL:       return build_large_energy_cell();
+        case ITEM_INDUSTRIAL_ENERGY_CELL:  return build_industrial_energy_cell();
+        case ITEM_ANTIMATTER_CELL:         return build_antimatter_cell();
+        case ITEM_BULWARK_CELL:            return build_bulwark_cell();
+        case ITEM_VOLATILE_CELL:           return build_volatile_cell();
+        case ITEM_ADRENAL_CELL:            return build_adrenal_cell();
+
+        // Energy mods
+        case ITEM_SOLAR_PANEL_COMMON:      return build_solar_panel_common();
+        case ITEM_SOLAR_PANEL_UNCOMMON:    return build_solar_panel_uncommon();
+        case ITEM_SOLAR_PANEL_RARE:        return build_solar_panel_rare();
+        case ITEM_CAPACITOR_COIL:          return build_capacitor_coil();
+        case ITEM_CHARGE_CATALYST:         return build_charge_catalyst();
+        case ITEM_POLISHED_CONDUIT:        return build_polished_conduit();
+        case ITEM_REINFORCED_CASING:       return build_reinforced_casing();
+        case ITEM_RECEPTOR_PLATE:          return build_receptor_plate();
+        case ITEM_BRASS_CONDUIT:           return build_brass_conduit();
+        case ITEM_POWER_JUNCTION:          return build_power_junction();
+        case ITEM_TUNED_CATALYST:          return build_tuned_catalyst();
+
+        // Junk
+        case ITEM_SCRAP_METAL:             return build_scrap_metal();
+        case ITEM_BROKEN_CIRCUIT:          return build_broken_circuit();
+        case ITEM_EMPTY_CASING:            return build_empty_casing();
+
+        // Salvage
+        case ITEM_SPARE_PARTS:             return build_spare_parts();
+        case ITEM_CIRCUITRY:               return build_circuitry();
+
+        // Crafting materials
+        case ITEM_NANO_FIBER:              return build_nano_fiber();
+        case ITEM_POWER_CORE:              return build_power_core();
+        case ITEM_CIRCUIT_BOARD:           return build_circuit_board();
+        case ITEM_ALLOY_INGOT:             return build_alloy_ingot();
+
+        // Ship components
+        case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
+        case ITEM_HULL_PLATE:              return build_hull_plate();
+        case ITEM_SHIELD_GENERATOR:        return build_shield_generator();
+        case ITEM_NAVI_COMPUTER_MK2:       return build_navi_computer_mk2();
+
+        // Cooking ingredients
         case ITEM_RAW_MEAT:                return build_raw_meat();
         case ITEM_CARROT:                  return build_carrot();
         case ITEM_FLOUR:                   return build_flour();
         case ITEM_HERBS:                   return build_herbs();
         case ITEM_SYNTH_PROTEIN:           return build_synth_protein();
+
+        // Cooked dishes
         case ITEM_COOKED_MEAT:             return build_cooked_meat();
         case ITEM_BOWL_OF_BROTH:           return build_bowl_of_broth();
         case ITEM_FLATBREAD:               return build_flatbread();
@@ -1236,6 +1331,8 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_PROTEIN_BAKE:            return build_protein_bake();
         case ITEM_HEROS_FEAST:             return build_heros_feast();
         case ITEM_BURNT_SLOP:              return build_burnt_slop();
+
+        // Cookbooks
         case ITEM_COOKBOOK_HEARTY_STEW:    return build_cookbook_hearty_stew();
         case ITEM_COOKBOOK_PROTEIN_BAKE:   return build_cookbook_protein_bake();
         case ITEM_COOKBOOK_HEROS_FEAST:    return build_cookbook_heros_feast();
