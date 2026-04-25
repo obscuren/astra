@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 
 namespace astra {
 
@@ -877,6 +878,29 @@ void CombatSystem::shoot_target(Game& game) {
     game.advance_world(ActionCost::shoot);
 }
 
+int CombatSystem::recharge_target_(Game& game, EnergyStore& target) {
+    auto& items = game.player().inventory.items;
+    std::vector<int> idxs;
+    for (int i = 0; i < (int)items.size(); ++i) {
+        const auto& it = items[i];
+        if (it.type == ItemType::Battery && it.energy && it.energy->current > 0)
+            idxs.push_back(i);
+    }
+    std::sort(idxs.begin(), idxs.end(), [&](int a, int b) {
+        return items[a].energy->current > items[b].energy->current;
+    });
+
+    int total = 0;
+    for (int i : idxs) {
+        if (is_full(target)) break;
+        int eff = 0;
+        for (const auto& enh : items[i].enhancements)
+            if (enh.committed) eff += enh.energy_bonus.discharge_efficiency;
+        total += transfer_energy(*items[i].energy, target, deficit(target), eff);
+    }
+    return total;
+}
+
 bool CombatSystem::recharge_weapon(Game& game, bool log_full) {
     auto& weapon = game.player().equipment.missile;
     if (!weapon || !weapon->energy) {
@@ -888,25 +912,17 @@ bool CombatSystem::recharge_weapon(Game& game, bool log_full) {
         if (log_full) game.log(weapon->label() + " is fully charged.");
         return false;
     }
-    int total = 0;
-    for (auto& it : game.player().inventory.items) {
-        if (is_full(estore)) break;
-        if (it.type != ItemType::Battery || !it.energy) continue;
-        if (it.energy->current <= 0) continue;
-        total += transfer_energy(*it.energy, estore, deficit(estore));
-    }
-    if (total == 0) {
+    int moved = recharge_target_(game, estore);
+    if (moved == 0) {
         if (log_full) game.log("No charged cells to recharge from.");
         return false;
     }
-    game.log("Recharged " + weapon->label() + ". (+" + std::to_string(total) +
+    game.log("Recharged " + weapon->label() + ". (+" + std::to_string(moved) +
              " charge, " + std::to_string(estore.current) + "/" +
              std::to_string(estore.capacity) + ")");
     game.advance_world(ActionCost::wait);
     return true;
 }
-
-
 
 bool CombatSystem::recharge_shield(Game& game, bool log_full) {
     auto* sh = game.player().shield_energy();
@@ -918,18 +934,12 @@ bool CombatSystem::recharge_shield(Game& game, bool log_full) {
         if (log_full) game.log("Shield is at full charge.");
         return false;
     }
-    int total = 0;
-    for (auto& it : game.player().inventory.items) {
-        if (is_full(*sh)) break;
-        if (it.type != ItemType::Battery || !it.energy) continue;
-        if (it.energy->current <= 0) continue;
-        total += transfer_energy(*it.energy, *sh, deficit(*sh));
-    }
-    if (total == 0) {
+    int moved = recharge_target_(game, *sh);
+    if (moved == 0) {
         if (log_full) game.log("No charged cells to recharge shield.");
         return false;
     }
-    game.log("Recharged shield. (+" + std::to_string(total) + " charge, " +
+    game.log("Recharged shield. (+" + std::to_string(moved) + " charge, " +
              std::to_string(sh->current) + "/" + std::to_string(sh->capacity) + ")");
     game.advance_world(ActionCost::wait);
     return true;

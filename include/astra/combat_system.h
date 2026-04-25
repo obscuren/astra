@@ -5,6 +5,7 @@
 namespace astra {
 
 class Game; // forward declare
+struct EnergyStore; // forward declare
 
 class CombatSystem {
 public:
@@ -33,6 +34,10 @@ public:
     void reset();
 
 private:
+    // Drain cells from inventory (highest-charge first) into target until full.
+    // Returns total energy deposited.
+    int recharge_target_(Game& game, EnergyStore& target);
+
     bool targeting_ = false;
     int target_x_ = 0;
     int target_y_ = 0;
