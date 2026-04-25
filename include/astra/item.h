@@ -2,6 +2,7 @@
 
 #include "astra/aura_grant.h"
 #include "astra/dice.h"
+#include "astra/energy.h"
 #include "astra/renderer.h"
 #include "astra/ui_types.h"
 
@@ -144,7 +145,9 @@ struct EnhancementSlot {
     bool committed = false;   // true after assemble, false while staged
     uint32_t material_id = 0;
     std::string material_name;
-    StatModifiers bonus;
+    StatModifiers stat_bonus;
+    EnergyModifiers energy_bonus;
+    std::optional<SolarPanelData> solar_panel;
 };
 
 // Effect of consuming a Food item (cooked dish, ration pack, looted meal).
@@ -156,9 +159,6 @@ struct DishOutput {
 };
 
 struct RangedData {
-    int charge_capacity = 0;
-    int charge_per_shot = 1;
-    int current_charge = 0;
     int max_range = 8;
 };
 
@@ -183,6 +183,9 @@ struct Item {
     int max_durability = 0;
     bool usable = false;
     std::optional<RangedData> ranged;
+    std::optional<EnergyStore> energy;
+    std::optional<EnergyConsumer> consumer;
+    std::optional<CellProc> proc;          // cells fire this on drain
 
     // Combat dice (weapons)
     Dice damage_dice;
@@ -190,10 +193,6 @@ struct Item {
 
     // Armor/shield type affinities
     TypeAffinity type_affinity;
-
-    // Shield fields (only meaningful when slot == EquipSlot::Shield)
-    int shield_capacity = 0;
-    int shield_hp = 0;
 
     int enhancement_slots = 0;
     std::vector<EnhancementSlot> enhancements;
@@ -211,10 +210,13 @@ struct Item {
     // Cookbook payload. Non-zero only when type == ItemType::Cookbook.
     uint16_t teaches_recipe_id = 0;
 
-    // Plain-text label: "name - 1d6" for weapons, just "name" otherwise
+    // Plain-text label: "name - 1d6" for weapons, "name - cur/cap charge" for cells, plain name otherwise
     std::string label() const {
         if (!damage_dice.empty())
             return name + " - " + damage_dice.to_string();
+        if (type == ItemType::Battery && energy)
+            return name + " - " + std::to_string(energy->current) + "/" +
+                   std::to_string(energy->capacity) + " charge";
         return name;
     }
 };

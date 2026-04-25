@@ -1,8 +1,10 @@
 #include "astra/combat_system.h"
 #include "astra/animation.h"
+#include "astra/energy.h"
 #include "astra/creature_flags.h"
 #include "astra/dice.h"
 #include "astra/display_name.h"
+#include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/item_defs.h"
@@ -11,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 
 namespace astra {
 
@@ -235,20 +238,21 @@ static void ranged_hit_player(Npc& npc, Game& game) {
     const Dice& dmg = npc.ranged_damage_dice;
     DamageType dtype = npc.ranged_damage_type;
 
-    if (game.player().shield_hp > 0) {
+    auto* sh_ranged = game.player().shield_energy();
+    if (sh_ranged && sh_ranged->current > 0) {
         auto pen = roll_penetration(rng, npc.level / 3, 0, dmg);
         if (pen.total_damage <= 0) {
             game.log(display_name(npc) + "'s shot is absorbed by your shield.");
             return;
         }
         int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
-        game.player().shield_hp -= absorbed;
-        if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+        sh_ranged->current -= absorbed;
+        if (sh_ranged->current < 0) sh_ranged->current = 0;
         game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
         game.log(display_name(npc) + " shoots your shield for " +
                  std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
-                 std::to_string(game.player().shield_hp) + "/" +
-                 std::to_string(game.player().shield_max_hp) + "]");
+                 std::to_string(sh_ranged->current) + "/" +
+                 std::to_string(sh_ranged->capacity) + "]");
         return;
     }
 
@@ -430,7 +434,8 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             DamageType dtype = npc.damage_type;
 
             // Shield check
-            if (game.player().shield_hp > 0) {
+            auto* sh_melee = game.player().shield_energy();
+            if (sh_melee && sh_melee->current > 0) {
                 // Penetrate shield as AV=0
                 auto pen = roll_penetration(rng, npc.level / 3, 0, dmg_dice);
                 if (pen.total_damage <= 0) {
@@ -438,13 +443,13 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
                     return;
                 }
                 int absorbed = shield_absorb(pen.total_damage, dtype, game.player().shield_affinity);
-                game.player().shield_hp -= absorbed;
-                if (game.player().shield_hp < 0) game.player().shield_hp = 0;
+                sh_melee->current -= absorbed;
+                if (sh_melee->current < 0) sh_melee->current = 0;
                 game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
                 game.log(display_name(npc) + " hits your shield for " +
                          std::to_string(absorbed) + " " + display_name(dtype) + " damage. [Shield " +
-                         std::to_string(game.player().shield_hp) + "/" +
-                         std::to_string(game.player().shield_max_hp) + "]");
+                         std::to_string(sh_melee->current) + "/" +
+                         std::to_string(sh_melee->capacity) + "]");
                 return;
             }
 
@@ -757,37 +762,23 @@ void CombatSystem::shoot_target(Game& game) {
         return;
     }
 
-    // Check charge — auto-reload if empty
-    if (rd.current_charge < rd.charge_per_shot) {
-        // Try auto-reload from inventory
-        bool reloaded = false;
-        for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
-            if (game.player().inventory.items[i].type == ItemType::Battery) {
-                int added = std::min(5, rd.charge_capacity - rd.current_charge);
-                rd.current_charge += added;
-                game.log("Auto-reload: +" + std::to_string(added) + " charge.");
-                auto& cell = game.player().inventory.items[i];
-                if (cell.stackable && cell.stack_count > 1) {
-                    --cell.stack_count;
-                } else {
-                    game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
-                }
-                reloaded = true;
-                break;
-            }
-        }
-        if (!reloaded) {
-            game.log("Weapon empty. No energy cells to reload.");
-            return;
-        }
-        if (rd.current_charge < rd.charge_per_shot) {
-            game.log("Not enough charge to fire.");
+    // Energy check — auto-recharge if below per-shot cost
+    if (!weapon->energy || !weapon->consumer) {
+        game.log("Weapon has no energy system.");
+        return;
+    }
+    auto& estore = *weapon->energy;
+    int per_shot = weapon->consumer->energy_per_use;
+    if (estore.current < per_shot) {
+        bool recharged = recharge_weapon(game, /*log_full=*/false, /*advance=*/false);
+        if (!recharged || estore.current < per_shot) {
+            game.log("Weapon empty. No charged cells available.");
             return;
         }
     }
 
-    // Consume charge
-    rd.current_charge -= rd.charge_per_shot;
+    // Spend energy
+    estore.current -= per_shot;
 
     auto& rng = game.world().rng();
 
@@ -852,8 +843,8 @@ void CombatSystem::shoot_target(Game& game) {
     std::string hit_msg = is_crit ? "CRITICAL HIT! You shoot " : "You shoot ";
     game.log(hit_msg + display_name(*target_npc_) + " for " +
         std::to_string(damage) + " " + display_name(dtype) + " damage. [" +
-        std::to_string(rd.current_charge) + "/" +
-        std::to_string(rd.charge_capacity) + "]");
+        std::to_string(estore.current) + "/" +
+        std::to_string(estore.capacity) + "]");
 
     if (!target_npc_->alive()) {
         game.log(display_name(*target_npc_) + " is destroyed!");
@@ -888,70 +879,130 @@ void CombatSystem::shoot_target(Game& game) {
     game.advance_world(ActionCost::shoot);
 }
 
-void CombatSystem::reload_weapon(Game& game) {
-    auto& weapon = game.player().equipment.missile;
-    if (!weapon || !weapon->ranged) {
-        game.log("No ranged weapon equipped.");
-        return;
-    }
+// Fire any proc owned by `cell` after `drained` units of energy have been
+// transferred out of it. Procs are gated by target kind for the overcharge
+// kinds; player-buff kinds always fire when the threshold is reached.
+// Returns nothing — side effects only.
+void apply_cell_proc(Item& cell, int drained,
+                     CombatSystem::RechargeTargetKind kind,
+                     EnergyStore* target, Game& game) {
+    if (!cell.proc || drained <= 0) return;
+    auto& p = *cell.proc;
+    if (p.kind == CellProcKind::None || p.threshold <= 0) return;
 
-    auto& rd = *weapon->ranged;
-    if (rd.current_charge >= rd.charge_capacity) {
-        game.log(weapon->label() + " is fully charged.");
-        return;
-    }
+    // Gate by target type for overcharge kinds.
+    bool applicable = true;
+    if (p.kind == CellProcKind::ShieldOvercharge)
+        applicable = (kind == CombatSystem::RechargeTargetKind::EquippedShield);
+    else if (p.kind == CellProcKind::WeaponOvercharge)
+        applicable = (kind == CombatSystem::RechargeTargetKind::EquippedWeapon);
+    if (!applicable) return;
 
-    for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
-        if (game.player().inventory.items[i].type == ItemType::Battery) {
-            int added = std::min(5, rd.charge_capacity - rd.current_charge);
-            rd.current_charge += added;
-            game.log("Reloaded " + weapon->label() + ". (+" + std::to_string(added) +
-                " charge, " + std::to_string(rd.current_charge) + "/" +
-                std::to_string(rd.charge_capacity) + ")");
-            auto& cell = game.player().inventory.items[i];
-            if (cell.stackable && cell.stack_count > 1) {
-                --cell.stack_count;
-            } else {
-                game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
-            }
-            game.advance_world(ActionCost::wait);
-            return;
+    p.accumulator += drained;
+    while (p.accumulator >= p.threshold) {
+        p.accumulator -= p.threshold;
+        switch (p.kind) {
+            case CellProcKind::ShieldOvercharge:
+                if (target) {
+                    target->current += p.magnitude;
+                    game.log("Shield overcharged by +" + std::to_string(p.magnitude) +
+                             "! [" + std::to_string(target->current) + "/" +
+                             std::to_string(target->capacity) + "]");
+                }
+                break;
+            case CellProcKind::WeaponOvercharge:
+                if (target) {
+                    target->current += p.magnitude;
+                    game.log("Weapon overcharged by +" + std::to_string(p.magnitude) +
+                             "! [" + std::to_string(target->current) + "/" +
+                             std::to_string(target->capacity) + "]");
+                }
+                break;
+            case CellProcKind::DefenseBoost:
+                add_effect(game.player().effects,
+                           make_defense_boost_ge(p.duration, p.magnitude));
+                game.log("Defense surge: +" + std::to_string(p.magnitude) +
+                         " DV for " + std::to_string(p.duration) + " turns.");
+                break;
+            case CellProcKind::AdrenalineRush:
+                add_effect(game.player().effects, make_adrenaline_rush_ge(p.duration));
+                game.log("Adrenaline rush! (" + std::to_string(p.duration) + " turns)");
+                break;
+            case CellProcKind::None:
+                break;
         }
     }
-
-    game.log("No energy cells to reload.");
 }
 
+int CombatSystem::recharge_target_(Game& game, EnergyStore& target,
+                                   RechargeTargetKind kind) {
+    auto& items = game.player().inventory.items;
+    std::vector<int> idxs;
+    for (int i = 0; i < (int)items.size(); ++i) {
+        const auto& it = items[i];
+        if (it.type == ItemType::Battery && it.energy && it.energy->current > 0)
+            idxs.push_back(i);
+    }
+    std::sort(idxs.begin(), idxs.end(), [&](int a, int b) {
+        return items[a].energy->current > items[b].energy->current;
+    });
 
+    int total = 0;
+    for (int i : idxs) {
+        if (is_full(target)) break;
+        int eff = 0;
+        for (const auto& enh : items[i].enhancements)
+            if (enh.committed) eff += enh.energy_bonus.discharge_efficiency;
+        int moved = transfer_energy(*items[i].energy, target, deficit(target), eff);
+        if (moved > 0) apply_cell_proc(items[i], moved, kind, &target, game);
+        total += moved;
+    }
+    return total;
+}
 
-void CombatSystem::reload_shield(Game& game) {
-    auto& shield = game.player().equipment.shield;
-    if (!shield || shield->shield_capacity <= 0) {
-        game.log("No energy shield equipped.");
-        return;
+bool CombatSystem::recharge_weapon(Game& game, bool log_full, bool advance) {
+    auto& weapon = game.player().equipment.missile;
+    if (!weapon || !weapon->energy) {
+        if (log_full) game.log("No ranged weapon equipped.");
+        return false;
     }
-    if (game.player().shield_hp >= game.player().shield_max_hp) {
-        game.log("Shield is at full charge.");
-        return;
+    auto& estore = *weapon->energy;
+    if (is_full(estore)) {
+        if (log_full) game.log(weapon->label() + " is fully charged.");
+        return false;
     }
-    for (int i = 0; i < static_cast<int>(game.player().inventory.items.size()); ++i) {
-        if (game.player().inventory.items[i].type == ItemType::Battery) {
-            int added = std::min(5, game.player().shield_max_hp - game.player().shield_hp);
-            game.player().shield_hp += added;
-            game.log("Shield recharged +" + std::to_string(added) + " HP. (" +
-                     std::to_string(game.player().shield_hp) + "/" +
-                     std::to_string(game.player().shield_max_hp) + ")");
-            auto& cell = game.player().inventory.items[i];
-            if (cell.stackable && cell.stack_count > 1) {
-                --cell.stack_count;
-            } else {
-                game.player().inventory.items.erase(game.player().inventory.items.begin() + i);
-            }
-            game.advance_world(ActionCost::wait);
-            return;
-        }
+    int moved = recharge_target_(game, estore, RechargeTargetKind::EquippedWeapon);
+    if (moved == 0) {
+        if (log_full) game.log("No charged cells to recharge from.");
+        return false;
     }
-    game.log("No energy cells to recharge shield.");
+    game.log("Recharged " + display_name(*weapon) + ". (+" + std::to_string(moved) +
+             " charge, " + std::to_string(estore.current) + "/" +
+             std::to_string(estore.capacity) + ")");
+    if (advance) game.advance_world(ActionCost::wait);
+    return true;
+}
+
+bool CombatSystem::recharge_shield(Game& game, bool log_full, bool advance) {
+    auto* sh = game.player().shield_energy();
+    if (!sh) {
+        if (log_full) game.log("No energy shield equipped.");
+        return false;
+    }
+    if (is_full(*sh)) {
+        if (log_full) game.log("Shield is at full charge.");
+        return false;
+    }
+    int moved = recharge_target_(game, *sh, RechargeTargetKind::EquippedShield);
+    if (moved == 0) {
+        if (log_full) game.log("No charged cells to recharge shield.");
+        return false;
+    }
+    const auto& shield_item = *game.player().equipment.shield;
+    game.log("Recharged " + display_name(shield_item) + ". (+" + std::to_string(moved) +
+             " charge, " + std::to_string(sh->current) + "/" + std::to_string(sh->capacity) + ")");
+    if (advance) game.advance_world(ActionCost::wait);
+    return true;
 }
 
 void CombatSystem::remove_dead_npcs(Game& game) {

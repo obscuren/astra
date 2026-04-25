@@ -29,11 +29,11 @@ private:
     std::string input_;
     size_t cursor_ = 0;
     std::deque<std::string> output_;
-    static constexpr size_t max_output_ = 50;
+    static constexpr size_t max_output_ = 500;
     int scroll_ = 0;
     std::deque<std::string> history_;
     int history_idx_ = -1;
-    static constexpr size_t max_history_ = 50;
+    static constexpr size_t max_history_ = 200;
 };
 
 } // namespace astra

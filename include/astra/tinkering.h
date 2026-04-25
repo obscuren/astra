@@ -4,6 +4,7 @@
 #include "astra/skill_defs.h"
 
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -23,7 +24,9 @@ struct BlueprintSignature {
 struct MaterialEffect {
     uint32_t material_id;
     const char* name;
-    StatModifiers bonus;
+    StatModifiers stat_bonus;
+    EnergyModifiers energy_bonus;
+    std::optional<SolarPanelData> solar_panel;
 };
 
 // Get the enhancement bonus for a crafting material
@@ -82,6 +85,9 @@ struct SynthesisRecipe {
     StatModifiers base_modifiers;
     int base_durability;
     int material_cost[4]; // [0]=Nano-Fiber, [1]=Power Core, [2]=Circuit Board, [3]=Alloy Ingot
+    // When set, the result is constructed by calling this builder verbatim
+    // (skipping the equipment-result fields and the rarity/scaling pass).
+    Item (*custom_builder)() = nullptr;
 };
 
 const std::vector<SynthesisRecipe>& synthesis_recipes();

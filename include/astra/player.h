@@ -4,6 +4,7 @@
 #include "astra/character.h"
 #include "astra/dice.h"
 #include "astra/effect.h"
+#include "astra/energy.h"
 #include "astra/item.h"
 #include "astra/journal.h"
 #include "astra/race.h"
@@ -56,10 +57,20 @@ struct Player {
     HungerState hunger = HungerState::Satiated;
     int money = 0;
 
-    // Shield
-    int shield_hp = 0;
-    int shield_max_hp = 0;
+    // Shield affinity (kept for damage-type absorption logic)
     TypeAffinity shield_affinity;
+
+    // Returns a pointer to the equipped shield's EnergyStore, or nullptr.
+    EnergyStore* shield_energy() {
+        if (equipment.shield && equipment.shield->energy)
+            return &*equipment.shield->energy;
+        return nullptr;
+    }
+    const EnergyStore* shield_energy() const {
+        if (equipment.shield && equipment.shield->energy)
+            return &*equipment.shield->energy;
+        return nullptr;
+    }
 
     // Primary attributes
     PrimaryAttributes attributes;

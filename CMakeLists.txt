@@ -133,6 +133,8 @@ set(ASTRA_SOURCES
     src/character_screen.cpp
     src/character_creation.cpp
     src/effect.cpp
+    src/energy.cpp
+    src/energy_system.cpp
     src/aura.cpp
     src/aura_system.cpp
     src/event_bus.cpp

@@ -14,9 +14,23 @@ namespace astra {
 // ---------------------------------------------------------------------------
 
 static const MaterialEffect s_material_effects[] = {
-    {7002, "Power Core",    {2, 0, 0, 0, 0}},  // +2 AV
-    {7003, "Circuit Board", {0, 0, 0, 1, 0}},  // +1 view
-    {7004, "Alloy Ingot",   {0, 2, 0, 0, 0}},  // +2 DV
+    {7002, "Power Core",    {2, 0, 0, 0, 0}, {}, std::nullopt},  // +2 AV
+    {7003, "Circuit Board", {0, 0, 0, 1, 0}, {}, std::nullopt},  // +1 view
+    {7004, "Alloy Ingot",   {0, 2, 0, 0, 0}, {}, std::nullopt},  // +2 DV
+    // material_id matches Item::id from build_solar_panel_*, not the item_def_id constant.
+    {2050, "Solar Panel",           {}, {},                      SolarPanelData{ true,  5, 2, 0 }},
+    {2051, "Polished Solar Panel",  {}, {},                      SolarPanelData{ true,  8, 2, 0 }},
+    {2052, "Prismatic Solar Panel", {}, {},                      SolarPanelData{ true, 12, 2, 0 }},
+    // Energy mods: capacity / charge_rate / discharge_efficiency
+    {2053, "Capacitor Coil",        {}, {30, 0, 0},              std::nullopt},
+    {2054, "Charge Catalyst",       {}, { 0, 25, 0},             std::nullopt},
+    {2055, "Polished Conduit",      {}, { 0, 0, 5},              std::nullopt},
+    // Minor energy mods for custom cell builds (smaller magnitudes; meant to stack).
+    {2056, "Reinforced Casing",     {}, {10, 0, 0},              std::nullopt},
+    {2057, "Receptor Plate",        {}, { 0, 10, 0},             std::nullopt},
+    {2058, "Brass Conduit",         {}, { 0, 0, 10},             std::nullopt},
+    {2059, "Power Junction",        {}, {15, 10, 0},             std::nullopt},
+    {2060, "Tuned Catalyst",        {}, { 0, 15, 8},             std::nullopt},
 };
 
 const MaterialEffect* get_material_effect(uint32_t material_id) {
@@ -167,7 +181,9 @@ TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Play
     slot.filled = true;
     slot.material_id = material_id;
     slot.material_name = effect->name;
-    slot.bonus = effect->bonus;
+    slot.stat_bonus = effect->stat_bonus;
+    slot.energy_bonus = effect->energy_bonus;
+    slot.solar_panel  = effect->solar_panel;
 
     return {true, "Slotted " + std::string(effect->name) + ". [f] Assemble to apply."};
 }
@@ -177,11 +193,11 @@ TinkerResult commit_enhancements(Item& item) {
     for (auto& slot : item.enhancements) {
         if (slot.filled && !slot.committed) {
             // Apply bonus permanently
-            item.modifiers.av += slot.bonus.av;
-            item.modifiers.dv += slot.bonus.dv;
-            item.modifiers.max_hp += slot.bonus.max_hp;
-            item.modifiers.view_radius += slot.bonus.view_radius;
-            item.modifiers.quickness += slot.bonus.quickness;
+            item.modifiers.av += slot.stat_bonus.av;
+            item.modifiers.dv += slot.stat_bonus.dv;
+            item.modifiers.max_hp += slot.stat_bonus.max_hp;
+            item.modifiers.view_radius += slot.stat_bonus.view_radius;
+            item.modifiers.quickness += slot.stat_bonus.quickness;
             slot.committed = true;
             applied++;
         }
@@ -223,6 +239,17 @@ TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) 
             else if (slot.material_id == 7002) mat.item_def_id = ITEM_POWER_CORE;
             else if (slot.material_id == 7003) mat.item_def_id = ITEM_CIRCUIT_BOARD;
             else if (slot.material_id == 7004) mat.item_def_id = ITEM_ALLOY_INGOT;
+            else if (slot.material_id == 2050) mat.item_def_id = ITEM_SOLAR_PANEL_COMMON;
+            else if (slot.material_id == 2051) mat.item_def_id = ITEM_SOLAR_PANEL_UNCOMMON;
+            else if (slot.material_id == 2052) mat.item_def_id = ITEM_SOLAR_PANEL_RARE;
+            else if (slot.material_id == 2053) mat.item_def_id = ITEM_CAPACITOR_COIL;
+            else if (slot.material_id == 2054) mat.item_def_id = ITEM_CHARGE_CATALYST;
+            else if (slot.material_id == 2055) mat.item_def_id = ITEM_POLISHED_CONDUIT;
+            else if (slot.material_id == 2056) mat.item_def_id = ITEM_REINFORCED_CASING;
+            else if (slot.material_id == 2057) mat.item_def_id = ITEM_RECEPTOR_PLATE;
+            else if (slot.material_id == 2058) mat.item_def_id = ITEM_BRASS_CONDUIT;
+            else if (slot.material_id == 2059) mat.item_def_id = ITEM_POWER_JUNCTION;
+            else if (slot.material_id == 2060) mat.item_def_id = ITEM_TUNED_CATALYST;
             mat.stackable = true;
             mat.stack_count = 1;
             mat.weight = 1;
@@ -397,6 +424,23 @@ const std::vector<SynthesisRecipe>& synthesis_recipes() {
          "A thick, heavy blade reinforced with armor plating. Hits like a wall.",
          ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
          {5, 3, 0, 0, 0}, 90, {0, 0, 0, 2}},
+
+        // Energy mod recipes — produce tinkering materials directly via custom builders.
+        // Equipment-only fields (modifiers, durability, slot, glyph) are unused for these.
+        {"Plating Alloy", "Storage Frame", "Reinforced Casing",
+         "Energy mod. Adds +10 capacity to the host cell.",
+         ItemType::CraftingMaterial, EquipSlot::Back, '*',
+         {}, 0, {1, 0, 0, 1}, &build_reinforced_casing},
+
+        {"Optic Module", "Power Conduit", "Receptor Plate",
+         "Energy mod. +10% to incoming charge rate.",
+         ItemType::CraftingMaterial, EquipSlot::Back, '*',
+         {}, 0, {0, 1, 1, 0}, &build_receptor_plate},
+
+        {"Power Conduit", "Plating Alloy", "Brass Conduit",
+         "Energy mod. +1 free unit per 10 transferred.",
+         ItemType::CraftingMaterial, EquipSlot::Back, '*',
+         {}, 0, {0, 1, 0, 1}, &build_brass_conduit},
     };
     return recipes;
 }
@@ -454,41 +498,44 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
         }
     }
 
-    // Create result item
+    // Create result item.
     Item item;
-    item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
-    item.item_def_id = ITEM_SYNTH_PLASMA_EDGE + static_cast<uint16_t>(&*recipe - &synthesis_recipes()[0]);
-    item.name = recipe->result_name;
-    item.description = recipe->result_desc;
-    item.type = recipe->result_type;
-    if (recipe->result_slot != EquipSlot::Back || recipe->result_type != ItemType::ShipComponent)
-        item.slot = recipe->result_slot;
-    else
-        item.slot = std::nullopt; // ship components have no equip slot
-    item.modifiers = recipe->base_modifiers;
-    item.max_durability = recipe->base_durability;
-    item.durability = recipe->base_durability;
-    item.weight = 3;
+    if (recipe->custom_builder) {
+        // Material recipes (energy mods, etc.) — predefined builder fully populates the item.
+        item = recipe->custom_builder();
+    } else {
+        // Equipment recipes — synthesize from recipe fields, scaled and rarity-rolled.
+        item.id = 9000 + static_cast<uint32_t>(&*recipe - &synthesis_recipes()[0]);
+        item.item_def_id = ITEM_SYNTH_PLASMA_EDGE + static_cast<uint16_t>(&*recipe - &synthesis_recipes()[0]);
+        item.name = recipe->result_name;
+        item.description = recipe->result_desc;
+        item.type = recipe->result_type;
+        if (recipe->result_slot != EquipSlot::Back || recipe->result_type != ItemType::ShipComponent)
+            item.slot = recipe->result_slot;
+        else
+            item.slot = std::nullopt; // ship components have no equip slot
+        item.modifiers = recipe->base_modifiers;
+        item.max_durability = recipe->base_durability;
+        item.durability = recipe->base_durability;
+        item.weight = 3;
 
-    // Scale by player level
-    scale_item_to_level(item, player.level);
+        scale_item_to_level(item, player.level);
 
-    // Roll rarity influenced by Luck
-    int luck_bonus = std::max(0, (player.attributes.luck - 10)) * 2;
-    std::uniform_int_distribution<int> dist(0, 99);
-    int roll = dist(rng) + luck_bonus;
-    if (roll >= 99) item.rarity = Rarity::Legendary;
-    else if (roll >= 95) item.rarity = Rarity::Epic;
-    else if (roll >= 80) item.rarity = Rarity::Rare;
-    else if (roll >= 50) item.rarity = Rarity::Uncommon;
-    else item.rarity = Rarity::Common;
+        int luck_bonus = std::max(0, (player.attributes.luck - 10)) * 2;
+        std::uniform_int_distribution<int> dist(0, 99);
+        int roll = dist(rng) + luck_bonus;
+        if (roll >= 99) item.rarity = Rarity::Legendary;
+        else if (roll >= 95) item.rarity = Rarity::Epic;
+        else if (roll >= 80) item.rarity = Rarity::Rare;
+        else if (roll >= 50) item.rarity = Rarity::Uncommon;
+        else item.rarity = Rarity::Common;
 
-    init_enhancement_slots(item);
+        init_enhancement_slots(item);
 
-    // Set buy/sell based on rarity
-    int rarity_mult = 1 + static_cast<int>(item.rarity);
-    item.buy_value = 100 * rarity_mult;
-    item.sell_value = item.buy_value / 3;
+        int rarity_mult = 1 + static_cast<int>(item.rarity);
+        item.buy_value = 100 * rarity_mult;
+        item.sell_value = item.buy_value / 3;
+    }
 
     std::string result_name = item.name;
     player.inventory.items.push_back(std::move(item));

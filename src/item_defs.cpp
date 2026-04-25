@@ -2,6 +2,8 @@
 #include "astra/dice.h"
 #include "astra/item_ids.h"
 #include "astra/effect.h"  // EffectId for DishOutput::granted
+#include "astra/energy.h"
+#include "astra/tinkering.h"
 
 namespace astra {
 
@@ -26,7 +28,9 @@ Item build_plasma_pistol() {
     it.damage_type = DamageType::Plasma;
     it.max_durability = 80;
     it.durability = 80;
-    it.ranged = RangedData{20, 1, 20, 6};
+    it.ranged = RangedData{6};
+    it.energy = EnergyStore{20, 20};
+    it.consumer = EnergyConsumer{1};
     return it;
 }
 
@@ -47,7 +51,9 @@ Item build_ion_blaster() {
     it.damage_type = DamageType::Electrical;
     it.max_durability = 60;
     it.durability = 60;
-    it.ranged = RangedData{15, 2, 15, 8};
+    it.ranged = RangedData{8};
+    it.energy = EnergyStore{15, 15};
+    it.consumer = EnergyConsumer{2};
     return it;
 }
 
@@ -69,7 +75,9 @@ Item build_pulse_rifle() {
     it.modifiers.quickness = -5;
     it.max_durability = 100;
     it.durability = 100;
-    it.ranged = RangedData{30, 2, 30, 12};
+    it.ranged = RangedData{12};
+    it.energy = EnergyStore{30, 30};
+    it.consumer = EnergyConsumer{2};
     return it;
 }
 
@@ -91,7 +99,9 @@ Item build_arc_caster() {
     it.modifiers.quickness = -10;
     it.max_durability = 50;
     it.durability = 50;
-    it.ranged = RangedData{12, 3, 12, 5};
+    it.ranged = RangedData{5};
+    it.energy = EnergyStore{12, 12};
+    it.consumer = EnergyConsumer{3};
     return it;
 }
 
@@ -113,7 +123,9 @@ Item build_void_lance() {
     it.modifiers.view_radius = 2;
     it.max_durability = 40;
     it.durability = 40;
-    it.ranged = RangedData{10, 4, 10, 15};
+    it.ranged = RangedData{15};
+    it.energy = EnergyStore{10, 10};
+    it.consumer = EnergyConsumer{4};
     return it;
 }
 
@@ -121,22 +133,62 @@ Item build_void_lance() {
 // Consumables
 // ---------------------------------------------------------------------------
 
-Item build_battery() {
+static Item build_cell(uint16_t def_id, uint32_t id, const char* name,
+                       Rarity rarity, int capacity, int weight,
+                       int buy, int sell, int slot_override = -1) {
     Item it;
-    it.item_def_id = ITEM_BATTERY;
-    it.id = 2001;
-    it.name = "Energy Cell";
-    it.description = "Standard power cell. Recharges ranged weapons.";
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = "Persistent power cell. Holds energy for weapons, shields, and gadgets.";
     it.type = ItemType::Battery;
-    it.rarity = Rarity::Common;
-    it.weight = 1;
-    it.stackable = true;
+    it.rarity = rarity;
+    it.weight = weight;
+    it.stackable = false;
     it.stack_count = 1;
-    it.buy_value = 15;
-    it.sell_value = 5;
+    it.buy_value = buy;
+    it.sell_value = sell;
     it.usable = true;
+    it.energy = EnergyStore{capacity, capacity};
+    init_enhancement_slots(it);
+    if (slot_override >= 0) it.enhancement_slots = slot_override;
     return it;
 }
+
+Item build_small_energy_cell()      { return build_cell(ITEM_SMALL_ENERGY_CELL,      2001, "Small Energy Cell",      Rarity::Common,   60,   1, 15,  5); }
+Item build_standard_energy_cell()   { return build_cell(ITEM_STANDARD_ENERGY_CELL,   2010, "Standard Energy Cell",   Rarity::Common,   150,  1, 35,  12); }
+Item build_large_energy_cell()      { return build_cell(ITEM_LARGE_ENERGY_CELL,      2011, "Large Energy Cell",      Rarity::Uncommon, 400,  2, 90,  30); }
+Item build_industrial_energy_cell() { return build_cell(ITEM_INDUSTRIAL_ENERGY_CELL, 2012, "Industrial Energy Cell", Rarity::Rare,     800,  3, 220, 70, /*slot_override=*/2); }
+Item build_antimatter_cell()        { return build_cell(ITEM_ANTIMATTER_CELL,        2013, "Antimatter Cell",        Rarity::Epic,     2000, 3, 650, 200); }
+
+// Legendary specialty cells: standard build_cell + a CellProc bonus.
+Item build_bulwark_cell() {
+    Item it = build_cell(ITEM_BULWARK_CELL, 2020, "Bulwark Cell",
+                         Rarity::Legendary, 1500, 3, 900, 280);
+    it.description = "Reinforced cell. Channels overflow into the shield matrix.";
+    it.proc = CellProc{ CellProcKind::ShieldOvercharge, /*magnitude=*/25, /*duration=*/0,
+                        /*threshold=*/250, /*accumulator=*/0 };
+    return it;
+}
+Item build_volatile_cell() {
+    Item it = build_cell(ITEM_VOLATILE_CELL, 2021, "Volatile Cell",
+                         Rarity::Legendary, 1500, 3, 900, 280);
+    it.description = "Unstable cell. Surges past safe limits when discharged into a weapon.";
+    it.proc = CellProc{ CellProcKind::WeaponOvercharge, /*magnitude=*/15, /*duration=*/0,
+                        /*threshold=*/150, /*accumulator=*/0 };
+    return it;
+}
+Item build_adrenal_cell() {
+    Item it = build_cell(ITEM_ADRENAL_CELL, 2022, "Adrenal Cell",
+                         Rarity::Legendary, 1500, 3, 900, 280);
+    it.description = "Bio-coupled cell. Triggers an adrenal surge when drained.";
+    it.proc = CellProc{ CellProcKind::AdrenalineRush, /*magnitude=*/0, /*duration=*/5,
+                        /*threshold=*/300, /*accumulator=*/0 };
+    return it;
+}
+
+// Legacy alias so existing callers compile. Returns a Standard cell.
+Item build_battery() { return build_standard_energy_cell(); }
 
 Item build_ration_pack() {
     Item it;
@@ -638,7 +690,7 @@ Item build_basic_deflector() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Common;
     it.weight = 2;
     it.buy_value = 100; it.sell_value = 35;
-    it.shield_capacity = 10; it.shield_hp = 10;
+    it.energy = EnergyStore{10, 10};
     it.type_affinity = {0, 0, 0, 0, 0};
     return it;
 }
@@ -651,7 +703,7 @@ Item build_plasma_screen() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Uncommon;
     it.weight = 3;
     it.buy_value = 250; it.sell_value = 85;
-    it.shield_capacity = 15; it.shield_hp = 15;
+    it.energy = EnergyStore{15, 15};
     it.type_affinity = {0, 3, 0, 0, -1};
     return it;
 }
@@ -664,7 +716,7 @@ Item build_ion_barrier() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Uncommon;
     it.weight = 3;
     it.buy_value = 250; it.sell_value = 85;
-    it.shield_capacity = 15; it.shield_hp = 15;
+    it.energy = EnergyStore{15, 15};
     it.type_affinity = {0, -1, 3, 0, 0};
     return it;
 }
@@ -677,7 +729,7 @@ Item build_composite_barrier() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Rare;
     it.weight = 4;
     it.buy_value = 500; it.sell_value = 170;
-    it.shield_capacity = 20; it.shield_hp = 20;
+    it.energy = EnergyStore{20, 20};
     it.type_affinity = {1, 1, 1, 1, 1};
     return it;
 }
@@ -690,7 +742,7 @@ Item build_hardlight_aegis() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Epic;
     it.weight = 3;
     it.buy_value = 900; it.sell_value = 300;
-    it.shield_capacity = 30; it.shield_hp = 30;
+    it.energy = EnergyStore{30, 30};
     it.type_affinity = {3, 1, -1, 0, 0};
     return it;
 }
@@ -703,7 +755,7 @@ Item build_void_mantle() {
     it.slot = EquipSlot::Shield; it.rarity = Rarity::Legendary;
     it.weight = 2;
     it.buy_value = 2500; it.sell_value = 800;
-    it.shield_capacity = 40; it.shield_hp = 40;
+    it.energy = EnergyStore{40, 40};
     it.type_affinity = {2, 2, 2, 2, 2};
     return it;
 }
@@ -914,6 +966,58 @@ Item build_alloy_ingot() {
 }
 
 // ---------------------------------------------------------------------------
+// Solar panel crafting materials
+// ---------------------------------------------------------------------------
+
+static Item build_solar_panel_(uint16_t def_id, uint32_t id, const char* name, Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = "Photovoltaic mod. Slots into any energy item; recharges it while outdoors.";
+    it.type = ItemType::CraftingMaterial;
+    it.rarity = rarity;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    return it;
+}
+
+Item build_solar_panel_common()   { return build_solar_panel_(ITEM_SOLAR_PANEL_COMMON,   2050, "Solar Panel",           Rarity::Common,   60,  20); }
+Item build_solar_panel_uncommon() { return build_solar_panel_(ITEM_SOLAR_PANEL_UNCOMMON, 2051, "Polished Solar Panel",  Rarity::Uncommon, 180, 60); }
+Item build_solar_panel_rare()     { return build_solar_panel_(ITEM_SOLAR_PANEL_RARE,     2052, "Prismatic Solar Panel", Rarity::Rare,     500, 170); }
+
+static Item build_energy_mod_(uint16_t def_id, uint32_t id, const char* name,
+                              const char* desc, Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = desc;
+    it.type = ItemType::CraftingMaterial;
+    it.rarity = rarity;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    return it;
+}
+
+Item build_capacitor_coil()    { return build_energy_mod_(ITEM_CAPACITOR_COIL,    2053, "Capacitor Coil",    "Energy mod. Slotted into a cell to add +30 capacity.",                       Rarity::Uncommon, 140, 50); }
+Item build_charge_catalyst()   { return build_energy_mod_(ITEM_CHARGE_CATALYST,   2054, "Charge Catalyst",   "Energy mod. Slotted into a cell to boost incoming charge rate by +25%.",      Rarity::Uncommon, 160, 55); }
+Item build_polished_conduit()  { return build_energy_mod_(ITEM_POLISHED_CONDUIT,  2055, "Polished Conduit",  "Energy mod. Slotted into a cell so every 5 units transferred yields +1 free.", Rarity::Rare,    220, 75); }
+
+// Minor mods — small magnitudes meant to stack across multiple slots for custom cell builds.
+Item build_reinforced_casing() { return build_energy_mod_(ITEM_REINFORCED_CASING, 2056, "Reinforced Casing", "Minor energy mod. Adds +10 capacity to the host cell.",                       Rarity::Common,   25,  8); }
+Item build_receptor_plate()    { return build_energy_mod_(ITEM_RECEPTOR_PLATE,    2057, "Receptor Plate",    "Minor energy mod. +10% to incoming charge rate (Solar Panels, stations).",   Rarity::Common,   30, 10); }
+Item build_brass_conduit()     { return build_energy_mod_(ITEM_BRASS_CONDUIT,     2058, "Brass Conduit",     "Minor energy mod. +1 free unit per 10 transferred.",                          Rarity::Common,   35, 12); }
+Item build_power_junction()    { return build_energy_mod_(ITEM_POWER_JUNCTION,    2059, "Power Junction",    "Hybrid energy mod. +15 capacity and +10% charge rate.",                       Rarity::Uncommon, 100, 30); }
+Item build_tuned_catalyst()    { return build_energy_mod_(ITEM_TUNED_CATALYST,    2060, "Tuned Catalyst",    "Hybrid energy mod. +15% charge rate and +1 free per 8 transferred.",          Rarity::Rare,    200, 70); }
+
+// ---------------------------------------------------------------------------
 // Ship components
 // ---------------------------------------------------------------------------
 
@@ -1023,7 +1127,9 @@ static Item make_stack(Item item, int count) {
 
 std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     std::vector<Item> stock;
-    stock.push_back(make_stack(build_battery(), 3));
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_standard_energy_cell());
     stock.push_back(make_stack(build_ration_pack(), 5));
     stock.push_back(make_stack(build_combat_stim(), 2));
     stock.push_back(random_ranged_weapon(rng));
@@ -1034,6 +1140,8 @@ std::vector<Item> generate_merchant_stock(std::mt19937& rng, int faction_rep) {
     // Ship components
     stock.push_back(build_hull_plate());
     stock.push_back(build_shield_generator());
+    // Solar panel mods — always available at the base merchant
+    stock.push_back(build_solar_panel_common());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_combat_stim(), 3));
@@ -1052,17 +1160,32 @@ std::vector<Item> generate_arms_dealer_stock(std::mt19937& rng, int faction_rep)
         stock.push_back(random_ranged_weapon(rng));
     }
     stock.push_back(random_melee_weapon(rng));
-    stock.push_back(make_stack(build_battery(), 5));
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_small_energy_cell());
+    stock.push_back(build_standard_energy_cell());
     stock.push_back(random_armor(rng));
     stock.push_back(random_shield(rng));
     stock.push_back(make_stack(build_emp_grenade(), 2));
+    // Solar panel mods — tinkering supplies at arms dealers
+    stock.push_back(build_solar_panel_common());
+    stock.push_back(build_capacitor_coil());
+    // Minor mods always available — affordable variety for early customization.
+    stock.push_back(build_reinforced_casing());
+    stock.push_back(build_receptor_plate());
+    stock.push_back(build_brass_conduit());
     if (faction_rep >= 10) { // Liked+
         stock.push_back(random_ranged_weapon(rng));
         stock.push_back(make_stack(build_emp_grenade(), 2));
+        stock.push_back(build_solar_panel_uncommon());
+        stock.push_back(build_charge_catalyst());
+        stock.push_back(build_power_junction());
     }
     if (faction_rep >= 50) { // Trusted
         stock.push_back(random_melee_weapon(rng));
         stock.push_back(random_armor(rng));
+        stock.push_back(build_solar_panel_rare());
+        stock.push_back(build_polished_conduit());
+        stock.push_back(build_tuned_catalyst());
     }
     return stock;
 }

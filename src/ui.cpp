@@ -166,8 +166,27 @@ void UIContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
 }
 
 void UIContext::text(int x, int y, std::string_view s, Color fg, Color bg) {
-    for (int i = 0; i < static_cast<int>(s.size()); ++i) {
-        put(x + i, y, s[i], fg, bg);
+    int col = 0;
+    int i = 0;
+    int len = static_cast<int>(s.size());
+    while (i < len) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c < 0x80) {
+            put(x + col, y, s[i], fg, bg);
+            ++i;
+        } else {
+            int seq_len = 1;
+            if ((c & 0xE0) == 0xC0) seq_len = 2;
+            else if ((c & 0xF0) == 0xE0) seq_len = 3;
+            else if ((c & 0xF8) == 0xF0) seq_len = 4;
+            char buf[5] = {};
+            for (int j = 0; j < seq_len && i + j < len; ++j) {
+                buf[j] = s[i + j];
+            }
+            put(x + col, y, buf, fg, bg);
+            i += seq_len;
+        }
+        ++col;
     }
 }
 
@@ -351,6 +370,24 @@ int draw_item_name(UIContext& ctx, int x, int y, const Item& item, bool selected
         x += static_cast<int>(dice.size());
     }
 
+    // Charge suffix for energy cells: " - <cyan>cur/cap</cyan> charge"
+    if (item.type == ItemType::Battery && item.energy) {
+        std::string sep = " - ";
+        ctx.text(x, y, sep, Color::DarkGray);
+        x += (int)sep.size();
+        std::string cur = std::to_string(item.energy->current);
+        std::string cap = std::to_string(item.energy->capacity);
+        Color num_color = (item.energy->current > 0) ? Color::Cyan : Color::Red;
+        ctx.text(x, y, cur, num_color);
+        x += (int)cur.size();
+        ctx.text(x, y, "/", Color::DarkGray);
+        x += 1;
+        ctx.text(x, y, cap, num_color);
+        x += (int)cap.size();
+        ctx.text(x, y, " charge", Color::DarkGray);
+        x += 7;
+    }
+
     if (item.stackable && item.stack_count > 1) {
         std::string stack = " x" + std::to_string(item.stack_count);
         ctx.text(x, y, stack, Color::White);
@@ -424,21 +461,92 @@ void draw_item_info(UIContext& ctx, const Item& item) {
         y++;
     }
 
-    if (item.ranged) {
-        const auto& rd = *item.ranged;
+    if (item.energy) {
+        const auto& e = *item.energy;
         ctx.text(0, y, "Charge: ", Color::DarkGray);
         int bar_w = std::min(16, ctx.width() - 10);
         if (bar_w > 0) {
-            ctx.bar(8, y, bar_w, rd.current_charge, rd.charge_capacity,
+            ctx.bar(8, y, bar_w, e.current, e.capacity,
                     Color::Cyan, Color::DarkGray);
         }
-        std::string charge_str = std::to_string(rd.current_charge) + "/"
-                               + std::to_string(rd.charge_capacity);
+        std::string charge_str = std::to_string(e.current) + "/"
+                               + std::to_string(e.capacity);
         ctx.text(8 + bar_w + 1, y, charge_str, Color::Cyan);
         y++;
-        ctx.label_value(0, y, "Range:     ", Color::DarkGray,
-            std::to_string(rd.max_range), Color::White);
+    }
+    if (item.consumer) {
+        ctx.label_value(0, y, "Energy/use:", Color::DarkGray,
+            std::to_string(item.consumer->energy_per_use), Color::White);
         y++;
+    }
+    if (item.ranged) {
+        ctx.label_value(0, y, "Range:     ", Color::DarkGray,
+            std::to_string(item.ranged->max_range), Color::White);
+        y++;
+    }
+    if (item.proc && item.proc->kind != CellProcKind::None) {
+        const auto& p = *item.proc;
+        std::string desc;
+        switch (p.kind) {
+            case CellProcKind::ShieldOvercharge:
+                desc = "+" + std::to_string(p.magnitude) + " shield overcharge per " +
+                       std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::WeaponOvercharge:
+                desc = "+" + std::to_string(p.magnitude) + " weapon overcharge per " +
+                       std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::DefenseBoost:
+                desc = "+" + std::to_string(p.magnitude) + " DV for " +
+                       std::to_string(p.duration) + " turns per " +
+                       std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::AdrenalineRush:
+                desc = "Adrenaline (" + std::to_string(p.duration) +
+                       " turns) per " + std::to_string(p.threshold) + " drained";
+                break;
+            case CellProcKind::None:
+                break;
+        }
+        if (!desc.empty()) {
+            ctx.label_value(0, y, "Proc:      ", Color::DarkGray, desc, Color::Magenta);
+            y++;
+            if (p.accumulator > 0) {
+                ctx.label_value(0, y, "  charge:  ", Color::DarkGray,
+                    std::to_string(p.accumulator) + "/" + std::to_string(p.threshold),
+                    Color::DarkGray);
+                y++;
+            }
+        }
+    }
+    for (const auto& enh : item.enhancements) {
+        if (!enh.committed) continue;
+        if (enh.solar_panel) {
+            const auto& sp = *enh.solar_panel;
+            std::string mod = std::string(sp.active ? "Solar Panel (active, +" : "Solar Panel (off, +") +
+                              std::to_string(sp.energy_per_tick) + "/" +
+                              std::to_string(sp.tick_interval) + " turns)";
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray, mod, Color::Yellow);
+            y++;
+        }
+        if (enh.energy_bonus.capacity_bonus) {
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray,
+                "+" + std::to_string(enh.energy_bonus.capacity_bonus) + " capacity",
+                Color::Yellow);
+            y++;
+        }
+        if (enh.energy_bonus.charge_rate_bonus) {
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray,
+                "+" + std::to_string(enh.energy_bonus.charge_rate_bonus) + "% charge rate",
+                Color::Yellow);
+            y++;
+        }
+        if (enh.energy_bonus.discharge_efficiency) {
+            ctx.label_value(0, y, "Mod:       ", Color::DarkGray,
+                "+1 free per " + std::to_string(enh.energy_bonus.discharge_efficiency) + " transferred",
+                Color::Yellow);
+            y++;
+        }
     }
 
     if (item.max_durability > 0 && y < ctx.height()) {
@@ -475,10 +583,10 @@ void draw_item_info(UIContext& ctx, const Item& item) {
             if (enh.filled) {
                 std::string line = " [" + std::to_string(si + 1) + "] " + enh.material_name;
                 std::string bonus;
-                if (enh.bonus.av) bonus += " AV+" + std::to_string(enh.bonus.av);
-                if (enh.bonus.dv) bonus += " DV+" + std::to_string(enh.bonus.dv);
-                if (enh.bonus.view_radius) bonus += " VIS+" + std::to_string(enh.bonus.view_radius);
-                if (enh.bonus.quickness) bonus += " QCK+" + std::to_string(enh.bonus.quickness);
+                if (enh.stat_bonus.av) bonus += " AV+" + std::to_string(enh.stat_bonus.av);
+                if (enh.stat_bonus.dv) bonus += " DV+" + std::to_string(enh.stat_bonus.dv);
+                if (enh.stat_bonus.view_radius) bonus += " VIS+" + std::to_string(enh.stat_bonus.view_radius);
+                if (enh.stat_bonus.quickness) bonus += " QCK+" + std::to_string(enh.stat_bonus.quickness);
                 ctx.text(0, y, line, Color::Green);
                 if (!bonus.empty()) ctx.text(static_cast<int>(line.size()), y, bonus, Color::Cyan);
             } else {

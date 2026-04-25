@@ -51,6 +51,14 @@ Item build_cryo_grenade();
 
 // --- Consumables ---
 Item build_battery();
+Item build_small_energy_cell();
+Item build_standard_energy_cell();
+Item build_large_energy_cell();
+Item build_industrial_energy_cell();
+Item build_antimatter_cell();
+Item build_bulwark_cell();
+Item build_volatile_cell();
+Item build_adrenal_cell();
 Item build_ration_pack();
 Item build_combat_stim();
 
@@ -89,6 +97,19 @@ Item build_nano_fiber();
 Item build_power_core();
 Item build_circuit_board();
 Item build_alloy_ingot();
+
+// --- Energy mods (tinkering materials for cells) ---
+Item build_solar_panel_common();
+Item build_solar_panel_uncommon();
+Item build_solar_panel_rare();
+Item build_capacitor_coil();
+Item build_charge_catalyst();
+Item build_polished_conduit();
+Item build_reinforced_casing();
+Item build_receptor_plate();
+Item build_brass_conduit();
+Item build_power_junction();
+Item build_tuned_catalyst();
 
 // --- Ship components ---
 Item build_engine_coil_mk1();

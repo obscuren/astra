@@ -176,11 +176,12 @@ bool CharacterScreen::handle_input(int key) {
                 // Tinkering item/material picker result
                 int sel = context_menu_.selection;
                 if (tinker_focus_ == TinkerFocus::Workbench && !workbench_item_) {
-                    // Find the sel-th equippable/repairable item in inventory
+                    // Find the sel-th workbench-eligible item in inventory.
+                    // Filter must match the one used to populate the picker (search "Place Item").
                     int count = 0;
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
-                        if (it.slot.has_value() || it.max_durability > 0) {
+                        if (it.slot.has_value() || it.max_durability > 0 || it.enhancement_slots > 0) {
                             if (count == sel) {
                                 workbench_inv_idx_ = i;
                                 workbench_item_ = &player_->inventory.items[i];
@@ -510,7 +511,7 @@ bool CharacterScreen::handle_input(int key) {
                     context_menu_.title = "Place Item";
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
-                        if (it.slot.has_value() || it.max_durability > 0) {
+                        if (it.slot.has_value() || it.max_durability > 0 || it.enhancement_slots > 0) {
                             char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
                             context_menu_.add_option(key_ch, it.name);
                         }
@@ -761,8 +762,19 @@ void CharacterScreen::open_context_menu() {
         if (!item) return;
         context_menu_.add_option('l', "look");
         context_menu_.add_option('r', "remove");
+        if (item->energy) {
+            context_menu_.add_option('c', "recharge");
+        }
         if (item->ranged) {
             context_menu_.add_option('u', "unload");
+        }
+        for (const auto& enh : item->enhancements) {
+            if (enh.committed && enh.solar_panel) {
+                context_menu_.add_option('g', enh.solar_panel->active
+                                              ? "disable solar panel"
+                                              : "enable solar panel");
+                break;
+            }
         }
     } else {
         if (player_->inventory.items.empty()) return;
@@ -778,10 +790,22 @@ void CharacterScreen::open_context_menu() {
                 context_menu_.add_option('e', "equip");
             }
         }
+        if (item.energy) {
+            context_menu_.add_option('r', "recharge");
+        }
         if (item.ranged) {
-            context_menu_.add_option('r', "reload");
             context_menu_.add_option('u', "unload");
-        } else if (item.usable) {
+        }
+        // Solar Panel toggle if any committed slot has one
+        for (const auto& enh : item.enhancements) {
+            if (enh.committed && enh.solar_panel) {
+                context_menu_.add_option('g', enh.solar_panel->active
+                                              ? "disable solar panel"
+                                              : "enable solar panel");
+                break;
+            }
+        }
+        if (!item.energy && item.usable) {
             const char* verb = "use";
             if (item.type == ItemType::Food)     verb = "eat";
             else if (item.type == ItemType::Cookbook) verb = "read";
@@ -849,19 +873,33 @@ void CharacterScreen::execute_context_action(char key) {
             }
             context_message_ = "Removed " + equipped->label() + ".";
             context_msg_timer_ = 3;
-            // Save shield charge back to item before unequipping
+            // Clear shield affinity on unequip
             if (slot == EquipSlot::Shield) {
-                equipped->shield_hp = player_->shield_hp;
-                player_->shield_hp = 0;
-                player_->shield_max_hp = 0;
                 player_->shield_affinity = {};
             }
             player_->inventory.items.push_back(std::move(*equipped));
             equipped.reset();
+        } else if (key == 'c') {
+            // Recharge equipped item — route to weapon or shield picker
+            if (slot == EquipSlot::Shield) {
+                recharge_equipped_request_ = 1;  // shield
+            } else if (slot == EquipSlot::Missile) {
+                recharge_equipped_request_ = 0;  // weapon
+            }
+        } else if (key == 'g') {
+            for (auto& enh : equipped->enhancements) {
+                if (enh.committed && enh.solar_panel) {
+                    enh.solar_panel->active = !enh.solar_panel->active;
+                    context_message_ = std::string("Solar Panel ") +
+                                       (enh.solar_panel->active ? "enabled." : "disabled.");
+                    context_msg_timer_ = 3;
+                    break;
+                }
+            }
         } else if (key == 'u') {
-            if (equipped->ranged && equipped->ranged->current_charge > 0) {
-                context_message_ = "Unloaded " + std::to_string(equipped->ranged->current_charge) + " charge.";
-                equipped->ranged->current_charge = 0;
+            if (equipped->ranged && equipped->energy && equipped->energy->current > 0) {
+                context_message_ = "Unloaded " + std::to_string(equipped->energy->current) + " charge.";
+                equipped->energy->current = 0;
             } else {
                 context_message_ = "Nothing to unload.";
             }
@@ -885,19 +923,14 @@ void CharacterScreen::execute_context_action(char key) {
                 auto& sl = player_->equipment.slot_ref(target_slot);
                 Item to_equip = std::move(item);
                 items.erase(items.begin() + inv_cursor_);
-                // Save shield charge back to old item before unequipping
+                // Clear shield affinity when swapping out old shield
                 if (target_slot == EquipSlot::Shield && sl) {
-                    sl->shield_hp = player_->shield_hp;
-                    player_->shield_hp = 0;
-                    player_->shield_max_hp = 0;
                     player_->shield_affinity = {};
                 }
                 if (sl) items.push_back(std::move(*sl));
                 sl = std::move(to_equip);
-                // Sync shield HP from newly equipped shield
+                // Sync shield affinity from newly equipped shield
                 if (target_slot == EquipSlot::Shield) {
-                    player_->shield_max_hp = sl->shield_capacity;
-                    player_->shield_hp = sl->shield_hp;
                     player_->shield_affinity = sl->type_affinity;
                 }
                 context_message_ = "Equipped " + sl->label() + ".";
@@ -906,14 +939,24 @@ void CharacterScreen::execute_context_action(char key) {
                     --inv_cursor_;
             }
         } else if (key == 'r') {
-            context_message_ = "Reload not yet implemented.";
-            context_msg_timer_ = 3;
+            recharge_request_idx_ = inv_cursor_;
+        } else if (key == 'g') {
+            auto& item = items[inv_cursor_];
+            for (auto& enh : item.enhancements) {
+                if (enh.committed && enh.solar_panel) {
+                    enh.solar_panel->active = !enh.solar_panel->active;
+                    context_message_ = std::string("Solar Panel ") +
+                                       (enh.solar_panel->active ? "enabled." : "disabled.");
+                    context_msg_timer_ = 3;
+                    break;
+                }
+            }
         } else if (key == 'u') {
             auto& item = items[inv_cursor_];
             if (item.ranged) {
-                if (item.ranged->current_charge > 0) {
-                    context_message_ = "Unloaded " + std::to_string(item.ranged->current_charge) + " charge.";
-                    item.ranged->current_charge = 0;
+                if (item.energy && item.energy->current > 0) {
+                    context_message_ = "Unloaded " + std::to_string(item.energy->current) + " charge.";
+                    item.energy->current = 0;
                 } else {
                     context_message_ = "Nothing to unload.";
                 }
@@ -1064,7 +1107,7 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     }});
     y++;
 
-    // Item name centered, colored by rarity; dice suffix in white
+    // Item name centered, colored by rarity; dice or charge suffix dim/cyan.
     std::string full_display = item.label();
     int name_x = (cw - static_cast<int>(full_display.size())) / 2;
     if (name_x < 1) name_x = 1;
@@ -1073,6 +1116,18 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
         panel_content.styled_text({.x = name_x, .y = y, .segments = {
             {item.name, rarity_tag(item.rarity)},
             {dice_str, UITag::TextDim},
+        }});
+    } else if (item.type == ItemType::Battery && item.energy) {
+        std::string cur = std::to_string(item.energy->current);
+        std::string cap = std::to_string(item.energy->capacity);
+        UITag charge_tag = (item.energy->current > 0) ? UITag::TextBright : UITag::TextWarning;
+        panel_content.styled_text({.x = name_x, .y = y, .segments = {
+            {item.name, rarity_tag(item.rarity)},
+            {" - ", UITag::TextDim},
+            {cur, charge_tag},
+            {"/", UITag::TextDim},
+            {cap, charge_tag},
+            {" charge", UITag::TextDim},
         }});
     } else {
         panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
@@ -2057,9 +2112,9 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
                    && workbench_item_->enhancements[si].filled) {
             const auto& enh = workbench_item_->enhancements[si];
             std::string bonus;
-            if (enh.bonus.av) bonus = "+" + std::to_string(enh.bonus.av) + "AV";
-            else if (enh.bonus.dv) bonus = "+" + std::to_string(enh.bonus.dv) + "DV";
-            else if (enh.bonus.view_radius) bonus = "+" + std::to_string(enh.bonus.view_radius) + "VIS";
+            if (enh.stat_bonus.av) bonus = "+" + std::to_string(enh.stat_bonus.av) + "AV";
+            else if (enh.stat_bonus.dv) bonus = "+" + std::to_string(enh.stat_bonus.dv) + "DV";
+            else if (enh.stat_bonus.view_radius) bonus = "+" + std::to_string(enh.stat_bonus.view_radius) + "VIS";
             UITag enh_tag = enh.committed ? UITag::TextSuccess : UITag::TextWarning;
         {
             int bpad = (slot_w - 2 - static_cast<int>(bonus.size())) / 2;
@@ -2190,6 +2245,18 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
             ctx.styled_text({.x = rx, .y = ry, .segments = {
                 {item.name, rarity_tag(item.rarity)},
                 {dice_str, UITag::TextDim},
+            }});
+        } else if (item.type == ItemType::Battery && item.energy) {
+            std::string cur = std::to_string(item.energy->current);
+            std::string cap = std::to_string(item.energy->capacity);
+            UITag charge_tag = (item.energy->current > 0) ? UITag::TextBright : UITag::TextWarning;
+            ctx.styled_text({.x = rx, .y = ry, .segments = {
+                {item.name, rarity_tag(item.rarity)},
+                {" - ", UITag::TextDim},
+                {cur, charge_tag},
+                {"/", UITag::TextDim},
+                {cap, charge_tag},
+                {" charge", UITag::TextDim},
             }});
         } else {
             ctx.text({.x = rx, .y = ry, .content = item.name, .tag = rarity_tag(item.rarity)});

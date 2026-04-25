@@ -61,13 +61,15 @@ void scale_item_to_level(Item& item, int level) {
     item.max_durability = scale(item.max_durability);
     item.durability = item.max_durability;
 
-    if (item.ranged) {
-        item.ranged->charge_capacity = scale(item.ranged->charge_capacity);
-        item.ranged->current_charge = item.ranged->charge_capacity;
+    if (item.energy && item.ranged) {
+        int scaled = scale(item.energy->capacity);
+        item.energy->capacity = scaled;
+        item.energy->current = scaled;
     }
-    if (item.shield_capacity > 0) {
-        item.shield_capacity = scale(item.shield_capacity);
-        item.shield_hp = item.shield_capacity;
+    if (item.energy && item.type == ItemType::Shield) {
+        int scaled = scale(item.energy->capacity);
+        item.energy->capacity = scaled;
+        item.energy->current = scaled;
     }
 }
 

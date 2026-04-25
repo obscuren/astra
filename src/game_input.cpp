@@ -137,6 +137,14 @@ void Game::handle_play_input(int key) {
         if (character_screen_.has_use_item_request()) {
             use_item(character_screen_.consume_use_item_request());
         }
+        if (auto idx = character_screen_.recharge_request_idx(); idx >= 0) {
+            open_cell_picker_for_item(idx);
+            character_screen_.clear_recharge_request();
+        }
+        if (auto req = character_screen_.recharge_equipped_request(); req >= 0) {
+            open_cell_picker(/*target_is_shield=*/req == 1);
+            character_screen_.clear_recharge_equipped_request();
+        }
         auto installed_slot = character_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {
             quest_manager_.on_ship_component_installed(installed_slot);
@@ -169,6 +177,9 @@ void Game::handle_play_input(int key) {
         repair_bench_.handle_input(key);
         return;
     }
+
+    // Cell picker intercepts when open
+    if (handle_cell_picker_input(key)) return;
 
     // Lost popup intercepts when open
     if (lost_popup_.open) {
@@ -365,7 +376,10 @@ void Game::handle_play_input(int key) {
             break;
         case 't': combat_.begin_targeting(*this); break;
         case 's': combat_.shoot_target(*this); break;
-        case 'r': combat_.reload_weapon(*this); break;
+        case 'r': combat_.recharge_weapon(*this); break;
+        case 'b': combat_.recharge_shield(*this); break;
+        case 'R': open_cell_picker(/*target_is_shield=*/false); break;
+        case 'B': open_cell_picker(/*target_is_shield=*/true); break;
         case 'g': pickup_ground_item(); break;
         case '?': help_screen_.open(); break;
         case 'm':

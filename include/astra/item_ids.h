@@ -101,6 +101,35 @@ constexpr uint16_t ITEM_COOKBOOK_HEARTY_STEW   = 61;
 constexpr uint16_t ITEM_COOKBOOK_PROTEIN_BAKE  = 62;
 constexpr uint16_t ITEM_COOKBOOK_HEROS_FEAST   = 63;
 
+// Solar panel mods (80-82)
+constexpr uint16_t ITEM_SOLAR_PANEL_COMMON      = 80;
+constexpr uint16_t ITEM_SOLAR_PANEL_UNCOMMON    = 81;
+constexpr uint16_t ITEM_SOLAR_PANEL_RARE        = 82;
+
+// Energy enhancement mods (83-85)
+constexpr uint16_t ITEM_CAPACITOR_COIL          = 83;
+constexpr uint16_t ITEM_CHARGE_CATALYST         = 84;
+constexpr uint16_t ITEM_POLISHED_CONDUIT        = 85;
+
+// Legendary specialty cells with procs (86-88)
+constexpr uint16_t ITEM_BULWARK_CELL            = 86;
+constexpr uint16_t ITEM_VOLATILE_CELL           = 87;
+constexpr uint16_t ITEM_ADRENAL_CELL            = 88;
+
+// Minor energy mods for cell customization (89-93)
+constexpr uint16_t ITEM_REINFORCED_CASING       = 89;
+constexpr uint16_t ITEM_RECEPTOR_PLATE          = 90;
+constexpr uint16_t ITEM_BRASS_CONDUIT           = 91;
+constexpr uint16_t ITEM_POWER_JUNCTION          = 92;
+constexpr uint16_t ITEM_TUNED_CATALYST          = 93;
+
+// Energy cells (70-74)
+constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
+constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;
+constexpr uint16_t ITEM_LARGE_ENERGY_CELL       = 72;
+constexpr uint16_t ITEM_INDUSTRIAL_ENERGY_CELL  = 73;
+constexpr uint16_t ITEM_ANTIMATTER_CELL         = 74;
+
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;
 constexpr uint16_t ITEM_SYNTH_THRUSTER_PLATE    = 1001;

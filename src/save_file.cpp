@@ -306,10 +306,26 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u8(item.usable ? 1 : 0);
     w.write_u8(item.ranged.has_value() ? 1 : 0);
     if (item.ranged) {
-        w.write_i32(item.ranged->charge_capacity);
-        w.write_i32(item.ranged->charge_per_shot);
-        w.write_i32(item.ranged->current_charge);
         w.write_i32(item.ranged->max_range);
+    }
+    // v46: energy / consumer
+    w.write_u8(item.energy.has_value() ? 1 : 0);
+    if (item.energy) {
+        w.write_i32(item.energy->current);
+        w.write_i32(item.energy->capacity);
+    }
+    w.write_u8(item.consumer.has_value() ? 1 : 0);
+    if (item.consumer) {
+        w.write_i32(item.consumer->energy_per_use);
+    }
+    // v47: cell proc
+    w.write_u8(item.proc.has_value() ? 1 : 0);
+    if (item.proc) {
+        w.write_u8(static_cast<uint8_t>(item.proc->kind));
+        w.write_i32(item.proc->magnitude);
+        w.write_i32(item.proc->duration);
+        w.write_i32(item.proc->threshold);
+        w.write_i32(item.proc->accumulator);
     }
     // Enhancement slots
     w.write_i32(item.enhancement_slots);
@@ -319,11 +335,22 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_u8(enh.committed ? 1 : 0);
         w.write_u32(enh.material_id);
         w.write_string(enh.material_name);
-        w.write_i32(enh.bonus.av);
-        w.write_i32(enh.bonus.dv);
-        w.write_i32(enh.bonus.max_hp);
-        w.write_i32(enh.bonus.view_radius);
-        w.write_i32(enh.bonus.quickness);
+        w.write_i32(enh.stat_bonus.av);
+        w.write_i32(enh.stat_bonus.dv);
+        w.write_i32(enh.stat_bonus.max_hp);
+        w.write_i32(enh.stat_bonus.view_radius);
+        w.write_i32(enh.stat_bonus.quickness);
+        // v46: energy_bonus + solar_panel
+        w.write_i32(enh.energy_bonus.capacity_bonus);
+        w.write_i32(enh.energy_bonus.charge_rate_bonus);
+        w.write_i32(enh.energy_bonus.discharge_efficiency);
+        w.write_u8(enh.solar_panel.has_value() ? 1 : 0);
+        if (enh.solar_panel) {
+            w.write_u8(enh.solar_panel->active ? 1 : 0);
+            w.write_i32(enh.solar_panel->energy_per_tick);
+            w.write_i32(enh.solar_panel->tick_interval);
+            w.write_i32(enh.solar_panel->accumulator);
+        }
     }
     // v14: ship component fields
     w.write_u8(item.ship_slot.has_value() ? 1 : 0);
@@ -342,8 +369,6 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_i32(item.type_affinity.electrical);
     w.write_i32(item.type_affinity.cryo);
     w.write_i32(item.type_affinity.acid);
-    w.write_i32(item.shield_capacity);
-    w.write_i32(item.shield_hp);
     // v44: cooking — DishOutput on Food, teaches_recipe_id on Cookbook
     w.write_u8(item.dish.has_value() ? 1 : 0);
     if (item.dish) {
@@ -381,11 +406,33 @@ static Item read_item(BinaryReader& r) {
     bool has_ranged = r.read_u8() != 0;
     if (has_ranged) {
         RangedData rd;
-        rd.charge_capacity = r.read_i32();
-        rd.charge_per_shot = r.read_i32();
-        rd.current_charge = r.read_i32();
         rd.max_range = r.read_i32();
         item.ranged = rd;
+    }
+    // v46: energy / consumer
+    bool has_energy = r.read_u8() != 0;
+    if (has_energy) {
+        EnergyStore e;
+        e.current = r.read_i32();
+        e.capacity = r.read_i32();
+        item.energy = e;
+    }
+    bool has_consumer = r.read_u8() != 0;
+    if (has_consumer) {
+        EnergyConsumer c;
+        c.energy_per_use = r.read_i32();
+        item.consumer = c;
+    }
+    // v47: cell proc
+    bool has_proc = r.read_u8() != 0;
+    if (has_proc) {
+        CellProc p;
+        p.kind = static_cast<CellProcKind>(r.read_u8());
+        p.magnitude = r.read_i32();
+        p.duration = r.read_i32();
+        p.threshold = r.read_i32();
+        p.accumulator = r.read_i32();
+        item.proc = p;
     }
     // Enhancement slots
     item.enhancement_slots = r.read_i32();
@@ -396,11 +443,22 @@ static Item read_item(BinaryReader& r) {
         item.enhancements[i].committed = r.read_u8() != 0;
         item.enhancements[i].material_id = r.read_u32();
         item.enhancements[i].material_name = r.read_string();
-        item.enhancements[i].bonus.av = r.read_i32();
-        item.enhancements[i].bonus.dv = r.read_i32();
-        item.enhancements[i].bonus.max_hp = r.read_i32();
-        item.enhancements[i].bonus.view_radius = r.read_i32();
-        item.enhancements[i].bonus.quickness = r.read_i32();
+        item.enhancements[i].stat_bonus.av = r.read_i32();
+        item.enhancements[i].stat_bonus.dv = r.read_i32();
+        item.enhancements[i].stat_bonus.max_hp = r.read_i32();
+        item.enhancements[i].stat_bonus.view_radius = r.read_i32();
+        item.enhancements[i].stat_bonus.quickness = r.read_i32();
+        item.enhancements[i].energy_bonus.capacity_bonus = r.read_i32();
+        item.enhancements[i].energy_bonus.charge_rate_bonus = r.read_i32();
+        item.enhancements[i].energy_bonus.discharge_efficiency = r.read_i32();
+        if (r.read_u8() != 0) {
+            SolarPanelData sp;
+            sp.active = r.read_u8() != 0;
+            sp.energy_per_tick = r.read_i32();
+            sp.tick_interval = r.read_i32();
+            sp.accumulator = r.read_i32();
+            item.enhancements[i].solar_panel = sp;
+        }
     }
     // Ship component fields
     bool has_ship_slot = r.read_u8() != 0;
@@ -419,8 +477,6 @@ static Item read_item(BinaryReader& r) {
     item.type_affinity.electrical = r.read_i32();
     item.type_affinity.cryo = r.read_i32();
     item.type_affinity.acid = r.read_i32();
-    item.shield_capacity = r.read_i32();
-    item.shield_hp = r.read_i32();
     // v44: cooking fields
     bool has_dish = r.read_u8() != 0;
     if (has_dish) {
@@ -657,9 +713,7 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     for (const auto& item : p.ship.cargo) write_item(w, item);
     // v15: tab help seen bitfield
     w.write_u16(p.tab_help_seen);
-    // v26: shield HP and kinetic resistance
-    w.write_i32(p.shield_hp);
-    w.write_i32(p.shield_max_hp);
+    // v26: kinetic resistance
     w.write_i32(p.resistances.kinetic);
     // v43: manual-sourced auras (item/effect/skill-sourced re-derive on load)
     {
@@ -1518,8 +1572,6 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.ship.cargo[i] = read_item(r);
     }
     p.tab_help_seen = r.read_u16();
-    p.shield_hp = r.read_i32();
-    p.shield_max_hp = r.read_i32();
     p.resistances.kinetic = r.read_i32();
     // v43: manual-sourced auras; derived auras repopulated after load
     {

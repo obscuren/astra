@@ -17,6 +17,7 @@
 #include "astra/character_creation.h"
 #include "astra/character_screen.h"
 #include "astra/combat_system.h"
+#include "astra/energy_system.h"
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
 #include "astra/event_bus.h"
@@ -150,6 +151,9 @@ public:
     std::pair<int,int> bfs_step_toward(int gx, int gy) const;
     void open_repair_bench();
     void open_lore_viewer() { lore_viewer_.open(world_.lore()); }
+    void open_cell_picker(bool target_is_shield);
+    void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
+    bool handle_cell_picker_input(int key);  // returns true if input was consumed
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
     void rebuild_star_chart_viewer();
@@ -226,7 +230,7 @@ private:
     void use_item(int index);
     void equip_item(int index);
     void unequip_slot(int index);
-    void reload_weapon();
+    void recharge_weapon();
     void remove_dead_npcs();
     void check_player_death();
     void check_level_up();
@@ -256,6 +260,7 @@ private:
     void render_lost_popup();
     void render_pause_menu();
     void render_quit_confirm();
+    void render_cell_picker();
 
     // Layout
     void compute_layout();
@@ -302,6 +307,7 @@ private:
     CharacterScreen character_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
+    EnergySystem energy_;
     Telegraph telegraph_;
     QuestManager quest_manager_;
     RepairBench repair_bench_;
@@ -359,6 +365,13 @@ private:
     DialogManager dialog_;
     MenuState pause_menu_;
     MenuState quit_confirm_;
+
+    // Cell picker — manual single-cell recharge modal
+    enum class CellPickerTarget : uint8_t { EquippedWeapon, EquippedShield, InventoryItem };
+    MenuState cell_picker_;
+    CellPickerTarget cell_picker_target_kind_ = CellPickerTarget::EquippedWeapon;
+    int cell_picker_target_inv_idx_ = -1;       // used when target_kind_ == InventoryItem
+    std::vector<int> cell_picker_indices_;        // parallel inv-index list
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

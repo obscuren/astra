@@ -538,13 +538,17 @@ void Game::use_item(int index) {
                 log("No ranged weapon equipped to recharge.");
                 return;
             }
-            auto& rd = *eq->ranged;
-            if (rd.current_charge >= rd.charge_capacity) {
+            if (!eq->energy) {
+                log("Weapon has no energy store.");
+                return;
+            }
+            auto& e = *eq->energy;
+            if (e.current >= e.capacity) {
                 log("Weapon is already fully charged.");
                 return;
             }
-            int added = std::min(5, rd.charge_capacity - rd.current_charge);
-            rd.current_charge += added;
+            int added = std::min(5, e.capacity - e.current);
+            e.current += added;
             log("You recharge " + eq->name + ". (+" + std::to_string(added) + " charge)");
             break;
         }
@@ -966,6 +970,7 @@ void Game::render_play() {
     character_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
+    render_cell_picker();
 
     // Welcome screen overlay
     if (show_welcome_) {
@@ -1099,18 +1104,19 @@ void Game::render_bars() {
 
     // Shield bar (always visible)
     {
-        std::string sh_val = player_.shield_max_hp > 0
-            ? std::to_string(player_.shield_hp) + "/" + std::to_string(player_.shield_max_hp)
+        const EnergyStore* sh = player_.shield_energy();
+        std::string sh_val = sh
+            ? std::to_string(sh->current) + "/" + std::to_string(sh->capacity)
             : "---";
         while (static_cast<int>(sh_val.size()) < val_w) sh_val = " " + sh_val;
         UIContext ctx(renderer_.get(), shield_bar_rect_);
         ctx.text(1, 0, "SH:", Color::DarkGray);
-        ctx.text(4, 0, sh_val, player_.shield_max_hp > 0 ? Color::Cyan : Color::DarkGray);
+        ctx.text(4, 0, sh_val, sh ? Color::Cyan : Color::DarkGray);
         int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
             ctx.progress_bar({.x=bar_start, .y=0, .width=bar_w,
-                              .value=player_.shield_hp,
-                              .max=std::max(player_.shield_max_hp, 1),
+                              .value=sh ? sh->current : 0,
+                              .max=sh ? std::max(sh->capacity, 1) : 1,
                               .tag=UITag::TextBright});
         }
     }
@@ -1446,65 +1452,86 @@ void Game::render_interactables_widget(UIContext& ctx) {
 void Game::render_effects_bar() {
     UIContext ctx(renderer_.get(), effects_rect_);
 
-    // Bar background — a single dark-gray strip spanning the whole row.
     const Color bg = Color::DarkGray;
+    const char* vdiv = "\xe2\x94\x82";  // U+2502 vertical divider
+
+    // Paint the whole row dark gray.
     ctx.text(0, 0, std::string(ctx.width(), ' '), Color::Default, bg);
 
-    // --- Ranged weapon hints (right-aligned) -----------------------------
-    // Rendered first so we know how much width it consumes and can place
-    // the right-hand separator before it.
+    auto put = [&](int& x, std::string_view s, Color fg) {
+        ctx.text(x, 0, s, fg, bg);
+        x += static_cast<int>(s.size());
+    };
+
+    // -----------------------------------------------------------------
+    // Phase 1: pure layout. Compute every column position up front so
+    // the draw phase never has to second-guess what's where.
+    // -----------------------------------------------------------------
+
     const auto& rw = player_.equipment.missile;
-    int ranged_start = ctx.width();  // sentinel: no ranged hint
-    if (rw && rw->ranged) {
-        const auto& rd = *rw->ranged;
-        std::string charge_num = std::to_string(rd.current_charge);
-        std::string cap_num    = std::to_string(rd.charge_capacity);
-        // "[t]arget [s]hoot [r]eload " = 26 chars; charge = num + '/' + num
-        int hint_width = 30 + static_cast<int>(charge_num.size())
-                            + 1
-                            + static_cast<int>(cap_num.size());
-        int ix = ctx.width() - hint_width - 1;
-        ranged_start = ix - 2;  // room for " | " before
+    const EnergyStore* sh = player_.shield_energy();
+    const bool has_weapon = rw && rw->ranged && rw->energy;
+    const bool has_shield = (sh != nullptr);
 
-        const Color charge_color = (rd.current_charge >= rd.charge_per_shot)
-            ? Color::Cyan : Color::Red;
-
-        auto put = [&](int& x, std::string_view s, Color fg) {
-            ctx.text(x, 0, s, fg, bg);
-            x += static_cast<int>(s.size());
-        };
-
-        int x = ix + 2; // Padding left of 2
-        put(x, "[",      Color::White);
-        put(x, "t",      Color::Yellow);
-        put(x, "]arget ", Color::White);
-        put(x, "[",      Color::White);
-        put(x, "s",      Color::Yellow);
-        put(x, "]hoot ", Color::White);
-        put(x, "[",      Color::White);
-        put(x, "r",      Color::Yellow);
-        put(x, "]eload ", Color::White);
-        put(x, charge_num, charge_color);
-        put(x, "/",      Color::White);
-        put(x, cap_num,  charge_color);
-        put(x, "   ",     Color::White);
+    // Weapon section width: "[t]arget [s]hoot [r]echarge X/Y" = 28 + |cur| + 1 + |cap|.
+    std::string w_cur, w_cap;
+    int w_width = 0;
+    int w_x = ctx.width();  // sentinel = absent
+    int w_per_shot = 0;
+    if (has_weapon) {
+        w_cur = std::to_string(rw->energy->current);
+        w_cap = std::to_string(rw->energy->capacity);
+        w_per_shot = rw->consumer ? rw->consumer->energy_per_use : 1;
+        w_width = 28 + (int)w_cur.size() + 1 + (int)w_cap.size();
+        w_x = ctx.width() - w_width - 1;  // 1 col right padding from edge
     }
 
-    // --- Section dividers (black |) --------------------------------------
-    const int target_x = ctx.width() / 2;          // column where TARGET begins
-    const int left_sep_x = target_x - 1;            // | between EFFECTS and TARGET
-    const int right_sep_x = ranged_start;           // | before ranged hint (if any)
+    // Shield section width: "[b] X/Y" = 4 + |cur| + 1 + |cap|.
+    std::string s_cur, s_cap;
+    int s_width = 0;
+    int s_x = ctx.width();  // sentinel = absent
+    if (has_shield) {
+        s_cur = std::to_string(sh->current);
+        s_cap = std::to_string(sh->capacity);
+        s_width = 4 + (int)s_cur.size() + 1 + (int)s_cap.size();
+        if (has_weapon) {
+            // Place to the LEFT of weapon: [shield][space][│][space][weapon]
+            s_x = w_x - s_width - 3;
+        } else {
+            s_x = ctx.width() - s_width - 1;
+        }
+    }
 
-    // Box-drawing vertical (U+2502) for a cleaner visual than ASCII '|'.
-    const char* vdiv = "\xe2\x94\x82";
+    // Leftmost column of the right-side cluster — the column where TARGET
+    // text must stop (with a column of padding before the separator).
+    int right_cluster_x = ctx.width();
+    if (has_shield)      right_cluster_x = s_x;
+    else if (has_weapon) right_cluster_x = w_x;
+
+    // Separator columns. -1 means "do not draw".
+    const int target_x = ctx.width() / 2;
+    const int left_sep_x  = target_x - 1;   // between EFFECTS and TARGET
+    const int right_sep_x = (has_shield || has_weapon) ? right_cluster_x - 2 : -1;
+    const int mid_sep_x   = (has_shield && has_weapon) ? w_x - 2 : -1;
+
+    // -----------------------------------------------------------------
+    // Phase 2: draw separators.
+    // -----------------------------------------------------------------
+
     ctx.text(left_sep_x, 0, vdiv, Color::Black, bg);
-    if (right_sep_x < ctx.width()) {
+    if (right_sep_x >= 0 && right_sep_x < ctx.width()) {
         ctx.text(right_sep_x, 0, vdiv, Color::Black, bg);
     }
+    if (mid_sep_x >= 0 && mid_sep_x < ctx.width()) {
+        ctx.text(mid_sep_x, 0, vdiv, Color::Black, bg);
+    }
 
-    // --- EFFECTS section -------------------------------------------------
+    // -----------------------------------------------------------------
+    // Phase 3: EFFECTS section (left).
+    // -----------------------------------------------------------------
+
     ctx.text(1, 0, "EFFECTS:", Color::White, bg);
-    int ex = 1 + 8 + 1;  // after "EFFECTS: "
+    int ex = 1 + 8 + 1;
     bool any_effect = false;
     for (const auto& e : player_.effects) {
         if (!e.show_in_bar) continue;
@@ -1513,33 +1540,86 @@ void Game::render_effects_bar() {
         if (e.remaining > 0) {
             label += "(" + std::to_string(e.remaining) + ")";
         }
-        // Stop if we'd overflow into the left separator.
-        if (ex + static_cast<int>(label.size()) >= left_sep_x) break;
+        if (ex + (int)label.size() >= left_sep_x) break;
         ctx.text(ex, 0, label, e.color, bg);
-        ex += static_cast<int>(label.size()) + 1;
+        ex += (int)label.size() + 1;
     }
     if (!any_effect) {
         ctx.text(ex, 0, "[none]", Color::DarkGray, bg);
     }
 
-    // --- TARGET section --------------------------------------------------
-    int tx = target_x + 2;  // one space of padding after the │
-    ctx.text(tx, 0, " TARGET:", Color::White, bg);
-    tx += 7;
-    if (combat_.target_npc() && combat_.target_npc()->alive()) {
-        std::string info = " " + combat_.target_npc()->label() +
-            " (" + std::to_string(combat_.target_npc()->hp) + "/" +
-            std::to_string(combat_.target_npc()->max_hp) + ")";
-        Color tc = Color::DarkGray;
-        if (is_hostile_to_player(combat_.target_npc()->faction, player_)) {
-            tc = Color::Red;
-        } else {
-            auto tier = reputation_tier(reputation_for(player_, combat_.target_npc()->faction));
-            tc = (tier <= ReputationTier::Disliked) ? Color::Yellow : Color::Green;
+    // -----------------------------------------------------------------
+    // Phase 4: TARGET section (middle), clipped to right_sep_x - 1.
+    // -----------------------------------------------------------------
+
+    const int target_clip_x = (right_sep_x >= 0) ? right_sep_x : ctx.width();
+    int tx = target_x + 2;  // 1 col padding after the left separator
+    {
+        // " TARGET:" is 8 chars; clip if even the label wouldn't fit.
+        std::string_view label = " TARGET:";
+        int label_len = (int)label.size();
+        int avail = target_clip_x - tx - 1;
+        if (avail > 0) {
+            if (label_len > avail) {
+                ctx.text(tx, 0, label.substr(0, avail), Color::White, bg);
+            } else {
+                ctx.text(tx, 0, label, Color::White, bg);
+                tx += label_len;
+                avail -= label_len;
+                if (combat_.target_npc() && combat_.target_npc()->alive()) {
+                    std::string info = " " + combat_.target_npc()->label() +
+                        " (" + std::to_string(combat_.target_npc()->hp) + "/" +
+                        std::to_string(combat_.target_npc()->max_hp) + ")";
+                    if ((int)info.size() > avail) info = info.substr(0, avail);
+                    Color tc = Color::DarkGray;
+                    if (is_hostile_to_player(combat_.target_npc()->faction, player_)) {
+                        tc = Color::Red;
+                    } else {
+                        auto tier = reputation_tier(reputation_for(player_, combat_.target_npc()->faction));
+                        tc = (tier <= ReputationTier::Disliked) ? Color::Yellow : Color::Green;
+                    }
+                    ctx.text(tx, 0, info, tc, bg);
+                } else if (avail >= 7) {
+                    ctx.text(tx, 0, " [none]", Color::DarkGray, bg);
+                }
+            }
         }
-        ctx.text(tx, 0, info, tc, bg);
-    } else {
-        ctx.text(tx, 0, " [none]", Color::DarkGray, bg);
+    }
+
+    // -----------------------------------------------------------------
+    // Phase 5: SHIELD section.
+    // -----------------------------------------------------------------
+
+    if (has_shield) {
+        const Color sc = (sh->current > 0) ? Color::Cyan : Color::Red;
+        int x = s_x;
+        put(x, "[",   Color::White);
+        put(x, "b",   Color::Yellow);
+        put(x, "] ",  Color::White);
+        put(x, s_cur, sc);
+        put(x, "/",   Color::White);
+        put(x, s_cap, sc);
+    }
+
+    // -----------------------------------------------------------------
+    // Phase 6: WEAPON section.
+    // -----------------------------------------------------------------
+
+    if (has_weapon) {
+        const Color cc = (rw->energy->current >= w_per_shot) ? Color::Cyan : Color::Red;
+        int x = w_x;
+        put(x, "[",         Color::White);
+        put(x, "t",         Color::Yellow);
+        put(x, "]arget ",   Color::White);
+        put(x, "[",         Color::White);
+        put(x, "s",         Color::Yellow);
+        put(x, "]hoot ",    Color::White);
+        put(x, "[",         Color::White);
+        put(x, "r",         Color::Yellow);
+        put(x, "]echarge ", Color::White);
+        put(x, w_cur,       cc);
+        put(x, "/",         Color::White);
+        put(x, w_cap,       cc);
     }
 }
 
@@ -1968,6 +2048,54 @@ void Game::render_quit_confirm() {
     if (list_h > 0) {
         auto list_area = ctx.sub(Rect{0, y, cw, list_h});
         list_area.list({.items = items, .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cell picker modal — manual single-cell recharge
+// ---------------------------------------------------------------------------
+
+void Game::render_cell_picker() {
+    if (!cell_picker_.open) return;
+
+    int option_count = static_cast<int>(cell_picker_.options.size());
+    if (option_count == 0) return;
+
+    int content_w = 0;
+    for (const auto& opt : cell_picker_.options) {
+        int w = 6 + static_cast<int>(opt.label.size());
+        if (w > content_w) content_w = w;
+    }
+    int win_w = content_w + 6;
+    if (win_w < 36) win_w = 36;
+    int max_w = static_cast<int>(screen_w_ * 0.55f);
+    if (win_w > max_w) win_w = max_w;
+
+    int content_h = 1 + option_count * 2 - 1 + 1;
+    int chrome_h = 2 + 2 + 1; // border + title+sep + footer
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = cell_picker_.title, .footer = "[Esc] Cancel"});
+
+    std::vector<ListItem> items;
+    int sel = cell_picker_.selection;
+    for (int i = 0; i < option_count; ++i) {
+        std::string label = "[" + std::string(1, cell_picker_.options[i].key) + "] " +
+                            cell_picker_.options[i].label;
+        items.push_back({label, UITag::OptionNormal, i == sel});
+    }
+    int y = 1;
+    int list_h = ctx.height() - y;
+    if (list_h > 0) {
+        int scroll = 0;
+        if (sel >= list_h) scroll = sel - list_h + 1;
+        auto list_area = ctx.sub(Rect{0, y, ctx.width(), list_h});
+        list_area.list({.items = items, .scroll_offset = scroll,
+                        .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
     }
 }
 
