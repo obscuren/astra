@@ -856,9 +856,9 @@ void CharacterScreen::execute_context_action(char key) {
             player_->inventory.items.push_back(std::move(*equipped));
             equipped.reset();
         } else if (key == 'u') {
-            if (equipped->ranged && equipped->ranged->current_charge > 0) {
-                context_message_ = "Unloaded " + std::to_string(equipped->ranged->current_charge) + " charge.";
-                equipped->ranged->current_charge = 0;
+            if (equipped->ranged && equipped->energy && equipped->energy->current > 0) {
+                context_message_ = "Unloaded " + std::to_string(equipped->energy->current) + " charge.";
+                equipped->energy->current = 0;
             } else {
                 context_message_ = "Nothing to unload.";
             }
@@ -903,9 +903,9 @@ void CharacterScreen::execute_context_action(char key) {
         } else if (key == 'u') {
             auto& item = items[inv_cursor_];
             if (item.ranged) {
-                if (item.ranged->current_charge > 0) {
-                    context_message_ = "Unloaded " + std::to_string(item.ranged->current_charge) + " charge.";
-                    item.ranged->current_charge = 0;
+                if (item.energy && item.energy->current > 0) {
+                    context_message_ = "Unloaded " + std::to_string(item.energy->current) + " charge.";
+                    item.energy->current = 0;
                 } else {
                     context_message_ = "Nothing to unload.";
                 }

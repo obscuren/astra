@@ -306,9 +306,6 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u8(item.usable ? 1 : 0);
     w.write_u8(item.ranged.has_value() ? 1 : 0);
     if (item.ranged) {
-        w.write_i32(item.ranged->charge_capacity);
-        w.write_i32(item.ranged->charge_per_shot);
-        w.write_i32(item.ranged->current_charge);
         w.write_i32(item.ranged->max_range);
     }
     // v46: energy / consumer
@@ -400,9 +397,6 @@ static Item read_item(BinaryReader& r) {
     bool has_ranged = r.read_u8() != 0;
     if (has_ranged) {
         RangedData rd;
-        rd.charge_capacity = r.read_i32();
-        rd.charge_per_shot = r.read_i32();
-        rd.current_charge = r.read_i32();
         rd.max_range = r.read_i32();
         item.ranged = rd;
     }

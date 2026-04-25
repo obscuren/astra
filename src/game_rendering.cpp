@@ -538,13 +538,17 @@ void Game::use_item(int index) {
                 log("No ranged weapon equipped to recharge.");
                 return;
             }
-            auto& rd = *eq->ranged;
-            if (rd.current_charge >= rd.charge_capacity) {
+            if (!eq->energy) {
+                log("Weapon has no energy store.");
+                return;
+            }
+            auto& e = *eq->energy;
+            if (e.current >= e.capacity) {
                 log("Weapon is already fully charged.");
                 return;
             }
-            int added = std::min(5, rd.charge_capacity - rd.current_charge);
-            rd.current_charge += added;
+            int added = std::min(5, e.capacity - e.current);
+            e.current += added;
             log("You recharge " + eq->name + ". (+" + std::to_string(added) + " charge)");
             break;
         }
@@ -1456,10 +1460,11 @@ void Game::render_effects_bar() {
     // the right-hand separator before it.
     const auto& rw = player_.equipment.missile;
     int ranged_start = ctx.width();  // sentinel: no ranged hint
-    if (rw && rw->ranged) {
-        const auto& rd = *rw->ranged;
-        std::string charge_num = std::to_string(rd.current_charge);
-        std::string cap_num    = std::to_string(rd.charge_capacity);
+    if (rw && rw->ranged && rw->energy) {
+        const auto& e = *rw->energy;
+        int energy_per_use = (rw->consumer) ? rw->consumer->energy_per_use : 1;
+        std::string charge_num = std::to_string(e.current);
+        std::string cap_num    = std::to_string(e.capacity);
         // "[t]arget [s]hoot [r]eload " = 26 chars; charge = num + '/' + num
         int hint_width = 30 + static_cast<int>(charge_num.size())
                             + 1
@@ -1467,7 +1472,7 @@ void Game::render_effects_bar() {
         int ix = ctx.width() - hint_width - 1;
         ranged_start = ix - 2;  // room for " | " before
 
-        const Color charge_color = (rd.current_charge >= rd.charge_per_shot)
+        const Color charge_color = (e.current >= energy_per_use)
             ? Color::Cyan : Color::Red;
 
         auto put = [&](int& x, std::string_view s, Color fg) {

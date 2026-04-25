@@ -426,16 +426,19 @@ void draw_item_info(UIContext& ctx, const Item& item) {
 
     if (item.ranged) {
         const auto& rd = *item.ranged;
-        ctx.text(0, y, "Charge: ", Color::DarkGray);
-        int bar_w = std::min(16, ctx.width() - 10);
-        if (bar_w > 0) {
-            ctx.bar(8, y, bar_w, rd.current_charge, rd.charge_capacity,
-                    Color::Cyan, Color::DarkGray);
+        if (item.energy) {
+            const auto& e = *item.energy;
+            ctx.text(0, y, "Charge: ", Color::DarkGray);
+            int bar_w = std::min(16, ctx.width() - 10);
+            if (bar_w > 0) {
+                ctx.bar(8, y, bar_w, e.current, e.capacity,
+                        Color::Cyan, Color::DarkGray);
+            }
+            std::string charge_str = std::to_string(e.current) + "/"
+                                   + std::to_string(e.capacity);
+            ctx.text(8 + bar_w + 1, y, charge_str, Color::Cyan);
+            y++;
         }
-        std::string charge_str = std::to_string(rd.current_charge) + "/"
-                               + std::to_string(rd.charge_capacity);
-        ctx.text(8 + bar_w + 1, y, charge_str, Color::Cyan);
-        y++;
         ctx.label_value(0, y, "Range:     ", Color::DarkGray,
             std::to_string(rd.max_range), Color::White);
         y++;
