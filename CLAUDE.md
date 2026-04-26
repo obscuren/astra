@@ -38,7 +38,8 @@ Key virtual keycodes (`KEY_UP`, `KEY_DOWN`, etc.) are defined in `renderer.h` so
 - Compile definition for SDL: `ASTRA_HAS_SDL`
 - Default compile: Terminal
 - Update `docs/roadmap.md` and checkof boxes as wel implement features.
-- All game formulas go in to `docs/formulas.md` and must be updated.
+- All game mechanics and formulas go in `docs/mechanics.md` and must be updated.
+- All item stats (weapons, armor, cells, mods, etc.) go in `docs/items.md` and must be updated when items change.
 
 ## Rules
 

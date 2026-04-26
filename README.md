@@ -88,7 +88,7 @@ Combat is d20-based. Every attack rolls against the target's **Dodge Value**; on
 
 **Damage types** — Kinetic, Plasma, Electrical, Cryo, Acid. Each has a resistance stat applied as a percentage after penetration, then any active status effects (burn, poison, invulnerable, etc.) modify the final number.
 
-**Weapon dice** scale by rarity (Common `1d4` melee → Legendary `3d6+3` melee; ranged dice are one tier higher). See [`docs/formulas.md`](docs/formulas.md) for the full reference — HP regen, NPC scaling, action costs, day/night view radius, haggle math, and more.
+**Weapon dice** scale by rarity (Common `1d4` melee → Legendary `3d6+3` melee; ranged dice are one tier higher). See [`docs/items.md`](docs/items.md) for the full item catalog and [`docs/mechanics.md`](docs/mechanics.md) for the rules — HP regen, NPC scaling, action costs, day/night view radius, haggle math, and more.
 
 ### Skills
 
@@ -217,7 +217,8 @@ Game behaviour is pulled out of `Game` and into focused classes, each owning one
 
 ### Conventions
 
-- Formulas and constants live in `docs/formulas.md` — if you touch a combat/economy number in code, update the doc in the same commit
+- Mechanics and constants live in `docs/mechanics.md` — if you touch a combat/economy number in code, update the doc in the same commit
+- Item stats (weapons, armor, cells, mods, etc.) live in `docs/items.md` — update when items change
 
 ## Platforms
 

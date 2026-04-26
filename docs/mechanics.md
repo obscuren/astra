@@ -1,6 +1,6 @@
-# Gameplay Formulas
+# Game Mechanics
 
-Reference for all gameplay formulas used in Astra.
+Reference for the rules, formulas, and systems that drive Astra. Item-specific stats (per-weapon dice, per-cell capacity, per-mod effects) live in their own catalog: [`docs/items.md`](items.md).
 
 ## Derived Stats
 
@@ -106,17 +106,9 @@ damage = max(damage, 0)
 ```
 - Invulnerable: `damage_multiplier = 0` (immune to all damage)
 
-### Weapon Damage Dice
+### Weapon damage
 
-| Rarity | Melee | Ranged |
-|---|---|---|
-| Common | 1d4 | 1d6 |
-| Uncommon | 1d6+1 | 1d8+1 |
-| Rare | 2d4+2 | 2d6 |
-| Epic | 2d6+2 | 2d8+1 |
-| Legendary | 3d6+3 | 3d8+2 |
-
-Unarmed: 1d3 Kinetic
+Unarmed: 1d3 Kinetic. Per-weapon dice are listed in [`docs/items.md`](items.md) (Ranged Weapons, Melee Weapons). The dice shown there are the **base** values; `scale_item_to_rarity` multiplies the dice modifier by the rarity tier (×1.00 / ×1.10 / ×1.25 / ×1.45 / ×1.75 for Common→Legendary), and `scale_item_to_level` adds the level multiplier on top.
 
 ### NPC Stat Scaling
 
@@ -673,37 +665,7 @@ Reusable targeting/preview system for abilities. Shapes supported: Line (impleme
 
 Player-side energy is stored on items via `EnergyStore { current, capacity }`. Consumers spend `EnergyConsumer { energy_per_use }` per action.
 
-### Cell tiers
-
-| Tier | Capacity | Tinker Slots |
-|---|---|---|
-| Small Energy Cell | 60 | 1 |
-| Standard Energy Cell | 150 | 1 |
-| Large Energy Cell | 400 | 2 |
-| Industrial Energy Cell | 800 | 2 |
-| Antimatter Cell | 2000 | 3 |
-
-### Weapon energy cost
-
-| Weapon | Capacity | Cost / shot |
-|---|---|---|
-| Plasma Pistol | 20 | 1 |
-| Ion Blaster | 15 | 2 |
-| Pulse Rifle | 30 | 2 |
-| Arc Caster | 12 | 3 |
-| Void Lance | 10 | 4 |
-
-### Solar Panel rates
-
-Solar Panels deposit energy into their host item only when the player is outdoors (overworld or detail map). Indoor zones (dungeons, ship interiors, station interiors) do not advance the panel's accumulator.
-
-| Tier | energy / tick | tick interval |
-|---|---|---|
-| Solar Panel | 5 | 2 |
-| Polished Solar Panel | 8 | 2 |
-| Prismatic Solar Panel | 12 | 2 |
-
-`charge_rate_bonus` from a host's committed enhancements adds an integer-percent bonus to each deposit (`deposit + deposit * pct / 100`).
+> Per-item capacities, costs, and tier breakdowns live in [`docs/items.md`](items.md) (Energy Cells, Energy Mods, Solar Panels, Ranged Weapons).
 
 ### Recharge actions
 
@@ -713,26 +675,18 @@ Solar Panels deposit energy into their host item only when the player is outdoor
 - Inventory interact (`space` on an item with `EnergyStore`) — open the picker for that item, including cell-from-cell transfers.
 - Cost: one `ActionCost::wait` tick. Auto-recharge during `s` (shoot) is free (the shot itself already costs one tick).
 
+### Solar panels
+
+Solar Panels deposit energy into their host item only when the player is outdoors (overworld or detail map). Indoor zones (dungeons, ship interiors, station interiors) do not advance the panel's accumulator. `charge_rate_bonus` from a host's committed enhancements adds an integer-percent bonus to each deposit (`deposit + deposit * pct / 100`).
+
 ### Discharge efficiency
 
 `EnergyModifiers::discharge_efficiency` from any committed slot on the source cell adds +1 free unit to the destination for every N units actually drained (`bonus = drained / N`, `0` disables).
 
-### Energy mod materials (tinkering)
-
-Slotted into a cell's enhancement slots like any tinkering material. Bonuses apply once committed.
-
-| Material | Rarity | Effect |
-|---|---|---|
-| Capacitor Coil | Uncommon | `+30` capacity |
-| Charge Catalyst | Uncommon | `+25%` charge rate |
-| Polished Conduit | Rare | `discharge_efficiency = 5` (+1 free unit per 5 drained) |
-| Reinforced Casing | Common | `+10` capacity |
-| Receptor Plate | Common | `+10%` charge rate |
-| Brass Conduit | Common | `discharge_efficiency = 10` (+1 free unit per 10 drained) |
-| Power Junction | Uncommon | `+15` capacity, `+10%` charge rate |
-| Tuned Catalyst | Rare | `+15%` charge rate, `discharge_efficiency = 8` |
-| Solar Panel | Common | `+5` energy / 2 turns when outdoors |
-| Polished Solar Panel | Uncommon | `+8` energy / 2 turns when outdoors |
-| Prismatic Solar Panel | Rare | `+12` energy / 2 turns when outdoors |
+### Tinker mod stacking
 
 Multiple mods on the same cell stack: the system sums `capacity_bonus`, `charge_rate_bonus`, and `discharge_efficiency` across all committed slots.
+
+### Cell procs (Legendary specialty cells)
+
+Some cells fire a one-off effect once per `threshold` units actually drained from them. Each cell carries a `CellProc { kind, magnitude, duration, threshold, accumulator }`. The accumulator is per-instance and persists across drains. See [`docs/items.md`](items.md#legendary-specialty-cells-procs) for the catalog.
