@@ -592,8 +592,8 @@ bool CharacterScreen::handle_input(int key) {
                     player_->journal.push_back(make_blueprint_journal_entry(
                         bp.name, bp.description, item_name, 0, "Unknown"));
                 }
-                if (!result.success) {
-                    // Item destroyed — remove from inventory
+                if (result.consumed) {
+                    // Item destroyed during analysis — remove from inventory
                     if (workbench_inv_idx_ >= 0 && workbench_inv_idx_ < static_cast<int>(player_->inventory.items.size())) {
                         player_->inventory.items.erase(player_->inventory.items.begin() + workbench_inv_idx_);
                     }
@@ -605,7 +605,7 @@ bool CharacterScreen::handle_input(int key) {
                 auto result = salvage_item(*workbench_item_, *player_, rng_);
                 context_message_ = result.message;
                 context_msg_timer_ = 3;
-                if (result.success) {
+                if (result.consumed) {
                     if (workbench_inv_idx_ >= 0 && workbench_inv_idx_ < static_cast<int>(player_->inventory.items.size())) {
                         player_->inventory.items.erase(player_->inventory.items.begin() + workbench_inv_idx_);
                     }

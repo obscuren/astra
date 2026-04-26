@@ -105,13 +105,13 @@ int repair_cost(const Item& item) {
 
 TinkerResult repair_item(Item& item, Player& player) {
     if (!player_has_skill(player, SkillId::BasicRepair))
-        return {false, "Requires Basic Repair skill."};
+        return {false, false, "Requires Basic Repair skill."};
 
     if (item.max_durability <= 0)
-        return {false, "This item cannot be repaired."};
+        return {false, false, "This item cannot be repaired."};
 
     if (item.durability >= item.max_durability)
-        return {false, "Already at full durability."};
+        return {false, false, "Already at full durability."};
 
     int cost = repair_cost(item);
 
@@ -124,7 +124,7 @@ TinkerResult repair_item(Item& item, Player& player) {
         }
     }
     if (fiber_idx < 0 || player.inventory.items[fiber_idx].stack_count < cost)
-        return {false, "Need " + std::to_string(cost) + " Nano-Fiber. (have " +
+        return {false, false, "Need " + std::to_string(cost) + " Nano-Fiber. (have " +
                 (fiber_idx >= 0 ? std::to_string(player.inventory.items[fiber_idx].stack_count) : "0") + ")"};
 
     // Consume Nano-Fiber
@@ -133,7 +133,7 @@ TinkerResult repair_item(Item& item, Player& player) {
         player.inventory.items.erase(player.inventory.items.begin() + fiber_idx);
 
     item.durability = item.max_durability;
-    return {true, "Repaired! Used " + std::to_string(cost) + " Nano-Fiber."};
+    return {true, false, "Repaired! Used " + std::to_string(cost) + " Nano-Fiber."};
 }
 
 // ---------------------------------------------------------------------------
@@ -142,21 +142,21 @@ TinkerResult repair_item(Item& item, Player& player) {
 
 TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Player& player) {
     if (!player_has_skill(player, SkillId::BasicRepair))
-        return {false, "Requires Basic Repair skill."};
+        return {false, false, "Requires Basic Repair skill."};
 
     if (slot_index < 0 || slot_index >= item.enhancement_slots)
-        return {false, "Slot is locked."};
+        return {false, false, "Slot is locked."};
 
     // Ensure enhancements vector is large enough
     while (static_cast<int>(item.enhancements.size()) <= slot_index)
         item.enhancements.push_back({});
 
     if (item.enhancements[slot_index].filled)
-        return {false, "Slot already filled."};
+        return {false, false, "Slot already filled."};
 
     const MaterialEffect* effect = get_material_effect(material_id);
     if (!effect)
-        return {false, "This material cannot be used for enhancement."};
+        return {false, false, "This material cannot be used for enhancement."};
 
     // Find and consume material from inventory
     int mat_idx = -1;
@@ -167,7 +167,7 @@ TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Play
         }
     }
     if (mat_idx < 0)
-        return {false, "You don't have this material."};
+        return {false, false, "You don't have this material."};
 
     // Consume 1
     if (player.inventory.items[mat_idx].stack_count > 1) {
@@ -185,7 +185,7 @@ TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Play
     slot.energy_bonus = effect->energy_bonus;
     slot.solar_panel  = effect->solar_panel;
 
-    return {true, "Slotted " + std::string(effect->name) + ". [f] Assemble to apply."};
+    return {true, false, "Slotted " + std::string(effect->name) + ". [f] Assemble to apply."};
 }
 
 TinkerResult commit_enhancements(Item& item) {
@@ -203,19 +203,19 @@ TinkerResult commit_enhancements(Item& item) {
         }
     }
     if (applied == 0)
-        return {false, "Nothing to assemble."};
-    return {true, "Assembled! " + std::to_string(applied) + " enhancement(s) applied to " + item.name + "."};
+        return {false, false, "Nothing to assemble."};
+    return {true, false, "Assembled! " + std::to_string(applied) + " enhancement(s) applied to " + item.name + "."};
 }
 
 TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) {
     if (slot_index < 0 || slot_index >= static_cast<int>(item.enhancements.size()))
-        return {false, "Invalid slot."};
+        return {false, false, "Invalid slot."};
 
     auto& slot = item.enhancements[slot_index];
     if (!slot.filled)
-        return {false, "Slot is empty."};
+        return {false, false, "Slot is empty."};
     if (slot.committed)
-        return {false, "Cannot remove committed enhancements."};
+        return {false, false, "Cannot remove committed enhancements."};
 
     // Return material to inventory
     const MaterialEffect* effect = get_material_effect(slot.material_id);
@@ -259,7 +259,7 @@ TinkerResult clear_enhancement_slot(Item& item, int slot_index, Player& player) 
 
     std::string name = slot.material_name;
     slot = {}; // reset slot
-    return {true, "Removed " + name + " from slot."};
+    return {true, false, "Removed " + name + " from slot."};
 }
 
 bool has_pending_enhancements(const Item& item) {
@@ -273,11 +273,12 @@ bool has_pending_enhancements(const Item& item) {
 // ---------------------------------------------------------------------------
 
 TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
+    // Pre-flight failures: action didn't run, item is untouched.
     if (!player_has_skill(player, SkillId::Cat_Tinkering))
-        return {false, "Requires Tinkering skill unlocked."};
+        return {false, false, "Requires Tinkering skill unlocked."};
 
     if (!item.slot.has_value())
-        return {false, "Can only analyze equipment."};
+        return {false, false, "Can only analyze equipment."};
 
     // Find blueprints for this item's type
     std::vector<const BlueprintEntry*> candidates;
@@ -291,7 +292,7 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
         }
     }
     if (candidates.empty())
-        return {false, "Nothing to learn from this item."};
+        return {false, false, "Nothing to learn from this item."};
 
     // Pick a random blueprint not already known
     std::vector<const BlueprintEntry*> unknown;
@@ -303,7 +304,7 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
         if (!known) unknown.push_back(bp);
     }
     if (unknown.empty())
-        return {false, "You already know all blueprints from this type."};
+        return {false, false, "You already know all blueprints from this type."};
 
     auto* chosen = unknown[std::uniform_int_distribution<size_t>(0, unknown.size() - 1)(rng)];
 
@@ -317,10 +318,11 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
     std::string msg = "Learned blueprint: " + std::string(chosen->name) + "!";
     if (!survived) {
         msg += " The item was destroyed in the process.";
-        // Caller should remove the item from workbench/inventory
     }
 
-    return {survived, msg}; // success=true means item survived, false means destroyed
+    // Action succeeded (blueprint learned). consumed=true only when the item
+    // was destroyed by the survival roll.
+    return {true, !survived, msg};
 }
 
 // ---------------------------------------------------------------------------
@@ -329,10 +331,10 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
 
 TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng) {
     if (!player_has_skill(player, SkillId::Disassemble))
-        return {false, "Requires Disassemble skill."};
+        return {false, false, "Requires Disassemble skill."};
 
     if (item.type == ItemType::QuestItem)
-        return {false, "Cannot salvage quest items."};
+        return {false, false, "Cannot salvage quest items."};
 
     // Yield: 1-3 random materials. More for rarer items.
     int base_yield = 1;
@@ -365,7 +367,7 @@ TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng) {
         }
     }
 
-    return {true, "Salvaged " + item.name + ". Received " + std::to_string(yield) + " materials."};
+    return {true, true, "Salvaged " + item.name + ". Received " + std::to_string(yield) + " materials."};
 }
 
 // ---------------------------------------------------------------------------
@@ -460,11 +462,11 @@ static const char* s_material_names[4] = {"Nano-Fiber", "Power Core", "Circuit B
 TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
                               Player& player, std::mt19937& rng) {
     if (!player_has_skill(player, SkillId::Cat_Tinkering))
-        return {false, "Requires Tinkering skill unlocked."};
+        return {false, false, "Requires Tinkering skill unlocked."};
 
     const auto* recipe = find_recipe(bp1, bp2);
     if (!recipe)
-        return {false, "No known recipe for this combination."};
+        return {false, false, "No known recipe for this combination."};
 
     // Check material costs
     for (int m = 0; m < 4; ++m) {
@@ -474,7 +476,7 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
             if (it.id == s_material_ids[m]) have = it.stack_count;
         }
         if (have < recipe->material_cost[m])
-            return {false, "Need " + std::to_string(recipe->material_cost[m]) + " " +
+            return {false, false, "Need " + std::to_string(recipe->material_cost[m]) + " " +
                     s_material_names[m] + " (have " + std::to_string(have) + ")."};
     }
 
@@ -540,7 +542,7 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     std::string result_name = item.name;
     player.inventory.items.push_back(std::move(item));
 
-    return {true, "Synthesized: " + result_name + "!"};
+    return {true, false, "Synthesized: " + result_name + "!"};
 }
 
 } // namespace astra

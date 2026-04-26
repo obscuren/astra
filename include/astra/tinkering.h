@@ -43,7 +43,8 @@ const std::vector<BlueprintEntry>& blueprint_catalog();
 // --- Tinkering actions ---
 
 struct TinkerResult {
-    bool success = false;
+    bool success = false;        // did the action achieve its intent?
+    bool consumed = false;       // should the caller remove the item from inventory?
     std::string message;
 };
 
