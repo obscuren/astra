@@ -1422,12 +1422,12 @@ void Game::open_cell_picker(bool target_is_shield) {
     }
 
     // Build option list: cells with current > 0, sorted by charge descending
-    struct CellEntry { int inv_idx; int charge; int capacity; std::string name; };
+    struct CellEntry { int inv_idx; int charge; std::string label; };
     std::vector<CellEntry> entries;
     for (int i = 0; i < (int)player_.inventory.items.size(); ++i) {
         const auto& it = player_.inventory.items[i];
         if (it.type == ItemType::Battery && it.energy && it.energy->current > 0) {
-            entries.push_back({i, it.energy->current, it.energy->capacity, it.name});
+            entries.push_back({i, it.energy->current, display_name(it)});
         }
     }
     if (entries.empty()) {
@@ -1441,9 +1441,7 @@ void Game::open_cell_picker(bool target_is_shield) {
     cell_picker_.title = target_is_shield ? "Recharge Shield from..." : "Recharge Weapon from...";
     char hk = '1';
     for (const auto& e : entries) {
-        std::string label = e.name + " - " + std::to_string(e.charge) + "/" +
-                            std::to_string(e.capacity) + " charge";
-        cell_picker_.add_option(hk++, label);
+        cell_picker_.add_option(hk++, e.label);
         if (hk > '9') hk = 'a';
     }
     cell_picker_.selection = 0;
@@ -1466,13 +1464,13 @@ void Game::open_cell_picker_for_item(int inventory_index) {
         return;
     }
 
-    struct CellEntry { int inv_idx; int charge; int capacity; std::string name; };
+    struct CellEntry { int inv_idx; int charge; std::string label; };
     std::vector<CellEntry> entries;
     for (int i = 0; i < (int)player_.inventory.items.size(); ++i) {
         if (i == inventory_index) continue;
         const auto& it = player_.inventory.items[i];
         if (it.type == ItemType::Battery && it.energy && it.energy->current > 0) {
-            entries.push_back({i, it.energy->current, it.energy->capacity, it.name});
+            entries.push_back({i, it.energy->current, display_name(it)});
         }
     }
     if (entries.empty()) {
@@ -1486,9 +1484,7 @@ void Game::open_cell_picker_for_item(int inventory_index) {
     cell_picker_.title = "Recharge " + target_item.name + " from...";
     char hk = '1';
     for (const auto& e : entries) {
-        std::string label = e.name + " - " + std::to_string(e.charge) + "/" +
-                            std::to_string(e.capacity) + " charge";
-        cell_picker_.add_option(hk++, label);
+        cell_picker_.add_option(hk++, e.label);
         if (hk > '9') hk = 'a';
     }
     cell_picker_.selection = 0;

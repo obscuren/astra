@@ -1270,6 +1270,58 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_SHIELD_GENERATOR:    return {'#', nullptr, Color::Cyan, Color::Default};
         case ITEM_NAVI_COMPUTER_MK2:   return {'#', nullptr, Color::Green, Color::Default};
 
+        // Cooking ingredients (49-53)
+        case ITEM_RAW_MEAT:            return {'%', nullptr, Color::Red, Color::Default};
+        case ITEM_CARROT:              return {'%', nullptr, static_cast<Color>(208), Color::Default}; // orange
+        case ITEM_FLOUR:               return {'%', nullptr, Color::White, Color::Default};
+        case ITEM_HERBS:               return {'%', nullptr, Color::Green, Color::Default};
+        case ITEM_SYNTH_PROTEIN:       return {'%', nullptr, Color::Cyan, Color::Default};
+
+        // Cooked dishes (54-59) — brighter colors than raw ingredients
+        case ITEM_COOKED_MEAT:         return {'%', nullptr, static_cast<Color>(196), Color::Default};
+        case ITEM_BOWL_OF_BROTH:       return {'%', nullptr, Color::Yellow, Color::Default};
+        case ITEM_FLATBREAD:           return {'%', nullptr, Color::BrightWhite, Color::Default};
+        case ITEM_HEARTY_STEW:         return {'%', nullptr, Color::BrightYellow, Color::Default};
+        case ITEM_PROTEIN_BAKE:        return {'%', nullptr, static_cast<Color>(51), Color::Default};
+        case ITEM_HEROS_FEAST:         return {'%', nullptr, Color::BrightMagenta, Color::Default};
+
+        // Burnt Slop (60) — failure output
+        case ITEM_BURNT_SLOP:          return {'%', nullptr, Color::DarkGray, Color::Default};
+
+        // Cookbooks (61-63) — '?' is conventional for scrolls/books in roguelikes
+        case ITEM_COOKBOOK_HEARTY_STEW:  return {'?', nullptr, Color::BrightYellow, Color::Default};
+        case ITEM_COOKBOOK_PROTEIN_BAKE: return {'?', nullptr, static_cast<Color>(51), Color::Default};
+        case ITEM_COOKBOOK_HEROS_FEAST:  return {'?', nullptr, Color::BrightMagenta, Color::Default};
+
+        // Energy cells (70-74) — '=' family in tier colors
+        case ITEM_SMALL_ENERGY_CELL:      return {'=', nullptr, Color::White, Color::Default};
+        case ITEM_STANDARD_ENERGY_CELL:   return {'=', nullptr, Color::Green, Color::Default};
+        case ITEM_LARGE_ENERGY_CELL:      return {'=', nullptr, Color::Cyan, Color::Default};
+        case ITEM_INDUSTRIAL_ENERGY_CELL: return {'=', nullptr, Color::Blue, Color::Default};
+        case ITEM_ANTIMATTER_CELL:        return {'=', nullptr, Color::Magenta, Color::Default};
+
+        // Solar panel mods (80-82)
+        case ITEM_SOLAR_PANEL_COMMON:     return {'*', nullptr, Color::Yellow, Color::Default};
+        case ITEM_SOLAR_PANEL_UNCOMMON:   return {'*', nullptr, Color::BrightYellow, Color::Default};
+        case ITEM_SOLAR_PANEL_RARE:       return {'*', nullptr, static_cast<Color>(208), Color::Default};
+
+        // Energy enhancement mods (83-85)
+        case ITEM_CAPACITOR_COIL:         return {'*', nullptr, Color::Cyan, Color::Default};
+        case ITEM_CHARGE_CATALYST:        return {'*', nullptr, Color::Green, Color::Default};
+        case ITEM_POLISHED_CONDUIT:       return {'*', nullptr, Color::Blue, Color::Default};
+
+        // Legendary specialty cells with procs (86-88) — '=' family, legendary orange
+        case ITEM_BULWARK_CELL:           return {'=', nullptr, static_cast<Color>(208), Color::Default};
+        case ITEM_VOLATILE_CELL:          return {'=', nullptr, static_cast<Color>(196), Color::Default};
+        case ITEM_ADRENAL_CELL:           return {'=', nullptr, Color::BrightMagenta, Color::Default};
+
+        // Minor energy mods for cell customization (89-93)
+        case ITEM_REINFORCED_CASING:      return {'*', nullptr, Color::White, Color::Default};
+        case ITEM_RECEPTOR_PLATE:         return {'*', nullptr, Color::DarkGray, Color::Default};
+        case ITEM_BRASS_CONDUIT:          return {'*', nullptr, Color::Yellow, Color::Default};
+        case ITEM_POWER_JUNCTION:         return {'*', nullptr, static_cast<Color>(51), Color::Default};
+        case ITEM_TUNED_CATALYST:         return {'*', nullptr, static_cast<Color>(46), Color::Default};
+
         // Synthesized items (1000+)
         case ITEM_SYNTH_PLASMA_EDGE:       return {'/', nullptr, Color::Cyan, Color::Default};
         case ITEM_SYNTH_THRUSTER_PLATE:    return {'[', nullptr, Color::Yellow, Color::Default};

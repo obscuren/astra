@@ -129,6 +129,33 @@ void UIContext::text(int x, int y, std::string_view s, Color fg) {
     }
 }
 
+int UIContext::rich_visible_length(std::string_view s) {
+    int col = 0;
+    size_t i = 0;
+    while (i < s.size()) {
+        unsigned char ch = static_cast<unsigned char>(s[i]);
+        if (ch == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < s.size()) {
+            i += 2;
+            continue;
+        }
+        if (ch == static_cast<unsigned char>(COLOR_END)) {
+            ++i;
+            continue;
+        }
+        if (ch < 0x80) {
+            ++i;
+        } else {
+            int seq_len = 1;
+            if ((ch & 0xE0) == 0xC0) seq_len = 2;
+            else if ((ch & 0xF0) == 0xE0) seq_len = 3;
+            else if ((ch & 0xF8) == 0xF0) seq_len = 4;
+            i += seq_len;
+        }
+        ++col;
+    }
+    return col;
+}
+
 void UIContext::text_rich(int x, int y, std::string_view s, Color default_fg) {
     Color cur = default_fg;
     int col = 0;
@@ -358,42 +385,12 @@ void TextList::draw(UIContext& ctx, const std::deque<std::string>& lines,
 
 // --- Item name rendering ---
 
-int draw_item_name(UIContext& ctx, int x, int y, const Item& item, bool selected) {
-    Color name_color = selected ? Color::White : rarity_color(item.rarity);
-    ctx.text(x, y, item.name, name_color);
-    x += static_cast<int>(item.name.size());
-
-    // Dice suffix for weapons/grenades (in dim white)
-    if (!item.damage_dice.empty()) {
-        std::string dice = " - " + item.damage_dice.to_string();
-        ctx.text(x, y, dice, Color::DarkGray);
-        x += static_cast<int>(dice.size());
-    }
-
-    // Charge suffix for energy cells: " - <cyan>cur/cap</cyan> charge"
-    if (item.type == ItemType::Battery && item.energy) {
-        std::string sep = " - ";
-        ctx.text(x, y, sep, Color::DarkGray);
-        x += (int)sep.size();
-        std::string cur = std::to_string(item.energy->current);
-        std::string cap = std::to_string(item.energy->capacity);
-        Color num_color = (item.energy->current > 0) ? Color::Cyan : Color::Red;
-        ctx.text(x, y, cur, num_color);
-        x += (int)cur.size();
-        ctx.text(x, y, "/", Color::DarkGray);
-        x += 1;
-        ctx.text(x, y, cap, num_color);
-        x += (int)cap.size();
-        ctx.text(x, y, " charge", Color::DarkGray);
-        x += 7;
-    }
-
-    if (item.stackable && item.stack_count > 1) {
-        std::string stack = " x" + std::to_string(item.stack_count);
-        ctx.text(x, y, stack, Color::White);
-        x += static_cast<int>(stack.size());
-    }
-    return x;
+int draw_item_name(UIContext& ctx, int x, int y, const Item& item, bool /*selected*/) {
+    // Selection highlight is conveyed by the caller's '>' cursor; the rich
+    // display includes glyph + name + slots + dice + energy + stack.
+    std::string rich = display_name(item);
+    ctx.text_rich(x, y, rich);
+    return x + UIContext::rich_visible_length(rich);
 }
 
 // --- Item info ---

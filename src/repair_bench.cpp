@@ -1,5 +1,5 @@
 #include "astra/repair_bench.h"
-#include "terminal_theme.h"
+#include "astra/display_name.h"
 
 namespace astra {
 
@@ -124,20 +124,14 @@ void RepairBench::draw(int screen_w, int screen_h) {
 
     if (bench_item_ >= 0 && bench_item_ < static_cast<int>(player_->inventory.items.size())) {
         const auto& item = player_->inventory.items[bench_item_];
-        auto bench_vis = item_visual(item.item_def_id);
 
-        // Glyph + name in rarity color, centered
-        std::string display = std::string(1, bench_vis.glyph) + " " + item.name;
+        // Rich item line (glyph + name + slots + dice + energy + stack), centered
+        std::string rich = display_name(item);
+        int rich_w = UIContext::rich_visible_length(rich);
         int max_w = wb_content.width();
-        if (static_cast<int>(display.size()) > max_w)
-            display = display.substr(0, max_w);
-        int cx = (max_w - static_cast<int>(display.size())) / 2;
-
-        wb_content.styled_text({.x = cx, .y = 0, .segments = {
-            {std::string(1, bench_vis.glyph), rarity_tag(item.rarity),
-             EntityRef{EntityRef::Kind::Item, item.item_def_id}},
-            {" " + item.name, rarity_tag(item.rarity)},
-        }});
+        int cx = (max_w - rich_w) / 2;
+        if (cx < 0) cx = 0;
+        wb_content.text_rich(cx, 0, rich);
     } else {
         std::string msg = "[Space] to place item";
         int cx = (wb_content.width() - static_cast<int>(msg.size())) / 2;

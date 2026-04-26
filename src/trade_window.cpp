@@ -1,8 +1,8 @@
 #include "astra/trade_window.h"
 #include "astra/character.h"
+#include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/player.h"
-#include "terminal_theme.h"
 
 #include <algorithm>
 
@@ -345,37 +345,12 @@ void TradeWindow::draw_buy_items(UIContext& area, int list_w) {
         int price = compute_price(item, true);
         std::string price_str = std::to_string(price) + "$";
 
-        auto vis = item_visual(item.item_def_id);
-
-        // Build name with optional stack count
-        std::string name = item.name;
-        if (item.stackable && item.stack_count > 1)
-            name += " x" + std::to_string(item.stack_count);
-
-        // Pad between name and price
-        int prefix_len = 3; // "> G " or "  G "
-        int used = prefix_len + static_cast<int>(name.size());
-        int price_len = static_cast<int>(price_str.size());
-        int gap = list_w - used - price_len - 1; // 1 for trailing margin
-        std::string padding;
-        if (gap > 0) padding.assign(gap, ' ');
-
-        std::vector<TextSegment> segs;
-        // Cursor prefix
-        segs.push_back({selected ? "> " : "  ",
-                         selected ? UITag::OptionSelected : UITag::TextDefault});
-        // Glyph
-        segs.push_back({std::string(1, vis.glyph), rarity_tag(item.rarity),
-                         EntityRef{EntityRef::Kind::Item, item.item_def_id}});
-        segs.push_back({" ", UITag::TextDefault});
-        // Name
-        segs.push_back({name, selected ? UITag::OptionSelected : rarity_tag(item.rarity)});
-        // Padding + price
-        if (gap > 0) {
-            segs.push_back({padding + price_str, UITag::TextWarning});
-        }
-
-        area.styled_text({.x = 0, .y = i, .segments = std::move(segs)});
+        // Cursor + rich item label + price aligned to right edge
+        if (selected) area.put(0, i, '>', Color::Yellow);
+        std::string rich = display_name(item);
+        area.text_rich(2, i, rich);
+        int price_x = list_w - static_cast<int>(price_str.size()) - 1;
+        area.text({.x = price_x, .y = i, .content = price_str, .tag = UITag::TextWarning});
     }
 }
 
@@ -410,34 +385,13 @@ void TradeWindow::draw_sell_items(UIContext& area, int list_w) {
         int price = compute_price(item, false);
         std::string price_str = std::to_string(price) + "$";
 
-        auto vis = item_visual(item.item_def_id);
-
-        std::string name = item.name;
-        if (item.stackable && item.stack_count > 1)
-            name += " x" + std::to_string(item.stack_count);
-
-        // Tag cargo items
-        if (from_cargo) name += " [cargo]";
-
-        int prefix_len = 3;
-        int used = prefix_len + static_cast<int>(name.size());
-        int price_len = static_cast<int>(price_str.size());
-        int gap = list_w - used - price_len - 1;
-        std::string padding;
-        if (gap > 0) padding.assign(gap, ' ');
-
-        std::vector<TextSegment> segs;
-        segs.push_back({selected ? "> " : "  ",
-                         selected ? UITag::OptionSelected : UITag::TextDefault});
-        segs.push_back({std::string(1, vis.glyph), rarity_tag(item.rarity),
-                         EntityRef{EntityRef::Kind::Item, item.item_def_id}});
-        segs.push_back({" ", UITag::TextDefault});
-        segs.push_back({name, selected ? UITag::OptionSelected : rarity_tag(item.rarity)});
-        if (gap > 0) {
-            segs.push_back({padding + price_str, UITag::TextWarning});
-        }
-
-        area.styled_text({.x = 0, .y = i, .segments = std::move(segs)});
+        // Cursor + rich item label + cargo tag + price aligned to right edge
+        if (selected) area.put(0, i, '>', Color::Yellow);
+        std::string rich = display_name(item);
+        if (from_cargo) rich += colored(" [cargo]", Color::DarkGray);
+        area.text_rich(2, i, rich);
+        int price_x = list_w - static_cast<int>(price_str.size()) - 1;
+        area.text({.x = price_x, .y = i, .content = price_str, .tag = UITag::TextWarning});
     }
 }
 

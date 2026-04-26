@@ -2061,9 +2061,10 @@ void Game::render_cell_picker() {
     int option_count = static_cast<int>(cell_picker_.options.size());
     if (option_count == 0) return;
 
+    // Width: account for COLOR markers in rich labels via rich_visible_length.
     int content_w = 0;
     for (const auto& opt : cell_picker_.options) {
-        int w = 6 + static_cast<int>(opt.label.size());
+        int w = 6 + UIContext::rich_visible_length(opt.label);
         if (w > content_w) content_w = w;
     }
     int win_w = content_w + 6;
@@ -2081,21 +2082,21 @@ void Game::render_cell_picker() {
     UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
     auto ctx = full.panel({.title = cell_picker_.title, .footer = "[Esc] Cancel"});
 
-    std::vector<ListItem> items;
+    // Render rows manually so labels can carry COLOR markers (display_name output).
     int sel = cell_picker_.selection;
-    for (int i = 0; i < option_count; ++i) {
-        std::string label = "[" + std::string(1, cell_picker_.options[i].key) + "] " +
-                            cell_picker_.options[i].label;
-        items.push_back({label, UITag::OptionNormal, i == sel});
-    }
     int y = 1;
     int list_h = ctx.height() - y;
-    if (list_h > 0) {
-        int scroll = 0;
-        if (sel >= list_h) scroll = sel - list_h + 1;
-        auto list_area = ctx.sub(Rect{0, y, ctx.width(), list_h});
-        list_area.list({.items = items, .scroll_offset = scroll,
-                        .tag = UITag::ConversationOption, .selected_tag = UITag::OptionSelected});
+    int scroll = 0;
+    if (sel >= list_h / 2) scroll = std::max(0, sel - list_h / 2);
+    int row = 0;
+    for (int i = scroll; i < option_count && row < list_h; ++i, row += 2) {
+        bool is_sel = (i == sel);
+        std::string head = std::string(is_sel ? "> " : "  ")
+                         + "[" + std::string(1, cell_picker_.options[i].key) + "] ";
+        UITag head_tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
+        ctx.text({.x = 1, .y = y + row, .content = head, .tag = head_tag});
+        ctx.text_rich(1 + static_cast<int>(head.size()), y + row,
+                      cell_picker_.options[i].label);
     }
 }
 

@@ -507,14 +507,14 @@ bool CharacterScreen::handle_input(int key) {
                     context_message_ = "Item removed from workbench.";
                     context_msg_timer_ = 2;
                 } else {
-                    // Open item picker
+                    // Open item picker (rich labels via display_name)
                     context_menu_.reset();
                     context_menu_.title = "Place Item";
                     for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                         const auto& it = player_->inventory.items[i];
                         if (it.slot.has_value() || it.max_durability > 0 || it.enhancement_slots > 0) {
                             char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
-                            context_menu_.add_option(key_ch, it.name);
+                            context_menu_.add_option(key_ch, display_name(it));
                         }
                     }
                     context_menu_.selection = 0;
@@ -527,14 +527,14 @@ bool CharacterScreen::handle_input(int key) {
                     while (static_cast<int>(workbench_item_->enhancements.size()) <= si)
                         workbench_item_->enhancements.push_back({});
                     if (!workbench_item_->enhancements[si].filled) {
-                        // Open material picker
+                        // Open material picker (rich labels via display_name)
                         context_menu_.reset();
                         context_menu_.title = "Select Material";
                         for (int i = 0; i < static_cast<int>(player_->inventory.items.size()); ++i) {
                             const auto& it = player_->inventory.items[i];
                             if (it.type == ItemType::CraftingMaterial && get_material_effect(it.id)) {
                                 char key_ch = (i < 26) ? ('a' + i) : ('1' + i - 26);
-                                context_menu_.add_option(key_ch, it.name);
+                                context_menu_.add_option(key_ch, display_name(it));
                             }
                         }
                         context_menu_.selection = 0;
@@ -1008,10 +1008,10 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
         }
     }
 
-    // Compute dimensions — wider with padding
+    // Compute dimensions — wider with padding (labels may carry COLOR markers).
     int max_label = 0;
     for (const auto& o : opts) {
-        int len = static_cast<int>(o.label.size()) + 6; // "  [x] label  "
+        int len = UIContext::rich_visible_length(o.label) + 6; // "  [x] label  "
         if (len > max_label) max_label = len;
     }
     int win_w = std::max(max_label + 6, 30);
@@ -1070,13 +1070,15 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
 
     y++; // blank before options
 
-    // Options with conversation-style spacing
+    // Options with conversation-style spacing.
+    // Labels may carry COLOR markers (display_name output) — render with text_rich.
     for (int i = 0; i < static_cast<int>(opts.size()); ++i) {
         bool is_sel = (i == sel);
         std::string prefix = is_sel ? "> " : "  ";
-        UITag tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
-        std::string line = prefix + "[" + opts[i].key + "] " + opts[i].label;
-        pc.text({.x = 2, .y = y, .content = line, .tag = tag});
+        UITag prefix_tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
+        std::string head = prefix + "[" + opts[i].key + "] ";
+        pc.text({.x = 2, .y = y, .content = head, .tag = prefix_tag});
+        pc.text_rich(2 + static_cast<int>(head.size()), y, opts[i].label);
         y += 2; // blank line between options
     }
 }
@@ -1108,31 +1110,25 @@ void CharacterScreen::draw_look_overlay(UIContext& ctx) {
     }});
     y++;
 
-    // Item name centered, colored by rarity; dice or charge suffix dim/cyan.
-    std::string full_display = item.label();
-    int name_x = (cw - static_cast<int>(full_display.size())) / 2;
+    // Item name centered — display_name() wraps glyph + name + slots + dice + energy + stack.
+    // Skip the leading "<glyph> " prefix here since we already drew the glyph above.
+    std::string rich = display_name(item);
+    // Strip the leading glyph + space (the glyph is shown in the centered header).
+    // display_name() format starts with: COLOR_BEGIN <c> <glyph utf8> COLOR_END " "
+    auto strip_prefix = [](std::string s) -> std::string {
+        size_t i = 0;
+        if (i < s.size() && s[i] == COLOR_BEGIN) {
+            i += 2;
+            while (i < s.size() && s[i] != COLOR_END) ++i;
+            if (i < s.size()) ++i;
+        }
+        if (i < s.size() && s[i] == ' ') ++i;
+        return s.substr(i);
+    };
+    std::string body = strip_prefix(rich);
+    int name_x = (cw - panel_content.rich_visible_length(body)) / 2;
     if (name_x < 1) name_x = 1;
-    if (!item.damage_dice.empty()) {
-        std::string dice_str = " - " + item.damage_dice.to_string();
-        panel_content.styled_text({.x = name_x, .y = y, .segments = {
-            {item.name, rarity_tag(item.rarity)},
-            {dice_str, UITag::TextDim},
-        }});
-    } else if (item.type == ItemType::Battery && item.energy) {
-        std::string cur = std::to_string(item.energy->current);
-        std::string cap = std::to_string(item.energy->capacity);
-        UITag charge_tag = (item.energy->current > 0) ? UITag::TextBright : UITag::TextWarning;
-        panel_content.styled_text({.x = name_x, .y = y, .segments = {
-            {item.name, rarity_tag(item.rarity)},
-            {" - ", UITag::TextDim},
-            {cur, charge_tag},
-            {"/", UITag::TextDim},
-            {cap, charge_tag},
-            {" charge", UITag::TextDim},
-        }});
-    } else {
-        panel_content.text({.x = name_x, .y = y, .content = item.name, .tag = rarity_tag(item.rarity)});
-    }
+    panel_content.text_rich(name_x, y, body);
     y++;
 
     // Separator between header and content
@@ -1976,9 +1972,9 @@ void CharacterScreen::draw_equipment(UIContext& ctx) {
 
         if (selected) ctx.put(rx - 1, ry, '>', Color::Yellow);
 
-        auto vis = item_visual(item.item_def_id);
-        ctx.put(rx, ry, vis.glyph, rarity_color(item.rarity));
-        draw_item_name(ctx, rx + 2, ry, item, selected);
+        // display_name (called by draw_item_name) embeds the glyph in its
+        // natural color, so we no longer draw a separate glyph here.
+        draw_item_name(ctx, rx, ry, item, selected);
 
         std::string price = std::to_string(item.sell_value) + "$";
         int px = half + rw - static_cast<int>(price.size());
@@ -2220,10 +2216,7 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
     int mx = 3;
     for (const auto& item : player_->inventory.items) {
         if (item.type == ItemType::CraftingMaterial) {
-            std::string label = item.name + " x" + std::to_string(item.stack_count);
-            auto mat_vis = item_visual(item.item_def_id);
-            ctx.put(mx, mat_y, mat_vis.glyph, mat_vis.fg);
-            ctx.text({.x = mx + 2, .y = mat_y, .content = label, .tag = UITag::TextDim});
+            ctx.text_rich(mx, mat_y, display_name(item));
             mat_y++;
         }
     }
@@ -2241,27 +2234,7 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 
     if (workbench_item_) {
         const auto& item = *workbench_item_;
-        if (!item.damage_dice.empty()) {
-            std::string dice_str = " - " + item.damage_dice.to_string();
-            ctx.styled_text({.x = rx, .y = ry, .segments = {
-                {item.name, rarity_tag(item.rarity)},
-                {dice_str, UITag::TextDim},
-            }});
-        } else if (item.type == ItemType::Battery && item.energy) {
-            std::string cur = std::to_string(item.energy->current);
-            std::string cap = std::to_string(item.energy->capacity);
-            UITag charge_tag = (item.energy->current > 0) ? UITag::TextBright : UITag::TextWarning;
-            ctx.styled_text({.x = rx, .y = ry, .segments = {
-                {item.name, rarity_tag(item.rarity)},
-                {" - ", UITag::TextDim},
-                {cur, charge_tag},
-                {"/", UITag::TextDim},
-                {cap, charge_tag},
-                {" charge", UITag::TextDim},
-            }});
-        } else {
-            ctx.text({.x = rx, .y = ry, .content = item.name, .tag = rarity_tag(item.rarity)});
-        }
+        ctx.text_rich(rx, ry, display_name(item));
         ry++;
         ctx.text({.x = rx, .y = ry, .content = std::string(rarity_name(item.rarity)),
                   .tag = rarity_tag(item.rarity)});

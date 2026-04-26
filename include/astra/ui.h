@@ -52,6 +52,9 @@ public:
     void text(int x, int y, std::string_view s, Color fg, Color bg);
     // Render text with inline COLOR_BEGIN/COLOR_END markers
     void text_rich(int x, int y, std::string_view s, Color default_fg = Color::Default);
+    // Count visible cells in a rich text string (skipping color markers,
+    // counting each UTF-8 codepoint as one cell). Mirrors text_rich's layout.
+    static int rich_visible_length(std::string_view s);
 
     // Lines
     void hline(int y, char ch = '-');
