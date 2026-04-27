@@ -650,4 +650,68 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     return {true, false, "Synthesized: " + result_name + "!"};
 }
 
+// ---------------------------------------------------------------------------
+// Refinement recipes (junk -> T2 material)
+// ---------------------------------------------------------------------------
+
+const std::vector<RefinementRecipe>& refinement_recipes() {
+    using R = RefinementRecipe;
+    static const std::vector<R> recipes = {
+        { "Smelt Alloy Ingot",          { {30, 3} },                        7004, ITEM_ALLOY_INGOT,      1 },
+        { "Recover Circuit Board",      { {31, 2}, {7010, 1} },             7003, ITEM_CIRCUIT_BOARD,    1 },
+        { "Spin Nano-Fiber",            { {32, 4}, {7013, 1} },             7001, ITEM_NANO_FIBER,       1 },
+        { "Assemble Power Core",        { {47, 2}, {7010, 1} },             7002, ITEM_POWER_CORE,       1 },
+        { "Build Circuitry",            { {31, 1}, {47, 1}, {7010, 1} },    48,   ITEM_CIRCUITRY,        1 },
+        { "Polish Lens",                { {7012, 2}, {7011, 1} },           7021, ITEM_POLISHED_LENS,    1 },
+        { "Tune Micro-Servo",           { {47, 2}, {7014, 1} },             7022, ITEM_MICRO_SERVO,      1 },
+        { "Weave Nano Lattice",         { {7001, 3}, {7011, 1} },           7020, ITEM_NANO_LATTICE,     1 },
+        { "Pressurize Plasma Cartridge",{ {7002, 2}, {7014, 1} },           7023, ITEM_PLASMA_CARTRIDGE, 1 },
+    };
+    return recipes;
+}
+
+TinkerResult refine_item(const RefinementRecipe& recipe, Player& player) {
+    if (!player_has_skill(player, SkillId::BasicRepair))
+        return {false, false, "Requires Basic Repair skill."};
+
+    // Cost check
+    for (const auto& req : recipe.inputs) {
+        int have = 0;
+        for (const auto& it : player.inventory.items)
+            if (it.id == req.material_id) have += it.stack_count;
+        if (have < req.count) {
+            const MaterialDef* def = find_material(req.material_id);
+            std::string mname = def ? def->name : ("material " + std::to_string(req.material_id));
+            return {false, false, "Need " + std::to_string(req.count) + " " + mname +
+                    " (have " + std::to_string(have) + ")."};
+        }
+    }
+
+    // Consume inputs
+    for (const auto& req : recipe.inputs) {
+        int needed = req.count;
+        for (auto it = player.inventory.items.begin(); it != player.inventory.items.end() && needed > 0; ) {
+            if (it->id == req.material_id) {
+                if (it->stack_count > needed) { it->stack_count -= needed; needed = 0; }
+                else { needed -= it->stack_count; it = player.inventory.items.erase(it); continue; }
+            }
+            ++it;
+        }
+    }
+
+    // Produce output(s) - merge into existing stack if possible
+    for (int i = 0; i < recipe.output_count; ++i) {
+        bool merged = false;
+        for (auto& inv : player.inventory.items) {
+            if (inv.id == recipe.output_id) { inv.stack_count++; merged = true; break; }
+        }
+        if (!merged) {
+            Item out = build_by_def_id(recipe.output_def_id);
+            player.inventory.items.push_back(std::move(out));
+        }
+    }
+
+    return {true, false, std::string("Refined: ") + recipe.name + "."};
+}
+
 } // namespace astra

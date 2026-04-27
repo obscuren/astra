@@ -92,7 +92,7 @@ private:
     const Item* look_item_ = nullptr;
 
     // Tinkering tab
-    enum class TinkerFocus { Workbench, Slots, Synthesizer, Materials, Catalog };
+    enum class TinkerFocus { Workbench, Slots, Synthesizer, Materials, Catalog, Refinement, Schematics };
     TinkerFocus tinker_focus_ = TinkerFocus::Workbench;
     // Last non-catalog focus — restored when Tab returns from catalog.
     TinkerFocus tinker_prev_left_focus_ = TinkerFocus::Workbench;

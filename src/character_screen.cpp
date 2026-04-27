@@ -217,6 +217,13 @@ bool CharacterScreen::handle_input(int key) {
                             count++;
                         }
                     }
+                } else if (tinker_focus_ == TinkerFocus::Refinement) {
+                    const auto& recipes = refinement_recipes();
+                    if (sel >= 0 && sel < static_cast<int>(recipes.size())) {
+                        auto result = refine_item(recipes[sel], *player_);
+                        context_message_ = result.message;
+                        context_msg_timer_ = 3;
+                    }
                 }
             } else {
                 execute_context_action(context_menu_.selected_key());
@@ -570,6 +577,28 @@ bool CharacterScreen::handle_input(int key) {
                     synth_bp2_ = -1;
                 }
             }
+        }
+
+        // Refinement picker (workbench-independent)
+        if (key == 'R' && player_has_skill(*player_, SkillId::BasicRepair)) {
+            tinker_focus_ = TinkerFocus::Refinement;
+            context_menu_.reset();
+            context_menu_.title = "Refine Material";
+            const auto& recipes = refinement_recipes();
+            for (int i = 0; i < static_cast<int>(recipes.size()); ++i) {
+                std::string label = recipes[i].name + std::string(" — ");
+                bool first = true;
+                for (const auto& req : recipes[i].inputs) {
+                    if (!first) label += " + ";
+                    first = false;
+                    const MaterialDef* def = find_material(req.material_id);
+                    label += std::to_string(req.count) + "x " + (def ? def->name : "?");
+                }
+                char key_ch = (i < 9) ? ('1' + i) : ('a' + i - 9);
+                context_menu_.add_option(key_ch, label);
+            }
+            context_menu_.selection = 0;
+            context_menu_.open = true;
         }
 
         // Action hotkeys
@@ -1201,7 +1230,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     // Compute footer text based on active tab
     std::string footer_text;
     if (active_tab_ == CharTab::Tinkering) {
-        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth";
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth  [R] Refine";
     } else if (active_tab_ == CharTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
     } else if (active_tab_ == CharTab::Cooking) {

@@ -100,6 +100,19 @@ TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng);
 // Initialize enhancement_slots based on rarity (call on item creation)
 void init_enhancement_slots(Item& item);
 
+// --- Refinement ---------------------------------------------------------
+
+struct RefinementRecipe {
+    const char* name;                    // e.g., "Smelt Alloy Ingot"
+    std::vector<MaterialReq> inputs;
+    uint32_t output_id;                  // Item::id for inventory matching
+    uint16_t output_def_id;              // for build_by_def_id
+    int output_count = 1;
+};
+
+const std::vector<RefinementRecipe>& refinement_recipes();
+TinkerResult refine_item(const RefinementRecipe& recipe, Player& player);
+
 // --- Synthesizer ---
 
 struct SynthesisRecipe {
