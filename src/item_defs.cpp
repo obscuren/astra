@@ -212,8 +212,8 @@ Item build_combat_stim() {
     Item it;
     it.item_def_id = ITEM_COMBAT_STIM;
     it.id = 2003;
-    it.name = "Combat Stim";
-    it.description = "Adrenaline injection. Temporarily boosts attack.";
+    it.name = "Adrenaline Stim";
+    it.description = "Adrenaline injection. Temporarily boosts attack. (Inert until next spec.)";
     it.type = ItemType::Stim;
     it.rarity = Rarity::Uncommon;
     it.weight = 1;
@@ -1112,6 +1112,91 @@ Item build_phase_coil() {
 }
 
 // ---------------------------------------------------------------------------
+// New consumables (schematic-craftable; "use" code is a future spec — these
+// items exist in inventory but are inert when used).
+// ---------------------------------------------------------------------------
+
+static Item build_consumable_(uint16_t def_id, uint32_t id, const char* name,
+                              const char* desc, ItemType type, Rarity rarity,
+                              int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = desc;
+    it.type = type;
+    it.rarity = rarity;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    if (type == ItemType::Grenade || type == ItemType::Mine) it.slot = EquipSlot::Thrown;
+    return it;
+}
+
+// Stims
+Item build_healing_stim()    { return build_consumable_(ITEM_HEALING_STIM,    7200, "Healing Stim",    "Auto-injector. Restores HP on use. (Inert until next spec.)", ItemType::Stim,    Rarity::Common,   40, 14); }
+Item build_endure_stim()     { return build_consumable_(ITEM_ENDURE_STIM,     7201, "Endure Stim",     "Stabilizer. Hardens you against damage. (Inert.)",            ItemType::Stim,    Rarity::Uncommon, 60, 22); }
+Item build_focus_stim()      { return build_consumable_(ITEM_FOCUS_STIM,      7202, "Focus Stim",      "Sharpens senses and accuracy. (Inert.)",                       ItemType::Stim,    Rarity::Uncommon, 60, 22); }
+Item build_berserker_stim()  { return build_consumable_(ITEM_BERSERKER_STIM,  7203, "Berserker Stim",  "Risky combat surge. Big hit, big cost. (Inert.)",              ItemType::Stim,    Rarity::Rare,    100, 38); }
+Item build_medkit()          { return build_consumable_(ITEM_MEDKIT,          7204, "Medkit",          "Field medical kit. Multi-charge healing. (Inert.)",            ItemType::Stim,    Rarity::Uncommon, 90, 32); }
+
+// Grenades (new — Frag/EMP/Cryo already exist)
+Item build_incendiary_grenade() { return build_consumable_(ITEM_INCENDIARY_GRENADE, 7205, "Incendiary Grenade", "Spreads burning plasma in a radius. (Inert.)", ItemType::Grenade, Rarity::Uncommon, 60, 22); }
+Item build_smoke_grenade()      { return build_consumable_(ITEM_SMOKE_GRENADE,      7206, "Smoke Grenade",      "Creates a vision-blocking cloud. (Inert.)",     ItemType::Grenade, Rarity::Common,   30, 11); }
+Item build_flashbang()          { return build_consumable_(ITEM_FLASHBANG,          7207, "Flashbang",          "Stuns nearby enemies with a burst of light. (Inert.)", ItemType::Grenade, Rarity::Uncommon, 50, 18); }
+
+// Mines
+Item build_proximity_mine()  { return build_consumable_(ITEM_PROXIMITY_MINE,  7208, "Proximity Mine",  "Triggers on enemy step. Physical AoE. (Inert.)",        ItemType::Mine, Rarity::Uncommon, 70, 26); }
+Item build_emp_mine()        { return build_consumable_(ITEM_EMP_MINE,        7209, "EMP Mine",        "Triggers on enemy step. EMP burst. (Inert.)",            ItemType::Mine, Rarity::Uncommon, 80, 30); }
+Item build_incendiary_mine() { return build_consumable_(ITEM_INCENDIARY_MINE, 7210, "Incendiary Mine", "Triggers on enemy step. Fire AoE. (Inert.)",             ItemType::Mine, Rarity::Uncommon, 80, 30); }
+Item build_decoy_mine()      { return build_consumable_(ITEM_DECOY_MINE,      7211, "Decoy Mine",      "Emits noise to draw attention. (Inert.)",                ItemType::Mine, Rarity::Common,   40, 14); }
+Item build_caltrops()        { return build_consumable_(ITEM_CALTROPS,        7212, "Caltrops",        "A handful of jagged spikes. Cheap area denial. (Inert.)", ItemType::Mine, Rarity::Common,   20,  7); }
+
+// ---------------------------------------------------------------------------
+// Schematics — single-use, taught permanently when read. Mirror Cookbooks.
+// ---------------------------------------------------------------------------
+
+static Item build_schematic_(uint16_t def_id, uint32_t id, const char* name,
+                             uint16_t teaches_schematic_id, Rarity rarity,
+                             int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = id;
+    it.name = name;
+    it.description = "A folded schematic. Read to permanently learn the recipe.";
+    it.type = ItemType::Schematic;
+    it.rarity = rarity;
+    it.weight = 1;
+    it.stackable = false;
+    it.stack_count = 1;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    it.usable = true;
+    it.teaches_schematic_id = teaches_schematic_id;
+    return it;
+}
+
+// schematic_id values match SchematicRecipe::schematic_id (see tinkering.cpp).
+Item build_schem_healing_stim()       { return build_schematic_(ITEM_SCHEM_HEALING_STIM,       7100, "Schematic: Healing Stim",       1,  Rarity::Common,    50,  18); }
+Item build_schem_adrenaline_stim()    { return build_schematic_(ITEM_SCHEM_ADRENALINE_STIM,    7101, "Schematic: Adrenaline Stim",    2,  Rarity::Uncommon,  90,  32); }
+Item build_schem_endure_stim()        { return build_schematic_(ITEM_SCHEM_ENDURE_STIM,        7102, "Schematic: Endure Stim",        3,  Rarity::Uncommon,  90,  32); }
+Item build_schem_focus_stim()         { return build_schematic_(ITEM_SCHEM_FOCUS_STIM,         7103, "Schematic: Focus Stim",         4,  Rarity::Uncommon,  90,  32); }
+Item build_schem_berserker_stim()     { return build_schematic_(ITEM_SCHEM_BERSERKER_STIM,     7104, "Schematic: Berserker Stim",     5,  Rarity::Rare,     150,  55); }
+Item build_schem_medkit()             { return build_schematic_(ITEM_SCHEM_MEDKIT,             7105, "Schematic: Medkit",             6,  Rarity::Uncommon, 130,  46); }
+Item build_schem_frag_grenade()       { return build_schematic_(ITEM_SCHEM_FRAG_GRENADE,       7106, "Schematic: Frag Grenade",       7,  Rarity::Common,    50,  18); }
+Item build_schem_emp_grenade()        { return build_schematic_(ITEM_SCHEM_EMP_GRENADE,        7107, "Schematic: EMP Grenade",        8,  Rarity::Uncommon, 100,  35); }
+Item build_schem_incendiary_grenade() { return build_schematic_(ITEM_SCHEM_INCENDIARY_GRENADE, 7108, "Schematic: Incendiary Grenade", 9,  Rarity::Uncommon, 100,  35); }
+Item build_schem_smoke_grenade()      { return build_schematic_(ITEM_SCHEM_SMOKE_GRENADE,      7109, "Schematic: Smoke Grenade",     10,  Rarity::Common,    40,  14); }
+Item build_schem_flashbang()          { return build_schematic_(ITEM_SCHEM_FLASHBANG,          7110, "Schematic: Flashbang",         11,  Rarity::Uncommon,  90,  32); }
+Item build_schem_proximity_mine()     { return build_schematic_(ITEM_SCHEM_PROXIMITY_MINE,     7111, "Schematic: Proximity Mine",    12,  Rarity::Uncommon, 110,  40); }
+Item build_schem_emp_mine()           { return build_schematic_(ITEM_SCHEM_EMP_MINE,           7112, "Schematic: EMP Mine",          13,  Rarity::Rare,     140,  50); }
+Item build_schem_incendiary_mine()    { return build_schematic_(ITEM_SCHEM_INCENDIARY_MINE,    7113, "Schematic: Incendiary Mine",   14,  Rarity::Rare,     140,  50); }
+Item build_schem_decoy_mine()         { return build_schematic_(ITEM_SCHEM_DECOY_MINE,         7114, "Schematic: Decoy Mine",        15,  Rarity::Common,    60,  22); }
+Item build_schem_caltrops()           { return build_schematic_(ITEM_SCHEM_CALTROPS,           7115, "Schematic: Caltrops",          16,  Rarity::Common,    25,   8); }
+
+// ---------------------------------------------------------------------------
 // Solar panel crafting materials
 // ---------------------------------------------------------------------------
 
@@ -1358,6 +1443,39 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_PRIME_FILAMENT:            return build_prime_filament();
         case ITEM_VOIDSHARD:                 return build_voidshard();
         case ITEM_PHASE_COIL:                return build_phase_coil();
+
+        // New consumables
+        case ITEM_HEALING_STIM:              return build_healing_stim();
+        case ITEM_ENDURE_STIM:               return build_endure_stim();
+        case ITEM_FOCUS_STIM:                return build_focus_stim();
+        case ITEM_BERSERKER_STIM:            return build_berserker_stim();
+        case ITEM_MEDKIT:                    return build_medkit();
+        case ITEM_INCENDIARY_GRENADE:        return build_incendiary_grenade();
+        case ITEM_SMOKE_GRENADE:             return build_smoke_grenade();
+        case ITEM_FLASHBANG:                 return build_flashbang();
+        case ITEM_PROXIMITY_MINE:            return build_proximity_mine();
+        case ITEM_EMP_MINE:                  return build_emp_mine();
+        case ITEM_INCENDIARY_MINE:           return build_incendiary_mine();
+        case ITEM_DECOY_MINE:                return build_decoy_mine();
+        case ITEM_CALTROPS:                  return build_caltrops();
+
+        // Schematics
+        case ITEM_SCHEM_HEALING_STIM:        return build_schem_healing_stim();
+        case ITEM_SCHEM_ADRENALINE_STIM:     return build_schem_adrenaline_stim();
+        case ITEM_SCHEM_ENDURE_STIM:         return build_schem_endure_stim();
+        case ITEM_SCHEM_FOCUS_STIM:          return build_schem_focus_stim();
+        case ITEM_SCHEM_BERSERKER_STIM:      return build_schem_berserker_stim();
+        case ITEM_SCHEM_MEDKIT:              return build_schem_medkit();
+        case ITEM_SCHEM_FRAG_GRENADE:        return build_schem_frag_grenade();
+        case ITEM_SCHEM_EMP_GRENADE:         return build_schem_emp_grenade();
+        case ITEM_SCHEM_INCENDIARY_GRENADE:  return build_schem_incendiary_grenade();
+        case ITEM_SCHEM_SMOKE_GRENADE:       return build_schem_smoke_grenade();
+        case ITEM_SCHEM_FLASHBANG:           return build_schem_flashbang();
+        case ITEM_SCHEM_PROXIMITY_MINE:      return build_schem_proximity_mine();
+        case ITEM_SCHEM_EMP_MINE:            return build_schem_emp_mine();
+        case ITEM_SCHEM_INCENDIARY_MINE:     return build_schem_incendiary_mine();
+        case ITEM_SCHEM_DECOY_MINE:          return build_schem_decoy_mine();
+        case ITEM_SCHEM_CALTROPS:            return build_schem_caltrops();
 
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();

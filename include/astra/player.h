@@ -121,6 +121,7 @@ struct Player {
 
     // Tinkering
     std::vector<BlueprintSignature> learned_blueprints;
+    std::vector<LearnedSchematic> learned_schematics;
 
     // Cooking
     std::vector<uint16_t> known_recipes;

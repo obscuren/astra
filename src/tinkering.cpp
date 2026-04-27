@@ -714,4 +714,119 @@ TinkerResult refine_item(const RefinementRecipe& recipe, Player& player) {
     return {true, false, std::string("Refined: ") + recipe.name + "."};
 }
 
+// ---------------------------------------------------------------------------
+// Schematic recipes (consumable crafting)
+// ---------------------------------------------------------------------------
+
+const std::vector<SchematicRecipe>& schematic_recipes() {
+    static const std::vector<SchematicRecipe> recipes = {
+        // Stims
+        {  1, 7200, ITEM_HEALING_STIM,    "Healing Stim",    "Auto-injector. Restores HP.",
+           { {30, 1}, {32, 1}, {7001, 1}, {7012, 1} }, 1 },
+        {  2, 2003, ITEM_COMBAT_STIM,     "Adrenaline Stim", "Adrenaline injection.",
+           { {30, 1}, {32, 1}, {7002, 1}, {7014, 1} }, 1 },
+        {  3, 7201, ITEM_ENDURE_STIM,     "Endure Stim",     "Hardens you against damage.",
+           { {30, 1}, {32, 1}, {7001, 1}, {7013, 1} }, 1 },
+        {  4, 7202, ITEM_FOCUS_STIM,      "Focus Stim",      "Sharpens senses.",
+           { {30, 1}, {32, 1}, {7021, 1}, {7014, 1} }, 1 },
+        {  5, 7203, ITEM_BERSERKER_STIM,  "Berserker Stim",  "Risky combat surge.",
+           { {30, 2}, {32, 1}, {7002, 1}, {7023, 1} }, 1 },
+        {  6, 7204, ITEM_MEDKIT,          "Medkit",          "Multi-charge healing.",
+           { {30, 2}, {7011, 1}, {7001, 2}, {7013, 1} }, 1 },
+        // Grenades
+        {  7, 5001, ITEM_FRAG_GRENADE,        "Frag Grenade",        "Physical AoE.",
+           { {30, 2}, {32, 1}, {7002, 1}, {7013, 1} }, 1 },
+        {  8, 5002, ITEM_EMP_GRENADE,         "EMP Grenade",         "Disables electronics.",
+           { {30, 1}, {32, 1}, {48, 1}, {7003, 1}, {7010, 1} }, 1 },
+        {  9, 7205, ITEM_INCENDIARY_GRENADE,  "Incendiary Grenade",  "Fire AoE + lingering burn.",
+           { {30, 2}, {32, 1}, {7014, 1}, {7023, 1} }, 1 },
+        { 10, 7206, ITEM_SMOKE_GRENADE,       "Smoke Grenade",       "Vision-blocking cloud.",
+           { {30, 1}, {32, 1}, {7011, 1}, {7013, 1} }, 1 },
+        { 11, 7207, ITEM_FLASHBANG,           "Flashbang",           "Stun in radius.",
+           { {30, 1}, {32, 1}, {48, 1}, {7012, 1}, {7002, 1} }, 1 },
+        // Mines
+        { 12, 7208, ITEM_PROXIMITY_MINE,  "Proximity Mine",  "Trigger-on-step physical AoE.",
+           { {30, 2}, {32, 1}, {48, 1}, {7002, 1}, {47, 1} }, 1 },
+        { 13, 7209, ITEM_EMP_MINE,        "EMP Mine",        "Trigger-on-step EMP.",
+           { {30, 1}, {32, 1}, {48, 1}, {7003, 1}, {47, 1} }, 1 },
+        { 14, 7210, ITEM_INCENDIARY_MINE, "Incendiary Mine", "Trigger-on-step fire AoE.",
+           { {30, 2}, {32, 1}, {48, 1}, {7023, 1}, {47, 1} }, 1 },
+        { 15, 7211, ITEM_DECOY_MINE,      "Decoy Mine",      "Emits noise.",
+           { {30, 1}, {32, 1}, {48, 1}, {7010, 1}, {47, 1} }, 1 },
+        { 16, 7212, ITEM_CALTROPS,        "Caltrops",        "Cheap area denial.",
+           { {30, 3}, {7013, 1} }, 1 },
+    };
+    return recipes;
+}
+
+const SchematicRecipe* find_schematic_recipe(uint16_t schematic_id) {
+    for (const auto& r : schematic_recipes())
+        if (r.schematic_id == schematic_id) return &r;
+    return nullptr;
+}
+
+TinkerResult learn_schematic(Player& player, uint16_t schematic_id,
+                             const char* name, const char* description) {
+    for (const auto& ls : player.learned_schematics) {
+        if (ls.schematic_id == schematic_id)
+            return {false, false, std::string("You already know ") + name + "."};
+    }
+    player.learned_schematics.push_back({ schematic_id, name, description ? description : "" });
+    return {true, true, std::string("Learned schematic: ") + name + "."};
+}
+
+TinkerResult craft_schematic(uint16_t schematic_id, Player& player) {
+    if (!player_has_skill(player, SkillId::Cat_Tinkering))
+        return {false, false, "Requires Tinkering skill unlocked."};
+
+    bool known = false;
+    for (const auto& ls : player.learned_schematics)
+        if (ls.schematic_id == schematic_id) { known = true; break; }
+    if (!known)
+        return {false, false, "Schematic not learned."};
+
+    const SchematicRecipe* recipe = find_schematic_recipe(schematic_id);
+    if (!recipe)
+        return {false, false, "Unknown schematic recipe."};
+
+    // Cost check
+    for (const auto& req : recipe->material_costs) {
+        int have = 0;
+        for (const auto& it : player.inventory.items)
+            if (it.id == req.material_id) have += it.stack_count;
+        if (have < req.count) {
+            const MaterialDef* def = find_material(req.material_id);
+            std::string mname = def ? def->name : ("material " + std::to_string(req.material_id));
+            return {false, false, "Need " + std::to_string(req.count) + " " + mname +
+                    " (have " + std::to_string(have) + ")."};
+        }
+    }
+
+    // Consume inputs
+    for (const auto& req : recipe->material_costs) {
+        int needed = req.count;
+        for (auto it = player.inventory.items.begin(); it != player.inventory.items.end() && needed > 0; ) {
+            if (it->id == req.material_id) {
+                if (it->stack_count > needed) { it->stack_count -= needed; needed = 0; }
+                else { needed -= it->stack_count; it = player.inventory.items.erase(it); continue; }
+            }
+            ++it;
+        }
+    }
+
+    // Produce output(s)
+    for (int i = 0; i < recipe->output_count; ++i) {
+        bool merged = false;
+        for (auto& inv : player.inventory.items) {
+            if (inv.id == recipe->output_id) { inv.stack_count++; merged = true; break; }
+        }
+        if (!merged) {
+            Item out = build_by_def_id(recipe->output_def_id);
+            player.inventory.items.push_back(std::move(out));
+        }
+    }
+
+    return {true, false, std::string("Crafted: ") + recipe->output_name + "."};
+}
+
 } // namespace astra

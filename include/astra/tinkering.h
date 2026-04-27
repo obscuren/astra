@@ -46,6 +46,14 @@ struct BlueprintSignature {
     std::string description;
 };
 
+// Schematic recipe state owned by Player.
+// Functions and the recipe table are declared after TinkerResult below.
+struct LearnedSchematic {
+    uint16_t schematic_id = 0;       // matches SchematicRecipe::schematic_id
+    std::string name;
+    std::string description;
+};
+
 // Material effect when slotted as enhancement
 struct MaterialEffect {
     uint32_t material_id;
@@ -112,6 +120,24 @@ struct RefinementRecipe {
 
 const std::vector<RefinementRecipe>& refinement_recipes();
 TinkerResult refine_item(const RefinementRecipe& recipe, Player& player);
+
+// --- Schematic crafting ---------------------------------------------------
+
+struct SchematicRecipe {
+    uint16_t schematic_id = 0;       // unique recipe id
+    uint32_t output_id = 0;          // Item::id of the consumable
+    uint16_t output_def_id = 0;      // for build_by_def_id
+    const char* output_name = "";
+    const char* output_desc = "";
+    std::vector<MaterialReq> material_costs;
+    int output_count = 1;
+};
+
+const std::vector<SchematicRecipe>& schematic_recipes();
+const SchematicRecipe* find_schematic_recipe(uint16_t schematic_id);
+TinkerResult craft_schematic(uint16_t schematic_id, Player& player);
+TinkerResult learn_schematic(Player& player, uint16_t schematic_id,
+                             const char* name, const char* description);
 
 // --- Synthesizer ---
 

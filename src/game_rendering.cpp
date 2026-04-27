@@ -569,6 +569,26 @@ void Game::use_item(int index) {
             log("You learn to cook " + name + ".");
             break;
         }
+        case ItemType::Schematic: {
+            uint16_t sid = item.teaches_schematic_id;
+            if (sid == 0) {
+                log("This schematic is blank.");
+                return;
+            }
+            // Reject duplicates without consuming.
+            for (const auto& ls : player_.learned_schematics) {
+                if (ls.schematic_id == sid) {
+                    log("You already know this schematic.");
+                    return;
+                }
+            }
+            const SchematicRecipe* r = find_schematic_recipe(sid);
+            std::string out_name = r ? r->output_name : std::string{"a new recipe"};
+            std::string out_desc = r ? r->output_desc : std::string{};
+            auto result = learn_schematic(player_, sid, out_name.c_str(), out_desc.c_str());
+            log(result.message);
+            break;
+        }
         default:
             log("You can't use " + item.name + ".");
             return;

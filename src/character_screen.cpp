@@ -224,6 +224,13 @@ bool CharacterScreen::handle_input(int key) {
                         context_message_ = result.message;
                         context_msg_timer_ = 3;
                     }
+                } else if (tinker_focus_ == TinkerFocus::Schematics) {
+                    if (sel >= 0 && sel < static_cast<int>(player_->learned_schematics.size())) {
+                        auto sid = player_->learned_schematics[sel].schematic_id;
+                        auto result = craft_schematic(sid, *player_);
+                        context_message_ = result.message;
+                        context_msg_timer_ = 3;
+                    }
                 }
             } else {
                 execute_context_action(context_menu_.selected_key());
@@ -599,6 +606,37 @@ bool CharacterScreen::handle_input(int key) {
             }
             context_menu_.selection = 0;
             context_menu_.open = true;
+        }
+
+        // Schematic crafting picker (workbench-independent)
+        if (key == 'C' && player_has_skill(*player_, SkillId::Cat_Tinkering)) {
+            if (player_->learned_schematics.empty()) {
+                context_message_ = "No schematics learned. Find one and read it.";
+                context_msg_timer_ = 3;
+            } else {
+                tinker_focus_ = TinkerFocus::Schematics;
+                context_menu_.reset();
+                context_menu_.title = "Craft from Schematic";
+                for (int i = 0; i < static_cast<int>(player_->learned_schematics.size()); ++i) {
+                    const auto& ls = player_->learned_schematics[i];
+                    const SchematicRecipe* r = find_schematic_recipe(ls.schematic_id);
+                    std::string label = ls.name;
+                    if (r) {
+                        label += " — ";
+                        bool first = true;
+                        for (const auto& req : r->material_costs) {
+                            if (!first) label += " + ";
+                            first = false;
+                            const MaterialDef* def = find_material(req.material_id);
+                            label += std::to_string(req.count) + "x " + (def ? def->name : "?");
+                        }
+                    }
+                    char key_ch = (i < 9) ? ('1' + i) : ('a' + i - 9);
+                    context_menu_.add_option(key_ch, label);
+                }
+                context_menu_.selection = 0;
+                context_menu_.open = true;
+            }
         }
 
         // Action hotkeys
@@ -1230,7 +1268,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     // Compute footer text based on active tab
     std::string footer_text;
     if (active_tab_ == CharTab::Tinkering) {
-        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth  [R] Refine";
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth  [R] Refine  [C] Craft";
     } else if (active_tab_ == CharTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
     } else if (active_tab_ == CharTab::Cooking) {

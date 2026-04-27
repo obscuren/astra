@@ -40,6 +40,8 @@ enum class ItemType : uint8_t {
     QuestItem,
     Ingredient,   // cooking raw material
     Cookbook,     // teaches a recipe when read
+    Mine,         // placeable trigger-on-step consumable
+    Schematic,    // teaches a tinkering recipe when read
 };
 
 const char* item_type_name(ItemType t);
@@ -220,6 +222,9 @@ struct Item {
 
     // Cookbook payload. Non-zero only when type == ItemType::Cookbook.
     uint16_t teaches_recipe_id = 0;
+
+    // Schematic payload. Non-zero only when type == ItemType::Schematic.
+    uint16_t teaches_schematic_id = 0;
 
     // Plain-text label: "name - 1d6" for weapons, "name - cur/cap charge" for cells, plain name otherwise
     std::string label() const {

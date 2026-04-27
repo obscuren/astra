@@ -155,6 +155,39 @@ constexpr uint16_t ITEM_LARGE_ENERGY_CELL       = 72;
 constexpr uint16_t ITEM_INDUSTRIAL_ENERGY_CELL  = 73;
 constexpr uint16_t ITEM_ANTIMATTER_CELL         = 74;
 
+// Consumables — schematic-craftable (200-212)
+constexpr uint16_t ITEM_HEALING_STIM            = 200;
+constexpr uint16_t ITEM_ENDURE_STIM             = 201;
+constexpr uint16_t ITEM_FOCUS_STIM              = 202;
+constexpr uint16_t ITEM_BERSERKER_STIM          = 203;
+constexpr uint16_t ITEM_MEDKIT                  = 204;
+constexpr uint16_t ITEM_INCENDIARY_GRENADE      = 205;
+constexpr uint16_t ITEM_SMOKE_GRENADE           = 206;
+constexpr uint16_t ITEM_FLASHBANG               = 207;
+constexpr uint16_t ITEM_PROXIMITY_MINE          = 208;
+constexpr uint16_t ITEM_EMP_MINE                = 209;
+constexpr uint16_t ITEM_INCENDIARY_MINE         = 210;
+constexpr uint16_t ITEM_DECOY_MINE              = 211;
+constexpr uint16_t ITEM_CALTROPS                = 212;
+
+// Schematics (220-235) — single-use pickup, teaches a recipe permanently
+constexpr uint16_t ITEM_SCHEM_HEALING_STIM        = 220;
+constexpr uint16_t ITEM_SCHEM_ADRENALINE_STIM     = 221;
+constexpr uint16_t ITEM_SCHEM_ENDURE_STIM         = 222;
+constexpr uint16_t ITEM_SCHEM_FOCUS_STIM          = 223;
+constexpr uint16_t ITEM_SCHEM_BERSERKER_STIM      = 224;
+constexpr uint16_t ITEM_SCHEM_MEDKIT              = 225;
+constexpr uint16_t ITEM_SCHEM_FRAG_GRENADE        = 226;
+constexpr uint16_t ITEM_SCHEM_EMP_GRENADE         = 227;
+constexpr uint16_t ITEM_SCHEM_INCENDIARY_GRENADE  = 228;
+constexpr uint16_t ITEM_SCHEM_SMOKE_GRENADE       = 229;
+constexpr uint16_t ITEM_SCHEM_FLASHBANG           = 230;
+constexpr uint16_t ITEM_SCHEM_PROXIMITY_MINE      = 231;
+constexpr uint16_t ITEM_SCHEM_EMP_MINE            = 232;
+constexpr uint16_t ITEM_SCHEM_INCENDIARY_MINE     = 233;
+constexpr uint16_t ITEM_SCHEM_DECOY_MINE          = 234;
+constexpr uint16_t ITEM_SCHEM_CALTROPS            = 235;
+
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;
 constexpr uint16_t ITEM_SYNTH_THRUSTER_PLATE    = 1001;
