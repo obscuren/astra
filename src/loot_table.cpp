@@ -138,6 +138,25 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_COOKBOOK_PROTEIN_BAKE, "cookbook_protein_bake", R::Uncommon,  R::Uncommon,  1, {}, loot_source_bit(LootSource::MerchantFood), T::Civilian, 2, C::Cookbook },
         LootEntry{ ITEM_COOKBOOK_HEROS_FEAST,  "cookbook_heros_feast",  R::Rare,      R::Rare,      1, {}, loot_source_bit(LootSource::MerchantFood), T::Civilian, 4, C::Cookbook },
 
+        // ----- Schematics (chest drops + select merchants) ---------------
+        // Categorized as Junk for loot dispatch; the Schematic ItemType is what the use_item handler keys on.
+        LootEntry{ ITEM_SCHEM_HEALING_STIM,        "schem_healing_stim",        R::Common,    R::Common,     6, {}, LootSource::Chest | LootSource::MerchantGeneral, T::Tech,     1, C::Junk },
+        LootEntry{ ITEM_SCHEM_ADRENALINE_STIM,     "schem_adrenaline_stim",     R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantGeneral, T::Tech,     2, C::Junk },
+        LootEntry{ ITEM_SCHEM_ENDURE_STIM,         "schem_endure_stim",         R::Uncommon,  R::Uncommon,   4, {}, loot_source_bit(LootSource::Chest),             T::Tech,     2, C::Junk },
+        LootEntry{ ITEM_SCHEM_FOCUS_STIM,          "schem_focus_stim",          R::Uncommon,  R::Uncommon,   4, {}, loot_source_bit(LootSource::Chest),             T::Tech,     2, C::Junk },
+        LootEntry{ ITEM_SCHEM_BERSERKER_STIM,      "schem_berserker_stim",      R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,    T::Tech,     4, C::Junk },
+        LootEntry{ ITEM_SCHEM_MEDKIT,              "schem_medkit",              R::Uncommon,  R::Uncommon,   4, {}, loot_source_bit(LootSource::Chest),             T::Civilian, 2, C::Junk },
+        LootEntry{ ITEM_SCHEM_FRAG_GRENADE,        "schem_frag_grenade",        R::Common,    R::Common,     6, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 1, C::Junk },
+        LootEntry{ ITEM_SCHEM_EMP_GRENADE,         "schem_emp_grenade",         R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms,   T::Tech,     2, C::Junk },
+        LootEntry{ ITEM_SCHEM_INCENDIARY_GRENADE,  "schem_incendiary_grenade",  R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 2, C::Junk },
+        LootEntry{ ITEM_SCHEM_SMOKE_GRENADE,       "schem_smoke_grenade",       R::Common,    R::Common,     5, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 1, C::Junk },
+        LootEntry{ ITEM_SCHEM_FLASHBANG,           "schem_flashbang",           R::Uncommon,  R::Uncommon,   3, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 2, C::Junk },
+        LootEntry{ ITEM_SCHEM_PROXIMITY_MINE,      "schem_proximity_mine",      R::Uncommon,  R::Uncommon,   3, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 2, C::Junk },
+        LootEntry{ ITEM_SCHEM_EMP_MINE,            "schem_emp_mine",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,    T::Tech,     3, C::Junk },
+        LootEntry{ ITEM_SCHEM_INCENDIARY_MINE,     "schem_incendiary_mine",     R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,    T::Military, 3, C::Junk },
+        LootEntry{ ITEM_SCHEM_DECOY_MINE,          "schem_decoy_mine",          R::Common,    R::Common,     4, {}, loot_source_bit(LootSource::Chest),             T::Tech,     1, C::Junk },
+        LootEntry{ ITEM_SCHEM_CALTROPS,            "schem_caltrops",            R::Common,    R::Common,     5, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::ScavMerchant, T::Civilian, 1, C::Junk },
+
         // Note: ingredients (raw_meat, carrot, flour, herbs, synth_protein),
         // cooked dishes, and burnt_slop are deliberately NOT in the loot
         // table — they're placed by the cooking system, not by drops.

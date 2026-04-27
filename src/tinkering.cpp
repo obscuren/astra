@@ -2,6 +2,7 @@
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
 #include "astra/item_ids.h"
+#include "astra/loot_table.h"
 #include "astra/player.h"
 
 #include <algorithm>
@@ -385,42 +386,74 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
 TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng) {
     if (!player_has_skill(player, SkillId::Disassemble))
         return {false, false, "Requires Disassemble skill."};
-
     if (item.type == ItemType::QuestItem)
         return {false, false, "Cannot salvage quest items."};
 
-    // Yield: 1-3 random materials. More for rarer items.
-    int base_yield = 1;
+    // Yield + tier weights per rarity (spec §5).
+    int yield_min = 1, yield_max = 2;
+    struct TierWeights { int t1, t2, t3; };
+    TierWeights w{100, 0, 0};
     switch (item.rarity) {
-        case Rarity::Common:    base_yield = 1; break;
-        case Rarity::Uncommon:  base_yield = 2; break;
-        case Rarity::Rare:      base_yield = 2; break;
-        case Rarity::Epic:      base_yield = 3; break;
-        case Rarity::Legendary: base_yield = 3; break;
+        case Rarity::Common:    yield_min = 1; yield_max = 2; w = { 100,  0,  0 }; break;
+        case Rarity::Uncommon:  yield_min = 2; yield_max = 3; w = {  70, 30,  0 }; break;
+        case Rarity::Rare:      yield_min = 2; yield_max = 3; w = {  40, 60,  0 }; break;
+        case Rarity::Epic:      yield_min = 3; yield_max = 3; w = {  20, 70, 10 }; break;
+        case Rarity::Legendary: yield_min = 3; yield_max = 4; w = {   0, 60, 40 }; break;
     }
-    int yield = base_yield + std::uniform_int_distribution<int>(0, 1)(rng);
+    int yield = std::uniform_int_distribution<int>(yield_min, yield_max)(rng);
 
-    // Generate random crafting materials
-    Item(*builders[])() = {build_nano_fiber, build_power_core, build_circuit_board, build_alloy_ingot};
-    int builder_count = 4;
+    // Build per-tier candidate pools from the catalog.
+    std::vector<uint32_t> t1_ids, t2_ids, t3_ids;
+    for (const auto& m : material_catalog()) {
+        switch (m.tier) {
+            case MaterialTier::Common:   t1_ids.push_back(m.material_id); break;
+            case MaterialTier::Uncommon: t2_ids.push_back(m.material_id); break;
+            case MaterialTier::Rare:     t3_ids.push_back(m.material_id); break;
+        }
+    }
 
+    auto draw_from = [&](const std::vector<uint32_t>& pool) -> uint32_t {
+        if (pool.empty()) return 0;
+        return pool[std::uniform_int_distribution<size_t>(0, pool.size() - 1)(rng)];
+    };
+
+    int total = w.t1 + w.t2 + w.t3;
+    auto pick_tier = [&]() -> int {
+        int roll = std::uniform_int_distribution<int>(0, total - 1)(rng);
+        if (roll < w.t1) return 1;
+        if (roll < w.t1 + w.t2) return 2;
+        return 3;
+    };
+
+    int produced = 0;
     for (int i = 0; i < yield; ++i) {
-        Item mat = builders[std::uniform_int_distribution<int>(0, builder_count - 1)(rng)]();
-        // Merge into existing stack if possible
+        int tier = pick_tier();
+        const auto& pool = (tier == 1) ? t1_ids : (tier == 2) ? t2_ids : t3_ids;
+        uint32_t mid = draw_from(pool);
+        if (mid == 0) {
+            mid = draw_from(t1_ids);
+            if (mid == 0) continue;
+        }
+
+        // Merge into existing stack if possible.
         bool merged = false;
-        for (auto& inv_item : player.inventory.items) {
-            if (inv_item.id == mat.id) {
-                inv_item.stack_count++;
-                merged = true;
-                break;
-            }
+        for (auto& inv : player.inventory.items) {
+            if (inv.id == mid) { inv.stack_count++; merged = true; break; }
         }
         if (!merged) {
-            player.inventory.items.push_back(std::move(mat));
+            // Map material_id (Item::id) to its item_def_id by walking the loot table.
+            uint16_t def_id = 0;
+            for (const auto& entry : loot_table_all_entries()) {
+                Item probe = build_by_def_id(entry.item_def_id);
+                if (probe.id == mid) { def_id = entry.item_def_id; break; }
+            }
+            if (def_id == 0) continue;
+            player.inventory.items.push_back(build_by_def_id(def_id));
         }
+        ++produced;
     }
 
-    return {true, true, "Salvaged " + item.name + ". Received " + std::to_string(yield) + " materials."};
+    return {true, true, "Salvaged " + item.name + ". Received " + std::to_string(produced) + " materials."};
 }
 
 // ---------------------------------------------------------------------------

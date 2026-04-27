@@ -386,6 +386,8 @@ static void write_item(BinaryWriter& w, const Item& item) {
         }
     }
     w.write_u16(item.teaches_recipe_id);
+    // v49: schematic payload
+    w.write_u16(item.teaches_schematic_id);
 }
 
 static Item read_item(BinaryReader& r) {
@@ -503,6 +505,8 @@ static Item read_item(BinaryReader& r) {
         item.dish = std::move(d);
     }
     item.teaches_recipe_id = r.read_u16();
+    // v49: schematic payload
+    item.teaches_schematic_id = r.read_u16();
     return item;
 }
 
@@ -693,6 +697,13 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_u32(bp.source_item_id);
         w.write_string(bp.name);
         w.write_string(bp.description);
+    }
+    // v49: learned_schematics
+    w.write_u32(static_cast<uint32_t>(p.learned_schematics.size()));
+    for (const auto& ls : p.learned_schematics) {
+        w.write_u16(ls.schematic_id);
+        w.write_string(ls.name);
+        w.write_string(ls.description);
     }
     // Journal
     w.write_u32(static_cast<uint32_t>(p.journal.size()));
@@ -1552,6 +1563,14 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.learned_blueprints[i].source_item_id = r.read_u32();
         p.learned_blueprints[i].name = r.read_string();
         p.learned_blueprints[i].description = r.read_string();
+    }
+    // v49: learned_schematics
+    uint32_t ls_count = r.read_u32();
+    p.learned_schematics.resize(ls_count);
+    for (uint32_t i = 0; i < ls_count; ++i) {
+        p.learned_schematics[i].schematic_id = r.read_u16();
+        p.learned_schematics[i].name = r.read_string();
+        p.learned_schematics[i].description = r.read_string();
     }
     // Journal
     uint32_t journal_count = r.read_u32();

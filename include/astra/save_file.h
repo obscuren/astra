@@ -25,7 +25,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 48;   // v48: toggleable items + module_kind
+inline constexpr uint32_t SAVE_FILE_VERSION = 49;   // v49: tinkering expansion (learned_schematics + teaches_schematic_id)
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
