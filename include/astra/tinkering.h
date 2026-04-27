@@ -27,6 +27,7 @@ struct MaterialEffect {
     StatModifiers stat_bonus;
     EnergyModifiers energy_bonus;
     std::optional<SolarPanelData> solar_panel;
+    ModuleKind module_kind = ModuleKind::None;
 };
 
 // Get the enhancement bonus for a crafting material

@@ -148,6 +148,8 @@ Outdoor-only passive trickle charge.
 | `*` Bright Yellow | Light Sensor | 95 | Uncommon | Photodiode array. Auto-toggles light-dependent items (e.g. Nightvision Goggles). | Chest, General merchant, Arms dealer | 120 |
 | `*` Bright Cyan | AI Module | 94 | Rare | Adaptive control circuit. Auto-triggers any manual-toggle benefit. | Chest, Arms dealer (rep≥50), Black market | 280 |
 
+**Tinkering recipes:** `Optic Module + Joint Mechanism → AI Module`; `Optic Module + Padding Weave → Light Sensor`
+
 ## Ship Components
 
 Installed in the ship's component slots from the inventory. Each slot accepts a single component.

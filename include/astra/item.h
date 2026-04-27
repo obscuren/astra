@@ -266,5 +266,6 @@ struct Inventory {
 };
 
 bool item_has_active_module(const Item& item);
+std::string active_module_name(const Item& item);
 
 } // namespace astra

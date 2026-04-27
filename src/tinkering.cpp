@@ -31,6 +31,9 @@ static const MaterialEffect s_material_effects[] = {
     {2058, "Brass Conduit",         {}, { 0, 0, 10},             std::nullopt},
     {2059, "Power Junction",        {}, {15, 10, 0},             std::nullopt},
     {2060, "Tuned Catalyst",        {}, { 0, 15, 8},             std::nullopt},
+    // Accessory modules — no stat/energy bonus; promote host item to auto-mode.
+    {2070, "AI Module",             {}, {},                      std::nullopt, ModuleKind::AiModule},
+    {2071, "Light Sensor",          {}, {},                      std::nullopt, ModuleKind::LightSensor},
 };
 
 const MaterialEffect* get_material_effect(uint32_t material_id) {
@@ -184,6 +187,7 @@ TinkerResult enhance_item(Item& item, int slot_index, uint32_t material_id, Play
     slot.stat_bonus = effect->stat_bonus;
     slot.energy_bonus = effect->energy_bonus;
     slot.solar_panel  = effect->solar_panel;
+    slot.module_kind  = effect->module_kind;
 
     return {true, false, "Slotted " + std::string(effect->name) + ". [f] Assemble to apply."};
 }
@@ -443,6 +447,17 @@ const std::vector<SynthesisRecipe>& synthesis_recipes() {
          "Energy mod. +1 free unit per 10 transferred.",
          ItemType::CraftingMaterial, EquipSlot::Back, '*',
          {}, 0, {0, 1, 0, 1}, &build_brass_conduit},
+
+        // Accessory module recipes — produce behavioral modules via custom builders.
+        {"Optic Module", "Joint Mechanism", "AI Module",
+         "Adaptive control circuit. Slotted into an item to automate any manual trigger.",
+         ItemType::CraftingMaterial, EquipSlot::Face, '*',
+         {}, 0, {1, 1, 2, 0}, &build_ai_module},
+
+        {"Optic Module", "Padding Weave", "Light Sensor",
+         "Photodiode array. Slotted into an item to auto-toggle anything that depends on ambient light.",
+         ItemType::CraftingMaterial, EquipSlot::Face, '*',
+         {}, 0, {1, 0, 1, 0}, &build_light_sensor},
     };
     return recipes;
 }

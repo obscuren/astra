@@ -888,13 +888,26 @@ void CharacterScreen::execute_context_action(char key) {
                 recharge_equipped_request_ = 0;  // weapon
             }
         } else if (key == 'g') {
+            bool handled = false;
             for (auto& enh : equipped->enhancements) {
                 if (enh.committed && enh.solar_panel) {
                     enh.solar_panel->active = !enh.solar_panel->active;
                     context_message_ = std::string("Solar Panel ") +
                                        (enh.solar_panel->active ? "enabled." : "disabled.");
                     context_msg_timer_ = 3;
+                    handled = true;
                     break;
+                }
+            }
+            if (!handled && equipped->toggleable) {
+                if (item_has_active_module(*equipped)) {
+                    context_message_ = "Auto mode (" + active_module_name(*equipped) +
+                                       ") — manual toggle disabled.";
+                    context_msg_timer_ = 3;
+                } else {
+                    equipped->active = !equipped->active;
+                    context_message_ = equipped->label() + (equipped->active ? " on." : " off.");
+                    context_msg_timer_ = 3;
                 }
             }
         } else if (key == 'u') {
@@ -943,13 +956,26 @@ void CharacterScreen::execute_context_action(char key) {
             recharge_request_idx_ = inv_cursor_;
         } else if (key == 'g') {
             auto& item = items[inv_cursor_];
+            bool handled = false;
             for (auto& enh : item.enhancements) {
                 if (enh.committed && enh.solar_panel) {
                     enh.solar_panel->active = !enh.solar_panel->active;
                     context_message_ = std::string("Solar Panel ") +
                                        (enh.solar_panel->active ? "enabled." : "disabled.");
                     context_msg_timer_ = 3;
+                    handled = true;
                     break;
+                }
+            }
+            if (!handled && item.toggleable) {
+                if (item_has_active_module(item)) {
+                    context_message_ = "Auto mode (" + active_module_name(item) +
+                                       ") — manual toggle disabled.";
+                    context_msg_timer_ = 3;
+                } else {
+                    item.active = !item.active;
+                    context_message_ = item.label() + (item.active ? " on." : " off.");
+                    context_msg_timer_ = 3;
                 }
             }
         } else if (key == 'u') {
@@ -1181,7 +1207,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     } else if (active_tab_ == CharTab::Cooking) {
         footer_text = "[ESC] Close  [Tab] Focus  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Add  [x] Clear  [c] Cook";
     } else if (active_tab_ == CharTab::Equipment) {
-        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [l] Look";
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [g] Toggle  [l] Look";
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
     } else {

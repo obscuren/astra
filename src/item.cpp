@@ -114,6 +114,18 @@ bool item_has_active_module(const Item& item) {
     return false;
 }
 
+std::string active_module_name(const Item& item) {
+    for (const auto& slot : item.enhancements) {
+        if (!slot.committed) continue;
+        switch (slot.module_kind) {
+            case ModuleKind::AiModule:    return "AI Module";
+            case ModuleKind::LightSensor: return "Light Sensor";
+            case ModuleKind::None:        break;
+        }
+    }
+    return "module";
+}
+
 int Inventory::total_weight() const {
     int w = 0;
     for (const auto& item : items) {

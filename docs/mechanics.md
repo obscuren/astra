@@ -701,4 +701,6 @@ Items with `toggleable = true` (currently: Nightvision Goggles) carry their own 
 - Surface detail map at Night, Dawn, or Dusk → dark.
 - Dungeon (any non-overworld, non-detail, non-station map) → always dark.
 
-**Auto-mode:** If a committed `AiModule` or `LightSensor` enhancement slot is present, the item auto-toggles based on context and remaining charge. Without a module the player toggles manually (inventory `g` key, Task 4).
+**Auto-mode:** If a committed `AiModule` or `LightSensor` enhancement slot is present, the item auto-toggles based on context and remaining charge. Without a module the player toggles manually (inventory `g` key).
+
+**Accessory module synthesis recipes:** `Optic Module + Joint Mechanism → AI Module` (nano:1 power:1 circuit:2); `Optic Module + Padding Weave → Light Sensor` (nano:1 circuit:1). Both use `custom_builder` — equipment fields in the recipe are unused.
