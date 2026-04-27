@@ -170,6 +170,12 @@ constexpr uint16_t ITEM_INCENDIARY_MINE         = 210;
 constexpr uint16_t ITEM_DECOY_MINE              = 211;
 constexpr uint16_t ITEM_CALTROPS                = 212;
 
+// Turrets — deployable autonomous defenders (213-216)
+constexpr uint16_t ITEM_AUTO_TURRET             = 213;
+constexpr uint16_t ITEM_FLAME_TURRET            = 214;
+constexpr uint16_t ITEM_ARC_TURRET              = 215;
+constexpr uint16_t ITEM_SENTRY_DRONE            = 216;
+
 // Schematics (220-235) — single-use pickup, teaches a recipe permanently
 constexpr uint16_t ITEM_SCHEM_HEALING_STIM        = 220;
 constexpr uint16_t ITEM_SCHEM_ADRENALINE_STIM     = 221;
@@ -187,6 +193,10 @@ constexpr uint16_t ITEM_SCHEM_EMP_MINE            = 232;
 constexpr uint16_t ITEM_SCHEM_INCENDIARY_MINE     = 233;
 constexpr uint16_t ITEM_SCHEM_DECOY_MINE          = 234;
 constexpr uint16_t ITEM_SCHEM_CALTROPS            = 235;
+constexpr uint16_t ITEM_SCHEM_AUTO_TURRET         = 236;
+constexpr uint16_t ITEM_SCHEM_FLAME_TURRET        = 237;
+constexpr uint16_t ITEM_SCHEM_ARC_TURRET          = 238;
+constexpr uint16_t ITEM_SCHEM_SENTRY_DRONE        = 239;
 
 // Synthesized items (1000+)
 constexpr uint16_t ITEM_SYNTH_PLASMA_EDGE       = 1000;

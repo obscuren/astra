@@ -145,6 +145,17 @@ Skill: Cat_Tinkering. Hotkey `[C]` opens the picker.
 | Decoy Mine | 1 Scrap + 1 Empty Casing + 1 Circuitry + 1 Copper Wire + 1 Spare Parts |
 | Caltrops | 3 Scrap + 1 Adhesive Resin |
 
+### Turrets
+
+`ItemType::Turret`. Deployable autonomous defenders. Sentry Drone is the mobile variant; the others are stationary.
+
+| Item | Recipe Cost |
+|---|---|
+| Auto-Turret | 3 Scrap + 1 Empty Casing + 1 Spare Parts + 1 Power Core + 1 Alloy Ingot |
+| Flame Turret | 3 Scrap + 1 Circuitry + 1 Spare Parts + 1 Coolant Vial + 1 Plasma Cartridge |
+| Arc Turret | 2 Scrap + 1 Circuitry + 2 Copper Wire + 1 Power Core + 1 Polished Lens |
+| Sentry Drone | 3 Scrap + 1 Circuitry + 1 Micro-Servo + 1 Nano Lattice + 1 Power Core + 1 Plasma Cartridge |
+
 ## Salvage
 
 Skill: Disassemble. Hotkey `[s]` (item must be on the workbench). Salvage destroys the item and returns tier-weighted materials.

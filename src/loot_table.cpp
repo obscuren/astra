@@ -67,6 +67,27 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_FRAG_GRENADE,       "frag_grenade",       R::Common,    R::Uncommon,  20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                              T::Military, 1, C::Consumable },
         LootEntry{ ITEM_EMP_GRENADE,        "emp_grenade",        R::Uncommon,  R::Rare,      15, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                              T::Tech,     2, C::Consumable },
         LootEntry{ ITEM_CRYO_GRENADE,       "cryo_grenade",       R::Uncommon,  R::Rare,      10, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Tech,     2, C::Consumable },
+        // New stims (crafted via schematics; also drop occasionally pre-built)
+        LootEntry{ ITEM_HEALING_STIM,       "healing_stim",       R::Common,    R::Uncommon,  20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantFood, T::Civilian, 1, C::Consumable },
+        LootEntry{ ITEM_ENDURE_STIM,        "endure_stim",        R::Uncommon,  R::Uncommon,  15, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                      T::Military, 2, C::Consumable },
+        LootEntry{ ITEM_FOCUS_STIM,         "focus_stim",         R::Uncommon,  R::Uncommon,  15, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                      T::Tech,     2, C::Consumable },
+        LootEntry{ ITEM_BERSERKER_STIM,     "berserker_stim",     R::Rare,      R::Rare,       6, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Military, 3, C::Consumable },
+        LootEntry{ ITEM_MEDKIT,             "medkit",             R::Uncommon,  R::Uncommon,  12, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantFood,                      T::Civilian, 2, C::Consumable },
+        // New grenades
+        LootEntry{ ITEM_INCENDIARY_GRENADE, "incendiary_grenade", R::Uncommon,  R::Rare,      12, {}, LootSource::Chest | LootSource::MerchantArms,                                                    T::Military, 2, C::Consumable },
+        LootEntry{ ITEM_SMOKE_GRENADE,      "smoke_grenade",      R::Common,    R::Common,    18, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                              T::Military, 1, C::Consumable },
+        LootEntry{ ITEM_FLASHBANG,          "flashbang",          R::Uncommon,  R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                    T::Military, 2, C::Consumable },
+        // Mines
+        LootEntry{ ITEM_PROXIMITY_MINE,     "proximity_mine",     R::Uncommon,  R::Rare,      10, {}, LootSource::Chest | LootSource::MerchantArms,                                                    T::Military, 2, C::Consumable },
+        LootEntry{ ITEM_EMP_MINE,           "emp_mine",           R::Uncommon,  R::Rare,       8, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Tech,     3, C::Consumable },
+        LootEntry{ ITEM_INCENDIARY_MINE,    "incendiary_mine",    R::Uncommon,  R::Rare,       8, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Military, 3, C::Consumable },
+        LootEntry{ ITEM_DECOY_MINE,         "decoy_mine",         R::Common,    R::Common,    12, {}, LootSource::Chest | LootSource::MerchantArms,                                                    T::Tech,     2, C::Consumable },
+        LootEntry{ ITEM_CALTROPS,           "caltrops",           R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::ScavMerchant, T::Civilian, 1, C::Consumable },
+        // Turrets
+        LootEntry{ ITEM_AUTO_TURRET,        "auto_turret",        R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::MerchantArms,                                                    T::Military, 2, C::Consumable },
+        LootEntry{ ITEM_FLAME_TURRET,       "flame_turret",       R::Rare,      R::Rare,       4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Military, 3, C::Consumable },
+        LootEntry{ ITEM_ARC_TURRET,         "arc_turret",         R::Rare,      R::Rare,       4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Tech,     3, C::Consumable },
+        LootEntry{ ITEM_SENTRY_DRONE,       "sentry_drone",       R::Epic,      R::Epic,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                     T::Tech,     5, C::Consumable },
 
         // ----- Batteries (own category, distinct from Consumable) -------
         LootEntry{ ITEM_SMALL_ENERGY_CELL,      "cell_small",      R::Common,    R::Common,    50, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms | LootSource::ScavMerchant, T::Tech, 1, C::Battery },
@@ -156,6 +177,10 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_SCHEM_INCENDIARY_MINE,     "schem_incendiary_mine",     R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,    T::Military, 3, C::Junk },
         LootEntry{ ITEM_SCHEM_DECOY_MINE,          "schem_decoy_mine",          R::Common,    R::Common,     4, {}, loot_source_bit(LootSource::Chest),             T::Tech,     1, C::Junk },
         LootEntry{ ITEM_SCHEM_CALTROPS,            "schem_caltrops",            R::Common,    R::Common,     5, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::ScavMerchant, T::Civilian, 1, C::Junk },
+        LootEntry{ ITEM_SCHEM_AUTO_TURRET,         "schem_auto_turret",         R::Uncommon,  R::Uncommon,   3, {}, LootSource::Chest | LootSource::MerchantArms,                              T::Tech,     2, C::Junk },
+        LootEntry{ ITEM_SCHEM_FLAME_TURRET,        "schem_flame_turret",        R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,    T::Military, 3, C::Junk },
+        LootEntry{ ITEM_SCHEM_ARC_TURRET,          "schem_arc_turret",          R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,    T::Tech,     3, C::Junk },
+        LootEntry{ ITEM_SCHEM_SENTRY_DRONE,        "schem_sentry_drone",        R::Epic,      R::Epic,       1, {}, LootSource::Chest | LootSource::BlackMarket,                              T::Tech,     5, C::Junk },
 
         // Note: ingredients (raw_meat, carrot, flour, herbs, synth_protein),
         // cooked dishes, and burnt_slop are deliberately NOT in the loot

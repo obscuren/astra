@@ -1154,6 +1154,12 @@ Item build_incendiary_mine() { return build_consumable_(ITEM_INCENDIARY_MINE, 72
 Item build_decoy_mine()      { return build_consumable_(ITEM_DECOY_MINE,      7211, "Decoy Mine",      "Emits noise to draw attention. (Inert.)",                ItemType::Mine, Rarity::Common,   40, 14); }
 Item build_caltrops()        { return build_consumable_(ITEM_CALTROPS,        7212, "Caltrops",        "A handful of jagged spikes. Cheap area denial. (Inert.)", ItemType::Mine, Rarity::Common,   20,  7); }
 
+// Turrets — stationary unless tagged mobile in description. Deploy code is a future spec.
+Item build_auto_turret()   { return build_consumable_(ITEM_AUTO_TURRET,   7213, "Auto-Turret",   "Stationary kinetic turret. Pings nearby hostiles. (Inert.)", ItemType::Turret, Rarity::Uncommon, 110, 40); }
+Item build_flame_turret()  { return build_consumable_(ITEM_FLAME_TURRET,  7214, "Flame Turret",  "Stationary cone-burst flamer. Short range, persistent fire. (Inert.)", ItemType::Turret, Rarity::Rare,    160, 58); }
+Item build_arc_turret()    { return build_consumable_(ITEM_ARC_TURRET,    7215, "Arc Turret",    "Stationary tesla coil. Chains lightning between nearby targets. (Inert.)", ItemType::Turret, Rarity::Rare,    180, 65); }
+Item build_sentry_drone()  { return build_consumable_(ITEM_SENTRY_DRONE,  7216, "Sentry Drone",  "Mobile autonomous drone. Patrols and engages on its own. (Inert.)",   ItemType::Turret, Rarity::Epic,    260, 95); }
+
 // ---------------------------------------------------------------------------
 // Schematics — single-use, taught permanently when read. Mirror Cookbooks.
 // ---------------------------------------------------------------------------
@@ -1195,6 +1201,10 @@ Item build_schem_emp_mine()           { return build_schematic_(ITEM_SCHEM_EMP_M
 Item build_schem_incendiary_mine()    { return build_schematic_(ITEM_SCHEM_INCENDIARY_MINE,    7113, "Schematic: Incendiary Mine",   14,  Rarity::Rare,     140,  50); }
 Item build_schem_decoy_mine()         { return build_schematic_(ITEM_SCHEM_DECOY_MINE,         7114, "Schematic: Decoy Mine",        15,  Rarity::Common,    60,  22); }
 Item build_schem_caltrops()           { return build_schematic_(ITEM_SCHEM_CALTROPS,           7115, "Schematic: Caltrops",          16,  Rarity::Common,    25,   8); }
+Item build_schem_auto_turret()        { return build_schematic_(ITEM_SCHEM_AUTO_TURRET,        7116, "Schematic: Auto-Turret",       17,  Rarity::Uncommon, 130,  46); }
+Item build_schem_flame_turret()       { return build_schematic_(ITEM_SCHEM_FLAME_TURRET,       7117, "Schematic: Flame Turret",      18,  Rarity::Rare,     180,  65); }
+Item build_schem_arc_turret()         { return build_schematic_(ITEM_SCHEM_ARC_TURRET,         7118, "Schematic: Arc Turret",        19,  Rarity::Rare,     200,  72); }
+Item build_schem_sentry_drone()       { return build_schematic_(ITEM_SCHEM_SENTRY_DRONE,       7119, "Schematic: Sentry Drone",      20,  Rarity::Epic,     320, 115); }
 
 // ---------------------------------------------------------------------------
 // Solar panel crafting materials
@@ -1459,6 +1469,12 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_DECOY_MINE:                return build_decoy_mine();
         case ITEM_CALTROPS:                  return build_caltrops();
 
+        // Turrets
+        case ITEM_AUTO_TURRET:               return build_auto_turret();
+        case ITEM_FLAME_TURRET:              return build_flame_turret();
+        case ITEM_ARC_TURRET:                return build_arc_turret();
+        case ITEM_SENTRY_DRONE:              return build_sentry_drone();
+
         // Schematics
         case ITEM_SCHEM_HEALING_STIM:        return build_schem_healing_stim();
         case ITEM_SCHEM_ADRENALINE_STIM:     return build_schem_adrenaline_stim();
@@ -1476,6 +1492,10 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_SCHEM_INCENDIARY_MINE:     return build_schem_incendiary_mine();
         case ITEM_SCHEM_DECOY_MINE:          return build_schem_decoy_mine();
         case ITEM_SCHEM_CALTROPS:            return build_schem_caltrops();
+        case ITEM_SCHEM_AUTO_TURRET:         return build_schem_auto_turret();
+        case ITEM_SCHEM_FLAME_TURRET:        return build_schem_flame_turret();
+        case ITEM_SCHEM_ARC_TURRET:          return build_schem_arc_turret();
+        case ITEM_SCHEM_SENTRY_DRONE:        return build_schem_sentry_drone();
 
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();

@@ -42,6 +42,7 @@ enum class ItemType : uint8_t {
     Cookbook,     // teaches a recipe when read
     Mine,         // placeable trigger-on-step consumable
     Schematic,    // teaches a tinkering recipe when read
+    Turret,       // deployable autonomous defender (stationary or mobile)
 };
 
 const char* item_type_name(ItemType t);

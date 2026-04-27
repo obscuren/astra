@@ -788,6 +788,15 @@ const std::vector<SchematicRecipe>& schematic_recipes() {
            { {30, 1}, {32, 1}, {48, 1}, {7010, 1}, {47, 1} }, 1 },
         { 16, 7212, ITEM_CALTROPS,        "Caltrops",        "Cheap area denial.",
            { {30, 3}, {7013, 1} }, 1 },
+        // Turrets
+        { 17, 7213, ITEM_AUTO_TURRET,   "Auto-Turret",   "Stationary kinetic turret.",
+           { {30, 3}, {32, 1}, {47, 1}, {7002, 1}, {7004, 1} }, 1 },
+        { 18, 7214, ITEM_FLAME_TURRET,  "Flame Turret",  "Stationary cone-burst flamer.",
+           { {30, 3}, {48, 1}, {47, 1}, {7014, 1}, {7023, 1} }, 1 },
+        { 19, 7215, ITEM_ARC_TURRET,    "Arc Turret",    "Stationary tesla coil.",
+           { {30, 2}, {48, 1}, {7010, 2}, {7002, 1}, {7021, 1} }, 1 },
+        { 20, 7216, ITEM_SENTRY_DRONE,  "Sentry Drone",  "Mobile autonomous drone.",
+           { {30, 3}, {48, 1}, {7022, 1}, {7020, 1}, {7002, 1}, {7023, 1} }, 1 },
     };
     return recipes;
 }
