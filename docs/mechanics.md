@@ -683,6 +683,10 @@ Solar Panels deposit energy into their host item only when the player is outdoor
 
 `EnergyModifiers::discharge_efficiency` from any committed slot on the source cell adds +1 free unit to the destination for every N units actually drained (`bonus = drained / N`, `0` disables).
 
+### Tinkering
+
+Crafting system covering repair, enhancement, refinement, synthesis, and schematic-based consumable crafting. **24 materials across 3 tiers** with tier-weighted salvage. See [tinkering.md](tinkering.md) for the full materials catalog, refinement recipes, synthesis recipes, schematic recipes, and salvage rules.
+
 ### Tinker mod stacking
 
 Multiple mods on the same cell stack: the system sums `capacity_bonus`, `charge_rate_bonus`, and `discharge_efficiency` across all committed slots.

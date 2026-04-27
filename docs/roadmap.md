@@ -53,6 +53,8 @@
 - [ ] **Blueprint discovery flow** — find blueprints in dungeons, learn from analyzing loot
 - [x] **Repair bench fixture** — pay credits to restore durability, no skill required
 - [x] **Tinkering salvage system** — Spare Parts / Circuitry items, three mechanical enemies (Rust Hound, Sentry Drone, Archon Automaton), `Cat_Tinkering`-gated auto-salvage on mechanical kills, 5% ungated ground-drop on other kills (2026-04-21)
+- [x] **Tinkering expansion** — 24-material catalog across 3 tiers, junk dual-use + 9 refinement recipes, hand-tuned synthesis costs, schematic-based crafting for 16 inert consumables (stims/grenades/mines), tier-weighted salvage, `docs/tinkering.md` reference (2026-04-27)
+- [ ] **Consumable use code** — wire throw / inject / detonate for the 16 stims/grenades/mines crafted via schematics; status effects, AoE, mine triggers
 
 ### Cooking
 - [x] **Cooking system v1** — `Cat_Cooking` skill category, three-slot pot UI in a new character tab, aura-gated via `CookingFireAura` on any `FixtureTag::CookingSource` fixture, 6 recipes (3 Basic starters + 3 cookbook-obtained), 5 stackable ingredients, `DishOutput` driving hunger/HP/GE on consumption, Burnt Slop on experiment miss, `AdvancedFireMaking` sub-skill cuts Camp Making cooldown 40% (2026-04-23)

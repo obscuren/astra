@@ -165,24 +165,24 @@ Installed in the ship's component slots from the inventory. Each slot accepts a 
 
 `Category::Junk`. Sells for parts; no equip / use.
 
-| Glyph | Name | ID |
-|------|------|----|
-| `~` Dark Gray | Scrap Metal | 30 |
-| `~` Dark Gray | Broken Circuit | 31 |
-| `~` Dark Gray | Empty Casing | 32 |
-| `~` Yellow | Spare Parts | 47 |
-| `~` Cyan | Circuitry | 48 |
+| Glyph | Name | ID | Notes |
+|------|------|----|----|
+| `~` Dark Gray | Scrap Metal | 30 | also: crafting reagent (T1) |
+| `~` Dark Gray | Broken Circuit | 31 | also: crafting reagent (T1) |
+| `~` Dark Gray | Empty Casing | 32 | also: crafting reagent (T1) |
+| `~` Yellow | Spare Parts | 47 | also: crafting reagent (T2) |
+| `~` Cyan | Circuitry | 48 | also: crafting reagent (T2) |
 
 ## Crafting Materials
 
-`Category::CraftingMaterial`. Consumed by tinkering recipes.
+`Category::CraftingMaterial`. Consumed by tinkering recipes. **24 materials across 3 tiers** — see [tinkering.md](tinkering.md) for the full catalog and recipe details.
 
-| Glyph | Name | ID | Used in |
-|------|------|----|----|
-| `+` Cyan | Nano-Fiber | 33 | All recipes (default reagent) |
-| `+` Yellow | Power Core | 34 | High-energy recipes |
-| `+` Green | Circuit Board | 35 | Tech / mod recipes |
-| `+` White | Alloy Ingot | 36 | Heavy/armor recipes |
+Quick summary:
+- **T1 Common (8):** Scrap Metal\*, Broken Circuit\*, Empty Casing\*, Copper Wire, Polymer Strip, Glass Shard, Adhesive Resin, Coolant Vial
+- **T2 Uncommon (10):** Nano-Fiber, Power Core, Circuit Board, Alloy Ingot, Spare Parts\*, Circuitry\*, Nano Lattice, Polished Lens, Micro-Servo, Plasma Cartridge
+- **T3 Rare (6):** Quantum Resonance Crystal, Strange Strobing Crystal, Prime Catalyst, Prime Filament, Voidshard, Phase Coil
+
+\* = also dropped/sold as `ItemType::Junk`; doubles as crafting reagent.
 
 ## Cooking — Ingredients
 
