@@ -775,14 +775,24 @@ Item build_recon_visor() {
     return it;
 }
 
-Item build_night_goggles() {
+Item build_nightvision_goggles() {
     Item it;
     it.item_def_id = ITEM_NIGHT_GOGGLES;
-    it.id = 4002; it.name = "Night Goggles"; it.type = ItemType::Accessory;
-    it.description = "Amplifies ambient light. Useful in dark environments.";
-    it.slot = EquipSlot::Face; it.rarity = Rarity::Common;
+    it.id = 4002;
+    it.name = "Nightvision Goggles";
+    it.type = ItemType::Accessory;
+    it.description = "Amplifies ambient light. Useful in dark environments. Powered by a built-in cell.";
+    it.slot = EquipSlot::Face;
+    it.rarity = Rarity::Common;
     it.weight = 1;
-    it.buy_value = 80; it.sell_value = 25; it.modifiers.view_radius = 1;
+    it.buy_value = 80;
+    it.sell_value = 25;
+    it.modifiers.view_radius = 1;
+    it.energy = EnergyStore{ /*current=*/60, /*capacity=*/60 };
+    it.consumer = EnergyConsumer{ /*energy_per_use=*/1 };
+    it.toggleable = true;
+    it.enhancement_slots = 1;
+    init_enhancement_slots(it);
     return it;
 }
 
@@ -1125,7 +1135,7 @@ Item build_by_def_id(uint16_t def_id) {
 
         // Accessories
         case ITEM_RECON_VISOR:             return build_recon_visor();
-        case ITEM_NIGHT_GOGGLES:           return build_night_goggles();
+        case ITEM_NIGHT_GOGGLES:           return build_nightvision_goggles();
         case ITEM_JETPACK:                 return build_jetpack();
         case ITEM_CARGO_PACK:              return build_cargo_pack();
 

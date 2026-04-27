@@ -91,6 +91,28 @@ std::pair<int, int> find_dungeon_hatch(const TileMap& m) {
     return {-1, -1};
 }
 
+// Mirrors the FOV restriction rules in Game::recompute_fov(). Returns true
+// whenever the player's view radius would otherwise be clipped — i.e.,
+// goggles would actually help.
+bool is_dark_context(const WorldManager& world) {
+    if (world.navigation().on_ship) return false;
+    auto map_type = world.map().map_type();
+    if (map_type == MapType::SpaceStation
+        || map_type == MapType::DerelictStation
+        || map_type == MapType::Starship) return false;
+    if (world.on_overworld()) return false;
+
+    // Surface detail map: dark whenever effective_view_radius is clipped.
+    // Day → max_radius (not dark). Night/Dawn/Dusk → clipped (dark).
+    if (world.on_detail_map() || map_type == MapType::DetailMap) {
+        int max_radius = std::max(world.map().width(), world.map().height());
+        return world.day_clock().effective_view_radius(max_radius, 0) < max_radius;
+    }
+
+    // Dungeon — always dark.
+    return true;
+}
+
 } // namespace
 
 // Fallback open-spot picker for maps without defined Rooms (ruins, caves,
@@ -2140,6 +2162,42 @@ void Game::advance_world(int cost) {
     check_player_death();
     ++world_.world_tick();
     world_.day_clock().advance(1);
+
+    // --- Toggleable powered items (Nightvision Goggles, etc.) ---------------
+    {
+        bool dark = is_dark_context(world_);
+        std::optional<Item>* slots[] = {
+            &player_.equipment.face,       &player_.equipment.head,
+            &player_.equipment.body,       &player_.equipment.left_arm,
+            &player_.equipment.right_arm,  &player_.equipment.left_hand,
+            &player_.equipment.right_hand, &player_.equipment.back,
+            &player_.equipment.feet,       &player_.equipment.thrown,
+            &player_.equipment.missile,    &player_.equipment.shield,
+        };
+        for (auto* s : slots) {
+            if (!*s) continue;
+            Item& it = **s;
+            if (!it.toggleable) continue;
+            if (!it.energy.has_value()) continue;
+
+            // Auto-mode: any committed module overrides player intent.
+            if (item_has_active_module(it)) {
+                it.active = (dark && it.energy->current > 0);
+            }
+
+            if (!it.active) continue;
+            if (!dark) continue;
+            if (it.energy->current <= 0) continue;
+
+            it.drain_accumulator += 1;
+            if (it.drain_accumulator >= 10) {
+                it.drain_accumulator -= 10;
+                int drain = it.consumer ? it.consumer->energy_per_use : 1;
+                it.energy->current -= drain;
+                if (it.energy->current < 0) it.energy->current = 0;
+            }
+        }
+    }
 
     // Tick and expire effects
     tick_effects(player_.effects, player_.hp, player_.effective_max_hp());

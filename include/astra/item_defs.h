@@ -37,7 +37,7 @@ Item build_void_mantle();
 
 // --- Accessories ---
 Item build_recon_visor();
-Item build_night_goggles();
+Item build_nightvision_goggles();
 Item build_jetpack();
 Item build_cargo_pack();
 

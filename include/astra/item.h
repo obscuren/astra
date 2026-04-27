@@ -265,4 +265,6 @@ struct Inventory {
     bool can_add(const Item& item) const;
 };
 
+bool item_has_active_module(const Item& item);
+
 } // namespace astra

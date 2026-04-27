@@ -95,10 +95,23 @@ StatModifiers Equipment::total_modifiers() const {
             total.dv += (*s)->modifiers.dv;
             total.max_hp += (*s)->modifiers.max_hp;
             total.view_radius += (*s)->modifiers.view_radius;
+            if ((*s)->toggleable && (*s)->active &&
+                (*s)->energy && (*s)->energy->current > 0) {
+                total.view_radius += 4;
+            }
             total.quickness += (*s)->modifiers.quickness;
         }
     }
     return total;
+}
+
+bool item_has_active_module(const Item& item) {
+    for (const auto& slot : item.enhancements) {
+        if (slot.committed && slot.module_kind != ModuleKind::None) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int Inventory::total_weight() const {

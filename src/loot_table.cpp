@@ -56,7 +56,7 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_VOID_MANTLE,        "void_mantle",        R::Epic,      R::Legendary,  3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Ancient,  5, C::Shield },
 
         // ----- Accessories -----------------------------------------------
-        LootEntry{ ITEM_NIGHT_GOGGLES,      "night_goggles",      R::Common,    R::Rare,      20, {}, LootSource::Chest | LootSource::MerchantGeneral,                                                  T::Civilian, 1, C::Accessory },
+        LootEntry{ ITEM_NIGHT_GOGGLES,      "nightvision_goggles", R::Common,    R::Rare,      20, {}, LootSource::Chest | LootSource::MerchantGeneral,                                                  T::Civilian, 1, C::Accessory },
         LootEntry{ ITEM_RECON_VISOR,        "recon_visor",        R::Uncommon,  R::Epic,      10, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                       T::Tech,     2, C::Accessory },
         LootEntry{ ITEM_JETPACK,            "jetpack",            R::Rare,      R::Epic,       5, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Accessory },
         LootEntry{ ITEM_CARGO_PACK,         "cargo_pack",         R::Common,    R::Rare,      15, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::ScavMerchant,                       T::Civilian, 1, C::Accessory },

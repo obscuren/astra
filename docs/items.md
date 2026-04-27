@@ -70,7 +70,7 @@ Slot: `Face`, `Back`. Passive bonuses while equipped.
 
 | Glyph | Name | ID | Slot | Rarity range | Effect | $ |
 |------|------|----|----|----|----|----|
-| `&` White | Night Goggles | 24 | Face | Common..Rare | view +1 | 80 |
+| `&` White | Nightvision Goggles | 24 | Face | Common..Rare | view +1 (passive); view +5 when powered+active in dark; EnergyStore 60/60, drain 1/10 ticks; 1 enhancement slot | 80 |
 | `&` Green | Recon Visor | 23 | Face | Uncommon..Epic | view +2 | 200 |
 | `\` Blue | Jetpack | 25 | Back | Rare..Epic | quickness +5 (durability 40) | 500 |
 | `\` White | Cargo Pack | 26 | Back | Common..Rare | (extra carry capacity) | 60 |

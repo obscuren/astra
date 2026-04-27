@@ -690,3 +690,15 @@ Multiple mods on the same cell stack: the system sums `capacity_bonus`, `charge_
 ### Cell procs (Legendary specialty cells)
 
 Some cells fire a one-off effect once per `threshold` units actually drained from them. Each cell carries a `CellProc { kind, magnitude, duration, threshold, accumulator }`. The accumulator is per-instance and persists across drains. See [`docs/items.md`](items.md#legendary-specialty-cells-procs) for the catalog.
+
+### Toggleable powered items
+
+Items with `toggleable = true` (currently: Nightvision Goggles) carry their own `EnergyStore` and can be switched on or off. When active and in a *dark context* (dungeon, or surface detail map at Night/Dawn/Dusk), they drain **1 charge per 10 world-ticks** via a per-tick accumulator. When charge reaches zero, the item falls back to its passive stat only (Nightvision Goggles: view +1 passive, view +5 while powered+active).
+
+**Dark context rules** (mirrors FOV restriction logic):
+- Overworld, space station, ship interior, derelict station → lit (not dark).
+- Surface detail map at Day → not dark.
+- Surface detail map at Night, Dawn, or Dusk → dark.
+- Dungeon (any non-overworld, non-detail, non-station map) → always dark.
+
+**Auto-mode:** If a committed `AiModule` or `LightSensor` enhancement slot is present, the item auto-toggles based on context and remaining charge. Without a module the player toggles manually (inventory `g` key, Task 4).
