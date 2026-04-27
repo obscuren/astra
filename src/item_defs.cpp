@@ -1007,6 +1007,38 @@ Item build_power_junction()    { return build_energy_mod_(ITEM_POWER_JUNCTION,  
 Item build_tuned_catalyst()    { return build_energy_mod_(ITEM_TUNED_CATALYST,    2060, "Tuned Catalyst",    "Hybrid energy mod. +15% charge rate and +1 free per 8 transferred.",          Rarity::Rare,    200, 70); }
 
 // ---------------------------------------------------------------------------
+// Accessory modules
+// ---------------------------------------------------------------------------
+
+Item build_ai_module() {
+    Item it;
+    it.item_def_id = ITEM_AI_MODULE;
+    it.id = 2070;
+    it.name = "AI Module";
+    it.description = "Adaptive control circuit. Slotted into an item to automate any manual trigger benefits.";
+    it.type = ItemType::CraftingMaterial;
+    it.rarity = Rarity::Rare;
+    it.weight = 1;
+    it.buy_value = 280;
+    it.sell_value = 95;
+    return it;
+}
+
+Item build_light_sensor() {
+    Item it;
+    it.item_def_id = ITEM_LIGHT_SENSOR;
+    it.id = 2071;
+    it.name = "Light Sensor";
+    it.description = "Photodiode array. Slotted into an item to auto-toggle anything that depends on ambient light.";
+    it.type = ItemType::CraftingMaterial;
+    it.rarity = Rarity::Uncommon;
+    it.weight = 1;
+    it.buy_value = 120;
+    it.sell_value = 40;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
 // Ship components
 // ---------------------------------------------------------------------------
 
@@ -1129,6 +1161,10 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_BRASS_CONDUIT:           return build_brass_conduit();
         case ITEM_POWER_JUNCTION:          return build_power_junction();
         case ITEM_TUNED_CATALYST:          return build_tuned_catalyst();
+
+        // Accessory modules
+        case ITEM_AI_MODULE:               return build_ai_module();
+        case ITEM_LIGHT_SENSOR:            return build_light_sensor();
 
         // Junk
         case ITEM_SCRAP_METAL:             return build_scrap_metal();

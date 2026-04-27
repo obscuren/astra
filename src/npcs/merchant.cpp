@@ -75,6 +75,10 @@ Npc build_merchant(Race race, std::mt19937& rng, int faction_rep) {
 
         // Trusted tier (rep >= 50): more armor
         { StockManifestEntry::Mode::Random, 0, Category::Armor, 1, /*min_rep=*/50 },
+
+        // Accessory modules
+        { StockManifestEntry::Mode::Always, ITEM_LIGHT_SENSOR, Category::AccessoryMod, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_AI_MODULE,    Category::AccessoryMod, 1, /*min_rep=*/50 },
     };
 
     npc.interactions.shop = ShopTrait{

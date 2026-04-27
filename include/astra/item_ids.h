@@ -123,6 +123,10 @@ constexpr uint16_t ITEM_BRASS_CONDUIT           = 91;
 constexpr uint16_t ITEM_POWER_JUNCTION          = 92;
 constexpr uint16_t ITEM_TUNED_CATALYST          = 93;
 
+// Accessory modules (94-95)
+constexpr uint16_t ITEM_AI_MODULE               = 94;
+constexpr uint16_t ITEM_LIGHT_SENSOR            = 95;
+
 // Energy cells (70-74)
 constexpr uint16_t ITEM_SMALL_ENERGY_CELL       = 70;
 constexpr uint16_t ITEM_STANDARD_ENERGY_CELL    = 71;

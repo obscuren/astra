@@ -108,6 +108,10 @@ Item build_brass_conduit();
 Item build_power_junction();
 Item build_tuned_catalyst();
 
+// --- Accessory modules ---
+Item build_ai_module();
+Item build_light_sensor();
+
 // --- Ship components ---
 Item build_engine_coil_mk1();
 Item build_hull_plate();

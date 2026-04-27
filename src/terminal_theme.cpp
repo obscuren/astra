@@ -1322,6 +1322,10 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_POWER_JUNCTION:         return {'*', nullptr, static_cast<Color>(51), Color::Default};
         case ITEM_TUNED_CATALYST:         return {'*', nullptr, static_cast<Color>(46), Color::Default};
 
+        // Accessory modules (94-95)
+        case ITEM_AI_MODULE:              return {'*', nullptr, static_cast<Color>(45), Color::Default};
+        case ITEM_LIGHT_SENSOR:           return {'*', nullptr, Color::BrightYellow, Color::Default};
+
         // Synthesized items (1000+)
         case ITEM_SYNTH_PLASMA_EDGE:       return {'/', nullptr, Color::Cyan, Color::Default};
         case ITEM_SYNTH_THRUSTER_PLATE:    return {'[', nullptr, Color::Yellow, Color::Default};

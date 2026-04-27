@@ -139,6 +139,15 @@ Outdoor-only passive trickle charge.
 | `*` Bright Yellow | Polished Solar Panel | 81 | Uncommon | 8 | 2 | 180 |
 | `*` Orange | Prismatic Solar Panel | 82 | Rare | 12 | 2 | 500 |
 
+## Accessory Modules
+
+`Category::AccessoryMod`. Slot into an accessory's enhancement slot, then commit at the workbench to promote its behavior from manual to automatic.
+
+| Glyph | Name | ID | Rarity | Effect | Sources | $ |
+|------|------|----|----|----|----|-----|
+| `*` Bright Yellow | Light Sensor | 95 | Uncommon | Photodiode array. Auto-toggles light-dependent items (e.g. Nightvision Goggles). | Chest, General merchant, Arms dealer | 120 |
+| `*` Bright Cyan | AI Module | 94 | Rare | Adaptive control circuit. Auto-triggers any manual-toggle benefit. | Chest, Arms dealer (rep≥50), Black market | 280 |
+
 ## Ship Components
 
 Installed in the ship's component slots from the inventory. Each slot accepts a single component.

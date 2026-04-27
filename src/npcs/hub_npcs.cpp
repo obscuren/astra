@@ -268,6 +268,13 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
         { StockManifestEntry::Mode::Always, ITEM_SOLAR_PANEL_RARE,      Category::EnergyMod,  1, 50 },
         { StockManifestEntry::Mode::Always, ITEM_POLISHED_CONDUIT,      Category::EnergyMod,  1, 50 },
         { StockManifestEntry::Mode::Always, ITEM_TUNED_CATALYST,        Category::EnergyMod,  1, 50 },
+
+        // Accessory modules
+        { StockManifestEntry::Mode::Always, ITEM_LIGHT_SENSOR, Category::AccessoryMod, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_AI_MODULE,    Category::AccessoryMod, 1 },
+
+        { StockManifestEntry::Mode::Always, ITEM_LIGHT_SENSOR, Category::AccessoryMod, 2, 50 },
+        { StockManifestEntry::Mode::Always, ITEM_AI_MODULE,    Category::AccessoryMod, 2, 50 },
     };
 
     npc.interactions.shop = ShopTrait{

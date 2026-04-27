@@ -110,6 +110,10 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_POWER_JUNCTION,       "power_junction",       R::Uncommon,  R::Uncommon,  15, {}, LootSource::Chest | LootSource::MerchantArms,                              T::Tech, 2, C::EnergyMod },
         LootEntry{ ITEM_TUNED_CATALYST,       "tuned_catalyst",       R::Rare,      R::Rare,       8, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,    T::Tech, 4, C::EnergyMod },
 
+        // ----- Accessory mods -------------------------------------------
+        LootEntry{ ITEM_AI_MODULE,    "ai_module",    R::Rare,     R::Rare,      5, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,       T::Tech, 3, C::AccessoryMod },
+        LootEntry{ ITEM_LIGHT_SENSOR, "light_sensor", R::Uncommon, R::Uncommon, 12, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,   T::Tech, 1, C::AccessoryMod },
+
         // ----- Cookbooks (merchant-only, themed by Civilian) -------------
         LootEntry{ ITEM_COOKBOOK_HEARTY_STEW,  "cookbook_hearty_stew",  R::Common,    R::Common,    1, {}, loot_source_bit(LootSource::MerchantFood), T::Civilian, 1, C::Cookbook },
         LootEntry{ ITEM_COOKBOOK_PROTEIN_BAKE, "cookbook_protein_bake", R::Uncommon,  R::Uncommon,  1, {}, loot_source_bit(LootSource::MerchantFood), T::Civilian, 2, C::Cookbook },
@@ -144,6 +148,7 @@ const std::map<LootSource, std::map<Category, int>>& s_category_weights() {
             { C::Junk,             10 },
             { C::CraftingMaterial, 15 },
             { C::EnergyMod,        10 },
+            { C::AccessoryMod,      5 },   // accessory modules
         }},
         { LootSource::MaintenanceTunnel, {
             { C::ShipComponent,    40 },

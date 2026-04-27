@@ -54,8 +54,9 @@ Npc build_black_market_vendor(const StationContext& ctx) {
         { StockManifestEntry::Mode::Random, 0, Category::Armor,     1 },
         { StockManifestEntry::Mode::Random, 0, Category::Shield,    1 },
         { StockManifestEntry::Mode::Random, 0, Category::Battery,   2 },
-        { StockManifestEntry::Mode::Random, 0, Category::EnergyMod, 2 },
-        { StockManifestEntry::Mode::Random, 0, Category::Accessory, 1 },
+        { StockManifestEntry::Mode::Random, 0, Category::EnergyMod,    2 },
+        { StockManifestEntry::Mode::Random, 0, Category::Accessory,    1 },
+        { StockManifestEntry::Mode::Random, 0, Category::AccessoryMod, 1 },
         { StockManifestEntry::Mode::Always, ITEM_CRYO_GRENADE, Category::Consumable, 2 },
         { StockManifestEntry::Mode::Always, ITEM_EMP_GRENADE,  Category::Consumable, 2 },
     };
