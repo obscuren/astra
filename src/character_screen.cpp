@@ -2215,11 +2215,10 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 
                 // Show cost
                 std::string cost;
-                for (int m = 0; m < 4; ++m) {
-                    if (recipe->material_cost[m] <= 0) continue;
+                for (const auto& req : recipe->material_costs) {
                     if (!cost.empty()) cost += ", ";
-                    const char* names[] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
-                    cost += std::to_string(recipe->material_cost[m]) + "x " + names[m];
+                    const MaterialDef* def = find_material(req.material_id);
+                    cost += std::to_string(req.count) + "x " + (def ? def->name : "?");
                 }
                 ctx.label_value({.x = 3, .y = synth_y, .label = "Cost: ", .label_tag = UITag::TextDim,
                                  .value = cost, .value_tag = UITag::TextDim});
@@ -2341,13 +2340,13 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
     if (known.empty()) {
         ctx.text({.x = rx, .y = cy, .content = "No blueprints learned.", .tag = UITag::TextDim});
     } else {
-        // Material counts in inventory, indexed to match material_cost[].
-        static const uint32_t s_material_ids[4] = {7001, 7002, 7003, 7004};
-        int have_mat[4] = {0, 0, 0, 0};
-        for (const auto& it : player_->inventory.items) {
-            for (int m = 0; m < 4; ++m)
-                if (it.id == s_material_ids[m]) have_mat[m] += it.stack_count;
-        }
+        // Look up "do we have at least this much" for a material id.
+        auto have_count = [&](uint32_t mid) -> int {
+            int n = 0;
+            for (const auto& it : player_->inventory.items)
+                if (it.id == mid) n += it.stack_count;
+            return n;
+        };
 
         // Flattened display lines. is_header → clickable category bar (keyed by result).
         // is_cost → special styled row, pulls segments from recipe.
@@ -2462,17 +2461,17 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
                     ctx.put(lx, y, *p, name_fg, bar_bg);
             } else if (L.is_cost) {
                 const auto& r = *known[L.recipe_idx].rec;
-                const char* mat_names[] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
                 std::vector<astra::TextSegment> segs;
                 segs.push_back({"  Cost: ", UITag::TextDim});
                 bool any = false;
-                for (int m = 0; m < 4; ++m) {
-                    if (r.material_cost[m] <= 0) continue;
+                for (const auto& req : r.material_costs) {
                     if (any) segs.push_back({", ", UITag::TextDim});
                     any = true;
-                    bool enough = have_mat[m] >= r.material_cost[m];
+                    bool enough = have_count(req.material_id) >= req.count;
                     UITag tag = enough ? UITag::TextSuccess : UITag::TextDim;
-                    segs.push_back({std::to_string(r.material_cost[m]) + "x " + mat_names[m], tag});
+                    const MaterialDef* def = find_material(req.material_id);
+                    std::string mname = def ? def->name : "?";
+                    segs.push_back({std::to_string(req.count) + "x " + mname, tag});
                 }
                 if (!any) segs.push_back({"none", UITag::TextDim});
                 ctx.styled_text({.x = rx, .y = y, .segments = segs});

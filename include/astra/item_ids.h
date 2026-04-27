@@ -54,11 +54,32 @@ constexpr uint16_t ITEM_SCRAP_METAL         = 30;
 constexpr uint16_t ITEM_BROKEN_CIRCUIT      = 31;
 constexpr uint16_t ITEM_EMPTY_CASING        = 32;
 
-// Crafting materials (33-36)
+// Crafting materials — T2 existing (33-36)
 constexpr uint16_t ITEM_NANO_FIBER          = 33;
 constexpr uint16_t ITEM_POWER_CORE          = 34;
 constexpr uint16_t ITEM_CIRCUIT_BOARD       = 35;
 constexpr uint16_t ITEM_ALLOY_INGOT         = 36;
+
+// Crafting materials — T1 new (96-100)
+constexpr uint16_t ITEM_COPPER_WIRE             = 96;
+constexpr uint16_t ITEM_POLYMER_STRIP           = 97;
+constexpr uint16_t ITEM_GLASS_SHARD             = 98;
+constexpr uint16_t ITEM_ADHESIVE_RESIN          = 99;
+constexpr uint16_t ITEM_COOLANT_VIAL            = 100;
+
+// Crafting materials — T2 new (101-104)
+constexpr uint16_t ITEM_NANO_LATTICE            = 101;
+constexpr uint16_t ITEM_POLISHED_LENS           = 102;
+constexpr uint16_t ITEM_MICRO_SERVO             = 103;
+constexpr uint16_t ITEM_PLASMA_CARTRIDGE        = 104;
+
+// Crafting materials — T3 (105-110)
+constexpr uint16_t ITEM_QUANTUM_RESONANCE_CRYSTAL = 105;
+constexpr uint16_t ITEM_STRANGE_STROBING_CRYSTAL  = 106;
+constexpr uint16_t ITEM_PRIME_CATALYST            = 107;
+constexpr uint16_t ITEM_PRIME_FILAMENT            = 108;
+constexpr uint16_t ITEM_VOIDSHARD                 = 109;
+constexpr uint16_t ITEM_PHASE_COIL                = 110;
 
 // Ship components (37-40)
 constexpr uint16_t ITEM_ENGINE_COIL_MK1     = 37;

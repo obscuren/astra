@@ -91,6 +91,25 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_SPARE_PARTS,        "spare_parts",        R::Common,    R::Uncommon,  30, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::ScavMerchant,        T::Scrap,    1, C::CraftingMaterial },
         LootEntry{ ITEM_CIRCUITRY,          "circuitry",          R::Common,    R::Uncommon,  20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::ScavMerchant,        T::Scrap,    1, C::CraftingMaterial },
 
+        // T1 pure-mat reagents
+        LootEntry{ ITEM_COPPER_WIRE,        "copper_wire",        R::Common,    R::Common,    35, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::ScavMerchant | LootSource::MerchantGeneral, T::Tech,     1, C::CraftingMaterial },
+        LootEntry{ ITEM_POLYMER_STRIP,      "polymer_strip",      R::Common,    R::Common,    35, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::ScavMerchant | LootSource::MerchantGeneral, T::Civilian, 1, C::CraftingMaterial },
+        LootEntry{ ITEM_GLASS_SHARD,        "glass_shard",        R::Common,    R::Common,    30, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::ScavMerchant,                              T::Scrap,    1, C::CraftingMaterial },
+        LootEntry{ ITEM_ADHESIVE_RESIN,     "adhesive_resin",     R::Common,    R::Common,    30, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::ScavMerchant,                      T::Civilian, 1, C::CraftingMaterial },
+        LootEntry{ ITEM_COOLANT_VIAL,       "coolant_vial",       R::Common,    R::Uncommon,  25, {}, LootSource::Chest | LootSource::MerchantGeneral,                                                  T::Tech,     1, C::CraftingMaterial },
+        // T2 new pure-mats
+        LootEntry{ ITEM_NANO_LATTICE,       "nano_lattice",       R::Uncommon,  R::Rare,      18, {}, LootSource::Chest | LootSource::MerchantGeneral,                                                  T::Tech,     2, C::CraftingMaterial },
+        LootEntry{ ITEM_POLISHED_LENS,      "polished_lens",      R::Uncommon,  R::Rare,      20, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                       T::Tech,     2, C::CraftingMaterial },
+        LootEntry{ ITEM_MICRO_SERVO,        "micro_servo",        R::Uncommon,  R::Rare,      20, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                       T::Tech,     2, C::CraftingMaterial },
+        LootEntry{ ITEM_PLASMA_CARTRIDGE,   "plasma_cartridge",   R::Uncommon,  R::Rare,      15, {}, LootSource::Chest | LootSource::MerchantArms,                                                     T::Military, 2, C::CraftingMaterial },
+        // T3 — boss / deep dungeon / quest only (gated by min_level + restricted sources)
+        LootEntry{ ITEM_QUANTUM_RESONANCE_CRYSTAL, "quantum_resonance_crystal", R::Rare, R::Epic,      4, {}, LootSource::Chest | LootSource::BlackMarket, T::Ancient, 5, C::CraftingMaterial },
+        LootEntry{ ITEM_STRANGE_STROBING_CRYSTAL,  "strange_strobing_crystal",  R::Rare, R::Legendary, 3, {}, LootSource::Chest | LootSource::BlackMarket, T::Ancient, 5, C::CraftingMaterial },
+        LootEntry{ ITEM_PRIME_CATALYST,            "prime_catalyst",            R::Rare, R::Epic,      3, {}, LootSource::Chest | LootSource::BlackMarket, T::Ancient, 5, C::CraftingMaterial },
+        LootEntry{ ITEM_PRIME_FILAMENT,            "prime_filament",            R::Rare, R::Epic,      3, {}, LootSource::Chest | LootSource::BlackMarket, T::Ancient, 5, C::CraftingMaterial },
+        LootEntry{ ITEM_VOIDSHARD,                 "voidshard",                 R::Epic, R::Legendary, 2, {}, LootSource::Chest | LootSource::BlackMarket, T::Ancient, 6, C::CraftingMaterial },
+        LootEntry{ ITEM_PHASE_COIL,                "phase_coil",                R::Epic, R::Legendary, 2, {}, LootSource::Chest | LootSource::BlackMarket, T::Ancient, 6, C::CraftingMaterial },
+
         // ----- Ship components -------------------------------------------
         LootEntry{ ITEM_HULL_PLATE,         "hull_plate",         R::Common,    R::Rare,      35, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms | LootSource::MaintenanceTunnel, T::Tech, 1, C::ShipComponent },
         LootEntry{ ITEM_SHIELD_GENERATOR,   "shield_generator",   R::Uncommon,  R::Epic,      25, {}, LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms | LootSource::MaintenanceTunnel, T::Tech, 2, C::ShipComponent },

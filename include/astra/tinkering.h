@@ -13,6 +13,32 @@ namespace astra {
 
 struct Player; // forward declare
 
+// --- Materials ----------------------------------------------------------
+
+struct MaterialReq {
+    uint32_t material_id = 0;   // == Item::id used for inventory stack matching
+    int count = 0;
+};
+
+enum class MaterialTier : uint8_t {
+    Common = 1,
+    Uncommon = 2,
+    Rare = 3,
+};
+
+struct MaterialDef {
+    uint32_t material_id = 0;       // Item::id
+    const char* name = "";
+    MaterialTier tier = MaterialTier::Common;
+    char glyph = '+';
+    uint8_t color = 0;              // Color enum value
+    int sell_value = 0;
+    bool is_junk_typed = false;     // true for Scrap, Broken Circuit, etc.
+};
+
+const std::vector<MaterialDef>& material_catalog();
+const MaterialDef* find_material(uint32_t material_id);
+
 // Blueprint learned from analyzing an item
 struct BlueprintSignature {
     uint32_t source_item_id = 0;
@@ -86,7 +112,7 @@ struct SynthesisRecipe {
     char result_glyph;
     StatModifiers base_modifiers;
     int base_durability;
-    int material_cost[4]; // [0]=Nano-Fiber, [1]=Power Core, [2]=Circuit Board, [3]=Alloy Ingot
+    std::vector<MaterialReq> material_costs;
     // When set, the result is constructed by calling this builder verbatim
     // (skipping the equipment-result fields and the rarity/scaling pass).
     Item (*custom_builder)() = nullptr;

@@ -10,6 +10,55 @@
 namespace astra {
 
 // ---------------------------------------------------------------------------
+// Material catalog (24 entries — populated in a later task)
+// ---------------------------------------------------------------------------
+
+const std::vector<MaterialDef>& material_catalog() {
+    using T = MaterialTier;
+    // Color values use renderer.h Color enum cast to uint8_t.
+    // glyph: '~' for junk-typed reagents, ',' for T1 pure-mats, '+' for T2, '*' for T3.
+    static const std::vector<MaterialDef> catalog = {
+        // --- T1 (junk-typed reagents) ---
+        { 30,   "Scrap Metal",     T::Common,   '~', static_cast<uint8_t>(Color::DarkGray),     1, true  },
+        { 31,   "Broken Circuit",  T::Common,   '~', static_cast<uint8_t>(Color::DarkGray),     2, true  },
+        { 32,   "Empty Casing",    T::Common,   '~', static_cast<uint8_t>(Color::DarkGray),     1, true  },
+        // --- T1 (pure-mat) ---
+        { 7010, "Copper Wire",     T::Common,   ',', static_cast<uint8_t>(Color::Yellow),       2, false },
+        { 7011, "Polymer Strip",   T::Common,   ',', static_cast<uint8_t>(Color::White),        2, false },
+        { 7012, "Glass Shard",     T::Common,   ',', static_cast<uint8_t>(Color::Cyan),         1, false },
+        { 7013, "Adhesive Resin",  T::Common,   ',', static_cast<uint8_t>(Color::BrightYellow), 2, false },
+        { 7014, "Coolant Vial",    T::Common,   ',', static_cast<uint8_t>(Color::Blue),         3, false },
+        // --- T2 (existing pure-mat) ---
+        { 7001, "Nano-Fiber",      T::Uncommon, '+', static_cast<uint8_t>(Color::Cyan),         8, false },
+        { 7002, "Power Core",      T::Uncommon, '+', static_cast<uint8_t>(Color::Yellow),      12, false },
+        { 7003, "Circuit Board",   T::Uncommon, '+', static_cast<uint8_t>(Color::Green),       10, false },
+        { 7004, "Alloy Ingot",     T::Uncommon, '+', static_cast<uint8_t>(Color::White),       10, false },
+        // --- T2 (junk-typed reagents) ---
+        { 47,   "Spare Parts",     T::Uncommon, '~', static_cast<uint8_t>(Color::Yellow),       6, true  },
+        { 48,   "Circuitry",       T::Uncommon, '~', static_cast<uint8_t>(Color::Cyan),         8, true  },
+        // --- T2 (new pure-mat) ---
+        { 7020, "Nano Lattice",    T::Uncommon, '+', static_cast<uint8_t>(Color::BrightWhite), 14, false },
+        { 7021, "Polished Lens",   T::Uncommon, '+', static_cast<uint8_t>(Color::Cyan),        12, false },
+        { 7022, "Micro-Servo",     T::Uncommon, '+', static_cast<uint8_t>(Color::BrightYellow),14, false },
+        { 7023, "Plasma Cartridge",T::Uncommon, '+', static_cast<uint8_t>(Color::Red),         16, false },
+        // --- T3 ---
+        { 7030, "Quantum Resonance Crystal", T::Rare, '*', static_cast<uint8_t>(Color::BrightMagenta), 50, false },
+        { 7031, "Strange Strobing Crystal",  T::Rare, '*', static_cast<uint8_t>(Color::BrightWhite),   60, false },
+        { 7032, "Prime Catalyst",            T::Rare, '*', static_cast<uint8_t>(Color::BrightYellow),  55, false },
+        { 7033, "Prime Filament",            T::Rare, '*', static_cast<uint8_t>(Color::Cyan),          55, false },
+        { 7034, "Voidshard",                 T::Rare, '*', static_cast<uint8_t>(Color::Magenta),       70, false },
+        { 7035, "Phase Coil",                T::Rare, '*', static_cast<uint8_t>(Color::Blue),          65, false },
+    };
+    return catalog;
+}
+
+const MaterialDef* find_material(uint32_t material_id) {
+    for (const auto& m : material_catalog())
+        if (m.material_id == material_id) return &m;
+    return nullptr;
+}
+
+// ---------------------------------------------------------------------------
 // Material effects
 // ---------------------------------------------------------------------------
 
@@ -378,86 +427,130 @@ TinkerResult salvage_item(const Item& item, Player& player, std::mt19937& rng) {
 // Synthesizer
 // ---------------------------------------------------------------------------
 
-// Material IDs: 7001=Nano-Fiber, 7002=Power Core, 7003=Circuit Board, 7004=Alloy Ingot
+// Material IDs (now sourced from material_catalog()):
+//   T1: 30=Scrap, 31=Broken Circuit, 32=Empty Casing,
+//       7010=Copper Wire, 7011=Polymer Strip, 7012=Glass Shard,
+//       7013=Adhesive Resin, 7014=Coolant Vial
+//   T2: 7001=Nano-Fiber, 7002=Power Core, 7003=Circuit Board,
+//       7004=Alloy Ingot, 47=Spare Parts, 48=Circuitry,
+//       7020=Nano Lattice, 7021=Polished Lens, 7022=Micro-Servo,
+//       7023=Plasma Cartridge
+//   T3: 7030=QRC, 7031=Strange Strobing Crystal, 7032=Prime Catalyst,
+//       7033=Prime Filament, 7034=Voidshard, 7035=Phase Coil
 const std::vector<SynthesisRecipe>& synthesis_recipes() {
     static const std::vector<SynthesisRecipe> recipes = {
         {"Plasma Emitter", "Blade Housing", "Plasma Edge",
          "A blade wreathed in plasma energy. Burns on contact.",
          ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
-         {8, 0, 0, 0, 0}, 60, {0, 2, 0, 1}},
+         {8, 0, 0, 0, 0}, 60,
+         // 2 Scrap + 1 Circuitry + 1 Power Core + 1 Alloy Ingot + 1 Plasma Cartridge
+         { {30, 2}, {48, 1}, {7002, 1}, {7004, 1}, {7023, 1} }},
 
         {"Plating Alloy", "Thruster Core", "Thruster Plate",
          "Armored plating with integrated micro-thrusters for agile combat.",
          ItemType::Armor, EquipSlot::Body, ']',
-         {0, 4, 0, 0, 3}, 80, {0, 1, 0, 2}},
+         {0, 4, 0, 0, 3}, 80,
+         // 3 Scrap + 1 Circuitry + 2 Alloy Ingot + 1 Micro-Servo
+         { {30, 3}, {48, 1}, {7004, 2}, {7022, 1} }},
 
         {"Optic Module", "Power Conduit", "Targeting Array",
          "Advanced optics fused with a power feed. Enhances aim and awareness.",
          ItemType::Accessory, EquipSlot::Face, '&',
-         {2, 0, 0, 3, 0}, 0, {0, 1, 2, 0}},
+         {2, 0, 0, 3, 0}, 0,
+         // 1 Scrap + 1 Circuitry + 1 Circuit Board + 1 Polished Lens + 2 Copper Wire
+         { {30, 1}, {48, 1}, {7003, 1}, {7021, 1}, {7010, 2} }},
 
         {"Edge Material", "Grip Assembly", "Dual-Edge",
          "A twin-bladed weapon with perfect balance. Strikes twice as fast.",
          ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
-         {6, 0, 0, 0, 2}, 50, {1, 0, 0, 1}},
+         {6, 0, 0, 0, 2}, 50,
+         // 3 Scrap + 1 Circuitry + 2 Alloy Ingot + 1 Nano-Fiber
+         { {30, 3}, {48, 1}, {7004, 2}, {7001, 1} }},
 
         {"Padding Weave", "Storage Frame", "Reinforced Pack",
          "A heavily padded cargo pack. Protects both you and your gear.",
          ItemType::Accessory, EquipSlot::Back, '\\',
-         {0, 2, 3, 0, 0}, 0, {2, 0, 0, 1}},
+         {0, 2, 3, 0, 0}, 0,
+         // 2 Scrap + 2 Nano-Fiber + 1 Polymer Strip + 1 Adhesive Resin (no Circuitry — leather-y)
+         { {30, 2}, {7001, 2}, {7011, 1}, {7013, 1} }},
 
         {"Power Conduit", "Thruster Core", "Overcharged Engine",
          "A hyperspace engine component running at dangerous output levels.",
          ItemType::ShipComponent, EquipSlot::Back, '#',
-         {0, 0, 0, 0, 5}, 0, {0, 3, 0, 0}},
+         {0, 0, 0, 0, 5}, 0,
+         // 2 Scrap + 1 Circuitry + 2 Power Core + 1 Coolant Vial + 1 Plasma Cartridge
+         { {30, 2}, {48, 1}, {7002, 2}, {7014, 1}, {7023, 1} }},
 
         {"Plating Alloy", "Joint Mechanism", "Articulated Armor",
          "Segmented armor that moves with you. Full protection, zero penalty.",
          ItemType::Armor, EquipSlot::Body, ']',
-         {0, 5, 0, 0, 1}, 100, {0, 0, 1, 2}},
+         {0, 5, 0, 0, 1}, 100,
+         // 3 Scrap + 1 Circuitry + 2 Alloy Ingot + 1 Micro-Servo + 1 Nano Lattice
+         { {30, 3}, {48, 1}, {7004, 2}, {7022, 1}, {7020, 1} }},
 
         {"Plasma Emitter", "Optic Module", "Guided Blaster",
          "A plasma weapon with auto-tracking optics. Rarely misses.",
          ItemType::RangedWeapon, EquipSlot::Missile, ')',
-         {6, 0, 0, 1, 0}, 50, {0, 2, 1, 0}},
+         {6, 0, 0, 1, 0}, 50,
+         // 2 Scrap + 1 Circuitry + 1 Power Core + 1 Polished Lens + 1 Plasma Cartridge
+         { {30, 2}, {48, 1}, {7002, 1}, {7021, 1}, {7023, 1} }},
 
         {"Blade Housing", "Joint Mechanism", "Combat Gauntlet",
          "An armored fist with embedded blades. Strike and defend as one.",
          ItemType::Armor, EquipSlot::LeftHand, '}',
-         {3, 2, 0, 0, 0}, 70, {1, 0, 0, 1}},
+         {3, 2, 0, 0, 0}, 70,
+         // 2 Scrap + 1 Circuitry + 1 Alloy Ingot + 1 Nano-Fiber + 1 Micro-Servo
+         { {30, 2}, {48, 1}, {7004, 1}, {7001, 1}, {7022, 1} }},
 
         {"Edge Material", "Plating Alloy", "Armored Blade",
          "A thick, heavy blade reinforced with armor plating. Hits like a wall.",
          ItemType::MeleeWeapon, EquipSlot::RightHand, '/',
-         {5, 3, 0, 0, 0}, 90, {0, 0, 0, 2}},
+         {5, 3, 0, 0, 0}, 90,
+         // 4 Scrap + 2 Alloy Ingot + 1 Nano-Fiber (no Circuitry — purely mechanical)
+         { {30, 4}, {7004, 2}, {7001, 1} }},
 
         // Energy mod recipes — produce tinkering materials directly via custom builders.
         // Equipment-only fields (modifiers, durability, slot, glyph) are unused for these.
         {"Plating Alloy", "Storage Frame", "Reinforced Casing",
          "Energy mod. Adds +10 capacity to the host cell.",
          ItemType::CraftingMaterial, EquipSlot::Back, '*',
-         {}, 0, {1, 0, 0, 1}, &build_reinforced_casing},
+         {}, 0,
+         // 2 Scrap + 1 Alloy Ingot + 1 Polymer Strip
+         { {30, 2}, {7004, 1}, {7011, 1} },
+         &build_reinforced_casing},
 
         {"Optic Module", "Power Conduit", "Receptor Plate",
          "Energy mod. +10% to incoming charge rate.",
          ItemType::CraftingMaterial, EquipSlot::Back, '*',
-         {}, 0, {0, 1, 1, 0}, &build_receptor_plate},
+         {}, 0,
+         // 1 Scrap + 1 Circuitry + 1 Copper Wire + 1 Polished Lens
+         { {30, 1}, {48, 1}, {7010, 1}, {7021, 1} },
+         &build_receptor_plate},
 
         {"Power Conduit", "Plating Alloy", "Brass Conduit",
          "Energy mod. +1 free unit per 10 transferred.",
          ItemType::CraftingMaterial, EquipSlot::Back, '*',
-         {}, 0, {0, 1, 0, 1}, &build_brass_conduit},
+         {}, 0,
+         // 1 Scrap + 1 Copper Wire + 1 Power Core
+         { {30, 1}, {7010, 1}, {7002, 1} },
+         &build_brass_conduit},
 
         // Accessory module recipes — produce behavioral modules via custom builders.
         {"Optic Module", "Joint Mechanism", "AI Module",
          "Adaptive control circuit. Slotted into an item to automate any manual trigger.",
          ItemType::CraftingMaterial, EquipSlot::Face, '*',
-         {}, 0, {1, 1, 2, 0}, &build_ai_module},
+         {}, 0,
+         // 2 Scrap + 1 Circuitry + 1 Circuit Board + 1 Nano Lattice + 1 QRC
+         { {30, 2}, {48, 1}, {7003, 1}, {7020, 1}, {7030, 1} },
+         &build_ai_module},
 
         {"Optic Module", "Padding Weave", "Light Sensor",
          "Photodiode array. Slotted into an item to auto-toggle anything that depends on ambient light.",
          ItemType::CraftingMaterial, EquipSlot::Face, '*',
-         {}, 0, {1, 0, 1, 0}, &build_light_sensor},
+         {}, 0,
+         // 1 Scrap + 1 Circuitry + 1 Circuit Board + 1 Polished Lens
+         { {30, 1}, {48, 1}, {7003, 1}, {7021, 1} },
+         &build_light_sensor},
     };
     return recipes;
 }
@@ -471,9 +564,6 @@ const SynthesisRecipe* find_recipe(const std::string& bp1, const std::string& bp
     return nullptr;
 }
 
-static const uint32_t s_material_ids[4] = {7001, 7002, 7003, 7004};
-static const char* s_material_names[4] = {"Nano-Fiber", "Power Core", "Circuit Board", "Alloy Ingot"};
-
 TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
                               Player& player, std::mt19937& rng) {
     if (!player_has_skill(player, SkillId::Cat_Tinkering))
@@ -484,23 +574,24 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
         return {false, false, "No known recipe for this combination."};
 
     // Check material costs
-    for (int m = 0; m < 4; ++m) {
-        if (recipe->material_cost[m] <= 0) continue;
+    for (const auto& req : recipe->material_costs) {
         int have = 0;
         for (const auto& it : player.inventory.items) {
-            if (it.id == s_material_ids[m]) have = it.stack_count;
+            if (it.id == req.material_id) have += it.stack_count;
         }
-        if (have < recipe->material_cost[m])
-            return {false, false, "Need " + std::to_string(recipe->material_cost[m]) + " " +
-                    s_material_names[m] + " (have " + std::to_string(have) + ")."};
+        if (have < req.count) {
+            const MaterialDef* def = find_material(req.material_id);
+            std::string mname = def ? def->name : ("material " + std::to_string(req.material_id));
+            return {false, false, "Need " + std::to_string(req.count) + " " + mname +
+                    " (have " + std::to_string(have) + ")."};
+        }
     }
 
     // Consume materials
-    for (int m = 0; m < 4; ++m) {
-        int needed = recipe->material_cost[m];
-        if (needed <= 0) continue;
-        for (auto it = player.inventory.items.begin(); it != player.inventory.items.end(); ) {
-            if (it->id == s_material_ids[m]) {
+    for (const auto& req : recipe->material_costs) {
+        int needed = req.count;
+        for (auto it = player.inventory.items.begin(); it != player.inventory.items.end() && needed > 0; ) {
+            if (it->id == req.material_id) {
                 if (it->stack_count > needed) {
                     it->stack_count -= needed;
                     needed = 0;
@@ -511,7 +602,6 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
                 }
             }
             ++it;
-            if (needed <= 0) break;
         }
     }
 

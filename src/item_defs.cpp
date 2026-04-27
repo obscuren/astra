@@ -964,6 +964,153 @@ Item build_alloy_ingot() {
     return it;
 }
 
+// --- T1 crafting materials -------------------------------------------------
+
+Item build_copper_wire() {
+    Item it;
+    it.item_def_id = ITEM_COPPER_WIRE;
+    it.id = 7010; it.name = "Copper Wire"; it.type = ItemType::CraftingMaterial;
+    it.description = "A coil of conductive copper wire. Stacks as 'Strand of Copper Wire'.";
+    it.weight = 1; it.stackable = true; it.buy_value = 5; it.sell_value = 2;
+    return it;
+}
+
+Item build_polymer_strip() {
+    Item it;
+    it.item_def_id = ITEM_POLYMER_STRIP;
+    it.id = 7011; it.name = "Polymer Strip"; it.type = ItemType::CraftingMaterial;
+    it.description = "Flexible plastic stripping. Useful for casings and seals.";
+    it.weight = 1; it.stackable = true; it.buy_value = 5; it.sell_value = 2;
+    return it;
+}
+
+Item build_glass_shard() {
+    Item it;
+    it.item_def_id = ITEM_GLASS_SHARD;
+    it.id = 7012; it.name = "Glass Shard"; it.type = ItemType::CraftingMaterial;
+    it.description = "A jagged shard of clear glass. Refines into lenses.";
+    it.weight = 1; it.stackable = true; it.buy_value = 3; it.sell_value = 1;
+    return it;
+}
+
+Item build_adhesive_resin() {
+    Item it;
+    it.item_def_id = ITEM_ADHESIVE_RESIN;
+    it.id = 7013; it.name = "Adhesive Resin"; it.type = ItemType::CraftingMaterial;
+    it.description = "A small jar of bonding compound. Sticks anything to anything.";
+    it.weight = 1; it.stackable = true; it.buy_value = 5; it.sell_value = 2;
+    return it;
+}
+
+Item build_coolant_vial() {
+    Item it;
+    it.item_def_id = ITEM_COOLANT_VIAL;
+    it.id = 7014; it.name = "Coolant Vial"; it.type = ItemType::CraftingMaterial;
+    it.description = "Sealed vial of cryogenic fluid. Used in thermal recipes.";
+    it.weight = 1; it.stackable = true; it.buy_value = 7; it.sell_value = 3;
+    return it;
+}
+
+// --- T2 crafting materials -------------------------------------------------
+
+Item build_nano_lattice() {
+    Item it;
+    it.item_def_id = ITEM_NANO_LATTICE;
+    it.id = 7020; it.name = "Nano Lattice"; it.type = ItemType::CraftingMaterial;
+    it.description = "A woven cage of carbon-nano filaments. Light as foam, hard as steel.";
+    it.weight = 1; it.stackable = true; it.buy_value = 35; it.sell_value = 14;
+    return it;
+}
+
+Item build_polished_lens() {
+    Item it;
+    it.item_def_id = ITEM_POLISHED_LENS;
+    it.id = 7021; it.name = "Polished Lens"; it.type = ItemType::CraftingMaterial;
+    it.description = "Optical-grade lens. Used in sensors and targeting arrays.";
+    it.weight = 1; it.stackable = true; it.buy_value = 30; it.sell_value = 12;
+    return it;
+}
+
+Item build_micro_servo() {
+    Item it;
+    it.item_def_id = ITEM_MICRO_SERVO;
+    it.id = 7022; it.name = "Micro-Servo"; it.type = ItemType::CraftingMaterial;
+    it.description = "Compact actuator with built-in feedback control. Hums faintly.";
+    it.weight = 1; it.stackable = true; it.buy_value = 35; it.sell_value = 14;
+    return it;
+}
+
+Item build_plasma_cartridge() {
+    Item it;
+    it.item_def_id = ITEM_PLASMA_CARTRIDGE;
+    it.id = 7023; it.name = "Plasma Cartridge"; it.type = ItemType::CraftingMaterial;
+    it.description = "Pressurized plasma reagent. Volatile but potent.";
+    it.weight = 1; it.stackable = true; it.buy_value = 40; it.sell_value = 16;
+    return it;
+}
+
+// --- T3 crafting materials -------------------------------------------------
+
+Item build_quantum_resonance_crystal() {
+    Item it;
+    it.item_def_id = ITEM_QUANTUM_RESONANCE_CRYSTAL;
+    it.id = 7030; it.name = "Quantum Resonance Crystal"; it.type = ItemType::CraftingMaterial;
+    it.description = "A lattice that hums in harmony with nothing in this universe.";
+    it.weight = 1; it.stackable = true; it.buy_value = 130; it.sell_value = 50;
+    it.rarity = Rarity::Rare;
+    return it;
+}
+
+Item build_strange_strobing_crystal() {
+    Item it;
+    it.item_def_id = ITEM_STRANGE_STROBING_CRYSTAL;
+    it.id = 7031; it.name = "Strange Strobing Crystal"; it.type = ItemType::CraftingMaterial;
+    it.description = "Pulses light at irregular intervals. Watching it too long hurts.";
+    it.weight = 1; it.stackable = true; it.buy_value = 160; it.sell_value = 60;
+    it.rarity = Rarity::Rare;
+    return it;
+}
+
+Item build_prime_catalyst() {
+    Item it;
+    it.item_def_id = ITEM_PRIME_CATALYST;
+    it.id = 7032; it.name = "Prime Catalyst"; it.type = ItemType::CraftingMaterial;
+    it.description = "A reagent that drives reactions to completion every time. Ancient origin.";
+    it.weight = 1; it.stackable = true; it.buy_value = 145; it.sell_value = 55;
+    it.rarity = Rarity::Rare;
+    return it;
+}
+
+Item build_prime_filament() {
+    Item it;
+    it.item_def_id = ITEM_PRIME_FILAMENT;
+    it.id = 7033; it.name = "Prime Filament"; it.type = ItemType::CraftingMaterial;
+    it.description = "An indestructible thread of unknown alloy. Bends, never breaks.";
+    it.weight = 1; it.stackable = true; it.buy_value = 145; it.sell_value = 55;
+    it.rarity = Rarity::Rare;
+    return it;
+}
+
+Item build_voidshard() {
+    Item it;
+    it.item_def_id = ITEM_VOIDSHARD;
+    it.id = 7034; it.name = "Voidshard"; it.type = ItemType::CraftingMaterial;
+    it.description = "A fragment of matter warped by proximity to a singularity.";
+    it.weight = 1; it.stackable = true; it.buy_value = 185; it.sell_value = 70;
+    it.rarity = Rarity::Epic;
+    return it;
+}
+
+Item build_phase_coil() {
+    Item it;
+    it.item_def_id = ITEM_PHASE_COIL;
+    it.id = 7035; it.name = "Phase Coil"; it.type = ItemType::CraftingMaterial;
+    it.description = "A coil that exists only intermittently. Sometimes you can't pick it up.";
+    it.weight = 1; it.stackable = true; it.buy_value = 170; it.sell_value = 65;
+    it.rarity = Rarity::Epic;
+    return it;
+}
+
 // ---------------------------------------------------------------------------
 // Solar panel crafting materials
 // ---------------------------------------------------------------------------
@@ -1190,6 +1337,27 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_POWER_CORE:              return build_power_core();
         case ITEM_CIRCUIT_BOARD:           return build_circuit_board();
         case ITEM_ALLOY_INGOT:             return build_alloy_ingot();
+
+        // T1 new
+        case ITEM_COPPER_WIRE:             return build_copper_wire();
+        case ITEM_POLYMER_STRIP:           return build_polymer_strip();
+        case ITEM_GLASS_SHARD:             return build_glass_shard();
+        case ITEM_ADHESIVE_RESIN:          return build_adhesive_resin();
+        case ITEM_COOLANT_VIAL:            return build_coolant_vial();
+
+        // T2 new
+        case ITEM_NANO_LATTICE:            return build_nano_lattice();
+        case ITEM_POLISHED_LENS:           return build_polished_lens();
+        case ITEM_MICRO_SERVO:             return build_micro_servo();
+        case ITEM_PLASMA_CARTRIDGE:        return build_plasma_cartridge();
+
+        // T3
+        case ITEM_QUANTUM_RESONANCE_CRYSTAL: return build_quantum_resonance_crystal();
+        case ITEM_STRANGE_STROBING_CRYSTAL:  return build_strange_strobing_crystal();
+        case ITEM_PRIME_CATALYST:            return build_prime_catalyst();
+        case ITEM_PRIME_FILAMENT:            return build_prime_filament();
+        case ITEM_VOIDSHARD:                 return build_voidshard();
+        case ITEM_PHASE_COIL:                return build_phase_coil();
 
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
