@@ -140,6 +140,12 @@ struct StatModifiers {
     int quickness = 0;
 };
 
+enum class ModuleKind : uint8_t {
+    None,
+    AiModule,      // generic auto-trigger for any manual benefit
+    LightSensor,   // light-conditional auto-toggle
+};
+
 struct EnhancementSlot {
     bool filled = false;
     bool committed = false;   // true after assemble, false while staged
@@ -148,6 +154,7 @@ struct EnhancementSlot {
     StatModifiers stat_bonus;
     EnergyModifiers energy_bonus;
     std::optional<SolarPanelData> solar_panel;
+    ModuleKind module_kind = ModuleKind::None;
 };
 
 // Effect of consuming a Food item (cooked dish, ration pack, looted meal).
@@ -196,6 +203,10 @@ struct Item {
 
     int enhancement_slots = 0;
     std::vector<EnhancementSlot> enhancements;
+
+    bool toggleable = false;
+    bool active = false;
+    int drain_accumulator = 0;
 
     // Auras this item contributes while equipped.
     std::vector<AuraGrant> granted_auras;

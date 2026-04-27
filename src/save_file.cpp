@@ -327,6 +327,10 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_i32(item.proc->threshold);
         w.write_i32(item.proc->accumulator);
     }
+    // v48: toggleable items
+    w.write_u8(item.toggleable ? 1 : 0);
+    w.write_u8(item.active ? 1 : 0);
+    w.write_i32(item.drain_accumulator);
     // Enhancement slots
     w.write_i32(item.enhancement_slots);
     w.write_u32(static_cast<uint32_t>(item.enhancements.size()));
@@ -351,6 +355,8 @@ static void write_item(BinaryWriter& w, const Item& item) {
             w.write_i32(enh.solar_panel->tick_interval);
             w.write_i32(enh.solar_panel->accumulator);
         }
+        // v48: module_kind
+        w.write_u8(static_cast<uint8_t>(enh.module_kind));
     }
     // v14: ship component fields
     w.write_u8(item.ship_slot.has_value() ? 1 : 0);
@@ -434,6 +440,10 @@ static Item read_item(BinaryReader& r) {
         p.accumulator = r.read_i32();
         item.proc = p;
     }
+    // v48: toggleable items
+    item.toggleable = r.read_u8() != 0;
+    item.active = r.read_u8() != 0;
+    item.drain_accumulator = r.read_i32();
     // Enhancement slots
     item.enhancement_slots = r.read_i32();
     uint32_t enh_count = r.read_u32();
@@ -459,6 +469,8 @@ static Item read_item(BinaryReader& r) {
             sp.accumulator = r.read_i32();
             item.enhancements[i].solar_panel = sp;
         }
+        // v48: module_kind
+        item.enhancements[i].module_kind = static_cast<ModuleKind>(r.read_u8());
     }
     // Ship component fields
     bool has_ship_slot = r.read_u8() != 0;

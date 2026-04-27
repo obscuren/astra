@@ -57,6 +57,7 @@ enum class Category : uint8_t {
     Ingredient,
     Cookbook,
     EnergyMod,
+    AccessoryMod,
     QuestItem,
 };
 
@@ -74,6 +75,7 @@ constexpr std::string_view category_name(Category c) {
         case Category::Ingredient:       return "ingredient";
         case Category::Cookbook:         return "cookbook";
         case Category::EnergyMod:        return "energy mod";
+        case Category::AccessoryMod:     return "accessory mod";
         case Category::QuestItem:        return "quest";
     }
     return "?";
