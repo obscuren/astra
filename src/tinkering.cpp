@@ -597,6 +597,14 @@ const SynthesisRecipe* find_recipe(const std::string& bp1, const std::string& bp
     return nullptr;
 }
 
+// Material matcher — recipe material_id can be either Item::id (T2 convention,
+// e.g. 7001 for Nano-Fiber) or Item::item_def_id (junk reagents like Scrap
+// Metal where item_def_id=30 but Item::id=6001). Match either form so all
+// recipe shapes work consistently.
+static bool item_matches_material(const Item& it, uint32_t material_id) {
+    return it.id == material_id || it.item_def_id == material_id;
+}
+
 TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
                               Player& player, std::mt19937& rng) {
     if (!player_has_skill(player, SkillId::Cat_Tinkering))
@@ -610,7 +618,7 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     for (const auto& req : recipe->material_costs) {
         int have = 0;
         for (const auto& it : player.inventory.items) {
-            if (it.id == req.material_id) have += it.stack_count;
+            if (item_matches_material(it, req.material_id)) have += it.stack_count;
         }
         if (have < req.count) {
             const MaterialDef* def = find_material(req.material_id);
@@ -624,7 +632,7 @@ TinkerResult synthesize_item(const std::string& bp1, const std::string& bp2,
     for (const auto& req : recipe->material_costs) {
         int needed = req.count;
         for (auto it = player.inventory.items.begin(); it != player.inventory.items.end() && needed > 0; ) {
-            if (it->id == req.material_id) {
+            if (item_matches_material(*it, req.material_id)) {
                 if (it->stack_count > needed) {
                     it->stack_count -= needed;
                     needed = 0;
@@ -711,7 +719,7 @@ TinkerResult refine_item(const RefinementRecipe& recipe, Player& player) {
     for (const auto& req : recipe.inputs) {
         int have = 0;
         for (const auto& it : player.inventory.items)
-            if (it.id == req.material_id) have += it.stack_count;
+            if (item_matches_material(it, req.material_id)) have += it.stack_count;
         if (have < req.count) {
             const MaterialDef* def = find_material(req.material_id);
             std::string mname = def ? def->name : ("material " + std::to_string(req.material_id));
@@ -724,7 +732,7 @@ TinkerResult refine_item(const RefinementRecipe& recipe, Player& player) {
     for (const auto& req : recipe.inputs) {
         int needed = req.count;
         for (auto it = player.inventory.items.begin(); it != player.inventory.items.end() && needed > 0; ) {
-            if (it->id == req.material_id) {
+            if (item_matches_material(*it, req.material_id)) {
                 if (it->stack_count > needed) { it->stack_count -= needed; needed = 0; }
                 else { needed -= it->stack_count; it = player.inventory.items.erase(it); continue; }
             }
@@ -835,7 +843,7 @@ TinkerResult craft_schematic(uint16_t schematic_id, Player& player) {
     for (const auto& req : recipe->material_costs) {
         int have = 0;
         for (const auto& it : player.inventory.items)
-            if (it.id == req.material_id) have += it.stack_count;
+            if (item_matches_material(it, req.material_id)) have += it.stack_count;
         if (have < req.count) {
             const MaterialDef* def = find_material(req.material_id);
             std::string mname = def ? def->name : ("material " + std::to_string(req.material_id));
@@ -848,7 +856,7 @@ TinkerResult craft_schematic(uint16_t schematic_id, Player& player) {
     for (const auto& req : recipe->material_costs) {
         int needed = req.count;
         for (auto it = player.inventory.items.begin(); it != player.inventory.items.end() && needed > 0; ) {
-            if (it->id == req.material_id) {
+            if (item_matches_material(*it, req.material_id)) {
                 if (it->stack_count > needed) { it->stack_count -= needed; needed = 0; }
                 else { needed -= it->stack_count; it = player.inventory.items.erase(it); continue; }
             }

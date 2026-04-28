@@ -2460,10 +2460,14 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
         ctx.text({.x = rx, .y = cy, .content = msg, .tag = UITag::TextDim});
     } else {
         // Look up "do we have at least this much" for a material id.
+        // Recipe material_id can be either Item::id (T2 convention) or
+        // Item::item_def_id (junk reagents like Scrap), so match either.
         auto have_count = [&](uint32_t mid) -> int {
             int n = 0;
-            for (const auto& it : player_->inventory.items)
-                if (it.id == mid) n += it.stack_count;
+            for (const auto& it : player_->inventory.items) {
+                if (it.id == mid || it.item_def_id == mid)
+                    n += it.stack_count;
+            }
             return n;
         };
 
