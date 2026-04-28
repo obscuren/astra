@@ -18,6 +18,7 @@
 #include "astra/star_chart.h"
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
+#include "astra/tinkering.h"
 #include "astra/trap.h"
 
 #include <cctype>
@@ -197,6 +198,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  heal               - full heal");
         log("  reveal_traps       - toggle render of all hidden traps");
         log("  spawn-trap <prox|emp|incendiary|decoy|caltrops|dungeon> - spawn a dungeon trap at player feet");
+        log("  learn-schem <name|all> - learn a schematic by output name (prox, emp, caltrops, healing_stim, frag_grenade, ...)");
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
@@ -283,6 +285,42 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else { log("unknown trap kind: " + s); return; }
         place_dungeon_trap(game.world(), game.player().x, game.player().y, k);
         log("Spawned " + display_name(k));
+    }
+    else if (verb == "learn-schem") {
+        if (args.size() < 2) {
+            log("usage: learn-schem <name|all>");
+            log("  Try: prox emp incendiary decoy caltrops");
+            log("       healing_stim adrenaline_stim endure_stim focus_stim berserker_stim medkit");
+            log("       frag_grenade emp_grenade cryo_grenade incendiary_grenade smoke_grenade");
+            return;
+        }
+        // Map common short names to schematic output_name substrings.
+        auto match = [](const std::string& s, const SchematicRecipe& r) {
+            std::string out = r.output_name ? r.output_name : "";
+            // case-insensitive substring or short alias
+            auto lower = [](std::string v) { for (auto& c : v) c = std::tolower(c); return v; };
+            std::string sl = lower(s), nl = lower(out);
+            if (s == "prox")       return out == std::string("Proximity Mine");
+            if (s == "emp")        return out == std::string("EMP Mine");
+            if (s == "incendiary") return out == std::string("Incendiary Mine");
+            if (s == "decoy")      return out == std::string("Decoy Mine");
+            if (s == "caltrops")   return out == std::string("Caltrops");
+            // generic substring match: "frag_grenade" -> "Frag Grenade"
+            std::string alias = sl;
+            for (auto& c : alias) if (c == '_') c = ' ';
+            return nl.find(alias) != std::string::npos;
+        };
+
+        const auto& recipes = schematic_recipes();
+        int learned = 0;
+        for (const auto& r : recipes) {
+            if (args[1] == "all" || match(args[1], r)) {
+                auto res = learn_schematic(player, r.schematic_id,
+                                           r.output_name, r.output_desc);
+                if (res.success) { ++learned; log(res.message); }
+            }
+        }
+        if (learned == 0) log("No matching schematic for '" + args[1] + "'.");
     }
     else if (verb == "solve") {
         auto& map = game.world().map();

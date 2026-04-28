@@ -471,26 +471,57 @@ bool CharacterScreen::handle_input(int key) {
 
         // Catalog focus: navigate unlocked recipes + toggle expand/collapse by result name.
         if (tinker_focus_ == TinkerFocus::Catalog) {
-            // Build the same `known` recipe list used by the renderer.
-            auto player_knows_k = [&](const char* bp_name) {
-                for (const auto& bp : player_->learned_blueprints)
-                    if (bp.name == bp_name) return true;
-                return false;
-            };
-            std::vector<const SynthesisRecipe*> known;
-            for (const auto& r : synthesis_recipes()) {
-                if (player_knows_k(r.blueprint_1) || player_knows_k(r.blueprint_2))
-                    known.push_back(&r);
+            // Tab switch: left/right toggles between Blueprints and Schematics.
+            if (key == KEY_LEFT || key == KEY_RIGHT) {
+                catalog_tab_ = (catalog_tab_ == CatalogTab::Blueprints)
+                                ? CatalogTab::Schematics
+                                : CatalogTab::Blueprints;
+                catalog_cursor_ = 0;
+                catalog_scroll_ = 0;
+                return true;
             }
-            int rcount = static_cast<int>(known.size());
+            // Build the active list based on the current tab.
+            int rcount = 0;
+            std::vector<const SynthesisRecipe*> known;
+            if (catalog_tab_ == CatalogTab::Blueprints) {
+                auto player_knows_k = [&](const char* bp_name) {
+                    for (const auto& bp : player_->learned_blueprints)
+                        if (bp.name == bp_name) return true;
+                    return false;
+                };
+                for (const auto& r : synthesis_recipes()) {
+                    if (player_knows_k(r.blueprint_1) || player_knows_k(r.blueprint_2))
+                        known.push_back(&r);
+                }
+                rcount = static_cast<int>(known.size());
+            } else {
+                rcount = static_cast<int>(player_->learned_schematics.size());
+            }
+
             if (key == KEY_UP && catalog_cursor_ > 0) --catalog_cursor_;
             if (key == KEY_DOWN && catalog_cursor_ < rcount - 1) ++catalog_cursor_;
             if (key == ' ' && rcount > 0
                 && catalog_cursor_ >= 0 && catalog_cursor_ < rcount) {
-                std::string name = known[catalog_cursor_]->result_name;
+                std::string name;
+                if (catalog_tab_ == CatalogTab::Blueprints) {
+                    name = known[catalog_cursor_]->result_name;
+                } else {
+                    const auto& ls = player_->learned_schematics[catalog_cursor_];
+                    const SchematicRecipe* rec = find_schematic_recipe(ls.schematic_id);
+                    name = rec ? rec->output_name : ls.name;
+                }
                 auto it = catalog_collapsed_.find(name);
                 if (it == catalog_collapsed_.end()) catalog_collapsed_.insert(name);
                 else catalog_collapsed_.erase(it);
+            }
+            // [C] crafts the highlighted schematic directly (Schematics tab only).
+            if (key == 'C' && catalog_tab_ == CatalogTab::Schematics
+                && catalog_cursor_ >= 0 && catalog_cursor_ < rcount
+                && player_has_skill(*player_, SkillId::Cat_Tinkering)) {
+                auto sid = player_->learned_schematics[catalog_cursor_].schematic_id;
+                auto result = craft_schematic(sid, *player_);
+                context_message_ = result.message;
+                context_msg_timer_ = 4;
             }
             return true;
         }
@@ -1268,7 +1299,15 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     // Compute footer text based on active tab
     std::string footer_text;
     if (active_tab_ == CharTab::Tinkering) {
-        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth  [R] Refine  [C] Craft";
+        // Catalog is tabbed: [C] Craft only makes sense in the Schematics tab.
+        bool in_schem_tab = (tinker_focus_ == TinkerFocus::Catalog
+                             && catalog_tab_ == CatalogTab::Schematics);
+        bool craft_visible = (tinker_focus_ != TinkerFocus::Catalog) || in_schem_tab;
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Nav  [Tab] Catalog  [Space] Select  [r] Repair  [a] Analyze  [s] Salvage  [f] Assemble  [x] Clear  [y] Synth  [R] Refine";
+        if (craft_visible) footer_text += "  [C] Craft";
+        if (tinker_focus_ == TinkerFocus::Catalog) {
+            footer_text += "  [\xe2\x86\x90\xe2\x86\x92] Tab";
+        }
     } else if (active_tab_ == CharTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
     } else if (active_tab_ == CharTab::Cooking) {
@@ -2382,9 +2421,12 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
         ry = 9;
     }
 
-    // --- Blueprint Catalog header (right-panel section header) ---
+    // --- Catalog header — left/right arrows switch between two tabs ---
     int cat_hdr_y = ry + 1;
-    draw_section_header(ctx, cat_hdr_y, "BLUEPRINT CATALOG", half + 1, right_edge);
+    const char* tab_title = (catalog_tab_ == CatalogTab::Blueprints)
+        ? "\xe2\x97\x82 BLUEPRINT CATALOG \xe2\x96\xb8"
+        : "\xe2\x97\x82 SCHEMATICS \xe2\x96\xb8";
+    draw_section_header(ctx, cat_hdr_y, tab_title, half + 1, right_edge);
     int cy = cat_hdr_y + 2;
     int cy_max = ctx.height() - 1;
 
@@ -2406,8 +2448,16 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
         if (h1 || h2) known.push_back({&r, h1, h2});
     }
 
-    if (known.empty()) {
-        ctx.text({.x = rx, .y = cy, .content = "No blueprints learned.", .tag = UITag::TextDim});
+    int schem_count = static_cast<int>(player_->learned_schematics.size());
+    bool show_blueprints = (catalog_tab_ == CatalogTab::Blueprints);
+    bool show_schematics = (catalog_tab_ == CatalogTab::Schematics);
+    bool empty = (show_blueprints && known.empty()) ||
+                 (show_schematics && schem_count == 0);
+    if (empty) {
+        const char* msg = show_blueprints
+            ? "No blueprints learned."
+            : "No schematics learned. Find one and read it.";
+        ctx.text({.x = rx, .y = cy, .content = msg, .tag = UITag::TextDim});
     } else {
         // Look up "do we have at least this much" for a material id.
         auto have_count = [&](uint32_t mid) -> int {
@@ -2422,7 +2472,9 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
         struct Line {
             bool is_header = false;
             bool is_cost = false;
-            int recipe_idx = 0;        // index into `known`
+            bool is_schematic = false;  // true: use schem_idx; false: use recipe_idx
+            int recipe_idx = 0;          // index into `known` (synthesis)
+            int schem_idx = 0;           // index into player_->learned_schematics
             std::string text;
             UITag tag = UITag::TextDim;
         };
@@ -2448,50 +2500,80 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
             return out;
         };
 
-        for (int ri = 0; ri < static_cast<int>(known.size()); ++ri) {
-            const auto& kr = known[ri];
-            const auto& r = *kr.rec;
-            bool collapsed = catalog_collapsed_.count(r.result_name) > 0;
+        if (show_blueprints) {
+            for (int ri = 0; ri < static_cast<int>(known.size()); ++ri) {
+                const auto& kr = known[ri];
+                const auto& r = *kr.rec;
+                bool collapsed = catalog_collapsed_.count(r.result_name) > 0;
 
-            Line hdr; hdr.is_header = true; hdr.recipe_idx = ri;
-            hdr.text = r.result_name; hdr.tag = UITag::TextAccent;
-            lines.push_back(hdr);
+                Line hdr; hdr.is_header = true; hdr.recipe_idx = ri;
+                hdr.text = r.result_name; hdr.tag = UITag::TextAccent;
+                lines.push_back(hdr);
 
-            if (!collapsed) {
-                Line bp1; bp1.recipe_idx = ri;
-                bp1.text = std::string("  + ") + r.blueprint_1;
-                bp1.tag = kr.has_bp1 ? UITag::TextSuccess : UITag::TextDim;
-                lines.push_back(bp1);
+                if (!collapsed) {
+                    Line bp1; bp1.recipe_idx = ri;
+                    bp1.text = std::string("  + ") + r.blueprint_1;
+                    bp1.tag = kr.has_bp1 ? UITag::TextSuccess : UITag::TextDim;
+                    lines.push_back(bp1);
 
-                Line bp2; bp2.recipe_idx = ri;
-                bp2.text = std::string("  + ") + r.blueprint_2;
-                bp2.tag = kr.has_bp2 ? UITag::TextSuccess : UITag::TextDim;
-                lines.push_back(bp2);
+                    Line bp2; bp2.recipe_idx = ri;
+                    bp2.text = std::string("  + ") + r.blueprint_2;
+                    bp2.tag = kr.has_bp2 ? UITag::TextSuccess : UITag::TextDim;
+                    lines.push_back(bp2);
 
-                Line cost; cost.is_cost = true; cost.recipe_idx = ri;
-                lines.push_back(cost);
+                    Line cost; cost.is_cost = true; cost.recipe_idx = ri;
+                    lines.push_back(cost);
 
-                // Description (wrapped).
-                if (r.result_desc && *r.result_desc) {
-                    lines.push_back({});  // blank
-                    for (const auto& wl : wrap(r.result_desc, panel_w - 2)) {
-                        Line d; d.recipe_idx = ri; d.text = "  " + wl; d.tag = UITag::TextDim;
-                        lines.push_back(d);
+                    if (r.result_desc && *r.result_desc) {
+                        lines.push_back({});
+                        for (const auto& wl : wrap(r.result_desc, panel_w - 2)) {
+                            Line d; d.recipe_idx = ri; d.text = "  " + wl; d.tag = UITag::TextDim;
+                            lines.push_back(d);
+                        }
                     }
+                    lines.push_back({});
                 }
-                lines.push_back({});  // trailing blank
+            }
+        } else {
+            // Schematics tab — single-recipe rows, no blueprint sub-lines.
+            for (int si = 0; si < schem_count; ++si) {
+                const auto& ls = player_->learned_schematics[si];
+                const SchematicRecipe* rec = find_schematic_recipe(ls.schematic_id);
+                std::string out_name = rec ? rec->output_name : ls.name;
+                bool collapsed = catalog_collapsed_.count(out_name) > 0;
+
+                Line hdr; hdr.is_header = true; hdr.is_schematic = true; hdr.schem_idx = si;
+                hdr.text = out_name; hdr.tag = UITag::TextAccent;
+                lines.push_back(hdr);
+
+                if (!collapsed && rec) {
+                    Line cost; cost.is_cost = true; cost.is_schematic = true; cost.schem_idx = si;
+                    lines.push_back(cost);
+                    if (rec->output_desc && *rec->output_desc) {
+                        lines.push_back({});
+                        for (const auto& wl : wrap(rec->output_desc, panel_w - 2)) {
+                            Line d; d.is_schematic = true; d.schem_idx = si;
+                            d.text = "  " + wl; d.tag = UITag::TextDim;
+                            lines.push_back(d);
+                        }
+                    }
+                    lines.push_back({});
+                }
             }
         }
 
-        int recipe_count = static_cast<int>(known.size());
+        // Cursor index runs over the visible tab's contents only.
+        int recipe_count = show_blueprints
+            ? static_cast<int>(known.size())
+            : schem_count;
         if (catalog_cursor_ >= recipe_count) catalog_cursor_ = recipe_count - 1;
         if (catalog_cursor_ < 0) catalog_cursor_ = 0;
 
         int cursor_line_idx = 0;
         for (int li = 0; li < static_cast<int>(lines.size()); ++li) {
-            if (lines[li].is_header && lines[li].recipe_idx == catalog_cursor_) {
-                cursor_line_idx = li; break;
-            }
+            if (!lines[li].is_header) continue;
+            int idx = lines[li].is_schematic ? lines[li].schem_idx : lines[li].recipe_idx;
+            if (idx == catalog_cursor_) { cursor_line_idx = li; break; }
         }
 
         int visible_rows = cy_max - cy;
@@ -2511,10 +2593,18 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
             int y = cy + (li - catalog_scroll_);
 
             if (L.is_header) {
+                int idx = L.is_schematic ? L.schem_idx : L.recipe_idx;
                 bool cursor_here = (tinker_focus_ == TinkerFocus::Catalog
-                                    && L.recipe_idx == catalog_cursor_);
-                const auto& r = *known[L.recipe_idx].rec;
-                bool collapsed = catalog_collapsed_.count(r.result_name) > 0;
+                                    && idx == catalog_cursor_);
+                std::string name;
+                if (L.is_schematic) {
+                    const auto& ls = player_->learned_schematics[L.schem_idx];
+                    const SchematicRecipe* rec = find_schematic_recipe(ls.schematic_id);
+                    name = rec ? rec->output_name : ls.name;
+                } else {
+                    name = known[L.recipe_idx].rec->result_name;
+                }
+                bool collapsed = catalog_collapsed_.count(name) > 0;
 
                 Color bar_bg = cursor_here ? static_cast<Color>(235) : static_cast<Color>(233);
                 for (int fx = bar_x0; fx < bar_x1; ++fx)
@@ -2526,14 +2616,18 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 
                 Color name_fg = cursor_here ? Color::Yellow : Color::White;
                 int lx = bar_x0 + 5;
-                for (const char* p = r.result_name; *p && lx < bar_x1 - 1; ++p, ++lx)
-                    ctx.put(lx, y, *p, name_fg, bar_bg);
+                for (char c : name) {
+                    if (lx >= bar_x1 - 1) break;
+                    ctx.put(lx++, y, c, name_fg, bar_bg);
+                }
             } else if (L.is_cost) {
-                const auto& r = *known[L.recipe_idx].rec;
                 std::vector<astra::TextSegment> segs;
                 segs.push_back({"  Cost: ", UITag::TextDim});
+                const auto& reqs = L.is_schematic
+                    ? find_schematic_recipe(player_->learned_schematics[L.schem_idx].schematic_id)->material_costs
+                    : known[L.recipe_idx].rec->material_costs;
                 bool any = false;
-                for (const auto& req : r.material_costs) {
+                for (const auto& req : reqs) {
                     if (any) segs.push_back({", ", UITag::TextDim});
                     any = true;
                     bool enough = have_count(req.material_id) >= req.count;

@@ -104,6 +104,8 @@ private:
     int workbench_inv_idx_ = -1;     // index in player inventory, or -1 if from equipment
 
     // Blueprint Catalog (right pane): cursor indexes blueprints; collapsed names hide recipes.
+    enum class CatalogTab : uint8_t { Blueprints, Schematics };
+    CatalogTab catalog_tab_ = CatalogTab::Blueprints;
     int catalog_cursor_ = 0;
     int catalog_scroll_ = 0;
     std::unordered_set<std::string> catalog_collapsed_;
