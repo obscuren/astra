@@ -375,6 +375,7 @@ void Game::handle_play_input(int key) {
             log("Auto-walk: choose direction, or press w again to explore.");
             break;
         case 't': combat_.begin_targeting(*this); break;
+        case 'T': use_thrown(); break;
         case 's': combat_.shoot_target(*this); break;
         case 'r': combat_.recharge_weapon(*this); break;
         case 'b': combat_.recharge_shield(*this); break;

@@ -591,23 +591,6 @@ void Game::use_item(int index) {
             log(result.message);
             break;
         }
-        case ItemType::Mine: {
-            TrapKind kind = trap_kind_for_item_id(item.item_def_id);
-            int range = (kind == TrapKind::Caltrops) ? 4 : 3;
-            int width = (kind == TrapKind::Caltrops) ? 1 : 0;
-            TelegraphSpec spec;
-            spec.shape = TelegraphShape::Burst;
-            spec.range = range;
-            spec.width = width;
-            spec.require_walkable_dest = true;
-            int captured_index = index;
-            telegraph_.begin(spec, player_.x, player_.y,
-                [this, captured_index, kind](const TelegraphResult& r) {
-                    place_player_trap(*this, kind, r.dest_x, r.dest_y, captured_index);
-                });
-            log("Pick a tile to deploy the " + item.name + ". Enter to confirm, Esc to cancel.");
-            return; // do NOT consume or advance world here — telegraph callback handles both.
-        }
         default:
             log("You can't use " + item.name + ".");
             return;
@@ -620,6 +603,47 @@ void Game::use_item(int index) {
         items.erase(items.begin() + index);
     }
     advance_world(ActionCost::wait);
+}
+
+void Game::use_thrown() {
+    if (telegraph_.active()) return;  // already aiming something else
+
+    auto& slot = player_.equipment.thrown;
+    if (!slot) {
+        log("No throwable equipped. Press [u] on a mine or grenade to equip it.");
+        return;
+    }
+
+    if (slot->type == ItemType::Grenade) {
+        log("Grenade throw not yet implemented.");
+        return;
+    }
+    if (slot->type != ItemType::Mine) {
+        log("Can't throw " + slot->name + ".");
+        return;
+    }
+
+    TrapKind kind = trap_kind_for_item_id(slot->item_def_id);
+    int range = (kind == TrapKind::Caltrops) ? 4 : 3;
+    int width = (kind == TrapKind::Caltrops) ? 1 : 0;
+
+    TelegraphSpec spec;
+    spec.shape = TelegraphShape::Burst;
+    spec.range = range;
+    spec.width = width;
+    spec.require_walkable_dest = true;
+
+    telegraph_.begin(spec, player_.x, player_.y,
+        [this, kind](const TelegraphResult& r) {
+            place_player_trap(*this, kind, r.dest_x, r.dest_y);
+            // Decrement the equipped Thrown stack; clear slot when depleted.
+            auto& s = player_.equipment.thrown;
+            if (s) {
+                if (s->stackable && s->stack_count > 1) --s->stack_count;
+                else { s.reset(); rebuild_auras_from_sources(player_); }
+            }
+        });
+    log("Pick a tile to deploy the " + slot->name + ". Enter to confirm, Esc to cancel.");
 }
 
 void Game::equip_item(int index) {

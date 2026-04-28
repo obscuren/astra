@@ -1131,8 +1131,13 @@ static Item build_consumable_(uint16_t def_id, uint32_t id, const char* name,
     it.stack_count = 1;
     it.buy_value = buy;
     it.sell_value = sell;
-    it.usable = true;
-    if (type == ItemType::Grenade || type == ItemType::Mine) it.slot = EquipSlot::Thrown;
+    if (type == ItemType::Grenade || type == ItemType::Mine) {
+        // Throwables must be equipped to the Thrown slot and deployed via [T].
+        // No inventory 'u' action.
+        it.slot = EquipSlot::Thrown;
+    } else {
+        it.usable = true;
+    }
     return it;
 }
 

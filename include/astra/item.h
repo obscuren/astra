@@ -274,4 +274,9 @@ struct Inventory {
 bool item_has_active_module(const Item& item);
 std::string active_module_name(const Item& item);
 
+// Push an item into the inventory, merging with an existing stack of the
+// same item_def_id when both sides are stackable. Otherwise appends a new
+// entry. Use this for any code path that grants the player items.
+void add_to_inventory_stacked(Inventory& inv, Item item);
+
 } // namespace astra

@@ -309,24 +309,12 @@ void resolve_trap(Game& game, const Trap& t, int x, int y,
 
 } // namespace
 
-void place_player_trap(Game& game, TrapKind kind, int dest_x, int dest_y, int item_index) {
+void place_player_trap(Game& game, TrapKind kind, int dest_x, int dest_y) {
     if (kind == TrapKind::Caltrops) {
         scatter_caltrops(game, dest_x, dest_y);
     } else {
         place_single_trap(game, kind, dest_x, dest_y);
     }
-
-    // Consume one stack count (or remove the item if it was the last).
-    auto& items = game.player().inventory.items;
-    if (item_index >= 0 && item_index < static_cast<int>(items.size())) {
-        Item& it = items[item_index];
-        if (it.stackable && it.stack_count > 1) {
-            --it.stack_count;
-        } else {
-            items.erase(items.begin() + item_index);
-        }
-    }
-
     game.log("You deploy the " + std::string(trap_kind_name(kind)) + ".");
     game.advance_world(ActionCost::wait);
 }

@@ -52,8 +52,9 @@ const char* trap_kind_name(TrapKind k);
 char trap_glyph(TrapKind k);
 int  trap_color(TrapKind k);
 
-// Player deploy (telegraph confirm calls into here)
-void place_player_trap(Game& game, TrapKind kind, int dest_x, int dest_y, int item_index);
+// Player deploy — spawn-only. Caller decrements the source stack
+// (Thrown equipment slot or inventory entry) after the call.
+void place_player_trap(Game& game, TrapKind kind, int dest_x, int dest_y);
 
 // Dungeon-placement helper — used by future generators
 void place_dungeon_trap(WorldManager& wm, int x, int y, TrapKind kind,

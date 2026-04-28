@@ -141,4 +141,16 @@ bool Inventory::can_add(const Item& item) const {
     return total_weight() + item.weight * item.stack_count <= max_carry_weight;
 }
 
+void add_to_inventory_stacked(Inventory& inv, Item item) {
+    if (item.stackable) {
+        for (auto& existing : inv.items) {
+            if (existing.item_def_id == item.item_def_id && existing.stackable) {
+                existing.stack_count += item.stack_count;
+                return;
+            }
+        }
+    }
+    inv.items.push_back(std::move(item));
+}
+
 } // namespace astra

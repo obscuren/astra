@@ -232,6 +232,7 @@ private:
     void use_item(int index);
     void equip_item(int index);
     void unequip_slot(int index);
+    void use_thrown();   // [T] hotkey — deploy/throw whatever is in EquipSlot::Thrown
     void recharge_weapon();
     void remove_dead_npcs();
     void check_player_death();

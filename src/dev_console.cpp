@@ -539,7 +539,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("Added " + entry->identifier + " ("
             + std::string(rarity_short_name(rarity)) + ", lvl "
             + std::to_string(level) + ") to inventory.");
-        player.inventory.items.push_back(std::move(item));
+        add_to_inventory_stacked(player.inventory, std::move(item));
     }
     else if (verb == "give" && args.size() >= 3) {
         int val = 0;
