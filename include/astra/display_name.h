@@ -6,6 +6,7 @@
 #include "astra/race.h"
 #include "astra/renderer.h"
 #include "astra/tilemap.h"
+#include "astra/trap.h"
 
 #include <string>
 
@@ -64,5 +65,11 @@ inline std::string display_name(DamageType t) {
 
 // Fixture — human-readable name for display (e.g. "Heal Pod", "Food Terminal")
 const char* fixture_type_name(FixtureType type);
+
+// Trap — colored by kind, matches the in-world glyph color.
+inline std::string display_name(TrapKind k) {
+    Color c = static_cast<Color>(trap_color(k));
+    return colored(trap_kind_name(k), c);
+}
 
 } // namespace astra

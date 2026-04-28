@@ -3,6 +3,7 @@
 #include "astra/aura.h"
 #include "astra/biome_profile.h"
 #include "astra/body_presets.h"
+#include "astra/display_name.h"
 #include "astra/dungeon/dungeon_style.h"
 #include "astra/dungeon/puzzles.h"
 #include "astra/effect.h"
@@ -281,7 +282,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else if (s == "dungeon")    k = TrapKind::DungeonGeneric;
         else { log("unknown trap kind: " + s); return; }
         place_dungeon_trap(game.world(), game.player().x, game.player().y, k);
-        log(std::string("Spawned ") + trap_kind_name(k));
+        log("Spawned " + display_name(k));
     }
     else if (verb == "solve") {
         auto& map = game.world().map();

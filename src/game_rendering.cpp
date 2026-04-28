@@ -624,13 +624,11 @@ void Game::use_thrown() {
     }
 
     TrapKind kind = trap_kind_for_item_id(slot->item_def_id);
-    int range = (kind == TrapKind::Caltrops) ? 4 : 3;
-    int width = (kind == TrapKind::Caltrops) ? 1 : 0;
 
     TelegraphSpec spec;
     spec.shape = TelegraphShape::Burst;
-    spec.range = range;
-    spec.width = width;
+    spec.range = trap_throw_range(kind);
+    spec.width = trap_throw_burst_width(kind);
     spec.require_walkable_dest = true;
 
     telegraph_.begin(spec, player_.x, player_.y,

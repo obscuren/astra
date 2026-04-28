@@ -52,6 +52,21 @@ const char* trap_kind_name(TrapKind k);
 char trap_glyph(TrapKind k);
 int  trap_color(TrapKind k);
 
+// Per-kind trap stats — used by both the runtime resolver and UI panels.
+struct TrapDef {
+    int damage = 0;
+    int burst_radius = 0;            // 0 = single tile only
+    int status = 0;                  // EffectId cast — 0 means "no status"
+    int status_duration = 0;
+    int status_tick_damage = 0;
+};
+const TrapDef& trap_def_for(TrapKind k);
+
+// How far a player-thrown trap of this kind can reach, and the half-width
+// of its placement burst reticule (caltrops scatters across a 3x3).
+int trap_throw_range(TrapKind k);
+int trap_throw_burst_width(TrapKind k);
+
 // Player deploy — spawn-only. Caller decrements the source stack
 // (Thrown equipment slot or inventory entry) after the call.
 void place_player_trap(Game& game, TrapKind kind, int dest_x, int dest_y);

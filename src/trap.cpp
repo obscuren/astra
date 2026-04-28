@@ -1,6 +1,7 @@
 #include "astra/trap.h"
 
 #include "astra/action.h"
+#include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
@@ -67,22 +68,15 @@ TrapKind trap_kind_for_item_id(uint16_t id) {
 
 namespace {
 
-// Per-kind defaults. Indexed by TrapKind enum value.
-struct TrapDef {
-    int damage = 0;
-    int burst_radius = 0;            // 0 = single tile only
-    EffectId status = EffectId::Invulnerable; // sentinel "no status"
-    int status_duration = 0;
-    int status_tick_damage = 0;
-};
-
+// Per-kind defaults. Indexed by TrapKind enum value. Status of 0 means
+// "no status" (EffectId::Invulnerable is the chosen sentinel).
 constexpr TrapDef kTrapDefs[] = {
-    /* ProximityMine  */ { 12, 1, EffectId::Invulnerable, 0, 0 },
-    /* EmpMine        */ { 4,  1, EffectId::EmpDisabled,  5, 0 },
-    /* IncendiaryMine */ { 8,  1, EffectId::Burn,         4, 2 },
-    /* DecoyMine      */ { 0,  0, EffectId::Invulnerable, 0, 0 },
-    /* Caltrops       */ { 3,  0, EffectId::Slow,         3, 0 },
-    /* DungeonGeneric */ { 6,  0, EffectId::Invulnerable, 0, 0 },
+    /* ProximityMine  */ { 12, 1, static_cast<int>(EffectId::Invulnerable), 0, 0 },
+    /* EmpMine        */ { 4,  1, static_cast<int>(EffectId::EmpDisabled),  5, 0 },
+    /* IncendiaryMine */ { 8,  1, static_cast<int>(EffectId::Burn),         4, 2 },
+    /* DecoyMine      */ { 0,  0, static_cast<int>(EffectId::Invulnerable), 0, 0 },
+    /* Caltrops       */ { 3,  0, static_cast<int>(EffectId::Slow),         3, 0 },
+    /* DungeonGeneric */ { 6,  0, static_cast<int>(EffectId::Invulnerable), 0, 0 },
 };
 
 const TrapDef& def_for(TrapKind k) {
@@ -200,12 +194,13 @@ bool should_trigger(const Trap& t, Game& game,
     return is_hostile(stepper->faction, t.owner_faction);
 }
 
-void apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
-                             const Trap& t, const TrapDef& def,
-                             int stepper_npc_id) {
+// Returns the damage actually applied (0 if the entity was placer-immune).
+int apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
+                            const Trap& t, const TrapDef& def,
+                            int stepper_npc_id) {
     // Splash immunity for the placer.
-    if (player && t.placer_is_player) return;
-    if (npc && !t.placer_is_player && stepper_npc_id == t.placer_npc_id) return;
+    if (player && t.placer_is_player) return 0;
+    if (npc && !t.placer_is_player && stepper_npc_id == t.placer_npc_id) return 0;
 
     int dmg = def.damage;
     if (player) {
@@ -214,13 +209,14 @@ void apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
         npc->hp = std::max(0, npc->hp - dmg);
     }
 
-    if (def.status != EffectId::Invulnerable) {
+    EffectId status_id = static_cast<EffectId>(def.status);
+    if (status_id != EffectId::Invulnerable) {
         Effect e;
-        if (def.status == EffectId::Burn) {
+        if (status_id == EffectId::Burn) {
             e = make_burn_ge(def.status_duration, def.status_tick_damage);
-        } else if (def.status == EffectId::EmpDisabled) {
+        } else if (status_id == EffectId::EmpDisabled) {
             e = make_emp_disabled_ge(def.status_duration);
-        } else if (def.status == EffectId::Slow) {
+        } else if (status_id == EffectId::Slow) {
             // No factory for Slow; build a minimal effect.
             e.id = EffectId::Slow;
             e.name = "Slowed";
@@ -230,7 +226,7 @@ void apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
             e.show_in_bar = true;
             e.move_speed_mod = -25;
         } else {
-            e = effect_for_id(def.status);
+            e = effect_for_id(status_id);
             if (def.status_duration > 0) {
                 e.duration = def.status_duration;
                 e.remaining = def.status_duration;
@@ -238,6 +234,17 @@ void apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
         }
         if (player) add_effect(player->effects, e);
         else if (npc) add_effect(npc->effects, e);
+    }
+    return dmg;
+}
+
+// Status descriptor for log lines (e.g. "Burn 4t", "Slow 3t", "EMP 5t").
+const char* short_status(int status_int) {
+    switch (static_cast<EffectId>(status_int)) {
+        case EffectId::Burn:        return "Burn";
+        case EffectId::EmpDisabled: return "EMP";
+        case EffectId::Slow:        return "Slow";
+        default: return nullptr;
     }
 }
 
@@ -247,7 +254,7 @@ void resolve_trap(Game& game, const Trap& t, int x, int y,
 
     // Decoy mine — log + emit a noise event for hostile NPCs to chase.
     if (t.kind == TrapKind::DecoyMine) {
-        game.log("The decoy beeps loudly!");
+        game.log("The " + display_name(t.kind) + " beeps loudly!");
         NoiseEvent ev;
         ev.x = t.x;
         ev.y = t.y;
@@ -259,12 +266,36 @@ void resolve_trap(Game& game, const Trap& t, int x, int y,
         return;
     }
 
-    // Damage the stepping entity.
+    // Headline log — who triggered what. The trap kind is colored.
     if (stepper_is_player) {
-        apply_damage_and_status(game, &game.player(), nullptr, t, def, -1);
+        game.log("You set off the " + display_name(t.kind) + "!");
+    } else if (Npc* n = npc_by_id(game, stepper_npc_id)) {
+        game.log(display_name(*n) + " sets off the " + display_name(t.kind) + "!");
+    } else {
+        game.log("Something sets off the " + display_name(t.kind) + "!");
+    }
+
+    // Damage the stepping entity.
+    int dmg_to_stepper = 0;
+    if (stepper_is_player) {
+        dmg_to_stepper = apply_damage_and_status(game, &game.player(), nullptr, t, def, -1);
     } else {
         Npc* n = npc_by_id(game, stepper_npc_id);
-        if (n) apply_damage_and_status(game, nullptr, n, t, def, stepper_npc_id);
+        if (n) dmg_to_stepper = apply_damage_and_status(game, nullptr, n, t, def, stepper_npc_id);
+    }
+
+    if (dmg_to_stepper > 0) {
+        std::string status_part;
+        if (const char* s = short_status(def.status)) {
+            status_part = std::string(" + ") + s
+                        + " (" + std::to_string(def.status_duration) + "t)";
+        }
+        if (stepper_is_player) {
+            game.log("  You take " + std::to_string(dmg_to_stepper) + " damage" + status_part + ".");
+        } else if (Npc* n = npc_by_id(game, stepper_npc_id)) {
+            game.log("  " + display_name(*n) + " takes "
+                     + std::to_string(dmg_to_stepper) + " damage" + status_part + ".");
+        }
     }
 
     // Splash to other entities in burst radius (skip stepper).
@@ -272,7 +303,16 @@ void resolve_trap(Game& game, const Trap& t, int x, int y,
         // Player splash (if stepper isn't the player).
         if (!stepper_is_player &&
             chebyshev(game.player().x, game.player().y, x, y) <= def.burst_radius) {
-            apply_damage_and_status(game, &game.player(), nullptr, t, def, -1);
+            int sd = apply_damage_and_status(game, &game.player(), nullptr, t, def, -1);
+            if (sd > 0) {
+                std::string status_part;
+                if (const char* s = short_status(def.status)) {
+                    status_part = std::string(" + ") + s
+                                + " (" + std::to_string(def.status_duration) + "t)";
+                }
+                game.log("  You take " + std::to_string(sd)
+                         + " splash damage" + status_part + ".");
+            }
         }
         // NPC splash.
         auto& npcs = game.world().npcs();
@@ -281,29 +321,19 @@ void resolve_trap(Game& game, const Trap& t, int x, int y,
             Npc& n = npcs[i];
             if (!n.alive()) continue;
             if (chebyshev(n.x, n.y, x, y) <= def.burst_radius) {
-                apply_damage_and_status(game, nullptr, &n, t, def, i);
+                int sd = apply_damage_and_status(game, nullptr, &n, t, def, i);
+                if (sd > 0) {
+                    std::string status_part;
+                    if (const char* s = short_status(def.status)) {
+                        status_part = std::string(" + ") + s
+                                    + " (" + std::to_string(def.status_duration) + "t)";
+                    }
+                    game.log("  " + display_name(n) + " takes "
+                             + std::to_string(sd) + " splash damage"
+                             + status_part + ".");
+                }
             }
         }
-    }
-
-    // Log.
-    switch (t.kind) {
-        case TrapKind::ProximityMine:
-        case TrapKind::EmpMine:
-        case TrapKind::IncendiaryMine:
-            game.log(std::string("The ") + trap_kind_name(t.kind) + " detonates!");
-            break;
-        case TrapKind::Caltrops: {
-            if (stepper_is_player) {
-                game.log("You step on caltrops!");
-            } else if (Npc* n = npc_by_id(game, stepper_npc_id)) {
-                game.log("The " + n->name + " steps on caltrops!");
-            } else {
-                game.log("Something steps on caltrops!");
-            }
-            break;
-        }
-        default: break;
     }
 }
 
@@ -315,7 +345,7 @@ void place_player_trap(Game& game, TrapKind kind, int dest_x, int dest_y) {
     } else {
         place_single_trap(game, kind, dest_x, dest_y);
     }
-    game.log("You deploy the " + std::string(trap_kind_name(kind)) + ".");
+    game.log("You deploy the " + display_name(kind) + ".");
     game.advance_world(ActionCost::wait);
 }
 
@@ -335,6 +365,20 @@ void place_dungeon_trap(WorldManager& wm, int x, int y, TrapKind kind,
     t.activations_remaining = 1;
     t.placed_tick = 0;
     wm.traps().push_back(std::move(t));
+}
+
+// --- Public accessors for the kTrapDefs table + throw geometry ---
+
+const TrapDef& trap_def_for(TrapKind k) {
+    return def_for(k);
+}
+
+int trap_throw_range(TrapKind k) {
+    return (k == TrapKind::Caltrops) ? 4 : 3;
+}
+
+int trap_throw_burst_width(TrapKind k) {
+    return (k == TrapKind::Caltrops) ? 1 : 0;
 }
 
 void on_entity_enters_tile(Game& game, int x, int y, bool is_player, int npc_id) {
@@ -371,7 +415,7 @@ void update_trap_detection(Game& game) {
             int roll = d20(rng);
             if (roll + p.trap_detection >= t.detection_dc) {
                 t.hidden = false;
-                game.log(std::string("You spot a ") + trap_kind_name(t.kind) + " " +
+                game.log("You spot a " + display_name(t.kind) + " " +
                          relative_dir(p.x, p.y, t.x, t.y) + "!");
             }
         }

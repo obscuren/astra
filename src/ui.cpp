@@ -1,6 +1,8 @@
 #include "astra/ui.h"
 #include "astra/display_name.h"
+#include "astra/effect.h"
 #include "astra/item.h"
+#include "astra/trap.h"
 #include "terminal_theme.h"
 
 #include <algorithm>
@@ -429,6 +431,77 @@ void draw_item_info(UIContext& ctx, const Item& item) {
         ctx.text(0, y, "Type:      ", Color::DarkGray);
         ctx.text_rich(11, y, display_name(item.damage_type), Color::Default);
         y++;
+    }
+
+    if (item.type == ItemType::Mine && y < ctx.height()) {
+        TrapKind kind = trap_kind_for_item_id(item.item_def_id);
+        const TrapDef& def = trap_def_for(kind);
+        EffectId status = static_cast<EffectId>(def.status);
+
+        if (kind == TrapKind::DecoyMine) {
+            ctx.label_value(0, y, "Effect:    ", Color::DarkGray,
+                "Noise pull (r5, 5t)", Color::Yellow);
+            y++;
+        } else if (kind == TrapKind::Caltrops) {
+            ctx.label_value(0, y, "Damage:    ", Color::DarkGray,
+                std::to_string(def.damage) + " per step", Color::White);
+            y++;
+            ctx.label_value(0, y, "Coverage:  ", Color::DarkGray,
+                "4 of 9 in 3x3", Color::White);
+            y++;
+            ctx.label_value(0, y, "Activations:", Color::DarkGray,
+                " 3 per tile", Color::White);
+            y++;
+            ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                "Slow (" + std::to_string(def.status_duration) + "t)",
+                Color::Cyan);
+            y++;
+        } else {
+            ctx.label_value(0, y, "Damage:    ", Color::DarkGray,
+                std::to_string(def.damage), Color::White);
+            y++;
+            if (def.burst_radius > 0) {
+                int side = 2 * def.burst_radius + 1;
+                ctx.label_value(0, y, "Burst:     ", Color::DarkGray,
+                    std::to_string(side) + "x" + std::to_string(side),
+                    Color::White);
+                y++;
+            }
+            if (status == EffectId::Burn) {
+                ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                    "Burn " + std::to_string(def.status_duration) + "t @ "
+                        + std::to_string(def.status_tick_damage) + "/t",
+                    Color::Red);
+                y++;
+            } else if (status == EffectId::EmpDisabled) {
+                ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                    "EMP-Disabled " + std::to_string(def.status_duration) + "t",
+                    Color::Blue);
+                y++;
+            } else if (status == EffectId::Slow) {
+                ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                    "Slow " + std::to_string(def.status_duration) + "t",
+                    Color::Cyan);
+                y++;
+            }
+        }
+        ctx.label_value(0, y, "Throw rng: ", Color::DarkGray,
+            std::to_string(trap_throw_range(kind)) + " tiles",
+            Color::White);
+        y++;
+        // Detection DC for hidden kinds (visible kinds skip the line).
+        int dc = 0;
+        switch (kind) {
+            case TrapKind::ProximityMine:  dc = 12; break;
+            case TrapKind::EmpMine:        dc = 13; break;
+            case TrapKind::IncendiaryMine: dc = 11; break;
+            default: break;
+        }
+        if (dc > 0) {
+            ctx.label_value(0, y, "Detect DC: ", Color::DarkGray,
+                std::to_string(dc), Color::DarkGray);
+            y++;
+        }
     }
 
     const auto& m = item.modifiers;
