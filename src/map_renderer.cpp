@@ -9,6 +9,7 @@
 #include "astra/world_context.h"
 #include "astra/render_descriptor.h"
 #include "astra/quest.h"
+#include "astra/trap.h"
 #include "terminal_theme.h"
 
 namespace astra {
@@ -295,6 +296,21 @@ void render_map(const MapRenderContext& rc) {
 
                 wctx.put(sx, sy, desc);
             }
+        }
+    }
+
+    // Trap pass — draw player-visible traps (between fixtures and ground items)
+    {
+        const auto& traps = rc.world.traps();
+        for (const Trap& t : traps) {
+            bool visible = rc.reveal_traps_debug || t.placer_is_player || !t.hidden;
+            if (!visible) continue;
+            if (rc.world.visibility().get(t.x, t.y) != Visibility::Visible) continue;
+            int sx = t.x - rc.camera_x;
+            int sy = t.y - rc.camera_y;
+            if (sx < 0 || sx >= rc.map_rect.w || sy < 0 || sy >= rc.map_rect.h) continue;
+            ctx.put(sx, sy, trap_glyph(t.kind),
+                    static_cast<Color>(trap_color(t.kind)));
         }
     }
 

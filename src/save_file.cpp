@@ -8,7 +8,6 @@
 
 #include <unordered_map>
 
-#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -757,6 +756,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_u16(p.cooking_slots[i].item_def_id);
         w.write_i32(p.cooking_slots[i].qty);
     }
+    // v50: trap detection bonus
+    w.write_i32(p.trap_detection);
     w.end_section(pos);
 }
 
@@ -846,6 +847,11 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
             write_manual_aura(w, a);
         }
     }
+
+    // v50: noise-event chase target
+    w.write_i32(npc.move_target_x);
+    w.write_i32(npc.move_target_y);
+    w.write_i32(npc.move_target_ttl);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -910,6 +916,35 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_i32(gi.x);
         w.write_i32(gi.y);
         write_item(w, gi.item);
+    }
+
+    // v50: traps
+    w.write_u32(static_cast<uint32_t>(ms.traps.size()));
+    for (const auto& t : ms.traps) {
+        w.write_u8(static_cast<uint8_t>(t.kind));
+        w.write_i32(t.x);
+        w.write_i32(t.y);
+        w.write_u8(t.hidden ? 1 : 0);
+        w.write_i32(t.reveal_radius);
+        w.write_i32(t.detection_dc);
+        w.write_u8(t.was_in_player_radius ? 1 : 0);
+        w.write_u8(static_cast<uint8_t>(t.trigger_mode));
+        w.write_string(t.owner_faction);
+        w.write_u8(t.placer_is_player ? 1 : 0);
+        w.write_i32(t.placer_npc_id);
+        w.write_i32(t.activations_remaining);
+        w.write_i32(t.placed_tick);
+    }
+
+    // v50: noise events
+    w.write_u32(static_cast<uint32_t>(ms.noise_events.size()));
+    for (const auto& ev : ms.noise_events) {
+        w.write_i32(ev.x);
+        w.write_i32(ev.y);
+        w.write_i32(ev.radius);
+        w.write_i32(ev.ttl_ticks);
+        w.write_string(ev.emitter_owner_faction);
+        w.write_u8(ev.emitter_is_player ? 1 : 0);
     }
 
     // Fixtures (v3+)
@@ -1621,6 +1656,8 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.cooking_slots[i].item_def_id = r.read_u16();
         p.cooking_slots[i].qty = r.read_i32();
     }
+    // v50: trap detection bonus
+    p.trap_detection = r.read_i32();
 }
 
 static Npc read_npc(BinaryReader& r) {
@@ -1691,6 +1728,11 @@ static Npc read_npc(BinaryReader& r) {
         }
     }
 
+    // v50: noise-event chase target
+    npc.move_target_x = r.read_i32();
+    npc.move_target_y = r.read_i32();
+    npc.move_target_ttl = r.read_i32();
+
     return npc;
 }
 
@@ -1751,6 +1793,41 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
         ms.ground_items[i].x = r.read_i32();
         ms.ground_items[i].y = r.read_i32();
         ms.ground_items[i].item = read_item(r);
+    }
+
+    // v50: traps
+    {
+        uint32_t n_traps = r.read_u32();
+        ms.traps.resize(n_traps);
+        for (auto& t : ms.traps) {
+            t.kind = static_cast<TrapKind>(r.read_u8());
+            t.x = r.read_i32();
+            t.y = r.read_i32();
+            t.hidden = r.read_u8() != 0;
+            t.reveal_radius = r.read_i32();
+            t.detection_dc = r.read_i32();
+            t.was_in_player_radius = r.read_u8() != 0;
+            t.trigger_mode = static_cast<TrapTrigger>(r.read_u8());
+            t.owner_faction = r.read_string();
+            t.placer_is_player = r.read_u8() != 0;
+            t.placer_npc_id = r.read_i32();
+            t.activations_remaining = r.read_i32();
+            t.placed_tick = r.read_i32();
+        }
+    }
+
+    // v50: noise events
+    {
+        uint32_t n_events = r.read_u32();
+        ms.noise_events.resize(n_events);
+        for (auto& ev : ms.noise_events) {
+            ev.x = r.read_i32();
+            ev.y = r.read_i32();
+            ev.radius = r.read_i32();
+            ev.ttl_ticks = r.read_i32();
+            ev.emitter_owner_faction = r.read_string();
+            ev.emitter_is_player = r.read_u8() != 0;
+        }
     }
 
     // Fixtures

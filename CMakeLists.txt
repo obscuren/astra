@@ -127,6 +127,8 @@ set(ASTRA_SOURCES
     src/recipe_defs.cpp
     src/journal.cpp
     src/tinkering.cpp
+    src/trap.cpp
+    src/noise_event.cpp
     src/skill_defs.cpp
     src/character.cpp
     src/shop.cpp

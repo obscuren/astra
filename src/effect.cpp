@@ -37,6 +37,9 @@ void remove_effect(EffectList& effects, EffectId id) {
 }
 
 void tick_effects(EffectList& effects, int& hp, int max_hp) {
+    // EMP-disabled freezes ability cooldowns — they do not tick down while
+    // the entity is jammed.
+    const bool emp = has_effect(effects, EffectId::EmpDisabled);
     for (auto& e : effects) {
         // Apply per-tick damage/heal
         if (e.tick_damage != 0) {
@@ -46,6 +49,10 @@ void tick_effects(EffectList& effects, int& hp, int max_hp) {
         }
         // Count down duration
         if (e.remaining > 0) {
+            const bool is_cooldown =
+                static_cast<uint32_t>(e.id) >= 100 &&
+                static_cast<uint32_t>(e.id) < 200;
+            if (emp && is_cooldown) continue;
             --e.remaining;
         }
     }
@@ -310,12 +317,24 @@ Effect make_hearty_ge() {
     return e;
 }
 
+Effect make_emp_disabled_ge(int duration) {
+    Effect e;
+    e.id = EffectId::EmpDisabled;
+    e.name = "EMP-Disabled";
+    e.color = Color::Blue;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    return e;
+}
+
 Effect effect_for_id(EffectId id) {
     switch (id) {
         case EffectId::CookingFireAura: return make_cooking_fire_aura_ge();
         case EffectId::WarmMeal:        return make_warm_meal_ge();
         case EffectId::WellFed:         return make_well_fed_ge();
         case EffectId::Hearty:          return make_hearty_ge();
+        case EffectId::EmpDisabled:     return make_emp_disabled_ge(5);
         default: return Effect{};
     }
 }

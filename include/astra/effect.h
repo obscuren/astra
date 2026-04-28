@@ -41,6 +41,9 @@ enum class EffectId : uint32_t {
     WarmMeal            = 302,
     WellFed             = 303,
     Hearty              = 304,
+
+    // Debuffs (400+)
+    EmpDisabled         = 400,
 };
 
 struct Effect {
@@ -116,6 +119,7 @@ Effect make_cooking_fire_aura_ge();
 Effect make_warm_meal_ge();
 Effect make_well_fed_ge();
 Effect make_hearty_ge();
+Effect make_emp_disabled_ge(int duration);
 
 // Build a runtime Effect from its EffectId. Used by systems (cooking,
 // aura system) that store EffectIds in data and need to materialise

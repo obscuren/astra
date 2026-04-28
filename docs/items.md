@@ -91,15 +91,15 @@ Slot: `Thrown`, stackable. Frag/EMP/Cryo are the original three; Incendiary/Smok
 
 ## Mines
 
-`ItemType::Mine`. Inert until the consumable-use spec lands.
+`ItemType::Mine`. Deployed via the throw/burst telegraph from inventory `a`pply. See [`docs/mechanics.md` § Traps](mechanics.md#traps) for the full trigger and detection framework.
 
-| Name | ID | Dev | Rarity range | $ |
-|------|----|----|----|----|
-| Proximity Mine | 208 | `proximity_mine` | Uncommon..Rare | 70 |
-| EMP Mine | 209 | `emp_mine` | Uncommon..Rare | 80 |
-| Incendiary Mine | 210 | `incendiary_mine` | Uncommon..Rare | 80 |
-| Decoy Mine | 211 | `decoy_mine` | Common..Common | 40 |
-| Caltrops | 212 | `caltrops` | Common..Common | 20 |
+| Name | ID | Dev | Rarity range | $ | Behavior |
+|------|----|----|----|----|----|
+| Proximity Mine | 208 | `proximity_mine` | Uncommon..Rare | 70 | Triggers on enemy step. Physical AoE — 12 damage in a 3×3 burst. Range 3 throw. |
+| EMP Mine | 209 | `emp_mine` | Uncommon..Rare | 80 | Triggers on enemy step. 4 physical damage in a 3×3 burst, plus EMP-Disabled (5 ticks) — disables energy weapons, ability cooldowns, and aura emitters. |
+| Incendiary Mine | 210 | `incendiary_mine` | Uncommon..Rare | 80 | Triggers on enemy step. 8 fire damage in a 3×3 burst, plus Burn (4 ticks @ 2 damage/tick). |
+| Decoy Mine | 211 | `decoy_mine` | Common..Common | 40 | Triggers on enemy step. Emits a noise event (radius 5, 5 ticks) that pulls hostile idle/wandering NPCs toward the source. No damage. |
+| Caltrops | 212 | `caltrops` | Common..Common | 20 | Throws a scattering of jagged spikes — 4 of 9 tiles in a 3×3 reticule (range 4). Each tile triggers up to 3 times: 3 damage + Slow (3 ticks). Visible by default. |
 
 ## Turrets
 

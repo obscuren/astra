@@ -1131,6 +1131,7 @@ static Item build_consumable_(uint16_t def_id, uint32_t id, const char* name,
     it.stack_count = 1;
     it.buy_value = buy;
     it.sell_value = sell;
+    it.usable = true;
     if (type == ItemType::Grenade || type == ItemType::Mine) it.slot = EquipSlot::Thrown;
     return it;
 }

@@ -708,3 +708,51 @@ Items with `toggleable = true` (currently: Nightvision Goggles) carry their own 
 **Auto-mode:** If a committed `AiModule` or `LightSensor` enhancement slot is present, the item auto-toggles based on context and remaining charge. Without a module the player toggles manually (inventory `g` key).
 
 **Accessory module synthesis recipes:** `Optic Module + Joint Mechanism → AI Module` (nano:1 power:1 circuit:2); `Optic Module + Padding Weave → Light Sensor` (nano:1 circuit:1). Both use `custom_builder` — equipment fields in the recipe are unused.
+
+## Traps
+
+Generalized framework that powers the 5 deployable mine items and pre-placed dungeon traps. Live `Trap` registry on `WorldManager` (per-active-map, persisted in `MapState.traps`); telegraph-driven deploy; live faction-eval triggers.
+
+> Per-mine effects, costs, throw range and stack behavior live in [`docs/items.md` § Mines](items.md#mines). Trap framework source: [`src/trap.cpp`](../src/trap.cpp), [`include/astra/trap.h`](../include/astra/trap.h).
+
+### Trigger modes
+
+Each `Trap` carries a `TrapTrigger`:
+
+- `NonFriendlyToOwner` — default for player-deployed and NPC-deployed mines. Fires only when the stepping entity is hostile to the placer (live faction lookup via `is_hostile` / `is_hostile_to_player`).
+- `AnyEntity` — default for `place_dungeon_trap`. Fires on any stepper, including the player.
+- `PlayerOnly` — fires only when the stepper is the player.
+
+### Owner immunity
+
+The placer is **splash-immune** from their own traps. `apply_damage_and_status` early-outs if `placer_is_player` and the affected entity is the player, or if the placer NPC id matches the affected NPC. This means a player can throw a Proximity Mine, then walk through its burst radius safely while it detonates on a passing hostile.
+
+### Detection roll
+
+Hidden traps roll a 1d20 detection check **once** when the player enters a trap's `reveal_radius` (Chebyshev). The roll is `1d20 + Player.trap_detection ≥ detection_dc`. A success unhides the trap and logs a directional sighting (e.g. "You spot a proximity mine to the northeast!"). The check is debounced via `Trap.was_in_player_radius` — leaving and re-entering the radius re-rolls. Player-placed traps and traps with `hidden = false` skip the roll.
+
+### Per-kind defaults
+
+| Kind | Damage | Burst | Status (duration / tick) | Hidden | Detection DC |
+|---|---|---|---|---|---|
+| Proximity Mine | 12 | 3×3 (r=1) | — | yes | 12 |
+| EMP Mine | 4 | 3×3 (r=1) | EMP-Disabled (5) | yes | 13 |
+| Incendiary Mine | 8 | 3×3 (r=1) | Burn (4 / 2 dmg) | yes | 11 |
+| Decoy Mine | — | — | — (emits noise) | no (visible) | n/a |
+| Caltrops | 3 | single tile (3 activations) | Slow (3) | no (visible) | n/a |
+| Dungeon generic | 6 | single tile | — | yes | 14 (overridable) |
+
+`EMP-Disabled` blocks energy-weapon firing, freezes ability cooldown advance, and suppresses aura emission for the duration.
+
+### Decoy noise event
+
+When a Decoy Mine triggers it logs "The decoy beeps loudly!" and pushes a `NoiseEvent { radius = 5, ttl_ticks = 5 }` onto the active map's `noise_events` queue. NPCs in the `Idle` or `Wandering` AI state, hostile to the emitter (player or owner faction), retarget toward the noise tile for the event's TTL. Friendly NPCs and the player ignore noise events. `tick_noise_events` decrements TTL once per world tick and erases expired entries.
+
+### Lifecycle hooks
+
+- `on_entity_enters_tile(game, x, y, is_player, npc_id)` — called from player movement and NPC movement. Iterates traps at `(x, y)`, runs `should_trigger`, calls `resolve_trap` on hit, decrements `activations_remaining`, erases when zero.
+- `update_trap_detection(game)` — called after every player position change. Runs the d20 detection check.
+
+### Pre-placed dungeon traps
+
+Generators call `place_dungeon_trap(world, x, y, kind, trigger, hidden, detection_dc)` to seed a trap. Defaults: `trigger = AnyEntity`, `hidden = true`, `detection_dc = 14`. Owner is treated as the dungeon (no placer faction); detection roll applies normally.

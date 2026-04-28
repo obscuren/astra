@@ -8,6 +8,8 @@
 #include "astra/quest.h"
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
+#include "astra/trap.h"
+#include "astra/noise_event.h"
 #include "astra/visibility_map.h"
 #include "astra/world_manager.h"
 
@@ -25,7 +27,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 49;   // v49: tinkering expansion (learned_schematics + teaches_schematic_id)
+inline constexpr uint32_t SAVE_FILE_VERSION = 50;   // v50: trap registry + noise events
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
@@ -47,6 +49,8 @@ struct MapState {
     VisibilityMap visibility;
     std::vector<Npc> npcs;
     std::vector<GroundItem> ground_items;
+    std::vector<Trap> traps;             // v50
+    std::vector<NoiseEvent> noise_events; // v50
 
     // v23: POI budget, hidden POIs, anchor hints carried on the overworld map.
     PoiBudget poi_budget;

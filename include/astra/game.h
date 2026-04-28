@@ -134,6 +134,8 @@ public:
     std::deque<std::string>& messages() { return messages_; }
     bool tile_occupied(int x, int y) const;
     void set_dev_mode(bool v) { dev_mode_ = v; }
+    bool reveal_traps_debug() const { return reveal_traps_debug_; }
+    void toggle_reveal_traps() { reveal_traps_debug_ = !reveal_traps_debug_; }
     bool lost() const { return lost_; }
     int lost_moves() const { return lost_moves_; }
     void set_lost(bool v, int moves = 0) { lost_ = v; lost_moves_ = moves; }
@@ -293,6 +295,7 @@ private:
 
     // Dev mode
     bool dev_mode_ = false;
+    bool reveal_traps_debug_ = false;
     Tile dev_warp_stamp_test_poi_ = Tile::Empty;
 
     DevConsole console_;

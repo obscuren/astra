@@ -3,6 +3,7 @@
 #include "astra/skill_defs.h"
 #include "astra/tile_props.h"
 #include "astra/tinkering.h"
+#include "astra/trap.h"
 
 #include <deque>
 #include <vector>
@@ -131,6 +132,9 @@ void Game::try_move(int dx, int dy) {
             npc.y = player_.y;
             player_.x = nx;
             player_.y = ny;
+            on_entity_enters_tile(*this, player_.x, player_.y,
+                                  /*is_player=*/true, /*npc_id=*/-1);
+            update_trap_detection(*this);
             recompute_fov();
             compute_camera();
             advance_world(move_action_cost(player_));
@@ -140,6 +144,12 @@ void Game::try_move(int dx, int dy) {
 
     player_.x = nx;
     player_.y = ny;
+
+    // Trap trigger check — fires before the world advances so any reaction
+    // (damage, status) is visible this tick.
+    on_entity_enters_tile(*this, player_.x, player_.y,
+                          /*is_player=*/true, /*npc_id=*/-1);
+    update_trap_detection(*this);
 
     // Walk-over messages for walkable fixtures
     if (world_.map().get(nx, ny) == Tile::Fixture) {

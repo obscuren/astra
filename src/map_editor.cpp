@@ -456,6 +456,8 @@ void MapEditor::editor_save_current(Game& game) {
     state.visibility = world_->visibility();
     state.npcs = world_->npcs();
     state.ground_items = world_->ground_items();
+    state.traps = world_->traps();
+    state.noise_events = world_->noise_events();
     state.player_x = game.player().x;
     state.player_y = game.player().y;
 }
@@ -468,6 +470,8 @@ void MapEditor::editor_restore(const LocationKey& key, Game& game) {
     world_->visibility() = state.visibility;
     world_->npcs() = state.npcs;
     world_->ground_items() = state.ground_items;
+    world_->traps() = state.traps;
+    world_->noise_events() = state.noise_events;
     game.player().x = state.player_x;
     game.player().y = state.player_y;
     // Do NOT erase from cache — editor keeps maps around

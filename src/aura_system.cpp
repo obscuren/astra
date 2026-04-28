@@ -81,14 +81,17 @@ void AuraSystem::tick(Game& game) {
         }
     }
 
-    // 2) Player emitter
+    // 2) Player emitter — EMP-disabled emitters are silenced.
     auto& player = game.player();
-    apply_auras_at(player.auras, player.x, player.y, game,
-                   /*emitter_is_player*/true, /*self_npc*/nullptr);
+    if (!has_effect(player.effects, EffectId::EmpDisabled)) {
+        apply_auras_at(player.auras, player.x, player.y, game,
+                       /*emitter_is_player*/true, /*self_npc*/nullptr);
+    }
 
-    // 3) NPC emitters
+    // 3) NPC emitters — EMP-disabled emitters are silenced.
     for (auto& npc : game.world().npcs()) {
         if (!npc.alive()) continue;
+        if (has_effect(npc.effects, EffectId::EmpDisabled)) continue;
         apply_auras_at(npc.auras, npc.x, npc.y, game,
                        /*emitter_is_player*/false, /*self_npc*/&npc);
     }

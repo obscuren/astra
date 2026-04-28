@@ -82,6 +82,13 @@ struct Npc {
     int return_x = -1;
     int return_y = -1;
 
+    // Noise-event chase target (e.g. Decoy Mine ping). When ttl > 0 and
+    // the NPC has no hostile in sight, it walks toward (move_target_x,
+    // move_target_y). Decremented each NPC turn; cleared on arrival.
+    int move_target_x = -1;
+    int move_target_y = -1;
+    int move_target_ttl = 0;
+
     bool alive() const { return hp > 0; }
     int xp_reward() const { return base_xp * level * (elite ? 3 : 1); }
     int attack_damage() const { return base_damage * level + (elite ? 1 : 0); }

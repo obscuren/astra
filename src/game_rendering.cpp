@@ -11,6 +11,8 @@
 #include "astra/map_renderer.h"
 #include "astra/recipe.h"
 #include "astra/skill_defs.h"
+#include "astra/telegraph.h"
+#include "astra/trap.h"
 #include "terminal_theme.h"
 #include "astra/overworld_stamps.h"
 #include "astra/tile_props.h"
@@ -589,6 +591,23 @@ void Game::use_item(int index) {
             log(result.message);
             break;
         }
+        case ItemType::Mine: {
+            TrapKind kind = trap_kind_for_item_id(item.item_def_id);
+            int range = (kind == TrapKind::Caltrops) ? 4 : 3;
+            int width = (kind == TrapKind::Caltrops) ? 1 : 0;
+            TelegraphSpec spec;
+            spec.shape = TelegraphShape::Burst;
+            spec.range = range;
+            spec.width = width;
+            spec.require_walkable_dest = true;
+            int captured_index = index;
+            telegraph_.begin(spec, player_.x, player_.y,
+                [this, captured_index, kind](const TelegraphResult& r) {
+                    place_player_trap(*this, kind, r.dest_x, r.dest_y, captured_index);
+                });
+            log("Pick a tile to deploy the " + item.name + ". Enter to confirm, Esc to cancel.");
+            return; // do NOT consume or advance world here — telegraph callback handles both.
+        }
         default:
             log("You can't use " + item.name + ".");
             return;
@@ -962,7 +981,8 @@ void Game::render_play() {
     sep_ctx.separator({.vertical = true});
 
     render_map({renderer_.get(), map_rect_, world_, player_, combat_, input_,
-                camera_x_, camera_y_, &animations_, &quest_manager_});
+                camera_x_, camera_y_, &animations_, &quest_manager_,
+                reveal_traps_debug_});
 
     telegraph_.render(renderer_.get(), camera_x_, camera_y_,
                       map_rect_.w, map_rect_.h,

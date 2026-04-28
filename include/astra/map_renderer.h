@@ -25,6 +25,7 @@ struct MapRenderContext {
     int camera_y;
     const AnimationManager* animations = nullptr;
     const QuestManager* quests = nullptr;   // for NPC quest markers
+    bool reveal_traps_debug = false;        // dev override: render hidden traps
 };
 
 void render_map(const MapRenderContext& ctx);

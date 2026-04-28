@@ -93,6 +93,7 @@ struct Player {
     int energy = 0;
     int kills = 0;
     int regen_counter = 0;
+    int trap_detection = 0;   // additive bonus to 1d20 detection rolls
 
     // Effects
     EffectList effects;

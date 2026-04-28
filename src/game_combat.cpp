@@ -10,6 +10,7 @@
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/loot_table.h"
+#include "astra/noise_event.h"
 #include "astra/skill_defs.h"
 
 #include <algorithm>
@@ -379,6 +380,26 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
     if (npc.quickness == 0) return;
 
+    // Noise-event reaction: if any in-range, hostile-emitter noise event
+    // exists, latch onto its location as a wander target. Only consulted
+    // in the wander fallback below — active combat overrides the chase.
+    {
+        const auto& events = game.world().noise_events();
+        for (const NoiseEvent& ev : events) {
+            int dx = std::abs(npc.x - ev.x);
+            int dy = std::abs(npc.y - ev.y);
+            if (std::max(dx, dy) > ev.radius) continue;
+            bool hostile = ev.emitter_is_player
+                ? is_hostile_to_player(npc.faction, game.player())
+                : is_hostile(npc.faction, ev.emitter_owner_faction);
+            if (!hostile) continue;
+            npc.move_target_x = ev.x;
+            npc.move_target_y = ev.y;
+            npc.move_target_ttl = ev.ttl_ticks;
+            break; // first matching event wins
+        }
+    }
+
     if (has_effect(npc.effects, EffectId::Flee)) {
         int dx = sign(npc.x - game.player().x);
         int dy = sign(npc.y - game.player().y);
@@ -404,10 +425,12 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
         int dist = target.distance;
 
         // Ranged attack: in range, has ranged weapon, and clear LOS.
+        // EMP-disabled NPCs cannot fire ranged/energy weapons.
         if (npc.ai == NpcAi::Turret
             && dist > 1
             && dist <= npc.attack_range
             && !npc.ranged_damage_dice.empty()
+            && !has_effect(npc.effects, EffectId::EmpDisabled)
             && los_clear(game.world().map(), npc.x, npc.y,
                          game.player().x, game.player().y)) {
             ranged_hit_player(npc, game);
@@ -502,10 +525,12 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
         int dist = target.distance;
 
         // Ranged attack: in range, has ranged weapon, and clear LOS.
+        // EMP-disabled NPCs cannot fire ranged/energy weapons.
         if (npc.ai == NpcAi::Turret
             && dist > 1
             && dist <= npc.attack_range
             && !npc.ranged_damage_dice.empty()
+            && !has_effect(npc.effects, EffectId::EmpDisabled)
             && los_clear(game.world().map(), npc.x, npc.y,
                          target.npc->x, target.npc->y)) {
             ranged_hit_npc(npc, *target.npc, game);
@@ -538,6 +563,32 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
 
     // Turrets never wander — no hostile in range means idle at post.
     if (npc.ai == NpcAi::Turret) return;
+
+    // Noise-event chase: if a recent decoy or other noise pinged us,
+    // step toward the location instead of random wandering. Decrements
+    // ttl every NPC turn; clears on arrival.
+    if (npc.move_target_ttl > 0 &&
+        npc.move_target_x >= 0 && npc.move_target_y >= 0) {
+        --npc.move_target_ttl;
+        if (npc.x == npc.move_target_x && npc.y == npc.move_target_y) {
+            npc.move_target_ttl = 0;
+        } else {
+            int dx = sign(npc.move_target_x - npc.x);
+            int dy = sign(npc.move_target_y - npc.y);
+            struct { int x, y; } candidates[] = {{dx, dy}, {dx, 0}, {0, dy}};
+            for (auto [cx, cy] : candidates) {
+                if (cx == 0 && cy == 0) continue;
+                int nx = npc.x + cx;
+                int ny = npc.y + cy;
+                if (game.world().map().passable(nx, ny) && !game.tile_occupied(nx, ny)) {
+                    npc.x = nx;
+                    npc.y = ny;
+                    return;
+                }
+            }
+            // Blocked this turn; fall through to random wander.
+        }
+    }
 
     std::array<std::pair<int,int>, 4> dirs = {{{0,-1},{0,1},{-1,0},{1,0}}};
     std::shuffle(dirs.begin(), dirs.end(), game.world().rng());
@@ -733,6 +784,12 @@ void CombatSystem::handle_targeting_input(int key, Game& game) {
 }
 
 void CombatSystem::shoot_target(Game& game) {
+    // EMP-disabled players cannot fire energy/ranged weapons.
+    if (has_effect(game.player().effects, EffectId::EmpDisabled)) {
+        game.log("Your weapon is EMP-disabled.");
+        return;
+    }
+
     // Check weapon equipped
     auto& weapon = game.player().equipment.missile;
     if (!weapon || !weapon->ranged) {

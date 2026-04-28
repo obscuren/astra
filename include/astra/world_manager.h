@@ -9,6 +9,8 @@
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
 #include "astra/time_of_day.h"
+#include "astra/trap.h"
+#include "astra/noise_event.h"
 #include "astra/visibility_map.h"
 
 #include <array>
@@ -29,6 +31,8 @@ struct LocationState {
     VisibilityMap visibility;
     std::vector<Npc> npcs;
     std::vector<GroundItem> ground_items;
+    std::vector<Trap> traps;
+    std::vector<NoiseEvent> noise_events;
     int player_x = 0;
     int player_y = 0;
 };
@@ -85,6 +89,12 @@ public:
 
     std::vector<GroundItem>& ground_items() { return ground_items_; }
     const std::vector<GroundItem>& ground_items() const { return ground_items_; }
+
+    std::vector<Trap>& traps() { return traps_; }
+    const std::vector<Trap>& traps() const { return traps_; }
+
+    std::vector<NoiseEvent>& noise_events() { return noise_events_; }
+    const std::vector<NoiseEvent>& noise_events() const { return noise_events_; }
 
     std::vector<Item>& stash() { return stash_; }
     const std::vector<Item>& stash() const { return stash_; }
@@ -196,6 +206,8 @@ private:
     VisibilityMap visibility_;
     std::vector<Npc> npcs_;
     std::vector<GroundItem> ground_items_;
+    std::vector<Trap> traps_;
+    std::vector<NoiseEvent> noise_events_;
     std::vector<Item> stash_;
     SurfaceMode surface_mode_ = SurfaceMode::Dungeon;
     int overworld_x_ = 0;

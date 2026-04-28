@@ -17,6 +17,7 @@
 #include "astra/star_chart.h"
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
+#include "astra/trap.h"
 
 #include <cctype>
 #include <ctime>
@@ -193,6 +194,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  quest complete <id> - fill objectives so quest is ready for hand-in");
         log("  quest finish <id>  - force-complete active quest by id (fires cascade)");
         log("  heal               - full heal");
+        log("  reveal_traps       - toggle render of all hidden traps");
+        log("  spawn-trap <prox|emp|incendiary|decoy|caltrops|dungeon> - spawn a dungeon trap at player feet");
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
@@ -261,6 +264,24 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "heal") {
         player.hp = player.effective_max_hp();
         log("HP restored to " + std::to_string(player.hp));
+    }
+    else if (verb == "reveal_traps") {
+        game.toggle_reveal_traps();
+        log(game.reveal_traps_debug() ? "Trap debug ON" : "Trap debug OFF");
+    }
+    else if (verb == "spawn-trap") {
+        if (args.size() < 2) { log("usage: spawn-trap <kind>"); return; }
+        const std::string& s = args[1];
+        TrapKind k;
+        if      (s == "prox")       k = TrapKind::ProximityMine;
+        else if (s == "emp")        k = TrapKind::EmpMine;
+        else if (s == "incendiary") k = TrapKind::IncendiaryMine;
+        else if (s == "decoy")      k = TrapKind::DecoyMine;
+        else if (s == "caltrops")   k = TrapKind::Caltrops;
+        else if (s == "dungeon")    k = TrapKind::DungeonGeneric;
+        else { log("unknown trap kind: " + s); return; }
+        place_dungeon_trap(game.world(), game.player().x, game.player().y, k);
+        log(std::string("Spawned ") + trap_kind_name(k));
     }
     else if (verb == "solve") {
         auto& map = game.world().map();

@@ -16,6 +16,8 @@
 #include "astra/scenario_effects.h"
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
+#include "astra/noise_event.h"
+#include "astra/trap.h"
 #include "astra/world_constants.h"
 
 #include <numeric>
@@ -212,6 +214,8 @@ void Game::save_current_location() {
     state.visibility = std::move(world_.visibility());
     state.npcs = std::move(world_.npcs());
     state.ground_items = std::move(world_.ground_items());
+    state.traps = std::move(world_.traps());
+    state.noise_events = std::move(world_.noise_events());
     state.player_x = player_.x;
     state.player_y = player_.y;
 }
@@ -224,6 +228,8 @@ void Game::restore_location(const LocationKey& key) {
     world_.visibility() = std::move(state.visibility);
     world_.npcs() = std::move(state.npcs);
     world_.ground_items() = std::move(state.ground_items);
+    world_.traps() = std::move(state.traps);
+    world_.noise_events() = std::move(state.noise_events);
 
     // Always restore cached position — return to where we left
     player_.x = state.player_x;
@@ -2149,10 +2155,19 @@ void Game::advance_world(int cost) {
     bool acted = true;
     while (acted) {
         acted = false;
-        for (auto& npc : world_.npcs()) {
+        auto& npcs = world_.npcs();
+        for (size_t i = 0; i < npcs.size(); ++i) {
+            Npc& npc = npcs[i];
             while (npc.energy >= energy_threshold) {
                 npc.energy -= energy_threshold;
+                int prev_x = npc.x, prev_y = npc.y;
                 combat_.process_npc_turn(npc, *this);
+                // Trap trigger if the NPC actually changed tiles this turn.
+                if (npc.alive() && (npc.x != prev_x || npc.y != prev_y)) {
+                    on_entity_enters_tile(*this, npc.x, npc.y,
+                                          /*is_player=*/false,
+                                          /*npc_id=*/static_cast<int>(i));
+                }
                 acted = true;
             }
         }
@@ -2198,6 +2213,9 @@ void Game::advance_world(int cost) {
             }
         }
     }
+
+    // Decay live noise events (Decoy Mine pings, etc.).
+    tick_noise_events(*this);
 
     // Tick and expire effects
     tick_effects(player_.effects, player_.hp, player_.effective_max_hp());
