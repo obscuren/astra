@@ -172,6 +172,7 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_SCHEM_INCENDIARY_GRENADE,  "schem_incendiary_grenade",  R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 2, C::Junk },
         LootEntry{ ITEM_SCHEM_SMOKE_GRENADE,       "schem_smoke_grenade",       R::Common,    R::Common,     5, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 1, C::Junk },
         LootEntry{ ITEM_SCHEM_FLASHBANG,           "schem_flashbang",           R::Uncommon,  R::Uncommon,   3, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 2, C::Junk },
+        LootEntry{ ITEM_SCHEM_CRYO_GRENADE,        "schem_cryo_grenade",        R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                              T::Tech,     3, C::Junk },
         LootEntry{ ITEM_SCHEM_PROXIMITY_MINE,      "schem_proximity_mine",      R::Uncommon,  R::Uncommon,   3, {}, LootSource::Chest | LootSource::MerchantArms,   T::Military, 2, C::Junk },
         LootEntry{ ITEM_SCHEM_EMP_MINE,            "schem_emp_mine",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,    T::Tech,     3, C::Junk },
         LootEntry{ ITEM_SCHEM_INCENDIARY_MINE,     "schem_incendiary_mine",     R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,    T::Military, 3, C::Junk },

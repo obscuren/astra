@@ -785,6 +785,8 @@ const std::vector<SchematicRecipe>& schematic_recipes() {
            { {30, 1}, {32, 1}, {7011, 1}, {7013, 1} }, 1 },
         { 11, 7207, ITEM_FLASHBANG,           "Flashbang",           "Stun in radius.",
            { {30, 1}, {32, 1}, {48, 1}, {7012, 1}, {7002, 1} }, 1 },
+        { 21, 5003, ITEM_CRYO_GRENADE,        "Cryo Grenade",        "Cryo AoE + slow.",
+           { {30, 1}, {32, 1}, {7014, 1}, {7020, 1} }, 1 },
         // Mines
         { 12, 7208, ITEM_PROXIMITY_MINE,  "Proximity Mine",  "Trigger-on-step physical AoE.",
            { {30, 2}, {32, 1}, {48, 1}, {7002, 1}, {47, 1} }, 1 },

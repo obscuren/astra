@@ -291,7 +291,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("usage: learn-schem <name|all>");
             log("  Try: prox emp incendiary decoy caltrops");
             log("       healing_stim adrenaline_stim endure_stim focus_stim berserker_stim medkit");
-            log("       frag_grenade emp_grenade cryo_grenade incendiary_grenade smoke_grenade");
+            log("       frag_grenade emp_grenade cryo_grenade incendiary_grenade smoke_grenade flashbang");
             return;
         }
         // Map common short names to schematic output_name substrings.

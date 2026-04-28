@@ -188,6 +188,7 @@ constexpr uint16_t ITEM_SCHEM_EMP_GRENADE         = 227;
 constexpr uint16_t ITEM_SCHEM_INCENDIARY_GRENADE  = 228;
 constexpr uint16_t ITEM_SCHEM_SMOKE_GRENADE       = 229;
 constexpr uint16_t ITEM_SCHEM_FLASHBANG           = 230;
+constexpr uint16_t ITEM_SCHEM_CRYO_GRENADE        = 240;  // added later, IDs 231-239 are mines/turrets
 constexpr uint16_t ITEM_SCHEM_PROXIMITY_MINE      = 231;
 constexpr uint16_t ITEM_SCHEM_EMP_MINE            = 232;
 constexpr uint16_t ITEM_SCHEM_INCENDIARY_MINE     = 233;

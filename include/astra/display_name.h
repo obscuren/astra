@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/dice.h"
+#include "astra/grenade.h"
 #include "astra/item.h"
 #include "astra/npc.h"
 #include "astra/race.h"
@@ -70,6 +71,12 @@ const char* fixture_type_name(FixtureType type);
 inline std::string display_name(TrapKind k) {
     Color c = static_cast<Color>(trap_color(k));
     return colored(trap_kind_name(k), c);
+}
+
+// Grenade — colored by kind.
+inline std::string display_name(GrenadeKind k) {
+    Color c = static_cast<Color>(grenade_color(k));
+    return colored(grenade_kind_name(k), c);
 }
 
 } // namespace astra

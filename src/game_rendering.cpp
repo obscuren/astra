@@ -8,6 +8,7 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/grenade.h"
 #include "astra/map_renderer.h"
 #include "astra/recipe.h"
 #include "astra/skill_defs.h"
@@ -614,8 +615,27 @@ void Game::use_thrown() {
         return;
     }
 
+    auto consume_thrown = [this]() {
+        auto& s = player_.equipment.thrown;
+        if (!s) return;
+        if (s->stackable && s->stack_count > 1) --s->stack_count;
+        else { s.reset(); rebuild_auras_from_sources(player_); }
+    };
+
     if (slot->type == ItemType::Grenade) {
-        log("Grenade throw not yet implemented.");
+        GrenadeKind kind = grenade_kind_for_item_id(slot->item_def_id);
+        TelegraphSpec spec;
+        spec.shape = TelegraphShape::Burst;
+        spec.range = grenade_throw_range(kind);
+        spec.width = grenade_throw_burst_width(kind);
+        spec.require_walkable_dest = false;  // grenades can land on impassable
+        telegraph_.begin(spec, player_.x, player_.y,
+            [this, kind, consume_thrown](const TelegraphResult& r) {
+                detonate_grenade(*this, kind, r.dest_x, r.dest_y, /*placer_is_player=*/true);
+                consume_thrown();
+                advance_world(ActionCost::wait);
+            });
+        log("Pick a tile to throw the " + slot->name + ". Enter to confirm, Esc to cancel.");
         return;
     }
     if (slot->type != ItemType::Mine) {
@@ -632,14 +652,9 @@ void Game::use_thrown() {
     spec.require_walkable_dest = true;
 
     telegraph_.begin(spec, player_.x, player_.y,
-        [this, kind](const TelegraphResult& r) {
+        [this, kind, consume_thrown](const TelegraphResult& r) {
             place_player_trap(*this, kind, r.dest_x, r.dest_y);
-            // Decrement the equipped Thrown stack; clear slot when depleted.
-            auto& s = player_.equipment.thrown;
-            if (s) {
-                if (s->stackable && s->stack_count > 1) --s->stack_count;
-                else { s.reset(); rebuild_auras_from_sources(player_); }
-            }
+            consume_thrown();
         });
     log("Pick a tile to deploy the " + slot->name + ". Enter to confirm, Esc to cancel.");
 }

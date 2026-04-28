@@ -1,6 +1,7 @@
 #include "astra/ui.h"
 #include "astra/display_name.h"
 #include "astra/effect.h"
+#include "astra/grenade.h"
 #include "astra/item.h"
 #include "astra/trap.h"
 #include "terminal_theme.h"
@@ -502,6 +503,48 @@ void draw_item_info(UIContext& ctx, const Item& item) {
                 std::to_string(dc), Color::DarkGray);
             y++;
         }
+    }
+
+    if (item.type == ItemType::Grenade && y < ctx.height()) {
+        GrenadeKind kind = grenade_kind_for_item_id(item.item_def_id);
+        const GrenadeDef& def = grenade_def_for(kind);
+        EffectId status = static_cast<EffectId>(def.status);
+
+        if (def.damage > 0) {
+            ctx.label_value(0, y, "Damage:    ", Color::DarkGray,
+                std::to_string(def.damage), Color::White);
+            y++;
+        }
+        if (def.burst_radius > 0) {
+            int side = 2 * def.burst_radius + 1;
+            ctx.label_value(0, y, "Blast:     ", Color::DarkGray,
+                std::to_string(side) + "x" + std::to_string(side),
+                Color::White);
+            y++;
+        }
+        if (status == EffectId::Burn) {
+            ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                "Burn " + std::to_string(def.status_duration) + "t @ "
+                    + std::to_string(def.status_tick_damage) + "/t",
+                Color::Red);
+            y++;
+        } else if (status == EffectId::EmpDisabled) {
+            ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                "EMP-Disabled " + std::to_string(def.status_duration) + "t",
+                Color::Blue);
+            y++;
+        } else if (status == EffectId::Slow) {
+            ctx.label_value(0, y, "Status:    ", Color::DarkGray,
+                "Slow " + std::to_string(def.status_duration) + "t",
+                Color::Cyan);
+            y++;
+        }
+        ctx.label_value(0, y, "Throw rng: ", Color::DarkGray,
+            std::to_string(grenade_throw_range(kind)) + " tiles",
+            Color::White);
+        y++;
+        ctx.text(0, y, "Detonates on impact.", Color::DarkGray);
+        y++;
     }
 
     const auto& m = item.modifiers;

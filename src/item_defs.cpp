@@ -1211,6 +1211,7 @@ Item build_schem_auto_turret()        { return build_schematic_(ITEM_SCHEM_AUTO_
 Item build_schem_flame_turret()       { return build_schematic_(ITEM_SCHEM_FLAME_TURRET,       7117, "Schematic: Flame Turret",      18,  Rarity::Rare,     180,  65); }
 Item build_schem_arc_turret()         { return build_schematic_(ITEM_SCHEM_ARC_TURRET,         7118, "Schematic: Arc Turret",        19,  Rarity::Rare,     200,  72); }
 Item build_schem_sentry_drone()       { return build_schematic_(ITEM_SCHEM_SENTRY_DRONE,       7119, "Schematic: Sentry Drone",      20,  Rarity::Epic,     320, 115); }
+Item build_schem_cryo_grenade()       { return build_schematic_(ITEM_SCHEM_CRYO_GRENADE,       7120, "Schematic: Cryo Grenade",      21,  Rarity::Rare,     130,  46); }
 
 // ---------------------------------------------------------------------------
 // Solar panel crafting materials
@@ -1502,6 +1503,7 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_SCHEM_FLAME_TURRET:        return build_schem_flame_turret();
         case ITEM_SCHEM_ARC_TURRET:          return build_schem_arc_turret();
         case ITEM_SCHEM_SENTRY_DRONE:        return build_schem_sentry_drone();
+        case ITEM_SCHEM_CRYO_GRENADE:        return build_schem_cryo_grenade();
 
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();

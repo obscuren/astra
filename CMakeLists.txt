@@ -128,6 +128,7 @@ set(ASTRA_SOURCES
     src/journal.cpp
     src/tinkering.cpp
     src/trap.cpp
+    src/grenade.cpp
     src/noise_event.cpp
     src/skill_defs.cpp
     src/character.cpp
