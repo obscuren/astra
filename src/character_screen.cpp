@@ -1442,10 +1442,12 @@ void CharacterScreen::draw_section_header(UIContext& ctx, int y,
     ctx.put(left_margin + 1, y, BoxDraw::H, Color::DarkGray);
     // ┤
     ctx.put(left_margin + 2, y, BoxDraw::RT, Color::DarkGray);
-    // space + TITLE + space
+    // space + TITLE + space — title may contain UTF-8 multi-byte glyphs
+    // so use visible cell count, not byte count.
     ctx.put(left_margin + 3, y, ' ');
     ctx.text({.x = left_margin + 4, .y = y, .content = title, .tag = UITag::TextBright});
-    int after_title = left_margin + 4 + static_cast<int>(std::string(title).size());
+    int title_cells = UIContext::rich_visible_length(title);
+    int after_title = left_margin + 4 + title_cells;
     ctx.put(after_title, y, ' ');
     // ├
     ctx.put(after_title + 1, y, BoxDraw::LT, Color::DarkGray);

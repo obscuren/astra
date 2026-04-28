@@ -82,13 +82,37 @@ void Telegraph::recompute(const Game& game) {
         // footprint.
         preview_.dest_x = cursor_x_;
         preview_.dest_y = cursor_y_;
+        preview_.blocked_los = false;
         const auto& map = game.world().map();
+
+        // Wall block check: walk Bresenham origin → dest; any impassable
+        // *intermediate* tile blocks the throw (you can't toss past a wall).
+        // Endpoints don't count: origin is the player, dest is checked by
+        // require_walkable_dest separately.
+        if (cursor_x_ != origin_x_ || cursor_y_ != origin_y_) {
+            int x = origin_x_, y = origin_y_;
+            int x1 = cursor_x_, y1 = cursor_y_;
+            int adx = std::abs(x1 - x), sx_step = x < x1 ? 1 : -1;
+            int ady = -std::abs(y1 - y), sy_step = y < y1 ? 1 : -1;
+            int err = adx + ady;
+            for (;;) {
+                int e2 = 2 * err;
+                if (e2 >= ady) { err += ady; x += sx_step; }
+                if (e2 <= adx) { err += adx; y += sy_step; }
+                if (x == x1 && y == y1) break;
+                if (x < 0 || y < 0 || x >= map.width() || y >= map.height()) {
+                    preview_.blocked_los = true; break;
+                }
+                if (!map.passable(x, y)) { preview_.blocked_los = true; break; }
+            }
+        }
+
         int w = std::max(0, spec_.width);
         for (int dy = -w; dy <= w; ++dy) {
             for (int dx = -w; dx <= w; ++dx) {
                 int tx = cursor_x_ + dx;
                 int ty = cursor_y_ + dy;
-                bool blocked = false;
+                bool blocked = preview_.blocked_los;
                 if (tx < 0 || ty < 0 || tx >= map.width() || ty >= map.height()) {
                     blocked = true;
                 }
@@ -120,9 +144,13 @@ bool Telegraph::handle_input(int key, Game& game) {
     auto move_cursor = [&](int ndx, int ndy) {
         int nx = cursor_x_ + ndx;
         int ny = cursor_y_ + ndy;
-        // Clamp cursor to Chebyshev range around origin.
-        int cheby = std::max(std::abs(nx - origin_x_), std::abs(ny - origin_y_));
-        if (cheby > spec_.range) return;
+        // Weighted Chebyshev clamp — horizontal cells count half because
+        // terminal glyphs are ~2:1 (taller than wide). Without this, L/R
+        // visually reaches half as far as U/D for the same range value.
+        int adx = std::abs(nx - origin_x_);
+        int ady = std::abs(ny - origin_y_);
+        int reach = std::max((adx + 1) / 2, ady);
+        if (reach > spec_.range) return;
         cursor_x_ = nx;
         cursor_y_ = ny;
     };
@@ -149,8 +177,8 @@ bool Telegraph::handle_input(int key, Game& game) {
             bool ok = false;
             if (spec_.shape == TelegraphShape::Burst) {
                 // For placement-style telegraphs, validity = the centre tile
-                // is in-map and (optionally) walkable. We don't require any
-                // line path.
+                // is in-map, (optionally) walkable, and there is no wall
+                // blocking the throw line from origin to dest.
                 const auto& map = game.world().map();
                 int dx = preview_.dest_x;
                 int dy = preview_.dest_y;
@@ -158,6 +186,10 @@ bool Telegraph::handle_input(int key, Game& game) {
                       dx < map.width() && dy < map.height());
                 if (ok && spec_.require_walkable_dest) {
                     ok = map.passable(dx, dy);
+                }
+                if (ok && preview_.blocked_los) {
+                    game.log("Can't throw through walls.");
+                    return true;
                 }
             } else {
                 ok = !preview_.path.empty() && !preview_.path.back().blocked;
@@ -190,15 +222,70 @@ void Telegraph::render(Renderer* r, int camera_x, int camera_y,
                        int screen_w, int screen_h,
                        int screen_ox, int screen_oy) const {
     if (!active_ || !r) return;
+    const bool is_burst = (spec_.shape == TelegraphShape::Burst);
+
+    // Tether: stylized line from origin to the edge of the footprint.
+    // Body glyphs reflect arrival direction; the tile adjacent to the
+    // footprint gets a touchdown marker.
+    if (is_burst &&
+        (preview_.dest_x != origin_x_ || preview_.dest_y != origin_y_)) {
+        const int w = std::max(0, spec_.width);
+        auto in_footprint = [&](int x, int y) {
+            return std::abs(x - preview_.dest_x) <= w &&
+                   std::abs(y - preview_.dest_y) <= w;
+        };
+
+        struct Step { int x; int y; int prev_dx; int prev_dy; };
+        std::vector<Step> tether;
+        int x = origin_x_, y = origin_y_;
+        const int x1 = preview_.dest_x, y1 = preview_.dest_y;
+        const int dx = std::abs(x1 - x), sx_step = x < x1 ? 1 : -1;
+        const int dy = -std::abs(y1 - y), sy_step = y < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (!(x == x1 && y == y1)) {
+            int e2 = 2 * err;
+            int step_dx = 0, step_dy = 0;
+            if (e2 >= dy) { err += dy; x += sx_step; step_dx = sx_step; }
+            if (e2 <= dx) { err += dx; y += sy_step; step_dy = sy_step; }
+            if (in_footprint(x, y)) break;
+            tether.push_back({x, y, step_dx, step_dy});
+        }
+
+        for (size_t i = 0; i < tether.size(); ++i) {
+            const auto& s = tether[i];
+            const char* glyph;
+            if (i + 1 == tether.size()) {
+                glyph = "'";          // touchdown — adjacent to footprint
+            } else if (s.prev_dx != 0 && s.prev_dy != 0) {
+                glyph = (s.prev_dx == s.prev_dy) ? "\\" : "/";
+            } else if (s.prev_dx != 0) {
+                glyph = "-";
+            } else {
+                glyph = "|";
+            }
+            int sx = s.x - camera_x;
+            int sy = s.y - camera_y;
+            if (sx >= 0 && sy >= 0 && sx < screen_w && sy < screen_h) {
+                r->draw_glyph(screen_ox + sx, screen_oy + sy, glyph, Color::DarkGray);
+            }
+        }
+    }
+
     for (const auto& t : preview_.path) {
         int sx = t.x - camera_x;
         int sy = t.y - camera_y;
         if (sx < 0 || sy < 0 || sx >= screen_w || sy >= screen_h) continue;
         Color col = t.blocked ? Color::Red : Color::Cyan;
-        bool is_dest = (!t.blocked &&
-                        t.x == preview_.dest_x && t.y == preview_.dest_y);
-        char glyph = is_dest ? 'X' : '+';
-        r->draw_char(screen_ox + sx, screen_oy + sy, glyph, col);
+        if (is_burst) {
+            // Whole footprint (including dest) renders as ░ — no X marker.
+            r->draw_glyph(screen_ox + sx, screen_oy + sy, "\xe2\x96\x91", col);
+        } else {
+            // Line / Ray shapes: keep + along path, X at dest.
+            bool is_dest = (!t.blocked &&
+                            t.x == preview_.dest_x && t.y == preview_.dest_y);
+            char glyph = is_dest ? 'X' : '+';
+            r->draw_char(screen_ox + sx, screen_oy + sy, glyph, col);
+        }
     }
 }
 

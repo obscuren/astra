@@ -39,6 +39,7 @@ struct TelegraphResult {
     std::vector<TelegraphTile> path;
     int dest_x = -1;
     int dest_y = -1;
+    bool blocked_los = false;   // Burst: true if a wall blocks origin→dest
 };
 
 class Telegraph {
