@@ -162,9 +162,9 @@ public:
         required_weapon = WeaponClass::None;
         action_cost = 50;
         telegraph = TelegraphSpec{
-            .shape = TelegraphShape::Line,
+            .shape = TelegraphShape::Burst,
             .range = 3,
-            .width = 1,
+            .width = 0,         // single-tile destination
             .diagonals = true,
             .stop_at_wall = true,
             .stop_at_enemy = false,
@@ -177,6 +177,10 @@ public:
     bool execute_telegraphed(Game& game, const TelegraphResult& res) override {
         if (res.dest_x < 0 || res.dest_y < 0) return false;
         if (res.dest_x == game.player().x && res.dest_y == game.player().y) return false;
+        if (res.blocked_los) {
+            game.log("Path blocked.");
+            return false;
+        }
         for (const auto& npc : game.world().npcs()) {
             if (npc.alive() && npc.x == res.dest_x && npc.y == res.dest_y) {
                 game.log("Landing blocked by " + npc.label() + ".");
