@@ -20,12 +20,12 @@ enum class PdaTab : uint8_t {
     Attributes,
     Equipment,
     Tinkering,
+    Hacking,
     Cooking,
     Journal,
     Quests,
     Reputation,
     Ship,
-    Hacking,
 };
 
 static constexpr int pda_tab_count = 10;

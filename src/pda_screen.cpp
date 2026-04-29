@@ -18,8 +18,8 @@
 namespace astra {
 
 static const char* tab_names[] = {
-    "Skills", "Attributes", "Inventory & Equipment", "Tinkering",
-    "Cooking", "Journal", "Quests", "Reputation", "Ship", "Hacking",
+    "Skills", "Attributes", "Inventory & Equipment", "Tinkering", "Hacking",
+    "Cooking", "Journal", "Quests", "Reputation", "Ship",
 };
 
 bool PdaScreen::is_open() const { return open_; }
