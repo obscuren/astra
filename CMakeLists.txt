@@ -162,6 +162,7 @@ set(ASTRA_SOURCES
     src/ship.cpp
     src/station_type.cpp
     src/station_roll.cpp
+    src/hacking_system.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp

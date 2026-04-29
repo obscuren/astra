@@ -18,6 +18,7 @@
 #include "astra/pda_screen.h"
 #include "astra/combat_system.h"
 #include "astra/energy_system.h"
+#include "astra/hacking_system.h"
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
 #include "astra/event_bus.h"
@@ -141,6 +142,8 @@ public:
     void set_lost(bool v, int moves = 0) { lost_ = v; lost_moves_ = moves; }
     DialogManager& dialog() { return dialog_; }
     CombatSystem& combat() { return combat_; }
+    HackingSystem& hacking() { return hacking_; }
+    const HackingSystem& hacking() const { return hacking_; }
     Telegraph& telegraph() { return telegraph_; }
     void refresh_view() { recompute_fov(); compute_camera(); }
     QuestManager& quests() { return quest_manager_; }
@@ -311,6 +314,7 @@ private:
     PdaScreen pda_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
+    HackingSystem hacking_;
     EnergySystem energy_;
     Telegraph telegraph_;
     QuestManager quest_manager_;

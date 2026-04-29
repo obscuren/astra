@@ -2321,6 +2321,9 @@ void Game::advance_world(int cost) {
     }
 
     energy_.tick(player_, world_, cost);
+
+    // Hacking — detection counter ticks per advance_world step
+    hacking_.tick(*this);
 }
 
 
