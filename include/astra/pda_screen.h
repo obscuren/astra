@@ -142,6 +142,30 @@ private:
 
     void draw_cooking(UIContext& ctx);
 
+    // Hacking tab — terminal subwindow
+    struct HackTermLine {
+        std::string text;
+        UITag tag = UITag::TextDim;
+    };
+    std::vector<HackTermLine> hack_term_lines_;
+    std::vector<std::string>  hack_term_history_;
+    std::string               hack_term_input_;
+    int                       hack_term_history_cursor_ = -1;
+
+    void hack_term_emit(const std::string& line, UITag tag = UITag::TextDefault);
+    void hack_term_run_command(const std::string& line);
+    void hack_term_cmd_help();
+    void hack_term_cmd_deck_info();
+    void hack_term_cmd_programs_ls();
+    void hack_term_cmd_programs_load(const std::vector<std::string>& args);
+    void hack_term_cmd_programs_unload(const std::vector<std::string>& args);
+    void hack_term_cmd_netmap();
+    void hack_term_cmd_jack(const std::vector<std::string>& args);
+    void hack_term_cmd_lore();
+    void hack_term_cmd_clear();
+    void hack_term_cmd_history();
+    void handle_hacking_key(int key);
+
     void draw_journal(UIContext& ctx);
     int journal_cursor_ = 0;
     int journal_scroll_ = 0;

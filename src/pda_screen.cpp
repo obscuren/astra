@@ -109,6 +109,9 @@ bool PdaScreen::handle_input(int key) {
         (cooking_picker_active_ || cooking_qty_prompt_active_)) {
         tab_switch_blocked = true;
     }
+    if (active_tab_ == PdaTab::Hacking && !hack_term_input_.empty()) {
+        tab_switch_blocked = true;
+    }
     if (key == 'q' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
         t = (t - 1 + pda_tab_count) % pda_tab_count;
@@ -789,6 +792,9 @@ bool PdaScreen::handle_input(int key) {
                 }
             }
         }
+    } else if (active_tab_ == PdaTab::Hacking) {
+        handle_hacking_key(key);
+        return true;
     }
 
     return true;
@@ -1517,8 +1523,11 @@ static const char* tab_help_body(PdaTab tab) {
                    "[c] cook the slotted ingredients\n\n"
                    "You must be near a cooking fire to cook.";
         case PdaTab::Hacking:
-            return "Requires a cyberdeck and the Hacking skill.\n\n"
-                   "Feature in development.";
+            return "Cyberdeck terminal.\n\n"
+                   "Type commands at the pda> prompt. 'help' lists all "
+                   "commands. Tab to autocomplete. Up/Down for history.\n\n"
+                   "[H in world] Quickhack a hackable target\n"
+                   "[?] help / [P] programs ls / [N] netmap / [L] lore";
     }
     return "";
 }
