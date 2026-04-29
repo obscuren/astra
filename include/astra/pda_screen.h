@@ -153,8 +153,10 @@ private:
     int                       hack_term_input_cursor_ = 0;   // byte index into hack_term_input_
     int                       hack_term_history_cursor_ = -1;
     int                       hack_term_scroll_ = 0;         // lines scrolled up from bottom (0 = latest)
+    uint16_t                  hack_term_greeted_deck_def_id_ = 0;
 
     void hack_term_emit(const std::string& line, UITag tag = UITag::TextDefault);
+    void hack_term_greet_for_deck(uint16_t deck_def_id);
     void hack_term_run_command(const std::string& line);
     void hack_term_cmd_help();
     void hack_term_cmd_deck_info();

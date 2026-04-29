@@ -2,6 +2,7 @@
 
 #include "astra/cyberdeck.h"
 #include "astra/item_defs.h"
+#include "astra/item_ids.h"
 #include "astra/program.h"
 #include "astra/skill_defs.h"
 
@@ -21,6 +22,16 @@ std::vector<std::string> tokenize_(const std::string& s) {
     std::string tok;
     while (iss >> tok) out.push_back(std::move(tok));
     return out;
+}
+
+// Returns the prompt prefix for the currently-equipped deck.
+// Matches the greeter logo so the terminal feels like the deck's shell.
+const char* prompt_for_deck(uint16_t deck_def_id) {
+    switch (deck_def_id) {
+        case ITEM_PIDGIN_MK1:    return "pidgin$ ";
+        case ITEM_POLYGLOT_DCK2: return "dck-2> ";
+        default:                 return "pda> ";
+    }
 }
 
 } // namespace
@@ -80,6 +91,8 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
     bool has_deck = active_deck_slot && *active_deck_slot && (*active_deck_slot)->deck;
 
     if (!has_deck) {
+        // Reset greeter latch so re-equipping any deck shows its greeter.
+        hack_term_greeted_deck_def_id_ = 0;
         // No deck equipped — suppress the terminal entirely and explain
         // what's needed. The skill is unlocked but useless without hardware.
         int cy = ctx.height() / 2 - 2;
@@ -94,6 +107,15 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
                   .content = "Decks drop from BlackMarket and MerchantArms (see PDA → Equipment).",
                   .tag = UITag::TextDim});
         return;
+    }
+
+    // Per-deck greeter — fires once per equipped deck (or after `clear`).
+    {
+        uint16_t cur_id = (*active_deck_slot)->item_def_id;
+        if (hack_term_greeted_deck_def_id_ != cur_id) {
+            hack_term_greet_for_deck(cur_id);
+            hack_term_greeted_deck_def_id_ = cur_id;
+        }
     }
 
     auto& d = *(*active_deck_slot)->deck;
@@ -136,7 +158,8 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
         int cur = hack_term_input_cursor_;
         if (cur < 0) cur = 0;
         if (cur > static_cast<int>(hack_term_input_.size())) cur = static_cast<int>(hack_term_input_.size());
-        std::string prompt = "pda> " + hack_term_input_.substr(0, cur) + "_" +
+        std::string prefix = prompt_for_deck((*active_deck_slot)->item_def_id);
+        std::string prompt = prefix + hack_term_input_.substr(0, cur) + "_" +
                              hack_term_input_.substr(cur);
         ctx.text({.x = 2, .y = row, .content = prompt, .tag = UITag::TextDefault});
     }
@@ -167,7 +190,8 @@ void PdaScreen::handle_hacking_key(int key) {
 
     if (key == '\n' || key == '\r') {
         if (!hack_term_input_.empty()) {
-            hack_term_emit("pda> " + hack_term_input_, UITag::TextDefault);
+            const char* prefix = prompt_for_deck((*deck_slot)->item_def_id);
+            hack_term_emit(prefix + hack_term_input_, UITag::TextDefault);
             hack_term_history_.push_back(hack_term_input_);
             if (hack_term_history_.size() > 50)
                 hack_term_history_.erase(hack_term_history_.begin());
@@ -453,6 +477,45 @@ void PdaScreen::hack_term_cmd_lore() {
 }
 void PdaScreen::hack_term_cmd_clear() {
     hack_term_lines_.clear();
+    auto* slot = player_->equipment.equipped_cyberdeck();
+    if (slot && *slot && (*slot)->deck) {
+        hack_term_greet_for_deck((*slot)->item_def_id);
+        hack_term_greeted_deck_def_id_ = (*slot)->item_def_id;
+    }
+}
+
+void PdaScreen::hack_term_greet_for_deck(uint16_t deck_def_id) {
+    switch (deck_def_id) {
+        case ITEM_PIDGIN_MK1:
+            hack_term_emit("   ____  _     _       _       ", UITag::TextDim);
+            hack_term_emit("  |  _ \\(_) __| | __ _(_)_ __  ", UITag::TextDim);
+            hack_term_emit("  | |_) | |/ _` |/ _` | | '_ \\ ", UITag::TextDim);
+            hack_term_emit("  |  __/| | (_| | (_| | | | | |", UITag::TextDim);
+            hack_term_emit("  |_|   |_|\\__,_|\\__, |_|_| |_|", UITag::TextDim);
+            hack_term_emit("                 |___/         ", UITag::TextDim);
+            hack_term_emit("  ~ pawn-shop deck, lightly cursed ~", UITag::TextDim);
+            hack_term_emit("", UITag::TextDim);
+            hack_term_emit("Press 'help' for the basics.", UITag::TextDim);
+            break;
+        case ITEM_POLYGLOT_DCK2:
+            hack_term_emit("     ____   ____ _  __        ___", UITag::TextDim);
+            hack_term_emit("    |  _ \\ / ___| |/ /       |__ \\", UITag::TextDim);
+            hack_term_emit("    | | | | |   | ' /   ___    / /", UITag::TextDim);
+            hack_term_emit("    | |_| | |___| . \\  |___|  / /_", UITag::TextDim);
+            hack_term_emit("    |____/ \\____|_|\\_\\       |____|", UITag::TextDim);
+            hack_term_emit("    POLYGLOT DCK-2", UITag::TextDim);
+            hack_term_emit("", UITag::TextDim);
+            hack_term_emit("    CPU 2 / RAM 8 / SLOTS 4", UITag::TextDim);
+            hack_term_emit("    thermal envelope ........ nominal", UITag::TextDim);
+            hack_term_emit("    operator profile ........ AUTHENTICATED", UITag::TextDim);
+            hack_term_emit("", UITag::TextDim);
+            hack_term_emit("  Press 'help' for command list.", UITag::TextDim);
+            break;
+        default:
+            hack_term_emit("Cyberdeck online.", UITag::TextDim);
+            hack_term_emit("Press 'help' for command list.", UITag::TextDim);
+            break;
+    }
 }
 void PdaScreen::hack_term_cmd_history() {
     for (size_t i = 0; i < hack_term_history_.size(); ++i) {
