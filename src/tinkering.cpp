@@ -49,6 +49,10 @@ const std::vector<MaterialDef>& material_catalog() {
         { 7033, "Prime Filament",            T::Rare, '*', static_cast<uint8_t>(Color::Cyan),          55, false },
         { 7034, "Voidshard",                 T::Rare, '*', static_cast<uint8_t>(Color::Magenta),       70, false },
         { 7035, "Phase Coil",                T::Rare, '*', static_cast<uint8_t>(Color::Blue),          65, false },
+        // --- Code fragments (hacking) ---
+        { 7100, "Code Fragment (T1)",  T::Common,   ',', static_cast<uint8_t>(Color::Cyan),  4,  false },
+        { 7101, "Code Fragment (T2)",  T::Uncommon, '+', static_cast<uint8_t>(Color::Cyan), 12, false },
+        { 7102, "Code Fragment (T3)",  T::Rare,     '*', static_cast<uint8_t>(Color::Cyan), 40, false },
     };
     return catalog;
 }
@@ -807,6 +811,16 @@ const std::vector<SchematicRecipe>& schematic_recipes() {
            { {30, 2}, {48, 1}, {7010, 2}, {7002, 1}, {7021, 1} }, 1 },
         { 20, 7216, ITEM_SENTRY_DRONE,  "Sentry Drone",  "Mobile autonomous drone.",
            { {30, 3}, {48, 1}, {7022, 1}, {7020, 1}, {7002, 1}, {7023, 1} }, 1 },
+        // --- Programs (hacking) ---
+        { 30, 9100, ITEM_PROG_ICEBREAKER_LITE,
+              "icebreaker_lite.exe", "ATK program. Light cracker for white ICE.",
+              { {7100, 2}, {7011, 1}, {7003, 1} }, 1 },
+        { 31, 9104, ITEM_PROG_DECRYPT,
+              "decrypt.exe", "UTL program. Reads one encrypted file.",
+              { {7100, 1}, {7012, 1}, {7003, 1} }, 1 },
+        { 32, 9105, ITEM_PROG_REBOOT_OPTICS,
+              "reboot_optics.qh", "QH program. Blinds a camera or turret for 4 turns.",
+              { {7100, 1}, {7010, 1}, {31, 1} }, 1 },
     };
     return recipes;
 }

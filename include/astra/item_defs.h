@@ -122,6 +122,11 @@ Item build_navi_computer_mk2();
 Item build_pidgin_mk1();
 Item build_polyglot_dck2();
 
+// --- Code fragments ---
+Item build_code_fragment_t1();
+Item build_code_fragment_t2();
+Item build_code_fragment_t3();
+
 // --- Programs ---
 Item build_program_icebreaker_lite();
 Item build_program_ghost_trace();

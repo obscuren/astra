@@ -1520,6 +1520,11 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_PROG_FRIENDLY_FIRE:      return build_program_friendly_fire();
         case ITEM_PROG_DATA_LEECH:         return build_program_data_leech();
 
+        // Code fragments
+        case ITEM_CODE_FRAGMENT_T1:        return build_code_fragment_t1();
+        case ITEM_CODE_FRAGMENT_T2:        return build_code_fragment_t2();
+        case ITEM_CODE_FRAGMENT_T3:        return build_code_fragment_t3();
+
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
         case ITEM_HULL_PLATE:              return build_hull_plate();
@@ -1662,6 +1667,43 @@ Item build_program_data_leech() {
         "data_leech.qh",
         "QH | tier 1 | 2 RAM, +2 Detection. Drains operational data from a hackable.",
         Rarity::Uncommon, 90, 30);
+}
+
+// ---------------------------------------------------------------------------
+// Code fragments — material category for program tinkering
+// ---------------------------------------------------------------------------
+
+Item build_code_fragment_t1() {
+    Item it;
+    it.item_def_id = ITEM_CODE_FRAGMENT_T1;
+    it.id = 7100;
+    it.name = "Code Fragment (T1)";
+    it.type = ItemType::CraftingMaterial;
+    it.description = "A scrap of compiled cyber-code. Smells like a cheap deck.";
+    it.weight = 0; it.stackable = true; it.sell_value = 4;
+    return it;
+}
+
+Item build_code_fragment_t2() {
+    Item it;
+    it.item_def_id = ITEM_CODE_FRAGMENT_T2;
+    it.id = 7101;
+    it.name = "Code Fragment (T2)";
+    it.type = ItemType::CraftingMaterial;
+    it.description = "Mid-tier daemon-class fragment. Worth a few hours of compile.";
+    it.weight = 0; it.stackable = true; it.sell_value = 12;
+    return it;
+}
+
+Item build_code_fragment_t3() {
+    Item it;
+    it.item_def_id = ITEM_CODE_FRAGMENT_T3;
+    it.id = 7102;
+    it.name = "Code Fragment (T3)";
+    it.type = ItemType::CraftingMaterial;
+    it.description = "Pristine. Rumoured to be lifted off a deep-Grid cache.";
+    it.weight = 0; it.stackable = true; it.sell_value = 40;
+    return it;
 }
 
 } // namespace astra
