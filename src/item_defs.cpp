@@ -3,6 +3,7 @@
 #include "astra/item_ids.h"
 #include "astra/effect.h"  // EffectId for DishOutput::granted
 #include "astra/energy.h"
+#include "astra/program.h"
 #include "astra/tinkering.h"
 
 namespace astra {
@@ -1509,6 +1510,16 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_PIDGIN_MK1:              return build_pidgin_mk1();
         case ITEM_POLYGLOT_DCK2:           return build_polyglot_dck2();
 
+        // Programs
+        case ITEM_PROG_ICEBREAKER_LITE:    return build_program_icebreaker_lite();
+        case ITEM_PROG_GHOST_TRACE:        return build_program_ghost_trace();
+        case ITEM_PROG_COOLDOWN:           return build_program_cooldown();
+        case ITEM_PROG_BREACH:             return build_program_breach();
+        case ITEM_PROG_DECRYPT:            return build_program_decrypt();
+        case ITEM_PROG_REBOOT_OPTICS:      return build_program_reboot_optics();
+        case ITEM_PROG_FRIENDLY_FIRE:      return build_program_friendly_fire();
+        case ITEM_PROG_DATA_LEECH:         return build_program_data_leech();
+
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
         case ITEM_HULL_PLATE:              return build_hull_plate();
@@ -1571,6 +1582,86 @@ Item build_polyglot_dck2() {
     d.ram_current = d.stats.ram_max;
     it.deck = std::move(d);
     return it;
+}
+
+// ---------------------------------------------------------------------------
+// Programs
+// ---------------------------------------------------------------------------
+
+namespace {
+Item make_program_(uint16_t def_id, uint32_t inv_id, ProgramId pid,
+                   const char* name, const char* desc,
+                   Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id = inv_id; it.name = name; it.type = ItemType::Program;
+    it.description = desc;
+    it.rarity = rarity;
+    it.weight = 0;
+    it.stackable = false;
+    it.buy_value = buy;
+    it.sell_value = sell;
+    ProgramData pd;
+    pd.id = pid;
+    it.program = pd;
+    return it;
+}
+} // namespace
+
+Item build_program_icebreaker_lite() {
+    return make_program_(ITEM_PROG_ICEBREAKER_LITE, 9100, ProgramId::IcebreakerLite,
+        "icebreaker_lite.exe",
+        "ATK | tier 1 | 2 RAM, 2 Heat. Light cracker for white ICE. (Used in the Grid.)",
+        Rarity::Common, 80, 25);
+}
+
+Item build_program_ghost_trace() {
+    return make_program_(ITEM_PROG_GHOST_TRACE, 9101, ProgramId::GhostTrace,
+        "ghost_trace.exe",
+        "STL | tier 1 | 3 RAM. Sheds Trace and hides you briefly. (Used in the Grid.)",
+        Rarity::Uncommon, 120, 40);
+}
+
+Item build_program_cooldown() {
+    return make_program_(ITEM_PROG_COOLDOWN, 9102, ProgramId::Cooldown,
+        "cooldown.exe",
+        "STL | tier 1 | 2 RAM. Drops Heat by 4. (Used in the Grid.)",
+        Rarity::Common, 60, 20);
+}
+
+Item build_program_breach() {
+    return make_program_(ITEM_PROG_BREACH, 9103, ProgramId::Breach,
+        "breach.exe",
+        "UTL | tier 1 | 3 RAM, 3 Heat. Burns one firewall tile. (Used in the Grid.)",
+        Rarity::Uncommon, 100, 35);
+}
+
+Item build_program_decrypt() {
+    return make_program_(ITEM_PROG_DECRYPT, 9104, ProgramId::Decrypt,
+        "decrypt.exe",
+        "UTL | tier 1 | 2 RAM, 1 Heat. Reads one encrypted file. (Used in the Grid.)",
+        Rarity::Common, 70, 22);
+}
+
+Item build_program_reboot_optics() {
+    return make_program_(ITEM_PROG_REBOOT_OPTICS, 9105, ProgramId::RebootOptics,
+        "reboot_optics.qh",
+        "QH | tier 1 | 1 RAM, +1 Detection. Blinds a camera or turret for 4 turns.",
+        Rarity::Common, 50, 18);
+}
+
+Item build_program_friendly_fire() {
+    return make_program_(ITEM_PROG_FRIENDLY_FIRE, 9106, ProgramId::FriendlyFire,
+        "friendly_fire.qh",
+        "QH | tier 2 | 3 RAM, +3 Detection. A turret targets its allies for 2 turns.",
+        Rarity::Uncommon, 180, 60);
+}
+
+Item build_program_data_leech() {
+    return make_program_(ITEM_PROG_DATA_LEECH, 9107, ProgramId::DataLeech,
+        "data_leech.qh",
+        "QH | tier 1 | 2 RAM, +2 Detection. Drains operational data from a hackable.",
+        Rarity::Uncommon, 90, 30);
 }
 
 } // namespace astra

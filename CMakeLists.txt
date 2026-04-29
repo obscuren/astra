@@ -105,6 +105,7 @@ set(ASTRA_SOURCES
     src/overworld_stamps.cpp
     src/poi_budget.cpp
     src/playback_viewer.cpp
+    src/program.cpp
     src/visibility_map.cpp
     src/save_file.cpp
     src/celestial_body.cpp

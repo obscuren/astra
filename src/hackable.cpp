@@ -1,20 +1,5 @@
 #include "astra/hackable.h"
-
-// Task 4 will replace this temporary forward-declared ProgramId block
-// with a real `#include "astra/program.h"`. The placeholder lets Task 2
-// commit cleanly before Task 4 lands.
-namespace astra {
-enum class ProgramId : uint16_t {
-    IcebreakerLite = 1,
-    GhostTrace     = 2,
-    Cooldown       = 3,
-    Breach         = 4,
-    Decrypt        = 5,
-    RebootOptics   = 100,
-    FriendlyFire   = 101,
-    DataLeech      = 102,
-};
-}
+#include "astra/program.h"
 
 namespace astra {
 

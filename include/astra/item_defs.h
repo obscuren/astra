@@ -122,6 +122,16 @@ Item build_navi_computer_mk2();
 Item build_pidgin_mk1();
 Item build_polyglot_dck2();
 
+// --- Programs ---
+Item build_program_icebreaker_lite();
+Item build_program_ghost_trace();
+Item build_program_cooldown();
+Item build_program_breach();
+Item build_program_decrypt();
+Item build_program_reboot_optics();
+Item build_program_friendly_fire();
+Item build_program_data_leech();
+
 // Universal item constructor: rebuild an Item from its item_def_id by
 // dispatching to the appropriate build_*() function. Covers every item
 // in s_loot_table plus a few legacy/utility defs (ITEM_BATTERY alias,

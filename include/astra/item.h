@@ -2,6 +2,7 @@
 
 #include "astra/aura_grant.h"
 #include "astra/cyberdeck.h"
+#include "astra/program.h"
 #include "astra/dice.h"
 #include "astra/energy.h"
 #include "astra/renderer.h"
@@ -234,6 +235,9 @@ struct Item {
     // Cyberdeck payload — non-empty only when type == ItemType::Cyberdeck.
     // Holds RAM/heat/slot state and currently loaded programs.
     std::optional<CyberdeckData> deck;
+
+    // Program payload — non-empty only when type == ItemType::Program.
+    std::optional<ProgramData> program;
 
     // Plain-text label: "name - 1d6" for weapons, "name - cur/cap charge" for cells, plain name otherwise
     std::string label() const {
