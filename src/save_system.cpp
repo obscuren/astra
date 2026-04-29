@@ -57,6 +57,8 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.ambushed_systems = world.ambushed_systems();
         data.dungeon_recipes = world.dungeon_recipes();
         data.lore = world.lore();
+        data.detection           = game.hacking().detection_state().value;
+        data.detection_decay_acc = game.hacking().detection_state().decay_acc;
     }
 
     // maps[0]: the active map the player is currently on.
@@ -252,6 +254,10 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     ret.x = data.overworld_return_x;
     ret.y = data.overworld_return_y;
     ret.body_key = data.overworld_return_body_key;
+
+    // v52: restore HackingSystem detection counter + decay accumulator
+    game.hacking().detection_state_mut().value     = data.detection;
+    game.hacking().detection_state_mut().decay_acc = data.detection_decay_acc;
 
     game.reset_interaction_state();
     game.post_load();

@@ -28,7 +28,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 51;   // v51: ground effects (smoke clouds)
+inline constexpr uint32_t SAVE_FILE_VERSION = 52;   // v52: hacking (cyberdeck, programs, Hackable, Detection)
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
@@ -119,6 +119,9 @@ struct SaveData {
 
     // v20: world lore
     WorldLore lore;
+
+    int detection = 0;             // v52: HackingSystem active detection counter
+    int detection_decay_acc = 0;   // v52: matched accumulator for detection counter
 
     // Overworld return position — set when the player boards their ship
     // from a planet overworld, cleared when they disembark.

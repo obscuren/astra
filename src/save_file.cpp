@@ -387,6 +387,27 @@ static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u16(item.teaches_recipe_id);
     // v49: schematic payload
     w.write_u16(item.teaches_schematic_id);
+    // v52: cyberdeck payload
+    w.write_u8(item.deck.has_value() ? 1 : 0);
+    if (item.deck) {
+        const auto& d = *item.deck;
+        w.write_i32(d.stats.ram_max);
+        w.write_i32(d.stats.cpu);
+        w.write_i32(d.stats.slots);
+        w.write_i32(d.stats.stealth);
+        w.write_i32(d.stats.cooling_rate);
+        w.write_i32(d.stats.heat_cap);
+        w.write_i32(d.ram_current);
+        w.write_i32(d.heat_current);
+        for (int i = 0; i < kCyberdeckMaxSlots; ++i) {
+            w.write_u16(d.loaded[i].program_def_id);
+        }
+    }
+    // v52: program payload
+    w.write_u8(item.program.has_value() ? 1 : 0);
+    if (item.program) {
+        w.write_u16(static_cast<uint16_t>(item.program->id));
+    }
 }
 
 static Item read_item(BinaryReader& r) {
@@ -506,6 +527,30 @@ static Item read_item(BinaryReader& r) {
     item.teaches_recipe_id = r.read_u16();
     // v49: schematic payload
     item.teaches_schematic_id = r.read_u16();
+    // v52: cyberdeck payload
+    bool has_deck = r.read_u8() != 0;
+    if (has_deck) {
+        CyberdeckData d;
+        d.stats.ram_max      = r.read_i32();
+        d.stats.cpu          = r.read_i32();
+        d.stats.slots        = r.read_i32();
+        d.stats.stealth      = r.read_i32();
+        d.stats.cooling_rate = r.read_i32();
+        d.stats.heat_cap     = r.read_i32();
+        d.ram_current        = r.read_i32();
+        d.heat_current       = r.read_i32();
+        for (int i = 0; i < kCyberdeckMaxSlots; ++i) {
+            d.loaded[i].program_def_id = r.read_u16();
+        }
+        item.deck = std::move(d);
+    }
+    // v52: program payload
+    bool has_program = r.read_u8() != 0;
+    if (has_program) {
+        ProgramData p;
+        p.id = static_cast<ProgramId>(r.read_u16());
+        item.program = p;
+    }
     return item;
 }
 
@@ -628,6 +673,39 @@ static Aura read_manual_aura(BinaryReader& r) {
     a.source          = AuraSource::Manual;
     a.source_id       = r.read_u32();
     return a;
+}
+
+// ---------------------------------------------------------------------------
+// Hackable serialization helpers (v52)
+// ---------------------------------------------------------------------------
+
+static void write_hackable(BinaryWriter& w, const Hackable& h) {
+    w.write_u8(static_cast<uint8_t>(h.device_kind));
+    w.write_i32(h.security_tier);
+    w.write_u32(h.network_id);
+    w.write_u8(static_cast<uint8_t>(h.state));
+    w.write_i32(h.state_ticks_left);
+    w.write_i32(h.jack_in_node_id);
+    w.write_u32(static_cast<uint32_t>(h.available_qh.size()));
+    for (auto pid : h.available_qh) {
+        w.write_u16(static_cast<uint16_t>(pid));
+    }
+}
+
+static Hackable read_hackable(BinaryReader& r) {
+    Hackable h;
+    h.device_kind      = static_cast<DeviceKind>(r.read_u8());
+    h.security_tier    = r.read_i32();
+    h.network_id       = r.read_u32();
+    h.state            = static_cast<HackState>(r.read_u8());
+    h.state_ticks_left = r.read_i32();
+    h.jack_in_node_id  = r.read_i32();
+    uint32_t qh_n = r.read_u32();
+    h.available_qh.reserve(qh_n);
+    for (uint32_t i = 0; i < qh_n; ++i) {
+        h.available_qh.push_back(static_cast<ProgramId>(r.read_u16()));
+    }
+    return h;
 }
 
 // ---------------------------------------------------------------------------
@@ -852,6 +930,10 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_i32(npc.move_target_x);
     w.write_i32(npc.move_target_y);
     w.write_i32(npc.move_target_ttl);
+    // v52: cyber + pre_hijack_faction (hacking)
+    w.write_u8(npc.cyber.has_value() ? 1 : 0);
+    if (npc.cyber) write_hackable(w, *npc.cyber);
+    w.write_string(npc.pre_hijack_faction);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -973,6 +1055,9 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_u8(f.proximity_radius);       // v41
         w.write_u64(f.tags);                  // v42
         w.write_i32(f.spawn_tick);            // v42
+        // v52: cyber trait on fixtures (hacking)
+        w.write_u8(f.cyber.has_value() ? 1 : 0);
+        if (f.cyber) write_hackable(w, *f.cyber);
     }
     // Fixture IDs (parallel to tiles)
     const auto& fids = tm.fixture_ids();
@@ -1520,6 +1605,9 @@ static void write_game_state_section(BinaryWriter& w, const SaveData& data) {
         w.write_i32(std::get<5>(k));
         w.write_i32(std::get<6>(k));
     }
+    // v52: HackingSystem detection counter + decay accumulator
+    w.write_i32(data.detection);
+    w.write_i32(data.detection_decay_acc);
     w.end_section(pos);
 }
 
@@ -1742,6 +1830,9 @@ static Npc read_npc(BinaryReader& r) {
     npc.move_target_x = r.read_i32();
     npc.move_target_y = r.read_i32();
     npc.move_target_ttl = r.read_i32();
+    // v52: cyber + pre_hijack_faction (hacking)
+    if (r.read_u8() != 0) npc.cyber = read_hackable(r);
+    npc.pre_hijack_faction = r.read_string();
 
     return npc;
 }
@@ -1869,6 +1960,8 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
             f.proximity_radius = r.read_u8();          // v41
             f.tags = r.read_u64();                     // v42
             f.spawn_tick = r.read_i32();               // v42
+            // v52: cyber trait on fixtures (hacking)
+            if (r.read_u8() != 0) f.cyber = read_hackable(r);
         }
         std::vector<int> fids(area);
         for (int i = 0; i < area; ++i) fids[i] = r.read_i32();
@@ -2061,6 +2154,9 @@ static void read_game_state_section(BinaryReader& r, SaveData& data) {
     int oy = r.read_i32();
     int depth = r.read_i32();
     data.overworld_return_body_key = LocationKey{sys, body, moon, stn, ox, oy, depth};
+    // v52: HackingSystem detection counter + decay accumulator
+    data.detection = r.read_i32();
+    data.detection_decay_acc = r.read_i32();
 }
 
 // ---------------------------------------------------------------------------
