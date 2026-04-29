@@ -1564,7 +1564,7 @@ Item build_pidgin_mk1() {
     it.item_def_id = ITEM_PIDGIN_MK1;
     it.id = 9000; it.name = "Pidgin Mark I"; it.type = ItemType::Cyberdeck;
     it.description = "A pawn-shop deck. Three slots, four RAM. Chunky but it boots.";
-    it.slot = EquipSlot::Cyberdeck; it.rarity = Rarity::Common;
+    it.slot = EquipSlot::Utility1; it.rarity = Rarity::Common;
     it.weight = 2;
     it.stackable = false; it.buy_value = 250; it.sell_value = 80;
     CyberdeckData d;
@@ -1579,7 +1579,7 @@ Item build_polyglot_dck2() {
     it.item_def_id = ITEM_POLYGLOT_DCK2;
     it.id = 9001; it.name = "Polyglot DCK-2"; it.type = ItemType::Cyberdeck;
     it.description = "Corp surplus. Cleaner thermal envelope, four slots, eight RAM.";
-    it.slot = EquipSlot::Cyberdeck; it.rarity = Rarity::Uncommon;
+    it.slot = EquipSlot::Utility1; it.rarity = Rarity::Uncommon;
     it.weight = 2;
     it.stackable = false; it.buy_value = 600; it.sell_value = 200;
     CyberdeckData d;

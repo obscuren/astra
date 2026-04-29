@@ -275,15 +275,15 @@ bool PdaScreen::handle_input(int key) {
             // Layout:  row0: Face(0)
             //          row1: Head(1)
             //          row2: LHand(2) LArm(3) Body(4) RArm(5) RHand(6)
-            //          row3: Shield(11) Back(7)
+            //          row3: Shield(11) Back(7)  Util1(12) Util2(13)
             //          row4: Feet(8)
             //          row5: Thrown(9) Missile(10)
             //
             // Navigation tables: -1 = no movement
-            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8,  8,  4};
-            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1,  8};
-            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, 11, -1, -1,  9, -1};
-            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, -1, -1, 10, -1,  7};
+            static constexpr int nav_up[]    = {-1, 0,  1,  1,  1,  1,  1,  4,  7,  8, 12,  4,  5,  6};
+            static constexpr int nav_down[]  = { 1, 4,  7,  7,  7,  7,  7,  8,  9, -1, -1,  8, 10, -1};
+            static constexpr int nav_left[]  = {-1,-1, -1,  2,  3,  4,  5, 11, -1, -1,  9, -1,  7, 12};
+            static constexpr int nav_right[] = {-1,-1,  3,  4,  5,  6, -1, 12, -1, 10, -1,  7, 13, -1};
 
             int next = -1;
             if (key == KEY_UP)    next = nav_up[equip_cursor_];
@@ -1004,20 +1004,47 @@ void PdaScreen::execute_context_action(char key) {
                 if (key == 'q' && item.type == ItemType::MeleeWeapon) {
                     target_slot = EquipSlot::LeftHand;
                 }
-                auto& sl = player_->equipment.slot_ref(target_slot);
                 Item to_equip = std::move(item);
                 items.erase(items.begin() + inv_cursor_);
-                // Clear shield affinity when swapping out old shield
-                if (target_slot == EquipSlot::Shield && sl) {
-                    player_->shield_affinity = {};
+
+                if (to_equip.type == ItemType::Cyberdeck) {
+                    // Cyberdeck-specific routing: prefer swapping an already-equipped
+                    // deck; otherwise fill the first empty utility slot; otherwise
+                    // displace utility1.
+                    auto& eq = player_->equipment;
+                    if (eq.utility1 && eq.utility1->type == ItemType::Cyberdeck) {
+                        items.push_back(std::move(*eq.utility1));
+                        eq.utility1 = std::move(to_equip);
+                        context_message_ = "Equipped " + eq.utility1->label() + ".";
+                    } else if (eq.utility2 && eq.utility2->type == ItemType::Cyberdeck) {
+                        items.push_back(std::move(*eq.utility2));
+                        eq.utility2 = std::move(to_equip);
+                        context_message_ = "Equipped " + eq.utility2->label() + ".";
+                    } else if (!eq.utility1) {
+                        eq.utility1 = std::move(to_equip);
+                        context_message_ = "Equipped " + eq.utility1->label() + ".";
+                    } else if (!eq.utility2) {
+                        eq.utility2 = std::move(to_equip);
+                        context_message_ = "Equipped " + eq.utility2->label() + ".";
+                    } else {
+                        items.push_back(std::move(*eq.utility1));
+                        eq.utility1 = std::move(to_equip);
+                        context_message_ = "Equipped " + eq.utility1->label() + ".";
+                    }
+                } else {
+                    auto& sl = player_->equipment.slot_ref(target_slot);
+                    // Clear shield affinity when swapping out old shield
+                    if (target_slot == EquipSlot::Shield && sl) {
+                        player_->shield_affinity = {};
+                    }
+                    if (sl) items.push_back(std::move(*sl));
+                    sl = std::move(to_equip);
+                    // Sync shield affinity from newly equipped shield
+                    if (target_slot == EquipSlot::Shield) {
+                        player_->shield_affinity = sl->type_affinity;
+                    }
+                    context_message_ = "Equipped " + sl->label() + ".";
                 }
-                if (sl) items.push_back(std::move(*sl));
-                sl = std::move(to_equip);
-                // Sync shield affinity from newly equipped shield
-                if (target_slot == EquipSlot::Shield) {
-                    player_->shield_affinity = sl->type_affinity;
-                }
-                context_message_ = "Equipped " + sl->label() + ".";
                 context_msg_timer_ = 3;
                 if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
                     --inv_cursor_;

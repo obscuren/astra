@@ -49,8 +49,9 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
                   .content = "Loaded quickhacks:",
                   .tag = UITag::TextDefault});
         int row = cy + 7;
-        if (player_->equipment.cyberdeck && player_->equipment.cyberdeck->deck) {
-            auto& deck = *player_->equipment.cyberdeck->deck;
+        auto* ht_deck_slot = player_->equipment.equipped_cyberdeck();
+        if (ht_deck_slot && *ht_deck_slot && (*ht_deck_slot)->deck) {
+            auto& deck = *(*ht_deck_slot)->deck;
             int found = 0;
             for (int i = 0; i < deck.stats.slots; ++i) {
                 if (deck.loaded[i].program_def_id == 0) continue;
@@ -75,8 +76,9 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
     }
 
     // ── Unlocked: render the terminal subwindow ──
-    if (player_->equipment.cyberdeck && player_->equipment.cyberdeck->deck) {
-        auto& d = *player_->equipment.cyberdeck->deck;
+    auto* active_deck_slot = player_->equipment.equipped_cyberdeck();
+    if (active_deck_slot && *active_deck_slot && (*active_deck_slot)->deck) {
+        auto& d = *(*active_deck_slot)->deck;
         std::string header = "RAM " + std::to_string(d.ram_current) + "/" +
                              std::to_string(d.stats.ram_max) +
                              "  CPU " + std::to_string(d.stats.cpu) +
@@ -84,7 +86,7 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
                              "  STEALTH +" + std::to_string(d.stats.stealth) +
                              "  COOLING " + std::to_string(d.stats.cooling_rate) + "/turn";
         ctx.text({.x = 2, .y = 1, .content = header, .tag = UITag::TextDefault});
-        std::string deck_name = "[ " + player_->equipment.cyberdeck->name + " ]";
+        std::string deck_name = "[ " + (*active_deck_slot)->name + " ]";
         ctx.text({.x = ctx.width() - static_cast<int>(deck_name.size()) - 2, .y = 1,
                   .content = deck_name, .tag = UITag::TextDim});
     } else {
@@ -233,12 +235,13 @@ void PdaScreen::hack_term_cmd_help() {
 }
 
 void PdaScreen::hack_term_cmd_deck_info() {
-    if (!player_->equipment.cyberdeck || !player_->equipment.cyberdeck->deck) {
+    auto* di_deck_slot = player_->equipment.equipped_cyberdeck();
+    if (!di_deck_slot || !*di_deck_slot || !(*di_deck_slot)->deck) {
         hack_term_emit("no deck equipped.", UITag::TextDim);
         return;
     }
-    auto& d = *player_->equipment.cyberdeck->deck;
-    hack_term_emit("Deck: " + player_->equipment.cyberdeck->name);
+    auto& d = *(*di_deck_slot)->deck;
+    hack_term_emit("Deck: " + (*di_deck_slot)->name);
     hack_term_emit("  RAM " + std::to_string(d.ram_current) + "/" + std::to_string(d.stats.ram_max));
     hack_term_emit("  CPU " + std::to_string(d.stats.cpu));
     hack_term_emit("  SLOTS " + std::to_string(d.stats.slots));
@@ -248,11 +251,12 @@ void PdaScreen::hack_term_cmd_deck_info() {
 }
 
 void PdaScreen::hack_term_cmd_programs_ls() {
-    if (!player_->equipment.cyberdeck || !player_->equipment.cyberdeck->deck) {
+    auto* ls_deck_slot = player_->equipment.equipped_cyberdeck();
+    if (!ls_deck_slot || !*ls_deck_slot || !(*ls_deck_slot)->deck) {
         hack_term_emit("no deck equipped.", UITag::TextDim);
         return;
     }
-    auto& d = *player_->equipment.cyberdeck->deck;
+    auto& d = *(*ls_deck_slot)->deck;
     for (int i = 0; i < d.stats.slots; ++i) {
         if (d.loaded[i].program_def_id == 0) {
             hack_term_emit("  [" + std::to_string(i) + "] (empty)");
@@ -281,11 +285,12 @@ void PdaScreen::hack_term_cmd_programs_load(const std::vector<std::string>& args
         hack_term_emit("usage: programs load <slot> <id>", UITag::TextDim);
         return;
     }
-    if (!player_->equipment.cyberdeck || !player_->equipment.cyberdeck->deck) {
+    auto* ld_deck_slot = player_->equipment.equipped_cyberdeck();
+    if (!ld_deck_slot || !*ld_deck_slot || !(*ld_deck_slot)->deck) {
         hack_term_emit("no deck equipped.", UITag::TextDim);
         return;
     }
-    auto& d = *player_->equipment.cyberdeck->deck;
+    auto& d = *(*ld_deck_slot)->deck;
     int slot = -1;
     try { slot = std::stoi(args[2]); } catch (...) {}
     if (slot < 0 || slot >= d.stats.slots) {
@@ -331,11 +336,12 @@ void PdaScreen::hack_term_cmd_programs_unload(const std::vector<std::string>& ar
         hack_term_emit("usage: programs unload <slot>", UITag::TextDim);
         return;
     }
-    if (!player_->equipment.cyberdeck || !player_->equipment.cyberdeck->deck) {
+    auto* ul_deck_slot = player_->equipment.equipped_cyberdeck();
+    if (!ul_deck_slot || !*ul_deck_slot || !(*ul_deck_slot)->deck) {
         hack_term_emit("no deck equipped.", UITag::TextDim);
         return;
     }
-    auto& d = *player_->equipment.cyberdeck->deck;
+    auto& d = *(*ul_deck_slot)->deck;
     int slot = -1;
     try { slot = std::stoi(args[2]); } catch (...) {}
     if (slot < 0 || slot >= d.stats.slots) {

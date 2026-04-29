@@ -63,6 +63,9 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
         {col_r,  dy + slot_h * 5, EquipSlot::Missile,   "Missile"},
         // Shield: tethered to left of Back
         {col_l,  dy + slot_h * 3, EquipSlot::Shield,    "Shield"},
+        // Utility slots: right of Back
+        {col_r,  dy + slot_h * 3, EquipSlot::Utility1,  "Util 1"},
+        {col_rr, dy + slot_h * 3, EquipSlot::Utility2,  "Util 2"},
     };
 
     // Draw connector lines (center spine: between Face→Head→Body→Back→Feet)

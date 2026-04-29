@@ -146,8 +146,8 @@ void HackingSystem::reset() {
 }
 
 void HackingSystem::begin_quickhack_targeting(Game& game) {
-    if (!game.player().equipment.cyberdeck ||
-        !game.player().equipment.cyberdeck->deck) {
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         game.log("You need an equipped cyberdeck to quickhack.");
         return;
     }
@@ -198,15 +198,15 @@ void HackingSystem::handle_targeting_input(int key, Game& game) {
                 game.log("No hackable target there.");
                 return;
             }
-            auto& deck_item = game.player().equipment.cyberdeck;
-            if (!deck_item || !deck_item->deck) {
+            auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+            if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
                 targeting_ = false;
                 game.log("No deck equipped.");
                 return;
             }
             std::vector<int> menu_slots;
-            for (int i = 0; i < deck_item->deck->stats.slots; ++i) {
-                const auto& slot = deck_item->deck->loaded[i];
+            for (int i = 0; i < (*deck_slot)->deck->stats.slots; ++i) {
+                const auto& slot = (*deck_slot)->deck->loaded[i];
                 if (slot.program_def_id == 0) continue;
                 Item probe = build_by_def_id(slot.program_def_id);
                 if (!probe.program) continue;
@@ -243,9 +243,9 @@ std::string HackingSystem::execute_quickhack(Game& game, const Item& program,
         return std::string("Program rejects ") + device_kind_name(target.device_kind) + ".";
     }
 
-    auto& deck_slot = game.player().equipment.cyberdeck;
-    if (!deck_slot || !deck_slot->deck) return "No cyberdeck equipped.";
-    auto& deck = *deck_slot->deck;
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return "No cyberdeck equipped.";
+    auto& deck = *(*deck_slot)->deck;
     if (deck.ram_current < def->ram_cost) {
         return "Not enough RAM (" + std::to_string(deck.ram_current) + "/" +
                std::to_string(def->ram_cost) + ").";

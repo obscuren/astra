@@ -47,7 +47,8 @@ const char* equip_slot_name(EquipSlot slot) {
         case EquipSlot::Thrown:    return "Thrown";
         case EquipSlot::Missile:   return "Missile";
         case EquipSlot::Shield:    return "Shield";
-        case EquipSlot::Cyberdeck: return "Cyberdeck";
+        case EquipSlot::Utility1:  return "Utility 1";
+        case EquipSlot::Utility2:  return "Utility 2";
     }
     return "?";
 }
@@ -66,7 +67,8 @@ std::optional<Item>& Equipment::slot_ref(EquipSlot slot) {
         case EquipSlot::Thrown:    return thrown;
         case EquipSlot::Missile:   return missile;
         case EquipSlot::Shield:    return shield;
-        case EquipSlot::Cyberdeck: return cyberdeck;
+        case EquipSlot::Utility1:  return utility1;
+        case EquipSlot::Utility2:  return utility2;
     }
     return head; // unreachable
 }
@@ -85,9 +87,22 @@ const std::optional<Item>& Equipment::slot_ref(EquipSlot slot) const {
         case EquipSlot::Thrown:    return thrown;
         case EquipSlot::Missile:   return missile;
         case EquipSlot::Shield:    return shield;
-        case EquipSlot::Cyberdeck: return cyberdeck;
+        case EquipSlot::Utility1:  return utility1;
+        case EquipSlot::Utility2:  return utility2;
     }
     return head; // unreachable
+}
+
+std::optional<Item>* Equipment::equipped_cyberdeck() {
+    if (utility1 && utility1->type == ItemType::Cyberdeck) return &utility1;
+    if (utility2 && utility2->type == ItemType::Cyberdeck) return &utility2;
+    return nullptr;
+}
+
+const std::optional<Item>* Equipment::equipped_cyberdeck() const {
+    if (utility1 && utility1->type == ItemType::Cyberdeck) return &utility1;
+    if (utility2 && utility2->type == ItemType::Cyberdeck) return &utility2;
+    return nullptr;
 }
 
 StatModifiers Equipment::total_modifiers() const {
@@ -95,7 +110,7 @@ StatModifiers Equipment::total_modifiers() const {
     const std::optional<Item>* slots[] = {
         &face, &head, &body, &left_arm, &right_arm,
         &left_hand, &right_hand, &back, &feet,
-        &thrown, &missile, &shield,
+        &thrown, &missile, &shield, &utility1, &utility2,
     };
     for (const auto* s : slots) {
         if (*s) {

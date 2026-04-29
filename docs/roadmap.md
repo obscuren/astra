@@ -198,3 +198,4 @@
 - [ ] Move world transition methods to WorldManager (low priority)
 - [ ] Extract more focused renderers from game_rendering.cpp (as needed)
 - [ ] SDL renderer parity (deferred)
+- [ ] **Unique-equipped mechanic** — flag certain item types so equipping a second copy auto-swaps with the existing one rather than allowing duplicate equips. Currently special-cased in the cyberdeck equip path; generalize across utility slots and any future "one-of-a-kind" gear.

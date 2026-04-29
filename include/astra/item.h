@@ -45,7 +45,7 @@ enum class ItemType : uint8_t {
     Mine,         // placeable trigger-on-step consumable
     Schematic,    // teaches a tinkering recipe when read
     Turret,       // deployable autonomous defender (stationary or mobile)
-    Cyberdeck,    // hacking deck — held in EquipSlot::Cyberdeck
+    Cyberdeck,    // hacking deck — held in a Utility slot
     Program,      // .exe / .qh loadable into a cyberdeck slot
 };
 
@@ -72,10 +72,11 @@ enum class EquipSlot : uint8_t {
     Thrown,
     Missile,
     Shield,
-    Cyberdeck,
+    Utility1,
+    Utility2,
 };
 
-static constexpr int equip_slot_count = 13;
+static constexpr int equip_slot_count = 14;
 
 const char* equip_slot_name(EquipSlot slot);
 
@@ -269,11 +270,16 @@ struct Equipment {
     std::optional<Item> thrown;
     std::optional<Item> missile;
     std::optional<Item> shield;
-    std::optional<Item> cyberdeck;
+    std::optional<Item> utility1;
+    std::optional<Item> utility2;
 
     std::optional<Item>& slot_ref(EquipSlot slot);
     const std::optional<Item>& slot_ref(EquipSlot slot) const;
     StatModifiers total_modifiers() const;
+
+    // Returns a pointer to the first Utility slot holding a Cyberdeck, or nullptr.
+    std::optional<Item>* equipped_cyberdeck();
+    const std::optional<Item>* equipped_cyberdeck() const;
 };
 
 struct Inventory {

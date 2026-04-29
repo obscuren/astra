@@ -28,7 +28,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 52;   // v52: hacking (cyberdeck, programs, Hackable, Detection)
+inline constexpr uint32_t SAVE_FILE_VERSION = 53;   // v53: EquipSlot::Utility1/Utility2 replace Cyberdeck slot
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

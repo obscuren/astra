@@ -579,6 +579,9 @@ static void write_equipment(BinaryWriter& w, const Equipment& eq) {
     write_optional_item(w, eq.missile);
     // v26: shield slot
     write_optional_item(w, eq.shield);
+    // v53: utility slots (replace dedicated Cyberdeck slot)
+    write_optional_item(w, eq.utility1);
+    write_optional_item(w, eq.utility2);
 }
 
 static void read_equipment(BinaryReader& r, Equipment& eq) {
@@ -594,6 +597,9 @@ static void read_equipment(BinaryReader& r, Equipment& eq) {
     eq.thrown = read_optional_item(r);
     eq.missile = read_optional_item(r);
     eq.shield = read_optional_item(r);
+    // v53: utility slots
+    eq.utility1 = read_optional_item(r);
+    eq.utility2 = read_optional_item(r);
 }
 
 static void write_inventory(BinaryWriter& w, const Inventory& inv) {

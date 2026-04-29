@@ -259,7 +259,8 @@ void Game::handle_play_input(int key) {
                         log("The Grid is not yet implemented (Plan 3 will add it).");
                     }
                 } else {
-                    auto& deck = *player_.equipment.cyberdeck->deck;
+                    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+                    auto& deck = *(*deck_slot)->deck;
                     Item probe = build_by_def_id(deck.loaded[slot_idx].program_def_id);
                     int tx = -1, ty = -1;
                     {
@@ -293,7 +294,8 @@ void Game::handle_play_input(int key) {
         MenuResult r = qh_picker_.handle_input(key);
         if (r == MenuResult::Selected) {
             int slot_idx = qh_picker_slots_[qh_picker_.selection];
-            auto& deck = *player_.equipment.cyberdeck->deck;
+            auto* deck_slot_ptr = player_.equipment.equipped_cyberdeck();
+            auto& deck = *(*deck_slot_ptr)->deck;
             const auto& slot = deck.loaded[slot_idx];
             Item probe = build_by_def_id(slot.program_def_id);
 
@@ -655,7 +657,8 @@ void Game::handle_play_input(int key) {
 void Game::open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots) {
     qh_picker_.reset();
     qh_picker_.title = "Quickhack:";
-    auto& deck = *player_.equipment.cyberdeck->deck;
+    auto* qdeck_slot = player_.equipment.equipped_cyberdeck();
+    auto& deck = *(*qdeck_slot)->deck;
     for (size_t i = 0; i < menu_slots.size(); ++i) {
         const auto& slot = deck.loaded[menu_slots[i]];
         Item probe = build_by_def_id(slot.program_def_id);
@@ -682,9 +685,9 @@ void Game::open_hackable_menu(int fixture_id) {
                            " (tier " + std::to_string(hack.security_tier) + ")";
     hackable_menu_slots_.clear();
 
-    auto& deck_slot = player_.equipment.cyberdeck;
-    if (deck_slot && deck_slot->deck) {
-        auto& deck = *deck_slot->deck;
+    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+        auto& deck = *(*deck_slot)->deck;
         for (int i = 0; i < deck.stats.slots; ++i) {
             const auto& s = deck.loaded[i];
             if (s.program_def_id == 0) continue;
