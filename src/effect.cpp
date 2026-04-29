@@ -328,6 +328,17 @@ Effect make_emp_disabled_ge(int duration) {
     return e;
 }
 
+Effect make_hijacked_ge(int duration) {
+    Effect e;
+    e.id = EffectId::Hijacked;
+    e.name = "Hijacked";
+    e.color = Color::Magenta;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    return e;
+}
+
 Effect effect_for_id(EffectId id) {
     switch (id) {
         case EffectId::CookingFireAura: return make_cooking_fire_aura_ge();
@@ -335,6 +346,7 @@ Effect effect_for_id(EffectId id) {
         case EffectId::WellFed:         return make_well_fed_ge();
         case EffectId::Hearty:          return make_hearty_ge();
         case EffectId::EmpDisabled:     return make_emp_disabled_ge(5);
+        case EffectId::Hijacked:        return make_hijacked_ge(2);
         default: return Effect{};
     }
 }

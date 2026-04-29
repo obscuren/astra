@@ -180,11 +180,16 @@ static constexpr int hostile_threshold = -300;
 bool is_hostile(const std::string& faction_a, const std::string& faction_b) {
     if (faction_a.empty() || faction_b.empty()) return false;
     if (faction_a == faction_b) return false;
+    // "Hijacked" is a transient pseudo-faction stamped onto NPCs by the
+    // FriendlyFire quickhack. Treat it as universally hostile so the AI
+    // turns the hijacked unit on its allies.
+    if (faction_a == "Hijacked" || faction_b == "Hijacked") return true;
     return default_faction_standing(faction_a, faction_b) <= hostile_threshold;
 }
 
 bool is_hostile_to_player(const std::string& npc_faction, const Player& player) {
     if (npc_faction.empty()) return false;
+    if (npc_faction == "Hijacked") return true;
     int rep = reputation_for(player, npc_faction);
     return rep <= hostile_threshold;
 }

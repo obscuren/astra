@@ -2259,6 +2259,15 @@ void Game::advance_world(int cost) {
         }
     }
 
+    // Hacking: restore NPC faction when Hijacked effect has expired
+    for (auto& npc : world_.npcs()) {
+        if (!npc.pre_hijack_faction.empty() &&
+            !has_effect(npc.effects, EffectId::Hijacked)) {
+            npc.faction = npc.pre_hijack_faction;
+            npc.pre_hijack_faction.clear();
+        }
+    }
+
     // Aura system — emitters push GEs to receivers in range. Runs after
     // effect tick/expire so duration=1 auras are cleanly refreshed here.
     aura_system_.tick(*this);

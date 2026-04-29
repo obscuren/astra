@@ -80,6 +80,7 @@ struct Npc {
     uint64_t flags = 0;         // CreatureFlag bitfield (Mechanical, Biological, ...)
     InteractionData interactions;
     std::optional<Hackable> cyber;       // present iff this NPC is hackable
+    std::string pre_hijack_faction;      // restored when Hijacked effect expires
 
     // When displaced by player swap, NPC tries to return here next tick
     int return_x = -1;
