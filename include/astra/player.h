@@ -132,7 +132,7 @@ struct Player {
     std::vector<JournalEntry> journal;
 
     // Tutorial — tracks which datapad tabs have shown their help overlay
-    uint16_t tab_help_seen = 0;  // bitfield, one bit per CharTab
+    uint16_t tab_help_seen = 0;  // bitfield, one bit per PdaTab
 
     // Derived stats — attribute modifier + equipment + active effects
     int effective_dv() const {

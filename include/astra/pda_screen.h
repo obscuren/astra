@@ -15,7 +15,7 @@ namespace astra {
 
 class WorldManager;
 
-enum class CharTab : uint8_t {
+enum class PdaTab : uint8_t {
     Skills,
     Attributes,
     Equipment,
@@ -25,13 +25,14 @@ enum class CharTab : uint8_t {
     Quests,
     Reputation,
     Ship,
+    Hacking,
 };
 
-static constexpr int char_tab_count = 9;
+static constexpr int pda_tab_count = 10;
 
-class CharacterScreen {
+class PdaScreen {
 public:
-    CharacterScreen() = default;
+    PdaScreen() = default;
 
     bool is_open() const;
     // initial_tab = nullopt -> open on the last-used tab (persists across
@@ -39,7 +40,7 @@ public:
     // pass it explicitly.
     void open(Player* player, Renderer* renderer, QuestManager* quests = nullptr,
               bool on_ship = false,
-              std::optional<CharTab> initial_tab = std::nullopt,
+              std::optional<PdaTab> initial_tab = std::nullopt,
               bool can_board_ship = false,
               const WorldManager* world = nullptr);
     bool consume_board_ship_request() {
@@ -58,7 +59,7 @@ private:
     const WorldManager* world_ = nullptr;
     std::mt19937 rng_{std::random_device{}()};
     bool open_ = false;
-    CharTab active_tab_ = CharTab::Skills;
+    PdaTab active_tab_ = PdaTab::Skills;
     int cursor_ = 0;
     int scroll_ = 0;
 
@@ -212,6 +213,7 @@ private:
     void draw_ship(UIContext& ctx);
     void draw_stub(UIContext& ctx, const char* message);
     void draw_reputation(UIContext& ctx);
+    void draw_hacking(UIContext& ctx);
     void draw_tab_help(int screen_w, int screen_h);
     void show_tab_help();
 

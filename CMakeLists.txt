@@ -135,7 +135,7 @@ set(ASTRA_SOURCES
     src/character.cpp
     src/shop.cpp
     src/trade_window.cpp
-    src/character_screen.cpp
+    src/pda_screen.cpp
     src/character_creation.cpp
     src/effect.cpp
     src/energy.cpp

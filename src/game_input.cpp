@@ -122,30 +122,30 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Character screen intercepts input when open
-    if (character_screen_.is_open()) {
-        character_screen_.handle_input(key);
-        if (character_screen_.consume_board_ship_request()) {
+    // PDA screen intercepts input when open
+    if (pda_screen_.is_open()) {
+        pda_screen_.handle_input(key);
+        if (pda_screen_.consume_board_ship_request()) {
             board_ship_from_overworld();
             return;
         }
-        if (character_screen_.has_dropped_item()) {
-            Item dropped = character_screen_.consume_dropped_item();
+        if (pda_screen_.has_dropped_item()) {
+            Item dropped = pda_screen_.consume_dropped_item();
             log("You drop " + dropped.name + ".");
             world_.ground_items().push_back({player_.x, player_.y, std::move(dropped)});
         }
-        if (character_screen_.has_use_item_request()) {
-            use_item(character_screen_.consume_use_item_request());
+        if (pda_screen_.has_use_item_request()) {
+            use_item(pda_screen_.consume_use_item_request());
         }
-        if (auto idx = character_screen_.recharge_request_idx(); idx >= 0) {
+        if (auto idx = pda_screen_.recharge_request_idx(); idx >= 0) {
             open_cell_picker_for_item(idx);
-            character_screen_.clear_recharge_request();
+            pda_screen_.clear_recharge_request();
         }
-        if (auto req = character_screen_.recharge_equipped_request(); req >= 0) {
+        if (auto req = pda_screen_.recharge_equipped_request(); req >= 0) {
             open_cell_picker(/*target_is_shield=*/req == 1);
-            character_screen_.clear_recharge_equipped_request();
+            pda_screen_.clear_recharge_equipped_request();
         }
-        auto installed_slot = character_screen_.consume_installed_ship_slot();
+        auto installed_slot = pda_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {
             quest_manager_.on_ship_component_installed(installed_slot);
             // ARIA reacts to each component installation
@@ -198,8 +198,8 @@ void Game::handle_play_input(int key) {
         dialog_.handle_input(key, *this);
         // Check ARIA command terminal outputs
         if (dialog_.consume_aria_ship_tab()) {
-            character_screen_.open(&player_, renderer_.get(), &quest_manager_,
-                                   world_.navigation().on_ship, CharTab::Ship,
+            pda_screen_.open(&player_, renderer_.get(), &quest_manager_,
+                                   world_.navigation().on_ship, PdaTab::Ship,
                                    can_board_ship(), &world_);
         }
         if (dialog_.consume_aria_star_chart()) {
@@ -214,9 +214,9 @@ void Game::handle_play_input(int key) {
             exit_ship_to_station();
         }
         if (dialog_.consume_aria_open_datapad()) {
-            character_screen_.open(&player_, renderer_.get(), &quest_manager_,
+            pda_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
-                                   CharTab::Skills, can_board_ship(), &world_);
+                                   PdaTab::Skills, can_board_ship(), &world_);
         }
         return;
     }
@@ -356,8 +356,8 @@ void Game::handle_play_input(int key) {
             compute_camera();
             break;
         case '\t':
-            // nullopt -> CharacterScreen reopens on the last-used tab.
-            character_screen_.open(&player_, renderer_.get(), &quest_manager_,
+            // nullopt -> PdaScreen reopens on the last-used tab.
+            pda_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
                                    std::nullopt, can_board_ship(), &world_);
             break;

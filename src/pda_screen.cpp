@@ -1,4 +1,4 @@
-#include "astra/character_screen.h"
+#include "astra/pda_screen.h"
 #include "astra/aura.h"
 #include "astra/character.h"
 #include "astra/item_defs.h"
@@ -26,13 +26,13 @@ namespace astra {
 
 static const char* tab_names[] = {
     "Skills", "Attributes", "Inventory & Equipment", "Tinkering",
-    "Cooking", "Journal", "Quests", "Reputation", "Ship",
+    "Cooking", "Journal", "Quests", "Reputation", "Ship", "Hacking",
 };
 
-bool CharacterScreen::is_open() const { return open_; }
+bool PdaScreen::is_open() const { return open_; }
 
-void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
-                           bool on_ship, std::optional<CharTab> initial_tab,
+void PdaScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
+                           bool on_ship, std::optional<PdaTab> initial_tab,
                            bool can_board_ship,
                            const WorldManager* world) {
     player_ = player;
@@ -70,18 +70,18 @@ void CharacterScreen::open(Player* player, Renderer* renderer, QuestManager* que
     show_tab_help();
 }
 
-bool CharacterScreen::has_pending() const {
+bool PdaScreen::has_pending() const {
     for (int i = 0; i < 6; ++i) if (pending_points_[i] > 0) return true;
     return false;
 }
 
-int CharacterScreen::total_pending() const {
+int PdaScreen::total_pending() const {
     int t = 0;
     for (int i = 0; i < 6; ++i) t += pending_points_[i];
     return t;
 }
 
-void CharacterScreen::commit_pending() {
+void PdaScreen::commit_pending() {
     if (!has_pending()) return;
     int spent = total_pending();
     auto& a = player_->attributes;
@@ -97,9 +97,9 @@ void CharacterScreen::commit_pending() {
     if (player_->hp > player_->max_hp) player_->hp = player_->max_hp;
 }
 
-void CharacterScreen::close() { open_ = false; }
+void PdaScreen::close() { open_ = false; }
 
-bool CharacterScreen::handle_input(int key) {
+bool PdaScreen::handle_input(int key) {
     if (!open_) return false;
 
     // Tab help popup — intercepts input when showing
@@ -124,12 +124,12 @@ bool CharacterScreen::handle_input(int key) {
             context_menu_.reset();
             return true;
         }
-        if (active_tab_ == CharTab::Cooking && cooking_qty_prompt_active_) {
+        if (active_tab_ == PdaTab::Cooking && cooking_qty_prompt_active_) {
             cooking_qty_prompt_active_ = false;
             cooking_qty_prompt_edited_ = false;
             return true;
         }
-        if (active_tab_ == CharTab::Cooking && cooking_picker_active_) {
+        if (active_tab_ == PdaTab::Cooking && cooking_picker_active_) {
             cooking_picker_active_ = false;
             return true;
         }
@@ -139,14 +139,14 @@ bool CharacterScreen::handle_input(int key) {
 
     // Tab switching with q/e — skip when current tab uses these keys
     bool tab_switch_blocked = false;
-    if (active_tab_ == CharTab::Cooking &&
+    if (active_tab_ == PdaTab::Cooking &&
         (cooking_picker_active_ || cooking_qty_prompt_active_)) {
         tab_switch_blocked = true;
     }
     if (key == 'q' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
-        t = (t - 1 + char_tab_count) % char_tab_count;
-        active_tab_ = static_cast<CharTab>(t);
+        t = (t - 1 + pda_tab_count) % pda_tab_count;
+        active_tab_ = static_cast<PdaTab>(t);
         cursor_ = 0;
         scroll_ = 0;
         show_tab_help();
@@ -154,8 +154,8 @@ bool CharacterScreen::handle_input(int key) {
     }
     if (key == 'e' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
-        t = (t + 1) % char_tab_count;
-        active_tab_ = static_cast<CharTab>(t);
+        t = (t + 1) % pda_tab_count;
+        active_tab_ = static_cast<PdaTab>(t);
         cursor_ = 0;
         scroll_ = 0;
         show_tab_help();
@@ -173,7 +173,7 @@ bool CharacterScreen::handle_input(int key) {
     if (context_menu_.open) {
         MenuResult mr = context_menu_.handle_input(key);
         if (mr == MenuResult::Selected) {
-            if (active_tab_ == CharTab::Tinkering) {
+            if (active_tab_ == PdaTab::Tinkering) {
                 // Tinkering item/material picker result
                 int sel = context_menu_.selection;
                 if (tinker_focus_ == TinkerFocus::Workbench && !workbench_item_) {
@@ -242,7 +242,7 @@ bool CharacterScreen::handle_input(int key) {
     if (context_msg_timer_ > 0) --context_msg_timer_;
 
     // Tab-specific input
-    if (active_tab_ == CharTab::Attributes) {
+    if (active_tab_ == PdaTab::Attributes) {
         // 2D grid navigation for attribute boxes
         // Row 0: STR(0) AGI(1) TOU(2) INT(3) WIL(4) LUK(5)   — 6 primary
         // Row 1: QCK(6) SPD(7) DEF(8) DDG(9)                  — 4 secondary
@@ -295,7 +295,7 @@ bool CharacterScreen::handle_input(int key) {
                 commit_pending();
             }
         }
-    } else if (active_tab_ == CharTab::Equipment) {
+    } else if (active_tab_ == PdaTab::Equipment) {
         if (key == '\t') {
             equip_focus_ = (equip_focus_ == EquipFocus::PaperDoll)
                 ? EquipFocus::Inventory : EquipFocus::PaperDoll;
@@ -331,7 +331,7 @@ bool CharacterScreen::handle_input(int key) {
             open_context_menu();
             return true;
         }
-    } else if (active_tab_ == CharTab::Ship) {
+    } else if (active_tab_ == PdaTab::Ship) {
         if (key == '\t') {
             // Cycle focus: Actions -> Equipment -> Inventory -> Actions...
             // Skip Actions if Board Ship isn't available.
@@ -380,7 +380,7 @@ bool CharacterScreen::handle_input(int key) {
                 return true;
             }
         }
-    } else if (active_tab_ == CharTab::Skills) {
+    } else if (active_tab_ == PdaTab::Skills) {
 
         auto has_skill = [&](SkillId id) {
             for (auto sid : player_->learned_skills)
@@ -457,7 +457,7 @@ bool CharacterScreen::handle_input(int key) {
                 }
             }
         }
-    } else if (active_tab_ == CharTab::Tinkering) {
+    } else if (active_tab_ == PdaTab::Tinkering) {
         // Tab: swap focus between left-cluster (workbench/slots/synth/materials) and right catalog.
         if (key == '\t') {
             if (tinker_focus_ == TinkerFocus::Catalog) {
@@ -729,20 +729,20 @@ bool CharacterScreen::handle_input(int key) {
                 context_msg_timer_ = 3;
             }
         }
-    } else if (active_tab_ == CharTab::Journal) {
+    } else if (active_tab_ == PdaTab::Journal) {
         int count = static_cast<int>(player_->journal.size());
         if (count > 0) {
             // List is rendered newest-first, so Up = higher index, Down = lower index
             if (key == KEY_UP) journal_cursor_ = (journal_cursor_ + 1) % count;
             if (key == KEY_DOWN) journal_cursor_ = (journal_cursor_ - 1 + count) % count;
         }
-    } else if (active_tab_ == CharTab::Reputation) {
+    } else if (active_tab_ == PdaTab::Reputation) {
         int count = static_cast<int>(player_->reputation.size());
         if (count > 0) {
             if (key == KEY_UP && cursor_ > 0) --cursor_;
             if (key == KEY_DOWN && cursor_ < count - 1) ++cursor_;
         }
-    } else if (active_tab_ == CharTab::Cooking) {
+    } else if (active_tab_ == PdaTab::Cooking) {
         if (!player_has_skill(*player_, SkillId::Cat_Cooking)) return true;
         if (cooking_qty_prompt_active_) {
             handle_cooking_qty_prompt_key(key);
@@ -752,7 +752,7 @@ bool CharacterScreen::handle_input(int key) {
             handle_cooking_key(key);
         }
         return true;
-    } else if (active_tab_ == CharTab::Quests) {
+    } else if (active_tab_ == PdaTab::Quests) {
         if (quest_cat_expanded_.size() < 4) quest_cat_expanded_.assign(4, true);
         auto vis = build_quest_vis();
         int max_c = static_cast<int>(vis.size()) - 1;
@@ -832,10 +832,10 @@ bool CharacterScreen::handle_input(int key) {
 // Context menu
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::open_context_menu() {
+void PdaScreen::open_context_menu() {
     context_menu_.reset(); // reset
 
-    if (active_tab_ == CharTab::Ship) {
+    if (active_tab_ == PdaTab::Ship) {
         if (ship_focus_ == ShipFocus::Equipment) {
             auto slot = static_cast<ShipSlot>(ship_equip_cursor_);
             const auto& item = player_->ship.slot_ref(slot);
@@ -917,8 +917,8 @@ void CharacterScreen::open_context_menu() {
     context_menu_.open = true;
 }
 
-void CharacterScreen::execute_context_action(char key) {
-    if (active_tab_ == CharTab::Ship) {
+void PdaScreen::execute_context_action(char key) {
+    if (active_tab_ == PdaTab::Ship) {
         if (ship_focus_ == ShipFocus::Equipment) {
             auto slot = static_cast<ShipSlot>(ship_equip_cursor_);
             auto& equipped = player_->ship.slot_ref(slot);
@@ -1104,7 +1104,7 @@ void CharacterScreen::execute_context_action(char key) {
 }
 
 
-void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
+void PdaScreen::draw_context_menu(int screen_w, int screen_h) {
     if (!context_menu_.open) return;
 
     const auto& opts = context_menu_.options;
@@ -1112,7 +1112,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
 
     // Get the item being acted on for entity header
     const Item* ctx_item = nullptr;
-    if (player_ && active_tab_ == CharTab::Equipment) {
+    if (player_ && active_tab_ == PdaTab::Equipment) {
         if (equip_focus_ == EquipFocus::Inventory &&
             inv_cursor_ >= 0 && inv_cursor_ < static_cast<int>(player_->inventory.items.size())) {
             ctx_item = &player_->inventory.items[inv_cursor_];
@@ -1121,7 +1121,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
             const auto& equipped = player_->equipment.slot_ref(slot);
             if (equipped) ctx_item = &(*equipped);
         }
-    } else if (player_ && active_tab_ == CharTab::Ship) {
+    } else if (player_ && active_tab_ == PdaTab::Ship) {
         if (ship_focus_ == ShipFocus::Inventory &&
             ship_inv_cursor_ >= 0 && ship_inv_cursor_ < static_cast<int>(player_->ship.cargo.size())) {
             ctx_item = &player_->ship.cargo[ship_inv_cursor_];
@@ -1207,7 +1207,7 @@ void CharacterScreen::draw_context_menu(int screen_w, int screen_h) {
     }
 }
 
-void CharacterScreen::draw_look_overlay(UIContext& ctx) {
+void PdaScreen::draw_look_overlay(UIContext& ctx) {
     if (!look_open_ || !look_item_) return;
     const auto& item = *look_item_;
 
@@ -1293,12 +1293,12 @@ QuestCategory classify_quest(const Quest& q) {
 }
 } // namespace
 
-void CharacterScreen::draw(int screen_w, int screen_h) {
+void PdaScreen::draw(int screen_w, int screen_h) {
     if (!open_ || !renderer_) return;
 
     // Compute footer text based on active tab
     std::string footer_text;
-    if (active_tab_ == CharTab::Tinkering) {
+    if (active_tab_ == PdaTab::Tinkering) {
         // Catalog is tabbed: [C] Craft only makes sense in the Schematics tab.
         bool in_schem_tab = (tinker_focus_ == TinkerFocus::Catalog
                              && catalog_tab_ == CatalogTab::Schematics);
@@ -1308,11 +1308,11 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
         if (tinker_focus_ == TinkerFocus::Catalog) {
             footer_text += "  [\xe2\x86\x90\xe2\x86\x92] Tab";
         }
-    } else if (active_tab_ == CharTab::Skills) {
+    } else if (active_tab_ == PdaTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
-    } else if (active_tab_ == CharTab::Cooking) {
+    } else if (active_tab_ == PdaTab::Cooking) {
         footer_text = "[ESC] Close  [Tab] Focus  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Add  [x] Clear  [c] Cook";
-    } else if (active_tab_ == CharTab::Equipment) {
+    } else if (active_tab_ == PdaTab::Equipment) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [g] Toggle  [l] Look";
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
@@ -1326,7 +1326,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     int win_w = screen_w - pad_x * 2;
     int win_h = screen_h - pad_y * 2;
     UIContext outer(renderer_, Rect{pad_x, pad_y, win_w, win_h});
-    auto ctx = outer.panel({.footer = footer_text});
+    auto ctx = outer.panel({.title = "PDA", .footer = footer_text});
 
     // Tab bar + separator + content via semantic layout
     std::vector<std::string> tabs(std::begin(tab_names), std::end(tab_names));
@@ -1347,26 +1347,27 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
     UIContext content = tab_area.sub(Rect{pad, 0, tab_area.width() - pad * 2, tab_area.height()});
 
     switch (active_tab_) {
-        case CharTab::Attributes: draw_attributes(content); break;
-        case CharTab::Skills:     draw_skills(full); break;
-        case CharTab::Equipment:  draw_equipment(content); break;
-        case CharTab::Reputation: draw_reputation(content); break;
-        case CharTab::Tinkering:  draw_tinkering(full); break;
-        case CharTab::Journal:    draw_journal(content); break;
-        case CharTab::Quests:    draw_quests(content); break;
-        case CharTab::Ship:       draw_ship(content); break;
-        case CharTab::Cooking:    draw_cooking(full); break;
+        case PdaTab::Attributes: draw_attributes(content); break;
+        case PdaTab::Skills:     draw_skills(full); break;
+        case PdaTab::Equipment:  draw_equipment(content); break;
+        case PdaTab::Reputation: draw_reputation(content); break;
+        case PdaTab::Tinkering:  draw_tinkering(full); break;
+        case PdaTab::Journal:    draw_journal(content); break;
+        case PdaTab::Quests:    draw_quests(content); break;
+        case PdaTab::Ship:       draw_ship(content); break;
+        case PdaTab::Cooking:    draw_cooking(full); break;
+        case PdaTab::Hacking:    draw_hacking(content); break;
     }
 
     // Draw vertical divider only for tabs that use a split layout
-    bool needs_divider = (active_tab_ == CharTab::Attributes
-                       || active_tab_ == CharTab::Skills
-                       || active_tab_ == CharTab::Equipment
-                       || active_tab_ == CharTab::Ship
-                       || active_tab_ == CharTab::Quests
-                       || (active_tab_ == CharTab::Tinkering && player_has_skill(*player_, SkillId::Cat_Tinkering))
-                       || (active_tab_ == CharTab::Cooking && player_has_skill(*player_, SkillId::Cat_Cooking))
-                       || (active_tab_ == CharTab::Journal && !player_->journal.empty()));
+    bool needs_divider = (active_tab_ == PdaTab::Attributes
+                       || active_tab_ == PdaTab::Skills
+                       || active_tab_ == PdaTab::Equipment
+                       || active_tab_ == PdaTab::Ship
+                       || active_tab_ == PdaTab::Quests
+                       || (active_tab_ == PdaTab::Tinkering && player_has_skill(*player_, SkillId::Cat_Tinkering))
+                       || (active_tab_ == PdaTab::Cooking && player_has_skill(*player_, SkillId::Cat_Cooking))
+                       || (active_tab_ == PdaTab::Journal && !player_->journal.empty()));
     if (needs_divider) {
         int divider_x = content.width() / 2;
         // The ┬ on the separator row needs to align with the │ in the content area.
@@ -1405,7 +1406,7 @@ void CharacterScreen::draw(int screen_w, int screen_h) {
 // Stat box drawing helper
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_stat_box(UIContext& ctx, int x, int y,
+void PdaScreen::draw_stat_box(UIContext& ctx, int x, int y,
                                      const char* label, int value,
                                      bool selected, int modifier,
                                      int pending, bool can_allocate) {
@@ -1471,7 +1472,7 @@ void CharacterScreen::draw_stat_box(UIContext& ctx, int x, int y,
     ctx.put(x + 6, bot, BoxDraw::BR, border_color);
 }
 
-void CharacterScreen::draw_section_header(UIContext& ctx, int y,
+void PdaScreen::draw_section_header(UIContext& ctx, int y,
                                            const char* title, int left_margin,
                                            int right_edge) {
     // ──┤ TITLE ├──────── (stops before right_edge)
@@ -1529,7 +1530,7 @@ static const char* res_descriptions[] = {
     "reduces damage from heat, fire, and plasma.",
 };
 
-void CharacterScreen::draw_attributes(UIContext& ctx) {
+void PdaScreen::draw_attributes(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
@@ -1681,7 +1682,7 @@ void CharacterScreen::draw_attributes(UIContext& ctx) {
 // Skills tab
 // ─────────────────────────────────────────────────────────────────
 
-std::vector<CharacterScreen::SkillVisItem> CharacterScreen::build_skill_vis() const {
+std::vector<PdaScreen::SkillVisItem> PdaScreen::build_skill_vis() const {
     std::vector<SkillVisItem> vis;
     const auto& catalog = skill_catalog();
     for (int ci = 0; ci < static_cast<int>(catalog.size()); ++ci) {
@@ -1694,7 +1695,7 @@ std::vector<CharacterScreen::SkillVisItem> CharacterScreen::build_skill_vis() co
     return vis;
 }
 
-void CharacterScreen::draw_skills(UIContext& ctx) {
+void PdaScreen::draw_skills(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
     const auto& catalog = skill_catalog();
@@ -1934,7 +1935,7 @@ void CharacterScreen::draw_skills(UIContext& ctx) {
 // Equipment tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_equipment(UIContext& ctx) {
+void PdaScreen::draw_equipment(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
@@ -2126,7 +2127,7 @@ void CharacterScreen::draw_equipment(UIContext& ctx) {
 // Tinkering tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_tinkering(UIContext& ctx) {
+void PdaScreen::draw_tinkering(UIContext& ctx) {
     // Gate: require Tinkering category unlocked
     if (!player_has_skill(*player_, SkillId::Cat_Tinkering)) {
         draw_stub(ctx, "Tinkering workbench unavailable.");
@@ -2658,7 +2659,7 @@ void CharacterScreen::draw_tinkering(UIContext& ctx) {
 // Journal tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_journal(UIContext& ctx) {
+void PdaScreen::draw_journal(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
@@ -2862,8 +2863,8 @@ const char* quest_cat_name(int idx) {
 
 } // namespace
 
-std::vector<CharacterScreen::QuestVisItem>
-CharacterScreen::build_quest_vis() const {
+std::vector<PdaScreen::QuestVisItem>
+PdaScreen::build_quest_vis() const {
     std::vector<QuestVisItem> vis;
     if (!quests_) return vis;
 
@@ -3034,7 +3035,7 @@ CharacterScreen::build_quest_vis() const {
     return vis;
 }
 
-void CharacterScreen::draw_quests(UIContext& ctx) {
+void PdaScreen::draw_quests(UIContext& ctx) {
     if (quest_cat_expanded_.size() < 4) quest_cat_expanded_.assign(4, true);
 
     if (!quests_ ||
@@ -3371,7 +3372,7 @@ void CharacterScreen::draw_quests(UIContext& ctx) {
     }
 }
 
-void CharacterScreen::draw_ship(UIContext& ctx) {
+void PdaScreen::draw_ship(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
     auto& ship = player_->ship;
@@ -3507,7 +3508,7 @@ void CharacterScreen::draw_ship(UIContext& ctx) {
     }
 }
 
-void CharacterScreen::draw_reputation(UIContext& ctx) {
+void PdaScreen::draw_reputation(UIContext& ctx) {
     if (player_->reputation.empty()) {
         ctx.text({.x = 2, .y = 2, .content = "No faction standings.", .tag = UITag::TextDim});
         return;
@@ -3574,9 +3575,17 @@ void CharacterScreen::draw_reputation(UIContext& ctx) {
 // Stub tab
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::draw_stub(UIContext& ctx, const char* message) {
+void PdaScreen::draw_stub(UIContext& ctx, const char* message) {
     ctx.text({.x = ctx.width() / 2 - static_cast<int>(std::string(message).size()) / 2,
               .y = ctx.height() / 2, .content = message, .tag = UITag::TextDim});
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Hacking tab
+// ─────────────────────────────────────────────────────────────────
+
+void PdaScreen::draw_hacking(UIContext& ctx) {
+    draw_stub(ctx, "Requires a cyberdeck and the Hacking skill. (Feature in development.)");
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -3607,7 +3616,7 @@ int cooking_inventory_qty_for_def(const Player& p, uint16_t def_id) {
 
 } // anonymous
 
-void CharacterScreen::draw_cooking(UIContext& ctx) {
+void PdaScreen::draw_cooking(UIContext& ctx) {
     if (!player_has_skill(*player_, SkillId::Cat_Cooking)) {
         draw_stub(ctx, "Kitchen unavailable.");
         ctx.text({.x = ctx.width() / 2 - 22, .y = ctx.height() / 2 + 1,
@@ -3919,7 +3928,7 @@ void CharacterScreen::draw_cooking(UIContext& ctx) {
 // Cooking tab — input handlers
 // ─────────────────────────────────────────────────────────────────
 
-void CharacterScreen::handle_cooking_key(int key) {
+void PdaScreen::handle_cooking_key(int key) {
     // Tab cycles focus: Slots <-> Cookbook.
     if (key == '\t') {
         cooking_focus_ = (cooking_focus_ == CookingFocus::Slots)
@@ -3966,7 +3975,7 @@ void CharacterScreen::handle_cooking_key(int key) {
     }
 }
 
-void CharacterScreen::handle_cooking_picker_key(int key) {
+void PdaScreen::handle_cooking_picker_key(int key) {
     std::vector<const Item*> ing;
     for (const auto& it : player_->inventory.items)
         if (it.type == ItemType::Ingredient) ing.push_back(&it);
@@ -3981,7 +3990,7 @@ void CharacterScreen::handle_cooking_picker_key(int key) {
     if (key == ' ' || key == '\n' || key == '\r') cooking_picker_confirm();
 }
 
-void CharacterScreen::cooking_open_picker_for_slot(int slot_idx) {
+void PdaScreen::cooking_open_picker_for_slot(int slot_idx) {
     int count = 0;
     for (const auto& it : player_->inventory.items)
         if (it.type == ItemType::Ingredient) ++count;
@@ -3995,7 +4004,7 @@ void CharacterScreen::cooking_open_picker_for_slot(int slot_idx) {
     cooking_picker_cursor_ = 0;
 }
 
-void CharacterScreen::cooking_picker_confirm() {
+void PdaScreen::cooking_picker_confirm() {
     std::vector<const Item*> ing;
     for (const auto& it : player_->inventory.items)
         if (it.type == ItemType::Ingredient) ing.push_back(&it);
@@ -4015,7 +4024,7 @@ void CharacterScreen::cooking_picker_confirm() {
     cooking_qty_prompt_value_ = prefill;
 }
 
-void CharacterScreen::handle_cooking_qty_prompt_key(int key) {
+void PdaScreen::handle_cooking_qty_prompt_key(int key) {
     uint16_t def = cooking_qty_prompt_item_def_id_;
     // Available qty for clamping.
     int available = 0;
@@ -4052,7 +4061,7 @@ void CharacterScreen::handle_cooking_qty_prompt_key(int key) {
     }
 }
 
-void CharacterScreen::cooking_commit_qty_prompt() {
+void PdaScreen::cooking_commit_qty_prompt() {
     uint16_t def = cooking_qty_prompt_item_def_id_;
     int qty = cooking_qty_prompt_value_;
 
@@ -4082,18 +4091,18 @@ void CharacterScreen::cooking_commit_qty_prompt() {
     cooking_qty_prompt_active_ = false;
 }
 
-void CharacterScreen::cooking_clear_slot(int idx) {
+void PdaScreen::cooking_clear_slot(int idx) {
     if (idx < 0 || idx > 2) return;
     player_->cooking_slots[idx] = PotSlot{};
 }
 
-void CharacterScreen::cooking_toggle_recipe(uint16_t recipe_id) {
+void PdaScreen::cooking_toggle_recipe(uint16_t recipe_id) {
     auto it = cooking_collapsed_recipes_.find(recipe_id);
     if (it != cooking_collapsed_recipes_.end()) cooking_collapsed_recipes_.erase(it);
     else cooking_collapsed_recipes_.insert(recipe_id);
 }
 
-void CharacterScreen::cooking_attempt_cook() {
+void PdaScreen::cooking_attempt_cook() {
     if (!has_effect(player_->effects, EffectId::CookingFireAura)) {
         context_message_ = "You need to be near a fire to cook.";
         context_msg_timer_ = 3;
@@ -4173,23 +4182,23 @@ void CharacterScreen::cooking_attempt_cook() {
 // Tab help — shown once per tab for new players (block-layout popup)
 // ─────────────────────────────────────────────────────────────────
 
-static const char* tab_help_body(CharTab tab) {
+static const char* tab_help_body(PdaTab tab) {
     switch (tab) {
-        case CharTab::Skills:
+        case PdaTab::Skills:
             return "Your learned skills and available skill trees.\n\n"
                    "Skills are organized into categories. Expand a "
                    "category to see individual skills. Spend skill "
                    "points to learn new abilities.\n\n"
                    "[Space] Expand/collapse category\n"
                    "[l] Learn a skill (costs SP)";
-        case CharTab::Attributes:
+        case PdaTab::Attributes:
             return "Your primary attributes define your character.\n\n"
                    "Attributes affect combat, health, and more. "
                    "When you level up you gain attribute points "
                    "that can be spent here.\n\n"
                    "[-/+] Adjust allocation\n"
                    "[Space] Commit changes";
-        case CharTab::Equipment:
+        case PdaTab::Equipment:
             return "Manage your personal gear and inventory.\n\n"
                    "Left side shows your equipped items. Right "
                    "side shows your inventory (backpack).\n\n"
@@ -4198,7 +4207,7 @@ static const char* tab_help_body(CharTab tab) {
                    "[r] Remove equipped item\n"
                    "[d] Drop item from inventory\n"
                    "[l] Look at item details";
-        case CharTab::Tinkering:
+        case PdaTab::Tinkering:
             return "Analyze, repair, and enhance your gear.\n\n"
                    "Place an item on the workbench to work on it. "
                    "Items can be repaired, analyzed for blueprints, "
@@ -4207,25 +4216,25 @@ static const char* tab_help_body(CharTab tab) {
                    "[a] Analyze for blueprints\n"
                    "[s] Salvage for materials\n"
                    "[f] Assemble from blueprints";
-        case CharTab::Journal:
+        case PdaTab::Journal:
             return "Your personal log of discoveries and events.\n\n"
                    "Entries are added as you explore the galaxy. "
                    "Check here for lore, encounter notes, and "
                    "important story moments.";
-        case CharTab::Quests:
+        case PdaTab::Quests:
             return "Track your active and completed quests.\n\n"
                    "Active quests show their objectives and your "
                    "progress toward completing them. Completed "
                    "quests are listed below.\n\n"
                    "Rewards are shown for each active quest.";
-        case CharTab::Reputation:
+        case PdaTab::Reputation:
             return "Your standing with the galaxy's factions.\n\n"
                    "Reputation affects prices, dialog options, "
                    "and quest availability. Help a faction to "
                    "improve your standing. Hostile actions will "
                    "lower it.\n\n"
                    "Tiers: Hated < Disliked < Neutral < Liked < Trusted";
-        case CharTab::Ship:
+        case PdaTab::Ship:
             return "Your starship's components and diagnostics.\n\n"
                    "Install and manage ship components here. "
                    "Critical systems must be online before you "
@@ -4233,7 +4242,7 @@ static const char* tab_help_body(CharTab tab) {
                    "[Tab] Switch components/cargo\n"
                    "[Space] Install or uninstall a component\n\n"
                    "Board your ship to manage equipment.";
-        case CharTab::Cooking:
+        case PdaTab::Cooking:
             return "The kitchen. Combine ingredients in the cooking pot "
                    "and craft dishes at a campfire, stove, or kitchen.\n\n"
                    "[Tab] switch between pot slots, ingredients, cookbook\n"
@@ -4241,26 +4250,30 @@ static const char* tab_help_body(CharTab tab) {
                    "[x] on a slot to clear it\n"
                    "[c] cook the slotted ingredients\n\n"
                    "You must be near a cooking fire to cook.";
+        case PdaTab::Hacking:
+            return "Requires a cyberdeck and the Hacking skill.\n\n"
+                   "Feature in development.";
     }
     return "";
 }
 
-static const char* tab_help_title(CharTab tab) {
+static const char* tab_help_title(PdaTab tab) {
     switch (tab) {
-        case CharTab::Skills:     return "Skills";
-        case CharTab::Attributes: return "Attributes";
-        case CharTab::Equipment:  return "Inventory & Equipment";
-        case CharTab::Tinkering:  return "Tinkering";
-        case CharTab::Journal:    return "Journal";
-        case CharTab::Quests:     return "Quests";
-        case CharTab::Reputation: return "Reputation";
-        case CharTab::Ship:       return "Ship";
-        case CharTab::Cooking:    return "Cooking";
+        case PdaTab::Skills:     return "Skills";
+        case PdaTab::Attributes: return "Attributes";
+        case PdaTab::Equipment:  return "Inventory & Equipment";
+        case PdaTab::Tinkering:  return "Tinkering";
+        case PdaTab::Journal:    return "Journal";
+        case PdaTab::Quests:     return "Quests";
+        case PdaTab::Reputation: return "Reputation";
+        case PdaTab::Ship:       return "Ship";
+        case PdaTab::Cooking:    return "Cooking";
+        case PdaTab::Hacking:    return "Hacking";
     }
     return "";
 }
 
-void CharacterScreen::draw_tab_help(int screen_w, int screen_h) {
+void PdaScreen::draw_tab_help(int screen_w, int screen_h) {
     if (!tab_help_menu_.open) return;
 
     int win_w = static_cast<int>(screen_w * 0.45f);
@@ -4329,7 +4342,7 @@ void CharacterScreen::draw_tab_help(int screen_w, int screen_h) {
     }
 }
 
-void CharacterScreen::show_tab_help() {
+void PdaScreen::show_tab_help() {
     int tab_bit = 1 << static_cast<int>(active_tab_);
     if (player_->player_class == PlayerClass::DevCommander) return;
     if (player_->tab_help_seen & tab_bit) return;

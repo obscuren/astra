@@ -1044,7 +1044,7 @@ void Game::render_play() {
     }
     repair_bench_.draw(screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
-    character_screen_.draw(screen_w_, screen_h_);
+    pda_screen_.draw(screen_w_, screen_h_);
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
     render_cell_picker();

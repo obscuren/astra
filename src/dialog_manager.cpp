@@ -966,7 +966,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         return;
     }
 
-    // Tutorial followup -- "Got it, I'll check my Datapad" opens character screen
+    // Tutorial followup -- "Got it, I'll check my Datapad" opens PDA screen
     if (dialog_node_ == -12) {
         open_ = false;
         dialog_node_ = -1;
@@ -1017,7 +1017,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         dialog_tree_ = nullptr;
         open_ = false;
         if (selected == 0) {
-            // Ship Systems -> open character screen on Ship tab
+            // Ship Systems -> open PDA screen on Ship tab
             aria_open_ship_tab_ = true;
         } else if (selected == 1) {
             // Star Chart

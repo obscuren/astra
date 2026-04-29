@@ -15,7 +15,7 @@
 #include "astra/save_file.h"
 #include "astra/star_chart.h"
 #include "astra/character_creation.h"
-#include "astra/character_screen.h"
+#include "astra/pda_screen.h"
 #include "astra/combat_system.h"
 #include "astra/energy_system.h"
 #include "astra/dev_console.h"
@@ -308,7 +308,7 @@ private:
     AuraSystem aura_system_;
     StarChartViewer star_chart_viewer_;
     TradeWindow trade_window_;
-    CharacterScreen character_screen_;
+    PdaScreen pda_screen_;
     CharacterCreation character_creation_;
     CombatSystem combat_;
     EnergySystem energy_;
