@@ -279,7 +279,10 @@ bool Game::is_interactable(int tx, int ty) const {
     Tile t = world_.map().get(tx, ty);
     if (t == Tile::Fixture) {
         int fid = world_.map().fixture_id(tx, ty);
-        if (fid >= 0 && world_.map().fixture(fid).interactable) return true;
+        if (fid >= 0) {
+            const auto& fd = world_.map().fixture(fid);
+            if (fd.interactable || fd.cyber) return true;
+        }
     }
     // Check for ground items at player's own tile
     if (tx == player_.x && ty == player_.y) {

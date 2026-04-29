@@ -1048,6 +1048,8 @@ void Game::render_play() {
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
     render_cell_picker();
+    render_hackable_menu();
+    render_qh_picker();
 
     // Welcome screen overlay
     if (show_welcome_) {
@@ -2174,6 +2176,96 @@ void Game::render_cell_picker() {
         ctx.text({.x = 1, .y = y + row, .content = head, .tag = head_tag});
         ctx.text_rich(1 + static_cast<int>(head.size()), y + row,
                       cell_picker_.options[i].label);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Hackable fixture interaction menu
+// ---------------------------------------------------------------------------
+
+void Game::render_hackable_menu() {
+    if (!hackable_menu_.open) return;
+
+    int option_count = static_cast<int>(hackable_menu_.options.size());
+    if (option_count == 0) return;
+
+    int content_w = 0;
+    for (const auto& opt : hackable_menu_.options) {
+        int w = 6 + static_cast<int>(opt.label.size());
+        if (w > content_w) content_w = w;
+    }
+    int win_w = content_w + 6;
+    if (win_w < 36) win_w = 36;
+    int max_w = static_cast<int>(screen_w_ * 0.55f);
+    if (win_w > max_w) win_w = max_w;
+
+    int content_h = 1 + option_count * 2 - 1 + 1;
+    int chrome_h = 2 + 2 + 1;
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = hackable_menu_.title, .footer = "[Esc] Cancel"});
+
+    int sel = hackable_menu_.selection;
+    int y = 1;
+    int list_h = ctx.height() - y;
+    int scroll = 0;
+    if (sel >= list_h / 2) scroll = std::max(0, sel - list_h / 2);
+    int row = 0;
+    for (int i = scroll; i < option_count && row < list_h; ++i, row += 2) {
+        bool is_sel = (i == sel);
+        std::string head = std::string(is_sel ? "> " : "  ")
+                         + "[" + std::string(1, hackable_menu_.options[i].key) + "] ";
+        UITag head_tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
+        ctx.text({.x = 1, .y = y + row, .content = head, .tag = head_tag});
+        ctx.text({.x = 1 + static_cast<int>(head.size()), .y = y + row,
+                  .content = hackable_menu_.options[i].label, .tag = head_tag});
+    }
+}
+
+void Game::render_qh_picker() {
+    if (!qh_picker_.open) return;
+
+    int option_count = static_cast<int>(qh_picker_.options.size());
+    if (option_count == 0) return;
+
+    int content_w = 0;
+    for (const auto& opt : qh_picker_.options) {
+        int w = 6 + static_cast<int>(opt.label.size());
+        if (w > content_w) content_w = w;
+    }
+    int win_w = content_w + 6;
+    if (win_w < 36) win_w = 36;
+    int max_w = static_cast<int>(screen_w_ * 0.55f);
+    if (win_w > max_w) win_w = max_w;
+
+    int content_h = 1 + option_count * 2 - 1 + 1;
+    int chrome_h = 2 + 2 + 1;
+    int win_h = content_h + chrome_h;
+
+    int wx = (screen_w_ - win_w) / 2;
+    int wy = (screen_h_ - win_h) / 2;
+
+    UIContext full(renderer_.get(), Rect{wx, wy, win_w, win_h});
+    auto ctx = full.panel({.title = qh_picker_.title, .footer = "[Esc] Cancel"});
+
+    int sel = qh_picker_.selection;
+    int y = 1;
+    int list_h = ctx.height() - y;
+    int scroll = 0;
+    if (sel >= list_h / 2) scroll = std::max(0, sel - list_h / 2);
+    int row = 0;
+    for (int i = scroll; i < option_count && row < list_h; ++i, row += 2) {
+        bool is_sel = (i == sel);
+        std::string head = std::string(is_sel ? "> " : "  ")
+                         + "[" + std::string(1, qh_picker_.options[i].key) + "] ";
+        UITag head_tag = is_sel ? UITag::OptionSelected : UITag::OptionNormal;
+        ctx.text({.x = 1, .y = y + row, .content = head, .tag = head_tag});
+        ctx.text({.x = 1 + static_cast<int>(head.size()), .y = y + row,
+                  .content = qh_picker_.options[i].label, .tag = head_tag});
     }
 }
 

@@ -313,6 +313,11 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
 void DialogManager::interact_fixture(int fid, Game& game) {
     auto& f = game.world().map().fixture_mut(fid);
 
+    if (f.cyber) {
+        game.open_hackable_menu(fid);
+        return;
+    }
+
     switch (f.type) {
         case FixtureType::HealPod: {
             if (f.last_used_tick >= 0 && f.cooldown > 0) {

@@ -1,8 +1,10 @@
 #include "astra/ability_bar.h"
+#include "astra/cyberdeck.h"
 #include "astra/game.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/program.h"
+#include "astra/skill_defs.h"
 
 namespace astra {
 
@@ -237,6 +239,52 @@ void Game::handle_play_input(int key) {
     // accidentally trigger other actions mid-telegraph.
     if (telegraph_.active()) {
         telegraph_.handle_input(key, *this);
+        return;
+    }
+
+    // Hackable fixture menu intercept.
+    if (hackable_menu_.open) {
+        MenuResult r = hackable_menu_.handle_input(key);
+        if (r == MenuResult::Selected) {
+            int sel = hackable_menu_.selection;
+            int slot_idx = hackable_menu_slots_[sel];
+            int fid = hackable_menu_fid_;
+            auto& fd = world_.map().fixture_mut(fid);
+            if (fd.cyber) {
+                Hackable& hack = *fd.cyber;
+                if (slot_idx == -1) {
+                    if (!player_has_skill(player_, SkillId::Cat_Hacking)) {
+                        log("You need the Hacking skill to jack in.");
+                    } else {
+                        log("The Grid is not yet implemented (Plan 3 will add it).");
+                    }
+                } else {
+                    auto& deck = *player_.equipment.cyberdeck->deck;
+                    Item probe = build_by_def_id(deck.loaded[slot_idx].program_def_id);
+                    int tx = -1, ty = -1;
+                    {
+                        auto& m = world_.map();
+                        for (int y = 0; y < m.height() && tx < 0; ++y) {
+                            for (int x = 0; x < m.width(); ++x) {
+                                if (m.get(x, y) == Tile::Fixture &&
+                                    m.fixture_id(x, y) == fid) {
+                                    tx = x; ty = y;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (tx >= 0) {
+                        std::string msg = hacking_.execute_quickhack(*this, probe, hack, tx, ty);
+                        log(msg);
+                        advance_world(ActionCost::interact);
+                    }
+                }
+            }
+            hackable_menu_.open = false;
+        } else if (r == MenuResult::Closed) {
+            hackable_menu_.open = false;
+        }
         return;
     }
 
@@ -622,6 +670,58 @@ void Game::open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots) {
     qh_picker_target_x_ = tx;
     qh_picker_target_y_ = ty;
     qh_picker_slots_ = menu_slots;
+}
+
+void Game::open_hackable_menu(int fixture_id) {
+    auto& fd = world_.map().fixture_mut(fixture_id);
+    if (!fd.cyber) return;
+    Hackable& hack = *fd.cyber;
+
+    hackable_menu_.reset();
+    hackable_menu_.title = std::string(device_kind_name(hack.device_kind)) +
+                           " (tier " + std::to_string(hack.security_tier) + ")";
+    hackable_menu_slots_.clear();
+
+    auto& deck_slot = player_.equipment.cyberdeck;
+    if (deck_slot && deck_slot->deck) {
+        auto& deck = *deck_slot->deck;
+        for (int i = 0; i < deck.stats.slots; ++i) {
+            const auto& s = deck.loaded[i];
+            if (s.program_def_id == 0) continue;
+            Item probe = build_by_def_id(s.program_def_id);
+            if (!probe.program) continue;
+            const ProgramDef* def = find_program(probe.program->id);
+            if (!def || def->kind != ProgramKind::Qh) continue;
+            bool match = std::any_of(def->target_filter.begin(),
+                                     def->target_filter.end(),
+                                     [&](DeviceKind k){ return k == hack.device_kind; });
+            if (!match) continue;
+            char k = static_cast<char>('a' + hackable_menu_slots_.size());
+            std::string label = std::string(def->filename) + "  (" +
+                                std::to_string(def->ram_cost) + " RAM)";
+            hackable_menu_.add_option(k, label);
+            hackable_menu_slots_.push_back(i);
+        }
+    }
+
+    if (hack.device_kind == DeviceKind::PrecursorConsole) {
+        std::string label = "Jack In";
+        if (!player_has_skill(player_, SkillId::Cat_Hacking)) {
+            label += "  (requires Cat_Hacking)";
+        }
+        hackable_menu_.add_option('j', label);
+        hackable_menu_slots_.push_back(-1);
+    }
+
+    if (hackable_menu_.options.empty()) {
+        log(std::string(device_kind_name(hack.device_kind)) +
+            ": no compatible programs loaded.");
+        return;
+    }
+
+    hackable_menu_.selection = 0;
+    hackable_menu_.open = true;
+    hackable_menu_fid_ = fixture_id;
 }
 
 } // namespace astra

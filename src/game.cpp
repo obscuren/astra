@@ -883,6 +883,9 @@ void Game::new_game() {
     hacking_.reset();
     qh_picker_.open = false;
     qh_picker_slots_.clear();
+    hackable_menu_.open = false;
+    hackable_menu_slots_.clear();
+    hackable_menu_fid_ = -1;
     input_.cancel_look();
     ;
     inventory_cursor_ = 0;
@@ -1208,6 +1211,9 @@ void Game::new_game(const CreationResult& cr) {
     hacking_.reset();
     qh_picker_.open = false;
     qh_picker_slots_.clear();
+    hackable_menu_.open = false;
+    hackable_menu_slots_.clear();
+    hackable_menu_fid_ = -1;
     input_.cancel_look();
     ;
     inventory_cursor_ = 0;
