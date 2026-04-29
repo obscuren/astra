@@ -3,10 +3,12 @@
 #include "astra/aura.h"
 #include "astra/dice.h"
 #include "astra/effect.h"
+#include "astra/hackable.h"
 #include "astra/interaction.h"
 #include "astra/race.h"
 
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -77,6 +79,7 @@ struct Npc {
     NpcRole npc_role = NpcRole::Civilian;
     uint64_t flags = 0;         // CreatureFlag bitfield (Mechanical, Biological, ...)
     InteractionData interactions;
+    std::optional<Hackable> cyber;       // present iff this NPC is hackable
 
     // When displaced by player swap, NPC tries to return here next tick
     int return_x = -1;

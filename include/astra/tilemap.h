@@ -1,11 +1,13 @@
 #pragma once
 
 #include "astra/dungeon/puzzles.h"
+#include "astra/hackable.h"
 #include "astra/rect.h"
 #include "astra/renderer.h"
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -468,6 +470,9 @@ struct FixtureData {
     uint16_t    puzzle_id         = 0;   // 0 = not linked to any puzzle
     std::string proximity_message;       // empty = no proximity trigger
     uint8_t     proximity_radius  = 0;   // 0 = disabled; Chebyshev distance from player
+
+    // Optional cyber trait — present when this fixture is hackable.
+    std::optional<Hackable> cyber;
 };
 
 // Returns true if `fd` carries all bits set in `tag`.

@@ -129,6 +129,7 @@ set(ASTRA_SOURCES
     src/tinkering.cpp
     src/trap.cpp
     src/grenade.cpp
+    src/hackable.cpp
     src/ground_effect.cpp
     src/noise_event.cpp
     src/skill_defs.cpp
