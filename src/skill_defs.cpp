@@ -395,6 +395,76 @@ static std::string advanced_fire_making_description() {
     return s;
 }
 
+// ── Hacking sub-skills ──────────────────────────────────────────
+static std::string hacking_category_description() {
+    std::string s = "Penetration of electronic systems and the discipline to walk in cyberspace as a second body.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " Required to ";
+    s += colored("Jack In", Color::Cyan);
+    s += " at compatible Precursor consoles. Quickhacks against in-world devices ";
+    s += "do ";
+    s += colored("not", Color::Yellow);
+    s += " require this category — only an equipped cyberdeck.";
+    return s;
+}
+
+static std::string intrusion_description() {
+    std::string s = "Light-footed cyber-intrusion technique. Reduces the trace your actions leave.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " -1 Trace per noisy action while in the Grid. (Plan 3.)";
+    return s;
+}
+
+static std::string ice_breaking_description() {
+    std::string s = "Cracking discipline against hostile counter-intrusion software.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " +1 damage vs ICE while in the Grid. (Plan 3.)";
+    return s;
+}
+
+static std::string daemon_mastery_description() {
+    std::string s = "Compiled program slot expansion via long-running background processes.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " +1 cyberdeck slot. (Plan 3.)";
+    return s;
+}
+
+static std::string ghost_protocol_description() {
+    std::string s = "Pre-launch heat-sink protocol that absorbs the first program of each session.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " Your first program each Grid run is heatless. (Plan 3.)";
+    return s;
+}
+
+static std::string deep_grid_navigator_description() {
+    std::string s = "Pathing intuition for the deep-Grid lattice. Cracks gateways and maps unfamiliar nets.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " +25% gateway crack chance and reveal of one tier-up map node per session. (Plan 3.)";
+    return s;
+}
+
+static std::string neural_fortitude_description() {
+    std::string s = "Disciplined dissociation. The body bleeds less when the avatar is hurt.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " Halve black-ICE bleed-through to real HP. (Plan 3.)";
+    return s;
+}
+
+static std::string code_craft_description() {
+    std::string s = "Personal toolchain for compiling exotic programs from raw fragments.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " Unlocks T3 program tinkering recipes. (Plan 4.)";
+    return s;
+}
+
+static std::string consciousness_anchor_description() {
+    std::string s = "(Capstone.) The full anchoring rite. Your selfhood persists past the rebirth.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " Full deep-Grid persistence: base, programs, AI rep, currency, and lore archive ";
+    s += "carry across Sgr A*. (Plan 4.)";
+    return s;
+}
+
 const std::vector<SkillCategory>& skill_catalog() {
     static const std::vector<SkillCategory> catalog = {
         {SkillId::Cat_Acrobatics, "Acrobatics",
@@ -541,6 +611,33 @@ const std::vector<SkillCategory>& skill_catalog() {
              advanced_fire_making_description(),
              true, 75, 0, nullptr},
         }},
+        {SkillId::Cat_Hacking, "Hacking",
+         hacking_category_description(), 100, {
+            {SkillId::Intrusion, "Intrusion",
+             intrusion_description(),
+             true, 100, 14, "Intelligence"},
+            {SkillId::IceBreaking, "Ice Breaking",
+             ice_breaking_description(),
+             true, 100, 13, "Intelligence"},
+            {SkillId::DaemonMastery, "Daemon Mastery",
+             daemon_mastery_description(),
+             true, 100, 14, "Intelligence"},
+            {SkillId::GhostProtocol, "Ghost Protocol",
+             ghost_protocol_description(),
+             true, 150, 15, "Willpower"},
+            {SkillId::DeepGridNavigator, "Deep-Grid Navigator",
+             deep_grid_navigator_description(),
+             true, 150, 15, "Intelligence"},
+            {SkillId::NeuralFortitude, "Neural Fortitude",
+             neural_fortitude_description(),
+             true, 200, 16, "Willpower"},
+            {SkillId::CodeCraft, "Code Craft",
+             code_craft_description(),
+             true, 200, 16, "Intelligence"},
+            {SkillId::ConsciousnessAnchor, "Consciousness Anchor",
+             consciousness_anchor_description(),
+             true, 300, 18, "Willpower"},
+         }},
     };
     return catalog;
 }

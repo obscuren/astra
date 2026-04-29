@@ -72,6 +72,17 @@ enum class SkillId : uint32_t {
     // Cooking
     Cat_Cooking         = 11,
     AdvancedFireMaking  = 1100,
+
+    // Hacking
+    Cat_Hacking         = 12,    // gate for jacking into the Grid (Plan 3+)
+    Intrusion           = 1200,  // -1 trace per noisy action (Plan 3)
+    IceBreaking         = 1201,  // +1 dmg vs ICE (Plan 3)
+    DaemonMastery       = 1202,  // +1 deck slot (Plan 3)
+    GhostProtocol       = 1203,  // first program each Grid run is heatless (Plan 3)
+    DeepGridNavigator   = 1204,  // gateway crack chance + map reveal (Plan 3)
+    NeuralFortitude     = 1205,  // halve black-ICE bleed-through (Plan 3)
+    CodeCraft           = 1206,  // unlock T3 program tinker recipes (Plan 4)
+    ConsciousnessAnchor = 1207,  // (capstone) full deep-Grid persistence (Plan 4)
 };
 
 struct SkillDef {
