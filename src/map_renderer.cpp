@@ -10,9 +10,37 @@
 #include "astra/render_descriptor.h"
 #include "astra/quest.h"
 #include "astra/trap.h"
+#include "astra/ground_effect.h"
 #include "terminal_theme.h"
 
 namespace astra {
+
+namespace {
+
+const char* ground_effect_glyph(GroundEffectKind kind, int ttl, int center_ttl, int phase) {
+    if (kind == GroundEffectKind::Smoke) {
+        int hi = (center_ttl * 2) / 3;   // 8 when center=12
+        int lo = center_ttl / 3;         // 4 when center=12
+        if (ttl >= hi) {
+            // Densest tier: ▒ ↔ ▓
+            return phase ? "\xe2\x96\x93" /*▓*/ : "\xe2\x96\x92" /*▒*/;
+        } else if (ttl >= lo) {
+            // Mid tier: ░ ↔ ▒
+            return phase ? "\xe2\x96\x92" /*▒*/ : "\xe2\x96\x91" /*░*/;
+        } else {
+            // Thin wisps: . ↔ ░
+            return phase ? "\xe2\x96\x91" /*░*/ : ".";
+        }
+    }
+    return "?";
+}
+
+Color ground_effect_color(GroundEffectKind kind) {
+    if (kind == GroundEffectKind::Smoke) return Color::DarkGray;
+    return Color::White;
+}
+
+} // namespace
 
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
@@ -296,6 +324,23 @@ void render_map(const MapRenderContext& rc) {
 
                 wctx.put(sx, sy, desc);
             }
+        }
+    }
+
+    // Ground-effect pass — draw active smoke / future acid / ice. Sits between
+    // fixtures and traps so traps overlay smoke (you can still see your own
+    // mine glyphs through fog).
+    {
+        const auto& effects = rc.world.ground_effects();
+        int phase = rc.world.world_tick() & 1;
+        for (const GroundEffect& ge : effects) {
+            if (rc.world.visibility().get(ge.x, ge.y) != Visibility::Visible) continue;
+            int sx = ge.x - rc.camera_x;
+            int sy = ge.y - rc.camera_y;
+            if (sx < 0 || sx >= rc.map_rect.w || sy < 0 || sy >= rc.map_rect.h) continue;
+            const auto& def = ground_effect_def_for(ge.kind);
+            const char* glyph = ground_effect_glyph(ge.kind, ge.ttl, def.center_ttl, phase);
+            ctx.put(sx, sy, glyph, ground_effect_color(ge.kind));
         }
     }
 

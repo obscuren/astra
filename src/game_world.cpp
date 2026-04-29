@@ -16,6 +16,7 @@
 #include "astra/scenario_effects.h"
 #include "astra/star_chart.h"
 #include "astra/edge_strip.h"
+#include "astra/ground_effect.h"
 #include "astra/noise_event.h"
 #include "astra/trap.h"
 #include "astra/world_constants.h"
@@ -216,6 +217,7 @@ void Game::save_current_location() {
     state.ground_items = std::move(world_.ground_items());
     state.traps = std::move(world_.traps());
     state.noise_events = std::move(world_.noise_events());
+    state.ground_effects = std::move(world_.ground_effects());
     state.player_x = player_.x;
     state.player_y = player_.y;
 }
@@ -230,6 +232,7 @@ void Game::restore_location(const LocationKey& key) {
     world_.ground_items() = std::move(state.ground_items);
     world_.traps() = std::move(state.traps);
     world_.noise_events() = std::move(state.noise_events);
+    world_.ground_effects() = std::move(state.ground_effects);
 
     // Always restore cached position — return to where we left
     player_.x = state.player_x;
@@ -2092,7 +2095,9 @@ void Game::recompute_fov() {
         radius = world_.day_clock().effective_view_radius(max_radius, player_.light_radius);
     }
 
-    compute_fov(world_.map(), world_.visibility(), player_.x, player_.y, radius);
+    auto smoke_opaque = opaque_ground_effect_tiles(*this);
+    OpacityProbe probe{ &world_.map(), &smoke_opaque };
+    compute_fov(probe, world_.visibility(), player_.x, player_.y, radius);
 
     // Light source pass: visible light-emitting fixtures extend FOV
     {
@@ -2108,7 +2113,7 @@ void Game::recompute_fov() {
             }
         }
         if (!lights.empty()) {
-            compute_fov_lit(world_.map(), world_.visibility(),
+            compute_fov_lit(probe, world_.visibility(),
                             player_.x, player_.y, lights);
         }
     }
@@ -2132,10 +2137,34 @@ void Game::recompute_fov() {
         }
     }
 
+    // Bresenham-LOS predicate: true if any intermediate tile between
+    // (player.x, player.y) and (x, y) sits in the smoke-opaque set. Used
+    // below to gate the lit-region reveal so smoke clouds actually conceal
+    // tiles in fully-lit rooms (otherwise the room-reveal would re-mark
+    // every tile visible regardless of FOV).
+    auto smoke_blocks_los = [&](int tx, int ty) -> bool {
+        if (smoke_opaque.empty()) return false;
+        int x0 = player_.x, y0 = player_.y;
+        int dx = std::abs(tx - x0), dy = std::abs(ty - y0);
+        int sx = x0 < tx ? 1 : -1, sy = y0 < ty ? 1 : -1;
+        int err = dx - dy;
+        int x = x0, y = y0;
+        while (x != tx || y != ty) {
+            int e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x += sx; }
+            if (e2 < dx)  { err += dx; y += sy; }
+            if (x == tx && y == ty) break;
+            uint64_t key = (uint64_t(uint32_t(x)) << 32) | uint32_t(y);
+            if (smoke_opaque.count(key)) return true;
+        }
+        return false;
+    };
+
     for (int y = 0; y < world_.map().height(); ++y) {
         for (int x = 0; x < world_.map().width(); ++x) {
             int rid = world_.map().region_id(x, y);
             if (rid >= 0 && reveal[rid]) {
+                if (smoke_blocks_los(x, y)) continue;
                 world_.visibility().set_visible(x, y);
             }
         }
@@ -2216,6 +2245,7 @@ void Game::advance_world(int cost) {
 
     // Decay live noise events (Decoy Mine pings, etc.).
     tick_noise_events(*this);
+    tick_ground_effects(*this);
 
     // Tick and expire effects
     tick_effects(player_.effects, player_.hp, player_.effective_max_hp());

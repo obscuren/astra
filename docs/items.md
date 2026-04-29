@@ -78,16 +78,18 @@ Slot: `Face`, `Back`. Passive bonuses while equipped.
 
 ## Grenades
 
-Slot: `Thrown`, stackable. Frag/EMP/Cryo are the original three; Incendiary/Smoke/Flashbang come from the schematic-craftable set and are inert until the consumable-use spec lands.
+Slot: `Thrown`, stackable. Frag/EMP/Cryo/Incendiary/Smoke are wired; Flashbang is still inert until its true Stun spec lands.
 
 | Name | ID | Dev | Rarity range | Damage | Type | $ |
 |------|----|----|----|----|----|----|
 | Frag Grenade | 27 | `frag_grenade` | Common..Uncommon | 2d6 | Kinetic | 30 |
 | EMP Grenade | 28 | `emp_grenade` | Uncommon..Rare | 1d8 | Electrical | 50 |
 | Cryo Grenade | 29 | `cryo_grenade` | Uncommon..Rare | 2d8 | Cryo | 80 |
-| Incendiary Grenade | 205 | `incendiary_grenade` | Uncommon..Rare | (inert) | — | 60 |
-| Smoke Grenade | 206 | `smoke_grenade` | Common..Common | (inert) | — | 30 |
+| Incendiary Grenade | 205 | `incendiary_grenade` | Uncommon..Rare | 8 + Burn (4t / 2 dmg) | Fire | 60 |
+| Smoke Grenade | 206 | `smoke_grenade` | Common..Common | 0 (utility) | — | 30 |
 | Flashbang | 207 | `flashbang` | Uncommon..Uncommon | (inert) | — | 50 |
+
+**Smoke Grenade behavior:** Lays a 5×5 vision-blocking smoke cloud at the impact tile; outer ring lasts 12 world ticks, mid ring 18, center 24. Wall-LOS clipped at stamp time (cells behind walls are not smoked). No direct damage. See [`docs/mechanics.md` § Ground effects](mechanics.md#ground-effects).
 
 ## Mines
 

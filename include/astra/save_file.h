@@ -8,8 +8,9 @@
 #include "astra/quest.h"
 #include "astra/star_chart.h"
 #include "astra/tilemap.h"
-#include "astra/trap.h"
+#include "astra/ground_effect.h"
 #include "astra/noise_event.h"
+#include "astra/trap.h"
 #include "astra/visibility_map.h"
 #include "astra/world_manager.h"
 
@@ -27,7 +28,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 50;   // v50: trap registry + noise events
+inline constexpr uint32_t SAVE_FILE_VERSION = 51;   // v51: ground effects (smoke clouds)
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
@@ -51,6 +52,7 @@ struct MapState {
     std::vector<GroundItem> ground_items;
     std::vector<Trap> traps;             // v50
     std::vector<NoiseEvent> noise_events; // v50
+    std::vector<GroundEffect> ground_effects;  // v51
 
     // v23: POI budget, hidden POIs, anchor hints carried on the overworld map.
     PoiBudget poi_budget;

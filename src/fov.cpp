@@ -6,23 +6,28 @@
 
 namespace astra {
 
+bool OpacityProbe::opaque(int x, int y) const {
+    if (map && map->opaque(x, y)) return true;
+    if (extra_opaque) {
+        uint64_t key = (uint64_t(uint32_t(x)) << 32) | uint32_t(y);
+        if (extra_opaque->count(key)) return true;
+    }
+    return false;
+}
+
 // Multipliers for transforming coordinates in each octant.
-// Each octant is defined by 4 values: xx, xy, yx, yy
-// which transform (row, col) -> (dx, dy) as:
-//   dx = col * xx + row * xy
-//   dy = col * yx + row * yy
 static constexpr int octant_transform[8][4] = {
-    { 1,  0,  0,  1},  // octant 0
-    { 0,  1,  1,  0},  // octant 1
-    { 0, -1,  1,  0},  // octant 2
-    {-1,  0,  0,  1},  // octant 3
-    {-1,  0,  0, -1},  // octant 4
-    { 0, -1, -1,  0},  // octant 5
-    { 0,  1, -1,  0},  // octant 6
-    { 1,  0,  0, -1},  // octant 7
+    { 1,  0,  0,  1},
+    { 0,  1,  1,  0},
+    { 0, -1,  1,  0},
+    {-1,  0,  0,  1},
+    {-1,  0,  0, -1},
+    { 0, -1, -1,  0},
+    { 0,  1, -1,  0},
+    { 1,  0,  0, -1},
 };
 
-static void cast_light(const TileMap& map, VisibilityMap& vis,
+static void cast_light(const OpacityProbe& probe, VisibilityMap& vis,
                         int ox, int oy, int radius,
                         int row, float start_slope, float end_slope,
                         int xx, int xy, int yx, int yy) {
@@ -46,22 +51,21 @@ static void cast_light(const TileMap& map, VisibilityMap& vis,
             if (start_slope < r_slope) continue;
             if (end_slope > l_slope) break;
 
-            // Check if within circular radius
             if (dx * dx + dy * dy <= radius_sq) {
                 vis.set_visible(map_x, map_y);
             }
 
             if (blocked) {
-                if (map.opaque(map_x, map_y)) {
+                if (probe.opaque(map_x, map_y)) {
                     new_start = r_slope;
                 } else {
                     blocked = false;
                     start_slope = new_start;
                 }
             } else {
-                if (map.opaque(map_x, map_y) && j < radius) {
+                if (probe.opaque(map_x, map_y) && j < radius) {
                     blocked = true;
-                    cast_light(map, vis, ox, oy, radius,
+                    cast_light(probe, vis, ox, oy, radius,
                                j + 1, start_slope, l_slope,
                                xx, xy, yx, yy);
                     new_start = r_slope;
@@ -73,23 +77,20 @@ static void cast_light(const TileMap& map, VisibilityMap& vis,
     }
 }
 
-void compute_fov(const TileMap& map, VisibilityMap& vis,
+void compute_fov(const OpacityProbe& probe, VisibilityMap& vis,
                  int origin_x, int origin_y, int radius) {
     vis.clear_visible();
-
-    // Origin is always visible
     vis.set_visible(origin_x, origin_y);
 
     for (int oct = 0; oct < 8; ++oct) {
-        cast_light(map, vis, origin_x, origin_y, radius,
+        cast_light(probe, vis, origin_x, origin_y, radius,
                    1, 1.0f, 0.0f,
                    octant_transform[oct][0], octant_transform[oct][1],
                    octant_transform[oct][2], octant_transform[oct][3]);
     }
 }
 
-// Variant of cast_light that only marks tiles visible if they're near a light source.
-static void cast_light_lit(const TileMap& map, VisibilityMap& vis,
+static void cast_light_lit(const OpacityProbe& probe, VisibilityMap& vis,
                             int ox, int oy, int radius,
                             int row, float start_slope, float end_slope,
                             int xx, int xy, int yx, int yy,
@@ -115,7 +116,6 @@ static void cast_light_lit(const TileMap& map, VisibilityMap& vis,
             if (end_slope > l_slope) break;
 
             if (dx * dx + dy * dy <= radius_sq) {
-                // Only mark visible if within light_radius of any light source
                 for (const auto& ls : lights) {
                     int ldx = map_x - ls.x, ldy = map_y - ls.y;
                     if (ldx * ldx + ldy * ldy <= ls.radius * ls.radius) {
@@ -126,16 +126,16 @@ static void cast_light_lit(const TileMap& map, VisibilityMap& vis,
             }
 
             if (blocked) {
-                if (map.opaque(map_x, map_y)) {
+                if (probe.opaque(map_x, map_y)) {
                     new_start = r_slope;
                 } else {
                     blocked = false;
                     start_slope = new_start;
                 }
             } else {
-                if (map.opaque(map_x, map_y) && j < radius) {
+                if (probe.opaque(map_x, map_y) && j < radius) {
                     blocked = true;
-                    cast_light_lit(map, vis, ox, oy, radius,
+                    cast_light_lit(probe, vis, ox, oy, radius,
                                     j + 1, start_slope, l_slope,
                                     xx, xy, yx, yy, lights);
                     new_start = r_slope;
@@ -147,10 +147,9 @@ static void cast_light_lit(const TileMap& map, VisibilityMap& vis,
     }
 }
 
-void compute_fov_lit(const TileMap& map, VisibilityMap& vis,
+void compute_fov_lit(const OpacityProbe& probe, VisibilityMap& vis,
                      int player_x, int player_y,
                      const std::vector<LightSource>& lights) {
-    // Find the maximum extended radius needed
     int max_radius = 0;
     for (const auto& ls : lights) {
         int dx = ls.x - player_x, dy = ls.y - player_y;
@@ -159,10 +158,8 @@ void compute_fov_lit(const TileMap& map, VisibilityMap& vis,
         if (extended > max_radius) max_radius = extended;
     }
 
-    // Run shadowcasting from player with extended radius,
-    // but only mark tiles near a light source
     for (int oct = 0; oct < 8; ++oct) {
-        cast_light_lit(map, vis, player_x, player_y, max_radius,
+        cast_light_lit(probe, vis, player_x, player_y, max_radius,
                        1, 1.0f, 0.0f,
                        octant_transform[oct][0], octant_transform[oct][1],
                        octant_transform[oct][2], octant_transform[oct][3],

@@ -68,6 +68,7 @@ static SaveData build_save_data(Game& game, bool dead) {
     if (!dead) ms.ground_items = world.ground_items();
     if (!dead) ms.traps = world.traps();
     if (!dead) ms.noise_events = world.noise_events();
+    if (!dead) ms.ground_effects = world.ground_effects();
 
     // v23: copy POI budget, hidden POIs, anchor hints from the overworld map.
     ms.poi_budget = world.map().poi_budget();
@@ -89,6 +90,7 @@ static SaveData build_save_data(Game& game, bool dead) {
             cached.ground_items = state.ground_items;
             cached.traps = state.traps;
             cached.noise_events = state.noise_events;
+            cached.ground_effects = state.ground_effects;
             cached.player_x = state.player_x;
             cached.player_y = state.player_y;
 
@@ -156,6 +158,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.ground_items() = ms.ground_items;
     world.traps() = ms.traps;
     world.noise_events() = ms.noise_events;
+    world.ground_effects() = ms.ground_effects;
 
     world.map().set_poi_budget(ms.poi_budget);
     world.map().hidden_pois_mut() = ms.hidden_pois;
@@ -188,6 +191,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
         state.ground_items = std::move(cm.ground_items);
         state.traps = std::move(cm.traps);
         state.noise_events = std::move(cm.noise_events);
+        state.ground_effects = std::move(cm.ground_effects);
         state.player_x = cm.player_x;
         state.player_y = cm.player_y;
     }

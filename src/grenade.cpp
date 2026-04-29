@@ -1,6 +1,7 @@
 #include "astra/grenade.h"
 
 #include "astra/display_name.h"
+#include "astra/ground_effect.h"
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/item.h"
@@ -24,7 +25,7 @@ constexpr GrenadeDef kGrenadeDefs[] = {
     /* Emp        */ { 4,  1, static_cast<int>(EffectId::EmpDisabled),  5, 0 },
     /* Cryo       */ { 6,  1, static_cast<int>(EffectId::Slow),         5, 0 },
     /* Incendiary */ { 8,  1, static_cast<int>(EffectId::Burn),         4, 2 },
-    /* Smoke      */ { 0,  1, static_cast<int>(EffectId::Slow),         4, 0 },
+    /* Smoke      */ { 0,  2, 0,                                        0, 0 },
     /* Flashbang  */ { 0,  1, static_cast<int>(EffectId::EmpDisabled),  4, 0 },
 };
 
@@ -130,6 +131,15 @@ int grenade_color(GrenadeKind k) {
 
 void detonate_grenade(Game& game, GrenadeKind kind, int x, int y,
                       bool placer_is_player) {
+    if (kind == GrenadeKind::Smoke) {
+        game.log("The smoke grenade pops — a thick cloud billows out.");
+        stamp_ground_effect(game, GroundEffectKind::Smoke, x, y);
+        // Refresh FOV now so the player immediately loses sight through
+        // the freshly-laid cloud — otherwise visibility stays stale until
+        // the next tick recompute fires.
+        game.recompute_fov();
+        return;
+    }
     const GrenadeDef& def = grenade_def_for(kind);
 
     // Headline log.

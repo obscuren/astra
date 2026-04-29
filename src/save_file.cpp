@@ -947,6 +947,16 @@ static void write_map_section(BinaryWriter& w, const MapState& ms) {
         w.write_u8(ev.emitter_is_player ? 1 : 0);
     }
 
+    // v51: ground effects
+    w.write_u32(static_cast<uint32_t>(ms.ground_effects.size()));
+    for (const auto& ge : ms.ground_effects) {
+        w.write_u8(static_cast<uint8_t>(ge.kind));
+        w.write_i32(ge.x);
+        w.write_i32(ge.y);
+        w.write_i32(ge.ttl);
+        w.write_u16(ge.origin_id);
+    }
+
     // Fixtures (v3+)
     const auto& fixtures = tm.fixtures_vec();
     w.write_u32(static_cast<uint32_t>(fixtures.size()));
@@ -1827,6 +1837,19 @@ static void read_map_section(BinaryReader& r, MapState& ms) {
             ev.ttl_ticks = r.read_i32();
             ev.emitter_owner_faction = r.read_string();
             ev.emitter_is_player = r.read_u8() != 0;
+        }
+    }
+
+    // v51: ground effects
+    {
+        uint32_t n_ge = r.read_u32();
+        ms.ground_effects.resize(n_ge);
+        for (auto& ge : ms.ground_effects) {
+            ge.kind = static_cast<GroundEffectKind>(r.read_u8());
+            ge.x = r.read_i32();
+            ge.y = r.read_i32();
+            ge.ttl = r.read_i32();
+            ge.origin_id = r.read_u16();
         }
     }
 

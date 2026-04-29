@@ -756,3 +756,25 @@ When a Decoy Mine triggers it logs "The decoy beeps loudly!" and pushes a `Noise
 ### Pre-placed dungeon traps
 
 Generators call `place_dungeon_trap(world, x, y, kind, trigger, hidden, detection_dc)` to seed a trap. Defaults: `trigger = AnyEntity`, `hidden = true`, `detection_dc = 14`. Owner is treated as the dungeon (no placer faction); detection roll applies normally.
+
+## Ground effects
+
+Per-tile transient effects laid down on the active map. One entry per affected tile; each entry carries `kind`, `(x, y)`, and remaining `ttl`. Live registry on `WorldManager.ground_effects_`, persisted in `MapState.ground_effects` (v51). Decremented every world tick by `tick_ground_effects`; entries with `ttl ≤ 0` are erased.
+
+> Source: [`src/ground_effect.cpp`](../src/ground_effect.cpp), [`include/astra/ground_effect.h`](../include/astra/ground_effect.h).
+
+### Stamping
+
+`stamp_ground_effect(game, kind, x, y)` walks a `(2*radius+1)²` Chebyshev square from impact and skips tiles whose Bresenham line-of-sight from impact is blocked by a wall, `StructuralWall`, or vision-blocking fixture (the same tiles that block FOV). Each kept tile gets `ttl = max(1, center_ttl − ring * ring_falloff)`. On overlap with an existing entry of the same kind on the same tile, the new TTL is `max(new, existing)` (refresh, never stack).
+
+### FOV integration
+
+`compute_fov` and `compute_fov_lit` take an `OpacityProbe { TileMap*, unordered_set<uint64_t>* }`. The probe's `opaque(x, y)` returns true when the underlying tile is opaque OR when the override-set contains a packed `(x << 32) | y`. `Game::recompute_fov()` builds the override-set once per call from `opaque_ground_effect_tiles(game)` (kinds with `blocks_vision = true`).
+
+`Game::recompute_fov()` also runs a "lit-region reveal" post-pass for fully-lit rooms — once a player can see one tile of a lit region, every tile of that region is marked visible. Smoke would be a no-op without an extra gate, since the room-reveal ignores normal FOV opacity. Each tile considered for reveal runs a Bresenham smoke-LOS check from the player; if any smoke tile sits between, the reveal is skipped.
+
+### Per-kind table
+
+| Kind | Radius | Center TTL | Ring falloff | Blocks vision | Notes |
+|---|---|---|---|---|---|
+| Smoke | 2 (5×5) | 24 | 6 (24 / 18 / 12 by ring) | yes | Outer ring expires after 12 ticks; cloud visibly shrinks before fully dissipating. Render glyph: `▓` / `▒` / `░` by TTL bucket, alternating per world tick. |
