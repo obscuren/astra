@@ -136,9 +136,11 @@ Outer ring expires after 6 world ticks; the patch visibly shrinks for the remain
 Live next to the existing trap render pass (in `map_renderer.cpp` or a sibling file — match the pattern already in place). Not exposed in `ground_effect.h`:
 
 ```cpp
-char ground_effect_glyph(GroundEffectKind kind, int ttl, int center_ttl, int phase);
-int  ground_effect_color(GroundEffectKind kind);
+const char* ground_effect_glyph(GroundEffectKind kind, int ttl, int center_ttl, int phase);
+Color       ground_effect_color(GroundEffectKind kind);
 ```
+
+(`const char*` because the terminal renderer takes UTF-8 byte strings for multi-byte glyphs via `UIContext::put(int, int, const char*, Color)` — same convention used by `terminal_theme.cpp` and `telegraph.cpp`.)
 
 Smoke glyph mapping (TTL bucket × phase):
 - TTL ≥ 2/3 of `center_ttl` (≥ 8): phase 0 → `▓`, phase 1 → `█`
