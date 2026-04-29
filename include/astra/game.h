@@ -173,6 +173,8 @@ public:
     void compute_camera();
     MapEditor& map_editor() { return map_editor_; }
 
+    std::string dominant_faction_in_current_map() const;
+
     // Dev commands
     void dev_command_warp_random();
     void dev_command_warp_stamp(Tile poi);

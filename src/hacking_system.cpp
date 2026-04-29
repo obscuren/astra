@@ -1,10 +1,12 @@
 #include "astra/hacking_system.h"
 
 #include "astra/cyberdeck.h"
+#include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/hackable.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
+#include "astra/npc.h"
 #include "astra/program.h"
 #include "astra/program_effects.h"   // Task 9 will populate; Task 7 ships a stub
 #include "astra/visibility_map.h"
@@ -57,7 +59,47 @@ HackTarget hackable_at(Game& game, int x, int y) {
 } // namespace
 
 void HackingSystem::add_detection(int delta) {
+    int prev = detection_.value;
     detection_.value = std::clamp(detection_.value + delta, kDetectionMin, kDetectionMax);
+
+    auto crossed = [&](int t) { return prev < t && detection_.value >= t; };
+    if (crossed(50))  on_detection_threshold_(50);
+    if (crossed(75))  on_detection_threshold_(75);
+    if (crossed(100)) on_detection_threshold_(100);
+}
+
+void HackingSystem::on_detection_threshold_(int threshold) {
+    if (!game_) return;
+    switch (threshold) {
+        case 50:
+            game_->log("Detected: nearby personnel are investigating.");
+            break;
+        case 75: {
+            game_->log("Local network is broadcasting your signature.");
+            std::string fac = game_->dominant_faction_in_current_map();
+            if (!fac.empty()) {
+                modify_faction_standing(game_->player(), fac, -10);
+                game_->log("Reputation with " + fac + " worsens.");
+            }
+            break;
+        }
+        case 100: {
+            game_->log("ZONE ALARM. The grid lights up.");
+            auto& m = game_->world().map();
+            for (int fid = 0; fid < m.fixture_count(); ++fid) {
+                auto& fd = m.fixture_mut(fid);
+                if (fd.cyber) fd.cyber->state = HackState::Alarmed;
+            }
+            for (auto& npc : game_->world().npcs()) {
+                if (npc.cyber) npc.cyber->state = HackState::Alarmed;
+            }
+            std::string fac = game_->dominant_faction_in_current_map();
+            if (!fac.empty()) {
+                modify_faction_standing(game_->player(), fac, -25);
+            }
+            break;
+        }
+    }
 }
 
 void HackingSystem::reset_zone() {

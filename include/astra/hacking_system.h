@@ -22,6 +22,8 @@ class HackingSystem {
 public:
     HackingSystem() = default;
 
+    void bind_game(Game* g) { game_ = g; }
+
     // ── Targeting ── (full body lands in Task 8)
     bool targeting() const { return targeting_; }
     int  target_x() const { return target_x_; }
@@ -56,10 +58,14 @@ private:
 
     DetectionState detection_;
 
+    Game* game_ = nullptr;
+
     // Cached zone-change detector. Composes navigation + zone_x/zone_y.
     // When the signature changes, detection_ resets to zero.
     uint64_t last_zone_signature_ = 0;
     static uint64_t compute_zone_signature(const Game& game);
+
+    void on_detection_threshold_(int threshold);
 };
 
 } // namespace astra

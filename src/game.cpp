@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
+#include <unordered_map>
 
 namespace astra {
 
@@ -37,6 +38,20 @@ namespace astra {
 
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
+    hacking_.bind_game(this);
+}
+
+std::string Game::dominant_faction_in_current_map() const {
+    std::unordered_map<std::string, int> counts;
+    for (const auto& npc : world_.npcs()) {
+        if (!npc.faction.empty()) counts[npc.faction]++;
+    }
+    std::string best;
+    int best_n = 0;
+    for (const auto& [k, v] : counts) {
+        if (v > best_n) { best_n = v; best = k; }
+    }
+    return best;
 }
 
 void Game::run() {
