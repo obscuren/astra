@@ -1,8 +1,12 @@
 #include "astra/ui.h"
+#include "astra/cyberdeck.h"
 #include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/grenade.h"
+#include "astra/hackable.h"
 #include "astra/item.h"
+#include "astra/item_defs.h"
+#include "astra/program.h"
 #include "astra/trap.h"
 #include "terminal_theme.h"
 
@@ -659,6 +663,86 @@ void draw_item_info(UIContext& ctx, const Item& item) {
                 "+1 free per " + std::to_string(enh.energy_bonus.discharge_efficiency) + " transferred",
                 Color::Yellow);
             y++;
+        }
+    }
+
+    if (item.type == ItemType::Cyberdeck && item.deck && y < ctx.height()) {
+        const auto& d = *item.deck;
+        ctx.label_value(0, y, "RAM:       ", Color::DarkGray,
+            std::to_string(d.ram_current) + "/" + std::to_string(d.stats.ram_max),
+            Color::Cyan);
+        y++;
+        ctx.label_value(0, y, "CPU:       ", Color::DarkGray,
+            std::to_string(d.stats.cpu), Color::White);
+        y++;
+        ctx.label_value(0, y, "Slots:     ", Color::DarkGray,
+            std::to_string(d.stats.slots), Color::White);
+        y++;
+        ctx.label_value(0, y, "Stealth:   ", Color::DarkGray,
+            "+" + std::to_string(d.stats.stealth), Color::Cyan);
+        y++;
+        ctx.label_value(0, y, "Cooling:   ", Color::DarkGray,
+            std::to_string(d.stats.cooling_rate) + "/turn", Color::White);
+        y++;
+        ctx.label_value(0, y, "Heat cap:  ", Color::DarkGray,
+            std::to_string(d.stats.heat_cap), Color::White);
+        y++;
+
+        // Loaded programs (live slots only)
+        int loaded_count = 0;
+        for (int i = 0; i < d.stats.slots; ++i) {
+            if (d.loaded[i].program_def_id != 0) ++loaded_count;
+        }
+        if (loaded_count > 0 && y < ctx.height()) {
+            y++;
+            ctx.text(0, y, "Loaded:", Color::White);
+            y++;
+            for (int i = 0; i < d.stats.slots && y < ctx.height(); ++i) {
+                if (d.loaded[i].program_def_id == 0) continue;
+                Item probe = build_by_def_id(d.loaded[i].program_def_id);
+                if (!probe.program) continue;
+                const ProgramDef* def = find_program(probe.program->id);
+                if (!def) continue;
+                std::string line = " [" + std::to_string(i) + "] " +
+                                   def->filename + " " +
+                                   program_kind_short(def->kind);
+                ctx.text(0, y, line, Color::Cyan);
+                y++;
+            }
+        }
+    }
+
+    if (item.type == ItemType::Program && item.program && y < ctx.height()) {
+        const ProgramDef* def = find_program(item.program->id);
+        if (def) {
+            ctx.label_value(0, y, "Kind:      ", Color::DarkGray,
+                program_kind_name(def->kind), Color::White);
+            y++;
+            ctx.label_value(0, y, "Tier:      ", Color::DarkGray,
+                std::to_string(def->tier), Color::White);
+            y++;
+            ctx.label_value(0, y, "RAM cost:  ", Color::DarkGray,
+                std::to_string(def->ram_cost), Color::Cyan);
+            y++;
+            if (def->kind == ProgramKind::Qh) {
+                ctx.label_value(0, y, "Detection: ", Color::DarkGray,
+                    "+" + std::to_string(def->detection_cost), Color::Yellow);
+                y++;
+                if (!def->target_filter.empty() && y < ctx.height()) {
+                    std::string targets;
+                    for (size_t i = 0; i < def->target_filter.size(); ++i) {
+                        if (i > 0) targets += ", ";
+                        targets += device_kind_name(def->target_filter[i]);
+                    }
+                    ctx.label_value(0, y, "Targets:   ", Color::DarkGray,
+                        targets, Color::Cyan);
+                    y++;
+                }
+            } else {
+                ctx.label_value(0, y, "Heat cost: ", Color::DarkGray,
+                    std::to_string(def->heat_cost), Color::Red);
+                y++;
+            }
         }
     }
 
