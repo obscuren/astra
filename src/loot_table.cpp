@@ -89,6 +89,25 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_ARC_TURRET,         "arc_turret",         R::Rare,      R::Rare,       4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                          T::Tech,     3, C::Consumable },
         LootEntry{ ITEM_SENTRY_DRONE,       "sentry_drone",       R::Epic,      R::Epic,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                     T::Tech,     5, C::Consumable },
 
+        // ----- Cyberdecks ----------------------------------------------
+        LootEntry{ ITEM_PIDGIN_MK1,         "pidgin_mk1",         R::Common,    R::Uncommon,   8, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::ScavMerchant,                            T::Tech,     1, C::Cyberdeck },
+        LootEntry{ ITEM_POLYGLOT_DCK2,      "polyglot_dck2",      R::Uncommon,  R::Rare,       4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                            T::Tech,     2, C::Cyberdeck },
+
+        // ----- Programs ------------------------------------------------
+        LootEntry{ ITEM_PROG_ICEBREAKER_LITE, "icebreaker_lite",  R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                            T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_GHOST_TRACE,     "ghost_trace",      R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_COOLDOWN,        "cooldown",         R::Common,    R::Common,    12, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_BREACH,          "breach",           R::Uncommon,  R::Rare,       8, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_DECRYPT,         "decrypt",          R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_REBOOT_OPTICS,   "reboot_optics",    R::Common,    R::Common,    14, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::ScavMerchant,                          T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_FRIENDLY_FIRE,   "friendly_fire",    R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_DATA_LEECH,      "data_leech",       R::Common,    R::Uncommon,   8, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+
+        // ----- Code fragments (crafting material) ----------------------
+        LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },
+        LootEntry{ ITEM_CODE_FRAGMENT_T2,     "code_fragment_t2", R::Uncommon,  R::Uncommon,  10, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,      T::Tech,     2, C::CodeFragment },
+        LootEntry{ ITEM_CODE_FRAGMENT_T3,     "code_fragment_t3", R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::CodeFragment },
+
         // ----- Batteries (own category, distinct from Consumable) -------
         LootEntry{ ITEM_SMALL_ENERGY_CELL,      "cell_small",      R::Common,    R::Common,    50, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms | LootSource::ScavMerchant, T::Tech, 1, C::Battery },
         LootEntry{ ITEM_STANDARD_ENERGY_CELL,   "cell_standard",   R::Common,    R::Uncommon,  35, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                          T::Tech, 1, C::Battery },
