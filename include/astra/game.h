@@ -257,6 +257,7 @@ private:
     void render_hall_of_fame();
     void render_stats_bar();
     void render_bars();
+    void render_detection_indicator();
     void render_widget_bar();
     // render_map extracted to map_renderer.h
     void render_side_panel();
@@ -406,6 +407,7 @@ private:
     Rect hp_bar_rect_;
     Rect shield_bar_rect_;
     Rect xp_bar_rect_;
+    Rect detection_indicator_rect_;
     Rect tabs_rect_;
     Rect map_rect_;
     Rect separator_rect_;

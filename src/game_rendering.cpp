@@ -1011,6 +1011,7 @@ void Game::render_play() {
 
     render_stats_bar();
     render_bars();
+    render_detection_indicator();
 
     render_widget_bar();
 
@@ -1089,8 +1090,6 @@ void Game::render_stats_bar() {
 
     left.push_back({" :: ", UITag::TextDim});
     left.push_back({std::to_string(player_.money) + "$", UITag::TextWarning});
-
-
 
     ctx.styled_text({.x = 1, .y = 0, .segments = left});
 
@@ -1211,6 +1210,36 @@ void Game::render_bars() {
                               .value=player_.xp, .max=player_.max_xp,
                               .tag=UITag::XpBar});
         }
+    }
+}
+
+void Game::render_detection_indicator() {
+    if (!panel_visible_) return;
+    if (detection_indicator_rect_.w <= 0) return;
+
+    int dt = hacking_.detection();
+    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+    bool has_deck = deck_slot && *deck_slot;
+    if (dt == 0 && !has_deck) return;  // hide entirely until relevant
+
+    UITag tag;
+    if      (dt >= 100) tag = UITag::TextDanger;
+    else if (dt >= 75)  tag = UITag::TextDanger;
+    else if (dt >= 50)  tag = UITag::TextWarning;
+    else if (dt > 0)    tag = UITag::TextBright;
+    else                tag = UITag::TextDim;
+
+    UIContext ctx(renderer_.get(), detection_indicator_rect_);
+    std::string val = std::to_string(dt) + "/100";
+    // Mirror the bar layout on the left: label at col 1, value padded.
+    ctx.label_value({.x = 1, .y = 0, .label = "DT:",
+                     .label_tag = UITag::TextDim,
+                     .value = val, .value_tag = tag});
+    int bar_start = 1 + 4 + static_cast<int>(val.size()) + 1;
+    int bar_w = ctx.width() - bar_start - 2;
+    if (bar_w > 0) {
+        ctx.progress_bar({.x = bar_start, .y = 0, .width = bar_w,
+                          .value = dt, .max = 100, .tag = tag});
     }
 }
 

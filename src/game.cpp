@@ -165,6 +165,10 @@ void Game::compute_layout() {
     shield_bar_rect_ = {0, vrows[2].bounds().y, left_w, 1};
     xp_bar_rect_ = {0, vrows[3].bounds().y, left_w, 1};
 
+    // Detection indicator — right column, HP-bar row (two rows above the
+    // widget bar). Mirrors the visual weight of HP/SH/XP on the left.
+    detection_indicator_rect_ = {sep_x + 1, vrows[1].bounds().y, panel_w, 1};
+
     if (panel_visible_) {
         auto main_cols = vrows[4].columns({fill(), fixed(1), fixed(panel_w)});
         map_rect_ = main_cols[0].bounds();
