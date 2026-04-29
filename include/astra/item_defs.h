@@ -118,6 +118,10 @@ Item build_hull_plate();
 Item build_shield_generator();
 Item build_navi_computer_mk2();
 
+// --- Cyberdecks ---
+Item build_pidgin_mk1();
+Item build_polyglot_dck2();
+
 // Universal item constructor: rebuild an Item from its item_def_id by
 // dispatching to the appropriate build_*() function. Covers every item
 // in s_loot_table plus a few legacy/utility defs (ITEM_BATTERY alias,

@@ -134,6 +134,7 @@ set(ASTRA_SOURCES
     src/noise_event.cpp
     src/skill_defs.cpp
     src/character.cpp
+    src/cyberdeck.cpp
     src/shop.cpp
     src/trade_window.cpp
     src/pda_screen.cpp

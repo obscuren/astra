@@ -211,4 +211,23 @@ constexpr uint16_t ITEM_SYNTH_GUIDED_BLASTER    = 1007;
 constexpr uint16_t ITEM_SYNTH_COMBAT_GAUNTLET   = 1008;
 constexpr uint16_t ITEM_SYNTH_ARMORED_BLADE     = 1009;
 
+// Cyberdecks (300-301)
+constexpr uint16_t ITEM_PIDGIN_MK1     = 300;   // T1 cyberdeck
+constexpr uint16_t ITEM_POLYGLOT_DCK2  = 301;   // T2 cyberdeck
+
+// Programs (310-317)
+constexpr uint16_t ITEM_PROG_ICEBREAKER_LITE = 310;
+constexpr uint16_t ITEM_PROG_GHOST_TRACE     = 311;
+constexpr uint16_t ITEM_PROG_COOLDOWN        = 312;
+constexpr uint16_t ITEM_PROG_BREACH          = 313;
+constexpr uint16_t ITEM_PROG_DECRYPT         = 314;
+constexpr uint16_t ITEM_PROG_REBOOT_OPTICS   = 315;
+constexpr uint16_t ITEM_PROG_FRIENDLY_FIRE   = 316;
+constexpr uint16_t ITEM_PROG_DATA_LEECH      = 317;
+
+// Code fragments (320-322)
+constexpr uint16_t ITEM_CODE_FRAGMENT_T1     = 320;
+constexpr uint16_t ITEM_CODE_FRAGMENT_T2     = 321;
+constexpr uint16_t ITEM_CODE_FRAGMENT_T3     = 322;
+
 } // namespace astra

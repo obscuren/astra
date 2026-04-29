@@ -1505,6 +1505,10 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_SCHEM_SENTRY_DRONE:        return build_schem_sentry_drone();
         case ITEM_SCHEM_CRYO_GRENADE:        return build_schem_cryo_grenade();
 
+        // Cyberdecks
+        case ITEM_PIDGIN_MK1:              return build_pidgin_mk1();
+        case ITEM_POLYGLOT_DCK2:           return build_polyglot_dck2();
+
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
         case ITEM_HULL_PLATE:              return build_hull_plate();
@@ -1533,6 +1537,40 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_COOKBOOK_HEROS_FEAST:    return build_cookbook_heros_feast();
     }
     return Item{};
+}
+
+// ---------------------------------------------------------------------------
+// Cyberdecks
+// ---------------------------------------------------------------------------
+
+Item build_pidgin_mk1() {
+    Item it;
+    it.item_def_id = ITEM_PIDGIN_MK1;
+    it.id = 9000; it.name = "Pidgin Mark I"; it.type = ItemType::Cyberdeck;
+    it.description = "A pawn-shop deck. Three slots, four RAM. Chunky but it boots.";
+    it.slot = EquipSlot::Cyberdeck; it.rarity = Rarity::Common;
+    it.weight = 2;
+    it.stackable = false; it.buy_value = 250; it.sell_value = 80;
+    CyberdeckData d;
+    d.stats = cyberdeck_stats_tier1();
+    d.ram_current = d.stats.ram_max;
+    it.deck = std::move(d);
+    return it;
+}
+
+Item build_polyglot_dck2() {
+    Item it;
+    it.item_def_id = ITEM_POLYGLOT_DCK2;
+    it.id = 9001; it.name = "Polyglot DCK-2"; it.type = ItemType::Cyberdeck;
+    it.description = "Corp surplus. Cleaner thermal envelope, four slots, eight RAM.";
+    it.slot = EquipSlot::Cyberdeck; it.rarity = Rarity::Uncommon;
+    it.weight = 2;
+    it.stackable = false; it.buy_value = 600; it.sell_value = 200;
+    CyberdeckData d;
+    d.stats = cyberdeck_stats_tier2();
+    d.ram_current = d.stats.ram_max;
+    it.deck = std::move(d);
+    return it;
 }
 
 } // namespace astra

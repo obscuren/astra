@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/aura_grant.h"
+#include "astra/cyberdeck.h"
 #include "astra/dice.h"
 #include "astra/energy.h"
 #include "astra/renderer.h"
@@ -43,6 +44,8 @@ enum class ItemType : uint8_t {
     Mine,         // placeable trigger-on-step consumable
     Schematic,    // teaches a tinkering recipe when read
     Turret,       // deployable autonomous defender (stationary or mobile)
+    Cyberdeck,    // hacking deck — held in EquipSlot::Cyberdeck
+    Program,      // .exe / .qh loadable into a cyberdeck slot
 };
 
 const char* item_type_name(ItemType t);
@@ -68,9 +71,10 @@ enum class EquipSlot : uint8_t {
     Thrown,
     Missile,
     Shield,
+    Cyberdeck,
 };
 
-static constexpr int equip_slot_count = 12;
+static constexpr int equip_slot_count = 13;
 
 const char* equip_slot_name(EquipSlot slot);
 
@@ -227,6 +231,10 @@ struct Item {
     // Schematic payload. Non-zero only when type == ItemType::Schematic.
     uint16_t teaches_schematic_id = 0;
 
+    // Cyberdeck payload — non-empty only when type == ItemType::Cyberdeck.
+    // Holds RAM/heat/slot state and currently loaded programs.
+    std::optional<CyberdeckData> deck;
+
     // Plain-text label: "name - 1d6" for weapons, "name - cur/cap charge" for cells, plain name otherwise
     std::string label() const {
         if (!damage_dice.empty())
@@ -257,6 +265,7 @@ struct Equipment {
     std::optional<Item> thrown;
     std::optional<Item> missile;
     std::optional<Item> shield;
+    std::optional<Item> cyberdeck;
 
     std::optional<Item>& slot_ref(EquipSlot slot);
     const std::optional<Item>& slot_ref(EquipSlot slot) const;

@@ -107,7 +107,7 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
     }
 
     // Draw each slot box
-    for (int i = 0; i < equip_slot_count; ++i) {
+    for (int i = 0; i < static_cast<int>(std::size(positions)); ++i) {
         const auto& sp = positions[i];
         bool selected = (equip_focus_ == EquipFocus::PaperDoll && equip_cursor_ == i);
         Color border_color = selected ? Color::Yellow : Color::DarkGray;

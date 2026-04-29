@@ -27,6 +27,8 @@ const char* item_type_name(ItemType t) {
         case ItemType::Mine:             return "Mines";
         case ItemType::Schematic:        return "Schematics";
         case ItemType::Turret:           return "Turrets";
+        case ItemType::Cyberdeck:        return "Cyberdeck";
+        case ItemType::Program:          return "Program";
     }
     return "Unknown";
 }
@@ -45,6 +47,7 @@ const char* equip_slot_name(EquipSlot slot) {
         case EquipSlot::Thrown:    return "Thrown";
         case EquipSlot::Missile:   return "Missile";
         case EquipSlot::Shield:    return "Shield";
+        case EquipSlot::Cyberdeck: return "Cyberdeck";
     }
     return "?";
 }
@@ -63,6 +66,7 @@ std::optional<Item>& Equipment::slot_ref(EquipSlot slot) {
         case EquipSlot::Thrown:    return thrown;
         case EquipSlot::Missile:   return missile;
         case EquipSlot::Shield:    return shield;
+        case EquipSlot::Cyberdeck: return cyberdeck;
     }
     return head; // unreachable
 }
@@ -81,6 +85,7 @@ const std::optional<Item>& Equipment::slot_ref(EquipSlot slot) const {
         case EquipSlot::Thrown:    return thrown;
         case EquipSlot::Missile:   return missile;
         case EquipSlot::Shield:    return shield;
+        case EquipSlot::Cyberdeck: return cyberdeck;
     }
     return head; // unreachable
 }
