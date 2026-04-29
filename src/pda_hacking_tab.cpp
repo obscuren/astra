@@ -77,40 +77,69 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
 
     // ── Unlocked: render the terminal subwindow ──
     auto* active_deck_slot = player_->equipment.equipped_cyberdeck();
-    if (active_deck_slot && *active_deck_slot && (*active_deck_slot)->deck) {
-        auto& d = *(*active_deck_slot)->deck;
-        std::string header = "RAM " + std::to_string(d.ram_current) + "/" +
-                             std::to_string(d.stats.ram_max) +
-                             "  CPU " + std::to_string(d.stats.cpu) +
-                             "  SLOTS " + std::to_string(d.stats.slots) +
-                             "  STEALTH +" + std::to_string(d.stats.stealth) +
-                             "  COOLING " + std::to_string(d.stats.cooling_rate) + "/turn";
-        ctx.text({.x = 2, .y = 1, .content = header, .tag = UITag::TextDefault});
-        std::string deck_name = "[ " + (*active_deck_slot)->name + " ]";
-        ctx.text({.x = ctx.width() - static_cast<int>(deck_name.size()) - 2, .y = 1,
-                  .content = deck_name, .tag = UITag::TextDim});
-    } else {
-        ctx.text({.x = 2, .y = 1, .content = "(no cyberdeck equipped)",
+    bool has_deck = active_deck_slot && *active_deck_slot && (*active_deck_slot)->deck;
+
+    if (!has_deck) {
+        // No deck equipped — suppress the terminal entirely and explain
+        // what's needed. The skill is unlocked but useless without hardware.
+        int cy = ctx.height() / 2 - 2;
+        const char* title = "-- NO CYBERDECK EQUIPPED --";
+        const int title_cols = 27;
+        ctx.text({.x = ctx.width() / 2 - title_cols / 2, .y = cy,
+                  .content = title, .tag = UITag::TextDim});
+        ctx.text({.x = 4, .y = cy + 2,
+                  .content = "Equip a cyberdeck in a Utility slot to use the deck terminal.",
                   .tag = UITag::TextDim});
+        ctx.text({.x = 4, .y = cy + 3,
+                  .content = "Decks drop from BlackMarket and MerchantArms (see PDA → Equipment).",
+                  .tag = UITag::TextDim});
+        return;
     }
 
-    // Scrollback area: rows top..bottom-1; prompt at bottom row.
+    auto& d = *(*active_deck_slot)->deck;
+    std::string header = "RAM " + std::to_string(d.ram_current) + "/" +
+                         std::to_string(d.stats.ram_max) +
+                         "  CPU " + std::to_string(d.stats.cpu) +
+                         "  SLOTS " + std::to_string(d.stats.slots) +
+                         "  STEALTH +" + std::to_string(d.stats.stealth) +
+                         "  COOLING " + std::to_string(d.stats.cooling_rate) + "/turn";
+    ctx.text({.x = 2, .y = 1, .content = header, .tag = UITag::TextDefault});
+    std::string deck_name = "[ " + (*active_deck_slot)->name + " ]";
+    ctx.text({.x = ctx.width() - static_cast<int>(deck_name.size()) - 2, .y = 1,
+              .content = deck_name, .tag = UITag::TextDim});
+
+    // Terminal flow: history lines start at top; the live prompt is the
+    // last line. When the combined output overflows the visible area,
+    // oldest lines scroll off (or are pushed up by hack_term_scroll_).
     int top = 3;
     int bottom = ctx.height() - 2;
-    int visible = bottom - top;
-    int total = static_cast<int>(hack_term_lines_.size());
-    int start = std::max(0, total - visible);
-    int end = std::min(total, start + visible);
+    int visible = bottom - top + 1;
+    int hist_count = static_cast<int>(hack_term_lines_.size());
+    int total = hist_count + 1;                 // +1 for live prompt
+
+    // Clamp scroll: we can scroll up at most (total - visible) lines.
+    int max_scroll = std::max(0, total - visible);
+    if (hack_term_scroll_ > max_scroll) hack_term_scroll_ = max_scroll;
+    if (hack_term_scroll_ < 0) hack_term_scroll_ = 0;
+    int skip = std::max(0, total - visible - hack_term_scroll_);
+
     int row = top;
-    for (int i = start; i < end; ++i, ++row) {
+    for (int i = skip; i < hist_count && row <= bottom; ++i, ++row) {
         ctx.text({.x = 2, .y = row,
                   .content = hack_term_lines_[i].text,
                   .tag = hack_term_lines_[i].tag});
     }
-
-    // Prompt line.
-    std::string prompt = "pda> " + hack_term_input_ + "_";
-    ctx.text({.x = 2, .y = bottom, .content = prompt, .tag = UITag::TextDefault});
+    // Render the prompt only if it's still in view (not scrolled past).
+    if (hack_term_scroll_ == 0 && row <= bottom) {
+        // Cursor sits at hack_term_input_cursor_; render an underscore at
+        // that position so the user can see where insertions/backspaces land.
+        int cur = hack_term_input_cursor_;
+        if (cur < 0) cur = 0;
+        if (cur > static_cast<int>(hack_term_input_.size())) cur = static_cast<int>(hack_term_input_.size());
+        std::string prompt = "pda> " + hack_term_input_.substr(0, cur) + "_" +
+                             hack_term_input_.substr(cur);
+        ctx.text({.x = 2, .y = row, .content = prompt, .tag = UITag::TextDefault});
+    }
 }
 
 void PdaScreen::hack_term_emit(const std::string& line, UITag tag) {
@@ -119,10 +148,22 @@ void PdaScreen::hack_term_emit(const std::string& line, UITag tag) {
         hack_term_lines_.erase(hack_term_lines_.begin(),
                                hack_term_lines_.begin() + 50);
     }
+    // Any new output snaps the view back to the bottom — matches xterm/bash.
+    hack_term_scroll_ = 0;
 }
 
 void PdaScreen::handle_hacking_key(int key) {
     if (!has_cat_hacking(*player_)) return;
+    // The terminal is hidden when no deck is equipped — swallow keystrokes
+    // so they don't accumulate in an invisible input buffer.
+    auto* deck_slot = player_->equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+
+    auto clamp_cursor = [&]() {
+        if (hack_term_input_cursor_ < 0) hack_term_input_cursor_ = 0;
+        int n = static_cast<int>(hack_term_input_.size());
+        if (hack_term_input_cursor_ > n) hack_term_input_cursor_ = n;
+    };
 
     if (key == '\n' || key == '\r') {
         if (!hack_term_input_.empty()) {
@@ -132,12 +173,47 @@ void PdaScreen::handle_hacking_key(int key) {
                 hack_term_history_.erase(hack_term_history_.begin());
             hack_term_run_command(hack_term_input_);
             hack_term_input_.clear();
+            hack_term_input_cursor_ = 0;
             hack_term_history_cursor_ = -1;
         }
         return;
     }
     if (key == '\b' || key == 127) {
-        if (!hack_term_input_.empty()) hack_term_input_.pop_back();
+        // Backspace: delete the char to the LEFT of the cursor.
+        clamp_cursor();
+        if (hack_term_input_cursor_ > 0) {
+            hack_term_input_.erase(hack_term_input_cursor_ - 1, 1);
+            --hack_term_input_cursor_;
+        }
+        return;
+    }
+    if (key == KEY_DELETE) {
+        // Delete: remove the char AT the cursor.
+        clamp_cursor();
+        if (hack_term_input_cursor_ < static_cast<int>(hack_term_input_.size())) {
+            hack_term_input_.erase(hack_term_input_cursor_, 1);
+        }
+        return;
+    }
+    if (key == KEY_LEFT) {
+        if (hack_term_input_cursor_ > 0) --hack_term_input_cursor_;
+        return;
+    }
+    if (key == KEY_RIGHT) {
+        if (hack_term_input_cursor_ < static_cast<int>(hack_term_input_.size()))
+            ++hack_term_input_cursor_;
+        return;
+    }
+    if (key == KEY_PAGE_UP) {
+        // Scroll one page (visible area minus a line of overlap) up.
+        // Magic 12 ≈ half the typical terminal pane; the draw clamp
+        // re-computes the upper bound so over-scroll is harmless.
+        hack_term_scroll_ += 12;
+        return;
+    }
+    if (key == KEY_PAGE_DOWN) {
+        hack_term_scroll_ -= 12;
+        if (hack_term_scroll_ < 0) hack_term_scroll_ = 0;
         return;
     }
     if (key == KEY_UP) {
@@ -147,6 +223,7 @@ void PdaScreen::handle_hacking_key(int key) {
         else if (hack_term_history_cursor_ > 0)
             --hack_term_history_cursor_;
         hack_term_input_ = hack_term_history_[hack_term_history_cursor_];
+        hack_term_input_cursor_ = static_cast<int>(hack_term_input_.size());
         return;
     }
     if (key == KEY_DOWN) {
@@ -158,6 +235,7 @@ void PdaScreen::handle_hacking_key(int key) {
             hack_term_history_cursor_ = -1;
             hack_term_input_.clear();
         }
+        hack_term_input_cursor_ = static_cast<int>(hack_term_input_.size());
         return;
     }
     if (key == '\t') {
@@ -170,6 +248,7 @@ void PdaScreen::handle_hacking_key(int key) {
             if (std::string(c).rfind(hack_term_input_, 0) == 0) {
                 hack_term_input_ = c;
                 hack_term_input_ += ' ';
+                hack_term_input_cursor_ = static_cast<int>(hack_term_input_.size());
                 return;
             }
         }
@@ -185,8 +264,12 @@ void PdaScreen::handle_hacking_key(int key) {
         }
     }
     if (key >= ' ' && key < 127) {
-        hack_term_input_ += static_cast<char>(key);
-        if (hack_term_input_.size() > 64) hack_term_input_.resize(64);
+        // Insert at cursor — supports edit-in-place.
+        clamp_cursor();
+        if (hack_term_input_.size() < 64) {
+            hack_term_input_.insert(hack_term_input_cursor_, 1, static_cast<char>(key));
+            ++hack_term_input_cursor_;
+        }
     }
 }
 

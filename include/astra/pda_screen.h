@@ -150,7 +150,9 @@ private:
     std::vector<HackTermLine> hack_term_lines_;
     std::vector<std::string>  hack_term_history_;
     std::string               hack_term_input_;
+    int                       hack_term_input_cursor_ = 0;   // byte index into hack_term_input_
     int                       hack_term_history_cursor_ = -1;
+    int                       hack_term_scroll_ = 0;         // lines scrolled up from bottom (0 = latest)
 
     void hack_term_emit(const std::string& line, UITag tag = UITag::TextDefault);
     void hack_term_run_command(const std::string& line);
