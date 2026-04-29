@@ -136,6 +136,16 @@ set(ASTRA_SOURCES
     src/shop.cpp
     src/trade_window.cpp
     src/pda_screen.cpp
+    src/pda_skills_tab.cpp
+    src/pda_attributes_tab.cpp
+    src/pda_equipment_tab.cpp
+    src/pda_tinkering_tab.cpp
+    src/pda_cooking_tab.cpp
+    src/pda_journal_tab.cpp
+    src/pda_quests_tab.cpp
+    src/pda_reputation_tab.cpp
+    src/pda_ship_tab.cpp
+    src/pda_hacking_tab.cpp
     src/character_creation.cpp
     src/effect.cpp
     src/energy.cpp

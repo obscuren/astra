@@ -175,6 +175,7 @@
 - [ ] **Character panel tab memory** — remember the last active tab; reopening shows the same tab
 - [x] **Equipment tab read-only** — side panel equipment is display-only
 - [x] **Remove inventory from side panel** — inventory management via character screen only
+- [x] **PDA refactor** — `character_screen` renamed to `pda_screen`; per-tab modules (one `pda_<tab>_tab.cpp` per tab); new (placeholder) Hacking tab. Foundation for the Hacking & The Grid feature spec'd in `docs/superpowers/specs/2026-04-29-hacking-design.md`.
 
 ---
 
