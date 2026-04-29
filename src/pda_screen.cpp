@@ -1551,10 +1551,11 @@ static const char* tab_help_body(PdaTab tab) {
                    "You must be near a cooking fire to cook.";
         case PdaTab::Hacking:
             return "Cyberdeck terminal.\n\n"
-                   "Type commands at the pda> prompt. 'help' lists all "
-                   "commands. Tab to autocomplete. Up/Down for history.\n\n"
+                   "Type commands at the prompt. 'help' lists all commands. "
+                   "Tab to autocomplete. Up/Down walk history. Left/Right "
+                   "edit in place. PgUp/PgDn scroll the buffer.\n\n"
                    "[H in world] Quickhack a hackable target\n"
-                   "[?] help / [P] programs ls / [N] netmap / [L] lore";
+                   "[?] help / [P] ps / [I] ls / [N] netmap / [L] lore";
     }
     return "";
 }
