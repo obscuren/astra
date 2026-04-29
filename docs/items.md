@@ -346,3 +346,42 @@ These items exist but never drop and aren't in the loot table.
 - **Engine Coil Mk1** (id 37) — placed deterministically in Maintenance Tunnel dungeons (`game_world.cpp`).
 - **Quest items** — placed by quest definitions (`game_world.cpp`); names and IDs vary per quest.
 - **Burnt Slop** (id 60) — produced only by a failed cooking recipe.
+
+---
+
+## Cyberdecks
+
+A **cyberdeck** is the device required to fire any quickhack (`.qh`) program in the world or to jack into the Grid (Plan 3+). Decks are equipped in the `Cyberdeck` slot.
+
+| Tier | Name | Dev | Slots | RAM | CPU | Stealth | Heat cap | Notes |
+|------|------|-----|-------|-----|-----|---------|----------|-------|
+| 1 | Pidgin Mark I | `pidgin_mk1` | 3 | 4 | 1 | +0 | 10 | Pawn-shop deck. |
+| 2 | Polyglot DCK-2 | `polyglot_dck2` | 4 | 8 | 2 | +1 | 12 | Corp surplus. |
+
+## Programs
+
+Programs are loadable items. Their `kind` determines where they fire:
+
+- **`.exe` (ATK / STL / UTL)** — used in the Grid (Plan 3+).
+- **`.qh` (QH)** — fires in the real world via the `H` keybind. Spends RAM and bumps the zone Detection counter.
+
+| Filename | Dev | Kind | Tier | RAM | Heat | Detection | Effect |
+|----------|-----|------|------|-----|------|-----------|--------|
+| `icebreaker_lite.exe` | `icebreaker_lite` | ATK | 1 | 2 | 2 | — | (Plan 3) |
+| `ghost_trace.exe` | `ghost_trace` | STL | 1 | 3 | 0 | — | (Plan 3) |
+| `cooldown.exe` | `cooldown` | STL | 1 | 2 | 0 | — | (Plan 3) |
+| `breach.exe` | `breach` | UTL | 1 | 3 | 3 | — | (Plan 3) |
+| `decrypt.exe` | `decrypt` | UTL | 1 | 2 | 1 | — | (Plan 3) |
+| `reboot_optics.qh` | `reboot_optics` | QH | 1 | 1 | — | +1 | Blinds camera/turret 4 turns. |
+| `friendly_fire.qh` | `friendly_fire` | QH | 2 | 3 | — | +3 | Turret targets allies 2 turns. |
+| `data_leech.qh` | `data_leech` | QH | 1 | 2 | — | +2 | Skim 5 + tier × 5 credits from a hackable. |
+
+## Code Fragments
+
+Crafting material category for program tinkering. T1/T2/T3 fragments are inputs into program schematics in the Tinkering tab.
+
+| Tier | Name | Dev | Sell |
+|------|------|-----|------|
+| 1 | Code Fragment (T1) | `code_fragment_t1` | 4 |
+| 2 | Code Fragment (T2) | `code_fragment_t2` | 12 |
+| 3 | Code Fragment (T3) | `code_fragment_t3` | 40 |

@@ -9,18 +9,21 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
 #include "astra/loot_table.h"
 #include "astra/lore_generator.h"
 #include "astra/npc.h"
 #include "astra/quest_fixture.h"
+#include "astra/skill_defs.h"
 #include "astra/star_chart.h"
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
 #include "astra/tinkering.h"
 #include "astra/trap.h"
 
+#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <map>
@@ -228,6 +231,9 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  dungen <style> [civ] - generate a pipeline dungeon (style: simple_rooms)");
         log("  editor             - open map editor");
         log("  clear              - clear console");
+        log("  give skill <id|name>          - learn a skill");
+        log("  spawn-hackable <kind>         - place a hackable at adjacent tile");
+        log("  detection <n>                 - set zone detection counter");
     }
     else if (verb == "clear") {
         clear();
@@ -579,6 +585,48 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             + std::string(rarity_short_name(rarity)) + ", lvl "
             + std::to_string(level) + ") to inventory.");
         add_to_inventory_stacked(player.inventory, std::move(item));
+    }
+    else if (verb == "give" && args.size() >= 3 && args[1] == "skill") {
+        std::string name = args[2];
+        for (auto& c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+        SkillId target = SkillId{};
+        std::string display_name;
+        bool found = false;
+        for (const auto& cat : skill_catalog()) {
+            std::string cn = cat.name;
+            for (auto& c : cn) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            std::string cn_snake = cn;
+            for (auto& c : cn_snake) if (c == ' ' || c == '-') c = '_';
+            if (cn == name || cn_snake == name ||
+                ("cat_" + cn_snake) == name) {
+                target = cat.unlock_id;
+                display_name = "Cat_" + cat.name;
+                found = true;
+                break;
+            }
+            for (const auto& sk : cat.skills) {
+                std::string sn = sk.name;
+                for (auto& c : sn) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                std::string sn_snake = sn;
+                for (auto& c : sn_snake) if (c == ' ' || c == '-') c = '_';
+                if (sn == name || sn_snake == name) {
+                    target = sk.id;
+                    display_name = sk.name;
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+        if (!found) { log("unknown skill: " + args[2]); return; }
+        if (std::find(player.learned_skills.begin(), player.learned_skills.end(), target) ==
+                player.learned_skills.end()) {
+            player.learned_skills.push_back(target);
+            log("Granted skill: " + display_name);
+        } else {
+            log("Already learned.");
+        }
     }
     else if (verb == "give" && args.size() >= 3) {
         int val = 0;
@@ -1251,6 +1299,53 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             }
         }
         log("tp: fixture '" + fid + "' not found");
+    }
+    else if (verb == "spawn-hackable") {
+        if (args.size() < 2) {
+            log("usage: spawn-hackable <turret|camera|door|conduit|console>");
+            return;
+        }
+        DeviceKind dk;
+        FixtureType ft;
+        if      (args[1] == "turret")  { dk = DeviceKind::Turret;           ft = FixtureType::Console; }
+        else if (args[1] == "camera")  { dk = DeviceKind::Camera;           ft = FixtureType::Console; }
+        else if (args[1] == "door")    { dk = DeviceKind::Door;             ft = FixtureType::Door; }
+        else if (args[1] == "conduit") { dk = DeviceKind::PowerConduit;     ft = FixtureType::Conduit; }
+        else if (args[1] == "console") { dk = DeviceKind::PrecursorConsole; ft = FixtureType::Console; }
+        else { log("unknown kind: " + args[1]); return; }
+
+        auto& m = game.world().map();
+        static const int dxs[] = {1, -1, 0, 0};
+        static const int dys[] = {0, 0, 1, -1};
+        bool placed = false;
+        for (int i = 0; i < 4 && !placed; ++i) {
+            int nx = player.x + dxs[i];
+            int ny = player.y + dys[i];
+            if (m.passable(nx, ny) && m.fixture_id(nx, ny) < 0) {
+                FixtureData fd = make_fixture(ft);
+                fd.interactable = true;
+                fd.cyber = make_hackable(dk, 1);
+                game.world().map().add_fixture(nx, ny, fd);
+                log("Placed " + std::string(device_kind_name(dk)) + " at (" +
+                    std::to_string(nx) + "," + std::to_string(ny) + ").");
+                placed = true;
+            }
+        }
+        if (!placed) log("no adjacent passable tile available.");
+    }
+    else if (verb == "detection") {
+        if (args.size() < 2) {
+            log("usage: detection <0..100>  (sets active zone Detection counter)");
+            return;
+        }
+        int n = 0;
+        try { n = std::stoi(args[1]); } catch (...) {
+            log("invalid number");
+            return;
+        }
+        int cur = game.hacking().detection();
+        game.hacking().add_detection(n - cur);
+        log("Detection = " + std::to_string(game.hacking().detection()));
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");

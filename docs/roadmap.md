@@ -176,6 +176,7 @@
 - [x] **Equipment tab read-only** — side panel equipment is display-only
 - [x] **Remove inventory from side panel** — inventory management via character screen only
 - [x] **PDA refactor** — `character_screen` renamed to `pda_screen`; per-tab modules (one `pda_<tab>_tab.cpp` per tab); new (placeholder) Hacking tab. Foundation for the Hacking & The Grid feature spec'd in `docs/superpowers/specs/2026-04-29-hacking-design.md`.
+- [x] **Hacking & The Grid — Plan 2 (Cyberdeck + Quickhacks)** — `Cat_Hacking` skill category (8 unlocks declared, gating only). Cyberdeck item type with 2 tiers (Pidgin Mk I, Polyglot DCK-2) + `EquipSlot::Cyberdeck`. Program item type, 8 starter programs (3 active QH: reboot_optics, friendly_fire, data_leech). Code fragment crafting material + 3 tinker recipes. `Hackable` trait on fixtures + NPCs. `HackingSystem` coordinator. `H` keybind opens quickhack target cursor with cyan crosshair + program picker. PDA Hacking tab — locked splash + bounded terminal (10 commands). Hackable fixture interaction menu with Jack In stub for Precursor consoles. Detection counter with threshold-based reputation coupling at 50/75/100. Save schema bumped 51 → 52.
 
 ---
 

@@ -778,3 +778,21 @@ Per-tile transient effects laid down on the active map. One entry per affected t
 | Kind | Radius | Center TTL | Ring falloff | Blocks vision | Notes |
 |---|---|---|---|---|---|
 | Smoke | 2 (5×5) | 24 | 6 (24 / 18 / 12 by ring) | yes | Outer ring expires after 12 ticks; cloud visibly shrinks before fully dissipating. Render glyph: `▓` / `▒` / `░` by TTL bucket, alternating per world tick. |
+
+---
+
+## Hacking — Detection (Plan 2 B-layer)
+
+The **Detection** counter is per-zone, range `[0, 100]`. Each quickhack fired in the world adds `1-3` (per program). Detection decays `-1` every 5 ticks while the player is in steady state.
+
+Threshold callbacks (fire only on upward crossing):
+
+- **≥ 50** — local NPCs investigate (log line; Plan 3 will redirect them via the noise event system).
+- **≥ 75** — dominant faction in the zone takes a `-10` reputation hit.
+- **= 100** — ZONE ALARM. Every `Hackable` on the map flips to `Alarmed`; the dominant faction takes another `-25`. Existing reputation-driven hostility runs from there.
+
+When the player moves to a different zone, the Detection counter resets to 0.
+
+### Heat → Trace coupling (forward reference, Plan 3)
+
+Programs in the Grid spend `heat_cost` per fire. While Heat > 5, Trace ticks `+1/turn` extra. Heat decays at `cooling_rate` per turn (set by the equipped deck's stats). Plan 3 will implement Heat and Trace; Plan 2 ships the storage on the deck without using it.
