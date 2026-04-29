@@ -103,16 +103,14 @@ bool PdaScreen::handle_input(int key) {
         return true;
     }
 
-    // Tab switching with q/e — skip when current tab uses these keys
+    // Tab switching with [ and ] — bracket pair reads as prev/next page
+    // and never collides with text input on tabs that accept typed commands.
     bool tab_switch_blocked = false;
     if (active_tab_ == PdaTab::Cooking &&
         (cooking_picker_active_ || cooking_qty_prompt_active_)) {
         tab_switch_blocked = true;
     }
-    if (active_tab_ == PdaTab::Hacking && !hack_term_input_.empty()) {
-        tab_switch_blocked = true;
-    }
-    if (key == 'q' && !tab_switch_blocked) {
+    if (key == '[' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
         t = (t - 1 + pda_tab_count) % pda_tab_count;
         active_tab_ = static_cast<PdaTab>(t);
@@ -121,7 +119,7 @@ bool PdaScreen::handle_input(int key) {
         show_tab_help();
         return true;
     }
-    if (key == 'e' && !tab_switch_blocked) {
+    if (key == ']' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
         t = (t + 1) % pda_tab_count;
         active_tab_ = static_cast<PdaTab>(t);
@@ -1269,6 +1267,7 @@ void PdaScreen::draw(int screen_w, int screen_h) {
 
     // Compute footer text based on active tab
     std::string footer_text;
+    const char* kTabsHint = "  [[/]] Tabs";
     if (active_tab_ == PdaTab::Tinkering) {
         // Catalog is tabbed: [C] Craft only makes sense in the Schematics tab.
         bool in_schem_tab = (tinker_focus_ == TinkerFocus::Catalog
@@ -1279,16 +1278,22 @@ void PdaScreen::draw(int screen_w, int screen_h) {
         if (tinker_focus_ == TinkerFocus::Catalog) {
             footer_text += "  [\xe2\x86\x90\xe2\x86\x92] Tab";
         }
+        footer_text += kTabsHint;
     } else if (active_tab_ == PdaTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
+        footer_text += kTabsHint;
     } else if (active_tab_ == PdaTab::Cooking) {
         footer_text = "[ESC] Close  [Tab] Focus  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Add  [x] Clear  [c] Cook";
+        footer_text += kTabsHint;
     } else if (active_tab_ == PdaTab::Equipment) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [g] Toggle  [l] Look";
+        footer_text += kTabsHint;
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
+        footer_text += kTabsHint;
     } else {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate";
+        footer_text += kTabsHint;
     }
 
     // Outer panel via semantic UI

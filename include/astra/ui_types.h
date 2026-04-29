@@ -152,8 +152,8 @@ struct TabBarDesc {
     UITag inactive_tag = UITag::TabInactive;
     TextAlign align = TextAlign::Left;
     bool show_nav = false;
-    std::string nav_left_label = "Q";
-    std::string nav_right_label = "E";
+    std::string nav_left_label = "[";
+    std::string nav_right_label = "]";
 };
 
 struct WidgetBarEntry {
