@@ -4,11 +4,16 @@
 #include "astra/game.h"
 #include "astra/hackable.h"
 #include "astra/item.h"
+#include "astra/item_defs.h"
 #include "astra/program.h"
 #include "astra/program_effects.h"   // Task 9 will populate; Task 7 ships a stub
+#include "astra/visibility_map.h"
 #include "astra/world_manager.h"
 
 #include <algorithm>
+#include <cmath>
+#include <string>
+#include <vector>
 
 namespace astra {
 
@@ -16,6 +21,39 @@ namespace {
 constexpr int kDetectionDecayInterval = 5;   // tick every N world steps, -1 to value
 constexpr int kDetectionMax = 100;
 constexpr int kDetectionMin = 0;
+
+struct HackTarget {
+    Hackable* hack = nullptr;
+    int tx = 0, ty = 0;
+    std::string name;
+};
+
+HackTarget hackable_at(Game& game, int x, int y) {
+    HackTarget t{};
+    t.tx = x; t.ty = y;
+    auto& world = game.world();
+    Tile tile = world.map().get(x, y);
+    if (tile == Tile::Fixture) {
+        int fid = world.map().fixture_id(x, y);
+        if (fid >= 0) {
+            FixtureData& fd = world.map().fixture_mut(fid);
+            if (fd.cyber) {
+                t.hack = &*fd.cyber;
+                t.name = device_kind_name(fd.cyber->device_kind);
+                return t;
+            }
+        }
+    }
+    for (auto& npc : world.npcs()) {
+        if (npc.x == x && npc.y == y && npc.cyber && npc.alive()) {
+            t.hack = &*npc.cyber;
+            t.name = npc.label();
+            return t;
+        }
+    }
+    return t;
+}
+
 } // namespace
 
 void HackingSystem::add_detection(int delta) {
@@ -58,14 +96,95 @@ void HackingSystem::tick(Game& game) {
     }
 }
 
-void HackingSystem::begin_quickhack_targeting(Game& /*game*/) {
-    // Full implementation lands in Task 8.
-    targeting_ = true;
+void HackingSystem::reset() {
+    targeting_ = false;
+    target_x_ = 0;
+    target_y_ = 0;
     blink_phase_ = 0;
 }
 
-void HackingSystem::handle_targeting_input(int /*key*/, Game& /*game*/) {
-    // Implemented in Task 8.
+void HackingSystem::begin_quickhack_targeting(Game& game) {
+    if (!game.player().equipment.cyberdeck ||
+        !game.player().equipment.cyberdeck->deck) {
+        game.log("You need an equipped cyberdeck to quickhack.");
+        return;
+    }
+    targeting_ = true;
+    blink_phase_ = 0;
+
+    // Snap cursor to nearest visible Hackable.
+    int best_d = 9999;
+    int best_x = game.player().x;
+    int best_y = game.player().y;
+    auto& world = game.world();
+    for (int y = 0; y < world.map().height(); ++y) {
+        for (int x = 0; x < world.map().width(); ++x) {
+            if (world.visibility().get(x, y) != Visibility::Visible) continue;
+            auto t = hackable_at(game, x, y);
+            if (!t.hack) continue;
+            int d = std::abs(x - game.player().x) + std::abs(y - game.player().y);
+            if (d < best_d) { best_d = d; best_x = x; best_y = y; }
+        }
+    }
+    target_x_ = best_x;
+    target_y_ = best_y;
+    game.log("Quickhack targeting. Move cursor, [Enter] confirm, [Esc] cancel.");
+}
+
+void HackingSystem::handle_targeting_input(int key, Game& game) {
+    auto step = [&](int dx, int dy) {
+        int nx = target_x_ + dx;
+        int ny = target_y_ + dy;
+        auto& world = game.world();
+        if (nx < 0 || nx >= world.map().width()) return;
+        if (ny < 0 || ny >= world.map().height()) return;
+        if (world.visibility().get(nx, ny) != Visibility::Visible) return;
+        target_x_ = nx; target_y_ = ny;
+    };
+    switch (key) {
+        case 'k': case KEY_UP:    step( 0, -1); break;
+        case 'j': case KEY_DOWN:  step( 0,  1); break;
+        case 'h': case KEY_LEFT:  step(-1,  0); break;
+        case 'l': case KEY_RIGHT: step( 1,  0); break;
+        case '\033':
+            targeting_ = false;
+            game.log("Quickhack cancelled.");
+            break;
+        case '\n': case '\r': {
+            auto t = hackable_at(game, target_x_, target_y_);
+            if (!t.hack) {
+                game.log("No hackable target there.");
+                return;
+            }
+            auto& deck_item = game.player().equipment.cyberdeck;
+            if (!deck_item || !deck_item->deck) {
+                targeting_ = false;
+                game.log("No deck equipped.");
+                return;
+            }
+            std::vector<int> menu_slots;
+            for (int i = 0; i < deck_item->deck->stats.slots; ++i) {
+                const auto& slot = deck_item->deck->loaded[i];
+                if (slot.program_def_id == 0) continue;
+                Item probe = build_by_def_id(slot.program_def_id);
+                if (!probe.program) continue;
+                const ProgramDef* def = find_program(probe.program->id);
+                if (!def || def->kind != ProgramKind::Qh) continue;
+                bool match = std::any_of(def->target_filter.begin(),
+                                         def->target_filter.end(),
+                                         [&](DeviceKind k){ return k == t.hack->device_kind; });
+                if (match) menu_slots.push_back(i);
+            }
+            if (menu_slots.empty()) {
+                game.log("No loaded quickhack matches " + t.name + ".");
+                return;
+            }
+            game.open_qh_picker(target_x_, target_y_, menu_slots);
+            targeting_ = false;
+            return;
+        }
+        default: break;
+    }
 }
 
 std::string HackingSystem::execute_quickhack(Game& game, const Item& program,

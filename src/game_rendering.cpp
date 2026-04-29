@@ -1017,7 +1017,7 @@ void Game::render_play() {
     UIContext sep_ctx(renderer_.get(), separator_rect_);
     sep_ctx.separator({.vertical = true});
 
-    render_map({renderer_.get(), map_rect_, world_, player_, combat_, input_,
+    render_map({renderer_.get(), map_rect_, world_, player_, combat_, hacking_, input_,
                 camera_x_, camera_y_, &animations_, &quest_manager_,
                 reveal_traps_debug_});
 

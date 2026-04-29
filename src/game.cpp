@@ -75,6 +75,7 @@ void Game::run() {
         } else if (key == -1) {
             // Timeout — toggle blink phase for reticule
             combat_.tick_blink();
+            hacking_.tick_blink();
             input_.tick_look_blink();
             // Auto-walk/explore step
             if (auto_walking_ || auto_exploring_) {
@@ -879,6 +880,9 @@ void Game::new_game() {
     messages_.clear();
     awaiting_interact_ = false;
     combat_.reset();
+    hacking_.reset();
+    qh_picker_.open = false;
+    qh_picker_slots_.clear();
     input_.cancel_look();
     ;
     inventory_cursor_ = 0;
@@ -1201,6 +1205,9 @@ void Game::new_game(const CreationResult& cr) {
     messages_.clear();
     awaiting_interact_ = false;
     combat_.reset();
+    hacking_.reset();
+    qh_picker_.open = false;
+    qh_picker_slots_.clear();
     input_.cancel_look();
     ;
     inventory_cursor_ = 0;

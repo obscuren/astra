@@ -159,6 +159,7 @@ public:
     void open_cell_picker(bool target_is_shield);
     void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
     bool handle_cell_picker_input(int key);  // returns true if input was consumed
+    void open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots);
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
     void rebuild_star_chart_viewer();
@@ -380,6 +381,12 @@ private:
     CellPickerTarget cell_picker_target_kind_ = CellPickerTarget::EquippedWeapon;
     int cell_picker_target_inv_idx_ = -1;       // used when target_kind_ == InventoryItem
     std::vector<int> cell_picker_indices_;        // parallel inv-index list
+
+    // Quickhack program picker — modal after cursor confirmation
+    MenuState qh_picker_;
+    std::vector<int> qh_picker_slots_;
+    int qh_picker_target_x_ = 0;
+    int qh_picker_target_y_ = 0;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

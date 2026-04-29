@@ -2,6 +2,7 @@
 #include "astra/animation.h"
 #include "astra/poi_placement.h"
 #include "astra/combat_system.h"
+#include "astra/hacking_system.h"
 #include "astra/input_manager.h"
 #include "astra/world_manager.h"
 #include "astra/player.h"
@@ -485,6 +486,18 @@ void render_map(const MapRenderContext& rc) {
                 ctx.put(rx, ry, '+', ret_color);
             }
             // else: let the underlying NPC/item glyph show through
+        }
+    }
+
+    // Quickhack targeting cursor — cyan crosshair, blinks
+    if (rc.hacking.targeting()) {
+        int rx = rc.hacking.target_x() - rc.camera_x;
+        int ry = rc.hacking.target_y() - rc.camera_y;
+        if (rx >= 0 && rx < rc.map_rect.w && ry >= 0 && ry < rc.map_rect.h) {
+            bool on = (rc.hacking.blink_phase() / 30) % 2 == 0;
+            if (on) {
+                ctx.put(rx, ry, '+', Color::Cyan);
+            }
         }
     }
 

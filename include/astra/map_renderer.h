@@ -9,6 +9,7 @@ namespace astra {
 // Forward declarations — MapRenderer only needs read access
 class WorldManager;
 class CombatSystem;
+class HackingSystem;
 class InputManager;
 class AnimationManager;
 class QuestManager;
@@ -20,6 +21,7 @@ struct MapRenderContext {
     const WorldManager& world;
     const Player& player;
     const CombatSystem& combat;
+    const HackingSystem& hacking;
     InputManager& input; // non-const: caches look cell
     int camera_x;
     int camera_y;

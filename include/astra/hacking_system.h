@@ -32,6 +32,7 @@ public:
     void begin_quickhack_targeting(Game& game);
     void cancel_targeting() { targeting_ = false; }
     void handle_targeting_input(int key, Game& game);
+    void reset();   // clear targeting + blink (called from Game::new_game)
 
     // ── Detection ──
     int  detection() const { return detection_.value; }

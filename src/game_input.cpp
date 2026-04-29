@@ -1,5 +1,8 @@
 #include "astra/ability_bar.h"
 #include "astra/game.h"
+#include "astra/hackable.h"
+#include "astra/item_defs.h"
+#include "astra/program.h"
 
 namespace astra {
 
@@ -237,6 +240,49 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // QH program picker intercept — handle BEFORE other key consumers.
+    if (qh_picker_.open) {
+        MenuResult r = qh_picker_.handle_input(key);
+        if (r == MenuResult::Selected) {
+            int slot_idx = qh_picker_slots_[qh_picker_.selection];
+            auto& deck = *player_.equipment.cyberdeck->deck;
+            const auto& slot = deck.loaded[slot_idx];
+            Item probe = build_by_def_id(slot.program_def_id);
+
+            int tx = qh_picker_target_x_, ty = qh_picker_target_y_;
+            Hackable* hack = nullptr;
+            if (world_.map().get(tx, ty) == Tile::Fixture) {
+                int fid = world_.map().fixture_id(tx, ty);
+                if (fid >= 0 && world_.map().fixture(fid).cyber) {
+                    hack = &*world_.map().fixture_mut(fid).cyber;
+                }
+            }
+            if (!hack) {
+                for (auto& npc : world_.npcs()) {
+                    if (npc.x == tx && npc.y == ty && npc.cyber && npc.alive()) {
+                        hack = &*npc.cyber;
+                        break;
+                    }
+                }
+            }
+            if (hack) {
+                std::string msg = hacking_.execute_quickhack(*this, probe, *hack, tx, ty);
+                log(msg);
+                advance_world(ActionCost::interact);
+            }
+            qh_picker_.open = false;
+        } else if (r == MenuResult::Closed) {
+            qh_picker_.open = false;
+        }
+        return;
+    }
+
+    // Quickhack targeting mode intercept (mirrors combat targeting).
+    if (hacking_.targeting()) {
+        hacking_.handle_targeting_input(key, *this);
+        return;
+    }
+
     // Targeting mode intercept
     if (combat_.targeting()) {
         combat_.handle_targeting_input(key, *this);
@@ -377,6 +423,7 @@ void Game::handle_play_input(int key) {
         case 't': combat_.begin_targeting(*this); break;
         case 'T': use_thrown(); break;
         case 's': combat_.shoot_target(*this); break;
+        case 'H': hacking_.begin_quickhack_targeting(*this); break;
         case 'r': combat_.recharge_weapon(*this); break;
         case 'b': combat_.recharge_shield(*this); break;
         case 'R': open_cell_picker(/*target_is_shield=*/false); break;
@@ -556,5 +603,25 @@ void Game::handle_play_input(int key) {
     }
 }
 
+
+void Game::open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots) {
+    qh_picker_.reset();
+    qh_picker_.title = "Quickhack:";
+    auto& deck = *player_.equipment.cyberdeck->deck;
+    for (size_t i = 0; i < menu_slots.size(); ++i) {
+        const auto& slot = deck.loaded[menu_slots[i]];
+        Item probe = build_by_def_id(slot.program_def_id);
+        const ProgramDef* def = find_program(probe.program->id);
+        char k = static_cast<char>('a' + i);
+        std::string label = std::string(def->filename) + "  (" +
+                            std::to_string(def->ram_cost) + " RAM)";
+        qh_picker_.add_option(k, label);
+    }
+    qh_picker_.selection = 0;
+    qh_picker_.open = true;
+    qh_picker_target_x_ = tx;
+    qh_picker_target_y_ = ty;
+    qh_picker_slots_ = menu_slots;
+}
 
 } // namespace astra
