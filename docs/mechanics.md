@@ -793,6 +793,78 @@ Threshold callbacks (fire only on upward crossing):
 
 When the player moves to a different zone, the Detection counter resets to 0.
 
-### Heat → Trace coupling (forward reference, Plan 3)
+## Hacking — The Grid (Plan 3 A-layer)
 
-Programs in the Grid spend `heat_cost` per fire. While Heat > 5, Trace ticks `+1/turn` extra. Heat decays at `cooling_rate` per turn (set by the equipped deck's stats). Plan 3 will implement Heat and Trace; Plan 2 ships the storage on the deck without using it.
+### Trace
+
+`Trace` is a per-`GridSession` counter `[0, 100]` that drives the heist clock. It rises every turn while jacked in.
+
+| Source | Effect |
+|---|---|
+| Tier baseline | Subnet +1, Regional darknet +2, Deep-Grid anchor +3 / turn |
+| White ICE in vision (manhattan ≤ 5) | +2 / turn (+1 with `Intrusion` skill) |
+| Heat > 5 on equipped deck | +1 / turn |
+| Forced deck reboot (heat > heat_cap) | +10 burst (one-shot) |
+| Killing ICE | +3 per kill (`kill_if_dead`) |
+| Walking onto a Firewall via `breach.exe` | +5 burst |
+| Cracking a Gateway via `breach.exe` | +5 burst |
+| `DeepGridNavigator` passive crack | +5 burst (50/50 roll on step) |
+| `ghost_trace.exe` | -3 (lower bound 0) |
+
+Breakpoints (each fires once per session — gated by `trace_alert_pulses`):
+
+- **≥ 50** — Alert log line.
+- **≥ 75** — One Gray ICE reinforcement spawns far from the avatar.
+- **= 100** — One Black ICE summons; "BLACK ICE CONVERGING" log line.
+
+### Heat
+
+Per-deck (lives on `CyberdeckData`). Range `[0, deck.heat_cap]`. T1 deck = 10, T2 = 12 (+2 per tier).
+
+- Each program firing adds `heat_cost` (skipped on the first program of the session if `GhostProtocol` is unlocked).
+- Heat decays `cooling_rate` per turn (T1 = 1, T2 = 1).
+- While Heat > 5, +1 Trace per turn (coupling).
+- Heat > heat_cap → forced reboot: ram_current and heat_current zeroed, `s.ram = 0`, Trace +10, log line.
+
+### ICE behavior
+
+| Color | HP | Behavior |
+|---|---|---|
+| **White** | 1 | Patrols cardinally; in vision, raises Trace. Skipped while the player has `GhostCloak` (from `ghost_trace.exe`). |
+| **Gray** | 2 | Pursues avatar greedily (manhattan); attacks for 1 avatar HP when adjacent. |
+| **Black** | 4 | Always pursues; attacks for 2 (or 1 with `NeuralFortitude`). On avatar HP-zero, sets `last_killer_color = Black` so the disconnect path picks `BlackIceDeath`. |
+
+`spawn_for_sector` places one White (always) and one Gray (tier ≥ 2) per session at sector init. Black is only spawned by the Trace = 100 breakpoint or the `:spawn-ice` dev verb.
+
+### Disconnect outcomes
+
+Set on `JackOutKind`; chosen by `tick_grid`'s avatar-HP-zero check (Gray/White → `NonBlackDeath`, Black → `BlackIceDeath`) or by player input.
+
+| Kind | Loot | Side effect |
+|---|---|---|
+| **Voluntary** (walk to ⊙) | full credits + lore | none |
+| **HardJackOut** (Shift+Q) | 50% credits | log line; lore not unlocked |
+| **NonBlackDeath** | none | `BlackIceShock` (short, 20 ticks) on body |
+| **BlackIceDeath** | none | Body HP -10 (-5 with `NeuralFortitude`); GameOver if HP ≤ 0; otherwise `BlackIceShock` (long, 60 ticks; `av/quickness -1`) |
+| **SoftDisconnect** | none | Load-time recovery — Trace cleared, no penalty |
+
+### Skill effects (Plan 3 v1)
+
+| Skill | Effect |
+|---|---|
+| `Cat_Hacking` | Required to jack in. |
+| `Intrusion` | White-ICE Trace bonus halved (2 → 1). |
+| `IceBreaking` | `icebreaker_lite.exe` deals +1 damage. |
+| `DaemonMastery` | +1 effective deck slot when picking programs to fire. |
+| `GhostProtocol` | First program of each session is heatless. |
+| `DeepGridNavigator` | Stepping onto a locked gateway: 50/50 free crack (Trace +5). |
+| `NeuralFortitude` | Avatar HP_max +1 at jack-in; Black-ICE attack damage halved (2 → 1); Black-ICE bleed halved (10 → 5). |
+| `CodeCraft` / `ConsciousnessAnchor` | Reserved for Plan 4. |
+
+### Constants (`include/astra/grid_constants.h`)
+
+```cpp
+constexpr int kTraceMax       = 100;
+constexpr int kIceVisionRange = 5;
+constexpr int kKillIceTrace   = 3;
+```

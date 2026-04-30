@@ -351,6 +351,29 @@ Integrates with existing reputation-driven hostility.
 
 Per Q4a-B: body is **phased out** — invulnerable and removed from threat AI. Render a faint `@` ghost glyph at the jack-in console so the player knows where the body is. (When the vulnerable-body model is revisited, the ghost is replaced with a real `@` and AI eligibility re-enabled — natural attachment point.)
 
+### Grid HUD — deferred to Plan 5
+
+Plan 3 ships a debug-quality HUD: four uncoloured monospaced bars (HP / RAM / Trace / Heat) and the sector tilemap. That's enough to verify mechanics; it is not a real interface. A full Grid HUD pass is **owned by Plan 5**, brainstormed fresh once Plans 3 and 4 are merged and playtested. The brainstorm should not start from the bullets below — those are seed material, not a locked layout.
+
+**Load-bearing constraints any Grid HUD design must respect:**
+
+- The Grid HUD is its own subsystem, not the play HUD reskinned. Distinct translation unit, distinct palette, distinct information model. The play HUD's surface-mode coupling and player-stat assumptions don't transfer.
+- **Trace is the primary on-screen quantity.** The player loses to Trace, not HP. It must be the most visible thing on screen, color-shifting at the 50/75/100 breakpoints.
+- **Every visible ICE must be enumerable at a glance.** Each one is a per-turn Trace source; the player needs to see who sees them and at what distance, without scanning the tilemap.
+- **Program slots must be selectable.** The Task 10 "fire the first loaded `.exe`" model is a stub. The HUD must surface each loaded slot with its RAM cost and heat cost, and bind to a real picker (probably `f` then a letter key, mirroring the play ability bar pattern).
+- **Effects with remaining duration must be visible.** `GhostCloak`, `BlackIceShock`, `IceBreakerCharge`, future buffs — all need a strip showing name + ticks left. Without this the player can't reason about the cloak window or the post-death debuff.
+- **Plan 4 surfaces must have homes.** Grid currency, implant status, signature programs, AI-contact reputation all need on-screen real estate. The layout cannot be designed before Plan 4 lands or it will need to be redone.
+- **Tron-styled visual language**, coordinated with `grid_theme.h`. Single accent for primary data, dim for secondary, red reserved for danger states (Trace ≥ 75, deck overheating, black ICE adjacent). Match the in-grid tile palette so the visual language is unified.
+- **The Grid renderer and Grid HUD live in separate files.** `grid_renderer.cpp` stays focused on tile + actor rendering; HUD goes in `grid_hud.cpp` (or similar). Once effect strips, threat panels, and program slots land, the combined file would blow past the 600-line discipline target.
+
+**Seed bullets — starting points for the Plan 5 brainstorm, not commitments:**
+
+- A **top bar** showing current node label, tier, and a connection indicator that flickers when Trace is climbing.
+- A **right column** mirroring the shape of the play side panel, but stacked: Trace (largest), Heat (with the >5 coupling threshold marked), RAM, avatar HP, then an effects strip.
+- A **threat panel** above the program list — one row per visible ICE with color, distance, and "sees you" indicator.
+- A **program slot bar** at the bottom (mirroring the existing ability bar), each cell showing program glyph + RAM cost + heat cost, hotkey-driven.
+- A **bottom message strip** styled like a CRT readout — green-on-near-black, monospaced, recent program outputs and ICE actions.
+
 ---
 
 ## 5. Hackable taxonomy, non-hacker access, persistence

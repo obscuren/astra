@@ -367,11 +367,11 @@ Programs are loadable items. Their `kind` determines where they fire:
 
 | Filename | Dev | Kind | Tier | RAM | Heat | Detection | Effect |
 |----------|-----|------|------|-----|------|-----------|--------|
-| `icebreaker_lite.exe` | `icebreaker_lite` | ATK | 1 | 2 | 2 | — | (Plan 3) |
-| `ghost_trace.exe` | `ghost_trace` | STL | 1 | 3 | 0 | — | (Plan 3) |
-| `cooldown.exe` | `cooldown` | STL | 1 | 2 | 0 | — | (Plan 3) |
-| `breach.exe` | `breach` | UTL | 1 | 3 | 3 | — | (Plan 3) |
-| `decrypt.exe` | `decrypt` | UTL | 1 | 2 | 1 | — | (Plan 3) |
+| `icebreaker_lite.exe` | `icebreaker_lite` | ATK | 1 | 2 | 2 | — | 1 + 1d4 damage to nearest ICE in vision (+1 with `IceBreaking`). |
+| `ghost_trace.exe` | `ghost_trace` | STL | 1 | 3 | 0 | — | Trace -3; `GhostCloak` 3 turns (white ICE skips you). |
+| `cooldown.exe` | `cooldown` | STL | 1 | 2 | 0 | — | Heat -4 on the equipped deck. |
+| `breach.exe` | `breach` | UTL | 1 | 3 | 3 | — | Adjacent Firewall → Floor (Trace +5), or crack adjacent Gateway (Trace +5). |
+| `decrypt.exe` | `decrypt` | UTL | 1 | 2 | 1 | — | Self/adjacent EncryptedFile → Floor; lore archive added to session loot. |
 | `reboot_optics.qh` | `reboot_optics` | QH | 1 | 1 | — | +1 | Blinds camera/turret 4 turns. |
 | `friendly_fire.qh` | `friendly_fire` | QH | 2 | 3 | — | +3 | Turret targets allies 2 turns. |
 | `data_leech.qh` | `data_leech` | QH | 1 | 2 | — | +2 | Skim 5 + tier × 5 credits from a hackable. |
