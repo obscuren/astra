@@ -29,7 +29,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 56;   // v56: Plan 4 Task 3 — StatModifiers::willpower
+inline constexpr uint32_t SAVE_FILE_VERSION = 57;   // v57: Plan 4 Task 5 — Hackable lore_fragments + soul_mirror_progress
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

@@ -684,7 +684,7 @@ static Aura read_manual_aura(BinaryReader& r) {
 }
 
 // ---------------------------------------------------------------------------
-// Hackable serialization helpers (v52)
+// Hackable serialization helpers (v52, extended v57)
 // ---------------------------------------------------------------------------
 
 static void write_hackable(BinaryWriter& w, const Hackable& h) {
@@ -698,6 +698,13 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     for (auto pid : h.available_qh) {
         w.write_u16(static_cast<uint16_t>(pid));
     }
+    // v57 — Plan 4: lore_fragments + soul_mirror_progress
+    w.write_u32(static_cast<uint32_t>(h.lore_fragments.size()));
+    for (const auto& f : h.lore_fragments) {
+        w.write_string(f.archive_id);
+        w.write_u8(f.committed ? 1 : 0);
+    }
+    w.write_i32(h.soul_mirror_progress);
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -713,6 +720,16 @@ static Hackable read_hackable(BinaryReader& r) {
     for (uint32_t i = 0; i < qh_n; ++i) {
         h.available_qh.push_back(static_cast<ProgramId>(r.read_u16()));
     }
+    // v57 — Plan 4: lore_fragments + soul_mirror_progress
+    uint32_t frag_n = r.read_u32();
+    h.lore_fragments.reserve(frag_n);
+    for (uint32_t i = 0; i < frag_n; ++i) {
+        LoreFragmentSeed f;
+        f.archive_id = r.read_string();
+        f.committed  = (r.read_u8() != 0);
+        h.lore_fragments.push_back(std::move(f));
+    }
+    h.soul_mirror_progress = r.read_i32();
     return h;
 }
 

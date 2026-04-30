@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace astra {
@@ -30,6 +31,12 @@ enum class HackState : uint8_t {
 // Forward-declared in headers that don't need ProgramId (program.h includes hackable.h).
 enum class ProgramId : uint16_t;
 
+// v57 — Plan 4: each Precursor console carries 1..4 of these.
+struct LoreFragmentSeed {
+    std::string archive_id;        // e.g. "ARCH-7x12-0"; encodes position + index
+    bool committed = false;        // true once written to consciousness.dat
+};
+
 struct Hackable {
     DeviceKind device_kind = DeviceKind::Turret;
     int security_tier = 1;        // 1..3 — gates QH/jack-in availability
@@ -47,6 +54,10 @@ struct Hackable {
     // when it hits 0 the state collapses back to Clean (or to Alarmed if a
     // detection event flagged it).
     int state_ticks_left = 0;
+
+    // v57 — Plan 4 (PrecursorConsole only): lore fragments + Soul Mirror progress.
+    std::vector<LoreFragmentSeed> lore_fragments;
+    int soul_mirror_progress = 0;
 };
 
 // Default-constructs a Hackable with device-appropriate available_qh

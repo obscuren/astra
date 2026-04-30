@@ -26,6 +26,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
+#include <cstdio>
 #include <ctime>
 #include <map>
 #include <sstream>
@@ -1333,6 +1335,16 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                     GridNodeId nid = register_precursor_console(net, "DevConsole.Spawn",
                                                                  game.world().seed(), 1);
                     fd.cyber->jack_in_node_id = static_cast<int>(nid.value);
+                    // Populate lore fragments (1..4) using position-encoded archive ids.
+                    auto& rng = game.world().rng();
+                    int n_fragments = 1 + static_cast<int>(rng() % 4);
+                    fd.cyber->lore_fragments.clear();
+                    for (int fi = 0; fi < n_fragments; ++fi) {
+                        LoreFragmentSeed f;
+                        f.archive_id = "ARCH-" + std::to_string(nx) + "x"
+                                     + std::to_string(ny) + "-" + std::to_string(fi);
+                        fd.cyber->lore_fragments.push_back(std::move(f));
+                    }
                 }
                 game.world().map().add_fixture(nx, ny, fd);
                 log("Placed " + std::string(device_kind_name(dk)) + " at (" +
@@ -1426,6 +1438,38 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             return;
         }
         log("No adjacent passable tile to spawn ICE.");
+    }
+    else if (verb == "dump-precursor") {
+        // Find the nearest Precursor console hackable on the current map.
+        const auto& m  = game.world().map();
+        const auto& px = game.player().x;
+        const auto& py = game.player().y;
+        const Hackable* nearest = nullptr;
+        int best_dist = INT_MAX;
+        int w = m.width();
+        int h = m.height();
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int fidx = m.fixture_id(x, y);
+                if (fidx < 0) continue;
+                const auto& fd = m.fixture(fidx);
+                if (!fd.cyber) continue;
+                if (fd.cyber->device_kind != DeviceKind::PrecursorConsole) continue;
+                int dist = std::abs(x - px) + std::abs(y - py);
+                if (dist < best_dist) { best_dist = dist; nearest = &*fd.cyber; }
+            }
+        }
+        if (!nearest) {
+            log("no Precursor console on this map");
+            return;
+        }
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "fragments: %zu / progress: %d",
+                      nearest->lore_fragments.size(), nearest->soul_mirror_progress);
+        log(buf);
+        for (const auto& f : nearest->lore_fragments) {
+            log("  - " + f.archive_id + (f.committed ? " [done]" : ""));
+        }
     }
     else if (verb == "spawn-implant") {
         if (args.size() < 2) {
