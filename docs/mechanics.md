@@ -859,7 +859,8 @@ Set on `JackOutKind`; chosen by `tick_grid`'s avatar-HP-zero check (Gray/White �
 | `GhostProtocol` | First program of each session is heatless. |
 | `DeepGridNavigator` | Stepping onto a locked gateway: 50/50 free crack (Trace +5). |
 | `NeuralFortitude` | Avatar HP_max +1 at jack-in; Black-ICE attack damage halved (2 → 1); Black-ICE bleed halved (10 → 5). |
-| `CodeCraft` / `ConsciousnessAnchor` | Reserved for Plan 4. |
+| `CodeCraft` | Tinker workbench can craft T3 programs (`pulse_hammer.exe`, `daemon_hijack.exe`). |
+| `ConsciousnessAnchor` | Capstone — unlocks a persistent deep-Grid base sector that survives Sgr A* rebirth. |
 
 ### Constants (`include/astra/grid_constants.h`)
 
@@ -868,3 +869,73 @@ constexpr int kTraceMax       = 100;
 constexpr int kIceVisionRange = 5;
 constexpr int kKillIceTrace   = 3;
 ```
+
+## Hacking — Plan 4 (D-layer): Consciousness, Deep-Grid, Rebirth
+
+Plan 4 layers a **second save scope** on top of the per-galaxy save: a
+profile-wide `consciousness.dat` that carries identity across Sgr A* rebirths.
+
+### Soul Mirror channel
+
+A non-hacker access path that lets any character with a Neural Backup implant
+sync lore from a Precursor console without jacking in.
+
+| Field | Value |
+|---|---|
+| Trigger | Stand adjacent to a Precursor console while wearing the Neural Backup implant. |
+| Cost | 1 EP per turn while channelling. |
+| Progress | +10% per turn at base. Each missing lore fragment on the console contributes once. |
+| Commit | Channel completes at 100% — fragments append to `consciousness.dat.lore_archive`. |
+| Interrupt | Taking damage, leaving the adjacent tile, or unequipping the implant cancels the channel. Progress is lost. |
+| HUD | A horizontal strip below the side panel shows `Soul Mirror ░░░░░░░░░ 60%` while active. |
+
+Per-console progress persists on the `Hackable` itself, so partial channels
+resume on the next attempt.
+
+### Sgr A* rebirth
+
+Crossing the Sgr A* event horizon ends the current galaxy and starts a new
+one with the player's consciousness intact.
+
+1. **Confirm modal** — lists what survives the crossing (consciousness id,
+   rebirth count, deep-Grid base presence, lore fragment count, grid currency).
+2. **Cinematic** (first crossing only) — six key-paced reveal lines.
+   `seen_first_rebirth` in `consciousness.dat` skips this on later rebirths.
+3. **Apply** — `rebirth_count++`, write `consciousness.dat`, return to the
+   main menu so the next New Game starts on a fresh galaxy with the saved
+   consciousness applied.
+
+### Cross-build survival matrix
+
+| Build | What survives the crossing |
+|---|---|
+| `ConsciousnessAnchor` capstone | Lore + currency + AI contacts + deep-Grid base + signature programs |
+| `Cat_Hacking` only | Lore + currency + AI contacts |
+| Non-hacker w/ Neural Backup | Lore archive only |
+| Non-hacker, no implant | Nothing (true rebirth) |
+
+The schema fields exist for every save; gating is at the *write* side. A
+non-hacker without `ConsciousnessAnchor` simply never has `deep_grid_base`
+populated — the field stays `nullopt`.
+
+### Netmap overlay
+
+`netmap` (or `N` in the Hacking tab) opens a modal overlay over the terminal
+pane. Two zoom layers — **Regional** (Subnet + RegionalDarknet nodes) and
+**Deep-Grid** (DeepGridAnchor nodes). Switch with `,`. Arrow keys step the
+cursor between nodes by closest-in-direction. `Enter` jacks into the
+selected node; locked edges show red and ignore Enter (Plan 5 will add the
+breach UX). `Esc` closes.
+
+### Regional darknet generation
+
+Regional sectors are 40×24 BSP-split into 4–8 firewall-bordered rooms with
+single-tile floor doorways between siblings. The exit node lands in the room
+farthest from spawn. Decoration: 1–4 `EncryptedFile`, 0–2 `DataNode`, 50%
+chance of a deep-Grid `Gateway`. Tier 3 networks gain an extra encrypted file.
+
+### Camera
+
+The grid renderer follows the avatar with a 4-cell deadzone. Sectors that
+fit the viewport stay locked at the origin (legacy behaviour); larger
+sectors scroll only when the avatar approaches the viewport edge.

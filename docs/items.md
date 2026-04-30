@@ -375,6 +375,17 @@ Programs are loadable items. Their `kind` determines where they fire:
 | `reboot_optics.qh` | `reboot_optics` | QH | 1 | 1 | — | +1 | Blinds camera/turret 4 turns. |
 | `friendly_fire.qh` | `friendly_fire` | QH | 2 | 3 | — | +3 | Turret targets allies 2 turns. |
 | `data_leech.qh` | `data_leech` | QH | 1 | 2 | — | +2 | Skim 5 + tier × 5 credits from a hackable. |
+| `pulse_hammer.exe` | `pulse_hammer` | ATK | 3 | 4 | 5 | — | AoE 1d6 damage to all ICE adjacent to target tile (Plan 4 — `CodeCraft`). |
+| `daemon_hijack.exe` | `daemon_hijack` | UTL | 3 | 5 | 4 | — | Take control of one ICE for 3 turns (Plan 4 — `CodeCraft`). |
+
+## Implants
+
+Implants slot into the dedicated **Implant** equipment slot exposed via the
+PDA Equipment-tab paper-doll toggle (`Tab` while on the Equipment tab).
+
+| Name | Dev | Effects | Source |
+|------|-----|---------|--------|
+| Neural Backup | `neural_backup` | -1 Willpower; auto-syncs lore at Precursor consoles via the Soul Mirror channel. | T2+ deep-Grid drops, BlackMarket. |
 
 ## Code Fragments
 
