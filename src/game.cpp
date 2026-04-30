@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/aura.h"
+#include "astra/grid_input.h"
 #include "astra/boot_sequence.h"
 #include "astra/dungeon_level_generator.h"
 #include "astra/dungeon_recipe.h"
@@ -221,6 +222,19 @@ void Game::handle_input(int key) {
         case GameState::GameOver:  handle_gameover_input(key);  break;
         case GameState::LoadMenu:  handle_load_input(key);     break;
         case GameState::HallOfFame: handle_hall_input(key);    break;
+        case GameState::Grid:
+            if (console_.is_open()) {
+                console_.handle_input(key, *this);
+                break;
+            }
+            if (key == '`') {
+                console_.toggle();
+                break;
+            }
+            if (grid_input::handle(*this, key)) {
+                advance_world(ActionCost::move);
+            }
+            break;
     }
 }
 

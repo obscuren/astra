@@ -21,16 +21,16 @@ constexpr Color gateway     = Color::BrightMagenta;
 constexpr Color exit_node   = Color::BrightWhite;
 constexpr Color encrypted   = Color::Green;
 
-// Glyphs — ASCII only (Cell is char).
-constexpr char floor_glyph     = '.';
-constexpr char firewall_glyph  = '#';
-constexpr char avatar_glyph    = '@';
-constexpr char white_ice_glyph = 'w';
-constexpr char gray_ice_glyph  = 'G';
-constexpr char black_ice_glyph = 'B';
-constexpr char data_node_glyph = '$';
-constexpr char gateway_glyph   = '*';
-constexpr char exit_glyph      = 'O';
-constexpr char encrypted_glyph = '?';
+// Glyphs — UTF-8 strings per spec; rendered via Renderer::draw_glyph.
+constexpr const char* floor_glyph     = "░";
+constexpr const char* firewall_glyph  = "▓";
+constexpr const char* avatar_glyph    = "@";
+constexpr const char* white_ice_glyph = "▼";
+constexpr const char* gray_ice_glyph  = "◇";
+constexpr const char* black_ice_glyph = "▲";
+constexpr const char* data_node_glyph = "$";
+constexpr const char* gateway_glyph   = "⌬";
+constexpr const char* exit_glyph      = "⊙";
+constexpr const char* encrypted_glyph = "⊘";
 
 } // namespace astra::grid_theme

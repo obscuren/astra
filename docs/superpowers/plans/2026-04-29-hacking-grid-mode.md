@@ -385,21 +385,21 @@ constexpr Color gateway     = Color::BrightMagenta;
 constexpr Color exit_node   = Color::BrightCyan;
 constexpr Color encrypted   = Color::BrightBlue;
 
-constexpr char floor_glyph     = '.';   // bg-tile via renderer; UTF-8 ░ supplied as ascii fallback
-constexpr char firewall_glyph  = '#';
-constexpr char avatar_glyph    = '@';
-constexpr char white_ice_glyph = 'w';
-constexpr char gray_ice_glyph  = 'G';
-constexpr char black_ice_glyph = 'B';
-constexpr char data_node_glyph = '$';
-constexpr char gateway_glyph   = '*';
-constexpr char exit_glyph      = 'O';
-constexpr char encrypted_glyph = '?';
+constexpr const char* floor_glyph     = "░";
+constexpr const char* firewall_glyph  = "▓";
+constexpr const char* avatar_glyph    = "@";
+constexpr const char* white_ice_glyph = "▼";
+constexpr const char* gray_ice_glyph  = "◇";
+constexpr const char* black_ice_glyph = "▲";
+constexpr const char* data_node_glyph = "$";
+constexpr const char* gateway_glyph   = "⌬";
+constexpr const char* exit_glyph      = "⊙";
+constexpr const char* encrypted_glyph = "⊘";
 
 } // namespace astra::grid_theme
 ```
 
-> Why ASCII glyphs and not the spec's UTF-8 characters: terminal renderer Cell uses `char` (per memory `project_cell_refactor.md`). Use ASCII now; revisit when multi-byte support lands.
+> Multi-byte UTF-8 is supported: `Cell::ch` is `char[5]` and `Renderer::draw_glyph(int x, int y, const char* utf8, Color fg)` is the call site. Use `draw_glyph` for tiles/ICE/avatar (Task 7); use `draw_string` for HUD text and `draw_char` for ASCII-only writes.
 
 - [ ] **Step 8: Add HackingSystem Grid surface**
 
@@ -1168,7 +1168,7 @@ Pattern (paraphrased from existing tilemap rendering):
 ```cpp
 namespace astra::grid_renderer {
 
-static char glyph_for(GridTile t) {
+static const char* glyph_for(GridTile t) {
     using namespace grid_theme;
     switch (t) {
         case GridTile::Floor:         return floor_glyph;
@@ -1177,9 +1177,9 @@ static char glyph_for(GridTile t) {
         case GridTile::Gateway:       return gateway_glyph;
         case GridTile::ExitNode:      return exit_glyph;
         case GridTile::EncryptedFile: return encrypted_glyph;
-        case GridTile::Wall:          return ' ';
+        case GridTile::Wall:          return " ";
     }
-    return ' ';
+    return " ";
 }
 
 static Color color_for(GridTile t) {
@@ -1208,20 +1208,20 @@ void render(Game& game, Renderer& r) {
     for (int y = 0; y < s.sector.h; ++y) {
         for (int x = 0; x < s.sector.w; ++x) {
             GridTile t = s.sector.at(x, y);
-            r.draw_char(origin_x + x, origin_y + y, glyph_for(t), color_for(t));
+            r.draw_glyph(origin_x + x, origin_y + y, glyph_for(t), color_for(t));
         }
     }
     for (const auto& ice : s.ice) {
-        char g = ice.color == IceColor::White ? grid_theme::white_ice_glyph
-               : ice.color == IceColor::Gray  ? grid_theme::gray_ice_glyph
-               :                                 grid_theme::black_ice_glyph;
+        const char* g = ice.color == IceColor::White ? grid_theme::white_ice_glyph
+                      : ice.color == IceColor::Gray  ? grid_theme::gray_ice_glyph
+                      :                                 grid_theme::black_ice_glyph;
         Color c = ice.color == IceColor::White ? grid_theme::white_ice
                 : ice.color == IceColor::Gray  ? grid_theme::gray_ice
                 :                                 grid_theme::black_ice;
-        r.draw_char(origin_x + ice.x, origin_y + ice.y, g, c);
+        r.draw_glyph(origin_x + ice.x, origin_y + ice.y, g, c);
     }
-    r.draw_char(origin_x + s.avatar_x, origin_y + s.avatar_y,
-                grid_theme::avatar_glyph, grid_theme::avatar);
+    r.draw_glyph(origin_x + s.avatar_x, origin_y + s.avatar_y,
+                 grid_theme::avatar_glyph, grid_theme::avatar);
 
     // HUD: hp/ram/trace/heat bars.
     int hud_x = origin_x + s.sector.w + 2;
@@ -1249,7 +1249,7 @@ void render(Game& game, Renderer& r) {
 } // namespace astra::grid_renderer
 ```
 
-> If `Renderer::draw_char` / `draw_text` don't match these exact names, find the actual API: `grep -n "void draw\|Renderer::" include/astra/renderer.h`.
+> Real Renderer API: `draw_glyph(int x, int y, const char* utf8, Color fg)` for tiles/ICE/avatar; `draw_string(int x, int y, const std::string& text)` for HUD text (uncoloured); `draw_char(int x, int y, char ch, Color fg)` for ASCII single chars only.
 
 - [ ] **Step 3: Hook into game_rendering.cpp**
 
@@ -2181,11 +2181,11 @@ If everything passes, hand off to `superpowers:finishing-a-development-branch` t
 
 **Open ambiguities flagged for executor:**
 - `Color::DarkBlue` etc. in `grid_theme.h` may need swapping for actual palette names in `include/astra/color.h`.
-- `Renderer::draw_char` exact name — verify before Task 7.
+- Renderer drawing: `draw_glyph` for UTF-8 tiles/ICE/avatar, `draw_string` for HUD bars, `draw_char` for ASCII single chars.
 - `c.game.rng().roll(n)` — confirm RNG API.
 - `EquipSlot` / `equipment.equipped_cyberdeck()` is verified in current main.
 - The DataNode "credits ticker" formula in Task 8 is a placeholder; tune in playtest.
-- Heat icon glyphs use ASCII fallbacks because terminal Cell is `char`. Revisit when multi-byte support lands.
+- Glyphs are spec UTF-8 (`░`, `▓`, `▼`, `◇`, `▲`, `⌬`, `⊙`, `⊘`) via `Renderer::draw_glyph`.
 
 **Risks:**
 - Sector tile count vs render area — first run may have layout overlap with the existing right-side HUD. If the play-area width is too narrow, shrink sector to 14x10. Adjust in `gen_*_sector` and Anchor.

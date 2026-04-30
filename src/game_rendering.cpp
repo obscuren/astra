@@ -9,6 +9,7 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/grenade.h"
+#include "astra/grid_renderer.h"
 #include "astra/map_renderer.h"
 #include "astra/recipe.h"
 #include "astra/skill_defs.h"
@@ -858,6 +859,7 @@ void Game::render() {
         case GameState::GameOver:   render_gameover();      break;
         case GameState::LoadMenu:   render_load_menu();     break;
         case GameState::HallOfFame: render_hall_of_fame();  break;
+        case GameState::Grid:       grid_renderer::render(*this, *renderer_); break;
     }
 
     renderer_->present();

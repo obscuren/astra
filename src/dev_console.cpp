@@ -1354,6 +1354,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         game.hacking().add_detection(n - cur);
         log("Detection = " + std::to_string(game.hacking().detection()));
     }
+    else if (verb == "jack-out") {
+        if (!game.hacking().jacked_in()) {
+            log("Not jacked in.");
+            return;
+        }
+        game.hacking().jack_out(game, JackOutKind::Voluntary);
+        log("Jacked out.");
+    }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
     }

@@ -164,7 +164,9 @@ set(ASTRA_SOURCES
     src/station_type.cpp
     src/station_roll.cpp
     src/hacking_system.cpp
+    src/grid_input.cpp
     src/grid_network.cpp
+    src/grid_renderer.cpp
     src/grid_sector.cpp
     src/grid_anchor_layout.cpp
     src/grid_ice.cpp
