@@ -19,6 +19,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -290,12 +292,39 @@ void HackingSystem::commit_loot_(Game& game, GridLootBuffer& loot, int pct) {
     loot = GridLootBuffer{};
 }
 
-void HackingSystem::spawn_black_ice_(GridSession& /*s*/) {
-    // Stub — Task 16 implements this.
+namespace {
+// Place an ICE actor in the sector, far from the avatar if possible.
+bool place_ice_far(GridSession& s, IceColor color, int hp,
+                   uint32_t seed_xor, int min_distance) {
+    std::mt19937 rng(static_cast<uint32_t>(s.entry_node.value) ^ seed_xor);
+    std::uniform_int_distribution<int> xd(0, s.sector.w - 1);
+    std::uniform_int_distribution<int> yd(0, s.sector.h - 1);
+    for (int tries = 0; tries < 96; ++tries) {
+        int x = xd(rng);
+        int y = yd(rng);
+        if (!s.sector.passable(x, y)) continue;
+        int d = std::abs(x - s.avatar_x) + std::abs(y - s.avatar_y);
+        if (d < min_distance) continue;
+        bool occupied = false;
+        for (auto& i : s.ice) if (i.x == x && i.y == y) { occupied = true; break; }
+        if (occupied) continue;
+        GridIce ice;
+        ice.x = x; ice.y = y;
+        ice.color = color;
+        ice.hp = hp;
+        s.ice.push_back(ice);
+        return true;
+    }
+    return false;
+}
 }
 
-void HackingSystem::spawn_gray_ice_reinforcement_(GridSession& /*s*/) {
-    // Stub — Task 16 implements.
+void HackingSystem::spawn_black_ice_(GridSession& s) {
+    place_ice_far(s, IceColor::Black, /*hp*/4, /*seed*/0xB1ACC1CEu, /*min_distance*/4);
+}
+
+void HackingSystem::spawn_gray_ice_reinforcement_(GridSession& s) {
+    place_ice_far(s, IceColor::Gray, /*hp*/2, /*seed*/0xC9A41CEu, /*min_distance*/3);
 }
 
 bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
