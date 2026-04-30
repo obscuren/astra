@@ -1362,6 +1362,69 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         game.hacking().jack_out(game, JackOutKind::Voluntary);
         log("Jacked out.");
     }
+    else if (verb == "jack") {
+        if (args.size() < 2) {
+            log("usage: jack <node-label>");
+            return;
+        }
+        const auto& net = game.world().grid_network();
+        const GridNode* match = nullptr;
+        for (const auto& n : net.nodes()) {
+            if (n.label == args[1]) { match = &n; break; }
+        }
+        if (!match) { log("Unknown node: " + args[1]); return; }
+        game.hacking().jack_in(game, match->id);
+    }
+    else if (verb == "trace") {
+        if (args.size() < 2) {
+            log("usage: trace <0..100>  (sets Grid Trace counter)");
+            return;
+        }
+        if (!game.hacking().jacked_in()) {
+            log("Not jacked in.");
+            return;
+        }
+        int n = 0;
+        try { n = std::stoi(args[1]); } catch (...) { log("invalid number"); return; }
+        n = std::clamp(n, 0, 100);
+        game.hacking().session()->trace = n;
+        log("Trace = " + std::to_string(n));
+    }
+    else if (verb == "spawn-ice") {
+        if (args.size() < 2) {
+            log("usage: spawn-ice <white|gray|black>");
+            return;
+        }
+        if (!game.hacking().jacked_in()) {
+            log("Not jacked in.");
+            return;
+        }
+        IceColor color;
+        int hp;
+        if      (args[1] == "white") { color = IceColor::White; hp = 1; }
+        else if (args[1] == "gray")  { color = IceColor::Gray;  hp = 2; }
+        else if (args[1] == "black") { color = IceColor::Black; hp = 4; }
+        else { log("unknown color: " + args[1]); return; }
+
+        auto* sess = game.hacking().session();
+        // Place adjacent to avatar in any passable, unoccupied tile.
+        static const int dxs[4] = { 0, 0, -1, 1 };
+        static const int dys[4] = { -1, 1, 0, 0 };
+        for (int d = 0; d < 4; ++d) {
+            int nx = sess->avatar_x + dxs[d];
+            int ny = sess->avatar_y + dys[d];
+            if (!sess->sector.passable(nx, ny)) continue;
+            bool occupied = false;
+            for (auto& i : sess->ice) if (i.x == nx && i.y == ny) { occupied = true; break; }
+            if (occupied) continue;
+            GridIce ice;
+            ice.x = nx; ice.y = ny; ice.color = color; ice.hp = hp;
+            sess->ice.push_back(ice);
+            log("Spawned " + args[1] + " ICE.");
+            return;
+        }
+        log("No adjacent passable tile to spawn ICE.");
+    }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
     }

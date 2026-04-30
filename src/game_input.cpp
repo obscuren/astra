@@ -150,6 +150,13 @@ void Game::handle_play_input(int key) {
             open_cell_picker(/*target_is_shield=*/req == 1);
             pda_screen_.clear_recharge_equipped_request();
         }
+        if (uint32_t nid_v = pda_screen_.consume_jack_in_request(); nid_v != 0) {
+            pda_screen_.close();
+            GridNodeId nid;
+            nid.value = nid_v;
+            hacking_.jack_in(*this, nid);
+            return;
+        }
         auto installed_slot = pda_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {
             quest_manager_.on_ship_component_installed(installed_slot);

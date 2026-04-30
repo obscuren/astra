@@ -1559,6 +1559,8 @@ static const char* tab_help_body(PdaTab tab) {
                    "Type commands at the prompt. 'help' lists all commands. "
                    "Tab to autocomplete. Up/Down walk history. Left/Right "
                    "edit in place. PgUp/PgDn scroll the buffer.\n\n"
+                   "netmap            list known networks\n"
+                   "jack -t <node>    jack into a network node (Cat_Hacking)\n\n"
                    "[H in world] Quickhack a hackable target\n"
                    "[?] help / [P] ps / [I] ls / [N] netmap / [L] lore";
     }

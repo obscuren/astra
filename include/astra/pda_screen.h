@@ -216,6 +216,8 @@ private:
     int recharge_equipped_request_ = -1;
     // Ship component install output — Game reads this to update quests
     std::string installed_ship_slot_;
+    // Jack-in request — terminal `jack -t <node>`. 0 = none.
+    uint32_t jack_in_request_node_id_ = 0;
 public:
     bool has_dropped_item() const { return has_dropped_item_; }
     Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
@@ -229,6 +231,11 @@ public:
         std::string s = std::move(installed_ship_slot_);
         installed_ship_slot_.clear();
         return s;
+    }
+    uint32_t consume_jack_in_request() {
+        uint32_t v = jack_in_request_node_id_;
+        jack_in_request_node_id_ = 0;
+        return v;
     }
 private:
 

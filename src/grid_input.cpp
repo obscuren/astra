@@ -105,7 +105,9 @@ void open_program_picker(Game& game, GridSession& s) {
         if (def->kind == ProgramKind::Qh) continue;
 
         if (s.ram < def->ram_cost) {
-            game.log("Not enough RAM.");
+            game.log("Not enough RAM for " + std::string(def->filename) +
+                     " (" + std::to_string(def->ram_cost) + " required, " +
+                     std::to_string(s.ram) + " available).");
             return;
         }
         s.ram -= def->ram_cost;

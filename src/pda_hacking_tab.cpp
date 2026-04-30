@@ -1,12 +1,15 @@
 #include "astra/pda_screen.h"
 
 #include "astra/cyberdeck.h"
+#include "astra/grid_network.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/program.h"
 #include "astra/skill_defs.h"
+#include "astra/world_manager.h"
 
+#include <cstdio>
 #include <sstream>
 
 namespace astra {
@@ -711,11 +714,55 @@ void PdaScreen::hack_term_cmd_ping(const std::vector<std::string>& args) {
 }
 
 void PdaScreen::hack_term_cmd_netmap() {
-    hack_term_emit("netmap: no networks discovered yet (Plan 3 will populate).",
-                   UITag::TextDim);
+    if (!world_) {
+        hack_term_emit("netmap: world unavailable.", UITag::TextDim);
+        return;
+    }
+    const auto& net = world_->grid_network();
+    if (net.nodes().empty()) {
+        hack_term_emit("(netmap empty — discover Precursor consoles to populate)",
+                       UITag::TextDim);
+        return;
+    }
+    for (const auto& n : net.nodes()) {
+        const char* kind = n.kind == GridNodeKind::Subnet          ? "[subnet]"
+                         : n.kind == GridNodeKind::RegionalDarknet ? "[regional]"
+                         :                                            "[deep-grid]";
+        char buf[160];
+        std::snprintf(buf, sizeof(buf), "  %-32s %s  T%d",
+                      n.label.c_str(), kind, n.security_tier);
+        hack_term_emit(buf);
+    }
 }
-void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>&) {
-    hack_term_emit("The Grid is not yet implemented (Plan 3).", UITag::TextDim);
+
+void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {
+    // args[0] is "jack". Expect: jack -t <node-label>
+    if (args.size() < 3 || args[1] != "-t") {
+        hack_term_emit("usage: jack -t <node-label>", UITag::TextDim);
+        return;
+    }
+    if (!world_ || !player_) {
+        hack_term_emit("jack: state unavailable.", UITag::TextDim);
+        return;
+    }
+    if (!has_cat_hacking(*player_)) {
+        hack_term_emit("jack: requires Cat_Hacking skill.", UITag::TextDim);
+        return;
+    }
+    const std::string& label = args[2];
+    const auto& net = world_->grid_network();
+    const GridNode* match = nullptr;
+    for (const auto& n : net.nodes()) {
+        if (n.label == label) { match = &n; break; }
+    }
+    if (!match) {
+        hack_term_emit("Unknown node: " + label, UITag::TextDim);
+        return;
+    }
+    // Game polls jack_in_request_node_id_ after handle_input and performs
+    // the actual jack-in (which closes this screen).
+    jack_in_request_node_id_ = match->id.value;
+    hack_term_emit(">> uploading consciousness... <<");
 }
 void PdaScreen::hack_term_cmd_lore() {
     hack_term_emit("no decrypted archives (Plan 3+).", UITag::TextDim);
