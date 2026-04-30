@@ -253,11 +253,9 @@ void Game::handle_play_input(int key) {
             if (fd.cyber) {
                 Hackable& hack = *fd.cyber;
                 if (slot_idx == -1) {
-                    if (!player_has_skill(player_, SkillId::Cat_Hacking)) {
-                        log("You need the Hacking skill to jack in.");
-                    } else {
-                        log("The Grid is not yet implemented (Plan 3 will add it).");
-                    }
+                    GridNodeId nid;
+                    nid.value = static_cast<uint32_t>(hack.jack_in_node_id);
+                    hacking_.jack_in(*this, nid);
                 } else {
                     auto* deck_slot = player_.equipment.equipped_cyberdeck();
                     auto& deck = *(*deck_slot)->deck;

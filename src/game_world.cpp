@@ -2175,6 +2175,11 @@ void Game::recompute_fov() {
 }
 
 void Game::advance_world(int cost) {
+    if (state_ == GameState::Grid) {
+        hacking_.tick_grid(*this);
+        return;
+    }
+
     // Grant energy to all NPCs on the current map
     for (auto& npc : world_.npcs()) {
         npc.energy += cost * npc.quickness / 100;

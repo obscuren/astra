@@ -39,4 +39,10 @@ struct CyberdeckData {
 CyberdeckStats cyberdeck_stats_tier1();
 CyberdeckStats cyberdeck_stats_tier2();
 
+// Heat helpers (Plan 3). Mutate CyberdeckData::heat_current.
+void cyberdeck_add_heat(CyberdeckData& cd, int amount);
+bool cyberdeck_decay_heat(CyberdeckData& cd);                 // -= cooling_rate, clamp 0; returns true if fully cooled
+bool cyberdeck_overheated(const CyberdeckData& cd);           // heat > heat_cap
+void cyberdeck_force_reboot(CyberdeckData& cd);               // ram_current = 0; heat_current = 0
+
 } // namespace astra

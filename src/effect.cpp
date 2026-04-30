@@ -339,6 +339,44 @@ Effect make_hijacked_ge(int duration) {
     return e;
 }
 
+Effect make_grid_invulnerable_ge() {
+    Effect e;
+    e.id = EffectId::GridInvulnerable;
+    e.name = "Phased Out";
+    e.color = Color::Cyan;
+    e.duration = -1;
+    e.remaining = -1;
+    e.show_in_bar = true;
+    return e;
+}
+
+Effect make_blackice_shock_short_ge() {
+    Effect e;
+    e.id = EffectId::BlackIceShock;
+    e.name = "Disoriented";
+    e.color = Color::Magenta;
+    e.duration = 20;
+    e.remaining = 20;
+    e.show_in_bar = true;
+    return e;
+}
+
+Effect make_blackice_shock_long_ge() {
+    Effect e;
+    e.id = EffectId::BlackIceShock;
+    e.name = "Convulsing";
+    e.color = Color::Red;
+    e.duration = 60;
+    e.remaining = 60;
+    e.show_in_bar = true;
+    // StatModifiers has av (armour value) and quickness as the broadest
+    // combat-relevant stats. -1 to each marks the body as impaired.
+    // Full "all attributes" pipeline is a Plan 4 polish target.
+    e.modifiers.av = -1;
+    e.modifiers.quickness = -1;
+    return e;
+}
+
 Effect effect_for_id(EffectId id) {
     switch (id) {
         case EffectId::CookingFireAura: return make_cooking_fire_aura_ge();
@@ -347,6 +385,8 @@ Effect effect_for_id(EffectId id) {
         case EffectId::Hearty:          return make_hearty_ge();
         case EffectId::EmpDisabled:     return make_emp_disabled_ge(5);
         case EffectId::Hijacked:        return make_hijacked_ge(2);
+        case EffectId::GridInvulnerable: return make_grid_invulnerable_ge();
+        case EffectId::BlackIceShock:    return make_blackice_shock_long_ge();
         default: return Effect{};
     }
 }

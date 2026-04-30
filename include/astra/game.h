@@ -116,6 +116,8 @@ public:
     void ascend_stairs();
     void advance_world(int cost);
 
+    void set_state(GameState s) { state_ = s; }
+
     // Save system accessors
     const std::string& death_message() const { return death_message_; }
     void set_death_message(const std::string& msg) { death_message_ = msg; }

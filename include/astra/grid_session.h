@@ -68,6 +68,8 @@ struct GridSession {
 
     // Loot accumulated this session (committed on voluntary disconnect).
     GridLootBuffer loot;
+
+    IceColor last_killer_color = IceColor::White;
 };
 
 } // namespace astra

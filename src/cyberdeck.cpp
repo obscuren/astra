@@ -17,4 +17,24 @@ CyberdeckStats cyberdeck_stats_tier2() {
     return s;
 }
 
+void cyberdeck_add_heat(CyberdeckData& cd, int amount) {
+    cd.heat_current += amount;
+    if (cd.heat_current < 0) cd.heat_current = 0;
+}
+
+bool cyberdeck_decay_heat(CyberdeckData& cd) {
+    cd.heat_current -= cd.stats.cooling_rate;
+    if (cd.heat_current < 0) cd.heat_current = 0;
+    return cd.heat_current == 0;
+}
+
+bool cyberdeck_overheated(const CyberdeckData& cd) {
+    return cd.heat_current > cd.stats.heat_cap;
+}
+
+void cyberdeck_force_reboot(CyberdeckData& cd) {
+    cd.ram_current = 0;
+    cd.heat_current = 0;
+}
+
 } // namespace astra

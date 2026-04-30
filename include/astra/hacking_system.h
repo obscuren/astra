@@ -86,6 +86,10 @@ private:
     static uint64_t compute_zone_signature(const Game& game);
 
     void on_detection_threshold_(int threshold);
+
+    void commit_loot_(Game& game, GridLootBuffer& loot, int pct);
+    void spawn_black_ice_(GridSession& s);
+    void spawn_gray_ice_reinforcement_(GridSession& s);
 };
 
 } // namespace astra
