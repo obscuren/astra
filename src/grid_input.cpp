@@ -1,10 +1,20 @@
 #include "astra/grid_input.h"
 
+#include "astra/cyberdeck.h"
 #include "astra/game.h"
+#include "astra/grid_constants.h"
+#include "astra/grid_network.h"
 #include "astra/grid_session.h"
 #include "astra/hacking_system.h"
+#include "astra/item.h"
+#include "astra/item_defs.h"
+#include "astra/program.h"
+#include "astra/program_effects.h"
 #include "astra/renderer.h"
+#include "astra/world_manager.h"
 
+#include <algorithm>
+#include <random>
 #include <string>
 
 namespace astra::grid_input {
@@ -37,9 +47,33 @@ void on_step(Game& game, GridSession& s) {
         case GridTile::EncryptedFile:
             game.log("Encrypted file. Run decrypt.exe to read.");
             return;
-        case GridTile::Gateway:
-            game.log("Gateway. (Traversal lands in a later task.)");
+        case GridTile::Gateway: {
+            // DeepGridNavigator: 50/50 chance to passively crack a locked
+            // gateway when the avatar steps onto it, no breach.exe required.
+            // Already-cracked gateways pass through with no roll.
+            auto& net = game.world().grid_network();
+            for (auto& e : net.edges_mut()) {
+                bool touches = (e.from == s.current_node || e.to == s.current_node);
+                if (!touches) continue;
+                if (e.cracked) {
+                    game.log("Gateway open. (Traversal lands in a later task.)");
+                    return;
+                }
+                if (s.skill_deepgrid_navigator) {
+                    std::uniform_int_distribution<int> coin(0, 1);
+                    if (coin(game.world().rng()) == 0) {
+                        e.cracked = true;
+                        s.trace = std::min(kTraceMax, s.trace + 5);
+                        game.log("DeepGridNavigator: gateway cracked. Trace +5.");
+                        return;
+                    }
+                }
+                game.log("Gateway locked. Use breach.exe.");
+                return;
+            }
+            game.log("Gateway has no destination wired.");
             return;
+        }
         default:
             return;
     }
@@ -50,9 +84,45 @@ void show_help(Game& game) {
     game.log("walk to ⊙ for safe disconnect, Shift+Q hard jack-out.");
 }
 
-void open_program_picker_stub(Game& game, GridSession& s) {
-    (void)s;
-    game.log("No programs loaded. Slot a .exe into your cyberdeck first.");
+void open_program_picker(Game& game, GridSession& s) {
+    auto* slot = game.player().equipment.equipped_cyberdeck();
+    if (!slot || !*slot || !(*slot)->deck) {
+        game.log("No deck.");
+        return;
+    }
+    auto& cd = *(*slot)->deck;
+
+    int eff_slots = std::min(kCyberdeckMaxSlots,
+                             cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
+    for (int i = 0; i < eff_slots; ++i) {
+        if (cd.loaded[i].program_def_id == 0) continue;
+        // Slot stores item_def_id; resolve to a ProgramId via the item registry.
+        Item probe = build_by_def_id(cd.loaded[i].program_def_id);
+        if (!probe.program) continue;
+        ProgramId pid = probe.program->id;
+        const auto* def = find_program(pid);
+        if (!def) continue;
+        if (def->kind == ProgramKind::Qh) continue;
+
+        if (s.ram < def->ram_cost) {
+            game.log("Not enough RAM.");
+            return;
+        }
+        s.ram -= def->ram_cost;
+
+        int heat = def->heat_cost;
+        if (s.skill_ghost_protocol && !s.ghost_protocol_used) {
+            heat = 0;
+            s.ghost_protocol_used = true;
+        }
+        cyberdeck_add_heat(cd, heat);
+
+        GridProgramContext ctx{game, s, -1, -1};
+        std::string msg = apply_program_in_grid(pid, ctx);
+        game.log("[" + std::string(def->filename) + "] " + msg);
+        return;
+    }
+    game.log("No Grid programs loaded. Slot a .exe in the PDA Hacking tab.");
 }
 
 } // namespace
@@ -74,7 +144,7 @@ bool handle(Game& game, int key) {
         case KEY_LEFT:  case 'h': return move_with_step(-1,  0);
         case KEY_RIGHT: case 'l': return move_with_step( 1,  0);
         case '.':                 return true;
-        case 'f': case 'F':       open_program_picker_stub(game, s); return false;
+        case 'f': case 'F':       open_program_picker(game, s); return false;
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);
             return false;

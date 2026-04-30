@@ -44,6 +44,7 @@ public:
     std::vector<GridNodeId> neighbors(GridNodeId id) const;
     const std::vector<GridNode>& nodes() const { return nodes_; }
     const std::vector<GridEdge>& edges() const { return edges_; }
+    std::vector<GridEdge>&       edges_mut()    { return edges_; }
     void clear();
 private:
     std::vector<GridNode> nodes_;

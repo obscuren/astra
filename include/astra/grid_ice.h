@@ -12,8 +12,7 @@ struct GridIce {
     int       hp = 1;
     IceColor  color = IceColor::White;
     int       patrol_dir = 0;          // 0..3 (white only)
-    bool      sees_avatar = false;     // white only -- refreshed each turn
-    int       attack_cooldown = 0;     // gray/black
+    bool      sees_avatar = false;     // refreshed each turn for all colors
 };
 
 struct GridSession; // fwd

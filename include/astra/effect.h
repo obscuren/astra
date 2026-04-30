@@ -129,6 +129,7 @@ Effect make_hijacked_ge(int duration);
 Effect make_grid_invulnerable_ge();
 Effect make_blackice_shock_short_ge();   // 20 ticks
 Effect make_blackice_shock_long_ge();    // 60 ticks; -1 av/quickness
+Effect make_ghost_cloak_ge(int duration);
 
 // Build a runtime Effect from its EffectId. Used by systems (cooking,
 // aura system) that store EffectIds in data and need to materialise

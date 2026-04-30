@@ -377,6 +377,17 @@ Effect make_blackice_shock_long_ge() {
     return e;
 }
 
+Effect make_ghost_cloak_ge(int duration) {
+    Effect e;
+    e.id = EffectId::GhostCloak;
+    e.name = "Ghost Cloak";
+    e.color = Color::Cyan;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    return e;
+}
+
 Effect effect_for_id(EffectId id) {
     switch (id) {
         case EffectId::CookingFireAura: return make_cooking_fire_aura_ge();
@@ -387,6 +398,7 @@ Effect effect_for_id(EffectId id) {
         case EffectId::Hijacked:        return make_hijacked_ge(2);
         case EffectId::GridInvulnerable: return make_grid_invulnerable_ge();
         case EffectId::BlackIceShock:    return make_blackice_shock_long_ge();
+        case EffectId::GhostCloak:       return make_ghost_cloak_ge(3);
         default: return Effect{};
     }
 }

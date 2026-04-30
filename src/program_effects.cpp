@@ -1,16 +1,27 @@
 #include "astra/program_effects.h"
 
+#include "astra/cyberdeck.h"
 #include "astra/effect.h"
 #include "astra/game.h"
+#include "astra/grid_constants.h"
+#include "astra/grid_ice.h"
+#include "astra/grid_network.h"
+#include "astra/grid_session.h"
 #include "astra/hackable.h"
 #include "astra/npc.h"
 #include "astra/world_manager.h"
 
+#include <algorithm>
+#include <climits>
+#include <cstdlib>
+#include <random>
 #include <string>
 
 namespace astra {
 
 namespace {
+
+// ── Real-world quickhack helpers ────────────────────────────────────
 
 void apply_reboot_optics(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
     target.state = HackState::Compromised;
@@ -49,6 +60,85 @@ void apply_data_leech(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
              " credits skimmed off the bus.");
 }
 
+// ── Grid-.exe helpers ────────────────────────────────────────────────
+
+std::string apply_icebreaker_lite_grid(GridProgramContext c) {
+    GridIce* tgt = nullptr;
+    int best = INT_MAX;
+    for (auto& i : c.session.ice) {
+        int d = std::abs(i.x - c.session.avatar_x) + std::abs(i.y - c.session.avatar_y);
+        if (d <= kIceVisionRange && d < best) { tgt = &i; best = d; }
+    }
+    if (!tgt) return "icebreaker_lite: no target in range.";
+
+    std::uniform_int_distribution<int> roll(1, 4);
+    int dmg = 1 + roll(c.game.world().rng())
+            + (c.session.skill_icebreaking ? 1 : 0);
+
+    grid_ice::damage(c.session, *tgt, dmg);
+    grid_ice::kill_if_dead(c.session, *tgt);
+    return "icebreaker_lite: " + std::to_string(dmg) + " damage to ICE.";
+}
+
+std::string apply_ghost_trace_grid(GridProgramContext c) {
+    c.session.trace = std::max(0, c.session.trace - 3);
+    add_effect(c.game.player().effects, make_ghost_cloak_ge(3));
+    return "ghost_trace: invisible to white ICE for 3 turns. Trace -3.";
+}
+
+std::string apply_cooldown_grid(GridProgramContext c) {
+    auto* slot = c.game.player().equipment.equipped_cyberdeck();
+    if (!slot || !*slot || !(*slot)->deck) return "cooldown: no deck.";
+    auto& cd = *(*slot)->deck;
+    cd.heat_current = std::max(0, cd.heat_current - 4);
+    return "cooldown: heat -4.";
+}
+
+std::string apply_breach_grid(GridProgramContext c) {
+    static constexpr int dx[4] = { 0, 0, -1, 1 };
+    static constexpr int dy[4] = { -1, 1, 0, 0 };
+    for (int d = 0; d < 4; ++d) {
+        int nx = c.session.avatar_x + dx[d];
+        int ny = c.session.avatar_y + dy[d];
+        GridTile t = c.session.sector.at(nx, ny);
+        if (t == GridTile::Firewall) {
+            c.session.sector.set(nx, ny, GridTile::Floor);
+            c.session.trace = std::min(kTraceMax, c.session.trace + 5);
+            return "breach: firewall down. Trace +5.";
+        }
+        if (t == GridTile::Gateway) {
+            auto& net = c.game.world().grid_network();
+            for (auto& e : net.edges_mut()) {
+                if ((e.from == c.session.current_node ||
+                     e.to == c.session.current_node) && !e.cracked) {
+                    e.cracked = true;
+                    c.session.trace = std::min(kTraceMax, c.session.trace + 5);
+                    return "breach: gateway cracked. Trace +5.";
+                }
+            }
+            return "breach: no locked gateway here.";
+        }
+    }
+    return "breach: nothing adjacent to break.";
+}
+
+std::string apply_decrypt_grid(GridProgramContext c) {
+    static constexpr int dx[5] = { 0, 0, 0, -1, 1 };
+    static constexpr int dy[5] = { 0, -1, 1, 0, 0 };
+    for (int d = 0; d < 5; ++d) {
+        int nx = c.session.avatar_x + dx[d];
+        int ny = c.session.avatar_y + dy[d];
+        if (c.session.sector.at(nx, ny) == GridTile::EncryptedFile) {
+            c.session.sector.set(nx, ny, GridTile::Floor);
+            c.session.loot.lore_unlocked.push_back(
+                "ARCH-" + std::to_string(c.session.entry_node.value) +
+                "-" + std::to_string(d));
+            return "decrypt: archive read.";
+        }
+    }
+    return "decrypt: no encrypted file in range.";
+}
+
 } // namespace
 
 void apply_program_effect(ProgramId id, Game& game, Hackable& target, int tx, int ty) {
@@ -57,6 +147,17 @@ void apply_program_effect(ProgramId id, Game& game, Hackable& target, int tx, in
         case ProgramId::FriendlyFire: apply_friendly_fire(game, target, tx, ty); break;
         case ProgramId::DataLeech:    apply_data_leech(game, target, tx, ty); break;
         default: break;
+    }
+}
+
+std::string apply_program_in_grid(ProgramId id, GridProgramContext ctx) {
+    switch (id) {
+        case ProgramId::IcebreakerLite: return apply_icebreaker_lite_grid(ctx);
+        case ProgramId::GhostTrace:     return apply_ghost_trace_grid(ctx);
+        case ProgramId::Cooldown:       return apply_cooldown_grid(ctx);
+        case ProgramId::Breach:         return apply_breach_grid(ctx);
+        case ProgramId::Decrypt:        return apply_decrypt_grid(ctx);
+        default:                        return "Program is not Grid-side.";
     }
 }
 

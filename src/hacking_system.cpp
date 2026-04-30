@@ -4,6 +4,7 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/grid_constants.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_sector.h"
 #include "astra/hackable.h"
@@ -29,9 +30,9 @@ constexpr int kDetectionMax = 100;
 constexpr int kDetectionMin = 0;
 
 // Grid-side tuning constants (see docs/mechanics.md).
+// kTraceMax lives in grid_constants.h; everything below is local to this TU.
 constexpr int kHeatTraceCouplingThreshold = 5;   // +1 Trace/turn while heat exceeds this
 constexpr int kRebootTracePenalty         = 10;
-constexpr int kTraceMax                   = 100;
 constexpr int kTraceBreakpoint1           = 50;
 constexpr int kTraceBreakpoint2           = 75;
 constexpr int kTraceBreakpoint3           = 100;
