@@ -162,6 +162,7 @@ set(ASTRA_SOURCES
     src/scenarios/stage4_hostility.cpp
     src/faction.cpp
     src/ship.cpp
+    src/soul_mirror.cpp
     src/station_type.cpp
     src/station_roll.cpp
     src/hacking_system.cpp

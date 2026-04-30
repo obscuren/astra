@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/action.h"
+#include "astra/soul_mirror.h"
 #include "astra/dungeon/dungeon_style.h"
 #include "astra/animation.h"
 #include "astra/aura_system.h"
@@ -159,6 +160,13 @@ public:
     void open_hackable_menu(int fixture_id);
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
+
+    // Soul Mirror channel state
+    SoulMirrorChannelState&       soul_mirror_state()       { return soul_mirror_state_; }
+    const SoulMirrorChannelState& soul_mirror_state() const { return soul_mirror_state_; }
+
+    // Layout rect exposed for HUD overlay renderers
+    Rect xp_bar_rect() const { return xp_bar_rect_; }
     void rebuild_star_chart_viewer();
     void reset_interaction_state();
     void post_load();
@@ -263,6 +271,7 @@ private:
     void render_interactables_widget(UIContext& ctx);
     void render_effects_bar();
     void render_abilities_bar();
+    void render_soul_mirror_strip();
     void render_welcome_screen();
     void render_lost_popup();
     void render_pause_menu();
@@ -331,6 +340,7 @@ private:
     int camera_y_ = 0;
 
     SaveSystem save_system_;
+    SoulMirrorChannelState soul_mirror_state_;
 
     // Widgets
     uint8_t active_widgets_ = widget_default;

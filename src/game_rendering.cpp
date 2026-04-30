@@ -8,6 +8,7 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/soul_mirror.h"
 #include "astra/grenade.h"
 #include "astra/grid_renderer.h"
 #include "astra/map_renderer.h"
@@ -1013,6 +1014,7 @@ void Game::render_play() {
 
     render_stats_bar();
     render_bars();
+    render_soul_mirror_strip();
     render_detection_indicator();
 
     render_widget_bar();
@@ -1213,6 +1215,10 @@ void Game::render_bars() {
                               .tag=UITag::XpBar});
         }
     }
+}
+
+void Game::render_soul_mirror_strip() {
+    soul_mirror::render_hud_strip(*this, *renderer_);
 }
 
 void Game::render_detection_indicator() {

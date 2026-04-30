@@ -1,4 +1,5 @@
 #include "astra/combat_system.h"
+#include "astra/soul_mirror.h"
 #include "astra/animation.h"
 #include "astra/energy.h"
 #include "astra/creature_flags.h"
@@ -261,6 +262,7 @@ static void ranged_hit_player(Npc& npc, Game& game) {
     }
     game.player().hp -= damage;
     if (game.player().hp < 0) game.player().hp = 0;
+    soul_mirror::on_player_damaged(game);
     game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
     game.log(display_name(npc) + " shoots you for " +
              std::to_string(damage) + " " + display_name(dtype) + " damage!");
@@ -481,6 +483,7 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             }
             game.player().hp -= damage;
             if (game.player().hp < 0) game.player().hp = 0;
+            soul_mirror::on_player_damaged(game);
             game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
             game.log(display_name(npc) + " strikes you for " +
                      std::to_string(damage) + " " + display_name(dtype) + " damage!");

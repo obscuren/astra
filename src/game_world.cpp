@@ -1,4 +1,5 @@
 #include "astra/game.h"
+#include "astra/soul_mirror.h"
 #include "astra/aura.h"
 #include "astra/civ_aesthetics.h"
 #include "astra/debug_spawn.h"
@@ -2338,6 +2339,9 @@ void Game::advance_world(int cost) {
 
     // Hacking — detection counter ticks per advance_world step
     hacking_.tick(*this);
+
+    // Soul Mirror — progress channel if the player is still on the console tile
+    soul_mirror::tick(*this);
 }
 
 
