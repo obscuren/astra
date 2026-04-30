@@ -863,6 +863,10 @@ void Game::render() {
         case GameState::Grid:       grid_renderer::render(*this, *renderer_); break;
     }
 
+    if (rebirth_.is_active()) {
+        rebirth_.render(*this, *renderer_);
+    }
+
     renderer_->present();
 }
 

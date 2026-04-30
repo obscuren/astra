@@ -21,6 +21,7 @@
 #include "astra/combat_system.h"
 #include "astra/energy_system.h"
 #include "astra/hacking_system.h"
+#include "astra/rebirth_sequence.h"
 #include "astra/dev_console.h"
 #include "astra/dialog_manager.h"
 #include "astra/event_bus.h"
@@ -141,6 +142,8 @@ public:
     CombatSystem& combat() { return combat_; }
     HackingSystem& hacking() { return hacking_; }
     const HackingSystem& hacking() const { return hacking_; }
+    RebirthSequence& rebirth() { return rebirth_; }
+    const RebirthSequence& rebirth() const { return rebirth_; }
     Telegraph& telegraph() { return telegraph_; }
     void refresh_view() { recompute_fov(); compute_camera(); }
     QuestManager& quests() { return quest_manager_; }
@@ -327,6 +330,7 @@ private:
     CharacterCreation character_creation_;
     CombatSystem combat_;
     HackingSystem hacking_;
+    RebirthSequence rebirth_;
     EnergySystem energy_;
     Telegraph telegraph_;
     QuestManager quest_manager_;

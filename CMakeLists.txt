@@ -175,6 +175,7 @@ set(ASTRA_SOURCES
     src/grid_ice.cpp
     src/grid_netmap_widget.cpp
     src/grid_regional_generator.cpp
+    src/rebirth_sequence.cpp
     src/grid_session.cpp
     src/help_screen.cpp
     src/input_manager.cpp

@@ -192,6 +192,13 @@ void Game::compute_layout() {
 // --- Input ---
 
 void Game::handle_input(int key) {
+    // Rebirth modal/cinematic intercepts input regardless of state — except
+    // MainMenu, where it can't have been triggered. Apply() can flip state_
+    // mid-call, so we re-check before falling through.
+    if (rebirth_.is_active()) {
+        rebirth_.handle_key(*this, key);
+        return;
+    }
     switch (state_) {
         case GameState::MainMenu:
             // Quit confirm intercepts on menu too

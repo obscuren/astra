@@ -1,6 +1,7 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
 #include "astra/aura.h"
+#include "astra/consciousness_save.h"
 #include "astra/biome_profile.h"
 #include "astra/body_presets.h"
 #include "astra/display_name.h"
@@ -243,6 +244,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  detection <n>                 - set zone detection counter");
         log("  sync-soul                     - force Sync Soul on nearest Precursor console");
         log("  unlock-anchor                 - grant ConsciousnessAnchor + seed deep-Grid base");
+        log("  rebirth                       - open Sgr A* rebirth modal");
+        log("  rebirth-reset                 - delete consciousness.dat (clean slate)");
     }
     else if (verb == "clear") {
         clear();
@@ -1531,6 +1534,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         grant_skill(game.player(), SkillId::ConsciousnessAnchor);
         apply_skill_side_effects(game, SkillId::ConsciousnessAnchor);
         log("ConsciousnessAnchor unlocked. Base seeded.");
+    }
+    else if (verb == "rebirth") {
+        game.rebirth().begin();
+        log("Sgr A* rebirth modal opened.");
+    }
+    else if (verb == "rebirth-reset") {
+        delete_consciousness();
+        log("consciousness.dat cleared.");
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
