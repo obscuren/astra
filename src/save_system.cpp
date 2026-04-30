@@ -215,6 +215,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     if (!data.navigation.systems.empty()) {
         world.navigation() = data.navigation;
     } else {
+        world.grid_network().clear();
         world.navigation() = generate_galaxy(world.seed());
     }
     // Restore quest state (before star chart rebuild so markers appear)

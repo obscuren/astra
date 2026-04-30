@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/dungeon_recipe.h"
+#include "astra/grid_network.h"
 #include "astra/item.h"
 #include "astra/location_key.h"
 #include "astra/lore_influence_map.h"
@@ -137,6 +138,9 @@ public:
     NavigationData& navigation() { return navigation_; }
     const NavigationData& navigation() const { return navigation_; }
 
+    GridNetwork&       grid_network()       { return grid_network_; }
+    const GridNetwork& grid_network() const { return grid_network_; }
+
     OverworldReturnPos& overworld_return() { return overworld_return_; }
     const OverworldReturnPos& overworld_return() const { return overworld_return_; }
 
@@ -226,6 +230,7 @@ private:
     unsigned seed_ = 0;
     std::mt19937 rng_;
     NavigationData navigation_;
+    GridNetwork grid_network_;
     OverworldReturnPos overworld_return_;
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;

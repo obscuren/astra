@@ -260,4 +260,12 @@ std::string HackingSystem::execute_quickhack(Game& game, const Item& program,
     return std::string(def->name) + " executed.";
 }
 
+bool HackingSystem::jack_in(Game& /*game*/, GridNodeId /*entry_node*/) {
+    return false;
+}
+
+void HackingSystem::jack_out(Game& /*game*/, JackOutKind /*kind*/) {}
+
+void HackingSystem::tick_grid(Game& /*game*/) {}
+
 } // namespace astra

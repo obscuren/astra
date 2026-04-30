@@ -45,6 +45,10 @@ enum class EffectId : uint32_t {
     // Debuffs (400+)
     EmpDisabled         = 400,
     Hijacked            = 401,    // Hacking: NPC faction temporarily flipped
+    GridInvulnerable    = 402,    // Grid: body phased out while jacked in
+    BlackIceShock       = 403,    // Grid: debuff after non-black ICE death
+    IceBreakerCharge    = 404,    // Grid: IceBreaker program charge active
+    GhostCloak          = 405,    // Grid: GhostProtocol cloak active
 };
 
 struct Effect {

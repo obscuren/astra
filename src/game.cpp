@@ -1106,6 +1106,7 @@ void Game::new_game() {
         current_phase = "Generating star chart...";
         render_progress();
     }
+    world_.grid_network().clear();
     world_.navigation() = generate_galaxy(world_.seed());
     apply_lore_to_galaxy(world_.navigation(), world_.lore());
     assign_system_factions(world_.navigation(), world_.seed());
@@ -1377,6 +1378,7 @@ void Game::new_game(const CreationResult& cr) {
         current_phase = "Generating star chart...";
         render_progress();
     }
+    world_.grid_network().clear();
     world_.navigation() = generate_galaxy(world_.seed());
     apply_lore_to_galaxy(world_.navigation(), world_.lore());
     assign_system_factions(world_.navigation(), world_.seed());

@@ -9,6 +9,7 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/grid_network.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
@@ -1325,6 +1326,12 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 FixtureData fd = make_fixture(ft);
                 fd.interactable = true;
                 fd.cyber = make_hackable(dk, 1);
+                if (dk == DeviceKind::PrecursorConsole) {
+                    auto& net = game.world().grid_network();
+                    GridNodeId nid = register_precursor_console(net, "DevConsole.Spawn",
+                                                                 game.world().seed(), 1);
+                    fd.cyber->jack_in_node_id = static_cast<int>(nid.value);
+                }
                 game.world().map().add_fixture(nx, ny, fd);
                 log("Placed " + std::string(device_kind_name(dk)) + " at (" +
                     std::to_string(nx) + "," + std::to_string(ny) + ").");

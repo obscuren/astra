@@ -1,11 +1,15 @@
 #pragma once
 
+#include "astra/grid_session.h"
+
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace astra {
 
 class Game;
+struct GridNodeId;
 struct Hackable;
 struct Item;
 class TileMap;
@@ -50,6 +54,20 @@ public:
     std::string execute_quickhack(Game& game, const Item& program, Hackable& target,
                                   int target_x, int target_y);
 
+    // ── Grid lifecycle ──
+    bool jacked_in() const { return session_.has_value(); }
+    GridSession*       session()       { return session_ ? &*session_ : nullptr; }
+    const GridSession* session() const { return session_ ? &*session_ : nullptr; }
+
+    // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
+    bool jack_in(Game& game, GridNodeId entry_node);
+
+    // Drains/persists loot per kind, restores body, returns to previous game state.
+    void jack_out(Game& game, JackOutKind kind);
+
+    // Per-turn Grid update. Called from Game::advance_world when state == Grid.
+    void tick_grid(Game& game);
+
 private:
     bool targeting_ = false;
     int  target_x_ = 0;
@@ -57,6 +75,8 @@ private:
     int  blink_phase_ = 0;
 
     DetectionState detection_;
+
+    std::optional<GridSession> session_;
 
     Game* game_ = nullptr;
 

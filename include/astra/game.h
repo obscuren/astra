@@ -9,6 +9,7 @@
 #include "astra/lore_viewer.h"
 #include "astra/playback_viewer.h"
 #include "astra/fov.h"
+#include "astra/game_state.h"
 #include "astra/npc.h"
 #include "astra/player.h"
 #include "astra/renderer.h"
@@ -50,14 +51,6 @@
 namespace astra {
 
 struct HiddenPoi;
-
-enum class GameState {
-    MainMenu,
-    Playing,
-    GameOver,
-    LoadMenu,
-    HallOfFame,
-};
 
 // SurfaceMode moved to world_manager.h
 
