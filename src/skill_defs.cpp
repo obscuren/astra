@@ -459,10 +459,13 @@ static std::string code_craft_description() {
 }
 
 static std::string consciousness_anchor_description() {
-    std::string s = "(Capstone.) The full anchoring rite. Your selfhood persists past the rebirth.\n\n";
+    std::string s = "Capstone: a permanent deep-Grid base sector that survives Sgr A* rebirth.\n\n";
     s += colored("Passive:", Color::White);
-    s += " Full deep-Grid persistence: base, programs, AI rep, currency, and lore archive ";
-    s += "carry across Sgr A*. (Plan 4.)";
+    s += " Unlocking this builds ";
+    s += colored("Your.Anchor", Color::Cyan);
+    s += " — a hand-authored sector reachable from any deep-Grid gateway, containing a stash terminal, "
+         "lore vault, and signature program rack. Currency, AI contacts, and base inventory persist "
+         "across all rebirths.";
     return s;
 }
 

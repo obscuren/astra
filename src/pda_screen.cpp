@@ -434,6 +434,12 @@ bool PdaScreen::handle_input(int key) {
                             if (sk.id == SkillId::ThickSkin) {
                                 add_effect(player_->effects, make_thick_skin_ge());
                             }
+                            // Skills with one-time side effects: signal game_input
+                            // to call apply_skill_side_effects(game, id).
+                            if (sk.id == SkillId::ConsciousnessAnchor) {
+                                pending_skill_side_effect_id_ =
+                                    static_cast<uint32_t>(sk.id);
+                            }
                             // Learning a skill itself may add skill-sourced auras.
                             rebuild_auras_from_sources(*player_);
                             context_message_ = "Learned " + sk.name + "!";

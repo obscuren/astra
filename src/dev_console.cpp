@@ -18,6 +18,7 @@
 #include "astra/npc.h"
 #include "astra/quest_fixture.h"
 #include "astra/skill_defs.h"
+#include "astra/skill_grant.h"
 #include "astra/soul_mirror.h"
 #include "astra/star_chart.h"
 #include "astra/station_type.h"
@@ -241,6 +242,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  unequip-implant <0|1>         - remove implant from slot, return to inventory");
         log("  detection <n>                 - set zone detection counter");
         log("  sync-soul                     - force Sync Soul on nearest Precursor console");
+        log("  unlock-anchor                 - grant ConsciousnessAnchor + seed deep-Grid base");
     }
     else if (verb == "clear") {
         clear();
@@ -1524,6 +1526,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         add_to_inventory_stacked(game.player().inventory, *s);
         s = std::nullopt;
         log("Unequipped implant from slot " + args[0]);
+    }
+    else if (verb == "unlock-anchor") {
+        grant_skill(game.player(), SkillId::ConsciousnessAnchor);
+        apply_skill_side_effects(game, SkillId::ConsciousnessAnchor);
+        log("ConsciousnessAnchor unlocked. Base seeded.");
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");

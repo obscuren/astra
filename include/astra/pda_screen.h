@@ -221,6 +221,10 @@ private:
     std::string installed_ship_slot_;
     // Jack-in request — terminal `jack -t <node>`. 0 = none.
     uint32_t jack_in_request_node_id_ = 0;
+    // Skill side-effect request — set when a skill with a side effect is learned.
+    // Consumed by game_input.cpp which calls apply_skill_side_effects(game, id).
+    // 0 = none (SkillId 0 is not a real skill).
+    uint32_t pending_skill_side_effect_id_ = 0;
 public:
     bool has_dropped_item() const { return has_dropped_item_; }
     Item consume_dropped_item() { has_dropped_item_ = false; return std::move(dropped_item_); }
@@ -238,6 +242,11 @@ public:
     uint32_t consume_jack_in_request() {
         uint32_t v = jack_in_request_node_id_;
         jack_in_request_node_id_ = 0;
+        return v;
+    }
+    uint32_t consume_skill_side_effect_request() {
+        uint32_t v = pending_skill_side_effect_id_;
+        pending_skill_side_effect_id_ = 0;
         return v;
     }
 private:

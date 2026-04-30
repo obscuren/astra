@@ -41,5 +41,6 @@ GridSector gen_subnet_sector(uint32_t seed, int security_tier);
 GridSector gen_regional_sector(uint32_t seed, int security_tier);
 // Hand-authored -- see grid_anchor_layout.cpp.
 GridSector make_consciousness_anchor_sector();
+GridSector make_player_deep_grid_base();
 
 } // namespace astra

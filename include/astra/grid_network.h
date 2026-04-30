@@ -33,6 +33,10 @@ struct GridNode {
     std::string       label;                    // "Hangar.Turret-7", "Station.Spine"
     // For RegionalDarknet+: pre-generated sector list (one per "room")
     std::vector<uint32_t> sector_seeds;
+    // Plan 4: graph-view position and ownership (DeepGridAnchor nodes only)
+    int               layout_x = 0;
+    int               layout_y = 0;
+    uint64_t          owned_by_consciousness_id = 0;   // 0 = unowned
 };
 
 class GridNetwork {

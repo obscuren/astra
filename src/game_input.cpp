@@ -5,6 +5,7 @@
 #include "astra/item_defs.h"
 #include "astra/program.h"
 #include "astra/skill_defs.h"
+#include "astra/skill_grant.h"
 #include "astra/soul_mirror.h"
 
 namespace astra {
@@ -157,6 +158,9 @@ void Game::handle_play_input(int key) {
             nid.value = nid_v;
             hacking_.jack_in(*this, nid);
             return;
+        }
+        if (uint32_t sid_v = pda_screen_.consume_skill_side_effect_request(); sid_v != 0) {
+            apply_skill_side_effects(*this, static_cast<SkillId>(sid_v));
         }
         auto installed_slot = pda_screen_.consume_installed_ship_slot();
         if (!installed_slot.empty()) {

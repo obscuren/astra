@@ -2400,6 +2400,10 @@ static void write_grid_network_section(BinaryWriter& w, const GridNetwork& net) 
         w.write_string(n.label);
         w.write_u32(static_cast<uint32_t>(n.sector_seeds.size()));
         for (uint32_t s : n.sector_seeds) w.write_u32(s);
+        // v58: Plan 4 Task 9 — graph-view position + ownership
+        w.write_i32(n.layout_x);
+        w.write_i32(n.layout_y);
+        w.write_u64(n.owned_by_consciousness_id);
     }
     w.write_u32(static_cast<uint32_t>(net.edges().size()));
     for (const auto& e : net.edges()) {
@@ -2424,6 +2428,10 @@ static void read_grid_network_section(BinaryReader& r, GridNetwork& net) {
         uint32_t ns = r.read_u32();
         n.sector_seeds.reserve(ns);
         for (uint32_t j = 0; j < ns; ++j) n.sector_seeds.push_back(r.read_u32());
+        // v58: Plan 4 Task 9 — graph-view position + ownership
+        n.layout_x                   = r.read_i32();
+        n.layout_y                   = r.read_i32();
+        n.owned_by_consciousness_id  = r.read_u64();
         net.load_raw(std::move(n));
     }
     uint32_t n_edges = r.read_u32();
