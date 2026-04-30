@@ -14,7 +14,9 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
 
-
+    // Top-left hint — Tab swaps to the Implants paper-doll view.
+    ctx.text({.x = 0, .y = 0,
+              .content = "[Tab] Implants", .tag = UITag::TextDim});
 
     // Right side header: credits and weight
     std::string money_str = std::to_string(player_->money) + "$";
@@ -170,8 +172,8 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
     // Footer hint for Equipment view
     {
         const char* hint = (equip_focus_ == EquipFocus::PaperDoll)
-            ? "[→] Inventory  [Tab] Implants  [Space] Actions"
-            : "[←] Paper doll  [Tab] Implants  [Space] Actions";
+            ? "[→] Inventory  [Space] Actions"
+            : "[←] Paper doll  [Space] Actions";
         ctx.text({.x = 0, .y = ctx.height() - 1,
                   .content = hint, .tag = UITag::TextDim});
     }
@@ -210,8 +212,12 @@ void PdaScreen::draw_implant_view(UIContext& ctx) {
     int w    = ctx.width();
     int half = w / 2;
 
+    // Top-left hint — Tab swaps back to the Equipment paper-doll view.
+    ctx.text({.x = 0, .y = 0,
+              .content = "[Tab] Equipment", .tag = UITag::TextDim});
+
     // ---- Left side: 2-slot implant paper doll ----
-    draw_section_header(ctx, 0, "IMPLANTS");
+    draw_section_header(ctx, 1, "IMPLANTS");
 
     constexpr int bw = 9;   // box width
     constexpr int bh = 3;   // box height
@@ -223,7 +229,7 @@ void PdaScreen::draw_implant_view(UIContext& ctx) {
         bool selected = (equip_cursor_ == s);
         Color border_color = selected ? Color::Yellow : Color::DarkGray;
         int bx = col_c;
-        int by = 2 + s * slot_h;
+        int by = 3 + s * slot_h;
 
         // Box border
         ctx.put(bx, by, BoxDraw::TL, border_color);
@@ -270,7 +276,7 @@ void PdaScreen::draw_implant_view(UIContext& ctx) {
     }
 
     // Implant bonus summary
-    int bonus_y = 2 + Player::IMPLANT_SLOTS * slot_h + 1;
+    int bonus_y = 3 + Player::IMPLANT_SLOTS * slot_h + 1;
     if (bonus_y < ctx.height() - 3) {
         draw_section_header(ctx, bonus_y, "IMPLANT BONUSES");
         auto im = player_->implant_modifiers();
@@ -282,7 +288,7 @@ void PdaScreen::draw_implant_view(UIContext& ctx) {
 
     // ---- Right side: player stats ----
     int rx = half + 2;
-    int ry = 0;
+    int ry = 1;
     draw_section_header(ctx, ry, "STATS", rx, w - 1);
     ry += 2;
     auto draw_stat_line = [&](const char* label, int value) {
@@ -297,10 +303,6 @@ void PdaScreen::draw_implant_view(UIContext& ctx) {
     draw_stat_line("Willpower: ", player_->effective_willpower());
     draw_stat_line("AV:        ", player_->effective_av(DamageType::Kinetic));
     draw_stat_line("DV:        ", player_->effective_dv());
-
-    // Footer hint
-    ctx.text({.x = 0, .y = ctx.height() - 1,
-              .content = "[Tab] Switch to Equipment", .tag = UITag::TextDim});
 }
 
 } // namespace astra
