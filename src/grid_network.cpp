@@ -40,6 +40,11 @@ void GridNetwork::clear() {
     next_id_ = 1;
 }
 
+void GridNetwork::load_raw(GridNode node) {
+    if (node.id.value >= next_id_) next_id_ = node.id.value + 1;
+    nodes_.push_back(std::move(node));
+}
+
 GridNodeId ensure_regional_darknet(GridNetwork& net,
                                    const std::string& region_label,
                                    uint32_t region_seed,

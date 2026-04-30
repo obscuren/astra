@@ -26,6 +26,7 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.messages = game.messages();
         data.stash = world.stash();
         data.navigation = world.navigation();
+        data.grid_network = world.grid_network();
         data.surface_mode = static_cast<uint8_t>(world.surface_mode());
         data.overworld_x = world.overworld_x();
         data.overworld_y = world.overworld_y();
@@ -214,6 +215,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     // Restore navigation data (or bootstrap for old saves)
     if (!data.navigation.systems.empty()) {
         world.navigation() = data.navigation;
+        world.grid_network() = std::move(data.grid_network);
     } else {
         world.grid_network().clear();
         world.navigation() = generate_galaxy(world.seed());
@@ -261,6 +263,13 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     game.hacking().detection_state_mut().decay_acc = data.detection_decay_acc;
 
     game.reset_interaction_state();
+
+    // Spec §5: Grid sessions are not resumable across save/load.
+    if (game.state() == GameState::Grid) {
+        game.set_state(GameState::Playing);
+        game.log("Soft disconnect — Grid session not resumable.");
+    }
+
     game.post_load();
 
     return true;

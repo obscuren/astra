@@ -2358,6 +2358,58 @@ static void read_lore_section(BinaryReader& r, WorldLore& lore) {
     lore.active_beacons = r.read_i32();
 }
 
+// ---------------------------------------------------------------------------
+// GridNetwork serialization (v54)
+// ---------------------------------------------------------------------------
+
+static void write_grid_network_section(BinaryWriter& w, const GridNetwork& net) {
+    auto pos = w.begin_section("GRID");
+    w.write_u32(static_cast<uint32_t>(net.nodes().size()));
+    for (const auto& n : net.nodes()) {
+        w.write_u32(n.id.value);
+        w.write_u8(static_cast<uint8_t>(n.kind));
+        w.write_u32(n.source_seed);
+        w.write_i32(n.security_tier);
+        w.write_string(n.label);
+        w.write_u32(static_cast<uint32_t>(n.sector_seeds.size()));
+        for (uint32_t s : n.sector_seeds) w.write_u32(s);
+    }
+    w.write_u32(static_cast<uint32_t>(net.edges().size()));
+    for (const auto& e : net.edges()) {
+        w.write_u32(e.from.value);
+        w.write_u32(e.to.value);
+        w.write_i32(e.gateway_tier);
+        w.write_u8(e.cracked ? 1 : 0);
+    }
+    w.end_section(pos);
+}
+
+static void read_grid_network_section(BinaryReader& r, GridNetwork& net) {
+    net.clear();
+    uint32_t n_nodes = r.read_u32();
+    for (uint32_t i = 0; i < n_nodes; ++i) {
+        GridNode n;
+        n.id.value      = r.read_u32();
+        n.kind          = static_cast<GridNodeKind>(r.read_u8());
+        n.source_seed   = r.read_u32();
+        n.security_tier = r.read_i32();
+        n.label         = r.read_string();
+        uint32_t ns = r.read_u32();
+        n.sector_seeds.reserve(ns);
+        for (uint32_t j = 0; j < ns; ++j) n.sector_seeds.push_back(r.read_u32());
+        net.load_raw(std::move(n));
+    }
+    uint32_t n_edges = r.read_u32();
+    for (uint32_t i = 0; i < n_edges; ++i) {
+        GridEdge e;
+        e.from.value   = r.read_u32();
+        e.to.value     = r.read_u32();
+        e.gateway_tier = r.read_i32();
+        e.cracked      = r.read_u8() != 0;
+        net.add_edge(e);
+    }
+}
+
 bool write_save(const std::string& name, const SaveData& data) {
     auto dir = save_directory();
     std::filesystem::create_directories(dir);
@@ -2390,6 +2442,9 @@ bool write_save(const std::string& name, const SaveData& data) {
     }
     if (data.lore.generated) {
         write_lore_section(w, data.lore);
+    }
+    if (!data.grid_network.nodes().empty()) {
+        write_grid_network_section(w, data.grid_network);
     }
 
     // Sentinel
@@ -2454,6 +2509,8 @@ bool read_save(const std::string& name, SaveData& data) {
             read_dungeon_recipes_section(r, data);
         } else if (std::memcmp(tag, "LORE", 4) == 0) {
             read_lore_section(r, data.lore);
+        } else if (std::memcmp(tag, "GRID", 4) == 0) {
+            read_grid_network_section(r, data.grid_network);
         } else {
             // Unknown section — skip
             r.skip(size);

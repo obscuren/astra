@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/grid_network.h"
 #include "astra/lore_types.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -28,7 +29,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 53;   // v53: EquipSlot::Utility1/Utility2 replace Cyberdeck slot
+inline constexpr uint32_t SAVE_FILE_VERSION = 54;   // v54: Plan 3 — GridNetwork
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
@@ -88,6 +89,7 @@ struct SaveData {
     std::string death_message;
     std::vector<Item> stash;
     NavigationData navigation;
+    GridNetwork    grid_network;   // v54: Plan 3 — persists across save/load
     uint8_t surface_mode = 0;  // 0=Dungeon, 1=DetailMap, 2=Overworld
     int overworld_x = 0;
     int overworld_y = 0;

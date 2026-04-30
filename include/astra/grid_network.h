@@ -39,6 +39,7 @@ class GridNetwork {
 public:
     GridNodeId add_node(GridNode node);
     void       add_edge(GridEdge edge);
+    void       load_raw(GridNode node);  // load-time: preserves node id, updates next_id_
     const GridNode* find(GridNodeId id) const;
     GridNode*       find_mut(GridNodeId id);
     std::vector<GridNodeId> neighbors(GridNodeId id) const;

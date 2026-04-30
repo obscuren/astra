@@ -116,6 +116,7 @@ public:
     void ascend_stairs();
     void advance_world(int cost);
 
+    GameState state() const { return state_; }
     void set_state(GameState s) { state_ = s; }
 
     // Save system accessors
