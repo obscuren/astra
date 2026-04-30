@@ -185,6 +185,11 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
                              hack_term_input_.substr(cur);
         ctx.text({.x = 2, .y = row, .content = prompt, .tag = UITag::TextDefault});
     }
+
+    // Netmap overlay sits on top of the terminal pane.
+    if (world_) {
+        netmap_widget_.render(ctx, world_->grid_network());
+    }
 }
 
 void PdaScreen::hack_term_emit(const std::string& line, UITag tag) {
@@ -203,6 +208,17 @@ void PdaScreen::handle_hacking_key(int key) {
     // so they don't accumulate in an invisible input buffer.
     auto* deck_slot = player_->equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+
+    // Netmap overlay swallows input while open. A confirmed jack-in is
+    // funnelled into the existing terminal jack request slot so the game
+    // input loop picks it up uniformly.
+    if (netmap_widget_.is_open() && world_) {
+        netmap_widget_.handle_key(world_->grid_network(), key);
+        if (uint32_t nid = netmap_widget_.take_jack_in_request(); nid != 0) {
+            jack_in_request_node_id_ = nid;
+        }
+        return;
+    }
 
     auto clamp_cursor = [&]() {
         if (hack_term_input_cursor_ < 0) hack_term_input_cursor_ = 0;
@@ -718,21 +734,7 @@ void PdaScreen::hack_term_cmd_netmap() {
         hack_term_emit("netmap: world unavailable.", UITag::TextDim);
         return;
     }
-    const auto& net = world_->grid_network();
-    if (net.nodes().empty()) {
-        hack_term_emit("(netmap empty — discover Precursor consoles to populate)",
-                       UITag::TextDim);
-        return;
-    }
-    for (const auto& n : net.nodes()) {
-        const char* kind = n.kind == GridNodeKind::Subnet          ? "[subnet]"
-                         : n.kind == GridNodeKind::RegionalDarknet ? "[regional]"
-                         :                                            "[deep-grid]";
-        char buf[160];
-        std::snprintf(buf, sizeof(buf), "  %-32s %s  T%d",
-                      n.label.c_str(), kind, n.security_tier);
-        hack_term_emit(buf);
-    }
+    netmap_widget_.open();
 }
 
 void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {

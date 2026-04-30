@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/grid_netmap_widget.h"
 #include "astra/player.h"
 #include "astra/quest.h"
 #include "astra/recipe.h"
@@ -221,6 +222,8 @@ private:
     std::string installed_ship_slot_;
     // Jack-in request — terminal `jack -t <node>`. 0 = none.
     uint32_t jack_in_request_node_id_ = 0;
+    // Netmap overlay — shown above the Hacking terminal pane.
+    GridNetmapWidget netmap_widget_;
     // Skill side-effect request — set when a skill with a side effect is learned.
     // Consumed by game_input.cpp which calls apply_skill_side_effects(game, id).
     // 0 = none (SkillId 0 is not a real skill).
