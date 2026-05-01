@@ -203,6 +203,7 @@ static void write_stat_modifiers(BinaryWriter& w, const StatModifiers& m) {
     w.write_i32(m.max_hp);
     w.write_i32(m.view_radius);
     w.write_i32(m.quickness);
+    w.write_i32(m.willpower);  // v56
 }
 
 static StatModifiers read_stat_modifiers(BinaryReader& r) {
@@ -212,6 +213,7 @@ static StatModifiers read_stat_modifiers(BinaryReader& r) {
     m.max_hp = r.read_i32();
     m.view_radius = r.read_i32();
     m.quickness = r.read_i32();
+    m.willpower = r.read_i32();  // v56
     return m;
 }
 

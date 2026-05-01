@@ -136,11 +136,27 @@ struct Player {
     // Tutorial — tracks which datapad tabs have shown their help overlay
     uint16_t tab_help_seen = 0;  // bitfield, one bit per PdaTab
 
-    // Derived stats — attribute modifier + equipment + active effects
+    // Aggregate modifiers from all equipped implants.
+    StatModifiers implant_modifiers() const {
+        StatModifiers total;
+        for (const auto& slot : implants) {
+            if (!slot) continue;
+            total.av         += slot->modifiers.av;
+            total.dv         += slot->modifiers.dv;
+            total.max_hp     += slot->modifiers.max_hp;
+            total.view_radius += slot->modifiers.view_radius;
+            total.quickness  += slot->modifiers.quickness;
+            total.willpower  += slot->modifiers.willpower;
+        }
+        return total;
+    }
+
+    // Derived stats — attribute modifier + equipment + implants + active effects
     int effective_dv() const {
         auto eq = equipment.total_modifiers();
         auto ef = effect_modifiers(effects);
-        return dodge_value + (attributes.agility - 10) / 2 + eq.dv + ef.dv;
+        auto im = implant_modifiers();
+        return dodge_value + (attributes.agility - 10) / 2 + eq.dv + ef.dv + im.dv;
     }
 
     int effective_av(DamageType type) const {
@@ -163,7 +179,15 @@ struct Player {
     int effective_max_hp() const {
         auto eq = equipment.total_modifiers();
         auto ef = effect_modifiers(effects);
-        return max_hp + (attributes.toughness - 10) * 2 + eq.max_hp + ef.max_hp;
+        auto im = implant_modifiers();
+        return max_hp + (attributes.toughness - 10) * 2 + eq.max_hp + ef.max_hp + im.max_hp;
+    }
+
+    // Willpower with equipment + implant modifiers applied.
+    int effective_willpower() const {
+        auto eq = equipment.total_modifiers();
+        auto im = implant_modifiers();
+        return attributes.willpower + eq.willpower + im.willpower;
     }
 };
 

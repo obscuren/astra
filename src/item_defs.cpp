@@ -1525,6 +1525,9 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_CODE_FRAGMENT_T2:        return build_code_fragment_t2();
         case ITEM_CODE_FRAGMENT_T3:        return build_code_fragment_t3();
 
+        // Implants
+        case ITEM_NEURAL_BACKUP:           return build_neural_backup();
+
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
         case ITEM_HULL_PLATE:              return build_hull_plate();
@@ -1703,6 +1706,29 @@ Item build_code_fragment_t3() {
     it.type = ItemType::CraftingMaterial;
     it.description = "Pristine. Rumoured to be lifted off a deep-Grid cache.";
     it.weight = 0; it.stackable = true; it.sell_value = 40;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Implants
+// ---------------------------------------------------------------------------
+
+Item build_neural_backup() {
+    Item it;
+    it.item_def_id = ITEM_NEURAL_BACKUP;
+    it.id = 9200;
+    it.name = "Neural Backup";
+    it.type = ItemType::Implant;
+    it.description =
+        "A spinal-mounted memory crystal that mirrors your decrypted "
+        "lore archive into the deep-Grid each time you stand at a "
+        "Precursor console. Costs you a sliver of will.";
+    it.rarity = Rarity::Rare;
+    it.weight = 0;
+    it.stackable = false;
+    it.buy_value = 1200;
+    it.sell_value = 400;
+    it.modifiers.willpower = -1;  // -1 WIL while equipped
     return it;
 }
 

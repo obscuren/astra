@@ -850,7 +850,9 @@ void PdaScreen::open_context_menu() {
         if (inv_cursor_ < 0 || inv_cursor_ >= static_cast<int>(player_->inventory.items.size())) return;
         const auto& item = player_->inventory.items[inv_cursor_];
         context_menu_.add_option('l', "look");
-        if (item.slot.has_value()) {
+        if (item.type == ItemType::Implant) {
+            context_menu_.add_option('e', "install implant");
+        } else if (item.slot.has_value()) {
             if (item.type == ItemType::MeleeWeapon) {
                 // Melee weapons can go in either hand
                 context_menu_.add_option('e', "equip right hand");
@@ -996,7 +998,28 @@ void PdaScreen::execute_context_action(char key) {
             look_open_ = true;
         } else if (key == 'e' || key == 'q') {
             auto& item = items[inv_cursor_];
-            if (item.slot) {
+            if (item.type == ItemType::Implant) {
+                // Implants go into player_.implants[], not EquipSlot slots.
+                bool installed = false;
+                for (size_t i = 0; i < player_->implants.size(); ++i) {
+                    if (!player_->implants[i]) {
+                        Item to_install = std::move(item);
+                        items.erase(items.begin() + inv_cursor_);
+                        context_message_ = "Installed " + to_install.name +
+                                           " in implant slot " + std::to_string(i + 1) + ".";
+                        context_msg_timer_ = 3;
+                        player_->implants[i] = std::move(to_install);
+                        installed = true;
+                        break;
+                    }
+                }
+                if (!installed) {
+                    context_message_ = "All implant slots are occupied.";
+                    context_msg_timer_ = 3;
+                }
+                if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
+                    --inv_cursor_;
+            } else if (item.slot) {
                 EquipSlot target_slot = *item.slot;
                 // 'q' = left hand for melee weapons
                 if (key == 'q' && item.type == ItemType::MeleeWeapon) {

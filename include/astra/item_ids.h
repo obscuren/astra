@@ -230,4 +230,7 @@ constexpr uint16_t ITEM_CODE_FRAGMENT_T1     = 320;
 constexpr uint16_t ITEM_CODE_FRAGMENT_T2     = 321;
 constexpr uint16_t ITEM_CODE_FRAGMENT_T3     = 322;
 
+// Implants (400+)
+constexpr uint16_t ITEM_NEURAL_BACKUP        = 400;
+
 } // namespace astra

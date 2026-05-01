@@ -127,6 +127,9 @@ Item build_code_fragment_t1();
 Item build_code_fragment_t2();
 Item build_code_fragment_t3();
 
+// --- Implants ---
+Item build_neural_backup();
+
 // --- Programs ---
 Item build_program_icebreaker_lite();
 Item build_program_ghost_trace();

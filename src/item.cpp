@@ -124,6 +124,7 @@ StatModifiers Equipment::total_modifiers() const {
                 total.view_radius += 4;
             }
             total.quickness += (*s)->modifiers.quickness;
+            total.willpower += (*s)->modifiers.willpower;
         }
     }
     return total;

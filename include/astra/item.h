@@ -148,6 +148,7 @@ struct StatModifiers {
     int max_hp = 0;
     int view_radius = 0;
     int quickness = 0;
+    int willpower = 0;  // v55: used by implants (e.g. Neural Backup -1 WIL)
 };
 
 enum class ModuleKind : uint8_t {
