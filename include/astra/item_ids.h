@@ -215,7 +215,7 @@ constexpr uint16_t ITEM_SYNTH_ARMORED_BLADE     = 1009;
 constexpr uint16_t ITEM_PIDGIN_MK1     = 300;   // T1 cyberdeck
 constexpr uint16_t ITEM_POLYGLOT_DCK2  = 301;   // T2 cyberdeck
 
-// Programs (310-317)
+// Programs (310-319)
 constexpr uint16_t ITEM_PROG_ICEBREAKER_LITE = 310;
 constexpr uint16_t ITEM_PROG_GHOST_TRACE     = 311;
 constexpr uint16_t ITEM_PROG_COOLDOWN        = 312;
@@ -224,6 +224,8 @@ constexpr uint16_t ITEM_PROG_DECRYPT         = 314;
 constexpr uint16_t ITEM_PROG_REBOOT_OPTICS   = 315;
 constexpr uint16_t ITEM_PROG_FRIENDLY_FIRE   = 316;
 constexpr uint16_t ITEM_PROG_DATA_LEECH      = 317;
+constexpr uint16_t ITEM_PROG_PULSE_HAMMER    = 318;  // Plan 4 — T3 ATK AoE
+constexpr uint16_t ITEM_PROG_DAEMON_HIJACK   = 319;  // Plan 4 — T3 UTL charm
 
 // Code fragments (320-322)
 constexpr uint16_t ITEM_CODE_FRAGMENT_T1     = 320;

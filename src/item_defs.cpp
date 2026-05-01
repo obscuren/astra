@@ -1519,6 +1519,8 @@ Item build_by_def_id(uint16_t def_id) {
         case ITEM_PROG_REBOOT_OPTICS:      return build_program_reboot_optics();
         case ITEM_PROG_FRIENDLY_FIRE:      return build_program_friendly_fire();
         case ITEM_PROG_DATA_LEECH:         return build_program_data_leech();
+        case ITEM_PROG_PULSE_HAMMER:       return build_program_pulse_hammer();
+        case ITEM_PROG_DAEMON_HIJACK:      return build_program_daemon_hijack();
 
         // Code fragments
         case ITEM_CODE_FRAGMENT_T1:        return build_code_fragment_t1();
@@ -1670,6 +1672,20 @@ Item build_program_data_leech() {
         "data_leech.qh",
         "QH | tier 1 | 2 RAM, +2 Detection. Drains operational data from a hackable.",
         Rarity::Uncommon, 90, 30);
+}
+
+Item build_program_pulse_hammer() {
+    return make_program_(ITEM_PROG_PULSE_HAMMER, 9108, ProgramId::PulseHammer,
+        "pulse_hammer.exe",
+        "ATK | tier 3 | 4 RAM, 5 Heat. AoE 1d6 dmg to all ICE adjacent to target tile.",
+        Rarity::Rare, 600, 200);
+}
+
+Item build_program_daemon_hijack() {
+    return make_program_(ITEM_PROG_DAEMON_HIJACK, 9109, ProgramId::DaemonHijack,
+        "daemon_hijack.exe",
+        "UTL | tier 3 | 5 RAM, 4 Heat. Take control of one ICE for 3 turns.",
+        Rarity::Rare, 650, 220);
 }
 
 // ---------------------------------------------------------------------------

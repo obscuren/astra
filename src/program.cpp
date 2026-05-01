@@ -38,6 +38,10 @@ const std::vector<ProgramDef>& program_registry() {
           "Burns one firewall tile or one gateway lock level. (Plan 3.)", 0, {} },
         { ProgramId::Decrypt,        K::Utl, 1, 2, 1, "Decrypt",         "decrypt.exe",
           "Reads one encrypted file. (Plan 3.)", 0, {} },
+        { ProgramId::PulseHammer,    K::Atk, 3, 4, 5, "Pulse Hammer",    "pulse_hammer.exe",
+          "AoE 1d6 dmg to all ICE adjacent to target tile.", 0, {} },
+        { ProgramId::DaemonHijack,   K::Utl, 3, 5, 4, "Daemon Hijack",   "daemon_hijack.exe",
+          "Take control of one ICE for 3 turns.", 0, {} },
 
         // QH — the active Plan 2 layer.
         { ProgramId::RebootOptics,   K::Qh, 1, 1, 0, "Reboot Optics",    "reboot_optics.qh",

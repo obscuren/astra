@@ -26,6 +26,8 @@ enum class ProgramId : uint16_t {
     Cooldown       = 3,
     Breach         = 4,
     Decrypt        = 5,
+    PulseHammer    = 200,    // Plan 4 — T3 ATK AoE
+    DaemonHijack   = 201,    // Plan 4 — T3 UTL ICE charm
     RebootOptics   = 100,
     FriendlyFire   = 101,
     DataLeech      = 102,

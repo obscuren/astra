@@ -453,7 +453,8 @@ static std::string neural_fortitude_description() {
 static std::string code_craft_description() {
     std::string s = "Personal toolchain for compiling exotic programs from raw fragments.\n\n";
     s += colored("Passive:", Color::White);
-    s += " Unlocks T3 program tinkering recipes. (Plan 4.)";
+    s += " Unlocks T3 program tinker recipes: pulse_hammer.exe (AoE ICE damage)"
+         " and daemon_hijack.exe (take control of an ICE for 3 turns).";
     return s;
 }
 

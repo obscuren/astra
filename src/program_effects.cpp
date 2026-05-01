@@ -139,6 +139,55 @@ std::string apply_decrypt_grid(GridProgramContext c) {
     return "decrypt: no encrypted file in range.";
 }
 
+std::string apply_pulse_hammer_grid(GridProgramContext c) {
+    // AoE 1d6 damage to all ICE in Chebyshev radius-1 around the nearest ICE.
+    // Use the same nearest-ICE targeting as IcebreakerLite, then hit all ICE
+    // adjacent (including diagonal) to that tile.
+    GridIce* tgt = nullptr;
+    int best = INT_MAX;
+    for (auto& i : c.session.ice) {
+        int d = std::abs(i.x - c.session.avatar_x) + std::abs(i.y - c.session.avatar_y);
+        if (d <= kIceVisionRange && d < best) { tgt = &i; best = d; }
+    }
+    if (!tgt) return "pulse_hammer: no target in range.";
+
+    int tx = tgt->x;
+    int ty = tgt->y;
+    int hit = 0;
+    std::uniform_int_distribution<int> roll(1, 6);
+    for (auto& ice : c.session.ice) {
+        int dx = std::abs(ice.x - tx);
+        int dy = std::abs(ice.y - ty);
+        if (dx <= 1 && dy <= 1 && (dx + dy) > 0) {
+            int dmg = roll(c.game.world().rng());
+            grid_ice::damage(c.session, ice, dmg);
+            ++hit;
+        }
+    }
+    // Also damage the primary target.
+    {
+        int dmg = roll(c.game.world().rng());
+        grid_ice::damage(c.session, *tgt, dmg);
+        ++hit;
+    }
+    // Prune dead ICE.
+    for (auto& ice : c.session.ice) grid_ice::kill_if_dead(c.session, ice);
+    return "pulse_hammer: hit " + std::to_string(hit) + " ICE.";
+}
+
+std::string apply_daemon_hijack_grid(GridProgramContext c) {
+    // Charm the nearest visible ICE for 3 turns.
+    GridIce* tgt = nullptr;
+    int best = INT_MAX;
+    for (auto& i : c.session.ice) {
+        int d = std::abs(i.x - c.session.avatar_x) + std::abs(i.y - c.session.avatar_y);
+        if (d <= kIceVisionRange && d < best) { tgt = &i; best = d; }
+    }
+    if (!tgt) return "daemon_hijack: no target in range.";
+    tgt->charmed_turns_left = 3;
+    return "daemon_hijack: ICE hijacked for 3 turns.";
+}
+
 } // namespace
 
 void apply_program_effect(ProgramId id, Game& game, Hackable& target, int tx, int ty) {
@@ -157,6 +206,8 @@ std::string apply_program_in_grid(ProgramId id, GridProgramContext ctx) {
         case ProgramId::Cooldown:       return apply_cooldown_grid(ctx);
         case ProgramId::Breach:         return apply_breach_grid(ctx);
         case ProgramId::Decrypt:        return apply_decrypt_grid(ctx);
+        case ProgramId::PulseHammer:    return apply_pulse_hammer_grid(ctx);
+        case ProgramId::DaemonHijack:   return apply_daemon_hijack_grid(ctx);
         default:                        return "Program is not Grid-side.";
     }
 }

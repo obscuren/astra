@@ -821,6 +821,15 @@ const std::vector<SchematicRecipe>& schematic_recipes() {
         { 32, 9105, ITEM_PROG_REBOOT_OPTICS,
               "reboot_optics.qh", "QH program. Blinds a camera or turret for 4 turns.",
               { {7100, 1}, {7010, 1}, {31, 1} }, 1 },
+        // T3 programs — gated behind CodeCraft skill
+        { 33, 9108, ITEM_PROG_PULSE_HAMMER,
+              "pulse_hammer.exe", "ATK T3 program. AoE 1d6 dmg to all ICE adjacent to target tile.",
+              { {7102, 2}, {7003, 1} }, 1,
+              SkillId::CodeCraft },
+        { 34, 9109, ITEM_PROG_DAEMON_HIJACK,
+              "daemon_hijack.exe", "UTL T3 program. Take control of one ICE for 3 turns.",
+              { {7102, 3}, {7003, 1} }, 1,
+              SkillId::CodeCraft },
     };
     return recipes;
 }
@@ -854,6 +863,11 @@ TinkerResult craft_schematic(uint16_t schematic_id, Player& player) {
     const SchematicRecipe* recipe = find_schematic_recipe(schematic_id);
     if (!recipe)
         return {false, false, "Unknown schematic recipe."};
+
+    // Skill gate check (e.g. CodeCraft required for T3 program recipes).
+    if (static_cast<uint32_t>(recipe->skill_gate) != 0 &&
+        !player_has_skill(player, recipe->skill_gate))
+        return {false, false, "Missing required skill to craft this schematic."};
 
     // Cost check
     for (const auto& req : recipe->material_costs) {

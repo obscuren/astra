@@ -112,6 +112,12 @@ void tick_all(GridSession& s, Game& game) {
     for (auto& ice : s.ice) {
         if (ice.hp <= 0) continue;
 
+        // DaemonHijack charm: skip enemy AI for this turn, then count down.
+        if (ice.charmed_turns_left > 0) {
+            --ice.charmed_turns_left;
+            continue;
+        }
+
         bool in_range = manhattan(ice.x, ice.y, s.avatar_x, s.avatar_y) <= kIceVisionRange;
         bool sees = in_range &&
                     !(ice.color == IceColor::White && ghost_cloaked);

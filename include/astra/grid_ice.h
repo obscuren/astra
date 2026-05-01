@@ -13,6 +13,7 @@ struct GridIce {
     IceColor  color = IceColor::White;
     int       patrol_dir = 0;          // 0..3 (white only)
     bool      sees_avatar = false;     // refreshed each turn for all colors
+    int       charmed_turns_left = 0;  // Plan 4: DaemonHijack — skips enemy AI while > 0
 };
 
 struct GridSession; // fwd
