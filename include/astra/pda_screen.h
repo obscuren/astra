@@ -267,7 +267,10 @@ private:
     void draw_attributes(UIContext& ctx);
     void draw_skills(UIContext& ctx);
     void draw_equipment(UIContext& ctx);
-    void draw_implant_view(UIContext& ctx);
+    void draw_equipment_paperdoll(UIContext& ctx, int dy);
+    void draw_implant_paperdoll(UIContext& ctx, int dy);
+    void draw_combined_bonuses(UIContext& ctx, int y);
+    void draw_equipment_inventory(UIContext& ctx, int half);
     void draw_ship(UIContext& ctx);
     void draw_stub(UIContext& ctx, const char* message);
     void draw_reputation(UIContext& ctx);

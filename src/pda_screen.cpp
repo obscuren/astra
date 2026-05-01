@@ -268,17 +268,38 @@ bool PdaScreen::handle_input(int key) {
         }
     } else if (active_tab_ == PdaTab::Equipment) {
         if (key == '\t') {
-            // Tab toggles between Equipment paper-doll view and Implant view.
+            // Tab toggles ONLY the paper-doll view; the inventory pane
+            // stays put. Reset paper-doll cursor on switch; preserve
+            // whichever pane focus was active.
             equipment_tab_view_ = (equipment_tab_view_ == EquipmentTabView::Equipment)
                 ? EquipmentTabView::Implants : EquipmentTabView::Equipment;
-            equip_cursor_ = 0;  // reset cursor when switching views
-            equip_focus_ = EquipFocus::PaperDoll;
+            equip_cursor_ = 0;
             return true;
         }
-        // In Implant view, only Up/Down navigate the 2 implant slots; no context actions yet.
         if (equipment_tab_view_ == EquipmentTabView::Implants) {
-            if (key == KEY_UP && equip_cursor_ > 0) --equip_cursor_;
-            if (key == KEY_DOWN && equip_cursor_ < Player::IMPLANT_SLOTS - 1) ++equip_cursor_;
+            // Implant view: same shape as Equipment view, just a smaller
+            // paper-doll. Up/Down between implant slots, Right crosses to
+            // the inventory pane, Left crosses back, Space opens context.
+            if (equip_focus_ == EquipFocus::PaperDoll) {
+                if (key == KEY_UP && equip_cursor_ > 0) --equip_cursor_;
+                if (key == KEY_DOWN && equip_cursor_ < Player::IMPLANT_SLOTS - 1)
+                    ++equip_cursor_;
+                if (key == KEY_RIGHT) {
+                    equip_focus_ = EquipFocus::Inventory;
+                    inv_cursor_  = 0;
+                }
+            } else {
+                int count = static_cast<int>(player_->inventory.items.size());
+                if (key == KEY_UP   && inv_cursor_ > 0) --inv_cursor_;
+                if (key == KEY_DOWN && inv_cursor_ < count - 1) ++inv_cursor_;
+                if (key == KEY_LEFT) {
+                    equip_focus_ = EquipFocus::PaperDoll;
+                }
+            }
+            if (key == ' ') {
+                open_context_menu();
+                return true;
+            }
             return false;
         }
         if (equip_focus_ == EquipFocus::PaperDoll) {
@@ -855,6 +876,19 @@ void PdaScreen::open_context_menu() {
     }
 
     if (equip_focus_ == EquipFocus::PaperDoll) {
+        // Implant paper-doll uses player_->implants[], not equipment slots.
+        if (active_tab_ == PdaTab::Equipment &&
+            equipment_tab_view_ == EquipmentTabView::Implants) {
+            if (equip_cursor_ < 0 ||
+                equip_cursor_ >= static_cast<int>(player_->implants.size())) return;
+            const auto& implant = player_->implants[equip_cursor_];
+            if (!implant) return;
+            context_menu_.add_option('l', "look");
+            context_menu_.add_option('r', "remove");
+            context_menu_.selection = 0;
+            context_menu_.open = true;
+            return;
+        }
         auto slot = static_cast<EquipSlot>(equip_cursor_);
         const auto& item = player_->equipment.slot_ref(slot);
         if (!item) return;
@@ -958,6 +992,29 @@ void PdaScreen::execute_context_action(char key) {
         return;
     }
     if (equip_focus_ == EquipFocus::PaperDoll) {
+        // Implant paper-doll routes to player_->implants[] instead.
+        if (active_tab_ == PdaTab::Equipment &&
+            equipment_tab_view_ == EquipmentTabView::Implants) {
+            if (equip_cursor_ < 0 ||
+                equip_cursor_ >= static_cast<int>(player_->implants.size())) return;
+            auto& implant = player_->implants[equip_cursor_];
+            if (!implant) return;
+            if (key == 'l') {
+                look_item_ = &(*implant);
+                look_open_ = true;
+            } else if (key == 'r') {
+                if (!player_->inventory.can_add(*implant)) {
+                    context_message_ = "Inventory too heavy.";
+                    context_msg_timer_ = 3;
+                    return;
+                }
+                context_message_ = "Removed " + implant->label() + ".";
+                context_msg_timer_ = 3;
+                player_->inventory.items.push_back(std::move(*implant));
+                implant.reset();
+            }
+            return;
+        }
         auto slot = static_cast<EquipSlot>(equip_cursor_);
         auto& equipped = player_->equipment.slot_ref(slot);
         if (!equipped) return;
