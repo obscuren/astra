@@ -68,6 +68,9 @@ private:
     EquipFocus equip_focus_ = EquipFocus::PaperDoll;
     int equip_cursor_ = 0;
     int inv_cursor_ = 0;
+    // View toggle: Equipment paper-doll vs Implant paper-doll (Tab key)
+    enum class EquipmentTabView { Equipment, Implants };
+    EquipmentTabView equipment_tab_view_ = EquipmentTabView::Equipment;
 
     // Skills tab
     std::vector<bool> skill_cat_expanded_;
@@ -252,6 +255,7 @@ private:
     void draw_attributes(UIContext& ctx);
     void draw_skills(UIContext& ctx);
     void draw_equipment(UIContext& ctx);
+    void draw_implant_view(UIContext& ctx);
     void draw_ship(UIContext& ctx);
     void draw_stub(UIContext& ctx, const char* message);
     void draw_reputation(UIContext& ctx);

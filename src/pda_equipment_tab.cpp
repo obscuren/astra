@@ -6,6 +6,11 @@
 namespace astra {
 
 void PdaScreen::draw_equipment(UIContext& ctx) {
+    if (equipment_tab_view_ == EquipmentTabView::Implants) {
+        draw_implant_view(ctx);
+        return;
+    }
+
     int w = ctx.width();
     int half = w / 2;
 
@@ -162,6 +167,15 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
         }});
     }
 
+    // Footer hint for Equipment view
+    {
+        const char* hint = (equip_focus_ == EquipFocus::PaperDoll)
+            ? "[→] Inventory  [Tab] Implants  [Space] Actions"
+            : "[←] Paper doll  [Tab] Implants  [Space] Actions";
+        ctx.text({.x = 0, .y = ctx.height() - 1,
+                  .content = hint, .tag = UITag::TextDim});
+    }
+
     // Right side: categorized inventory
     int ry = 2;
     int rx = half + 2;
@@ -174,7 +188,7 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
     }
 
     for (int i = 0; i < static_cast<int>(items.size()); ++i) {
-        if (ry >= ctx.height() - 1) break;
+        if (ry >= ctx.height() - 2) break;
         const auto& item = items[i];
         bool selected = (equip_focus_ == EquipFocus::Inventory && inv_cursor_ == i);
 
@@ -190,6 +204,103 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
 
         ry++;
     }
+}
+
+void PdaScreen::draw_implant_view(UIContext& ctx) {
+    int w    = ctx.width();
+    int half = w / 2;
+
+    // ---- Left side: 2-slot implant paper doll ----
+    draw_section_header(ctx, 0, "IMPLANTS");
+
+    constexpr int bw = 9;   // box width
+    constexpr int bh = 3;   // box height
+    constexpr int slot_h = 5; // box (3) + label (1) + gap (1)
+    int cx = (half - 1) / 2;
+    int col_c = cx - bw / 2;
+
+    for (int s = 0; s < Player::IMPLANT_SLOTS; ++s) {
+        bool selected = (equip_cursor_ == s);
+        Color border_color = selected ? Color::Yellow : Color::DarkGray;
+        int bx = col_c;
+        int by = 2 + s * slot_h;
+
+        // Box border
+        ctx.put(bx, by, BoxDraw::TL, border_color);
+        for (int j = 1; j < bw - 1; ++j) ctx.put(bx + j, by, BoxDraw::H, border_color);
+        ctx.put(bx + bw - 1, by, BoxDraw::TR, border_color);
+
+        ctx.put(bx, by + 1, BoxDraw::V, border_color);
+        const auto& implant = player_->implants[s];
+        if (implant) {
+            auto vis = item_visual(implant->item_def_id);
+            ctx.put(bx + bw / 2, by + 1, vis.glyph, rarity_color(implant->rarity));
+        }
+        ctx.put(bx + bw - 1, by + 1, BoxDraw::V, border_color);
+
+        ctx.put(bx, by + 2, BoxDraw::BL, border_color);
+        for (int j = 1; j < bw - 1; ++j) ctx.put(bx + j, by + 2, BoxDraw::H, border_color);
+        ctx.put(bx + bw - 1, by + 2, BoxDraw::BR, border_color);
+
+        // Label + item name
+        std::string slot_label = "Slot " + std::to_string(s + 1);
+        int label_x = bx + (bw - static_cast<int>(slot_label.size())) / 2;
+        ctx.text({.x = label_x, .y = by + 3,
+                  .content = slot_label,
+                  .tag = selected ? UITag::TextWarning : UITag::TextAccent});
+
+        // Item name or "(empty)" to the right of box
+        int name_x = bx + bw + 2;
+        if (implant) {
+            ctx.text({.x = name_x, .y = by + 1,
+                      .content = implant->name,
+                      .tag = rarity_tag(implant->rarity)});
+            // Willpower modifier if non-zero
+            int wp = implant->modifiers.willpower;
+            if (wp != 0) {
+                std::string mod_str = "WIL " + (wp > 0 ? std::string("+") : std::string()) + std::to_string(wp);
+                ctx.text({.x = name_x, .y = by + 2,
+                          .content = mod_str,
+                          .tag = wp > 0 ? UITag::TextSuccess : UITag::TextDanger});
+            }
+        } else {
+            ctx.text({.x = name_x, .y = by + 1,
+                      .content = "(empty)", .tag = UITag::TextDim});
+        }
+    }
+
+    // Implant bonus summary
+    int bonus_y = 2 + Player::IMPLANT_SLOTS * slot_h + 1;
+    if (bonus_y < ctx.height() - 3) {
+        draw_section_header(ctx, bonus_y, "IMPLANT BONUSES");
+        auto im = player_->implant_modifiers();
+        ctx.styled_text({.x = 2, .y = bonus_y + 1, .segments = {
+            {"WIL ", UITag::TextAccent},
+            {(im.willpower >= 0 ? "+" : "") + std::to_string(im.willpower), UITag::TextAccent},
+        }});
+    }
+
+    // ---- Right side: player stats ----
+    int rx = half + 2;
+    int ry = 0;
+    draw_section_header(ctx, ry, "STATS", rx, w - 1);
+    ry += 2;
+    auto draw_stat_line = [&](const char* label, int value) {
+        if (ry >= ctx.height() - 2) return;
+        ctx.styled_text({.x = rx, .y = ry, .segments = {
+            {label, UITag::TextAccent},
+            {std::to_string(value), UITag::TextDefault},
+        }});
+        ++ry;
+    };
+    draw_stat_line("HP:        ", player_->effective_max_hp());
+    draw_stat_line("Willpower: ", player_->effective_willpower());
+    draw_stat_line("AV:        ", player_->effective_av(DamageType::Kinetic));
+    draw_stat_line("DV:        ", player_->effective_dv());
+
+    // Footer hint
+    ctx.text({.x = 0, .y = ctx.height() - 1,
+              .content = "[Tab] Switch to Equipment", .tag = UITag::TextDim});
 }
 
 } // namespace astra

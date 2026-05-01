@@ -264,9 +264,18 @@ bool PdaScreen::handle_input(int key) {
         }
     } else if (active_tab_ == PdaTab::Equipment) {
         if (key == '\t') {
-            equip_focus_ = (equip_focus_ == EquipFocus::PaperDoll)
-                ? EquipFocus::Inventory : EquipFocus::PaperDoll;
+            // Tab toggles between Equipment paper-doll view and Implant view.
+            equipment_tab_view_ = (equipment_tab_view_ == EquipmentTabView::Equipment)
+                ? EquipmentTabView::Implants : EquipmentTabView::Equipment;
+            equip_cursor_ = 0;  // reset cursor when switching views
+            equip_focus_ = EquipFocus::PaperDoll;
             return true;
+        }
+        // In Implant view, only Up/Down navigate the 2 implant slots; no context actions yet.
+        if (equipment_tab_view_ == EquipmentTabView::Implants) {
+            if (key == KEY_UP && equip_cursor_ > 0) --equip_cursor_;
+            if (key == KEY_DOWN && equip_cursor_ < Player::IMPLANT_SLOTS - 1) ++equip_cursor_;
+            return false;
         }
         if (equip_focus_ == EquipFocus::PaperDoll) {
             // 2D grid navigation for paper doll slots
@@ -288,11 +297,21 @@ bool PdaScreen::handle_input(int key) {
             if (key == KEY_DOWN)  next = nav_down[equip_cursor_];
             if (key == KEY_LEFT)  next = nav_left[equip_cursor_];
             if (key == KEY_RIGHT) next = nav_right[equip_cursor_];
-            if (next >= 0) equip_cursor_ = next;
+            if (next >= 0) {
+                equip_cursor_ = next;
+            } else if (key == KEY_RIGHT) {
+                // Rightmost paper-doll column — cross to inventory pane.
+                equip_focus_ = EquipFocus::Inventory;
+                inv_cursor_ = 0;
+            }
         } else {
             int count = static_cast<int>(player_->inventory.items.size());
             if (key == KEY_UP && inv_cursor_ > 0) --inv_cursor_;
             if (key == KEY_DOWN && inv_cursor_ < count - 1) ++inv_cursor_;
+            if (key == KEY_LEFT) {
+                // Left edge of inventory — cross back to paper-doll pane.
+                equip_focus_ = EquipFocus::PaperDoll;
+            }
         }
         if (key == ' ') {
             open_context_menu();
