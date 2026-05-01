@@ -123,7 +123,7 @@ friendly_fire.target_filter   = { Weaponized | Mobile };
 | `PowerConduit` | `Electronic | PowerNode` |
 | `PrecursorConsole` | `Electronic | DataStore | AlienTech | JackInPort` |
 
-`DeviceKind` enum, `device_kind_name`, and dev-console `:spawn-cyber turret/camera/door/conduit/console` arguments are retired. The dev command rewrites to `:spawn-cyber <fixture-type>` (e.g. `:spawn-cyber Camera`, `:spawn-cyber CommandTerminal`) — the FixtureType-driven path subsumes both.
+`DeviceKind` enum and `device_kind_name` are retired. The dev-console `:spawn-hackable <kind>` verb is removed and replaced by the unified `:spawn fixture <FixtureType>` (see §12). The old kind labels are retired permanently — content authors pick `FixtureType` names directly.
 
 ### Why this works
 
@@ -601,7 +601,61 @@ From handoff §2:
 
 ---
 
-## 12. Migration & save schema
+## 12. Dev console + dynamic LAN regeneration
+
+### Unified `:spawn`
+
+The current `:spawn` (NPCs only) and `:spawn-hackable` (5 hardcoded device kinds) are folded into a single `:spawn` verb. Every spawnable entity routes through one command:
+
+```
+spawn <name>                          # auto-detect: NPC role or FixtureType
+spawn npc <role>                      # explicit NPC
+spawn fixture <FixtureType>           # explicit fixture (auto-Hackable if Electronic)
+spawn ice <white|gray|black>          # mid-jack-in only (existing :spawn-ice)
+spawn trap <kind>                     # delegates to existing :spawn-trap path
+```
+
+Auto-detect order: NPC role lookup first (snake_case match against `create_npc_by_role` keys), then FixtureType lookup (case-insensitive match against the enum). Names that exist in both spaces require the explicit form. Today no collisions exist (NPC roles are snake_case, FixtureTypes are PascalCase).
+
+When `spawn fixture <FixtureType>` runs:
+1. Place the fixture on the first passable adjacent tile (existing `:spawn-hackable` placement logic, generalised).
+2. If `tags_for_fixture(type) != 0`, attach `Hackable{ tags = tags_for_fixture(type), security_tier = 1 }`.
+3. Trigger LAN regeneration (below).
+
+`:spawn-hackable` is **removed** with no alias. The 5 old kind labels (`turret`/`camera`/`door`/`conduit`/`console`) translate to fixture-type spawns: `spawn fixture Console`, `spawn fixture Door`, etc. Per the no-backcompat policy, the old verb is gone.
+
+### LAN regeneration on dynamic Hackable add/remove
+
+The auto-registration sweep (§4) runs at map-gen time. Plan 5 also requires it on **runtime topology change** so dev-spawned Hackables show up in nmap immediately and so dead-NPC implants drop out of the LAN cleanly.
+
+Triggers:
+- Dev: `spawn fixture <Electronic-tagged>` adds a Hackable to the current map.
+- Production: NPC death removes `npc.cyber` from the LAN.
+- Production: any future fixture-deletion path.
+
+All paths call:
+```cpp
+void World::on_hackable_topology_changed(int map_id);
+```
+which:
+1. Re-runs the auto-registration sweep (§4) on `map_id`.
+2. Re-allocates `Hackable.ip` in world-coord-stable order. Existing IPs may shift if a new node is inserted; this is documented as expected dev behaviour.
+3. Re-clusters rooms (k-means re-derive of `LanRoom` list).
+4. Recomputes LAN sector dimensions via `compute_lan_size(N)`.
+5. Bumps `LanMetadata.gen_seed` so the next jack-in regenerates the sector geometry.
+6. Persists the new `LanMetadata`.
+
+The sweep is O(N), N capped at ~250 per LAN. Eager regen is cheap; lazy regen would surface stale state in nmap.
+
+### Regen behaviour on cracked-firewall state
+
+If the LAN sector regenerates between jack-ins (because a Hackable was added or removed), previously-cracked firewall tiles may not exist at the same coordinates in the new geometry. Plan 5 accepts this trade-off:
+- **Add path (dev only):** new node inserted → sector regenerates → cracked-tile state is reset for the entire LAN. Documented in `:spawn` help text. Production gameplay never hits this.
+- **Remove path (NPC death):** node deregisters → sector regenerates → same caveat. NPC implants are tier-1 and dungeons are typically isolated, so the impact is small. If this proves disruptive in playtesting, Plan 5.1 can add a "stable-geometry" mode that skips regen on remove (the removed subnet's `⌬` tile becomes inert).
+
+---
+
+## 13. Migration & save schema
 
 ### Save schema bump
 
@@ -623,7 +677,7 @@ Added to save:
 
 ### `DeviceKind` retirement migration
 
-`DeviceKind` enum, `device_kind_name`, and the `:spawn-cyber turret/camera/...` label argument are removed. The dev console's `:spawn-cyber` rewrites to take a `FixtureType` name (`:spawn-cyber Camera`, `:spawn-cyber CommandTerminal`, etc.). The old kind labels are retired permanently — content authors pick fixture types directly.
+`DeviceKind` enum and `device_kind_name` are removed entirely. The dev console's `:spawn-hackable` verb is also removed (folded into the unified `:spawn` — see §12). The old kind labels (`turret`/`camera`/`door`/`conduit`/`console`) are retired permanently — content authors pick `FixtureType` names directly via `:spawn fixture <Type>`.
 
 ### Code-path migration order
 
@@ -631,7 +685,7 @@ Phase 1 (cut 1) does both the tag refactor *and* the map-gen content pass in a s
 
 ---
 
-## 13. Fixture audit table
+## 14. Fixture audit table
 
 ### Hackable fixtures (~18 types)
 
@@ -680,7 +734,7 @@ Each generator's fixture-placement pass attaches `Hackable{ tags = tags_for_fixt
 
 ---
 
-## 14. Edge cases & error handling
+## 15. Edge cases & error handling
 
 - **LAN with zero hackables.** No `LanMetadata` allocated. Fixture menu offers no "Jack In". `nmap` reports `nmap: no LAN on this map`. Quickhacks via `.qh` continue to work on individual fixtures (no LAN required for the QH path).
 - **Isolated LAN (dungeon).** Generator emits no `⊕` tile. Atlas warp anchor never appears. `nmap -l` shows no `10.X.Y.254` entry.
@@ -695,7 +749,7 @@ Each generator's fixture-placement pass attaches `Hackable{ tags = tags_for_fixt
 
 ---
 
-## 15. Testing
+## 16. Testing
 
 ### Unit
 
@@ -714,6 +768,7 @@ Each generator's fixture-placement pass attaches `Hackable{ tags = tags_for_fixt
 - Sector traversal LAN ↔ subnet ↔ deep-Grid preserves RAM/Heat/Trace/Soul-Mirror/ICE state.
 - `nmap -l` output sorted by IP (== world-coord stable).
 - `jack <ip>` resolves correctly; `ping <ip>` is free.
+- **Dynamic regen:** `:spawn fixture Camera` immediately reflects in `nmap -l`; the new IP is allocated; the LAN sector regenerates on next jack-in with the new node count. NPC death deregisters its implant from the LAN graph.
 
 ### Gameplay
 
@@ -729,7 +784,7 @@ Each generator's fixture-placement pass attaches `Hackable{ tags = tags_for_fixt
 
 ---
 
-## 16. Implementation plan — Approach B (4 cuts)
+## 17. Implementation plan — Approach B (4 cuts)
 
 Each cut is internally complete and shippable; merge between cuts.
 
@@ -743,9 +798,9 @@ Each cut is internally complete and shippable; merge between cuts.
 - `LanMetadata` struct + auto-registration sweep on map enter.
 - Map-gen content pass: every generator that places an electrical fixture attaches a tagged `Hackable`.
 - Save schema bump to v60. Reject v59.
-- Dev console `:spawn-cyber` accepts `FixtureType` names.
+- Unified dev console `:spawn` (§12); remove `:spawn-hackable`. New `World::on_hackable_topology_changed()` hook regenerates `LanMetadata` + IPs + room clusters on add/remove.
 
-**Validation:** existing dev-spawned hackables still work via `.qh`; new map-generated hackables show up in dev `:netmap` listing; save/load round-trip clean.
+**Validation:** existing dev-spawned hackables still work via `.qh`; new map-generated hackables show up in `nmap -l` immediately; `:spawn fixture Camera` adds a hackable, regenerates the LAN, and the new IP appears in `nmap -l` without further action; save/load round-trip clean.
 
 ### Cut 2 — LAN sector generator + traversal + multi-Gateway encoding
 
@@ -783,7 +838,7 @@ Each cut is internally complete and shippable; merge between cuts.
 
 ---
 
-## 17. Open items deferred from this plan
+## 18. Open items deferred from this plan
 
 - **Your.Anchor — full mechanics** (Plan 5 ships v1: spawn-hub + lore-archive `DataNode`; **Plan 7 expands** with stash, customization, AI-contact locus, expanded ownership rules, rebirth-survivor identity surface — designed alongside Plan 6's UI work).
 - **Sgr A\* in-world warp trigger** — Plan 7+. `:rebirth` is the in-game path until then.
@@ -822,7 +877,8 @@ Source-of-truth files Plan 5 will reshape:
 - `src/rebirth_sequence.cpp` — `Game::start_new_galaxy` call
 - `src/pda_hacking_tab.cpp` — `nmap`, `ping`, `jack`, `lore`, `help`, `man`
 - `src/game_input.cpp` — fixture-menu `JackInPort` tag check (line 724)
-- `src/dev_console.cpp` — `:spawn-cyber FixtureType` rewrite
+- `src/dev_console.cpp` — unified `:spawn` (npc/fixture/ice/trap subkinds); remove `:spawn-hackable`
+- `include/astra/world.h` / `src/world.cpp` — `on_hackable_topology_changed()` hook
 - `src/save_file.cpp` — schema v60, `Hackable` (de)serialization, `LanMetadata` (de)serialization
 - Map-gen pipeline files: settlement, station, asteroid, ruin, dungeon, ship-interior, crashed-ship — each gets a one-line tag-Hackable attachment.
 - `CLAUDE.md` — already updated with the "new electronic fixture" rule.
