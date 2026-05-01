@@ -45,6 +45,7 @@ Key virtual keycodes (`KEY_UP`, `KEY_DOWN`, etc.) are defined in `renderer.h` so
 
 - **Platform isolation**: game logic (`game.h/cpp`, `renderer.h`, `options.h`) must contain zero platform-specific includes, ifdefs, or system calls. All platform differences live in renderer implementations.
 - SDL work is deferred — focus on the terminal renderer unless explicitly asked otherwise.
+- **Hackable fixtures**: Every new "electronic" fixture must be wired into the hacking system — it does not auto-opt-in. When adding a new `FixtureType` that represents anything electrical (terminal, lock, conduit, light, vending machine, lift, NPC implant, ship subsystem, etc.), ask the user "How should this be hacked?" before finalizing, and decide its `HackTagMask` (must include `Electronic` plus relevant capability tags like `Locked`, `PowerNode`, `DataStore`, `HasOptics`, `Weaponized`, `Mobile`, `AlienTech`, `JackInPort`). Tag mask drives both LAN registration and program filtering. See the Plan 5 spec under `docs/superpowers/specs/` for the tag taxonomy.
 
 ## Custom Agents
 
