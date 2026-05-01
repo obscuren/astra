@@ -41,15 +41,6 @@ void PdaScreen::draw_equipment(UIContext& ctx) {
         }
     }
 
-    // Footer hint.
-    {
-        const char* foot = (equip_focus_ == EquipFocus::PaperDoll)
-            ? "[\xe2\x86\x92] Inventory  [Space] Actions"
-            : "[\xe2\x86\x90] Paper doll  [Space] Actions";
-        ctx.text({.x = 0, .y = ctx.height() - 1,
-                  .content = foot, .tag = UITag::TextDim});
-    }
-
     // Right side: shared categorized inventory list — same in both views.
     draw_equipment_inventory(ctx, half);
 }

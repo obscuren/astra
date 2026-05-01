@@ -1376,7 +1376,6 @@ void PdaScreen::draw(int screen_w, int screen_h) {
 
     // Compute footer text based on active tab
     std::string footer_text;
-    const char* kTabsHint = "  [[/]] Tabs";
     if (active_tab_ == PdaTab::Tinkering) {
         // Catalog is tabbed: [C] Craft only makes sense in the Schematics tab.
         bool in_schem_tab = (tinker_focus_ == TinkerFocus::Catalog
@@ -1387,22 +1386,16 @@ void PdaScreen::draw(int screen_w, int screen_h) {
         if (tinker_focus_ == TinkerFocus::Catalog) {
             footer_text += "  [\xe2\x86\x90\xe2\x86\x92] Tab";
         }
-        footer_text += kTabsHint;
     } else if (active_tab_ == PdaTab::Skills) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Expand  [l] Learn";
-        footer_text += kTabsHint;
     } else if (active_tab_ == PdaTab::Cooking) {
         footer_text = "[ESC] Close  [Tab] Focus  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Add  [x] Clear  [c] Cook";
-        footer_text += kTabsHint;
     } else if (active_tab_ == PdaTab::Equipment) {
-        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact  [g] Toggle  [l] Look";
-        footer_text += kTabsHint;
+        footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact";
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
-        footer_text += kTabsHint;
     } else {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate";
-        footer_text += kTabsHint;
     }
 
     // Outer panel via semantic UI
