@@ -322,7 +322,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             if (s == "incendiary") return out == std::string("Incendiary Mine");
             if (s == "decoy")      return out == std::string("Decoy Mine");
             if (s == "caltrops")   return out == std::string("Caltrops");
-            // generic substring match: "frag_grenade" -> "Frag Grenade"
+            // generic substring match: try the input as-is first (so
+            // underscored output names like "pulse_hammer.exe" match
+            // "pulse_hammer"), then fall back to underscores-as-spaces
+            // (so "frag_grenade" matches "Frag Grenade").
+            if (nl.find(sl) != std::string::npos) return true;
             std::string alias = sl;
             for (auto& c : alias) if (c == '_') c = ' ';
             return nl.find(alias) != std::string::npos;
