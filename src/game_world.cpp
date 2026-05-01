@@ -243,6 +243,15 @@ void Game::restore_location(const LocationKey& key) {
     world_.location_cache().erase(it);
 }
 
+// Plan 5 Cut 1: refresh the per-map LAN registration. Called from every
+// map-enter/restore pathway after fixtures + NPCs are in place. Internally
+// uses lan_full_reset() which both tombstones the prior LAN's nodes/edges
+// and re-runs register_hackables_in_lan against the now-active map.
+// TODO: Cut 2 multi-map: graduate to per-map-id hooks.
+void Game::on_map_loaded() {
+    world_.lan_full_reset();
+}
+
 void Game::enter_ship() {
     save_current_location();
     world_.navigation().on_ship = true;
@@ -271,6 +280,7 @@ void Game::enter_ship() {
 
     world_.visibility().reveal_all();
     world_.current_region() = -1;
+    on_map_loaded();
     compute_camera();
     check_region_change();
     log("You board your starship.");
@@ -301,6 +311,7 @@ void Game::exit_ship_to_station() {
         ret = {};  // clear
         world_.current_region() = -1;
         recompute_fov();
+        on_map_loaded();
         compute_camera();
         check_region_change();
         log("You step out of your starship.");
@@ -317,6 +328,7 @@ void Game::exit_ship_to_station() {
     world_.set_surface_mode(SurfaceMode::Dungeon);
     recompute_fov();
     world_.current_region() = -1;
+    on_map_loaded();
     compute_camera();
     check_region_change();
     log("You disembark and return to the station.");
@@ -443,6 +455,7 @@ void Game::enter_maintenance_tunnels() {
 
     recompute_fov();
     world_.current_region() = -1;
+    on_map_loaded();
     compute_camera();
     check_region_change();
     log("You descend into the maintenance tunnels.");
@@ -460,6 +473,7 @@ void Game::exit_maintenance_tunnels() {
     world_.set_surface_mode(SurfaceMode::Dungeon);
     recompute_fov();
     world_.current_region() = -1;
+    on_map_loaded();
     compute_camera();
     check_region_change();
     log("You climb back up to the station.");
@@ -624,6 +638,7 @@ void Game::enter_overworld_tile() {
 
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     // Archaeology skill: show civilization origin in entry message
@@ -653,6 +668,7 @@ void Game::exit_to_overworld() {
     world_.visibility().reveal_all();
     animations_.spawn_fixture_anims(world_.map(), world_.visibility());
     world_.current_region() = -1;
+    on_map_loaded();
     compute_camera();
     log("You return to the surface.");
 }
@@ -959,6 +975,7 @@ void Game::enter_detail_map() {
 
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
 
@@ -1005,6 +1022,7 @@ void Game::exit_detail_to_overworld() {
     world_.visibility().reveal_all();
     animations_.spawn_fixture_anims(world_.map(), world_.visibility());
     world_.current_region() = -1;
+    on_map_loaded();
     compute_camera();
     log("You return to the surface view.");
 }
@@ -1177,6 +1195,7 @@ void Game::enter_dungeon_from_detail() {
 
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     proximity_fixtures_in_range_.clear();
@@ -1230,6 +1249,7 @@ void Game::exit_dungeon_to_detail() {
 
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     proximity_fixtures_in_range_.clear();
@@ -1318,6 +1338,7 @@ void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     proximity_fixtures_in_range_.clear();
@@ -1366,6 +1387,7 @@ void Game::ascend_stairs() {
                                                    : SurfaceMode::Dungeon);
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     proximity_fixtures_in_range_.clear();
@@ -1509,6 +1531,7 @@ void Game::transition_detail_edge(int dx, int dy) {
 
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     advance_world(time_cost);
@@ -1561,6 +1584,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.visibility().reveal_all();
             world_.current_region() = -1;
             recompute_fov();
+            on_map_loaded();
             compute_camera();
             check_region_change();
             log("Warp drive engaged...");
@@ -1777,6 +1801,7 @@ void Game::travel_to_destination(const ChartAction& action) {
         world_.visibility().reveal_all();
         animations_.spawn_fixture_anims(world_.map(), world_.visibility());
         world_.current_region() = -1;
+        on_map_loaded();
         compute_camera();
         log("You land on " + colored(location_name, Color::Cyan)
             + ". The surface stretches before you.");
@@ -1988,6 +2013,7 @@ void Game::travel_to_destination(const ChartAction& action) {
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
     log("You dock at " + colored(location_name, Color::Cyan) + ".");
@@ -2493,6 +2519,7 @@ void Game::enter_lost_detail() {
 
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
 }
 

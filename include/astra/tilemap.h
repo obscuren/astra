@@ -483,6 +483,12 @@ inline bool fixture_has_tag(const FixtureData& fd, FixtureTag tag) {
 
 FixtureData make_fixture(FixtureType type);
 
+// Tier-aware overload — used by generators that have a meaningful security
+// tier (dungeon depth, station tier, ruin civilisation level). Identical to
+// `make_fixture(type)` but stamps the auto-attached `Hackable` (if any) with
+// the supplied tier instead of the default tier 1. Plan 5 Task 11-13.
+FixtureData make_fixture(FixtureType type, int tier);
+
 // --- Room features ---
 
 enum class RoomFeature : uint16_t {

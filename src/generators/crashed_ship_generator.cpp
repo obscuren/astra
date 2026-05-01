@@ -1,6 +1,7 @@
 #include "astra/crashed_ship_generator.h"
 
 #include "astra/crashed_ship_types.h"
+#include "astra/hackable.h"
 #include "astra/noise.h"
 #include "astra/placement_scorer.h"
 #include "astra/poi_placement.h"
@@ -566,7 +567,15 @@ void place_fixtures(TileMap& map, int center_x, int center_y,
             // however many candidates exist.
             auto [wx, wy] = candidates[placed++];
             map.set(wx, wy, Tile::Fixture);
-            map.add_fixture(wx, wy, make_fixture(ftype));
+            FixtureData fd = make_fixture(ftype);
+            // Plan 5 spec §14: Crashed-ship consoles are Precursor variants —
+            // OR in AlienTech so Soul Mirror / lore-archive paths recognise
+            // them. The base electrical tags (Electronic+DataStore+JackInPort)
+            // are already attached by make_fixture() above.
+            if (ftype == FixtureType::Console && fd.cyber) {
+                fd.cyber->tags |= static_cast<HackTagMask>(HackTag::AlienTech);
+            }
+            map.add_fixture(wx, wy, std::move(fd));
         }
     }
 }

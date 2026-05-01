@@ -178,6 +178,13 @@ public:
     void restore_location(const LocationKey& key);
     void recompute_fov();
     void compute_camera();
+
+    // Plan 5 Cut 1: re-runs the LAN auto-registration sweep against the
+    // currently-active map. Called from each enter_*/restore_* pathway after
+    // fixtures + NPCs are populated. Idempotent — wipes the prior LAN's nodes
+    // and edges before sweeping the new map.
+    // TODO: Cut 2 multi-map: graduate to per-map-id hooks.
+    void on_map_loaded();
     MapEditor& map_editor() { return map_editor_; }
 
     std::string dominant_faction_in_current_map() const;

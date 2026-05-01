@@ -566,6 +566,22 @@ FixtureData make_fixture(FixtureType type) {
             // fixture between them.
             fd.passable = true; fd.interactable = false; break;
     }
+
+    // Plan 5 Task 11-13 — every electrical FixtureType auto-attaches a tagged
+    // Hackable so the LAN auto-registration sweep can pick it up on map enter.
+    // `tags_for_fixture` returns 0 for non-electrical types (Bench, Crate,
+    // Bunk, decorative box-drawing terminals, etc.) so this is a no-op there.
+    // Generators with meaningful tier context use the `make_fixture(type,tier)`
+    // overload below; the default here is tier 1.
+    if (HackTagMask t = tags_for_fixture(type); t != 0) {
+        fd.cyber = make_hackable(type, /*tier*/ 1);
+    }
+    return fd;
+}
+
+FixtureData make_fixture(FixtureType type, int tier) {
+    FixtureData fd = make_fixture(type);
+    if (fd.cyber) fd.cyber->security_tier = tier;
     return fd;
 }
 

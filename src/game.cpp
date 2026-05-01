@@ -379,6 +379,7 @@ void Game::dev_warp_random() {
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     world_.current_region() = -1;
     world_.set_surface_mode(SurfaceMode::Dungeon);
@@ -416,6 +417,7 @@ void Game::dev_warp_stamp_test() {
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     world_.current_region() = -1;
     world_.set_surface_mode(SurfaceMode::Dungeon);
@@ -471,6 +473,7 @@ void Game::dev_command_warp_to_system(uint32_t system_id) {
     world_.visibility().reveal_all();
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
 }
@@ -613,6 +616,7 @@ void Game::dev_command_biome_test(Biome biome, int layer,
 
     world_.visibility() = VisibilityMap(props.width, props.height);
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     world_.current_region() = -1;
     world_.set_surface_mode(SurfaceMode::Dungeon);
@@ -708,6 +712,7 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
     world_.set_surface_mode(SurfaceMode::Dungeon);
     world_.current_region() = -1;
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     check_region_change();
 }
@@ -915,6 +920,7 @@ void Game::new_game() {
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
+    on_map_loaded();
     compute_camera();
 
     messages_.clear();
@@ -1282,6 +1288,7 @@ void Game::new_game(const CreationResult& cr) {
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
+    on_map_loaded();
     compute_camera();
 
     messages_.clear();
@@ -1671,6 +1678,7 @@ void Game::post_load() {
     ability_bar::reconcile_from_learned(player_);
     compute_layout();
     recompute_fov();
+    on_map_loaded();
     compute_camera();
     state_ = GameState::Playing;
 

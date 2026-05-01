@@ -1,5 +1,6 @@
 #include "astra/npc_defs.h"
 #include "astra/creature_flags.h"
+#include "astra/tilemap.h"
 
 #include <array>
 
@@ -107,34 +108,59 @@ std::string Npc::label() const {
 
 // --- Factory dispatcher ---
 
+namespace {
+
+// Plan 5 Task 13 — attach a per-NPC cybernetic implant `Hackable`.
+// Mechanical NPCs (drones, sentinels, automatons) are inherently electronic
+// and mobile; the spec §14 calls for `Electronic | Mobile` tags. We override
+// the default Console-derived tags from `make_hackable` because Console's
+// JackInPort+DataStore mask is wrong for an NPC implant — implants are
+// bypass / disable / reroute targets, not jack-in entry points.
+//
+// TODO: implant tagging when faction-cybernetic biological NPCs land — for
+// now only mechanical NPCs receive an implant. A future helper
+// `make_implant_hackable()` may centralise this if more NPC variants need
+// per-faction tag adjustments.
+void maybe_attach_implant(Npc& npc) {
+    if (!has_flag(npc.flags, CreatureFlag::Mechanical)) return;
+    Hackable h = make_hackable(FixtureType::Console, /*tier*/ 1);
+    h.tags = static_cast<HackTagMask>(HackTag::Electronic)
+           | static_cast<HackTagMask>(HackTag::Mobile);
+    npc.cyber = std::move(h);
+}
+
+} // namespace
+
 Npc create_npc(NpcRole npc_role, Race race, std::mt19937& rng) {
+    Npc npc;
     switch (npc_role) {
-        case NpcRole::StationKeeper: return build_station_keeper(race, rng);
-        case NpcRole::Merchant:      return build_merchant(race, rng);
-        case NpcRole::Drifter:       return build_drifter(race, rng);
-        case NpcRole::Xytomorph:     return build_xytomorph(rng);
-        case NpcRole::FoodMerchant:  return build_food_merchant(race, rng);
-        case NpcRole::Medic:         return build_medic(race, rng);
-        case NpcRole::Commander:     return build_commander(race, rng);
-        case NpcRole::ArmsDealer:    return build_arms_dealer(race, rng);
-        case NpcRole::Astronomer:    return build_astronomer(race, rng);
-        case NpcRole::Engineer:      return build_engineer(race, rng);
-        case NpcRole::Nova:          return build_nova();
-        case NpcRole::Civilian:      return build_civilian(race, rng);
-        case NpcRole::Scavenger:     return build_scavenger(race, rng);
-        case NpcRole::Prospector:    return build_prospector(race, rng);
-        case NpcRole::ArchonRemnant: return build_archon_remnant(rng);
-        case NpcRole::VoidReaver:    return build_void_reaver(rng);
-        case NpcRole::ArchonSentinel: return build_archon_sentinel(rng);
-        case NpcRole::ConclaveSentry: return build_conclave_sentry(rng);
-        case NpcRole::HeavyConclaveSentry: return build_heavy_conclave_sentry(rng);
-        case NpcRole::RustHound:       return build_rust_hound(rng);
-        case NpcRole::SentryDrone:     return build_sentry_drone(rng);
-        case NpcRole::ArchonAutomaton: return build_archon_automaton(rng);
-        case NpcRole::ConclaveSentryDrone: return build_conclave_sentry_drone(rng);
-        case NpcRole::ArchonSentryDrone:   return build_archon_sentry_drone(rng);
+        case NpcRole::StationKeeper: npc = build_station_keeper(race, rng); break;
+        case NpcRole::Merchant:      npc = build_merchant(race, rng); break;
+        case NpcRole::Drifter:       npc = build_drifter(race, rng); break;
+        case NpcRole::Xytomorph:     npc = build_xytomorph(rng); break;
+        case NpcRole::FoodMerchant:  npc = build_food_merchant(race, rng); break;
+        case NpcRole::Medic:         npc = build_medic(race, rng); break;
+        case NpcRole::Commander:     npc = build_commander(race, rng); break;
+        case NpcRole::ArmsDealer:    npc = build_arms_dealer(race, rng); break;
+        case NpcRole::Astronomer:    npc = build_astronomer(race, rng); break;
+        case NpcRole::Engineer:      npc = build_engineer(race, rng); break;
+        case NpcRole::Nova:          npc = build_nova(); break;
+        case NpcRole::Civilian:      npc = build_civilian(race, rng); break;
+        case NpcRole::Scavenger:     npc = build_scavenger(race, rng); break;
+        case NpcRole::Prospector:    npc = build_prospector(race, rng); break;
+        case NpcRole::ArchonRemnant: npc = build_archon_remnant(rng); break;
+        case NpcRole::VoidReaver:    npc = build_void_reaver(rng); break;
+        case NpcRole::ArchonSentinel: npc = build_archon_sentinel(rng); break;
+        case NpcRole::ConclaveSentry: npc = build_conclave_sentry(rng); break;
+        case NpcRole::HeavyConclaveSentry: npc = build_heavy_conclave_sentry(rng); break;
+        case NpcRole::RustHound:       npc = build_rust_hound(rng); break;
+        case NpcRole::SentryDrone:     npc = build_sentry_drone(rng); break;
+        case NpcRole::ArchonAutomaton: npc = build_archon_automaton(rng); break;
+        case NpcRole::ConclaveSentryDrone: npc = build_conclave_sentry_drone(rng); break;
+        case NpcRole::ArchonSentryDrone:   npc = build_archon_sentry_drone(rng); break;
     }
-    return {};
+    maybe_attach_implant(npc);
+    return npc;
 }
 
 Npc create_npc_by_role(const std::string& role_name, std::mt19937& rng) {
