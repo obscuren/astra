@@ -5,6 +5,7 @@
 #include "astra/item_defs.h"
 #include "astra/program.h"
 #include "astra/skill_defs.h"
+#include "astra/soul_mirror.h"
 
 namespace astra {
 
@@ -259,10 +260,14 @@ void Game::handle_play_input(int key) {
             auto& fd = world_.map().fixture_mut(fid);
             if (fd.cyber) {
                 Hackable& hack = *fd.cyber;
+                // Slot sentinels: -1 = Jack In, -2 = Sync Soul.
                 if (slot_idx == -1) {
                     GridNodeId nid;
                     nid.value = static_cast<uint32_t>(hack.jack_in_node_id);
                     hacking_.jack_in(*this, nid);
+                } else if (slot_idx == -2) {
+                    soul_mirror::begin_active(*this, hack);
+                    advance_world(ActionCost::interact);
                 } else {
                     auto* deck_slot = player_.equipment.equipped_cyberdeck();
                     auto& deck = *(*deck_slot)->deck;
@@ -719,6 +724,9 @@ void Game::open_hackable_menu(int fixture_id) {
         }
         hackable_menu_.add_option('j', label);
         hackable_menu_slots_.push_back(-1);
+
+        hackable_menu_.add_option('s', "Sync Soul");
+        hackable_menu_slots_.push_back(-2);
     }
 
     if (hackable_menu_.options.empty()) {

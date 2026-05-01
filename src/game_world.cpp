@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/soul_mirror.h"
+#include "astra/item_ids.h"
 #include "astra/aura.h"
 #include "astra/civ_aesthetics.h"
 #include "astra/debug_spawn.h"
@@ -2339,6 +2340,38 @@ void Game::advance_world(int cost) {
 
     // Hacking — detection counter ticks per advance_world step
     hacking_.tick(*this);
+
+    // Soul Mirror — Neural Backup passive auto-trigger.
+    // If the player is standing on a Precursor console tile and has a Neural
+    // Backup implant equipped, begin a passive channel (no EP cost, silent).
+    // Runs before tick() so the channel is active during this turn's tick.
+    {
+        const auto& m = world_.map();
+        int px = player_.x, py = player_.y;
+        if (m.get(px, py) == Tile::Fixture) {
+            int fid = m.fixture_id(px, py);
+            if (fid >= 0) {
+                const auto& fd = m.fixture(fid);
+                if (fd.cyber && fd.cyber->device_kind == DeviceKind::PrecursorConsole) {
+                    bool has_neural_backup = false;
+                    for (const auto& slot : player_.implants) {
+                        if (slot && slot->item_def_id == ITEM_NEURAL_BACKUP) {
+                            has_neural_backup = true;
+                            break;
+                        }
+                    }
+                    if (has_neural_backup) {
+                        auto& ss = soul_mirror_state_;
+                        bool already_running = ss.active &&
+                                               ss.console == &*fd.cyber;
+                        if (!already_running) {
+                            soul_mirror::begin_passive(*this, *world_.map().fixture_mut(fid).cyber);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Soul Mirror — progress channel if the player is still on the console tile
     soul_mirror::tick(*this);

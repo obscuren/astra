@@ -18,6 +18,7 @@
 #include "astra/npc.h"
 #include "astra/quest_fixture.h"
 #include "astra/skill_defs.h"
+#include "astra/soul_mirror.h"
 #include "astra/star_chart.h"
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
@@ -239,6 +240,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  spawn-implant <neural-backup> - add an implant to inventory");
         log("  unequip-implant <0|1>         - remove implant from slot, return to inventory");
         log("  detection <n>                 - set zone detection counter");
+        log("  sync-soul                     - force Sync Soul on nearest Precursor console");
     }
     else if (verb == "clear") {
         clear();
@@ -1470,6 +1472,33 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         for (const auto& f : nearest->lore_fragments) {
             log("  - " + f.archive_id + (f.committed ? " [done]" : ""));
         }
+    }
+    else if (verb == "sync-soul") {
+        // Force-start a manual Soul Mirror channel on the nearest Precursor console.
+        const auto& m  = game.world().map();
+        const int   px = game.player().x;
+        const int   py = game.player().y;
+        Hackable* console = nullptr;
+        int best_dist = INT_MAX;
+        int w = m.width();
+        int h = m.height();
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int fidx = m.fixture_id(x, y);
+                if (fidx < 0) continue;
+                const auto& fd = m.fixture(fidx);
+                if (!fd.cyber) continue;
+                if (fd.cyber->device_kind != DeviceKind::PrecursorConsole) continue;
+                int dist = std::abs(x - px) + std::abs(y - py);
+                if (dist < best_dist) {
+                    best_dist = dist;
+                    console = &*game.world().map().fixture_mut(fidx).cyber;
+                }
+            }
+        }
+        if (!console) { log("no Precursor console nearby"); return; }
+        soul_mirror::begin_active(game, *console);
+        log("Forced Sync Soul start.");
     }
     else if (verb == "spawn-implant") {
         if (args.size() < 2) {
