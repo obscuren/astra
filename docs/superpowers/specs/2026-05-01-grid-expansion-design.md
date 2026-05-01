@@ -183,8 +183,46 @@ On map enter (or save load), `register_hackables_in_lan(world_map, GridNetwork&,
 ### LAN persistence
 
 - `LanMetadata` and the GridNetwork's per-LAN nodes serialize with the galaxy save.
-- The LAN sector itself is generated lazily on first jack-in and persisted thereafter (firewall cracked-state, ICE deaths, decrypted files, etc.). Sector hash + persisted state in `LanMetadata.sector_blob`.
-- The deep-Grid sector lives in `consciousness.dat` (Plan 4 carryover; Plan 5 expands its geometry).
+- The LAN sector itself is generated lazily on first jack-in (from `LanMetadata.gen_seed`) and **never regenerates** in production gameplay. The base geometry is recoverable from the seed; mutable runtime state is persisted as a tile-mutation overlay (see below).
+- Each per-Subnet 8×8 sector the player has visited is persisted in the same shape, keyed by Subnet `GridNodeId`.
+- The deep-Grid sector lives in `consciousness.dat` (Plan 4 carryover; Plan 5 expands its geometry); same tile-mutation overlay applies.
+
+### Tile-mutation runtime state
+
+```cpp
+struct SectorMutation {
+    uint8_t  x, y;
+    GridTile new_tile;     // what the tile now is (Floor for cracked / looted / decrypted)
+};
+
+struct SectorRuntimeState {
+    std::vector<SectorMutation>          mutations;     // applied as overlay after seed-regen
+    std::vector<std::pair<uint8_t,uint8_t>> killed_ice; // ICE positions that don't respawn
+};
+
+struct LanMetadata {
+    // ... fields above ...
+    SectorRuntimeState                              lan_sector_state;
+    std::unordered_map<uint32_t, SectorRuntimeState> subnet_states;   // keyed by Subnet node id .value
+};
+```
+
+Tracked mutations on every sector type:
+- Cracked firewall: `▓` → `Floor`.
+- Looted DataNode: `$` → `Floor`.
+- Decrypted EncryptedFile: `⊘` → `Floor`.
+- Cracked Deep-Grid Gateway: `⊕` → `Floor` (after first breach; tile becomes free passage).
+- Killed ICE: position recorded; no respawn within the LAN session-to-session.
+
+Anything that *can* be undone by future gameplay (e.g. a Hackable transitioning Compromised → Clean) is **not** a mutation — it's runtime state on the Hackable, persisted on the Hackable, not on the sector.
+
+### Regeneration policy
+
+Production gameplay never regenerates a sector once it has been generated. Persistence is the default and only behaviour.
+
+The single exception is the dev path:
+- `:spawn fixture <Type>` (and any future dev verb that adds a Hackable to a live world map): triggers `lan_full_reset(map_id)` which wipes `LanMetadata.lan_sector_state`, clears `subnet_states`, re-allocates IPs, re-clusters rooms, re-derives sector size, bumps `gen_seed`. Documented as a destructive testing-only operation in the `:spawn` help text.
+- NPC death and any other production remove path: **metadata-only**. The Hackable deregisters from `GridNetwork`; the orphan subnet's `⌬` Gateway tile in the LAN sector remains visually but becomes inert — `jack`-ing onto it returns `host unreachable`. All cracked / looted / decrypted state on every sector is preserved.
 
 ---
 
@@ -624,34 +662,30 @@ When `spawn fixture <FixtureType>` runs:
 
 `:spawn-hackable` is **removed** with no alias. The 5 old kind labels (`turret`/`camera`/`door`/`conduit`/`console`) translate to fixture-type spawns: `spawn fixture Console`, `spawn fixture Door`, etc. Per the no-backcompat policy, the old verb is gone.
 
-### LAN regeneration on dynamic Hackable add/remove
+### Topology-change paths
 
-The auto-registration sweep (§4) runs at map-gen time. Plan 5 also requires it on **runtime topology change** so dev-spawned Hackables show up in nmap immediately and so dead-NPC implants drop out of the LAN cleanly.
+Hackables can change at runtime in two paths:
 
-Triggers:
-- Dev: `spawn fixture <Electronic-tagged>` adds a Hackable to the current map.
-- Production: NPC death removes `npc.cyber` from the LAN.
-- Production: any future fixture-deletion path.
+- **Production (NPC death; future fixture-deletion):** **metadata-only update.** The Hackable deregisters from `GridNetwork`. The orphan subnet's `⌬` Gateway tile in the LAN sector remains visually but becomes inert — `jack`-ing onto it returns `host unreachable`. No sector regen. **All cracked / looted / decrypted state is preserved** across every sector.
+  ```cpp
+  void World::on_hackable_removed(GridNodeId subnet_id);
+  // Removes the subnet node + its edge from GridNetwork.
+  // Does NOT touch LanMetadata.gen_seed, LanMetadata.lan_sector_state, or subnet_states.
+  // The orphan ⌬ tile stays in the LAN sector; jack_in returns host-unreachable.
+  ```
 
-All paths call:
-```cpp
-void World::on_hackable_topology_changed(int map_id);
-```
-which:
-1. Re-runs the auto-registration sweep (§4) on `map_id`.
-2. Re-allocates `Hackable.ip` in world-coord-stable order. Existing IPs may shift if a new node is inserted; this is documented as expected dev behaviour.
-3. Re-clusters rooms (k-means re-derive of `LanRoom` list).
-4. Recomputes LAN sector dimensions via `compute_lan_size(N)`.
-5. Bumps `LanMetadata.gen_seed` so the next jack-in regenerates the sector geometry.
-6. Persists the new `LanMetadata`.
+- **Dev (testing only — `:spawn fixture <Electronic-tagged>`):** **full LAN reset.** Calls `lan_full_reset(map_id)`:
+  1. Re-runs the auto-registration sweep (§4) on `map_id`.
+  2. Re-allocates `Hackable.ip` in world-coord-stable order.
+  3. Re-clusters rooms (k-means re-derive of `LanRoom` list).
+  4. Recomputes LAN sector dimensions via `compute_lan_size(N)`.
+  5. Bumps `LanMetadata.gen_seed` so the next jack-in regenerates the sector geometry.
+  6. **Wipes `LanMetadata.lan_sector_state` and clears `subnet_states`.** All persisted breach / loot / decrypt state for this LAN is lost.
+  7. Persists the new `LanMetadata`.
 
-The sweep is O(N), N capped at ~250 per LAN. Eager regen is cheap; lazy regen would surface stale state in nmap.
+  Documented in `:spawn` help text as a destructive testing-only operation. The dev path is the only place persistence is reset; production gameplay never wipes runtime state.
 
-### Regen behaviour on cracked-firewall state
-
-If the LAN sector regenerates between jack-ins (because a Hackable was added or removed), previously-cracked firewall tiles may not exist at the same coordinates in the new geometry. Plan 5 accepts this trade-off:
-- **Add path (dev only):** new node inserted → sector regenerates → cracked-tile state is reset for the entire LAN. Documented in `:spawn` help text. Production gameplay never hits this.
-- **Remove path (NPC death):** node deregisters → sector regenerates → same caveat. NPC implants are tier-1 and dungeons are typically isolated, so the impact is small. If this proves disruptive in playtesting, Plan 5.1 can add a "stable-geometry" mode that skips regen on remove (the removed subnet's `⌬` tile becomes inert).
+Production gameplay never regenerates a LAN sector once it has been generated. The "stays hacked" / "stays looted" guarantee is the default.
 
 ---
 
@@ -659,7 +693,7 @@ If the LAN sector regenerates between jack-ins (because a Hackable was added or 
 
 ### Save schema bump
 
-`SAVE_FILE_VERSION` bumps `v59 → v60`. **Rejects v59 saves** (no migration shim, per the no-backcompat policy).
+`SAVE_FILE_VERSION` bumps `v59 → v60`. **Rejects v59 saves** (no migration shim, per the no-backcompat policy). v60 reserves all fields used through Cuts 1-4; **no further bumps within Plan 5**. Cuts 2-4 fill empty fields without re-bumping.
 
 Removed from save:
 - `Hackable.device_kind` (uint8)
@@ -668,12 +702,18 @@ Removed from save:
 Added to save:
 - `Hackable.tags` (uint32 mask)
 - `Hackable.ip` (uint32 packed)
-- `LanMetadata` per world map (full struct from §4)
-- `GridNetwork` updated node kinds (new `LanRoot`; `DeepGridAnchor` retained from Plan 4; `RegionalDarknet` retired)
+- `LanMetadata` per world map, keyed by `(galaxy_id, map_seed, map_kind)`. Full struct from §4 — including `lan_sector_state` and `subnet_states` (both empty until Cut 2 starts populating them).
+- `GridNetwork` updated node kinds (new `LanRoot`; `DeepGridAnchor` retained from Plan 4; `RegionalDarknet` retired).
 
-`consciousness.dat` schema:
+`consciousness.dat` schema bumps `v1 → v2`. **Rejects v1 consciousness.dat saves.** Per the no-backcompat policy, any Plan 4 player loses their consciousness on first Plan 5 launch — every cracked LAN history, every lore archive, every anchor capstone. One-time wipe at the Plan 4→5 boundary; documented in the launch notes for that release.
+
+`consciousness.dat` v2 additions:
 - New `deep_grid_base` blob (replaces 30×20 layout with the new 60×40 hand-authored geometry; serialized as the fully-authored sector).
-- `WarpAnchor` list (Atlas region content, one entry per cracked connected LAN ever).
+- `deep_grid_sector_state: SectorRuntimeState` for the deep-Grid sector (empty until Cut 3 starts populating).
+- `WarpAnchor` list (Atlas region content, one entry per cracked connected LAN ever; empty until Cut 3).
+- `ai_contacts` schema (placeholder list, written by Cut 4 paths; full UI deferred to Plan 7).
+
+Save-size budget — measured at Cut 4: ~50KB galaxy save bloat per LAN ($\le$ 250 nodes), $\le$ 5KB consciousness.dat baseline + ~200 bytes per Atlas WarpAnchor ($\le$ 200 anchors before Plan 7 eviction).
 
 ### `DeviceKind` retirement migration
 
@@ -738,12 +778,16 @@ Each generator's fixture-placement pass attaches `Hackable{ tags = tags_for_fixt
 
 - **LAN with zero hackables.** No `LanMetadata` allocated. Fixture menu offers no "Jack In". `nmap` reports `nmap: no LAN on this map`. Quickhacks via `.qh` continue to work on individual fixtures (no LAN required for the QH path).
 - **Isolated LAN (dungeon).** Generator emits no `⊕` tile. Atlas warp anchor never appears. `nmap -l` shows no `10.X.Y.254` entry.
-- **Cracked firewall on revisit.** Generator state in `LanMetadata.runtime_state`; cracked tiles loaded as `Floor` on regen. No `▒` damaged variant — clean visuals only.
+- **Cracked firewall on revisit.** Persisted as a `SectorMutation` in `LanMetadata.lan_sector_state` (or the relevant `subnet_states[id]`). On revisit the seed-regen produces the original geometry, then `mutations` are applied as overlay — cracked tile shows as `Floor`. No `▒` damaged variant.
+- **Looted DataNode / decrypted EncryptedFile on revisit.** Same shape as cracked firewall: `SectorMutation` overlay turns the consumed tile into `Floor`. Player cannot re-loot or re-decrypt.
+- **Killed ICE on revisit.** Position recorded in `SectorRuntimeState.killed_ice`; the LAN sector regen omits ICE at those positions. ICE composition for that sector is otherwise deterministic from `gen_seed`.
+- **Orphan subnet `⌬` (NPC death).** The Hackable deregisters from `GridNetwork`, but the `⌬` tile in the LAN sector stays — production never regenerates the sector. Walking onto the tile and pressing `Enter` returns "host unreachable"; `nmap -l` no longer lists the IP. State on every other sector is preserved.
+- **`:spawn fixture` resets persistence.** The dev path is the only place persistence is destroyed — `lan_full_reset(map_id)` wipes `lan_sector_state` and `subnet_states` entirely. Documented in the help text. Production never hits this.
 - **Static tag + runtime no-op.** `bypass_lock` matches an open door's tags (`Locked` is static); the program effect short-circuits to "door already open" without consuming RAM. Displayed in the program log so the player knows.
 - **Program filter against multi-tag fixture.** `vector<TagSet>` matches if *any* `TagSet` is fully covered by the device's tags. No AND across the list.
 - **Self-anchor entry across rebirths.** `consciousness_id` survives Sgr A\*; the player's deep-Grid base nodes remain self-owned and bypass-able.
 - **Past-galaxy Atlas warp attempt.** `WarpAnchor.warpable == false` triggers `jack: target lost — galaxy purged on rebirth`. The tile remains visible (memorial).
-- **NPC implants and corpse cleanup.** When an NPC dies, their implant `Hackable` deregisters from the LAN graph. The IP is freed. (Hackable IPs are recyclable within a LAN's `1..253` space.)
+- **NPC implants and corpse cleanup.** When an NPC dies, their implant `Hackable` deregisters from the LAN graph via `World::on_hackable_removed`. The IP is freed (recyclable within a LAN's `1..253` space). The orphan subnet's `⌬` tile in the LAN sector stays inert — production does not regenerate sector geometry.
 - **Subnet-base collision across maps.** `subnet_base` is derived from `(map_seed >> 8) & 0xFFFF`, so two maps in the same galaxy can theoretically collide. Collision resolution: probe-and-shift the second LAN's `Y` octet by 1 until unique. Stable as long as map_seed is stable.
 - **Net-side breach success but server-side failure.** `apply_breach_from_nmap` charges program cost atomically with the `cracked = true` write. Atomic via in-game tick boundary.
 
@@ -768,7 +812,10 @@ Each generator's fixture-placement pass attaches `Hackable{ tags = tags_for_fixt
 - Sector traversal LAN ↔ subnet ↔ deep-Grid preserves RAM/Heat/Trace/Soul-Mirror/ICE state.
 - `nmap -l` output sorted by IP (== world-coord stable).
 - `jack <ip>` resolves correctly; `ping <ip>` is free.
-- **Dynamic regen:** `:spawn fixture Camera` immediately reflects in `nmap -l`; the new IP is allocated; the LAN sector regenerates on next jack-in with the new node count. NPC death deregisters its implant from the LAN graph.
+- **Dynamic regen (dev path).** `:spawn fixture Camera` immediately reflects in `nmap -l`; the new IP is allocated; the LAN sector regenerates on next jack-in with the new node count; **`lan_sector_state` and `subnet_states` are wiped** (verified by jack-in showing all firewalls/data-nodes/encrypted-files reset).
+- **Production remove path.** NPC death deregisters its implant from the LAN graph; orphan `⌬` tile in the LAN sector remains; jacking onto it returns `host unreachable`; **all other cracked / looted / decrypted state in that LAN persists**.
+- **Persistence round-trip.** Crack a firewall, loot a DataNode, decrypt an EncryptedFile, kill an ICE in both the LAN sector and one Subnet sector. Save & quit. Reload. Re-enter both sectors. All four mutations and the ICE absence are present.
+- **Past-galaxy persistence.** Cross Sgr A\* with a populated Atlas. Reload after rebirth. Past-life WarpAnchor tiles still visible in the deep-Grid Atlas, dimmed; un-warpable.
 
 ### Gameplay
 
@@ -797,10 +844,12 @@ Each cut is internally complete and shippable; merge between cuts.
 - Remove `DeviceKind` enum and `device_kind_name`.
 - `LanMetadata` struct + auto-registration sweep on map enter.
 - Map-gen content pass: every generator that places an electrical fixture attaches a tagged `Hackable`.
-- Save schema bump to v60. Reject v59.
-- Unified dev console `:spawn` (§12); remove `:spawn-hackable`. New `World::on_hackable_topology_changed()` hook regenerates `LanMetadata` + IPs + room clusters on add/remove.
+- Save schema bump to v60 (galaxy save) + v2 (consciousness.dat). Reject v59 + v1. v60 reserves all Plan 5 fields up front; cuts 2-4 fill empty fields without re-bumping.
+- Unified dev console `:spawn` (§12); remove `:spawn-hackable`. Two hooks:
+  - `World::on_hackable_removed(GridNodeId)` — production NPC-death path. Metadata-only, preserves persistence.
+  - `World::lan_full_reset(map_id)` — dev `:spawn fixture` path. Wipes `lan_sector_state` + `subnet_states`.
 
-**Validation:** existing dev-spawned hackables still work via `.qh`; new map-generated hackables show up in `nmap -l` immediately; `:spawn fixture Camera` adds a hackable, regenerates the LAN, and the new IP appears in `nmap -l` without further action; save/load round-trip clean.
+**Validation:** existing dev-spawned hackables still work via `.qh`; new map-generated hackables show up in `nmap -l` immediately; `:spawn fixture Camera` adds a hackable, performs full reset, and the new IP appears in `nmap -l`; save/load round-trip clean.
 
 ### Cut 2 — LAN sector generator + traversal + multi-Gateway encoding
 
@@ -809,7 +858,9 @@ Each cut is internally complete and shippable; merge between cuts.
 - `LanSectorGenerator` (A+B+E layered; size scales with N).
 - `apply_breach_grid` fix: gateway-tile target_node_id.
 - Mid-jack-in sector traversal (LAN ↔ subnet, LAN → deep-Grid).
-- LAN sector persistence (`LanMetadata.runtime_state`).
+- `SectorRuntimeState` + `SectorMutation` types; tile-mutation overlay applied after seed-regen.
+- `LanMetadata.lan_sector_state` and `LanMetadata.subnet_states` populated on tile-state changes (cracked firewall, looted DataNode, decrypted EncryptedFile, killed ICE).
+- Persistence round-trip verified: crack/loot/decrypt/kill, save, reload, re-enter sector — all four mutations and the ICE absence are present.
 - `JackInPort` tag opens the "Jack In" fixture-menu entry on every tagged fixture.
 
 **Validation:** jack into Heavens Above, walk a generated LAN sector, breach a firewall, enter a subnet, return.
