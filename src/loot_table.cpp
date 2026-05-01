@@ -102,6 +102,11 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_PROG_REBOOT_OPTICS,   "reboot_optics",    R::Common,    R::Common,    14, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::ScavMerchant,                          T::Tech,     1, C::Program },
         LootEntry{ ITEM_PROG_FRIENDLY_FIRE,   "friendly_fire",    R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
         LootEntry{ ITEM_PROG_DATA_LEECH,      "data_leech",       R::Common,    R::Uncommon,   8, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_PULSE_HAMMER,    "pulse_hammer",     R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        LootEntry{ ITEM_PROG_DAEMON_HIJACK,   "daemon_hijack",    R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+
+        // ----- Implants (Plan 4) ---------------------------------------
+        LootEntry{ ITEM_NEURAL_BACKUP,        "neural_backup",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
 
         // ----- Code fragments (crafting material) ----------------------
         LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },

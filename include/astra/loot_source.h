@@ -62,6 +62,7 @@ enum class Category : uint8_t {
     Cyberdeck,
     Program,
     CodeFragment,
+    Implant,
 };
 
 constexpr std::string_view category_name(Category c) {
@@ -83,6 +84,7 @@ constexpr std::string_view category_name(Category c) {
         case Category::Cyberdeck:        return "cyberdeck";
         case Category::Program:          return "program";
         case Category::CodeFragment:     return "code fragment";
+        case Category::Implant:          return "implant";
     }
     return "?";
 }

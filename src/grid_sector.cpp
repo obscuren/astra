@@ -1,7 +1,5 @@
 #include "astra/grid_sector.h"
 
-#include "astra/grid_regional_generator.h"
-
 #include <random>
 
 namespace astra {
@@ -51,8 +49,108 @@ GridSector gen_subnet_sector(uint32_t seed, int security_tier) {
     return s;
 }
 
+namespace {
+
+// Helper: stamp a horizontal interior wall along row `y` with a doorway at
+// column `door_x`. Skips the outer firewall border so corners stay intact.
+void stamp_hwall(GridSector& s, int y, int door_x) {
+    for (int x = 1; x < s.w - 1; ++x) {
+        if (x == door_x) continue;
+        s.set(x, y, GridTile::Firewall);
+    }
+}
+
+void stamp_vwall(GridSector& s, int x, int door_y) {
+    for (int y = 1; y < s.h - 1; ++y) {
+        if (y == door_y) continue;
+        s.set(x, y, GridTile::Firewall);
+    }
+}
+
+bool place_random_floor(GridSector& s, GridTile t, std::mt19937& rng) {
+    std::uniform_int_distribution<int> dx(1, s.w - 2);
+    std::uniform_int_distribution<int> dy(1, s.h - 2);
+    for (int tries = 0; tries < 60; ++tries) {
+        int x = dx(rng), y = dy(rng);
+        if (s.at(x, y) == GridTile::Floor) {
+            s.set(x, y, t);
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
 GridSector gen_regional_sector(uint32_t seed, int security_tier) {
-    return grid_regional_generator::generate(seed, security_tier);
+    std::mt19937 rng(seed);
+
+    // 28×14 — comfortable inside the 60×22 grid viewport, large enough for
+    // 3-4 compartments without scrolling.
+    GridSector s;
+    s.w = 28;
+    s.h = 14;
+    s.tiles.assign(static_cast<size_t>(s.w * s.h), GridTile::Firewall);
+    for (int y = 1; y < s.h - 1; ++y)
+        for (int x = 1; x < s.w - 1; ++x)
+            s.set(x, y, GridTile::Floor);
+
+    // Seeded variant — three hand-shaped layouts pick deterministically.
+    enum class Variant { VBisect, HBisect, TeeRight };
+    Variant variant = static_cast<Variant>(rng() % 3);
+
+    std::uniform_int_distribution<int> door_yd(2, s.h - 3);
+    std::uniform_int_distribution<int> door_xd(2, s.w - 3);
+
+    switch (variant) {
+        case Variant::VBisect: {
+            int x = s.w / 2;
+            stamp_vwall(s, x, door_yd(rng));
+            break;
+        }
+        case Variant::HBisect: {
+            int y = s.h / 2;
+            stamp_hwall(s, y, door_xd(rng));
+            break;
+        }
+        case Variant::TeeRight: {
+            int x_main = s.w / 2;
+            int y_arm  = s.h / 2;
+            stamp_vwall(s, x_main, door_yd(rng));
+            // Horizontal arm to the right of the vertical, leaving the main
+            // doorway intact.
+            for (int x = x_main + 1; x < s.w - 1; ++x) {
+                s.set(x, y_arm, GridTile::Firewall);
+            }
+            int arm_door_x = std::uniform_int_distribution<int>(
+                                 x_main + 2, s.w - 3)(rng);
+            s.set(arm_door_x, y_arm, GridTile::Floor);
+            break;
+        }
+    }
+
+    // Spawn at the bottom-left corner; ExitNode at the top-right corner so
+    // the player sees an obvious target across the sector.
+    s.spawn_x = 2;
+    s.spawn_y = s.h - 3;
+    if (s.at(s.spawn_x, s.spawn_y) != GridTile::Floor) {
+        s.set(s.spawn_x, s.spawn_y, GridTile::Floor);
+    }
+    s.set(s.w - 3, 2, GridTile::ExitNode);
+
+    // Decorate. Counts mirror what the spec wants (1-4 EncryptedFile, 0-2
+    // DataNode, 50% Gateway). Tier 3 adds an extra encrypted file.
+    int n_enc = 1 + static_cast<int>(rng() % 4);
+    for (int i = 0; i < n_enc; ++i) place_random_floor(s, GridTile::EncryptedFile, rng);
+    int n_data = static_cast<int>(rng() % 3);
+    for (int i = 0; i < n_data; ++i) place_random_floor(s, GridTile::DataNode, rng);
+    if ((rng() & 1u) == 0) place_random_floor(s, GridTile::Gateway, rng);
+
+    if (security_tier >= 3) {
+        place_random_floor(s, GridTile::EncryptedFile, rng);
+    }
+
+    return s;
 }
 
 } // namespace astra

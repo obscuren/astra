@@ -929,9 +929,11 @@ breach UX). `Esc` closes.
 
 ### Regional darknet generation
 
-Regional sectors are 40×24 BSP-split into 4–8 firewall-bordered rooms with
-single-tile floor doorways between siblings. The exit node lands in the room
-farthest from spawn. Decoration: 1–4 `EncryptedFile`, 0–2 `DataNode`, 50%
+Regional sectors are 28×14 with a single firewall border and one of three
+hand-shaped interior layouts picked from the seed: a vertical bisect, a
+horizontal bisect, or a T-shape. Each layout carves 2–4 compartments with
+explicit single-tile doorways. Spawn lands in the bottom-left, the exit node
+sits in the top-right. Decoration: 1–4 `EncryptedFile`, 0–2 `DataNode`, 50%
 chance of a deep-Grid `Gateway`. Tier 3 networks gain an extra encrypted file.
 
 ### Camera

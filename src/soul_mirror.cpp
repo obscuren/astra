@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <random>
 
 namespace astra::soul_mirror {
@@ -112,22 +113,36 @@ void render_hud_strip(Game& game, Renderer& r) {
     const auto& s = game.soul_mirror_state();
     if (!s.active || !s.console) return;
 
-    int prog     = s.console->soul_mirror_progress;
-    int ep_cur   = game.player().energy;
-    int ep_max   = std::max(1, game.player().effective_willpower() * 3);
+    int prog   = s.console->soul_mirror_progress;
+    int ep_cur = game.player().energy;
+    int ep_max = std::max(1, game.player().effective_willpower() * 3);
 
-    char buf[80];
-    std::snprintf(buf, sizeof(buf),
-                  "SYNC %d/%d  EP %d/%d",
-                  prog, kCommitThreshold,
-                  ep_cur, ep_max);
-
-    // Render over the XP-bar slot (row 3 of the left column) — the XP bar
-    // is visually demoted while a sync is running. Uses the same layout rect
-    // exposed by Game::xp_bar_rect() to stay consistent with UIContext layout.
-    Rect rect = game.xp_bar_rect();
+    // Centre, two rows below the XP bar, half the screen wide.
+    Rect xp     = game.xp_bar_rect();
+    int  scr_w  = r.get_width();
+    int  width  = std::max(40, scr_w / 2);
+    int  x      = (scr_w - width) / 2;
+    int  y      = xp.y + 2;
+    Rect rect{x, y, width, 1};
     UIContext ctx(&r, rect);
-    ctx.text(1, 0, buf, Color::Cyan);
+
+    // Bar geometry: label + bar + value lines fit in `width` columns.
+    int    pct       = std::min(100, (prog * 100) / kCommitThreshold);
+    char   tail[64];
+    std::snprintf(tail, sizeof(tail),
+                  "  %d/%d next fragment   EP %d/%d",
+                  prog, kCommitThreshold, ep_cur, ep_max);
+
+    const char* lead = "SYNC IN PROGRESS  ";
+    int  lead_w = static_cast<int>(std::strlen(lead));
+    int  tail_w = static_cast<int>(std::strlen(tail));
+    int  bar_w  = std::max(8, width - lead_w - tail_w);
+
+    ctx.text(0, 0, lead, Color::BrightWhite);
+    ctx.bar(lead_w, 0, bar_w, prog, kCommitThreshold,
+            Color::Cyan, Color::DarkGray, '#', '-');
+    ctx.text(lead_w + bar_w, 0, tail, Color::Cyan);
+    (void)pct;   // pct is reflected in the filled bar segments
 }
 
 } // namespace astra::soul_mirror
