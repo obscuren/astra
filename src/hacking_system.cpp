@@ -349,6 +349,16 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         return false;
     }
 
+    // Follow a single redirect hop (per-Precursor Subnets point at their
+    // regional darknet so the netmap and fixture-menu routes land you in
+    // the same sector). One hop only — we don't chase chains.
+    if (node->entry_redirect.valid()) {
+        if (auto* redirect = net.find(node->entry_redirect)) {
+            node = redirect;
+            entry_node = redirect->id;
+        }
+    }
+
     GridSession s;
     s.entry_node   = entry_node;
     s.current_node = entry_node;

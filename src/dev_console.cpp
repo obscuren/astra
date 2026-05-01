@@ -1337,12 +1337,30 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 FixtureData fd = make_fixture(ft);
                 fd.interactable = true;
                 fd.cyber = make_hackable(dk, 1);
+
+                // Every spawned Hackable becomes its own netmap entry.
+                // Short tag keeps netmap labels narrow enough to grid out.
+                auto short_tag = [](DeviceKind d) -> const char* {
+                    switch (d) {
+                        case DeviceKind::Turret:           return "Trt";
+                        case DeviceKind::Camera:           return "Cam";
+                        case DeviceKind::Door:             return "Door";
+                        case DeviceKind::PowerConduit:     return "PCon";
+                        case DeviceKind::PrecursorConsole: return "PCC";
+                    }
+                    return "Dev";
+                };
+                auto& net = game.world().grid_network();
+                std::string device_label = std::string(short_tag(dk)) + "."
+                                         + std::to_string(nx) + "," + std::to_string(ny);
                 if (dk == DeviceKind::PrecursorConsole) {
-                    auto& net = game.world().grid_network();
-                    GridNodeId nid = register_precursor_console(net, "DevConsole.Spawn",
-                                                                 game.world().seed(), 1);
-                    fd.cyber->jack_in_node_id = static_cast<int>(nid.value);
-                    // Populate lore fragments (1..4) using position-encoded archive ids.
+                    auto reg = register_precursor_console(net, "DevConsole.Spawn",
+                                                          game.world().seed(), 1,
+                                                          device_label);
+                    // Precursor consoles still drop the player into the regional
+                    // darknet on jack-in (multi-room BSP) — the per-console
+                    // Subnet exists purely for netmap discoverability.
+                    fd.cyber->jack_in_node_id = static_cast<int>(reg.regional.value);
                     auto& rng = game.world().rng();
                     int n_fragments = 1 + static_cast<int>(rng() % 4);
                     fd.cyber->lore_fragments.clear();
@@ -1352,6 +1370,11 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                                      + std::to_string(ny) + "-" + std::to_string(fi);
                         fd.cyber->lore_fragments.push_back(std::move(f));
                     }
+                } else {
+                    GridNodeId sub = register_hackable_subnet(net, "DevConsole.Spawn",
+                                                              game.world().seed(), 1,
+                                                              device_label);
+                    fd.cyber->jack_in_node_id = static_cast<int>(sub.value);
                 }
                 game.world().map().add_fixture(nx, ny, fd);
                 log("Placed " + std::string(device_kind_name(dk)) + " at (" +

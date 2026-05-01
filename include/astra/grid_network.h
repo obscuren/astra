@@ -37,6 +37,12 @@ struct GridNode {
     int               layout_x = 0;
     int               layout_y = 0;
     uint64_t          owned_by_consciousness_id = 0;   // 0 = unowned
+    // Plan 4: when set, jacking into THIS node delivers the player into
+    // the redirect target's sector instead of building one for this node.
+    // Used to make per-Precursor Subnets show up as distinct netmap entries
+    // while still landing the player in the shared regional darknet sector
+    // (same experience as the fixture-menu jack-in).
+    GridNodeId        entry_redirect;
 };
 
 class GridNetwork {
@@ -58,20 +64,39 @@ private:
 };
 
 // Returns the regional darknet node id for the given (region_label).
-// Creates the node lazily on first call. Idempotent.
+// Creates the node lazily on first call. Idempotent. Layout coords are
+// stamped on first creation and never moved.
 GridNodeId ensure_regional_darknet(GridNetwork& net,
                                    const std::string& region_label,
                                    uint32_t region_seed,
                                    int security_tier);
 
-// Registers a Precursor console as a deep-Grid gateway.
-// Creates a deep-Grid anchor node if none exists yet (Plan 3: at most one
-// per galaxy). Wires:
-//   regional_darknet ─── (gateway tier 2) ─── deep_grid_anchor
-// Returns the regional darknet node id (the actual jack-in target).
-GridNodeId register_precursor_console(GridNetwork& net,
-                                      const std::string& region_label,
-                                      uint32_t region_seed,
-                                      int security_tier);
+// Registers a per-device Subnet node under the given region. Each call
+// adds a new Subnet (no dedup — every Hackable in the world is its own
+// node), wires an open (tier-0) edge to the regional darknet, and stamps
+// a deterministic layout position so the netmap can render it without
+// extra logic. Returns the new Subnet's id; the caller is responsible
+// for stashing it on the Hackable's `jack_in_node_id` if jacking should
+// land in the per-device subnet sector.
+GridNodeId register_hackable_subnet(GridNetwork& net,
+                                    const std::string& region_label,
+                                    uint32_t region_seed,
+                                    int security_tier,
+                                    const std::string& device_label);
+
+// Registers a Precursor console: ensures regional + Subnet (via the
+// helper above) + deep-Grid anchor + the regional<->anchor tier-2
+// gateway. Returns the Subnet id, but jacking semantics from the
+// fixture menu still target the regional darknet — the caller writes
+// that id explicitly.
+struct PrecursorRegistration {
+    GridNodeId subnet;        // unique per console — netmap entry
+    GridNodeId regional;      // shared per region — jack-in target
+};
+PrecursorRegistration register_precursor_console(GridNetwork& net,
+                                                  const std::string& region_label,
+                                                  uint32_t region_seed,
+                                                  int security_tier,
+                                                  const std::string& device_label);
 
 } // namespace astra

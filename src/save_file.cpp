@@ -2404,6 +2404,9 @@ static void write_grid_network_section(BinaryWriter& w, const GridNetwork& net) 
         w.write_i32(n.layout_x);
         w.write_i32(n.layout_y);
         w.write_u64(n.owned_by_consciousness_id);
+        // v59: Plan 4 — per-node entry redirect (Precursor consoles point
+        // at their regional darknet so netmap and fixture-menu jacks agree).
+        w.write_u32(n.entry_redirect.value);
     }
     w.write_u32(static_cast<uint32_t>(net.edges().size()));
     for (const auto& e : net.edges()) {
@@ -2432,6 +2435,8 @@ static void read_grid_network_section(BinaryReader& r, GridNetwork& net) {
         n.layout_x                   = r.read_i32();
         n.layout_y                   = r.read_i32();
         n.owned_by_consciousness_id  = r.read_u64();
+        // v59: Plan 4 — per-node entry redirect.
+        n.entry_redirect.value       = r.read_u32();
         net.load_raw(std::move(n));
     }
     uint32_t n_edges = r.read_u32();

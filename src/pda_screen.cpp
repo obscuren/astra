@@ -99,6 +99,10 @@ bool PdaScreen::handle_input(int key) {
             cooking_picker_active_ = false;
             return true;
         }
+        if (active_tab_ == PdaTab::Hacking && netmap_widget_.is_open()) {
+            netmap_widget_.close();
+            return true;
+        }
         close();
         return true;
     }
