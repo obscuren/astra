@@ -151,6 +151,7 @@ set(ASTRA_SOURCES
     src/pda_ship_tab.cpp
     src/pda_hacking_tab.cpp
     src/character_creation.cpp
+    src/consciousness_save.cpp
     src/effect.cpp
     src/energy.cpp
     src/energy_system.cpp
