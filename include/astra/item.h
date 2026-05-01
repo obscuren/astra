@@ -47,6 +47,7 @@ enum class ItemType : uint8_t {
     Turret,       // deployable autonomous defender (stationary or mobile)
     Cyberdeck,    // hacking deck — held in a Utility slot
     Program,      // .exe / .qh loadable into a cyberdeck slot
+    Implant,      // cybernetic implant — held in an Implant slot (Plan 4)
 };
 
 const char* item_type_name(ItemType t);

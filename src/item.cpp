@@ -29,6 +29,7 @@ const char* item_type_name(ItemType t) {
         case ItemType::Turret:           return "Turrets";
         case ItemType::Cyberdeck:        return "Cyberdeck";
         case ItemType::Program:          return "Program";
+        case ItemType::Implant:          return "Implant";
     }
     return "Unknown";
 }

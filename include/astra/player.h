@@ -105,6 +105,8 @@ struct Player {
 
     // Equipment & inventory
     Equipment equipment;
+    static constexpr int IMPLANT_SLOTS = 2;   // Plan 4 v1; future plans expand.
+    std::array<std::optional<Item>, IMPLANT_SLOTS> implants{};
     Inventory inventory;
 
     // Skills

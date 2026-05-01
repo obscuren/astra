@@ -842,6 +842,10 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     }
     // v50: trap detection bonus
     w.write_i32(p.trap_detection);
+    // v55: implant slots (Plan 4)
+    for (const auto& slot : p.implants) {
+        write_optional_item(w, slot);
+    }
     w.end_section(pos);
 }
 
@@ -1762,6 +1766,10 @@ static void read_player_section(BinaryReader& r, Player& p) {
     }
     // v50: trap detection bonus
     p.trap_detection = r.read_i32();
+    // v55: implant slots (Plan 4)
+    for (auto& slot : p.implants) {
+        slot = read_optional_item(r);
+    }
 }
 
 static Npc read_npc(BinaryReader& r) {
