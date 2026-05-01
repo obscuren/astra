@@ -986,6 +986,44 @@ void Game::new_game() {
         player_.inventory.items.push_back(stack(build_by_def_id(ITEM_EMP_GRENADE), 2));
         player_.inventory.items.push_back(build_by_def_id(ITEM_COMPOSITE_BARRIER));
 
+        // Hacking + tinkering loadout: every Cat_Hacking skill (incl.
+        // CodeCraft and the ConsciousnessAnchor capstone with its deep-Grid
+        // base side effect), the four Tinkering skills, a T2 cyberdeck in
+        // utility1, a Neural Backup implant, and a sampler of programs.
+        const SkillId hack_skills[] = {
+            SkillId::Cat_Hacking,
+            SkillId::Intrusion,
+            SkillId::IceBreaking,
+            SkillId::DaemonMastery,
+            SkillId::GhostProtocol,
+            SkillId::DeepGridNavigator,
+            SkillId::NeuralFortitude,
+            SkillId::CodeCraft,
+            SkillId::ConsciousnessAnchor,
+            SkillId::Cat_Tinkering,
+            SkillId::BasicRepair,
+            SkillId::Disassemble,
+            SkillId::Synthesize,
+        };
+        for (SkillId s : hack_skills) grant_skill(player_, s);
+        apply_skill_side_effects(*this, SkillId::ConsciousnessAnchor);
+
+        player_.equipment.utility1 = build_by_def_id(ITEM_POLYGLOT_DCK2);
+        player_.implants[0]        = build_by_def_id(ITEM_NEURAL_BACKUP);
+
+        const uint16_t hack_programs[] = {
+            ITEM_PROG_ICEBREAKER_LITE,
+            ITEM_PROG_GHOST_TRACE,
+            ITEM_PROG_BREACH,
+            ITEM_PROG_DECRYPT,
+            ITEM_PROG_REBOOT_OPTICS,
+            ITEM_PROG_DATA_LEECH,
+            ITEM_PROG_FRIENDLY_FIRE,
+        };
+        for (uint16_t pid : hack_programs) {
+            add_to_inventory_stacked(player_.inventory, build_by_def_id(pid));
+        }
+
         // Pre-learn some blueprints for Synthesizer testing
         player_.learned_blueprints.push_back({1001, "Plasma Emitter", "A superheated plasma projection system."});
         player_.learned_blueprints.push_back({1101, "Blade Housing", "Structural frame for edged weapons."});
