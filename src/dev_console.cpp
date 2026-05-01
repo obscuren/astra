@@ -239,7 +239,6 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  clear              - clear console");
         log("  give skill <id|name>          - learn a skill");
         log("  spawn-hackable <kind>         - place a hackable at adjacent tile");
-        log("  spawn-implant <neural-backup> - add an implant to inventory");
         log("  unequip-implant <0|1>         - remove implant from slot, return to inventory");
         log("  detection <n>                 - set zone detection counter");
         log("  sync-soul                     - force Sync Soul on nearest Precursor console");
@@ -1527,18 +1526,6 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if (!console) { log("no Precursor console nearby"); return; }
         soul_mirror::begin_active(game, *console);
         log("Forced Sync Soul start.");
-    }
-    else if (verb == "spawn-implant") {
-        if (args.size() < 2) {
-            log("usage: spawn-implant <neural-backup>");
-            return;
-        }
-        if (args[1] == "neural-backup") {
-            add_to_inventory_stacked(game.player().inventory, build_neural_backup());
-            log("Spawned Neural Backup in inventory.");
-        } else {
-            log("unknown implant name: " + args[1]);
-        }
     }
     else if (verb == "unequip-implant") {
         if (args.size() != 1) { log("usage: unequip-implant <0|1>"); return; }
