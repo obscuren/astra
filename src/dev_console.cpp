@@ -31,9 +31,12 @@
 #include <cctype>
 #include <climits>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 #include <map>
+#include <optional>
 #include <sstream>
+#include <string_view>
 
 namespace astra {
 
@@ -157,6 +160,183 @@ bool DevConsole::handle_input(int key, Game& game) {
     }
 }
 
+// --------------------------------------------------------------------------
+// Plan 5 Tasks 16-17 — unified `:spawn` dispatcher helpers.
+//
+// `:spawn-hackable` was retired and folded into `:spawn fixture <FixtureType>`.
+// `:spawn` now dispatches: npc / fixture / ice / trap subkinds with a fallback
+// auto-detect (NPC-role first, then FixtureType).
+// --------------------------------------------------------------------------
+
+static bool npc_role_exists(const std::string& s) {
+    return s == "archon_remnant" || s == "void_reaver" || s == "archon_sentinel" ||
+           s == "conclave_sentry" || s == "heavy_conclave_sentry" || s == "rust_hound" ||
+           s == "sentry_drone" || s == "conclave_sentry_drone" || s == "archon_sentry_drone" ||
+           s == "archon_automaton";
+}
+
+static std::optional<FixtureType> fixture_type_from_name(std::string_view s) {
+    auto eq = [&](const char* needle) {
+        if (s.size() != std::strlen(needle)) return false;
+        for (size_t i = 0; i < s.size(); ++i) {
+            if (std::tolower(static_cast<unsigned char>(s[i])) !=
+                std::tolower(static_cast<unsigned char>(needle[i]))) return false;
+        }
+        return true;
+    };
+    if (eq("Console"))         return FixtureType::Console;
+    if (eq("CommandTerminal")) return FixtureType::CommandTerminal;
+    if (eq("ShipTerminal"))    return FixtureType::ShipTerminal;
+    if (eq("DataTerminal"))    return FixtureType::DataTerminal;
+    if (eq("StarChart"))       return FixtureType::StarChart;
+    if (eq("Door"))            return FixtureType::Door;
+    if (eq("Gate"))            return FixtureType::Gate;
+    if (eq("Conduit"))         return FixtureType::Conduit;
+    if (eq("Lamp"))            return FixtureType::Lamp;
+    if (eq("HoloLight"))       return FixtureType::HoloLight;
+    if (eq("Locker"))          return FixtureType::Locker;
+    if (eq("SupplyLocker"))    return FixtureType::SupplyLocker;
+    if (eq("HealPod"))         return FixtureType::HealPod;
+    if (eq("FoodTerminal"))    return FixtureType::FoodTerminal;
+    if (eq("WeaponDisplay"))   return FixtureType::WeaponDisplay;
+    if (eq("RepairBench"))     return FixtureType::RepairBench;
+    if (eq("RestPod"))         return FixtureType::RestPod;
+    return std::nullopt;
+}
+
+static void cmd_spawn_npc(DevConsole& con, Game& game, const std::string& role_arg) {
+    std::string role_name;
+    if      (role_arg == "archon_remnant")        role_name = "Archon Remnant";
+    else if (role_arg == "void_reaver")           role_name = "Void Reaver";
+    else if (role_arg == "archon_sentinel")       role_name = "Archon Sentinel";
+    else if (role_arg == "conclave_sentry")       role_name = "Conclave Sentry";
+    else if (role_arg == "heavy_conclave_sentry") role_name = "Heavy Conclave Sentry";
+    else if (role_arg == "rust_hound")            role_name = "Rust Hound";
+    else if (role_arg == "sentry_drone")          role_name = "Sentry Drone";
+    else if (role_arg == "conclave_sentry_drone") role_name = "Conclave Sentry Drone";
+    else if (role_arg == "archon_sentry_drone")   role_name = "Archon Sentry Drone";
+    else if (role_arg == "archon_automaton")      role_name = "Archon Automaton";
+    else {
+        con.log("spawn: unknown role '" + role_arg +
+                "' (archon_remnant|void_reaver|archon_sentinel|conclave_sentry|heavy_conclave_sentry|rust_hound|sentry_drone|archon_automaton)");
+        return;
+    }
+
+    Npc npc = create_npc_by_role(role_name, game.world().rng());
+    // Walk the 8 neighbours until a passable empty tile is found.
+    const int dx[] = {1, -1, 0, 0, 1, 1, -1, -1};
+    const int dy[] = {0, 0, 1, -1, 1, -1, 1, -1};
+    bool placed = false;
+    for (int i = 0; i < 8 && !placed; ++i) {
+        int nx = game.player().x + dx[i];
+        int ny = game.player().y + dy[i];
+        if (nx < 0 || nx >= game.world().map().width()) continue;
+        if (ny < 0 || ny >= game.world().map().height()) continue;
+        if (!game.world().map().passable(nx, ny)) continue;
+        bool occupied = false;
+        for (const auto& other : game.world().npcs()) {
+            if (other.alive() && other.x == nx && other.y == ny) {
+                occupied = true;
+                break;
+            }
+        }
+        if (occupied) continue;
+        npc.x = nx;
+        npc.y = ny;
+        game.world().npcs().push_back(std::move(npc));
+        con.log("Spawned " + role_name + " at (" + std::to_string(nx) +
+                "," + std::to_string(ny) + ")");
+        placed = true;
+    }
+    if (!placed) con.log("spawn: no adjacent passable tile");
+}
+
+static void cmd_spawn_fixture_with_type(DevConsole& con, Game& game, FixtureType type) {
+    auto& m = game.world().map();
+    auto& player = game.player();
+    static const int dxs[] = {1, -1, 0, 0};
+    static const int dys[] = {0, 0, 1, -1};
+    bool placed = false;
+    int placed_x = 0, placed_y = 0;
+    for (int i = 0; i < 4 && !placed; ++i) {
+        int nx = player.x + dxs[i];
+        int ny = player.y + dys[i];
+        if (m.passable(nx, ny) && m.fixture_id(nx, ny) < 0) {
+            FixtureData fd = make_fixture(type);
+            fd.interactable = true;
+            // make_fixture already auto-attaches Hackable for electrical types
+            // (Plan 5 Tasks 11-13 centralized this in tilemap.cpp).
+            m.add_fixture(nx, ny, std::move(fd));
+            placed = true;
+            placed_x = nx;
+            placed_y = ny;
+        }
+    }
+    if (!placed) {
+        con.log("spawn fixture: no adjacent passable tile");
+        return;
+    }
+    con.log("spawned " + std::string(fixture_type_name(type)) + " at (" +
+            std::to_string(placed_x) + "," + std::to_string(placed_y) + ")");
+    if (HackTagMask t = tags_for_fixture(type); t != 0) {
+        game.world().lan_full_reset();
+        con.log("  -> LAN reset (cracked/loot/decrypt state wiped - testing only).");
+    }
+}
+
+static void cmd_spawn_fixture(DevConsole& con, Game& game, const std::string& type_name) {
+    auto type = fixture_type_from_name(type_name);
+    if (!type) {
+        con.log("spawn fixture: unknown FixtureType '" + type_name + "'");
+        return;
+    }
+    cmd_spawn_fixture_with_type(con, game, *type);
+}
+
+static void cmd_spawn_ice(DevConsole& con, Game& game, const std::string& color_arg) {
+    if (!game.hacking().jacked_in()) {
+        con.log("Not jacked in.");
+        return;
+    }
+    IceColor color;
+    int hp;
+    if      (color_arg == "white") { color = IceColor::White; hp = 1; }
+    else if (color_arg == "gray")  { color = IceColor::Gray;  hp = 2; }
+    else if (color_arg == "black") { color = IceColor::Black; hp = 4; }
+    else { con.log("unknown color: " + color_arg); return; }
+
+    auto* sess = game.hacking().session();
+    static const int dxs[4] = { 0, 0, -1, 1 };
+    static const int dys[4] = { -1, 1, 0, 0 };
+    for (int d = 0; d < 4; ++d) {
+        int nx = sess->avatar_x + dxs[d];
+        int ny = sess->avatar_y + dys[d];
+        if (!sess->sector.passable(nx, ny)) continue;
+        bool occupied = false;
+        for (auto& i : sess->ice) if (i.x == nx && i.y == ny) { occupied = true; break; }
+        if (occupied) continue;
+        GridIce ice;
+        ice.x = nx; ice.y = ny; ice.color = color; ice.hp = hp;
+        sess->ice.push_back(ice);
+        con.log("Spawned " + color_arg + " ICE.");
+        return;
+    }
+    con.log("No adjacent passable tile to spawn ICE.");
+}
+
+static void cmd_spawn_trap(DevConsole& con, Game& game, const std::string& kind_arg) {
+    TrapKind k;
+    if      (kind_arg == "prox")       k = TrapKind::ProximityMine;
+    else if (kind_arg == "emp")        k = TrapKind::EmpMine;
+    else if (kind_arg == "incendiary") k = TrapKind::IncendiaryMine;
+    else if (kind_arg == "decoy")      k = TrapKind::DecoyMine;
+    else if (kind_arg == "caltrops")   k = TrapKind::Caltrops;
+    else if (kind_arg == "dungeon")    k = TrapKind::DungeonGeneric;
+    else { con.log("unknown trap kind: " + kind_arg); return; }
+    place_dungeon_trap(game.world(), game.player().x, game.player().y, k);
+    con.log("Spawned " + display_name(k));
+}
+
 void DevConsole::execute_command(const std::string& cmd, Game& game) {
     std::vector<std::string> args;
     std::string token;
@@ -214,9 +394,13 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  chart create [kind] [name] - create custom system (kind: asteroid|scar|rock|neutron|derelict)");
         log("  chart reveal <name> - reveal system by name substring");
         log("  chart hide <name>   - hide system by name substring");
-        log("  spawn <role> - spawn an enemy NPC adjacent to player");
+        log("  spawn <name>                  - NPC role or FixtureType (auto-detect)");
+        log("  spawn npc <role>              - explicit NPC");
         log("    roles: archon_remnant, void_reaver, archon_sentinel, conclave_sentry,");
         log("           heavy_conclave_sentry, rust_hound, sentry_drone, archon_automaton");
+        log("  spawn fixture <FixtureType>   - fixture (auto-Hackable if Electronic; resets LAN)");
+        log("  spawn ice <color>             - ICE in mid-jack-in sector");
+        log("  spawn trap <kind>             - trap");
         log("  fixtures     - list quest fixtures (id, location key, tile)");
         log("  tp <x> <y>   - teleport to tile (x, y) on current map");
         log("  tp <fixture_id> - teleport to that quest fixture if it's on the current map");
@@ -238,7 +422,6 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  editor             - open map editor");
         log("  clear              - clear console");
         log("  give skill <id|name>          - learn a skill");
-        log("  spawn-hackable <kind>         - place a hackable at adjacent tile");
         log("  unequip-implant <0|1>         - remove implant from slot, return to inventory");
         log("  detection <n>                 - set zone detection counter");
         log("  sync-soul                     - force Sync Soul on nearest Precursor console");
@@ -1091,55 +1274,32 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         }
     }
     else if (verb == "spawn") {
+        // Plan 5 Tasks 16-17 — unified dispatcher. Subkind-explicit forms
+        // (`spawn npc <role>`, `spawn fixture <Type>`, etc.) win first; the
+        // bare `spawn <name>` falls back to auto-detect (NPC role first,
+        // then FixtureType).
         if (args.size() < 2) {
-            log("Usage: spawn <role>  (archon_remnant|void_reaver|archon_sentinel|conclave_sentry|heavy_conclave_sentry|rust_hound|sentry_drone|archon_automaton)");
+            log("usage: spawn <name>");
+            log("       spawn npc <role>");
+            log("       spawn fixture <FixtureType>");
+            log("       spawn ice <white|gray|black>");
+            log("       spawn trap <kind>");
+            log("note: 'spawn fixture' on a live LAN performs a destructive reset of");
+            log("      that LAN's persistence (cracked firewalls, looted nodes).");
             return;
         }
-        std::string role_arg = args[1];
-        std::string role_name;
-        if      (role_arg == "archon_remnant")   role_name = "Archon Remnant";
-        else if (role_arg == "void_reaver")      role_name = "Void Reaver";
-        else if (role_arg == "archon_sentinel")  role_name = "Archon Sentinel";
-        else if (role_arg == "conclave_sentry")  role_name = "Conclave Sentry";
-        else if (role_arg == "heavy_conclave_sentry") role_name = "Heavy Conclave Sentry";
-        else if (role_arg == "rust_hound")       role_name = "Rust Hound";
-        else if (role_arg == "sentry_drone")     role_name = "Sentry Drone";
-        else if (role_arg == "conclave_sentry_drone") role_name = "Conclave Sentry Drone";
-        else if (role_arg == "archon_sentry_drone")   role_name = "Archon Sentry Drone";
-        else if (role_arg == "archon_automaton") role_name = "Archon Automaton";
-        else {
-            log("spawn: unknown role '" + role_arg +
-                "' (archon_remnant|void_reaver|archon_sentinel|conclave_sentry|heavy_conclave_sentry|rust_hound|sentry_drone|archon_automaton)");
-            return;
-        }
+        if (args[1] == "npc" && args.size() >= 3)     { cmd_spawn_npc(*this, game, args[2]);     return; }
+        if (args[1] == "fixture" && args.size() >= 3) { cmd_spawn_fixture(*this, game, args[2]); return; }
+        if (args[1] == "ice" && args.size() >= 3)     { cmd_spawn_ice(*this, game, args[2]);     return; }
+        if (args[1] == "trap" && args.size() >= 3)    { cmd_spawn_trap(*this, game, args[2]);    return; }
 
-        Npc npc = create_npc_by_role(role_name, game.world().rng());
-        // Walk the 8 neighbours until a passable empty tile is found.
-        const int dx[] = {1, -1, 0, 0, 1, 1, -1, -1};
-        const int dy[] = {0, 0, 1, -1, 1, -1, 1, -1};
-        bool placed = false;
-        for (int i = 0; i < 8 && !placed; ++i) {
-            int nx = game.player().x + dx[i];
-            int ny = game.player().y + dy[i];
-            if (nx < 0 || nx >= game.world().map().width()) continue;
-            if (ny < 0 || ny >= game.world().map().height()) continue;
-            if (!game.world().map().passable(nx, ny)) continue;
-            bool occupied = false;
-            for (const auto& other : game.world().npcs()) {
-                if (other.alive() && other.x == nx && other.y == ny) {
-                    occupied = true;
-                    break;
-                }
-            }
-            if (occupied) continue;
-            npc.x = nx;
-            npc.y = ny;
-            game.world().npcs().push_back(std::move(npc));
-            log("Spawned " + role_name + " at (" + std::to_string(nx) +
-                "," + std::to_string(ny) + ")");
-            placed = true;
+        // Auto-detect: NPC role first, then FixtureType.
+        if (npc_role_exists(args[1])) { cmd_spawn_npc(*this, game, args[1]); return; }
+        if (auto ft = fixture_type_from_name(args[1])) {
+            cmd_spawn_fixture_with_type(*this, game, *ft);
+            return;
         }
-        if (!placed) log("spawn: no adjacent passable tile");
+        log("spawn: unknown name '" + args[1] + "' (not an NPC role or FixtureType)");
     }
     else if (verb == "fixtures") {
         // Dump quest-fixture placements across all quest_locations PLUS
@@ -1314,78 +1474,6 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             }
         }
         log("tp: fixture '" + fid + "' not found");
-    }
-    else if (verb == "spawn-hackable") {
-        // FIXME(Plan 5 Task 17): :spawn-hackable is being retired. For now we
-        // map the legacy short-name args to FixtureType-based spawns so dev
-        // workflow keeps working through Cut 1. Tag mask is derived via
-        // tags_for_fixture(). The "turret"/"camera" labels still spawn a
-        // Console fixture (no Weaponized fixture exists yet).
-        if (args.size() < 2) {
-            log("usage: spawn-hackable <turret|camera|door|conduit|console>");
-            return;
-        }
-        FixtureType ft;
-        const char* short_tag = "Dev";
-        bool is_precursor = false;
-        if      (args[1] == "turret")  { ft = FixtureType::Console; short_tag = "Trt"; }
-        else if (args[1] == "camera")  { ft = FixtureType::Console; short_tag = "Cam"; }
-        else if (args[1] == "door")    { ft = FixtureType::Door;    short_tag = "Door"; }
-        else if (args[1] == "conduit") { ft = FixtureType::Conduit; short_tag = "PCon"; }
-        else if (args[1] == "console") { ft = FixtureType::Console; short_tag = "PCC"; is_precursor = true; }
-        else { log("unknown kind: " + args[1]); return; }
-
-        auto& m = game.world().map();
-        static const int dxs[] = {1, -1, 0, 0};
-        static const int dys[] = {0, 0, 1, -1};
-        bool placed = false;
-        for (int i = 0; i < 4 && !placed; ++i) {
-            int nx = player.x + dxs[i];
-            int ny = player.y + dys[i];
-            if (m.passable(nx, ny) && m.fixture_id(nx, ny) < 0) {
-                FixtureData fd = make_fixture(ft);
-                fd.interactable = true;
-                fd.cyber = make_hackable(ft, 1);
-
-                // Every spawned Hackable becomes its own netmap entry.
-                auto& net = game.world().grid_network();
-                std::string device_label = std::string(short_tag) + "."
-                                         + std::to_string(nx) + "," + std::to_string(ny);
-                if (is_precursor) {
-                    // tags_for_fixture(Console) returns the base terminal tags;
-                    // PrecursorConsole adds AlienTech on top so Soul Mirror /
-                    // lore-archive paths recognise it. The map-gen content pass
-                    // (Tasks 11-12) handles this for ruin-spawned consoles.
-                    fd.cyber->tags |= static_cast<HackTagMask>(HackTag::AlienTech);
-                    auto reg = register_precursor_console(net, "DevConsole.Spawn",
-                                                          game.world().seed(), 1,
-                                                          device_label);
-                    // Precursor consoles still drop the player into the regional
-                    // darknet on jack-in (multi-room BSP) — the per-console
-                    // Subnet exists purely for netmap discoverability.
-                    fd.cyber->jack_in_node_id = static_cast<int>(reg.regional.value);
-                    auto& rng = game.world().rng();
-                    int n_fragments = 1 + static_cast<int>(rng() % 4);
-                    fd.cyber->lore_fragments.clear();
-                    for (int fi = 0; fi < n_fragments; ++fi) {
-                        LoreFragmentSeed f;
-                        f.archive_id = "ARCH-" + std::to_string(nx) + "x"
-                                     + std::to_string(ny) + "-" + std::to_string(fi);
-                        fd.cyber->lore_fragments.push_back(std::move(f));
-                    }
-                } else {
-                    GridNodeId sub = register_hackable_subnet(net, "DevConsole.Spawn",
-                                                              game.world().seed(), 1,
-                                                              device_label);
-                    fd.cyber->jack_in_node_id = static_cast<int>(sub.value);
-                }
-                game.world().map().add_fixture(nx, ny, fd);
-                log("Placed " + std::string(tag_summary(fd.cyber->tags)) + " at (" +
-                    std::to_string(nx) + "," + std::to_string(ny) + ").");
-                placed = true;
-            }
-        }
-        if (!placed) log("no adjacent passable tile available.");
     }
     else if (verb == "detection") {
         if (args.size() < 2) {
