@@ -3,6 +3,8 @@
 #include "astra/grid_network.h"
 
 #include <cstdint>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace astra {
@@ -32,6 +34,16 @@ struct GridSector {
     // to the destination node id it leads to (cracked or not).
     struct GatewayLink { int x, y; GridNodeId dst; };
     std::vector<GatewayLink> gateways;
+
+    // Plan 5 Cut 2: per-tile target_node_id lookup for ⌬ Gateway and ⊕
+    // DeepGridGateway tiles. Used by breach.exe + traversal to resolve
+    // which network node a gateway tile leads to without scanning edges.
+    struct PairHash {
+        size_t operator()(const std::pair<int,int>& p) const noexcept {
+            return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
+        }
+    };
+    std::unordered_map<std::pair<int,int>, GridNodeId, PairHash> gateway_target;
 
     GridTile at(int x, int y) const;
     void     set(int x, int y, GridTile t);

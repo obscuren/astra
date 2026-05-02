@@ -129,6 +129,7 @@ set(ASTRA_SOURCES
     src/journal.cpp
     src/loot_table.cpp
     src/lan.cpp
+    src/lan_sector_generator.cpp
     src/recipe_defs.cpp
     src/tinkering.cpp
     src/trap.cpp
