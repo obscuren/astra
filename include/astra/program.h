@@ -3,8 +3,17 @@
 #include <cstdint>
 #include <vector>
 #include "astra/hackable.h"
+#include "astra/telegraph.h"
 
 namespace astra {
+
+// Forward declaration to keep program.h independent of grid_session.h.
+struct GridSession;
+
+enum class TargetingMode : uint8_t {
+    Self,   // fires immediately, no cursor
+    Tile,   // opens Telegraph, on_confirm validates valid_target predicate
+};
 
 enum class ProgramKind : uint8_t {
     Atk,   // .exe — Grid combat (Plan 3)
@@ -43,6 +52,14 @@ struct ProgramDef {
     const char*         description = "";
     int                 detection_cost = 1;        // QH only: amount added to zone Detection
     std::vector<TagSet> target_filter;             // QH only: which tag sets it can target (AND within, OR across)
+
+    // Plan 6: in-Grid targeting metadata. For Self programs, telegraph_spec
+    // and valid_target are unused. For Tile programs, telegraph_spec drives
+    // the cursor + preview; valid_target is checked on confirm and a
+    // [ERR] line is logged on miss.
+    TargetingMode       targeting   = TargetingMode::Self;
+    TelegraphSpec       telegraph_spec;
+    bool (*valid_target)(const GridSession&, int x, int y) = nullptr;
 };
 
 const std::vector<ProgramDef>& program_registry();
