@@ -1043,9 +1043,15 @@ void Game::render_play() {
                 camera_x_, camera_y_, &animations_, &quest_manager_,
                 reveal_traps_debug_});
 
-    telegraph_.render(renderer_.get(), camera_x_, camera_y_,
-                      map_rect_.w, map_rect_.h,
-                      map_rect_.x, map_rect_.y);
+    // Skip world Telegraph render when a Grid session is active — the Grid
+    // renderer draws Telegraph in its own playfield rect, otherwise the
+    // cursor + AoE preview renders twice (once on the world map behind,
+    // once inside the Grid window).
+    if (state_ != GameState::Grid) {
+        telegraph_.render(renderer_.get(), camera_x_, camera_y_,
+                          map_rect_.w, map_rect_.h,
+                          map_rect_.x, map_rect_.y);
+    }
 
     if (panel_visible_) {
         render_side_panel();
