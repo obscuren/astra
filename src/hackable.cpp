@@ -22,15 +22,22 @@ HackTagMask tags_for_fixture(FixtureType type) {
         case FixtureType::StarChartR:
             return H::Electronic | H::DataStore | H::JackInPort;
 
-        // Locked electronic surfaces
-        case FixtureType::Door:    return H::Electronic | H::Locked;
+        // Locked electronic surfaces.
+        // Doors are NOT auto-tagged: most doors in the world are wood /
+        // structural, and a generic Electronic|Locked sweep would surface them
+        // in nmap and quickhack menus when they shouldn't be hackable. Once
+        // Plan 6/7 introduces explicit BlastDoor / AirlockDoor variants those
+        // get electrical tags here. Wood Gate stays untagged for the same
+        // reason. See spec §14.
         case FixtureType::Gate:    return H::Electronic | H::Locked;
 
-        // Power / lighting
+        // Power / lighting.
+        // Torch is NOT auto-tagged: in most contexts it's wall-mounted FIRE,
+        // not electrical. An electric Lamp/HoloLight variant may be added
+        // later but Torch's default semantics aren't a power node.
         case FixtureType::Conduit:    return H::Electronic | H::PowerNode;
         case FixtureType::Lamp:       return H::Electronic | H::PowerNode;
         case FixtureType::HoloLight:  return H::Electronic | H::PowerNode;
-        case FixtureType::Torch:      return H::Electronic | H::PowerNode;
 
         // Commerce + stash
         case FixtureType::HealPod:       return H::Electronic | H::DataStore;
