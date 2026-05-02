@@ -403,12 +403,44 @@ void DialogManager::append_qh_options(int fid, Game& game) {
     }
 }
 
+// Tron-grid styling for hacking option labels: "(hack)" in green, action
+// text alternating Cyan / BrightMagenta on each visible non-space character
+// (matches the LAN floor + gateway accent colors). Suffix capability hints
+// fall back to the option's base style. Uses inline COLOR_BEGIN/COLOR_END
+// markers — both render_utf8_string (in the renderer) and utf8_display_len
+// already honour them, so the list renderer paints + spaces correctly
+// without any per-marker accommodation here.
+static std::string build_hacking_label(const char* action_text) {
+    std::string s;
+    auto push_color = [&](Color c) {
+        s += COLOR_BEGIN;
+        s += static_cast<char>(static_cast<uint8_t>(c));
+    };
+    auto pop_color = [&]() { s += COLOR_END; };
+
+    // "(hack)" — green prefix.
+    push_color(Color::Green);
+    s += "(hack)";
+    pop_color();
+    s += ' ';
+
+    // Action text — alternate Cyan / BrightMagenta on visible chars.
+    int parity = 0;
+    for (const char* p = action_text; *p; ++p) {
+        if (*p == ' ') { s += ' '; continue; }
+        push_color((parity++ % 2 == 0) ? Color::Cyan : Color::BrightMagenta);
+        s += *p;
+        pop_color();
+    }
+    return s;
+}
+
 void DialogManager::append_jack_in_option(int fid, Game& game) {
     auto& fd = game.world().map().fixture_mut(fid);
     if (!fd.cyber) return;
     if (!has_tag(fd.cyber->tags, HackTag::JackInPort)) return;
 
-    std::string label = "(hack) Jack In";
+    std::string label = build_hacking_label("Jack In");
     if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
         label += "  (requires Cat_Hacking)";
     } else {
@@ -418,7 +450,11 @@ void DialogManager::append_jack_in_option(int fid, Game& game) {
             label += "  (no cyberdeck)";
         }
     }
-    add_option('j', label, UITag::TextSuccess);
+    // Base tag is OptionNormal so the trailing capability-hint suffix renders
+    // in the default option color; inline markers paint the (hack) prefix and
+    // the alternating action text. (Pre-Plan-5.6 used UITag::TextSuccess on
+    // the whole line which made everything uniformly green.)
+    add_option('j', label, UITag::OptionNormal);
     option_kinds_.back() = OptionKind::HackingJackIn;
 }
 
@@ -429,7 +465,7 @@ void DialogManager::append_sync_soul_option(int fid, Game& game) {
     // capability. Until Task 11 retags PrecursorConsole variants the option
     // stays hidden on plain Console fixtures, which matches the design.
     if (!has_tag(fd.cyber->tags, HackTag::AlienTech)) return;
-    add_option('s', "(hack) Sync Soul", UITag::TextSuccess);
+    add_option('s', build_hacking_label("Sync Soul"), UITag::OptionNormal);
     option_kinds_.back() = OptionKind::HackingSyncSoul;
     // (We don't gate on a "SoulMirror" skill explicitly here — soul_mirror::
     //  begin_active will surface a friendly log if the player can't proceed.)
