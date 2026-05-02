@@ -274,7 +274,7 @@ void register_hackables_in_lan(WorldManager& world,
     meta.security_tier   = 1;          // TODO(Cut 2): pull from World per-map tier
     meta.nodes_total     = static_cast<int>(hacks.size());
     meta.nodes_cracked   = 0;
-    meta.origin_galaxy_id = 0;          // Cut 1: single galaxy
+    meta.origin_galaxy_id = world.galaxy_id();
 
     if (hacks.empty()) {
         meta.lan_root = {};

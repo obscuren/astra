@@ -1491,6 +1491,195 @@ void Game::new_game(const CreationResult& cr) {
     register_all_scenarios(*this);
 }
 
+// Plan 5 Cut 3 — RebirthSequence::apply pipeline. Mirrors the galaxy-generation
+// portion of new_game(): wipe LAN graph, reseed RNG, regenerate The Heavens
+// Above, run the deep-time sim + star chart, and refresh quest state. Crucially
+// it does NOT touch the player struct, equipment, money, learned skills, or
+// consciousness.dat — those are governed by the rebirth's "what survives"
+// rules, applied by the caller before/after this call.
+void Game::start_new_galaxy(unsigned fresh_seed) {
+    compute_layout();
+
+    // Wipe leftover GridNetwork before on_map_loaded() registers fresh LAN
+    // nodes — same fix as new_game().
+    world_.grid_network().clear();
+
+    world_.seed() = fresh_seed;
+    world_.rng().seed(fresh_seed);
+
+    // Bump galaxy_id so freshly registered LANs / WarpAnchorRecords carry the
+    // new generation index. Past-galaxy anchors keep their old id and remain
+    // visible-but-unwarpable in the deep-Grid Atlas.
+    world_.set_galaxy_id(static_cast<uint16_t>(world_.galaxy_id() + 1));
+
+    auto props = default_properties(MapType::SpaceStation);
+    props.height = 80;
+    world_.map() = TileMap(props.width, props.height, MapType::SpaceStation);
+    auto gen = create_hub_generator();
+    gen->generate(world_.map(), props, fresh_seed);
+    world_.map().set_location_name("The Heavens Above");
+
+    // Always start in the Docking Bay (region 0). Player struct is preserved.
+    if (!world_.map().find_open_spot_in_region(0, player_.x, player_.y, {})) {
+        world_.map().find_open_spot(player_.x, player_.y);
+    }
+
+    world_.npcs().clear();
+    world_.ground_items().clear();
+    std::mt19937 npc_rng(fresh_seed ^ 0xA7C3u);
+    StationContext tha_ctx{ .is_tha = true };
+    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y,
+                   npc_rng, &player_, tha_ctx);
+
+    world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
+    recompute_fov();
+    on_map_loaded();
+    compute_camera();
+
+    // Reset transient runtime state — but leave messages_ alone so the rebirth
+    // log line ("You wake. The galaxy is new.") survives the transition.
+    awaiting_interact_ = false;
+    combat_.reset();
+    hacking_.reset();
+    qh_picker_.open = false;
+    qh_picker_slots_.clear();
+    hackable_menu_.open = false;
+    hackable_menu_slots_.clear();
+    hackable_menu_fid_ = -1;
+    input_.cancel_look();
+    inventory_cursor_ = 0;
+    world_.current_region() = -1;
+    active_widgets_ = widget_default;
+    focused_widget_ = 0;
+    world_.set_surface_mode(SurfaceMode::Dungeon);
+    world_.overworld_x() = 0;
+    world_.overworld_y() = 0;
+    world_.world_tick() = 0;
+    world_.day_clock() = DayClock{};
+    world_.location_cache().clear();
+
+    // Galaxy lore + star chart (visual progress identical to new_game()).
+    {
+        int sw = renderer_->get_width();
+        int sh = renderer_->get_height();
+        std::vector<std::string> event_log;
+        std::string current_phase = "Initializing...";
+        int bar_progress = 0;
+
+        auto render_progress = [&]() {
+            renderer_->clear();
+            int margin = 4;
+            int y = margin;
+            auto put_text = [&](int x, int yi, const std::string& s, Color c) {
+                for (int ci = 0; ci < static_cast<int>(s.size()) && x + ci < sw; ++ci)
+                    renderer_->draw_char(x + ci, yi, s[ci], c);
+            };
+            put_text(margin, y, "REGENERATING UNIVERSE", Color::Cyan);
+            y += 2;
+
+            int bar_w = std::min(40, sw - margin * 2 - 10);
+            int filled = bar_progress * bar_w / 8000;
+            float bya = static_cast<float>(8000 - bar_progress) / 1000.0f;
+            char time_str[32];
+            std::snprintf(time_str, sizeof(time_str), " %.1f Bya", bya);
+
+            int bx = margin;
+            renderer_->draw_char(bx++, y, '[', Color::DarkGray);
+            for (int i = 0; i < bar_w; ++i) {
+                if (i < filled)
+                    renderer_->draw_glyph(bx++, y, "\xe2\x96\x88", Color::Cyan);
+                else
+                    renderer_->draw_glyph(bx++, y, "\xe2\x96\x91", Color::DarkGray);
+            }
+            renderer_->draw_char(bx++, y, ']', Color::DarkGray);
+            put_text(bx + 1, y, time_str, Color::DarkGray);
+            y += 2;
+
+            put_text(margin, y, current_phase, Color::Yellow);
+            y += 2;
+
+            int log_space = sh - y - 2;
+            int start = std::max(0, static_cast<int>(event_log.size()) - log_space);
+            for (int i = start; i < static_cast<int>(event_log.size()); ++i) {
+                Color c = Color::DarkGray;
+                const auto& line = event_log[i];
+                if (line.find("EMERGED") != std::string::npos) c = Color::Green;
+                else if (line.find("COLLAPSED") != std::string::npos ||
+                         line.find("TRANSCENDED") != std::string::npos) c = Color::Red;
+                else if (line.find("BATTLE") != std::string::npos ||
+                         line.find("WAR") != std::string::npos) c = Color::Yellow;
+                else if (line.find("BEACON") != std::string::npos ||
+                         line.find("MEGASTRUCTURE") != std::string::npos) c = Color::Cyan;
+                else if (line.find("BREAKTHROUGH") != std::string::npos) c = Color::Magenta;
+
+                std::string display = line;
+                if (static_cast<int>(display.size()) > sw - margin * 2)
+                    display = display.substr(0, sw - margin * 2);
+                put_text(margin + 1, y++, display, c);
+            }
+            renderer_->present();
+        };
+
+        world_.lore() = GalaxySim::run(fresh_seed, [&](const SimProgress& p) {
+            bar_progress = p.tick;
+            if (p.phase_complete) {
+                current_phase = p.phase_name;
+                render_progress();
+                return;
+            }
+            if (!p.event_text.empty()) {
+                float bya_f = static_cast<float>(8000 - p.tick) / 1000.0f;
+                char prefix[32];
+                std::snprintf(prefix, sizeof(prefix), "%.2f Bya ", bya_f);
+                event_log.push_back(std::string(prefix) + p.civ_name + ": " + p.event_text);
+            }
+            if (p.tick % 50 == 0 || p.phase_complete) {
+                current_phase = "Simulating deep time... (" +
+                    std::to_string(p.active_civs) + " active, " +
+                    std::to_string(p.dead_civs) + " fallen)";
+                render_progress();
+            }
+        });
+
+        current_phase = "Generating star chart...";
+        render_progress();
+    }
+
+    world_.navigation() = generate_galaxy(fresh_seed);
+    apply_lore_to_galaxy(world_.navigation(), world_.lore());
+    assign_system_factions(world_.navigation(), fresh_seed);
+    world_.navigation().at_station = true;
+    world_.navigation().current_body_index = -1;
+    star_chart_viewer_ = StarChartViewer(&world_.navigation(), renderer_.get(),
+                                         &world_, &quest_manager_);
+#ifdef ASTRA_DEV_MODE
+    star_chart_viewer_.set_dev_mode(dev_mode_);
+#endif
+
+    // Quests are galaxy-scoped. Reset the manager so the new galaxy's arc DAG
+    // starts fresh. (Lore archives + capstones survive via consciousness.dat.)
+    quest_manager_ = QuestManager{};
+    quest_manager_.init_from_catalog(*this);
+
+#ifdef ASTRA_DEV_MODE
+    if (dev_mode_ &&
+        quest_manager_.accept_available("story_getting_airborne", *this,
+                                        world_.world_tick())) {
+        quest_manager_.complete_quest("story_getting_airborne", *this,
+                                      world_.world_tick());
+        log("[DEV] Getting Airborne auto-completed — downstream arcs unlocked.");
+    }
+#endif
+
+    apply_passive_skill_effects();
+    state_ = GameState::Playing;
+
+    event_bus_.clear();
+    register_all_scenarios(*this);
+
+    check_region_change();
+}
+
 
 void Game::log(const std::string& msg) {
     messages_.push_back(":: " + msg);

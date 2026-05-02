@@ -61,6 +61,14 @@ struct ConsciousnessSave {
 
     // Plan 5 Cut 4 — placeholder until that cut populates.
     std::vector<AiContactRecord>  ai_contacts;
+
+    // Plan 5 Cut 3 — RebirthSequence::apply calls this on Sgr A* crossing so
+    // every WarpAnchorRecord whose galaxy_id matches the just-collapsed galaxy
+    // becomes a non-functional memorial: the tile remains visible in the
+    // deep-Grid Atlas, but stepping on it returns "target lost — galaxy purged
+    // on rebirth". New cracks in the freshly-seeded galaxy add new records
+    // with the bumped galaxy_id and warpable=true.
+    void mark_past_galaxy_unwarpable(uint16_t old_galaxy_id);
 };
 
 std::filesystem::path consciousness_save_path();

@@ -208,6 +208,13 @@ public:
     // Returns the path written to, or empty string on failure.
     std::string dev_command_dumpmap(const std::string& path = "");
 
+    // Plan 5 Cut 3: rebirth pipeline. Mirrors the galaxy-generation portion of
+    // new_game() but does NOT touch player_, equipment, money, or the
+    // consciousness.dat — RebirthSequence::apply governs those. Used when the
+    // player crosses Sgr A* and the galaxy must be reseeded while their
+    // persistent consciousness stays intact.
+    void start_new_galaxy(unsigned fresh_seed);
+
 private:
     // LocationKey moved to world_manager.h
 

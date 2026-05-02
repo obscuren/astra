@@ -133,6 +133,13 @@ public:
     unsigned seed() const { return seed_; }
     std::mt19937& rng() { return rng_; }
 
+    // Plan 5 Cut 3: galaxy generation index. Starts at 0 for a fresh save.
+    // RebirthSequence::apply() bumps this on every Sgr A* crossing so newly
+    // registered WarpAnchorRecords carry the new id and old ones can be flagged
+    // un-warpable by ConsciousnessSave::mark_past_galaxy_unwarpable.
+    uint16_t galaxy_id() const { return galaxy_id_; }
+    void     set_galaxy_id(uint16_t id) { galaxy_id_ = id; }
+
     WorldLore& lore() { return lore_; }
     const WorldLore& lore() const { return lore_; }
 
@@ -248,6 +255,7 @@ private:
     int current_region_ = -1;
     unsigned seed_ = 0;
     std::mt19937 rng_;
+    uint16_t galaxy_id_ = 0;
     NavigationData navigation_;
     GridNetwork grid_network_;
     LanMetadata lan_metadata_;

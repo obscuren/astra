@@ -504,4 +504,10 @@ bool delete_consciousness() {
     return std::filesystem::remove(consciousness_save_path(), ec) && !ec;
 }
 
+void ConsciousnessSave::mark_past_galaxy_unwarpable(uint16_t old_galaxy_id) {
+    for (auto& a : warp_anchors) {
+        if (a.galaxy_id == old_galaxy_id) a.warpable = false;
+    }
+}
+
 } // namespace astra

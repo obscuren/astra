@@ -2,11 +2,12 @@
 
 #include "astra/consciousness_save.h"
 #include "astra/game.h"
-#include "astra/game_state.h"
 #include "astra/renderer.h"
+#include "astra/world_manager.h"
 
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 
 namespace astra {
 
@@ -73,16 +74,34 @@ void RebirthSequence::begin() {
 }
 
 void RebirthSequence::apply(Game& game) {
+    // 1) Update consciousness.dat: bump rebirth counter, mark first rebirth
+    //    seen, and flag every WarpAnchorRecord that belongs to the just-
+    //    collapsed galaxy as un-warpable. Old anchors stay in the Atlas as
+    //    memorials — visible but inert. New cracks in the next galaxy will
+    //    add records with the bumped galaxy_id and warpable=true.
     ConsciousnessSave cs;
     read_consciousness(cs);                 // ok if missing — defaults
     cs.rebirth_count++;
     cs.seen_first_rebirth = true;
+    cs.mark_past_galaxy_unwarpable(game.world().galaxy_id());
     write_consciousness(cs);
 
-    // Galaxy-save deletion + auto-reseed are deferred — the player returns to
-    // the main menu and starts a fresh game. The new galaxy will pick up the
-    // updated consciousness.dat on first interaction.
-    game.set_state(GameState::MainMenu);
+    // 2) Derive a fresh seed for the new galaxy. Mix wall-clock time with the
+    //    consciousness id and rebirth count so back-to-back rebirths in the
+    //    same wall-clock second still produce distinct galaxies.
+    unsigned fresh_seed =
+        static_cast<unsigned>(std::time(nullptr)) ^
+        static_cast<unsigned>(cs.consciousness_id & 0xFFFFFFFFu) ^
+        (static_cast<unsigned>(cs.rebirth_count) * 0x9E3779B9u) ^
+        0xC0FFEEu;
+
+    // 3) Run the new-galaxy pipeline. This regenerates The Heavens Above,
+    //    the deep-time sim, the star chart, and quest DAG — without touching
+    //    player_, equipment, learned skills, money, or consciousness.dat.
+    //    The bumped galaxy_id propagates into freshly registered LANs via
+    //    World::galaxy_id() (consumed in lan.cpp::register_hackables_in_lan).
+    game.start_new_galaxy(fresh_seed);
+
     game.log("You wake. The galaxy is new. Memory persists.");
 }
 
