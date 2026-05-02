@@ -6,6 +6,7 @@
 #include "astra/grid_sector.h"
 
 #include <cstdint>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,17 @@ struct GridSession {
     GridLootBuffer loot;
 
     IceColor last_killer_color = IceColor::White;
+
+    // Per-session log ring. Read by the Grid HUD's right pane.
+    // Capped — push_log drops the oldest entry when full.
+    static constexpr size_t kLogCap = 64;
+    std::deque<std::string> log_lines;
+
+    void push_log(const std::string& line) {
+        log_lines.push_back(line);
+        while (log_lines.size() > kLogCap) log_lines.pop_front();
+    }
+    void clear_log() { log_lines.clear(); }
 };
 
 } // namespace astra
