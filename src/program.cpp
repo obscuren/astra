@@ -24,35 +24,34 @@ const char* program_kind_short(ProgramKind k) {
 }
 
 const std::vector<ProgramDef>& program_registry() {
-    using K = ProgramKind;
-    using D = DeviceKind;
+    using H = HackTag;
     static const std::vector<ProgramDef> regs = {
-        // ATK / STL / UTL — placeholders for Plan 3 (no effects in Plan 2)
-        { ProgramId::IcebreakerLite, K::Atk, 1, 2, 2, "Icebreaker Lite", "icebreaker_lite.exe",
+        // ATK / STL / UTL — empty filter (used in Grid, not as QH)
+        { ProgramId::IcebreakerLite, ProgramKind::Atk, 1, 2, 2, "Icebreaker Lite", "icebreaker_lite.exe",
           "Light cracker for white ICE. (Used in the Grid — Plan 3.)", 0, {} },
-        { ProgramId::GhostTrace,     K::Stl, 1, 3, 0, "Ghost Trace",     "ghost_trace.exe",
+        { ProgramId::GhostTrace,     ProgramKind::Stl, 1, 3, 0, "Ghost Trace",     "ghost_trace.exe",
           "Sheds Trace and hides you from white ICE briefly. (Plan 3.)", 0, {} },
-        { ProgramId::Cooldown,       K::Stl, 1, 2, 0, "Cooldown",        "cooldown.exe",
+        { ProgramId::Cooldown,       ProgramKind::Stl, 1, 2, 0, "Cooldown",        "cooldown.exe",
           "Drops Heat by 4. (Plan 3.)", 0, {} },
-        { ProgramId::Breach,         K::Utl, 1, 3, 3, "Breach",          "breach.exe",
+        { ProgramId::Breach,         ProgramKind::Utl, 1, 3, 3, "Breach",          "breach.exe",
           "Burns one firewall tile or one gateway lock level. (Plan 3.)", 0, {} },
-        { ProgramId::Decrypt,        K::Utl, 1, 2, 1, "Decrypt",         "decrypt.exe",
+        { ProgramId::Decrypt,        ProgramKind::Utl, 1, 2, 1, "Decrypt",         "decrypt.exe",
           "Reads one encrypted file. (Plan 3.)", 0, {} },
-        { ProgramId::PulseHammer,    K::Atk, 3, 4, 5, "Pulse Hammer",    "pulse_hammer.exe",
+        { ProgramId::PulseHammer,    ProgramKind::Atk, 3, 4, 5, "Pulse Hammer",    "pulse_hammer.exe",
           "AoE 1d6 dmg to all ICE adjacent to target tile.", 0, {} },
-        { ProgramId::DaemonHijack,   K::Utl, 3, 5, 4, "Daemon Hijack",   "daemon_hijack.exe",
+        { ProgramId::DaemonHijack,   ProgramKind::Utl, 3, 5, 4, "Daemon Hijack",   "daemon_hijack.exe",
           "Take control of one ICE for 3 turns.", 0, {} },
 
-        // QH — the active Plan 2 layer.
-        { ProgramId::RebootOptics,   K::Qh, 1, 1, 0, "Reboot Optics",    "reboot_optics.qh",
+        // QH — tag-keyed filters
+        { ProgramId::RebootOptics,   ProgramKind::Qh, 1, 1, 0, "Reboot Optics",    "reboot_optics.qh",
           "Soft-reboots a camera or turret's optics. Blinded for 4 turns.",
-          1, { D::Camera, D::Turret } },
-        { ProgramId::FriendlyFire,   K::Qh, 2, 3, 0, "Friendly Fire",    "friendly_fire.qh",
-          "Re-targets a turret onto its allies for 2 turns.",
-          3, { D::Turret } },
-        { ProgramId::DataLeech,      K::Qh, 1, 2, 0, "Data Leech",       "data_leech.qh",
+          1, { static_cast<TagSet>(H::HasOptics) } },
+        { ProgramId::FriendlyFire,   ProgramKind::Qh, 2, 3, 0, "Friendly Fire",    "friendly_fire.qh",
+          "Re-targets a mobile weapon platform onto its allies for 2 turns.",
+          3, { H::Weaponized | H::Mobile } },
+        { ProgramId::DataLeech,      ProgramKind::Qh, 1, 2, 0, "Data Leech",       "data_leech.qh",
           "Drains a packet of operational data from a hackable.",
-          2, { D::Camera, D::PowerConduit, D::PrecursorConsole } },
+          2, { static_cast<TagSet>(H::DataStore) } },
     };
     return regs;
 }

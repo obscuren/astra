@@ -732,7 +732,7 @@ void draw_item_info(UIContext& ctx, const Item& item) {
                     std::string targets;
                     for (size_t i = 0; i < def->target_filter.size(); ++i) {
                         if (i > 0) targets += ", ";
-                        targets += device_kind_name(def->target_filter[i]);
+                        targets += tag_set_describe(def->target_filter[i]);
                     }
                     ctx.label_value(0, y, "Targets:   ", Color::DarkGray,
                         targets, Color::Cyan);

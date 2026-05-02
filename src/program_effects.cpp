@@ -26,12 +26,13 @@ namespace {
 void apply_reboot_optics(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
     target.state = HackState::Compromised;
     target.state_ticks_left = 4;
-    game.log("The " + std::string(device_kind_name(target.device_kind)) +
+    game.log("The " + std::string(tag_summary(target.tags)) +
              " judders and flickers offline.");
 }
 
 void apply_friendly_fire(Game& game, Hackable& target, int tx, int ty) {
-    if (target.device_kind != DeviceKind::Turret) {
+    // Friendly Fire only works on weaponized targets (turrets).
+    if (!has_tag(target.tags, HackTag::Weaponized)) {
         game.log("Friendly Fire only works on turrets.");
         return;
     }

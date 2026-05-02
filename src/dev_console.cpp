@@ -1316,17 +1316,23 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("tp: fixture '" + fid + "' not found");
     }
     else if (verb == "spawn-hackable") {
+        // FIXME(Plan 5 Task 17): :spawn-hackable is being retired. For now we
+        // map the legacy short-name args to FixtureType-based spawns so dev
+        // workflow keeps working through Cut 1. Tag mask is derived via
+        // tags_for_fixture(). The "turret"/"camera" labels still spawn a
+        // Console fixture (no Weaponized fixture exists yet).
         if (args.size() < 2) {
             log("usage: spawn-hackable <turret|camera|door|conduit|console>");
             return;
         }
-        DeviceKind dk;
         FixtureType ft;
-        if      (args[1] == "turret")  { dk = DeviceKind::Turret;           ft = FixtureType::Console; }
-        else if (args[1] == "camera")  { dk = DeviceKind::Camera;           ft = FixtureType::Console; }
-        else if (args[1] == "door")    { dk = DeviceKind::Door;             ft = FixtureType::Door; }
-        else if (args[1] == "conduit") { dk = DeviceKind::PowerConduit;     ft = FixtureType::Conduit; }
-        else if (args[1] == "console") { dk = DeviceKind::PrecursorConsole; ft = FixtureType::Console; }
+        const char* short_tag = "Dev";
+        bool is_precursor = false;
+        if      (args[1] == "turret")  { ft = FixtureType::Console; short_tag = "Trt"; }
+        else if (args[1] == "camera")  { ft = FixtureType::Console; short_tag = "Cam"; }
+        else if (args[1] == "door")    { ft = FixtureType::Door;    short_tag = "Door"; }
+        else if (args[1] == "conduit") { ft = FixtureType::Conduit; short_tag = "PCon"; }
+        else if (args[1] == "console") { ft = FixtureType::Console; short_tag = "PCC"; is_precursor = true; }
         else { log("unknown kind: " + args[1]); return; }
 
         auto& m = game.world().map();
@@ -1339,24 +1345,18 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             if (m.passable(nx, ny) && m.fixture_id(nx, ny) < 0) {
                 FixtureData fd = make_fixture(ft);
                 fd.interactable = true;
-                fd.cyber = make_hackable(dk, 1);
+                fd.cyber = make_hackable(ft, 1);
 
                 // Every spawned Hackable becomes its own netmap entry.
-                // Short tag keeps netmap labels narrow enough to grid out.
-                auto short_tag = [](DeviceKind d) -> const char* {
-                    switch (d) {
-                        case DeviceKind::Turret:           return "Trt";
-                        case DeviceKind::Camera:           return "Cam";
-                        case DeviceKind::Door:             return "Door";
-                        case DeviceKind::PowerConduit:     return "PCon";
-                        case DeviceKind::PrecursorConsole: return "PCC";
-                    }
-                    return "Dev";
-                };
                 auto& net = game.world().grid_network();
-                std::string device_label = std::string(short_tag(dk)) + "."
+                std::string device_label = std::string(short_tag) + "."
                                          + std::to_string(nx) + "," + std::to_string(ny);
-                if (dk == DeviceKind::PrecursorConsole) {
+                if (is_precursor) {
+                    // tags_for_fixture(Console) returns the base terminal tags;
+                    // PrecursorConsole adds AlienTech on top so Soul Mirror /
+                    // lore-archive paths recognise it. The map-gen content pass
+                    // (Tasks 11-12) handles this for ruin-spawned consoles.
+                    fd.cyber->tags |= static_cast<HackTagMask>(HackTag::AlienTech);
                     auto reg = register_precursor_console(net, "DevConsole.Spawn",
                                                           game.world().seed(), 1,
                                                           device_label);
@@ -1380,7 +1380,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                     fd.cyber->jack_in_node_id = static_cast<int>(sub.value);
                 }
                 game.world().map().add_fixture(nx, ny, fd);
-                log("Placed " + std::string(device_kind_name(dk)) + " at (" +
+                log("Placed " + std::string(tag_summary(fd.cyber->tags)) + " at (" +
                     std::to_string(nx) + "," + std::to_string(ny) + ").");
                 placed = true;
             }
@@ -1487,7 +1487,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 if (fidx < 0) continue;
                 const auto& fd = m.fixture(fidx);
                 if (!fd.cyber) continue;
-                if (fd.cyber->device_kind != DeviceKind::PrecursorConsole) continue;
+                if (!has_tag(fd.cyber->tags, HackTag::AlienTech)) continue;
                 int dist = std::abs(x - px) + std::abs(y - py);
                 if (dist < best_dist) { best_dist = dist; nearest = &*fd.cyber; }
             }
@@ -1519,7 +1519,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 if (fidx < 0) continue;
                 const auto& fd = m.fixture(fidx);
                 if (!fd.cyber) continue;
-                if (fd.cyber->device_kind != DeviceKind::PrecursorConsole) continue;
+                if (!has_tag(fd.cyber->tags, HackTag::AlienTech)) continue;
                 int dist = std::abs(x - px) + std::abs(y - py);
                 if (dist < best_dist) {
                     best_dist = dist;

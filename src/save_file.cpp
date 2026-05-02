@@ -688,16 +688,14 @@ static Aura read_manual_aura(BinaryReader& r) {
 // ---------------------------------------------------------------------------
 
 static void write_hackable(BinaryWriter& w, const Hackable& h) {
-    w.write_u8(static_cast<uint8_t>(h.device_kind));
+    // Plan 5 v60: tag-mask + ip replace device_kind + available_qh.
+    w.write_u32(h.tags);
+    w.write_u32(h.ip);
     w.write_i32(h.security_tier);
     w.write_u32(h.network_id);
     w.write_u8(static_cast<uint8_t>(h.state));
     w.write_i32(h.state_ticks_left);
     w.write_i32(h.jack_in_node_id);
-    w.write_u32(static_cast<uint32_t>(h.available_qh.size()));
-    for (auto pid : h.available_qh) {
-        w.write_u16(static_cast<uint16_t>(pid));
-    }
     // v57 — Plan 4: lore_fragments + soul_mirror_progress
     w.write_u32(static_cast<uint32_t>(h.lore_fragments.size()));
     for (const auto& f : h.lore_fragments) {
@@ -709,17 +707,14 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
 
 static Hackable read_hackable(BinaryReader& r) {
     Hackable h;
-    h.device_kind      = static_cast<DeviceKind>(r.read_u8());
+    // Plan 5 v60: tag-mask + ip replace device_kind + available_qh.
+    h.tags             = r.read_u32();
+    h.ip               = r.read_u32();
     h.security_tier    = r.read_i32();
     h.network_id       = r.read_u32();
     h.state            = static_cast<HackState>(r.read_u8());
     h.state_ticks_left = r.read_i32();
     h.jack_in_node_id  = r.read_i32();
-    uint32_t qh_n = r.read_u32();
-    h.available_qh.reserve(qh_n);
-    for (uint32_t i = 0; i < qh_n; ++i) {
-        h.available_qh.push_back(static_cast<ProgramId>(r.read_u16()));
-    }
     // v57 — Plan 4: lore_fragments + soul_mirror_progress
     uint32_t frag_n = r.read_u32();
     h.lore_fragments.reserve(frag_n);

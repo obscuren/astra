@@ -2,10 +2,9 @@
 
 #include <cstdint>
 #include <vector>
+#include "astra/hackable.h"
 
 namespace astra {
-
-enum class DeviceKind : uint8_t;
 
 enum class ProgramKind : uint8_t {
     Atk,   // .exe — Grid combat (Plan 3)
@@ -43,7 +42,7 @@ struct ProgramDef {
     const char*         filename    = "";          // "icebreaker_lite.exe" / "reboot_optics.qh"
     const char*         description = "";
     int                 detection_cost = 1;        // QH only: amount added to zone Detection
-    std::vector<DeviceKind> target_filter;         // QH only: which device_kinds it can target
+    std::vector<TagSet> target_filter;             // QH only: which tag sets it can target (AND within, OR across)
 };
 
 const std::vector<ProgramDef>& program_registry();

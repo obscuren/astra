@@ -695,7 +695,7 @@ void Game::open_hackable_menu(int fixture_id) {
     Hackable& hack = *fd.cyber;
 
     hackable_menu_.reset();
-    hackable_menu_.title = std::string(device_kind_name(hack.device_kind)) +
+    hackable_menu_.title = std::string(tag_summary(hack.tags)) +
                            " (tier " + std::to_string(hack.security_tier) + ")";
     hackable_menu_slots_.clear();
 
@@ -711,7 +711,7 @@ void Game::open_hackable_menu(int fixture_id) {
             if (!def || def->kind != ProgramKind::Qh) continue;
             bool match = std::any_of(def->target_filter.begin(),
                                      def->target_filter.end(),
-                                     [&](DeviceKind k){ return k == hack.device_kind; });
+                                     [&](TagSet req){ return covers(hack.tags, req); });
             if (!match) continue;
             char k = static_cast<char>('a' + hackable_menu_slots_.size());
             std::string label = std::string(def->filename) + "  (" +
@@ -721,7 +721,7 @@ void Game::open_hackable_menu(int fixture_id) {
         }
     }
 
-    if (hack.device_kind == DeviceKind::PrecursorConsole) {
+    if (has_tag(hack.tags, HackTag::JackInPort)) {
         std::string label = "Jack In";
         if (!player_has_skill(player_, SkillId::Cat_Hacking)) {
             label += "  (requires Cat_Hacking)";
@@ -729,12 +729,18 @@ void Game::open_hackable_menu(int fixture_id) {
         hackable_menu_.add_option('j', label);
         hackable_menu_slots_.push_back(-1);
 
-        hackable_menu_.add_option('s', "Sync Soul");
-        hackable_menu_slots_.push_back(-2);
+        // Sync Soul is Precursor-only (AlienTech). Once Task 11 retags
+        // PrecursorConsole variants this will gate correctly; until then
+        // base Console fixtures won't carry AlienTech and the option stays
+        // hidden — which matches the "no Sync Soul on plain consoles" intent.
+        if (has_tag(hack.tags, HackTag::AlienTech)) {
+            hackable_menu_.add_option('s', "Sync Soul");
+            hackable_menu_slots_.push_back(-2);
+        }
     }
 
     if (hackable_menu_.options.empty()) {
-        log(std::string(device_kind_name(hack.device_kind)) +
+        log(std::string(tag_summary(hack.tags)) +
             ": no compatible programs loaded.");
         return;
     }

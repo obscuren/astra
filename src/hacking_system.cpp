@@ -56,7 +56,7 @@ HackTarget hackable_at(Game& game, int x, int y) {
             FixtureData& fd = world.map().fixture_mut(fid);
             if (fd.cyber) {
                 t.hack = &*fd.cyber;
-                t.name = device_kind_name(fd.cyber->device_kind);
+                t.name = tag_summary(fd.cyber->tags);
                 return t;
             }
         }
@@ -229,7 +229,7 @@ void HackingSystem::handle_targeting_input(int key, Game& game) {
                 if (!def || def->kind != ProgramKind::Qh) continue;
                 bool match = std::any_of(def->target_filter.begin(),
                                          def->target_filter.end(),
-                                         [&](DeviceKind k){ return k == t.hack->device_kind; });
+                                         [&](TagSet req){ return covers(t.hack->tags, req); });
                 if (match) menu_slots.push_back(i);
             }
             if (menu_slots.empty()) {
@@ -253,9 +253,9 @@ std::string HackingSystem::execute_quickhack(Game& game, const Item& program,
         return "Only .qh programs can be fired in the real world.";
 
     bool ok = std::any_of(def->target_filter.begin(), def->target_filter.end(),
-                          [&](DeviceKind k){ return k == target.device_kind; });
+                          [&](TagSet req){ return covers(target.tags, req); });
     if (!ok) {
-        return std::string("Program rejects ") + device_kind_name(target.device_kind) + ".";
+        return std::string("Program rejects ") + tag_summary(target.tags) + ".";
     }
 
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();

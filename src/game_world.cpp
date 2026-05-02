@@ -2352,7 +2352,7 @@ void Game::advance_world(int cost) {
             int fid = m.fixture_id(px, py);
             if (fid >= 0) {
                 const auto& fd = m.fixture(fid);
-                if (fd.cyber && fd.cyber->device_kind == DeviceKind::PrecursorConsole) {
+                if (fd.cyber && has_tag(fd.cyber->tags, HackTag::AlienTech)) {
                     bool has_neural_backup = false;
                     for (const auto& slot : player_.implants) {
                         if (slot && slot->item_def_id == ITEM_NEURAL_BACKUP) {

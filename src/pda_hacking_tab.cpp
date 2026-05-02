@@ -673,7 +673,7 @@ void PdaScreen::hack_term_cmd_cat(const std::vector<std::string>& args) {
                 std::string targets;
                 for (size_t i = 0; i < def->target_filter.size(); ++i) {
                     if (i > 0) targets += ", ";
-                    targets += device_kind_name(def->target_filter[i]);
+                    targets += tag_set_describe(def->target_filter[i]);
                 }
                 hack_term_emit("  targets:   " + targets);
             }

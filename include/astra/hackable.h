@@ -6,21 +6,53 @@
 
 namespace astra {
 
-// Kind of hackable device. Identifies which quickhack target_filter set
-// applies and which interaction effects fire. Decoupled from FixtureType:
-// a security camera and a console may render the same glyph, but their
-// device_kind differs.
-enum class DeviceKind : uint8_t {
-    Turret,
-    Camera,
-    Door,
-    PowerConduit,
-    PrecursorConsole,
-    // Future (Plan 3+): Drone, MineTrap, Vendor, Light, Elevator,
-    // Hazard, NpcImplant, ShipSystem, ReputationServer, Wreckage.
+// Forward-declared to avoid circular dependency (tilemap.h includes hackable.h)
+enum class FixtureType : uint8_t;
+
+enum class HackTag : uint32_t {
+    None        = 0,
+    Electronic  = 1u << 0,
+    Locked      = 1u << 1,
+    PowerNode   = 1u << 2,
+    DataStore   = 1u << 3,
+    HasOptics   = 1u << 4,
+    Weaponized  = 1u << 5,
+    Mobile      = 1u << 6,
+    AlienTech   = 1u << 7,
+    JackInPort  = 1u << 8,
 };
 
-const char* device_kind_name(DeviceKind k);
+using HackTagMask = uint32_t;
+using TagSet      = HackTagMask;   // alias used at the program-filter site for AND-within readability
+
+inline HackTagMask operator|(HackTag a, HackTag b) {
+    return static_cast<HackTagMask>(a) | static_cast<HackTagMask>(b);
+}
+inline HackTagMask operator|(HackTagMask m, HackTag t) {
+    return m | static_cast<HackTagMask>(t);
+}
+inline bool has_tag(HackTagMask m, HackTag t) {
+    return (m & static_cast<HackTagMask>(t)) != 0;
+}
+inline bool covers(HackTagMask device, TagSet required) {
+    return (device & required) == required;
+}
+
+HackTagMask tags_for_fixture(FixtureType type);
+
+// Short human-readable label for a tag mask. Picks a single dominant tag
+// for display: "turret" (Weaponized+HasOptics) > "camera" (HasOptics) >
+// "lock" (Locked) > "power" (PowerNode) > "alien" (AlienTech) >
+// "data" (DataStore) > "device" (else). Use for UI/log purposes that need a
+// single human-readable label for an already-populated Hackable's dominant tag.
+const char* tag_summary(HackTagMask tags);
+
+// Render a TagSet (program target_filter entry) as a human-readable
+// requirement, e.g. "HasOptics" or "Weaponized+Mobile". Returns a static
+// string; suitable for UI lists of "Targets: ..." in QH info screens.
+// Distinct from tag_summary because filters describe REQUIREMENTS
+// (multi-tag conjunctions matter) rather than a single dominant capability.
+const char* tag_set_describe(TagSet required);
 
 enum class HackState : uint8_t {
     Clean,         // never been hacked
@@ -38,31 +70,27 @@ struct LoreFragmentSeed {
 };
 
 struct Hackable {
-    DeviceKind device_kind = DeviceKind::Turret;
-    int security_tier = 1;        // 1..3 — gates QH/jack-in availability
-    uint32_t network_id = 0;      // 0 = unwired (subnet of one)
-    HackState state = HackState::Clean;
-
-    // Program ids that are valid against this device.
-    // Filled by make_hackable() based on device_kind.
-    std::vector<ProgramId> available_qh;
+    HackTagMask tags          = 0;
+    uint32_t    ip            = 0;        // packed 10.X.Y.host; assigned by LAN registration in Task 9
+    int         security_tier = 1;        // 1..3 — gates QH/jack-in availability
+    uint32_t    network_id    = 0;        // 0 = unwired (subnet of one)
+    HackState   state         = HackState::Clean;
 
     // For PrecursorConsole only — Plan 3 will use this; Plan 2 stubs the verb.
-    int jack_in_node_id = -1;
+    int jack_in_node_id   = -1;
 
     // Compromised-state cooldown timer in ticks. Decremented per game tick;
     // when it hits 0 the state collapses back to Clean (or to Alarmed if a
     // detection event flagged it).
-    int state_ticks_left = 0;
+    int state_ticks_left  = 0;
 
     // v57 — Plan 4 (PrecursorConsole only): lore fragments + Soul Mirror progress.
     std::vector<LoreFragmentSeed> lore_fragments;
     int soul_mirror_progress = 0;
 };
 
-// Default-constructs a Hackable with device-appropriate available_qh
-// programs filled in. Use this everywhere a Hackable is added to a
-// fixture or NPC — never hand-fill the available_qh list.
-Hackable make_hackable(DeviceKind kind, int tier);
+// Returns a Hackable populated from the fixture type's tag mask. Returns
+// Hackable with tags=0 if the fixture is not hackable (caller checks).
+Hackable make_hackable(FixtureType type, int tier);
 
 } // namespace astra
