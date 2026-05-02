@@ -172,7 +172,7 @@ void tick_all(GridSession& s, Game& game) {
             s.ice[s.hijacked_ice_idx].hp <= 0) {
             s.hijacked_ice_idx = -1;
             s.hijacked_turns_left = 0;
-            game.log("daemon_hijack: target lost — control reverted.");
+            s.push_log(">> daemon_hijack: target lost — control reverted.");
         }
     }
 

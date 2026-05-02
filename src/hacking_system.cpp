@@ -606,7 +606,7 @@ void HackingSystem::tick_grid(Game& game) {
         --s.hijacked_turns_left;
         if (s.hijacked_turns_left == 0) {
             s.hijacked_ice_idx = -1;
-            game.log("daemon_hijack: control released.");
+            s.push_log(">> daemon_hijack: control released.");
         }
     }
 
@@ -623,7 +623,7 @@ void HackingSystem::tick_grid(Game& game) {
             cyberdeck_force_reboot(cd);
             s.ram = 0;
             s.trace = std::min(kTraceMax, s.trace + kRebootTracePenalty);
-            game.log("Deck overheated — forced reboot. RAM lost. Trace +10.");
+            s.push_log("[WARN] Deck overheated — forced reboot. RAM lost. Trace +10.");
         }
     }
 
@@ -634,14 +634,14 @@ void HackingSystem::tick_grid(Game& game) {
     if (s.trace >= kTraceBreakpoint3 && s.trace_alert_pulses < 3) {
         spawn_black_ice_(s);
         s.trace_alert_pulses = 3;
-        game.log("BLACK ICE CONVERGING.");
+        s.push_log(">> BLACK ICE CONVERGING.");
     } else if (s.trace >= kTraceBreakpoint2 && s.trace_alert_pulses < 2) {
         spawn_gray_ice_reinforcement_(s);
         s.trace_alert_pulses = 2;
-        game.log("Gray ICE reinforcements detected.");
+        s.push_log(">> Gray ICE reinforcements detected.");
     } else if (s.trace >= kTraceBreakpoint1 && s.trace_alert_pulses < 1) {
         s.trace_alert_pulses = 1;
-        game.log("Alert: Trace at 50%.");
+        s.push_log("[WARN] Trace at 50%.");
     }
 
     // 5. Avatar HP zero check.

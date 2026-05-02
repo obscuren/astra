@@ -83,12 +83,12 @@ void traverse_via_gateway(Game& game, GridSession& s) {
     auto it = s.sector.gateway_target.find(
         std::pair<int,int>{s.avatar_x, s.avatar_y});
     if (it == s.sector.gateway_target.end()) {
-        game.log("Gateway has no destination wired.");
+        s.push_log("[ERR] Gateway has no destination wired.");
         return;
     }
     GridNodeId tgt = it->second;
     if (!tgt.valid()) {
-        game.log("Gateway: host unreachable.");
+        s.push_log("[ERR] Gateway: host unreachable.");
         return;
     }
 
@@ -103,7 +103,7 @@ void traverse_via_gateway(Game& game, GridSession& s) {
         // already covered by the previous lookup; fallthrough.
     }
     if (!e) {
-        game.log("Gateway has no edge to that target.");
+        s.push_log("[ERR] Gateway has no edge to that target.");
         return;
     }
     bool open = (e->gateway_tier == 0) || e->cracked;
@@ -116,21 +116,21 @@ void traverse_via_gateway(Game& game, GridSession& s) {
                     em.cracked = true;
                     open = true;
                     s.trace = std::min(kTraceMax, s.trace + 5);
-                    game.log("DeepGridNavigator: gateway cracked. Trace +5.");
+                    s.push_log(">> DeepGridNavigator: gateway cracked. Trace +5.");
                     break;
                 }
             }
         }
     }
     if (!open) {
-        game.log("Gateway locked. Try breach.exe.");
+        s.push_log("[BLOCK] Gateway locked. Run breach.exe.");
         return;
     }
     if (!game.hacking().traverse_to(game, tgt)) {
-        game.log("Gateway traversal failed.");
+        s.push_log("[ERR] Gateway traversal failed.");
         return;
     }
-    game.log("You slip through the gateway.");
+    s.push_log("> You slip through the gateway.");
 }
 
 void on_step(Game& game, GridSession& s) {
@@ -149,11 +149,11 @@ void on_step(Game& game, GridSession& s) {
             if (is_subnet && s.return_node.valid()) {
                 GridNodeId back = s.return_node;
                 if (game.hacking().traverse_to(game, back)) {
-                    game.log("Returning to host LAN.");
+                    s.push_log(">> Returning to host LAN.");
                     return;
                 }
             }
-            game.log("Disconnect channel...");
+            s.push_log(">> Disconnect channel...");
             game.hacking().jack_out(game, JackOutKind::Voluntary);
             return;
         }
@@ -162,11 +162,11 @@ void on_step(Game& game, GridSession& s) {
             s.loot.credits += credits;
             s.sector.set(s.avatar_x, s.avatar_y, GridTile::Floor);
             record_sector_mutation(game, s.avatar_x, s.avatar_y, GridTile::Floor);
-            game.log("Data node ripped: +" + std::to_string(credits) + " credits.");
+            s.push_log("> Data node ripped: +" + std::to_string(credits) + " credits.");
             return;
         }
         case GridTile::EncryptedFile:
-            game.log("Encrypted file. Run decrypt.exe to read.");
+            s.push_log("[INFO] Encrypted file. Run decrypt.exe to read.");
             return;
         case GridTile::Gateway:
         case GridTile::DeepGridGateway:
@@ -194,21 +194,21 @@ void on_step(Game& game, GridSession& s) {
                 }
             }
             if (!found || idx >= cs.warp_anchors.size()) {
-                game.log("Warp anchor: connection target unknown.");
+                s.push_log("[ERR] Warp anchor: connection target unknown.");
                 return;
             }
             const auto& rec = cs.warp_anchors[idx];
             if (!rec.warpable) {
-                game.log("Warp anchor: " + rec.lan_display_name +
-                         " — connection lost (galaxy purged on rebirth).");
+                s.push_log("[WARN] Warp anchor: " + rec.lan_display_name +
+                           " — connection lost (galaxy purged on rebirth).");
                 return;
             }
             char buf[160];
             std::snprintf(buf, sizeof buf,
-                          "Warp anchor: %s — %d/%d cracked. (Warp traversal arrives in a future cut.)",
+                          ">> Warp anchor: %s — %d/%d cracked. (Warp traversal arrives in a future cut.)",
                           rec.lan_display_name.c_str(),
                           rec.nodes_cracked, rec.nodes_total);
-            game.log(buf);
+            s.push_log(buf);
             return;
         }
         default:
