@@ -216,52 +216,94 @@ void on_step(Game& game, GridSession& s) {
     }
 }
 
-void show_help(Game& game) {
-    game.log("Grid: hjkl/arrows move, '.' wait, 'f' fire program,");
-    game.log("walk to ⊙ for safe disconnect, Shift+Q hard jack-out.");
+// ---------------------------------------------------------------------------
+// Plan 6: number-key program firing via Telegraph
+// ---------------------------------------------------------------------------
+
+bool can_afford_program(GridSession& s, const CyberdeckData& cd,
+                        const ProgramDef& def) {
+    if (s.ram < def.ram_cost) {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf),
+                      "[BLOCK] %s — %d RAM required, %d available",
+                      def.filename, def.ram_cost, s.ram);
+        s.push_log(buf);
+        return false;
+    }
+    if (cd.heat_current + def.heat_cost > cd.stats.heat_cap) {
+        s.push_log(std::string("[BLOCK] ") + def.filename + " — heat over cap");
+        return false;
+    }
+    return true;
 }
 
-void open_program_picker(Game& game, GridSession& s) {
-    auto* slot = game.player().equipment.equipped_cyberdeck();
-    if (!slot || !*slot || !(*slot)->deck) {
-        game.log("No deck.");
+void fire_program(Game& game, GridSession& s, CyberdeckData& cd,
+                  const ProgramDef& def, int tx, int ty) {
+    s.ram -= def.ram_cost;
+    int heat = def.heat_cost;
+    if (s.skill_ghost_protocol && !s.ghost_protocol_used) {
+        heat = 0;
+        s.ghost_protocol_used = true;
+    }
+    cyberdeck_add_heat(cd, heat);
+
+    GridProgramContext ctx{game, s, tx, ty};
+    std::string msg = apply_program_in_grid(def.id, ctx);
+    s.push_log(std::string("> ") + def.filename);
+    if (!msg.empty()) s.push_log(std::string("  ") + msg);
+}
+
+void fire_program_slot(Game& game, GridSession& s, int slot_idx) {
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        s.push_log("[BLOCK] no cyberdeck equipped");
         return;
     }
-    auto& cd = *(*slot)->deck;
+    auto& cd = *(*deck_slot)->deck;
 
     int eff_slots = std::min(kCyberdeckMaxSlots,
                              cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
-    for (int i = 0; i < eff_slots; ++i) {
-        if (cd.loaded[i].program_def_id == 0) continue;
-        // Slot stores item_def_id; resolve to a ProgramId via the item registry.
-        Item probe = build_by_def_id(cd.loaded[i].program_def_id);
-        if (!probe.program) continue;
-        ProgramId pid = probe.program->id;
-        const auto* def = find_program(pid);
-        if (!def) continue;
-        if (def->kind == ProgramKind::Qh) continue;
-
-        if (s.ram < def->ram_cost) {
-            game.log("Not enough RAM for " + std::string(def->filename) +
-                     " (" + std::to_string(def->ram_cost) + " required, " +
-                     std::to_string(s.ram) + " available).");
-            return;
-        }
-        s.ram -= def->ram_cost;
-
-        int heat = def->heat_cost;
-        if (s.skill_ghost_protocol && !s.ghost_protocol_used) {
-            heat = 0;
-            s.ghost_protocol_used = true;
-        }
-        cyberdeck_add_heat(cd, heat);
-
-        GridProgramContext ctx{game, s, -1, -1};
-        std::string msg = apply_program_in_grid(pid, ctx);
-        game.log("[" + std::string(def->filename) + "] " + msg);
+    if (slot_idx < 0 || slot_idx >= eff_slots) return;
+    if (cd.loaded[slot_idx].program_def_id == 0) {
+        s.push_log("[BLOCK] empty slot");
         return;
     }
-    game.log("No Grid programs loaded. Slot a .exe in the PDA Hacking tab.");
+
+    Item probe = build_by_def_id(cd.loaded[slot_idx].program_def_id);
+    if (!probe.program) return;
+    ProgramId pid = probe.program->id;
+    const auto* def = find_program(pid);
+    if (!def || def->kind == ProgramKind::Qh) return;
+
+    if (!can_afford_program(s, cd, *def)) return;
+
+    if (def->targeting == TargetingMode::Self) {
+        fire_program(game, s, cd, *def, -1, -1);
+        return;
+    }
+
+    // Tile-targeted: launch Telegraph with a Grid-aware passable predicate.
+    TelegraphSpec spec = def->telegraph_spec;
+    spec.passable_fn = [sess_ptr = &s](int x, int y) -> bool {
+        if (!sess_ptr->sector.in_bounds(x, y)) return false;
+        GridTile t = sess_ptr->sector.at(x, y);
+        // Walls and firewalls block LoS; other tiles let the cursor through.
+        // The valid_target predicate validates the dest tile separately.
+        return t != GridTile::Wall && t != GridTile::Firewall;
+    };
+
+    auto on_confirm = [&game, sess_ptr = &s, def_ptr = def](const TelegraphResult& r) {
+        if (def_ptr->valid_target && !def_ptr->valid_target(*sess_ptr, r.dest_x, r.dest_y)) {
+            sess_ptr->push_log(std::string("[ERR] invalid target for ") + def_ptr->filename);
+            return;
+        }
+        auto* deck_slot2 = game.player().equipment.equipped_cyberdeck();
+        if (!deck_slot2 || !*deck_slot2 || !(*deck_slot2)->deck) return;
+        auto& cd2 = *(*deck_slot2)->deck;
+        fire_program(game, *sess_ptr, cd2, *def_ptr, r.dest_x, r.dest_y);
+    };
+
+    game.telegraph().begin(spec, s.avatar_x, s.avatar_y, on_confirm);
 }
 
 } // namespace
@@ -270,6 +312,12 @@ bool handle(Game& game, int key) {
     auto* sess = game.hacking().session();
     if (!sess) return false;
     auto& s = *sess;
+
+    // Telegraph eats input first when active.
+    if (game.telegraph().active()) {
+        game.telegraph().handle_input(key, game);
+        return false;
+    }
 
     auto move_with_step = [&](int dx, int dy) -> bool {
         // DaemonHijack: while puppeting an ICE, movement keys drive the ICE
@@ -288,25 +336,18 @@ bool handle(Game& game, int key) {
         case KEY_LEFT:  case 'h': return move_with_step(-1,  0);
         case KEY_RIGHT: case 'l': return move_with_step( 1,  0);
         case '.':                 return true;
-        case 'f': case 'F':
-            if (s.hijacked_ice_idx >= 0) {
-                game.log("daemon_hijack: program-fire suppressed while hijacking.");
-                return false;
-            }
-            open_program_picker(game, s);
-            return false;
+
+        case '1': fire_program_slot(game, s, 0); return false;
+        case '2': fire_program_slot(game, s, 1); return false;
+        case '3': fire_program_slot(game, s, 2); return false;
+        case '4': fire_program_slot(game, s, 3); return false;
+        case '5': fire_program_slot(game, s, 4); return false;
+        case '6': fire_program_slot(game, s, 5); return false;
+        case '7': fire_program_slot(game, s, 6); return false;
+        case '8': fire_program_slot(game, s, 7); return false;
+
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);
-            return false;
-        case 'q':
-            if (s.sector.at(s.avatar_x, s.avatar_y) == GridTile::ExitNode) {
-                game.log("You are on the exit node. Walk onto it to disconnect.");
-            } else {
-                game.log("(Shift+Q for hard jack-out; walk to ⊙ for safe exit.)");
-            }
-            return false;
-        case '?':
-            show_help(game);
             return false;
     }
     return false;
