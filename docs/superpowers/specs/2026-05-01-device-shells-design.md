@@ -641,15 +641,68 @@ These are tactical, not design — they belong in the plan:
 
 ---
 
-## 16. Cross-references
+## 16. Plan 5 amendments — `nmap` / `jack` / breach semantics
+
+Plan 5's hacking-terminal CLI (`pda_hacking_tab`) and `GridNmapWidget` ship with two affordances that **conflict with this spec's auth model** and must be revised when this spec lands. They're called out here so Plan 7's implementation plan can carry the change as part of its scope.
+
+### The conflict
+
+Plan 5 (current) gates Grid entry on per-device lock state in two places:
+
+1. **`jack <ip>` CLI** — returns `jack: locked — try breach.exe` when the destination's gateway edge is locked. The player must run `breach.exe` first, then re-issue `jack`.
+2. **`nmap -m` widget — `b` key** — runs `breach.exe` on the cursor's current edge from outside the sector. Per-device "button-mash breach" with no other interaction.
+
+Both treat **per-device locks** as a Grid-traversal gate that must be cleared before entry. This contradicts the device-shells design, where:
+
+- `ssh root@<ip>` always succeeds and lands the player at `guest` tier on locked devices.
+- `hashcat` (long-channel, inside the shell) is the only path to escalation.
+- There is no remote per-device unlock. Lock state is resolved diegetically, not as an external gate.
+
+If both systems coexist, the player has two parallel unlock paths (`b`-press in nmap; `hashcat` in shell) that diverge in cost, speed, risk, and skill expression — exactly the kind of redundancy the original hacking spec rules out.
+
+### Required changes
+
+1. **Drop the `jack <ip>` lock error.** `jack <ip>` succeeds for any reachable IP on the current LAN (and Atlas warp tiles in deep-Grid). Locked devices still resolve normally — the player arrives in the device's subnet sector at guest privilege and can crack from there. The error string `jack: <ip>: host unreachable` remains for unknown IPs; `jack: requires Cat_Hacking skill.` remains. The `locked — try breach.exe` line is removed.
+
+2. **Drop `nmap -m`'s `b` key for per-device gateway edges.** Per-device `╳` gateway edges in the LAN graph are no longer breachable from the netmap. The Enter key (jump-to-sector) works on any node regardless of lock state — it routes through the new always-succeeding `jack` path.
+
+3. **Retain `breach.exe` for spatial firewalls only.** The breach mechanic survives but is **scoped to region/zone firewalls**: tier-2/3 walls in the LAN spatial sector that gate a *region* (not a device), and the deep-Grid Atlas↔Frontier and inter-Frontier firewalls. These are walked-up-to-and-pressed in the spatial sector itself; they are not netmap-side actions.
+
+4. **`nmap -m` `b` key — removed or repurposed.** Cleanest: remove. If retained, only fires on region-firewall edges (not per-device gateway edges) and still runs `breach.exe` with full program cost — but the simpler call is to remove the netmap-side breach affordance entirely and let the spatial sector own it. **Recommended: remove.**
+
+5. **`nmap -l` listing — keep tier column, mark it informational.** The `tier: 2 (locked)` field stays in `ping` and `nmap -l` output so the player knows what they're walking into. Make explicit (in `man nmap` and `--help`): "Tier indicates the privilege you'll receive on connect; locked devices land you at guest. Locked is not a barrier to `jack`."
+
+### What this preserves
+
+- LAN sector firewalls between regions still exist as spatial obstacles. The Netrunner playstyle still has Grid-walking gates to clear.
+- `breach.exe` program is still useful — just for region-scope obstacles instead of per-device.
+- Plan 5's existing `apply_breach_grid` machinery stays; its callers shrink.
+
+### What this breaks (and that's fine)
+
+- Players who currently use `nmap -m` + `b` + Enter as a fast unlock path lose that path. The replacement — `jack <ip>` → `hashcat --fast` — is *richer* (skill check, partial state, INT/skill scaling, faction-flavored shell) and explicitly the design.
+- One-step quickhacks against locked devices remain unaffected; QHs target by tag mask, not lock state.
+
+### Where this lives in the implementation plan
+
+This amendment lands in the same plan as the device-shells implementation, because:
+
+- Removing `jack`'s lock error without `hashcat` available leaves locked devices unreachable.
+- Removing `nmap -m`'s `b` without the shell-tier model leaves players with no unlock path at all.
+
+The two changes are atomic: device-shells ships and the Plan 5 amendments land in the same sequence of commits.
+
+---
+
+## 17. Cross-references
 
 - Plan 4 spec — `2026-04-30-hacking-deep-grid-design.md` — body-phased-out behavior, Trace/Heat semantics.
-- Plan 5 spec — `2026-05-01-grid-expansion-design.md` — tag taxonomy, LAN sector, `Hackable.ip`, persistence machinery.
+- Plan 5 spec — `2026-05-01-grid-expansion-design.md` — tag taxonomy, LAN sector, `Hackable.ip`, persistence machinery, current `nmap`/`jack`/breach semantics that §16 amends.
 - Root hacking spec — `2026-04-29-hacking-design.md` — `Cat_Hacking` skill tree, PDA structure, the v1-exclusion line that this spec answers.
 - Plan 5 handoff — `docs/plans/2026-05-01-grid-loop-handoff.md` — current branch context.
 
 ---
 
-## 17. Status
+## 18. Status
 
 Draft. Awaiting user review. Implementation plan to follow once approved.
