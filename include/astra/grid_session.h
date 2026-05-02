@@ -92,6 +92,10 @@ struct GridSession {
         while (log_lines.size() > kLogCap) log_lines.pop_front();
     }
     void clear_log() { log_lines.clear(); }
+
+    // Plan 6: index of the slot whose Telegraph is currently open. -1 when
+    // none. The Grid HUD uses this to inverse-video the active program slot.
+    int active_slot = -1;
 };
 
 } // namespace astra

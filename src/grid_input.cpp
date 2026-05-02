@@ -303,6 +303,7 @@ void fire_program_slot(Game& game, GridSession& s, int slot_idx) {
         fire_program(game, *sess_ptr, cd2, *def_ptr, r.dest_x, r.dest_y);
     };
 
+    s.active_slot = slot_idx;
     game.telegraph().begin(spec, s.avatar_x, s.avatar_y, on_confirm);
 }
 
@@ -316,6 +317,9 @@ bool handle(Game& game, int key) {
     // Telegraph eats input first when active.
     if (game.telegraph().active()) {
         game.telegraph().handle_input(key, game);
+        // If Telegraph closed (confirm or cancel), clear the active-slot
+        // highlight so the program bar returns to normal rendering.
+        if (!game.telegraph().active()) s.active_slot = -1;
         return false;
     }
 

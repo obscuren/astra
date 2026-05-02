@@ -440,7 +440,16 @@ void draw_program_bar(Game& game, Renderer& r, const WindowRect& wr,
             }
         }
 
-        draw_colored_string(r, x, y, abbrev, label_col);
+        // Plan 6: active slot inverse-videos while its Telegraph is open.
+        if (i == s.active_slot) {
+            for (int k = 0; k < 3; ++k) {
+                r.draw_char(x + k, y,
+                            (k < static_cast<int>(std::strlen(abbrev))) ? abbrev[k] : ' ',
+                            Color::Black, Color::Cyan);
+            }
+        } else {
+            draw_colored_string(r, x, y, abbrev, label_col);
+        }
         x += 3;
         x += 2;  // spacing between slots
     }
