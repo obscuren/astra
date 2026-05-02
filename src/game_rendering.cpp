@@ -1121,7 +1121,7 @@ void Game::render_stats_bar() {
     // --- Right side (right-aligned): QN:5 :: MS:10 :: AV:15 :: DV:8 :: C1 D3 [▓▓▓▒░░░░] ☀ :: Location ---
     std::vector<TextSegment> right;
 
-    int eff_qn = player_.quickness + player_.equipment.total_modifiers().quickness;
+    int eff_qn = player_.effective_quickness();
     right.push_back({"QN:", UITag::TextDim});
     right.push_back({std::to_string(eff_qn), UITag::TextBright});
     right.push_back({" :: ", UITag::TextDim});

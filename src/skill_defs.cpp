@@ -411,61 +411,61 @@ static std::string hacking_category_description() {
 static std::string intrusion_description() {
     std::string s = "Light-footed cyber-intrusion technique. Reduces the trace your actions leave.\n\n";
     s += colored("Passive:", Color::White);
-    s += " -1 Trace per noisy action while in the Grid. (Plan 3.)";
+    s += " White ICE that spots you ticks Trace +1 instead of +2.";
     return s;
 }
 
 static std::string ice_breaking_description() {
     std::string s = "Cracking discipline against hostile counter-intrusion software.\n\n";
     s += colored("Passive:", Color::White);
-    s += " +1 damage vs ICE while in the Grid. (Plan 3.)";
+    s += " icebreaker_lite.exe deals +1 damage to ICE.";
     return s;
 }
 
 static std::string daemon_mastery_description() {
     std::string s = "Compiled program slot expansion via long-running background processes.\n\n";
     s += colored("Passive:", Color::White);
-    s += " +1 cyberdeck slot. (Plan 3.)";
+    s += " +1 cyberdeck program slot.";
     return s;
 }
 
 static std::string ghost_protocol_description() {
     std::string s = "Pre-launch heat-sink protocol that absorbs the first program of each session.\n\n";
     s += colored("Passive:", Color::White);
-    s += " Your first program each Grid run is heatless. (Plan 3.)";
+    s += " The first program you fire each Grid run generates no Heat.";
     return s;
 }
 
 static std::string deep_grid_navigator_description() {
-    std::string s = "Pathing intuition for the deep-Grid lattice. Cracks gateways and maps unfamiliar nets.\n\n";
+    std::string s = "Pathing intuition for the deep-Grid lattice. Walks past locked gateways the easy way sometimes.\n\n";
     s += colored("Passive:", Color::White);
-    s += " +25% gateway crack chance and reveal of one tier-up map node per session. (Plan 3.)";
+    s += " 50% chance to passively crack a locked gateway tier when you step onto it.";
     return s;
 }
 
 static std::string neural_fortitude_description() {
-    std::string s = "Disciplined dissociation. The body bleeds less when the avatar is hurt.\n\n";
+    std::string s = "Disciplined dissociation. The body and avatar both bleed less when the ICE bites.\n\n";
     s += colored("Passive:", Color::White);
-    s += " Halve black-ICE bleed-through to real HP. (Plan 3.)";
+    s += " Halves Black ICE adjacent damage to your avatar (2 → 1) and halves the post-Black-ICE-death "
+         "bleed-through to your real HP (10 → 5).";
     return s;
 }
 
 static std::string code_craft_description() {
     std::string s = "Personal toolchain for compiling exotic programs from raw fragments.\n\n";
-    s += colored("Passive:", Color::White);
-    s += " Unlocks T3 program tinker recipes: pulse_hammer.exe (AoE ICE damage)"
-         " and daemon_hijack.exe (take control of an ICE for 3 turns).";
+    s += "Unlocks T3 program tinker recipes:\n\n"
+         "* " + colored("pulse_hammer.exe", Color::White) + " (AoE ICE damage)\n"
+         "* " + colored("daemon_hijack.exe", Color::White) +  " (take control of target ICE for 3 turns).";
     return s;
 }
 
 static std::string consciousness_anchor_description() {
     std::string s = "Capstone: a permanent deep-Grid base sector that survives Sgr A* rebirth.\n\n";
-    s += colored("Passive:", Color::White);
-    s += " Unlocking this builds ";
+    s += "Unlocks ";
     s += colored("Your.Anchor", Color::Cyan);
-    s += " — a hand-authored sector reachable from any deep-Grid gateway, containing a stash terminal, "
-         "lore vault, and signature program rack. Currency, AI contacts, and base inventory persist "
-         "across all rebirths.";
+    s += " — a personal Grid sector reachable from any deep-Grid gateway. This sector serves as your "
+         "Grid home base; containing your stash, AI contacts, and "
+         "ship cargo management.";
     return s;
 }
 

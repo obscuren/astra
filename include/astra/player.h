@@ -13,6 +13,7 @@
 #include "astra/skill_defs.h"
 #include "astra/tinkering.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string>
@@ -188,6 +189,18 @@ struct Player {
         auto eq = equipment.total_modifiers();
         auto im = implant_modifiers();
         return attributes.willpower + eq.willpower + im.willpower;
+    }
+
+    // Quickness with equipment + effect + implant modifiers applied.
+    // Used by Game::advance_world to scale NPC energy gains so a slow
+    // player gets more world time consumed per action. Clamped to a
+    // minimum of 1 to keep the cost-scaling math safe.
+    int effective_quickness() const {
+        auto eq = equipment.total_modifiers();
+        auto ef = effect_modifiers(effects);
+        auto im = implant_modifiers();
+        int q = quickness + eq.quickness + ef.quickness + im.quickness;
+        return std::max(1, q);
     }
 };
 

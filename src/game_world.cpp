@@ -2187,9 +2187,17 @@ void Game::advance_world(int cost) {
         return;
     }
 
+    // Scale per-action world cost by inverse of player quickness. Baseline
+    // QN = 100 → cost unchanged. QN = 50 (e.g. Convulsing) → cost doubles,
+    // so NPCs get 2× energy per player action and effectively act twice
+    // before the player gets another turn. QN = 200 (boosted) → cost
+    // halves; player acts twice per NPC turn.
+    int eff_qn = player_.effective_quickness();
+    int scaled_cost = (cost * 100 + eff_qn / 2) / eff_qn;
+
     // Grant energy to all NPCs on the current map
     for (auto& npc : world_.npcs()) {
-        npc.energy += cost * npc.quickness / 100;
+        npc.energy += scaled_cost * npc.quickness / 100;
     }
 
     // Process NPC turns until no NPC can act

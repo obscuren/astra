@@ -74,15 +74,15 @@ enum class SkillId : uint32_t {
     AdvancedFireMaking  = 1100,
 
     // Hacking
-    Cat_Hacking         = 12,    // gate for jacking into the Grid (Plan 3+)
-    Intrusion           = 1200,  // -1 trace per noisy action (Plan 3)
-    IceBreaking         = 1201,  // +1 dmg vs ICE (Plan 3)
-    DaemonMastery       = 1202,  // +1 deck slot (Plan 3)
-    GhostProtocol       = 1203,  // first program each Grid run is heatless (Plan 3)
-    DeepGridNavigator   = 1204,  // gateway crack chance + map reveal (Plan 3)
-    NeuralFortitude     = 1205,  // halve black-ICE bleed-through (Plan 3)
-    CodeCraft           = 1206,  // unlock T3 program tinker recipes (Plan 4)
-    ConsciousnessAnchor = 1207,  // (capstone) full deep-Grid persistence (Plan 4)
+    Cat_Hacking         = 12,    // gate for jacking into the Grid
+    Intrusion           = 1200,  // White ICE LoS ticks Trace +1 not +2
+    IceBreaking         = 1201,  // icebreaker_lite +1 dmg
+    DaemonMastery       = 1202,  // +1 cyberdeck program slot
+    GhostProtocol       = 1203,  // first program each Grid run is heatless
+    DeepGridNavigator   = 1204,  // 50% passive gateway crack
+    NeuralFortitude     = 1205,  // halve Black ICE adjacent dmg + half bleed-through
+    CodeCraft           = 1206,  // unlock T3 program tinker recipes
+    ConsciousnessAnchor = 1207,  // (capstone) Your.Anchor + lore-archive DataNode
 };
 
 struct SkillDef {
