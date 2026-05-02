@@ -81,13 +81,15 @@ bool kill_and_persist(Game& game, GridSession& s, GridIce& ice) {
 }
 
 std::string apply_icebreaker_lite_grid(GridProgramContext c) {
+    // Plan 6: target tile supplied by Telegraph; valid_target predicate
+    // already guaranteed an ICE is at (tx, ty).
     GridIce* tgt = nullptr;
-    int best = INT_MAX;
     for (auto& i : c.session.ice) {
-        int d = std::abs(i.x - c.session.avatar_x) + std::abs(i.y - c.session.avatar_y);
-        if (d <= kIceVisionRange && d < best) { tgt = &i; best = d; }
+        if (i.hp > 0 && i.x == c.target_x && i.y == c.target_y) {
+            tgt = &i; break;
+        }
     }
-    if (!tgt) return "icebreaker_lite: no target in range.";
+    if (!tgt) return "icebreaker_lite: target lost.";
 
     std::uniform_int_distribution<int> roll(1, 4);
     int dmg = 1 + roll(c.game.world().rng())
@@ -129,136 +131,97 @@ bool crack_gateway_edge(GridNetwork& net,
 }
 
 std::string apply_breach_grid(GridProgramContext c) {
+    // Plan 6: target tile supplied by Telegraph; valid_target predicate
+    // already guaranteed (tx, ty) is a Firewall, Gateway, or DeepGridGateway.
     GridSession& s = c.session;
+    int x = c.target_x, y = c.target_y;
+    if (!s.sector.in_bounds(x, y)) return "breach: target out of bounds.";
+    GridTile t = s.sector.at(x, y);
 
-    // Candidate tiles: the avatar's tile first (gateways are passable so the
-    // player typically stands on them), then the four orthogonal neighbours
-    // (firewalls block movement so they live adjacent to the player).
-    auto try_breach = [&](int x, int y) -> std::string {
-        if (!s.sector.in_bounds(x, y)) return {};
-        GridTile t = s.sector.at(x, y);
-
-        if (t == GridTile::Firewall) {
-            s.sector.set(x, y, GridTile::Floor);
-            s.trace = std::min(kTraceMax, s.trace + 5);
-            record_sector_mutation(c.game, x, y, GridTile::Floor);
-            return "breach: firewall down. Trace +5.";
-        }
-        if (t == GridTile::Gateway || t == GridTile::DeepGridGateway) {
-            auto it = s.sector.gateway_target.find(std::pair<int,int>{x, y});
-            if (it == s.sector.gateway_target.end()) {
-                return "breach: gateway has no target node.";
-            }
-            GridNodeId tgt = it->second;
-            auto& net = c.game.world().grid_network();
-            const auto& meta = c.game.world().lan_metadata();
-            if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
-                return "breach: edge not found for gateway target.";
-            }
-            s.trace = std::min(kTraceMax, s.trace + 5);
-
-            // Plan 5 Cut 3 Task 31: first-time crack of a connected LAN's ⊕
-            // registers an Atlas WarpAnchor in the consciousness save and
-            // stamps a ◉ tile in the deep-Grid Atlas region. The player is
-            // standing inside the LAN sector so current_node is the LanRoot.
-            if (t == GridTile::DeepGridGateway) {
-                register_deep_grid_warp_anchor(c.game.world(), s.current_node);
-            }
-            return "breach: gateway cracked. Trace +5.";
-        }
-        return {};
-    };
-
-    // 1. The avatar's own tile.
-    if (auto msg = try_breach(s.avatar_x, s.avatar_y); !msg.empty()) {
-        return msg;
+    if (t == GridTile::Firewall) {
+        s.sector.set(x, y, GridTile::Floor);
+        s.trace = std::min(kTraceMax, s.trace + 5);
+        record_sector_mutation(c.game, x, y, GridTile::Floor);
+        return "breach: firewall down. Trace +5.";
     }
-    // 2. Adjacent tiles (N/S/W/E).
-    static constexpr int dx[4] = { 0, 0, -1, 1 };
-    static constexpr int dy[4] = { -1, 1, 0, 0 };
-    for (int d = 0; d < 4; ++d) {
-        int nx = s.avatar_x + dx[d];
-        int ny = s.avatar_y + dy[d];
-        if (auto msg = try_breach(nx, ny); !msg.empty()) {
-            return msg;
+    if (t == GridTile::Gateway || t == GridTile::DeepGridGateway) {
+        auto it = s.sector.gateway_target.find(std::pair<int,int>{x, y});
+        if (it == s.sector.gateway_target.end()) {
+            return "breach: gateway has no target node.";
         }
+        GridNodeId tgt = it->second;
+        auto& net = c.game.world().grid_network();
+        const auto& meta = c.game.world().lan_metadata();
+        if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
+            return "breach: edge not found for gateway target.";
+        }
+        s.trace = std::min(kTraceMax, s.trace + 5);
+
+        // First-time crack of a connected LAN's ⊕ registers an Atlas
+        // WarpAnchor in the consciousness save and stamps a ◉ tile in the
+        // deep-Grid Atlas region.
+        if (t == GridTile::DeepGridGateway) {
+            register_deep_grid_warp_anchor(c.game.world(), s.current_node);
+        }
+        return "breach: gateway cracked. Trace +5.";
     }
     return "breach: nothing to break here.";
 }
 
 std::string apply_decrypt_grid(GridProgramContext c) {
-    static constexpr int dx[5] = { 0, 0, 0, -1, 1 };
-    static constexpr int dy[5] = { 0, -1, 1, 0, 0 };
-    for (int d = 0; d < 5; ++d) {
-        int nx = c.session.avatar_x + dx[d];
-        int ny = c.session.avatar_y + dy[d];
-        if (c.session.sector.at(nx, ny) == GridTile::EncryptedFile) {
-            c.session.sector.set(nx, ny, GridTile::Floor);
-            record_sector_mutation(c.game, nx, ny, GridTile::Floor);
-            c.session.loot.lore_unlocked.push_back(
-                "ARCH-" + std::to_string(c.session.entry_node.value) +
-                "-" + std::to_string(d));
-            return "decrypt: archive read.";
-        }
+    // Plan 6: target tile supplied by Telegraph; valid_target predicate
+    // already guaranteed (tx, ty) is an EncryptedFile.
+    int x = c.target_x, y = c.target_y;
+    if (!c.session.sector.in_bounds(x, y) ||
+        c.session.sector.at(x, y) != GridTile::EncryptedFile) {
+        return "decrypt: target lost.";
     }
-    return "decrypt: no encrypted file in range.";
+    c.session.sector.set(x, y, GridTile::Floor);
+    record_sector_mutation(c.game, x, y, GridTile::Floor);
+    c.session.loot.lore_unlocked.push_back(
+        "ARCH-" + std::to_string(c.session.entry_node.value) +
+        "-" + std::to_string(x * 1000 + y));
+    return "decrypt: archive read.";
 }
 
 std::string apply_pulse_hammer_grid(GridProgramContext c) {
-    // AoE 1d6 damage to all ICE in Chebyshev radius-1 around the nearest ICE.
-    // Use the same nearest-ICE targeting as IcebreakerLite, then hit all ICE
-    // adjacent (including diagonal) to that tile.
-    GridIce* tgt = nullptr;
-    int best = INT_MAX;
-    for (auto& i : c.session.ice) {
-        int d = std::abs(i.x - c.session.avatar_x) + std::abs(i.y - c.session.avatar_y);
-        if (d <= kIceVisionRange && d < best) { tgt = &i; best = d; }
-    }
-    if (!tgt) return "pulse_hammer: no target in range.";
-
-    int tx = tgt->x;
-    int ty = tgt->y;
+    // Plan 6: AoE 3×3 centered on the Telegraph-supplied tile. Hits any ICE
+    // in the footprint (1d6 each).
+    int tx = c.target_x, ty = c.target_y;
     int hit = 0;
     std::uniform_int_distribution<int> roll(1, 6);
     for (auto& ice : c.session.ice) {
+        if (ice.hp <= 0) continue;
         int dx = std::abs(ice.x - tx);
         int dy = std::abs(ice.y - ty);
-        if (dx <= 1 && dy <= 1 && (dx + dy) > 0) {
+        if (dx <= 1 && dy <= 1) {
             int dmg = roll(c.game.world().rng());
             grid_ice::damage(c.session, ice, dmg);
             ++hit;
         }
     }
-    // Also damage the primary target.
-    {
-        int dmg = roll(c.game.world().rng());
-        grid_ice::damage(c.session, *tgt, dmg);
-        ++hit;
-    }
-    // Prune dead ICE; persist coords of any kills.
     for (auto& ice : c.session.ice) kill_and_persist(c.game, c.session, ice);
+    if (hit == 0) return "pulse_hammer: no ICE in blast radius.";
     return "pulse_hammer: hit " + std::to_string(hit) + " ICE.";
 }
 
 std::string apply_daemon_hijack_grid(GridProgramContext c) {
-    // Hand player control of the nearest visible ICE for N turns. The ICE's
-    // own AI is suppressed via charmed_turns_left; the session-level fields
-    // route movement input to the puppet instead of the avatar.
+    // Plan 6: target tile supplied by Telegraph; predicate already verified
+    // a live ICE sits at (tx, ty). Hand the player control of that ICE for
+    // N turns. The ICE's own AI is suppressed via charmed_turns_left; the
+    // session-level fields route movement input to the puppet.
     GridSession& s = c.session;
-    GridIce* tgt = nullptr;
     int best_idx = -1;
-    int best = INT_MAX;
+    GridIce* tgt = nullptr;
     for (size_t i = 0; i < s.ice.size(); ++i) {
         auto& ice = s.ice[i];
-        if (ice.hp <= 0) continue;
-        int d = std::abs(ice.x - s.avatar_x) + std::abs(ice.y - s.avatar_y);
-        if (d <= kIceVisionRange && d < best) {
-            best = d;
+        if (ice.hp > 0 && ice.x == c.target_x && ice.y == c.target_y) {
             best_idx = static_cast<int>(i);
             tgt = &ice;
+            break;
         }
     }
-    if (!tgt) return "daemon_hijack: no target in range.";
+    if (!tgt) return "daemon_hijack: target lost.";
 
     constexpr int kHijackTurns = 3;
     tgt->charmed_turns_left = kHijackTurns;
