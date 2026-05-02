@@ -105,10 +105,16 @@ void on_step(Game& game, GridSession& s) {
     GridTile here = s.sector.at(s.avatar_x, s.avatar_y);
     switch (here) {
         case GridTile::ExitNode: {
-            // If we're inside a sub-sector reached via traversal, the ⊙ tile
-            // bounces back to the LAN instead of jacking out. This keeps the
-            // session alive across multi-sector exploration.
-            if (s.return_node.valid()) {
+            // ⊙ inside a Subnet sector bounces back to the host LAN
+            // (return_node is set by jack_in / traverse_to). ⊙ inside a
+            // LanRoot or DeepGridAnchor sector is the canonical jack-out
+            // back to the real world — never bounce, otherwise we loop:
+            // Subnet ⊙ → LAN, then LAN ⊙ would re-enter the Subnet.
+            const auto& net = game.world().grid_network();
+            const GridNode* cur = net.find(s.current_node);
+            const bool is_subnet =
+                cur != nullptr && cur->kind == GridNodeKind::Subnet;
+            if (is_subnet && s.return_node.valid()) {
                 GridNodeId back = s.return_node;
                 if (game.hacking().traverse_to(game, back)) {
                     game.log("Returning to host LAN.");

@@ -295,6 +295,11 @@ void Game::handle_play_input(int key) {
                     dialog_.interact_fixture_use_only(fid, *this);
                     advance_world(ActionCost::interact);
                 } else if (slot_idx == -1) {
+                    // Diegetic: you're plugging into THIS device's subnet.
+                    // HackingSystem::jack_in detects Subnet entries and
+                    // sets session.return_node = lan_root so the subnet's
+                    // ⊙ bounces back to the host LAN sector (instead of
+                    // jacking straight out to the world).
                     GridNodeId nid;
                     nid.value = static_cast<uint32_t>(hack.jack_in_node_id);
                     hacking_.jack_in(*this, nid);

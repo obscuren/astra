@@ -371,6 +371,19 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     s.body_y       = game.player().y;
     s.body_state   = GameState::Playing;
 
+    // Diegetic flow for fixture-menu Jack In: the player plugs their cable
+    // into a specific device (Console, ShipTerminal, etc.), so they land in
+    // THAT device's Subnet sector. To preserve the "back to the LAN" path,
+    // pre-set return_node to the Subnet's owning LAN root — so when the
+    // player walks onto the subnet's ⊙ ExitNode, on_step's bounce-back
+    // logic traverses to the LAN sector instead of jacking out to the world.
+    if (node->kind == GridNodeKind::Subnet) {
+        const auto& meta = game.world().lan_metadata();
+        if (meta.lan_root.valid()) {
+            s.return_node = meta.lan_root;
+        }
+    }
+
     // Avatar HP from skill+deck. NeuralFortitude raises max by 1.
     bool nf = player_has_skill(game.player(), SkillId::NeuralFortitude);
     s.avatar_hp_max = 3 + (nf ? 1 : 0);
