@@ -387,6 +387,8 @@ PDA Equipment-tab paper-doll toggle (`Tab` while on the Equipment tab).
 |------|-----|---------|--------|
 | Neural Backup | `neural_backup` | -1 Willpower; auto-syncs lore at Precursor consoles via the Soul Mirror channel. | T2+ deep-Grid drops, BlackMarket. |
 
+**Plan 5 — NPC cybernetic implants:** Mechanical NPCs (drones, sentries, Archon Automatons per `npc_factory.cpp`) carry synthetic implants with `HackTagMask = Electronic | Mobile`. They auto-register in their map's LAN graph and can be targeted by `quickhack`s with appropriate tag filters. Example: `friendly_fire.qh` requires `Weaponized | Mobile`, so hostile drones and sentries with weapon systems are valid targets. Implant presence on an NPC is signified by a status icon in the creature's sidebar info panel.
+
 ## Code Fragments
 
 Crafting material category for program tinkering. T1/T2/T3 fragments are inputs into program schematics in the Tinkering tab.

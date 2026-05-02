@@ -870,6 +870,78 @@ constexpr int kIceVisionRange = 5;
 constexpr int kKillIceTrace   = 3;
 ```
 
+## Hacking — Plan 5 (Grid expansion and LAN redesign)
+
+### Tag-driven hackability
+
+Every electrical fixture (`FixtureTag::Electronic`) carries a `HackTagMask` bitmask representing its capabilities:
+
+```
+Electronic        — all fixtures in the network
+Locked            — requires breach to access
+PowerNode         — supplies energy
+DataStore         — holds encrypted files
+HasOptics         — vision-related; can surveil
+Weaponized        — offensive capability (turrets, weapons)
+Mobile            — can move or transmit (NPCs, drones)
+AlienTech         — precursor origin; Plan 7+ gameplay
+JackInPort        — allows player jack-in (Precursor consoles, ship terminals)
+```
+
+Programs declare `target_filter`, a list of required tag-sets. A fixture matches and becomes targetable by a program if its tags satisfy **any one** tag-set (tag coverage, not all-or-nothing). Example: `reboot_optics.qh` requires `HasOptics`, so any fixture tagged `HasOptics` is valid; `friendly_fire.qh` requires `Weaponized | Mobile`, so fixtures tagged with either or both are valid.
+
+### LAN structure and registration
+
+Per-world-map LAN graph (`GridNetwork` + `LanMetadata`) auto-populates at map entry via fixture registry:
+
+- **Connected LANs**: Precursor consoles, space stations, crashed ships, Starship terminals auto-register as root nodes. Subnets of child fixtures (doors, turrets, cameras, terminals) appear as children.
+- **Isolated LANs**: Dungeons and detail maps without electrical fixtures have no LAN (ping/nmap report "no LAN on this map").
+- **Subnet assignment**: Each fixture gets an IP on the map's subnet (10.x.y.z/24), deterministically seeded from the fixture's map position.
+
+The graph persists in the `GridNetwork` save field (schema v60). On galaxy reseed (rebirth), the `GridNetwork` resets; the previous galaxy's network is archived for memorial reference.
+
+### LAN cyberspace sectors
+
+Jacking into a subnet node spawns a procedural cyberspace sector (28×14 for subnets, 40×24 for regional darknet, hand-authored for deep-Grid). The sector contains:
+
+- **Firewall rings**: Concentric wall structures that partition the sector. Lower tiers have fewer rings; each ring is a gateway requiring breach to pass.
+- **Office floor plan**: Interior layout with desks, storage racks, and connectors, generated via BSP or hand-shaped layouts.
+- **Connector wiring**: Floor and ceiling runs between offices, appearing as `~` and `═` glyphs.
+- **Subnet gateways** (`⌬`): Each connected subnet (on the same map) has a gateway tile. Walking to a gateway allows re-entry into that device's cyberspace if not yet fully looted.
+- **Deep-Grid gateway** (`⊕`): One-way portal to the deep-Grid (if the fixture supports it or if the LAN is tier 2+). First crack costs Trace +5 and unlocks the deep-Grid node in the graph.
+- **Jack-out node** (`⊙`): Safe exit. Voluntary jack-out returns the player and grants full credits + lore unlock (if the sector was fully explored).
+- **Per-subnet device avatar**: A glyph or fixture-specific icon mounted on the sector wall showing the source device (camera → `◉`, door → `⊟`, turret → `⚡`, etc.).
+
+Tile mutations (cracked firewalls, looted DataNodes, decrypted EncryptedFiles, killed ICE) persist on the `SectorMap` in the world's `GridNetwork`. Once generated, a sector is never regenerated during normal play—only on galaxy reseed.
+
+### Deep-Grid and cross-LAN navigation
+
+The **deep-Grid** is a 60×40 hand-authored universal hub that ties all connected LANs together:
+
+- **Anchor** (`Anchor`): Spawn point. Contains the lore-archive viewer (plan 7) and acts as a hub for all connected subnet gateways.
+- **Atlas** (`Atlas`): Wall-mounted array of WarpAnchors. Each connected LAN's root node gets a warp-to-subnet tile here. When a subnet's deep-Grid gateway is first cracked, its Atlas entry unlocks. Subsequent rebirths show past-galaxy anchors as memorials (untraversable; lore-only).
+- **Frontier** (`Frontier`): Firewalled zone (Plan 7). Currently a placeholder—no content beyond the wall.
+
+Crossing Sgr A* via `:rebirth` runs:
+1. Increment rebirth counter on `consciousness.dat`.
+2. Generate a fresh galaxy (new `WorldLore`, new system positions, new `GridNetwork`).
+3. Mark all old Atlas entries as "past-galaxy" in the new deep-Grid sector (visual + metadata distinction).
+4. Return to Main Menu.
+
+### PDA terminal commands (IP-driven)
+
+- **`ping <ip>`** — probe a node. Output: latency, security tier (clean/compromised/alarmed), tags.
+- **`nmap [-l|-m]`** — list LAN subnets (`-l`) or open visual map widget (`-m`). Widget shows connected nodes, gateway lock status, and allows cursor-stepping to select and jack into a node.
+- **`jack <ip>`** — jack into a node. Requires `Cat_Hacking` skill + cyberdeck equipped. Opens the sector for that node's subnet.
+- **`lore`** — list decrypted lore archives. Output: archive ID + origin tick. Use `cat <archive-id>` to read body text (Plan 7).
+- **`cat <archive-id>`** — read a decrypted archive's text.
+
+### Persistence and save schema
+
+`GridNetwork` persists in the save file (schema v60, `consciousness.dat` v2). Sector tile mutations (cracks, loots, ICE kills) are stored per-SectorMap via `SectorState` entries in the network. Player-visited sectors are never regenerated during the same galaxy playthrough.
+
+---
+
 ## Hacking — Plan 4 (D-layer): Consciousness, Deep-Grid, Rebirth
 
 Plan 4 layers a **second save scope** on top of the per-galaxy save: a

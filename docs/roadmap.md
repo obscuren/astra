@@ -180,10 +180,33 @@
 - [x] **Hacking & The Grid — Plan 3 (A-layer / The Grid)** — full jack-in lifecycle. New `GameState::Grid` with its own input + render path. `GridSession` runtime owned by `HackingSystem` carries avatar HP/RAM/Trace + cached skill flags. Per-galaxy `GridNetwork` graph (subnet / regional darknet / deep-Grid anchor) registered on Precursor console placement and persisted via save schema v54. Tron-styled tilemap render with UTF-8 glyphs (`░ ▓ ▼ ◇ ▲ ⌬ ⊙ ⊘`) + HUD bars. Procedural subnet/regional sector generators + one hand-authored Consciousness Anchor sector. ICE actors: white patrols and raises Trace, gray pursues for 1 HP, black bleeds real HP through to the body. Heat → Trace coupling, forced reboot at heat_cap, breakpoints (50 alert, 75 gray reinforcement, 100 black ICE summon). All five `.exe` programs live (icebreaker_lite, ghost_trace, cooldown, breach, decrypt). Six `Cat_Hacking` skills wired (Intrusion, IceBreaking, DaemonMastery, GhostProtocol, DeepGridNavigator, NeuralFortitude). Voluntary, hard, non-black-death, and black-ice-death disconnect outcomes; soft disconnect on save/load. PDA Hacking tab `netmap` and `jack -t <node>` go real. Dev verbs: `:jack`, `:jack-out`, `:trace`, `:spawn-ice`. Save schema v53 → v54.
 - [x] **Hacking & The Grid — Plan 4 (D-layer / Deep-Grid persistence)** — second save scope `consciousness.dat` carries identity across Sgr A* rebirths. New `Implant` equipment slot + Neural Backup item with -1 WIL modifier; Equipment-tab `Tab` toggle reveals an implant paper-doll. Per-`Hackable` lore fragments + `soul_mirror_progress`. Soul Mirror channel (non-hacker access path) — adjacent-to-Precursor channelling at 1 EP/turn that auto-syncs lore on commit; HUD strip shows progress. `CodeCraft` + two T3 programs (`pulse_hammer.exe`, `daemon_hijack.exe`) with tinker recipes. `ConsciousnessAnchor` capstone seeds a 30×20 player deep-Grid base persisted in `consciousness.dat`; one-time event, owned-by-consciousness wired into `GridNetwork` graph. Grid renderer follows the avatar with a 4-cell deadzone. Regional darknet BSP generator (40×24, 4–8 firewall-bordered rooms with floor doorways). `GridNetmapWidget` overlay replaces scrollback netmap — regional + deep-Grid zooms, cursor-stepping, deferred jack-in, locked-edge styling. Sgr A* `RebirthSequence` — confirmation modal listing what survives + first-crossing cinematic + `consciousness.dat` increment + return-to-MainMenu. Dev verbs: `:unlock-anchor`, `:rebirth`, `:rebirth-reset`, `:unequip-implant`. Save schema v55 → v58.
 
+- [x] **Hacking & The Grid — Plan 5 (Grid expansion and LAN redesign)** (2026-05-02)
+  - Tag-driven capability model (HackTagMask bitmask, tag-set filtering retires `Hackable::available_qh`)
+  - LAN auto-registration on every map enter (Precursor console / station / ship roots, child fixture subnets)
+  - Procedural LAN sector generator (firewall rings, office floor plan, connector wiring, BSP or hand-shaped layouts)
+  - Subnet gateways (`⌬`) and deep-Grid gateway (`⊕`) intra-sector navigation
+  - Per-subnet device avatars (fixture-specific icons on sector walls)
+  - Jack-out node (`⊙`) voluntary exit with lore unlock
+  - Tile-mutation persistence (cracked firewalls, looted DataNodes, decrypted EncryptedFiles, killed ICE)
+  - 60×40 hand-authored deep-Grid base (Anchor v1 + Atlas + Frontier placeholder)
+  - WarpAnchor population on first `⊕` crack; past-galaxy memorial flagging
+  - Galaxy reseed via Game::start_new_galaxy
+  - nmap/ping/jack/lore IP-driven PDA verbs
+  - NPC implants carry `Electronic | Mobile` tags, auto-register, targetable by filtered quickhacks
+  - Save schema v60 + consciousness.dat v2
+
 ### Deferred / next
 
-- [ ] **Hacking & The Grid — Plan 5 (Grid expansion and change)** — LAN redesign: every electrical fixture auto-registers in its map's LAN, jacking in drops the player into a generated cyberspace sector with Gateway tiles to individual device subnets, deep-Grid is the universal layer that ties connected LANs together. Tag-based capability model retires `Hackable::available_qh`. Absorbs the Plan 4 stitching gaps (deep-Grid reachability, sector-source dispatch, galaxy reseed, lore viewer, AI contacts, multi-Gateway-per-sector, fixture-menu/netmap asymmetry). Includes the netmap-side breach UX.
 - [ ] **Hacking & The Grid — Plan 6 (UI / Grid HUD redesign)** — replace the per-tile bars + HUD strip with a structured top/bottom HUD (RAM/Trace/Heat live readouts, ICE legend, breach indicator, breakpoint timeline, LAN hop indicator + topology breadcrumb from Plan 5). Designed against the final LAN gameplay state.
+- [ ] **Hacking & The Grid — Plan 7 (Darknet content + Your.Anchor expansion + AI contacts UI)**
+  - Frontier zone content (the deep-Grid's east region, currently firewalled placeholder)
+  - Your.Anchor full mechanics: stash, customization, AI-contact locus, ownership rules beyond Plan 4's self-anchor bypass, rebirth-survivor identity surface
+  - AI contacts UI (schema-only after Plan 5; first impressions, dialog, gameplay loops)
+  - Multi-map LanMetadata (replace single-LAN scope; cross-map persistence; ship-merges-into-docked-LAN semantics)
+  - Hostile-QH owner suppression model (ProgramDef::hostile flag + per-fixture owned_by_player flag)
+  - PrecursorConsole AlienTech variant on map-gen (ruin/crashed-ship generators)
+  - Sgr A* in-world warp trigger (currently :rebirth dev-only)
+  - Possible: WarpAnchor traversal (physically warp the @ avatar to the destination station)
 
 ---
 

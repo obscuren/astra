@@ -26,7 +26,7 @@ Two playstyles emerge from one set of mechanics: the **Netrunner** walks the spa
 ### Pillars
 
 - **The shell is a UI surface, not a parallel universe.** It rides Plan 5's tag system. Adding a tag adds commands; adding a fixture inherits commands automatically. No central switch statement.
-- **Two privilege tiers, one shell.** `ssh` always succeeds at `guest`. `john`/`ripper` (long-channel) escalates to `root`. Locked-vs-unlocked is visible diegetically — no out-of-shell crack minigame.
+- **Two privilege tiers, one shell.** `ssh` always succeeds at `guest`. `hashcat` (long-channel) escalates to `root`. Locked-vs-unlocked is visible diegetically — no out-of-shell crack minigame.
 - **Reads are free, privileged actions are committed.** Reading `cat /var/log` is instant, paused world. Privileged actions (`firmware --wipe`, `blind`, `friendly_fire`, etc.) are long-channel: world ticks, body is wired-in (real-world), Trace ticks (Grid). Inline progress bar shows in the shell itself.
 - **Shell pivots are Grid-only.** From inside the Grid, `ssh root@<other-ip>` jumps to any device on the breached LAN, costs Heat, lowers Trace. From real-world, you're physically wired — pivots are blocked.
 - **Authoring scales with content, not code.** Three orthogonal authoring layers (tag-derived commands / per-FixtureType banner / per-faction flavor) keep content debt linear. New fixture = pick tags + write banner string. New faction = write flavor pack.
@@ -60,11 +60,11 @@ Two playstyles emerge from one set of mechanics: the **Netrunner** walks the spa
 
 ### Existing systems extended
 
-- **`Hackable`** (`hackable.h`, exists post-Plan 5) — gains `firmware_state: enum { Stock, Wiped, Glitched }`, `cracked_digits: uint8_t` (for `john` partial-state), `escalated: bool` (true once `root`), `dumped_bytes: uint32_t` (for `data --dump` partial-state). Plan 5's `tags` and `ip` already provide what the shell needs to address and gate.
+- **`Hackable`** (`hackable.h`, exists post-Plan 5) — gains `firmware_state: enum { Stock, Wiped, Glitched }`, `cracked_digits: uint8_t` (for `hashcat` partial-state), `escalated: bool` (true once `root`), `dumped_bytes: uint32_t` (for `data --dump` partial-state). Plan 5's `tags` and `ip` already provide what the shell needs to address and gate.
 - **`PdaHackingTab`** (`pda_hacking_tab.cpp`) — gains the `ssh` command. Resolves IP → Hackable → opens `DeviceShell`. The PDA's `pda>` shell stays for `nmap`/`programs`/`jack`/etc; the device's shell is a separate sub-mode the PDA "tunnels into."
 - **`HackingSystem`** (`hacking_system.h/cpp`) — drives the long-channel ticker, applies command effects, persists mutations. Owns the active `DeviceShell` (at most one).
 - **Interactables (`interactables_widget`)** — gains a "Hack" entry on any `Hackable` with `Electronic` tag if the player has `Cat_Hacking`. Triggering it routes through `HackingSystem::open_real_world_shell(Hackable*)`.
-- **`Cat_Hacking` skills** — three new skill nodes: `PivotMaster` (pivot magnitudes), `ColdHands` (fewer Detection ticks per privileged command), `RootKit` (faster `john`/`ripper`). Stubbed out elsewhere; this plan unlocks the slots.
+- **`Cat_Hacking` skills** — three new skill nodes: `PivotMaster` (pivot magnitudes), `ColdHands` (fewer Detection ticks per privileged command), `RootKit` (faster `hashcat`). Stubbed out elsewhere; this plan unlocks the slots.
 - **Save (`galaxy_*.dat`)** — schema bumps for the new `Hackable` fields. Per project rule: reject old saves, no migration.
 
 ### File-size discipline
@@ -122,24 +122,24 @@ The shell *itself* — banner, commands, flavor, channel mechanics, interrupt ru
 
 | Tier | When | Visible as | Allowed |
 |---|---|---|---|
-| `guest` | `Hackable` is `Locked` and not yet escalated | `<DEVICE>:guest$` and `Welcome Guest.` | Reads (`ls`, `cat`, `whoami`, `help`, `clear`, `history`), and the `Locked`-tag commands (`john`, `ripper`, `hashcat`, `unlock`) |
+| `guest` | `Hackable` is `Locked` and not yet escalated | `<DEVICE>:guest$` and `Welcome Guest.` | Reads (`ls`, `cat`, `whoami`, `help`, `clear`, `history`), and the `Locked`-tag commands (`hashcat`, `unlock`) |
 | `root` | `Hackable` is unlocked OR has been escalated this session | `<DEVICE>:root#` and `Welcome <root-name>.` | All tag-derived commands + reads + universals |
 
 A device with no `Locked` tag opens directly at `root`.
 
 ### Escalation
 
-`john --fast` (or `ripper`, or `hashcat`) is a long-channel command (typical: 8–14 turns, 4–8 Heat, +10–20 Detection scaled by INT/skill). On success, sets `Hackable.escalated = true`, prompt switches to `root#`, full command set unlocks. On failure (skill check), Heat is spent, `cracked_digits` increments by 1–2 (partial-state for next attempt), prompt stays `guest$`.
+`hashcat --fast` is a long-channel command (typical: 8–14 turns, 4–8 Heat, +10–20 Detection scaled by INT/skill). On success, sets `Hackable.escalated = true`, prompt switches to `root#`, full command set unlocks. On failure (skill check), Heat is spent, `cracked_digits` increments by 1–2 (partial-state for next attempt), prompt stays `guest$`.
 
-`john --fast` reveals digits one at a time:
+`hashcat --fast` reveals digits one at a time:
 ```
-TURRET-OS:guest$ john --fast
+TURRET-OS:guest$ hashcat --fast
 [*] Cracking authentication... [▓▓▓░░░░░░░] 30%
 [+] Recovered: ****1**5***
 [*] Cracking authentication... [▓▓▓▓▓▓░░░░] 60%
 [+] Recovered: ****1**5*K8
 TURRET-OS:guest$ _    # interrupted
-TURRET-OS:guest$ john --fast    # later: resumes from cracked_digits=5
+TURRET-OS:guest$ hashcat --fast    # later: resumes from cracked_digits=5
 [+] Recovered: ****1**5*K8
 [*] Cracking authentication... [▓▓▓▓▓▓░░░░] 60%
 ```
@@ -170,6 +170,20 @@ Authentication accepted. Welcome <TIER-NAME>.
 
 `MOTD-FROM-FACTION-PACK` is one randomly-selected line from the faction's MOTD list. Examples below in §10.
 
+### Cursor rendering
+
+The shell prompt's cursor is an **inverted-color block**, mirroring the existing `dev_console` cursor:
+
+- Single cell.
+- Background = the prompt's foreground color (typically `Color::White`).
+- Foreground = the prompt's background color (typically `Color::Black`).
+- Drawn *on top of* the character at the cursor position — so a cursor over `firmwa█e` shows the `r` as black-on-white in that one cell. End-of-line cursor shows a solid block over a space.
+- Implementation reference: `dev_console::render` at `src/dev_console.cpp:1730–1732` — same `ctx.put(col, row, ch, Color::Black, Color::White)` pattern with the under-cursor character supplied.
+- Behavior: arrow keys move the cursor through the input buffer (left/right), Home/End jumps to ends, Backspace/Delete edit, characters insert at cursor — full mid-line editing matching dev console.
+- During an active long-channel the prompt is busy (showing the progress bar); the input cursor is suppressed and the bar's last `▓` cell acts as the visual focus instead.
+
+In the spec's sample blocks, the trailing `_` represents "cursor here, line empty" — read it as the inverted block at end-of-line.
+
 ---
 
 ## 6. Command system
@@ -178,8 +192,8 @@ Authentication accepted. Welcome <TIER-NAME>.
 
 ```cpp
 struct HackCommand {
-    const char*     name;            // "john", "blind", "ls"
-    const char*     synopsis;        // "john [--fast] [--wordlist=FILE]"
+    const char*     name;            // "hashcat", "blind", "ls"
+    const char*     synopsis;        // "hashcat [--fast] [--wordlist=FILE]"
     const char*     description;     // shown by `help` and `<cmd> --help`
     HackTag         required_tag;    // command appears iff device has this tag; HackTag::None for universals
     bool            requires_root;   // command appears at guest if false; root-only if true
@@ -218,7 +232,7 @@ Tag-less, always available:
 
 | Tag | Commands |
 |---|---|
-| `Locked` | `john`, `ripper`, `hashcat`, `unlock` |
+| `Locked` | `hashcat`, `unlock` |
 | `HasOptics` | `blind`, `feed`, `restream`, `purge` |
 | `Weaponized` | `disarm`, `lockout`, `friendly_fire`, `targetlist` |
 | `PowerNode` | `surge`, `kill`, `reroute`, `dim` |
@@ -293,9 +307,9 @@ On abort:
 - **Heat-spent-is-spent.** No refund.
 - Detection already added stays added.
 - Effect is not applied — *unless* the command is `allow_partial = true`.
-- For partial-state commands (`john`, `data --dump`), the command's `on_partial(progress, Hackable&)` hook fires — typically writing a small persistent token (`cracked_digits++`, `dumped_bytes += amount`) so the next attempt resumes.
+- For partial-state commands (`hashcat`, `data --dump`), the command's `on_partial(progress, Hackable&)` hook fires — typically writing a small persistent token (`cracked_digits++`, `dumped_bytes += amount`) so the next attempt resumes.
 
-Authored partial-state commands in v1: `john`, `ripper`, `hashcat`, `dump`. Everything else aborts atomically.
+Authored partial-state commands in v1: `hashcat`, `dump`. Everything else aborts atomically.
 
 ### Body during channel (real-world)
 
@@ -536,13 +550,11 @@ Authentication accepted. Welcome Guest.
 ╚═══════════════════════════════════════════╝
 
 KAGUYA-DOOR-22:guest$ help
-  john     - attempt password recovery
-  ripper   - attempt password recovery (variant)
-  hashcat  - attempt password recovery (variant)
+  hashcat  - attempt password recovery
   unlock   - request open (requires root)
   ls / cat / whoami / help / clear / history / exit
 
-KAGUYA-DOOR-22:guest$ john --fast
+KAGUYA-DOOR-22:guest$ hashcat --fast
 [*] Cracking authentication... [▓▓▓▓▓▓▓▓▓▓] 100%
 [+] Recovered: 4Z71J9K8X2L
 [+] Authentication elevated.
@@ -561,7 +573,7 @@ KAGUYA-DOOR-22:root# exit
 [player has jacked into a station LAN, walked the spatial sector,
  reached a Camera node's gateway tile, breached it]
 
-CAM-07:guest$ john --fast
+CAM-07:guest$ hashcat --fast
 [+] Recovered.
 CAM-07:root# ls /home/mikko/
 notes.txt  todo.txt
@@ -573,7 +585,7 @@ CAM-07:root# pivot 10.0.4.17
 
 Connecting to 10.0.4.17.... [SUCCESS]
 ...
-KAGUYA-TUR-17:guest$ john --fast        # default creds — instant
+KAGUYA-TUR-17:guest$ hashcat --fast      # default creds — instant
 [+] Recovered immediately (default credentials).
 KAGUYA-TUR-17:root# friendly_fire --target=cartel
 [*] Reconfiguring target priority... [▓▓▓▓▓▓▓▓▓▓] 100%
