@@ -18,16 +18,42 @@ namespace astra::grid_renderer {
 
 namespace {
 
+const char* wall_glyph_for_neighbours(bool n, bool s, bool e, bool w) {
+    int code = (n?1:0) | (s?2:0) | (e?4:0) | (w?8:0);
+    switch (code) {
+        case 0:  return "\xe2\x80\xa2";              // • isolated (rare)
+        case 1:  case 2:  case 3:  return "\xe2\x95\x91";   // ║ vertical
+        case 4:  case 8:  case 12: return "\xe2\x95\x90";   // ═ horizontal
+        case 5:  return "\xe2\x95\x9a";               // ╚  n + e
+        case 6:  return "\xe2\x95\x94";               // ╔  s + e
+        case 9:  return "\xe2\x95\x9d";               // ╝  n + w
+        case 10: return "\xe2\x95\x97";               // ╗  s + w
+        case 7:  return "\xe2\x95\xa0";               // ╠  n + s + e
+        case 11: return "\xe2\x95\xa3";               // ╣  n + s + w
+        case 13: return "\xe2\x95\xa9";               // ╩  n + e + w
+        case 14: return "\xe2\x95\xa6";               // ╦  s + e + w
+        case 15: return "\xe2\x95\xac";               // ╬  all four
+        default: return "\xe2\x95\x91";               // fallback ║
+    }
+}
+
+bool is_connectable(GridTile t) {
+    return t == GridTile::Wall || t == GridTile::Connector;
+}
+
 const char* glyph_for(GridTile t) {
     using namespace grid_theme;
     switch (t) {
-        case GridTile::Floor:         return floor_glyph;
-        case GridTile::Firewall:      return firewall_glyph;
-        case GridTile::DataNode:      return data_node_glyph;
-        case GridTile::Gateway:       return gateway_glyph;
-        case GridTile::ExitNode:      return exit_glyph;
-        case GridTile::EncryptedFile: return encrypted_glyph;
-        case GridTile::Wall:          return " ";
+        case GridTile::Floor:           return floor_glyph;
+        case GridTile::Firewall:        return firewall_glyph;
+        case GridTile::DataNode:        return data_node_glyph;
+        case GridTile::Gateway:         return gateway_glyph;
+        case GridTile::ExitNode:        return exit_glyph;
+        case GridTile::EncryptedFile:   return encrypted_glyph;
+        case GridTile::Wall:            return " ";   // overridden by neighbour-aware path in render()
+        case GridTile::Connector:       return connector_glyph;        // overridden by neighbour-aware path
+        case GridTile::DeepGridGateway: return deep_grid_gateway_glyph;
+        case GridTile::WarpAnchor:      return warp_anchor_glyph;
     }
     return " ";
 }
@@ -35,13 +61,16 @@ const char* glyph_for(GridTile t) {
 Color color_for(GridTile t) {
     using namespace grid_theme;
     switch (t) {
-        case GridTile::Floor:         return floor;
-        case GridTile::Firewall:      return firewall;
-        case GridTile::DataNode:      return data_node;
-        case GridTile::Gateway:       return gateway;
-        case GridTile::ExitNode:      return exit_node;
-        case GridTile::EncryptedFile: return encrypted;
-        case GridTile::Wall:          return Color::Black;
+        case GridTile::Floor:           return floor;
+        case GridTile::Firewall:        return firewall;
+        case GridTile::DataNode:        return data_node;
+        case GridTile::Gateway:         return gateway;
+        case GridTile::ExitNode:        return exit_node;
+        case GridTile::EncryptedFile:   return encrypted;
+        case GridTile::Wall:            return floor;             // walls share floor's Blue per spec §6 substrate
+        case GridTile::Connector:       return connector;         // DarkGray
+        case GridTile::DeepGridGateway: return deep_grid_gateway; // Cyan
+        case GridTile::WarpAnchor:      return warp_anchor;       // BrightWhite
     }
     return Color::White;
 }
@@ -61,6 +90,11 @@ void render(Game& game, Renderer& r) {
     const int origin_x = 1;
     const int origin_y = 1;
 
+    auto neigh = [&](int x, int y) -> bool {
+        if (x < 0 || y < 0 || x >= s.sector.w || y >= s.sector.h) return false;
+        return is_connectable(s.sector.at(x, y));
+    };
+
     // Tiles — only iterate the viewport, source from camera-shifted sector.
     for (int y = 0; y < s_camera.viewport_h; ++y) {
         for (int x = 0; x < s_camera.viewport_w; ++x) {
@@ -68,7 +102,18 @@ void render(Game& game, Renderer& r) {
             int ty = y + s_camera.cam_y;
             if (tx < 0 || ty < 0 || tx >= s.sector.w || ty >= s.sector.h) continue;
             GridTile t = s.sector.at(tx, ty);
-            r.draw_glyph(origin_x + x, origin_y + y, glyph_for(t), color_for(t));
+            const char* glyph;
+            Color       color;
+            if (t == GridTile::Wall || t == GridTile::Connector) {
+                glyph = wall_glyph_for_neighbours(
+                    neigh(tx, ty - 1), neigh(tx, ty + 1),
+                    neigh(tx + 1, ty), neigh(tx - 1, ty));
+                color = (t == GridTile::Connector) ? grid_theme::connector : grid_theme::floor;
+            } else {
+                glyph = glyph_for(t);
+                color = color_for(t);
+            }
+            r.draw_glyph(origin_x + x, origin_y + y, glyph, color);
         }
     }
 

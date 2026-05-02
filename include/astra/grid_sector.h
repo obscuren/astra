@@ -11,10 +11,13 @@ enum class GridTile : uint8_t {
     Floor,            // .
     Firewall,         // # (impassable, breachable)
     DataNode,         // $
-    Gateway,          // G
-    ExitNode,         // X
+    Gateway,          // G (subnet gateway)
+    ExitNode,         // X (jack-out)
     EncryptedFile,    // ?
     Wall,             // outside-of-sector
+    Connector,           // NEW (Plan 5 Cut 2): visible bus-trace wiring (DarkGray ═║...)
+    DeepGridGateway,     // NEW (Plan 5 Cut 2): connected-LAN ⊕ portal to deep-Grid (BrightCyan)
+    WarpAnchor,          // NEW (Plan 5 Cut 3): Atlas warp tile (BrightWhite ◉)
 };
 
 struct GridSector {
