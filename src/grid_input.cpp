@@ -33,6 +33,38 @@ bool try_move(GridSession& s, int dx, int dy) {
     return true;
 }
 
+// While DaemonHijack is active, movement keys drive the puppeted ICE
+// instead of the avatar. Returns true if a turn was consumed (mirrors
+// try_move's contract — caller advances the world on true).
+bool try_move_hijacked_ice(GridSession& s, int dx, int dy) {
+    if (s.hijacked_ice_idx < 0 ||
+        s.hijacked_ice_idx >= static_cast<int>(s.ice.size())) {
+        // Stale handle — clear and fall back to avatar movement.
+        s.hijacked_ice_idx = -1;
+        s.hijacked_turns_left = 0;
+        return false;
+    }
+    auto& ice = s.ice[s.hijacked_ice_idx];
+    if (ice.hp <= 0) {
+        s.hijacked_ice_idx = -1;
+        s.hijacked_turns_left = 0;
+        return false;
+    }
+    int nx = ice.x + dx;
+    int ny = ice.y + dy;
+    if (!s.sector.passable(nx, ny)) return true;          // bumped — turn still consumed
+    if (nx == s.avatar_x && ny == s.avatar_y) return true; // can't trample the operator
+    // Don't stack onto another ICE.
+    for (size_t i = 0; i < s.ice.size(); ++i) {
+        if (static_cast<int>(i) == s.hijacked_ice_idx) continue;
+        if (s.ice[i].hp <= 0) continue;
+        if (s.ice[i].x == nx && s.ice[i].y == ny) return true;
+    }
+    ice.x = nx;
+    ice.y = ny;
+    return true;
+}
+
 // Look up the edge from `from` to `to` (LAN root edges fan out from the
 // LAN root, so we also accept that). Returns nullptr if no such edge.
 const GridEdge* find_outbound_edge(const GridNetwork& net,
@@ -240,6 +272,11 @@ bool handle(Game& game, int key) {
     auto& s = *sess;
 
     auto move_with_step = [&](int dx, int dy) -> bool {
+        // DaemonHijack: while puppeting an ICE, movement keys drive the ICE
+        // and the avatar holds. Still consume the turn (so trace ticks, etc.).
+        if (s.hijacked_ice_idx >= 0) {
+            return try_move_hijacked_ice(s, dx, dy);
+        }
         bool moved = try_move(s, dx, dy);
         if (moved) on_step(game, s);
         return moved;
@@ -251,7 +288,13 @@ bool handle(Game& game, int key) {
         case KEY_LEFT:  case 'h': return move_with_step(-1,  0);
         case KEY_RIGHT: case 'l': return move_with_step( 1,  0);
         case '.':                 return true;
-        case 'f': case 'F':       open_program_picker(game, s); return false;
+        case 'f': case 'F':
+            if (s.hijacked_ice_idx >= 0) {
+                game.log("daemon_hijack: program-fire suppressed while hijacking.");
+                return false;
+            }
+            open_program_picker(game, s);
+            return false;
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);
             return false;

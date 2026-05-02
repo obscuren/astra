@@ -164,6 +164,18 @@ void tick_all(GridSession& s, Game& game) {
         }
     }
 
+    // DaemonHijack: if the puppet died this tick (or earlier — defensive),
+    // clear the handle BEFORE the erase below so the index can't drift onto
+    // a different ICE next turn.
+    if (s.hijacked_ice_idx >= 0) {
+        if (s.hijacked_ice_idx >= static_cast<int>(s.ice.size()) ||
+            s.ice[s.hijacked_ice_idx].hp <= 0) {
+            s.hijacked_ice_idx = -1;
+            s.hijacked_turns_left = 0;
+            game.log("daemon_hijack: target lost — control reverted.");
+        }
+    }
+
     s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
         [](const GridIce& i){ return i.hp <= 0; }), s.ice.end());
 }

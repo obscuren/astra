@@ -69,6 +69,13 @@ struct GridSession {
     GridSector sector;
     std::vector<GridIce> ice;
 
+    // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
+    // instead of the avatar. -1 = no active hijack. The countdown decrements
+    // once per turn and clears the index when it hits 0. The ICE's own
+    // charmed_turns_left independently suppresses its AI for the same window.
+    int hijacked_ice_idx    = -1;
+    int hijacked_turns_left = 0;
+
     // Loot accumulated this session (committed on voluntary disconnect).
     GridLootBuffer loot;
 

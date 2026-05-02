@@ -241,16 +241,32 @@ std::string apply_pulse_hammer_grid(GridProgramContext c) {
 }
 
 std::string apply_daemon_hijack_grid(GridProgramContext c) {
-    // Charm the nearest visible ICE for 3 turns.
+    // Hand player control of the nearest visible ICE for N turns. The ICE's
+    // own AI is suppressed via charmed_turns_left; the session-level fields
+    // route movement input to the puppet instead of the avatar.
+    GridSession& s = c.session;
     GridIce* tgt = nullptr;
+    int best_idx = -1;
     int best = INT_MAX;
-    for (auto& i : c.session.ice) {
-        int d = std::abs(i.x - c.session.avatar_x) + std::abs(i.y - c.session.avatar_y);
-        if (d <= kIceVisionRange && d < best) { tgt = &i; best = d; }
+    for (size_t i = 0; i < s.ice.size(); ++i) {
+        auto& ice = s.ice[i];
+        if (ice.hp <= 0) continue;
+        int d = std::abs(ice.x - s.avatar_x) + std::abs(ice.y - s.avatar_y);
+        if (d <= kIceVisionRange && d < best) {
+            best = d;
+            best_idx = static_cast<int>(i);
+            tgt = &ice;
+        }
     }
     if (!tgt) return "daemon_hijack: no target in range.";
-    tgt->charmed_turns_left = 3;
-    return "daemon_hijack: ICE hijacked for 3 turns.";
+
+    constexpr int kHijackTurns = 3;
+    tgt->charmed_turns_left = kHijackTurns;
+    s.hijacked_ice_idx      = best_idx;
+    s.hijacked_turns_left   = kHijackTurns;
+    return "daemon_hijack: ICE puppeteered for " +
+           std::to_string(kHijackTurns) +
+           " turns. Movement keys drive it. Avatar holds.";
 }
 
 } // namespace

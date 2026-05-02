@@ -600,6 +600,16 @@ void HackingSystem::tick_grid(Game& game) {
     // 1. ICE actions (gray/black approach + attack; white patrols).
     grid_ice::tick_all(s, game);
 
+    // 1b. DaemonHijack countdown. tick_all already cleared the handle if the
+    // puppet died this tick; here we just count down on a still-live hijack.
+    if (s.hijacked_ice_idx >= 0 && s.hijacked_turns_left > 0) {
+        --s.hijacked_turns_left;
+        if (s.hijacked_turns_left == 0) {
+            s.hijacked_ice_idx = -1;
+            game.log("daemon_hijack: control released.");
+        }
+    }
+
     // 2. Heat decay on equipped deck + heat→trace coupling + forced reboot.
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
