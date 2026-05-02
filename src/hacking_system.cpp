@@ -1,6 +1,8 @@
 #include "astra/hacking_system.h"
 
+#include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
+#include "astra/deep_grid_sector.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
@@ -443,7 +445,23 @@ void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
             break;
         }
         case GridNodeKind::DeepGridAnchor: {
-            s.sector = make_consciousness_anchor_sector();
+            // Owned-anchor dispatch: if this DeepGridAnchor belongs to the
+            // current consciousness AND a base has been written (Anchor
+            // capstone taken), serve the saved 60×40 hand-authored base
+            // with runtime overlay. Otherwise fall back to the legacy
+            // 14×10 anchor (Plan 4) for unowned / pre-capstone cases.
+            ConsciousnessSave cs;
+            const bool have = read_consciousness(cs);
+            if (have &&
+                node.owned_by_consciousness_id == cs.consciousness_id &&
+                cs.consciousness_id != 0 &&
+                cs.deep_grid_base.w > 0)
+            {
+                s.sector = cs.deep_grid_base;
+                apply_mutations(s.sector, cs.deep_grid_sector_state);
+            } else {
+                s.sector = make_consciousness_anchor_sector();
+            }
             break;
         }
         case GridNodeKind::RegionalDarknet: {

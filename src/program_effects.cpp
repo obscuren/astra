@@ -154,6 +154,14 @@ std::string apply_breach_grid(GridProgramContext c) {
                 return "breach: edge not found for gateway target.";
             }
             s.trace = std::min(kTraceMax, s.trace + 5);
+
+            // Plan 5 Cut 3 Task 31: first-time crack of a connected LAN's ⊕
+            // registers an Atlas WarpAnchor in the consciousness save and
+            // stamps a ◉ tile in the deep-Grid Atlas region. The player is
+            // standing inside the LAN sector so current_node is the LanRoot.
+            if (t == GridTile::DeepGridGateway) {
+                register_deep_grid_warp_anchor(c.game.world(), s.current_node);
+            }
             return "breach: gateway cracked. Trace +5.";
         }
         return {};

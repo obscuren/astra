@@ -1,3 +1,4 @@
+#include "astra/deep_grid_sector.h"
 #include "astra/grid_sector.h"
 
 namespace astra {
@@ -30,46 +31,10 @@ GridSector make_consciousness_anchor_sector() {
 }
 
 GridSector make_player_deep_grid_base() {
-    GridSector s;
-    s.w = 30;
-    s.h = 20;
-    s.tiles.assign(static_cast<size_t>(s.w * s.h), GridTile::Floor);
-
-    auto set = [&](int x, int y, GridTile t) {
-        if (x >= 0 && x < s.w && y >= 0 && y < s.h)
-            s.tiles[static_cast<size_t>(y * s.w + x)] = t;
-    };
-
-    // Outer firewall border.
-    for (int x = 0; x < s.w; ++x) {
-        set(x, 0,        GridTile::Firewall);
-        set(x, s.h - 1,  GridTile::Firewall);
-    }
-    for (int y = 0; y < s.h; ++y) {
-        set(0,       y, GridTile::Firewall);
-        set(s.w - 1, y, GridTile::Firewall);
-    }
-
-    // Northern utility room divider with one doorway.
-    for (int x = 1; x < s.w - 1; ++x) set(x, 5, GridTile::Firewall);
-    set(8, 5, GridTile::Floor);
-
-    // Northern fixtures (DataNode glyph reused for stash terminal, sig rack,
-    // AI contacts; EncryptedFile glyph for the lore vault).
-    set(4,  3, GridTile::DataNode);       // stash terminal
-    set(15, 3, GridTile::DataNode);       // signature program rack
-    set(25, 3, GridTile::EncryptedFile);  // lore vault interface
-
-    // Southern AI contact spots.
-    set(5,  12, GridTile::DataNode);
-    set(20, 14, GridTile::DataNode);
-
-    // Exit back to regional darknet.
-    set(15, 18, GridTile::ExitNode);
-
-    s.spawn_x = 15;
-    s.spawn_y = 17;
-    return s;
+    // Plan 5 Cut 3 Task 30: delegate to the new 60×40 hand-authored layout
+    // (Anchor + Atlas + Frontier). The legacy 30×20 implementation was
+    // replaced — see src/deep_grid_sector.cpp.
+    return make_deep_grid_base();
 }
 
 } // namespace astra

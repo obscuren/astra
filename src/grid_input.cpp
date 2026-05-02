@@ -1,5 +1,6 @@
 #include "astra/grid_input.h"
 
+#include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
 #include "astra/grid_constants.h"
@@ -133,6 +134,45 @@ void on_step(Game& game, GridSession& s) {
         case GridTile::DeepGridGateway:
             traverse_via_gateway(game, s);
             return;
+        case GridTile::WarpAnchor: {
+            // Look up which WarpAnchorRecord this tile corresponds to.
+            // Anchors are stamped in Atlas-region scan order (cols 14-44,
+            // rows 1-30) so the Nth WarpAnchor tile in scan order =
+            // cs.warp_anchors[N-1].
+            ConsciousnessSave cs;
+            read_consciousness(cs);
+            const int px = s.avatar_x;
+            const int py = s.avatar_y;
+            size_t idx = 0;
+            bool found = false;
+            for (int y = 1; y <= 30 && !found; ++y) {
+                for (int x = 14; x <= 44 && !found; ++x) {
+                    if (s.sector.at(x, y) != GridTile::WarpAnchor) continue;
+                    if (x == px && y == py) {
+                        found = true;
+                        break;
+                    }
+                    ++idx;
+                }
+            }
+            if (!found || idx >= cs.warp_anchors.size()) {
+                game.log("Warp anchor: connection target unknown.");
+                return;
+            }
+            const auto& rec = cs.warp_anchors[idx];
+            if (!rec.warpable) {
+                game.log("Warp anchor: " + rec.lan_display_name +
+                         " — connection lost (galaxy purged on rebirth).");
+                return;
+            }
+            char buf[160];
+            std::snprintf(buf, sizeof buf,
+                          "Warp anchor: %s — %d/%d cracked. (Warp traversal arrives in a future cut.)",
+                          rec.lan_display_name.c_str(),
+                          rec.nodes_cracked, rec.nodes_total);
+            game.log(buf);
+            return;
+        }
         default:
             return;
     }

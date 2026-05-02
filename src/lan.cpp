@@ -1,5 +1,6 @@
 #include "astra/lan.h"
 
+#include "astra/consciousness_save.h"
 #include "astra/hackable.h"
 #include "astra/ip.h"
 #include "astra/npc.h"
@@ -352,6 +353,70 @@ void register_hackables_in_lan(WorldManager& world,
     // 4) k-means cluster (x,y) into rooms.
     int k = std::max(1, static_cast<int>((hacks.size() + 2) / 3));
     meta.rooms = cluster_rooms(hacks, subnet_ids, k, meta.flavour);
+}
+
+// Plan 5 Cut 3 Task 31 — see header for contract.
+bool register_deep_grid_warp_anchor(WorldManager& world, GridNodeId lan_root_id) {
+    if (!lan_root_id.valid()) return false;
+
+    const auto& meta = world.lan_metadata();
+    // Safety: the helper is invoked from inside the active LAN sector when
+    // the player breaches the ⊕. If we don't recognise the root, bail.
+    if (!meta.lan_root.valid() || meta.lan_root != lan_root_id) return false;
+
+    // Read the on-disk consciousness save. We can't register an Atlas anchor
+    // without an Atlas — the deep_grid_base is empty until the player takes
+    // the ConsciousnessAnchor capstone (see hacking_system.cpp jack-in path).
+    ConsciousnessSave cs;
+    if (!read_consciousness(cs)) return false;
+    if (cs.deep_grid_base.w <= 0) return false;
+
+    const uint16_t galaxy_id   = meta.origin_galaxy_id;
+    const uint32_t region_seed = meta.gen_seed;
+
+    // Idempotency — match on (galaxy_id, region_seed). A LAN's identity is
+    // "this map in this galaxy".
+    for (const auto& a : cs.warp_anchors) {
+        if (a.galaxy_id == galaxy_id && a.region_seed == region_seed) {
+            return false;
+        }
+    }
+
+    // Build the record.
+    WarpAnchorRecord rec;
+    rec.galaxy_id        = galaxy_id;
+    rec.region_seed      = region_seed;
+    rec.lan_display_name = meta.display_name;
+    rec.nodes_total      = meta.nodes_total;
+    rec.nodes_cracked    = meta.nodes_cracked;
+    rec.warpable         = true;
+    cs.warp_anchors.push_back(rec);
+
+    // Stamp a WarpAnchor tile in the Atlas region (cols 14-44, rows 1-30
+    // per Task 30's hand-authored layout). First free Floor tile in scan
+    // order; record the mutation so save/reload preserves it.
+    GridSector& sec = cs.deep_grid_base;
+    if (sec.w >= 60 && sec.h >= 40) {
+        bool stamped = false;
+        for (int y = 1; y <= 30 && !stamped; ++y) {
+            for (int x = 14; x <= 44 && !stamped; ++x) {
+                if (sec.at(x, y) == GridTile::Floor) {
+                    sec.set(x, y, GridTile::WarpAnchor);
+                    SectorMutation m;
+                    m.x        = static_cast<uint8_t>(x);
+                    m.y        = static_cast<uint8_t>(y);
+                    m.new_tile = GridTile::WarpAnchor;
+                    cs.deep_grid_sector_state.mutations.push_back(m);
+                    stamped = true;
+                }
+            }
+        }
+        // If !stamped — Atlas saturated. Plan 7 will design eviction;
+        // for now we still keep the record (it's harmless without a tile).
+    }
+
+    write_consciousness(cs);
+    return true;
 }
 
 } // namespace astra

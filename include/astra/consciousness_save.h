@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,11 +17,6 @@ struct LoreFragmentRef {
     std::string archive_id;        // e.g. "ARCH-Hangar7-12x4"
     uint32_t galaxy_seed_origin = 0;
     int32_t  world_tick_origin  = 0;
-};
-
-struct AiContact {
-    uint32_t faction_id = 0;
-    int32_t  reputation = 0;       // -100..+100
 };
 
 // v2 — Plan 5 deep-grid warp anchor (filled in Cut 3).
@@ -51,19 +45,22 @@ struct ConsciousnessSave {
 
     std::vector<LoreFragmentRef> lore_archive;
     int32_t                      grid_currency = 0;
-    std::vector<AiContact>       ai_contacts;
 
     // Hacker-only — populated only with ConsciousnessAnchor capstone unlocked.
-    // Body fields (GridSector + Items) are deferred to Task 9; v1 of this task
-    // writes only the present-flags and counts.
-    std::optional<GridSector> deep_grid_base;
-    std::vector<Item>         signature_program_rack;
+    // Empty sector (sec.w == 0) means "not yet anchored". When the player
+    // takes the ConsciousnessAnchor capstone, this becomes the 60×40
+    // hand-authored layout from make_deep_grid_base().
+    GridSector              deep_grid_base;
+    std::vector<Item>       signature_program_rack;
 
-    // v2 — Plan 5 reservations (empty until Cut 3/4 populate)
-    GridSector              deep_grid_base_v2;         // Cut 3 expands to ~60×40 hand-authored
-    SectorRuntimeState      deep_grid_sector_state;    // Cut 3 populates
-    std::vector<WarpAnchorRecord> warp_anchors;        // Cut 3 populates on first ⊕ crack
-    std::vector<AiContactRecord>  ai_contacts_v2;      // Cut 4 populates (placeholder)
+    // Plan 5 — runtime overlay applied to deep_grid_base on each jack-in.
+    SectorRuntimeState            deep_grid_sector_state;
+
+    // Plan 5 Cut 3 — populated on first ⊕ crack per LAN.
+    std::vector<WarpAnchorRecord> warp_anchors;
+
+    // Plan 5 Cut 4 — placeholder until that cut populates.
+    std::vector<AiContactRecord>  ai_contacts;
 };
 
 std::filesystem::path consciousness_save_path();

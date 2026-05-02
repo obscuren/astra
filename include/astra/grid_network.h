@@ -66,6 +66,7 @@ public:
     GridNode*       find_mut(GridNodeId id);
     std::vector<GridNodeId> neighbors(GridNodeId id) const;
     const std::vector<GridNode>& nodes() const { return nodes_; }
+    std::vector<GridNode>&       nodes_mut()    { return nodes_; }
     const std::vector<GridEdge>& edges() const { return edges_; }
     std::vector<GridEdge>&       edges_mut()    { return edges_; }
     void clear();

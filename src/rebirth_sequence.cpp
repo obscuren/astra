@@ -55,7 +55,7 @@ void RebirthSequence::begin() {
     } else {
         survives_.emplace_back("first rebirth — consciousness will be assigned");
     }
-    if (have && cs.deep_grid_base) {
+    if (have && cs.deep_grid_base.w > 0) {
         survives_.emplace_back("deep-Grid base  Your.Anchor");
     }
     if (have && !cs.lore_archive.empty()) {

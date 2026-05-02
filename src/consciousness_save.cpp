@@ -398,22 +398,14 @@ bool write_consciousness(const ConsciousnessSave& cs) {
 
         w.write_i32(cs.grid_currency);
 
-        w.write_u32(static_cast<uint32_t>(cs.ai_contacts.size()));
-        for (const auto& c : cs.ai_contacts) {
-            w.write_u32(c.faction_id);
-            w.write_i32(c.reputation);
-        }
+        // deep_grid_base body. Empty sector (w == 0) means "not yet anchored".
+        write_grid_sector(w, cs.deep_grid_base);
 
-        // deep_grid_base body (Task 9).
-        w.write_u8(cs.deep_grid_base.has_value() ? 1 : 0);
-        if (cs.deep_grid_base) write_grid_sector(w, *cs.deep_grid_base);
-
-        // signature_program_rack body (Task 9).
+        // signature_program_rack body.
         w.write_u32(static_cast<uint32_t>(cs.signature_program_rack.size()));
         for (const auto& item : cs.signature_program_rack) write_item(w, item);
 
-        // v2 additions (Task 15) — empty until Cut 3/4 populate
-        write_grid_sector(w, cs.deep_grid_base_v2);
+        // Plan 5 — runtime overlay applied to deep_grid_base on jack-in.
         write_sector_runtime_state(w, cs.deep_grid_sector_state);
 
         w.write_u32(static_cast<uint32_t>(cs.warp_anchors.size()));
@@ -426,8 +418,8 @@ bool write_consciousness(const ConsciousnessSave& cs) {
             w.write_u8(a.warpable ? 1 : 0);
         }
 
-        w.write_u32(static_cast<uint32_t>(cs.ai_contacts_v2.size()));
-        for (const auto& a : cs.ai_contacts_v2) {
+        w.write_u32(static_cast<uint32_t>(cs.ai_contacts.size()));
+        for (const auto& a : cs.ai_contacts) {
             w.write_str(a.id);
             w.write_str(a.display_name);
             w.write_u16(a.origin_galaxy_id);
@@ -470,27 +462,16 @@ bool read_consciousness(ConsciousnessSave& out) {
 
     tmp.grid_currency = r.read_i32();
 
-    uint32_t ai_n = r.read_u32();
-    tmp.ai_contacts.reserve(ai_n);
-    for (uint32_t i = 0; i < ai_n; ++i) {
-        AiContact c;
-        c.faction_id = r.read_u32();
-        c.reputation = r.read_i32();
-        tmp.ai_contacts.push_back(std::move(c));
-    }
+    // deep_grid_base body. Empty sector (w == 0) means "not yet anchored".
+    tmp.deep_grid_base = read_grid_sector(r);
 
-    // deep_grid_base body (Task 9).
-    uint8_t base_present = r.read_u8();
-    if (base_present) tmp.deep_grid_base = read_grid_sector(r);
-
-    // signature_program_rack body (Task 9).
+    // signature_program_rack body.
     uint32_t rack_n = r.read_u32();
     tmp.signature_program_rack.reserve(rack_n);
     for (uint32_t i = 0; i < rack_n; ++i)
         tmp.signature_program_rack.push_back(read_item(r));
 
-    // v2 additions (Task 15) — empty until Cut 3/4 populate
-    tmp.deep_grid_base_v2 = read_grid_sector(r);
+    // Plan 5 — runtime overlay applied to deep_grid_base on jack-in.
     tmp.deep_grid_sector_state = read_sector_runtime_state(r);
 
     uint32_t na = r.read_u32();
@@ -505,8 +486,8 @@ bool read_consciousness(ConsciousnessSave& out) {
     }
 
     uint32_t nac = r.read_u32();
-    tmp.ai_contacts_v2.resize(nac);
-    for (auto& a : tmp.ai_contacts_v2) {
+    tmp.ai_contacts.resize(nac);
+    for (auto& a : tmp.ai_contacts) {
         a.id = r.read_str();
         a.display_name = r.read_str();
         a.origin_galaxy_id = r.read_u16();
