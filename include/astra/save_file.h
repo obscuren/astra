@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/grid_network.h"
+#include "astra/lan.h"
 #include "astra/lore_types.h"
 #include "astra/npc.h"
 #include "astra/player.h"
@@ -131,6 +132,9 @@ struct SaveData {
     int overworld_return_x = 0;
     int overworld_return_y = 0;
     LocationKey overworld_return_body_key{};
+
+    // v60: LAN metadata — cracked firewalls, looted DataNodes, IP allocations survive save/load
+    LanMetadata lan_metadata;
 };
 
 std::filesystem::path save_directory();

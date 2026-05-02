@@ -4,6 +4,8 @@
 #include "astra/dice.h"
 #include "astra/faction.h"
 #include "astra/item_ids.h"
+#include "astra/lan.h"
+#include "astra/sector_runtime_state.h"
 #include "astra/world_manager.h"
 
 #include <unordered_map>
@@ -726,6 +728,123 @@ static Hackable read_hackable(BinaryReader& r) {
     }
     h.soul_mirror_progress = r.read_i32();
     return h;
+}
+
+// Plan 5 v60: SectorRuntimeState persistence
+static void write_sector_runtime_state(BinaryWriter& w, const SectorRuntimeState& s) {
+    w.write_u32(static_cast<uint32_t>(s.mutations.size()));
+    for (const auto& m : s.mutations) {
+        w.write_u8(m.x);
+        w.write_u8(m.y);
+        w.write_u8(static_cast<uint8_t>(m.new_tile));
+    }
+    w.write_u32(static_cast<uint32_t>(s.killed_ice.size()));
+    for (const auto& [x, y] : s.killed_ice) {
+        w.write_u8(x);
+        w.write_u8(y);
+    }
+}
+
+static void read_sector_runtime_state(BinaryReader& r, SectorRuntimeState& s) {
+    uint32_t nm = r.read_u32();
+    s.mutations.resize(nm);
+    for (auto& m : s.mutations) {
+        m.x = r.read_u8();
+        m.y = r.read_u8();
+        m.new_tile = static_cast<GridTile>(r.read_u8());
+    }
+    uint32_t ni = r.read_u32();
+    s.killed_ice.resize(ni);
+    for (auto& [x, y] : s.killed_ice) {
+        x = r.read_u8();
+        y = r.read_u8();
+    }
+}
+
+// Plan 5 v60: LanMetadata persistence
+static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
+    w.write_u32(meta.lan_root.value);
+    w.write_u8(meta.has_deep_grid_edge ? 1 : 0);
+    w.write_string(meta.region_label);
+    w.write_string(meta.display_name);
+    w.write_u8(static_cast<uint8_t>(meta.flavour));
+    w.write_i32(meta.security_tier);
+    w.write_u8(meta.connected ? 1 : 0);
+    w.write_u32(meta.gen_seed);
+    w.write_u32(meta.subnet_base);
+
+    // Rooms
+    w.write_u32(static_cast<uint32_t>(meta.rooms.size()));
+    for (const auto& room : meta.rooms) {
+        w.write_string(room.name);
+        w.write_i32(room.extents.x);
+        w.write_i32(room.extents.y);
+        w.write_i32(room.extents.w);
+        w.write_i32(room.extents.h);
+        w.write_i32(room.tier);
+        w.write_u32(static_cast<uint32_t>(room.contained_subnets.size()));
+        for (const auto& sid : room.contained_subnets) w.write_u32(sid.value);
+    }
+
+    w.write_u64(meta.last_visited_tick);
+    w.write_i32(meta.nodes_total);
+    w.write_i32(meta.nodes_cracked);
+    w.write_i32(meta.ice_killed);
+    w.write_i32(meta.lore_extracted);
+    w.write_u16(meta.origin_galaxy_id);
+
+    write_sector_runtime_state(w, meta.lan_sector_state);
+
+    w.write_u32(static_cast<uint32_t>(meta.subnet_states.size()));
+    for (const auto& [k, v] : meta.subnet_states) {
+        w.write_u32(k);
+        write_sector_runtime_state(w, v);
+    }
+}
+
+static void read_lan_metadata(BinaryReader& r, LanMetadata& meta) {
+    meta.lan_root.value      = r.read_u32();
+    meta.has_deep_grid_edge  = r.read_u8() != 0;
+    meta.region_label        = r.read_string();
+    meta.display_name        = r.read_string();
+    meta.flavour             = static_cast<LanFlavour>(r.read_u8());
+    meta.security_tier       = r.read_i32();
+    meta.connected           = r.read_u8() != 0;
+    meta.gen_seed            = r.read_u32();
+    meta.subnet_base         = r.read_u32();
+
+    uint32_t nr = r.read_u32();
+    meta.rooms.resize(nr);
+    for (auto& room : meta.rooms) {
+        room.name = r.read_string();
+        room.extents.x = r.read_i32();
+        room.extents.y = r.read_i32();
+        room.extents.w = r.read_i32();
+        room.extents.h = r.read_i32();
+        room.tier = r.read_i32();
+        uint32_t nsub = r.read_u32();
+        room.contained_subnets.resize(nsub);
+        for (auto& sid : room.contained_subnets) sid.value = r.read_u32();
+    }
+
+    meta.last_visited_tick = r.read_u64();
+    meta.nodes_total       = r.read_i32();
+    meta.nodes_cracked     = r.read_i32();
+    meta.ice_killed        = r.read_i32();
+    meta.lore_extracted    = r.read_i32();
+    meta.origin_galaxy_id  = r.read_u16();
+
+    read_sector_runtime_state(r, meta.lan_sector_state);
+
+    uint32_t nss = r.read_u32();
+    meta.subnet_states.clear();
+    meta.subnet_states.reserve(nss);
+    for (uint32_t i = 0; i < nss; ++i) {
+        uint32_t key = r.read_u32();
+        SectorRuntimeState v;
+        read_sector_runtime_state(r, v);
+        meta.subnet_states.emplace(key, std::move(v));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2481,6 +2600,12 @@ bool write_save(const std::string& name, const SaveData& data) {
     if (!data.grid_network.nodes().empty()) {
         write_grid_network_section(w, data.grid_network);
     }
+    // v60: LAN metadata persistence
+    {
+        auto pos = w.begin_section("LANM");
+        write_lan_metadata(w, data.lan_metadata);
+        w.end_section(pos);
+    }
 
     // Sentinel
     out.write("END\0", 4);
@@ -2546,6 +2671,8 @@ bool read_save(const std::string& name, SaveData& data) {
             read_lore_section(r, data.lore);
         } else if (std::memcmp(tag, "GRID", 4) == 0) {
             read_grid_network_section(r, data.grid_network);
+        } else if (std::memcmp(tag, "LANM", 4) == 0) {
+            read_lan_metadata(r, data.lan_metadata);
         } else {
             // Unknown section — skip
             r.skip(size);

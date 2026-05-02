@@ -1678,7 +1678,10 @@ void Game::post_load() {
     ability_bar::reconcile_from_learned(player_);
     compute_layout();
     recompute_fov();
-    on_map_loaded();
+    // NOTE: on_map_loaded() is NOT called here because LAN metadata was
+    // already deserialized from the save file. Calling lan_full_reset() would
+    // wipe the persisted state (cracked firewalls, looted nodes, IPs).
+    // on_map_loaded() is still called for map-enters during gameplay.
     compute_camera();
     state_ = GameState::Playing;
 

@@ -2,6 +2,7 @@
 
 #include "astra/grid_sector.h"
 #include "astra/item.h"
+#include "astra/sector_runtime_state.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -11,7 +12,7 @@
 
 namespace astra {
 
-inline constexpr uint32_t CONSCIOUSNESS_SAVE_VERSION = 1;
+inline constexpr uint32_t CONSCIOUSNESS_SAVE_VERSION = 2;
 
 struct LoreFragmentRef {
     std::string archive_id;        // e.g. "ARCH-Hangar7-12x4"
@@ -22,6 +23,24 @@ struct LoreFragmentRef {
 struct AiContact {
     uint32_t faction_id = 0;
     int32_t  reputation = 0;       // -100..+100
+};
+
+// v2 — Plan 5 deep-grid warp anchor (filled in Cut 3).
+struct WarpAnchorRecord {
+    uint16_t    galaxy_id = 0;
+    uint32_t    region_seed = 0;
+    std::string lan_display_name;
+    int         nodes_total = 0;
+    int         nodes_cracked = 0;
+    bool        warpable = true;
+};
+
+// v2 — Plan 5 AI contact record (filled in Cut 4).
+struct AiContactRecord {
+    std::string id;            // e.g. "aria.heavens-above"
+    std::string display_name;
+    uint16_t    origin_galaxy_id = 0;
+    // (Plan 7 expands this)
 };
 
 struct ConsciousnessSave {
@@ -39,6 +58,12 @@ struct ConsciousnessSave {
     // writes only the present-flags and counts.
     std::optional<GridSector> deep_grid_base;
     std::vector<Item>         signature_program_rack;
+
+    // v2 — Plan 5 reservations (empty until Cut 3/4 populate)
+    GridSector              deep_grid_base_v2;         // Cut 3 expands to ~60×40 hand-authored
+    SectorRuntimeState      deep_grid_sector_state;    // Cut 3 populates
+    std::vector<WarpAnchorRecord> warp_anchors;        // Cut 3 populates on first ⊕ crack
+    std::vector<AiContactRecord>  ai_contacts_v2;      // Cut 4 populates (placeholder)
 };
 
 std::filesystem::path consciousness_save_path();

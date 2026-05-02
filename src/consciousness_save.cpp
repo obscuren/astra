@@ -75,6 +75,43 @@ static GridSector read_grid_sector(Reader& r) {
 }
 
 // ---------------------------------------------------------------------------
+// SectorRuntimeState serialization (v2, Task 15).
+// Mirrors save_file.cpp logic for mutations and killed_ice overlay.
+// ---------------------------------------------------------------------------
+
+static void write_sector_runtime_state(Writer& w, const SectorRuntimeState& s) {
+    w.write_u32(static_cast<uint32_t>(s.mutations.size()));
+    for (const auto& m : s.mutations) {
+        w.write_u8(m.x);
+        w.write_u8(m.y);
+        w.write_u8(static_cast<uint8_t>(m.new_tile));
+    }
+    w.write_u32(static_cast<uint32_t>(s.killed_ice.size()));
+    for (const auto& [x, y] : s.killed_ice) {
+        w.write_u8(x);
+        w.write_u8(y);
+    }
+}
+
+static SectorRuntimeState read_sector_runtime_state(Reader& r) {
+    SectorRuntimeState s;
+    uint32_t nm = r.read_u32();
+    s.mutations.resize(nm);
+    for (auto& m : s.mutations) {
+        m.x = r.read_u8();
+        m.y = r.read_u8();
+        m.new_tile = static_cast<GridTile>(r.read_u8());
+    }
+    uint32_t ni = r.read_u32();
+    s.killed_ice.resize(ni);
+    for (auto& [x, y] : s.killed_ice) {
+        x = r.read_u8();
+        y = r.read_u8();
+    }
+    return s;
+}
+
+// ---------------------------------------------------------------------------
 // Item body serialization — mirrors save_file.cpp's write_item / read_item.
 // Duplicated here because those helpers are static (file-local). When Plan 4
 // is complete and save_file helpers are lifted to a shared header, this copy
@@ -374,6 +411,27 @@ bool write_consciousness(const ConsciousnessSave& cs) {
         // signature_program_rack body (Task 9).
         w.write_u32(static_cast<uint32_t>(cs.signature_program_rack.size()));
         for (const auto& item : cs.signature_program_rack) write_item(w, item);
+
+        // v2 additions (Task 15) — empty until Cut 3/4 populate
+        write_grid_sector(w, cs.deep_grid_base_v2);
+        write_sector_runtime_state(w, cs.deep_grid_sector_state);
+
+        w.write_u32(static_cast<uint32_t>(cs.warp_anchors.size()));
+        for (const auto& a : cs.warp_anchors) {
+            w.write_u16(a.galaxy_id);
+            w.write_u32(a.region_seed);
+            w.write_str(a.lan_display_name);
+            w.write_i32(a.nodes_total);
+            w.write_i32(a.nodes_cracked);
+            w.write_u8(a.warpable ? 1 : 0);
+        }
+
+        w.write_u32(static_cast<uint32_t>(cs.ai_contacts_v2.size()));
+        for (const auto& a : cs.ai_contacts_v2) {
+            w.write_str(a.id);
+            w.write_str(a.display_name);
+            w.write_u16(a.origin_galaxy_id);
+        }
     }
 
     std::filesystem::rename(tmp, final_path, ec);
@@ -389,7 +447,11 @@ bool read_consciousness(ConsciousnessSave& out) {
     ConsciousnessSave tmp;
 
     uint32_t ver = r.read_u32();
-    if (ver != CONSCIOUSNESS_SAVE_VERSION) return false;
+    if (ver != CONSCIOUSNESS_SAVE_VERSION) {
+        // v1 saves are rejected on Plan 5 launch (no migration)
+        // This is acceptable per spec: "v1 saves are rejected (per no-backcompat)"
+        return false;
+    }
 
     tmp.version            = ver;
     tmp.consciousness_id   = r.read_u64();
@@ -426,6 +488,29 @@ bool read_consciousness(ConsciousnessSave& out) {
     tmp.signature_program_rack.reserve(rack_n);
     for (uint32_t i = 0; i < rack_n; ++i)
         tmp.signature_program_rack.push_back(read_item(r));
+
+    // v2 additions (Task 15) — empty until Cut 3/4 populate
+    tmp.deep_grid_base_v2 = read_grid_sector(r);
+    tmp.deep_grid_sector_state = read_sector_runtime_state(r);
+
+    uint32_t na = r.read_u32();
+    tmp.warp_anchors.resize(na);
+    for (auto& a : tmp.warp_anchors) {
+        a.galaxy_id = r.read_u16();
+        a.region_seed = r.read_u32();
+        a.lan_display_name = r.read_str();
+        a.nodes_total = r.read_i32();
+        a.nodes_cracked = r.read_i32();
+        a.warpable = r.read_u8() != 0;
+    }
+
+    uint32_t nac = r.read_u32();
+    tmp.ai_contacts_v2.resize(nac);
+    for (auto& a : tmp.ai_contacts_v2) {
+        a.id = r.read_str();
+        a.display_name = r.read_str();
+        a.origin_galaxy_id = r.read_u16();
+    }
 
     if (!in) return false;
 

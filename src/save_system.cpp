@@ -60,6 +60,7 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.lore = world.lore();
         data.detection           = game.hacking().detection_state().value;
         data.detection_decay_acc = game.hacking().detection_state().decay_acc;
+        data.lan_metadata = world.lan_metadata();
     }
 
     // maps[0]: the active map the player is currently on.
@@ -261,6 +262,9 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     // v52: restore HackingSystem detection counter + decay accumulator
     game.hacking().detection_state_mut().value     = data.detection;
     game.hacking().detection_state_mut().decay_acc = data.detection_decay_acc;
+
+    // v60: restore LAN metadata (cracked firewalls, looted nodes, IP allocations)
+    world.lan_metadata() = data.lan_metadata;
 
     game.reset_interaction_state();
 
