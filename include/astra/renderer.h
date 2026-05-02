@@ -86,6 +86,13 @@ public:
     virtual void clear() = 0;
     virtual void present() = 0;
 
+    // When true, every subsequent draw_char / draw_glyph / draw_string call
+    // desaturates its Color argument to grey-scale before writing.
+    // Used by the Grid HUD to render the world (and world UI) dimmed behind
+    // the cyberspace overlay window. Cleared after the Grid window is drawn.
+    void set_monochrome(bool on) { monochrome_ = on; }
+    bool monochrome() const      { return monochrome_; }
+
     virtual void draw_char(int x, int y, char ch) = 0;
     virtual void draw_char(int x, int y, char ch, Color fg) = 0;
     virtual void draw_char(int x, int y, char ch, Color fg, Color bg) {
@@ -142,6 +149,9 @@ public:
 
     // Blocks up to timeout_ms milliseconds. Returns -1 on timeout.
     virtual int wait_input_timeout(int timeout_ms) = 0;
+
+protected:
+    bool monochrome_ = false;
 };
 
 } // namespace astra

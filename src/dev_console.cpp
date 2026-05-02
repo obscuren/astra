@@ -420,6 +420,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("    cave: dungeon entrance; variant optional (natural/mine/excavation)");
         log("  dungen <style> [civ] - generate a pipeline dungeon (style: simple_rooms)");
         log("  editor             - open map editor");
+        log("  mono [on|off]      - toggle monochrome render filter (visual debug)");
         log("  clear              - clear console");
         log("  give skill <id|name>          - learn a skill");
         log("  unequip-implant <0|1>         - remove implant from slot, return to inventory");
@@ -547,6 +548,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         if (game.map_editor().is_open()) {
             log("Map editor opened.");
         }
+    }
+    else if (verb == "mono") {
+        bool on = !game.renderer()->monochrome();
+        if (args.size() >= 2) {
+            on = (args[1] == "on" || args[1] == "1" || args[1] == "true");
+        }
+        game.renderer()->set_monochrome(on);
+        log(std::string("Monochrome filter: ") + (on ? "ON" : "OFF"));
     }
     else if (verb == "bearings") {
         if (game.lost()) {

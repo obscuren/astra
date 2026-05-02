@@ -263,15 +263,39 @@ void TerminalRenderer::present() {
     std::fflush(stdout);
 }
 
+// Map any Color to one of three desaturated grey-scale colors.
+// Brightness threshold is approximate; tune by feel during user verification.
+static Color desaturate(Color c) {
+    using C = Color;
+    switch (c) {
+        case C::Default:       return C::Default;
+        case C::Black:         return C::Black;
+        case C::DarkGray:      return C::DarkGray;
+        case C::White:         return C::White;
+        case C::BrightWhite:   return C::BrightWhite;
+        case C::BrightYellow:  return C::BrightWhite;
+        case C::BrightMagenta: return C::White;
+        case C::Cyan:
+        case C::Magenta:
+        case C::Yellow:
+        case C::Green:
+        case C::Red:
+        case C::Blue:          return C::White;
+        default:               return C::DarkGray;
+    }
+}
+
 void TerminalRenderer::draw_char(int x, int y, char ch) {
     draw_char(x, y, ch, Color::Default);
 }
 
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg) {
+    if (monochrome_) fg = desaturate(fg);
     draw_char(x, y, ch, fg, Color::Default);
 }
 
 void TerminalRenderer::draw_char(int x, int y, char ch, Color fg, Color bg) {
+    if (monochrome_) { fg = desaturate(fg); bg = desaturate(bg); }
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
         // If this cell was wide, clear its continuation cell
@@ -291,6 +315,7 @@ void TerminalRenderer::draw_char(int x, int y, char ch, Color fg, Color bg) {
 }
 
 void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
+    if (monochrome_) fg = desaturate(fg);
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
         // If this cell was previously wide, clean up old continuation
@@ -325,6 +350,7 @@ void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg) {
 }
 
 void TerminalRenderer::draw_glyph(int x, int y, const char* utf8, Color fg, Color bg) {
+    if (monochrome_) { fg = desaturate(fg); bg = desaturate(bg); }
     if (x >= 0 && x < width_ && y >= 0 && y < height_) {
         auto& cell = buffer_[y][x];
         if (cell.wide && x + 1 < width_) {
