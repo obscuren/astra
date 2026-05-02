@@ -136,7 +136,7 @@ struct PlayfieldRect { int x, y, w, h; };
 struct LogPaneRect   { int x, y, w, h; };
 
 constexpr Color kChrome  = Color::Cyan;
-constexpr int   kLogPaneW = 22;
+constexpr int   kLogPaneW = 36;
 
 WindowRect compute_window_rect(int screen_w, int screen_h) {
     int w = screen_w * 7 / 10;
@@ -229,13 +229,50 @@ void draw_block_gauge(Renderer& r, int x, int y, int width,
     }
 }
 
-// Renderer's draw_string takes no color parameter; emit char-by-char with the
-// chosen fg. ASCII-only text (the only kind we colour in chrome). Multibyte
-// glyphs (▶ etc.) are emitted via draw_glyph elsewhere.
+// Renderer's draw_string takes no color parameter and writes byte-by-byte —
+// multi-byte UTF-8 glyphs (▶, ›, ▮ …) collapse to one visual cell on screen
+// but consume N buffer cells, throwing off downstream column math. Emit each
+// glyph (ASCII or multi-byte) into one cell via draw_glyph, advancing the
+// cursor one cell per *visible* glyph.
 void draw_colored_string(Renderer& r, int x, int y, const std::string& text, Color c) {
-    for (size_t i = 0; i < text.size(); ++i) {
-        r.draw_char(x + static_cast<int>(i), y, text[i], c);
+    int cursor = x;
+    size_t i = 0;
+    while (i < text.size()) {
+        unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b < 0x80) {
+            r.draw_char(cursor, y, static_cast<char>(b), c);
+            ++i;
+            ++cursor;
+        } else {
+            int len = 1;
+            if      ((b & 0xE0) == 0xC0) len = 2;
+            else if ((b & 0xF0) == 0xE0) len = 3;
+            else if ((b & 0xF8) == 0xF0) len = 4;
+            char buf[5] = {0};
+            for (int k = 0; k < len && i + k < text.size(); ++k) {
+                buf[k] = text[i + k];
+            }
+            r.draw_glyph(cursor, y, buf, c);
+            i += len;
+            ++cursor;
+        }
     }
+}
+
+// Visual cell width of a UTF-8 string: ASCII = 1, every multi-byte code
+// point = 1. Caller is responsible for advancing x by this much.
+int visual_width(const std::string& text) {
+    int w = 0;
+    size_t i = 0;
+    while (i < text.size()) {
+        unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b < 0x80) { ++w; ++i; }
+        else if ((b & 0xE0) == 0xC0) { ++w; i += 2; }
+        else if ((b & 0xF0) == 0xE0) { ++w; i += 3; }
+        else if ((b & 0xF8) == 0xF0) { ++w; i += 4; }
+        else                          { ++w; ++i; }
+    }
+    return w;
 }
 
 std::string upper(std::string s) {
@@ -259,17 +296,19 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
     const int y = wr.y + 1;
     int x = wr.x + 2;
 
-    r.draw_string(x, y, "\xe2\x96\xb6 GRID  "); // ▶ GRID
-    x += 9;
+    std::string prefix = "\xe2\x96\xb6 GRID  ";  // ▶ + space + GRID + 2 spaces = 8 visual cells
+    draw_colored_string(r, x, y, prefix, Color::Cyan);
+    x += visual_width(prefix);
 
     const auto& meta = game.world().lan_metadata();
     std::string region = upper(meta.display_name.empty()
                                ? std::string("UNKNOWN")
                                : meta.display_name);
     draw_colored_string(r, x, y, region, Color::Cyan);
-    x += static_cast<int>(region.size());
+    x += visual_width(region);
 
-    // Sub-segment: device hostname when in a Subnet
+    // Sub-segment: device hostname when in a Subnet, ATLAS / YOUR.ANCHOR
+    // when in the deep-Grid anchor.
     const auto& net = game.world().grid_network();
     const GridNode* node = net.find(s.current_node);
     std::string ip_str;
@@ -282,14 +321,14 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
                     std::string sub_label = upper(short_host_label(host));
                     std::string sub = " \xe2\x80\xba " + sub_label; // ›
                     draw_colored_string(r, x, y, sub, Color::Cyan);
-                    x += static_cast<int>(sub.size());
+                    x += visual_width(sub);
                 }
             }
         } else if (node->kind == GridNodeKind::DeepGridAnchor) {
             std::string sub = " \xe2\x80\xba ";
             sub += (node->owned_by_consciousness_id != 0) ? "YOUR.ANCHOR" : "ATLAS";
             draw_colored_string(r, x, y, sub, Color::Cyan);
-            x += static_cast<int>(sub.size());
+            x += visual_width(sub);
         }
     }
     if (ip_str.empty()) ip_str = format_ip(meta.subnet_base);
@@ -299,16 +338,18 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
         draw_colored_string(r, x, y, ip_str, Color::Cyan);
     }
 
-    // Trace gauge — right-justified within the top status row
-    const int trace_label_x = wr.x + wr.w - 18;
+    // Trace gauge — right-justified within the top status row.
+    // Layout: "TRACE " (6) + 5-seg bar + " NNN%" (5) = 16 cells; reserve a
+    // 1-cell margin to clear the right border. Anchor at wr.w - 17.
+    const int trace_label_x = wr.x + wr.w - 17;
     if (trace_label_x > x + 1) {
         draw_colored_string(r, trace_label_x, y, "TRACE ", Color::Cyan);
         int filled = s.trace * 5 / 100;
         if (filled > 5) filled = 5;
         draw_block_gauge(r, trace_label_x + 6, y, 5, filled, trace_fill_color(s.trace));
         char pct_buf[16];
-        std::snprintf(pct_buf, sizeof(pct_buf), " %d%%", s.trace);
-        draw_colored_string(r, trace_label_x + 12, y, pct_buf, Color::Cyan);
+        std::snprintf(pct_buf, sizeof(pct_buf), " %3d%%", s.trace);
+        draw_colored_string(r, trace_label_x + 11, y, pct_buf, Color::Cyan);
     }
 }
 
