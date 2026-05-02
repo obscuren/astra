@@ -166,6 +166,16 @@ LogPaneRect compute_log_pane_rect(const WindowRect& wr) {
 // Chrome
 // ---------------------------------------------------------------------------
 
+// Make the Tron window opaque — without this the monochrome world UI behind
+// bleeds through every cell the chrome doesn't write to.
+void clear_window_interior(Renderer& r, const WindowRect& wr) {
+    for (int j = 0; j < wr.h; ++j) {
+        for (int i = 0; i < wr.w; ++i) {
+            r.draw_char(wr.x + i, wr.y + j, ' ');
+        }
+    }
+}
+
 void draw_window_chrome(Renderer& r, const WindowRect& wr) {
     r.draw_glyph(wr.x,            wr.y,            "\xe2\x95\x94", kChrome);
     r.draw_glyph(wr.x + wr.w - 1, wr.y,            "\xe2\x95\x97", kChrome);
@@ -523,6 +533,10 @@ void render(Game& game, Renderer& r) {
     WindowRect    wr = compute_window_rect(sw, sh);
     PlayfieldRect pr = compute_playfield_rect(wr);
     LogPaneRect   lr = compute_log_pane_rect(wr);
+
+    // Make the window opaque first so the monochrome world UI behind
+    // doesn't bleed through into the Tron HUD.
+    clear_window_interior(r, wr);
 
     // Chrome — outer border + horizontal separators + column split.
     draw_window_chrome(r, wr);
