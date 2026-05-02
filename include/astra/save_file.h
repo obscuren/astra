@@ -30,7 +30,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 61;   // v61: Plan 5 Cut 2.6 — Hackable.source_type + GridNode.source_fixture_type for subnet device-avatars
+inline constexpr uint32_t SAVE_FILE_VERSION = 62;   // v62: Plan 5.5 — multi-map LAN persistence (lan_metadatas keyed by LocationKey)
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"
@@ -133,8 +133,11 @@ struct SaveData {
     int overworld_return_y = 0;
     LocationKey overworld_return_body_key{};
 
-    // v60: LAN metadata — cracked firewalls, looted DataNodes, IP allocations survive save/load
-    LanMetadata lan_metadata;
+    // v62 (Plan 5.5): per-map LAN metadata. Keyed by LocationKey, mirrors
+    // WorldManager::lan_metadatas_. `current_lan_key` selects the active
+    // bucket on load — Game::post_load consumes it via switch_active_lan.
+    std::unordered_map<LocationKey, LanMetadata, LocationKeyHash> lan_metadatas;
+    LocationKey current_lan_key{};
 };
 
 std::filesystem::path save_directory();

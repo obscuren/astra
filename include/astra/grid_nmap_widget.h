@@ -1,10 +1,11 @@
 #pragma once
 
+#include "astra/grid_network.h"
+
 #include <cstdint>
 
 namespace astra {
 
-class GridNetwork;
 class UIContext;
 
 enum class NmapMode : uint8_t { Lan, Atlas };
@@ -38,10 +39,15 @@ public:
     bool is_open() const { return open_; }
     NmapMode mode() const { return mode_; }
 
-    // Returns true if the key was consumed.
-    bool handle_key(const GridNetwork& net, int key);
+    // Returns true if the key was consumed. `active_lan_root` is used to
+    // filter LAN view to subnets edged from the player's active LAN root —
+    // sibling maps' LANs (post-Plan-5.5 multi-map persistence) stay hidden.
+    // Pass an invalid GridNodeId to disable filtering.
+    bool handle_key(const GridNetwork& net, int key,
+                    GridNodeId active_lan_root = {});
 
-    void render(UIContext& ctx, const GridNetwork& net) const;
+    void render(UIContext& ctx, const GridNetwork& net,
+                GridNodeId active_lan_root = {}) const;
 
     // One-shot jack-in request: returns the GridNodeId.value the user picked
     // (or 0 if none pending) and clears the slot.
@@ -52,7 +58,8 @@ public:
     GridNmapBreachRequest take_breach_request();
 
 private:
-    void render_lan(UIContext& ctx, const GridNetwork& net) const;
+    void render_lan(UIContext& ctx, const GridNetwork& net,
+                    GridNodeId active_lan_root) const;
     void render_atlas(UIContext& ctx) const;
 
     bool                  open_              = false;

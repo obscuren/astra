@@ -190,28 +190,7 @@ static void place_quest_fixtures(TileMap& map,
 
 void Game::save_current_location() {
     animations_.clear();
-    LocationKey key;
-    if (world_.map().location_name() == "Maintenance Tunnels") {
-        key = WorldManager::maintenance_key;
-    } else if (world_.navigation().on_ship) {
-        key = WorldManager::ship_key;
-    } else if (world_.navigation().at_station) {
-        key = LocationKey{world_.navigation().current_system_id, -1, -1, true, -1, -1, 0};
-    } else if (world_.on_overworld()) {
-        key = LocationKey{world_.navigation().current_system_id, world_.navigation().current_body_index,
-               world_.navigation().current_moon_index, false, -1, -1, 0};
-    } else if (world_.on_detail_map()) {
-        key = LocationKey{world_.navigation().current_system_id, world_.navigation().current_body_index,
-               world_.navigation().current_moon_index, false, world_.overworld_x(), world_.overworld_y(), 0};
-    } else {
-        // Dungeon — use nav.current_depth (NOT hardcoded 1) so each
-        // level of a multi-level dungeon caches at its own key. Anchor
-        // to the detail tile (overworld_x/y) the player entered from.
-        key = LocationKey{world_.navigation().current_system_id, world_.navigation().current_body_index,
-               world_.navigation().current_moon_index, false,
-               world_.overworld_x(), world_.overworld_y(),
-               world_.navigation().current_depth};
-    }
+    LocationKey key = world_.current_location_key();
     LocationState& state = world_.location_cache()[key];
     state.map = std::move(world_.map());
     state.visibility = std::move(world_.visibility());
@@ -243,13 +222,13 @@ void Game::restore_location(const LocationKey& key) {
     world_.location_cache().erase(it);
 }
 
-// Plan 5 Cut 1: refresh the per-map LAN registration. Called from every
-// map-enter/restore pathway after fixtures + NPCs are in place. Internally
-// uses lan_full_reset() which both tombstones the prior LAN's nodes/edges
-// and re-runs register_hackables_in_lan against the now-active map.
-// TODO: Cut 2 multi-map: graduate to per-map-id hooks.
+// Plan 5.5: per-map LAN persistence. Called from every map-enter / restore
+// pathway after fixtures + NPCs are in place. Switches the active LAN to
+// the current map's bucket; first-time visits trigger fresh registration,
+// revisits keep the prior cracked/looted/decrypted/killed_ice mutations
+// intact (they live in `lan_metadatas_[key]`, which we don't touch).
 void Game::on_map_loaded() {
-    world_.lan_full_reset();
+    world_.switch_active_lan(world_.current_location_key());
 }
 
 void Game::enter_ship() {

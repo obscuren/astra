@@ -149,13 +149,45 @@ public:
     GridNetwork&       grid_network()       { return grid_network_; }
     const GridNetwork& grid_network() const { return grid_network_; }
 
-    // Plan 5: single LAN per active map for Cut 1.
-    // TODO(Cut 2): replace with per-map keyed lookup (lan_metadata_for(int)).
-    LanMetadata&       lan_metadata()       { return lan_metadata_; }
-    const LanMetadata& lan_metadata() const { return lan_metadata_; }
+    // Plan 5.5: per-map LAN persistence. `lan_metadata()` returns the active
+    // map's metadata. The active map is identified by `current_lan_key_`,
+    // which `Game::on_map_loaded()` sets via `switch_active_lan(key)` on every
+    // map transition. Mutations recorded in the active LanMetadata (cracked
+    // firewalls, looted DataNodes, decrypted EncryptedFiles, killed ICE)
+    // survive cross-map round-trips because each map has its own bucket in
+    // `lan_metadatas_`.
+    //
+    // Mutating accessor: lazy-creates an entry for `current_lan_key_` on first
+    // access. Const accessor: returns a const ref to the matching entry, or to
+    // a shared empty fallback if no entry exists yet.
+    LanMetadata&       lan_metadata();
+    const LanMetadata& lan_metadata() const;
+
+    // Direct access to the per-key map (used by save/load).
+    using LanMetadataMap = std::unordered_map<LocationKey, LanMetadata, LocationKeyHash>;
+    LanMetadataMap&       lan_metadatas()       { return lan_metadatas_; }
+    const LanMetadataMap& lan_metadatas() const { return lan_metadatas_; }
+
+    const LocationKey& current_lan_key() const { return current_lan_key_; }
+    void set_current_lan_key(const LocationKey& k) { current_lan_key_ = k; }
+
+    // Switch the active LAN to `key`. If no entry exists for `key` yet, a
+    // fresh LanMetadata is constructed and `register_hackables_in_lan` is
+    // run to populate it from the active map. If an entry already exists,
+    // the call simply re-points the active key — the prior LAN's nodes /
+    // mutations stay intact in `grid_network_` and `lan_metadatas_`.
+    //
+    // Called by `Game::on_map_loaded()` on every map transition.
+    void switch_active_lan(const LocationKey& key);
 
     OverworldReturnPos& overworld_return() { return overworld_return_; }
     const OverworldReturnPos& overworld_return() const { return overworld_return_; }
+
+    // Plan 5.5: derive the LocationKey for the active map, mirroring the
+    // logic used by `Game::save_current_location()`. Single source of truth
+    // for "which map is the player on". Used by `Game::on_map_loaded()` to
+    // identify the active LAN bucket in `lan_metadatas_`.
+    LocationKey current_location_key() const;
 
     const LoreInfluenceMap& lore_influence() const { return lore_influence_; }
     void set_lore_influence(LoreInfluenceMap m) { lore_influence_ = std::move(m); }
@@ -234,6 +266,9 @@ public:
     // drops every Subnet + LanRoot node belonging to this LAN, and re-runs
     // register_hackables_in_lan to rebuild. Documented as destructive in
     // the :spawn help text.
+    //
+    // Plan 5.5: only touches the LAN identified by `current_lan_key_`;
+    // sibling maps' LANs are untouched.
     void lan_full_reset();
 
     // Find a Hackable on the active map (fixtures + alive NPCs) by its packed IP.
@@ -262,7 +297,15 @@ private:
     uint16_t galaxy_id_ = 0;
     NavigationData navigation_;
     GridNetwork grid_network_;
-    LanMetadata lan_metadata_;
+    // Plan 5.5: per-map LAN persistence. `lan_metadatas_` is keyed by the
+    // same LocationKey used by `location_cache_`. `current_lan_key_` selects
+    // the active map's bucket; `lan_metadata()` returns it (lazy-creating
+    // on first mutating access). `empty_lan_` is an immutable read-only
+    // fallback for the rare const-access call before any LAN has been set
+    // up (e.g. during save/load bootstrap).
+    LanMetadataMap lan_metadatas_;
+    LocationKey current_lan_key_{};
+    LanMetadata empty_lan_{};
     OverworldReturnPos overworld_return_;
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;

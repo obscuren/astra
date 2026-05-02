@@ -17,6 +17,60 @@ const DungeonRecipe* WorldManager::find_dungeon_recipe(const LocationKey& root) 
     return (it == dungeon_recipes_.end()) ? nullptr : &it->second;
 }
 
+LocationKey WorldManager::current_location_key() const {
+    if (map_.location_name() == "Maintenance Tunnels") {
+        return maintenance_key;
+    }
+    if (navigation_.on_ship) {
+        return ship_key;
+    }
+    if (navigation_.at_station) {
+        return LocationKey{navigation_.current_system_id, -1, -1, true, -1, -1, 0};
+    }
+    if (on_overworld()) {
+        return LocationKey{navigation_.current_system_id,
+                           navigation_.current_body_index,
+                           navigation_.current_moon_index,
+                           false, -1, -1, 0};
+    }
+    if (on_detail_map()) {
+        return LocationKey{navigation_.current_system_id,
+                           navigation_.current_body_index,
+                           navigation_.current_moon_index,
+                           false, overworld_x_, overworld_y_, 0};
+    }
+    // Dungeon — anchor to the detail tile the player entered from at the
+    // current dungeon depth.
+    return LocationKey{navigation_.current_system_id,
+                       navigation_.current_body_index,
+                       navigation_.current_moon_index,
+                       false, overworld_x_, overworld_y_,
+                       navigation_.current_depth};
+}
+
+LanMetadata& WorldManager::lan_metadata() {
+    return lan_metadatas_[current_lan_key_];
+}
+
+const LanMetadata& WorldManager::lan_metadata() const {
+    auto it = lan_metadatas_.find(current_lan_key_);
+    if (it == lan_metadatas_.end()) return empty_lan_;
+    return it->second;
+}
+
+void WorldManager::switch_active_lan(const LocationKey& key) {
+    current_lan_key_ = key;
+    auto [it, inserted] = lan_metadatas_.try_emplace(key);
+    if (inserted) {
+        // First visit to this map — register the active map's hackables.
+        register_hackables_in_lan(*this, grid_network_, it->second);
+    }
+    // Otherwise: prior LAN is intact. Its Subnet nodes still live in
+    // `grid_network_` and the cached map's Hackables still hold their
+    // `jack_in_node_id` pointers from the prior visit, so re-jacking
+    // resolves to the same persisted sectors.
+}
+
 void WorldManager::on_hackable_removed(GridNodeId subnet_id) {
     if (!subnet_id.valid()) return;
 
@@ -36,19 +90,21 @@ void WorldManager::on_hackable_removed(GridNodeId subnet_id) {
         n->security_tier = 0;
     }
 
-    // Drop any persistence keyed by this subnet (LAN sector state stays;
-    // only the per-subnet sub-sector overlay is purged).
-    auto it = lan_metadata_.subnet_states.find(subnet_id.value);
-    if (it != lan_metadata_.subnet_states.end()) {
-        lan_metadata_.subnet_states.erase(it);
+    // Drop any persistence keyed by this subnet from the active LAN.
+    // NPC death + fixture removal only happens on the live (active) map,
+    // so the owning LAN is always the active one. Cached maps' fixtures
+    // and NPCs are inert and don't trigger this code path.
+    auto& active = lan_metadatas_[current_lan_key_];
+    auto it = active.subnet_states.find(subnet_id.value);
+    if (it != active.subnet_states.end()) {
+        active.subnet_states.erase(it);
     }
-
-    if (lan_metadata_.nodes_total > 0) lan_metadata_.nodes_total -= 1;
+    if (active.nodes_total > 0) active.nodes_total -= 1;
 }
 
 void WorldManager::lan_full_reset() {
     auto& net = grid_network_;
-    LanMetadata& meta = lan_metadata_;
+    LanMetadata& meta = lan_metadatas_[current_lan_key_];
 
     if (meta.lan_root.valid()) {
         // Drop every Subnet node reachable from lan_root (one hop only —
@@ -78,7 +134,8 @@ void WorldManager::lan_full_reset() {
         }
     }
 
-    // Wipe persistence + reset meta to defaults.
+    // Wipe persistence + reset meta to defaults — but ONLY the active LAN.
+    // Sibling maps' LANs in `lan_metadatas_` are left alone.
     meta = LanMetadata{};
     register_hackables_in_lan(*this, net, meta);
 }

@@ -60,7 +60,9 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.lore = world.lore();
         data.detection           = game.hacking().detection_state().value;
         data.detection_decay_acc = game.hacking().detection_state().decay_acc;
-        data.lan_metadata = world.lan_metadata();
+        // v62 (Plan 5.5): per-map LAN persistence.
+        data.lan_metadatas    = world.lan_metadatas();
+        data.current_lan_key  = world.current_lan_key();
     }
 
     // maps[0]: the active map the player is currently on.
@@ -263,8 +265,12 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     game.hacking().detection_state_mut().value     = data.detection;
     game.hacking().detection_state_mut().decay_acc = data.detection_decay_acc;
 
-    // v60: restore LAN metadata (cracked firewalls, looted nodes, IP allocations)
-    world.lan_metadata() = data.lan_metadata;
+    // v62 (Plan 5.5): restore per-map LAN metadata + active LAN key.
+    // post_load() relies on these being in place before any subsequent
+    // on_map_loaded() / switch_active_lan() — load doesn't trigger map
+    // loads, so the active LAN's lan_root must already be valid here.
+    world.lan_metadatas() = std::move(data.lan_metadatas);
+    world.set_current_lan_key(data.current_lan_key);
 
     game.reset_interaction_state();
 

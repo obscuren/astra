@@ -843,6 +843,9 @@ void Game::new_game() {
     // do this clear() AFTER on_map_loaded ran, which silently wiped every
     // freshly-registered Subnet node.
     world_.grid_network().clear();
+    // Plan 5.5: clear per-map LAN buckets too, otherwise leftovers from a
+    // previous session would silently shadow the fresh registration.
+    world_.lan_metadatas().clear();
 
     world_.seed() = static_cast<unsigned>(std::time(nullptr));
     world_.rng().seed(world_.seed());
@@ -1226,6 +1229,8 @@ void Game::new_game(const CreationResult& cr) {
     // Plan 5 LAN auto-registration (triggered by on_map_loaded() below)
     // populates a clean graph.
     world_.grid_network().clear();
+    // Plan 5.5: clear per-map LAN buckets too.
+    world_.lan_metadatas().clear();
 
     world_.seed() = static_cast<unsigned>(std::time(nullptr));
     world_.rng().seed(world_.seed());
@@ -1503,6 +1508,9 @@ void Game::start_new_galaxy(unsigned fresh_seed) {
     // Wipe leftover GridNetwork before on_map_loaded() registers fresh LAN
     // nodes — same fix as new_game().
     world_.grid_network().clear();
+    // Plan 5.5: wipe per-map LAN buckets too — past galaxies' LAN state is
+    // not survivable across rebirth.
+    world_.lan_metadatas().clear();
 
     world_.seed() = fresh_seed;
     world_.rng().seed(fresh_seed);

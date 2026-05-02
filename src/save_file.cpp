@@ -2608,10 +2608,30 @@ bool write_save(const std::string& name, const SaveData& data) {
     if (!data.grid_network.nodes().empty()) {
         write_grid_network_section(w, data.grid_network);
     }
-    // v60: LAN metadata persistence
+    // v62 (Plan 5.5): per-map LAN metadata + active key
     {
         auto pos = w.begin_section("LANM");
-        write_lan_metadata(w, data.lan_metadata);
+        w.write_u32(static_cast<uint32_t>(data.lan_metadatas.size()));
+        for (const auto& [key, meta] : data.lan_metadatas) {
+            // LocationKey: same encoding as DREC.
+            w.write_u32(std::get<0>(key));
+            w.write_i32(std::get<1>(key));
+            w.write_i32(std::get<2>(key));
+            w.write_u8(std::get<3>(key) ? 1 : 0);
+            w.write_i32(std::get<4>(key));
+            w.write_i32(std::get<5>(key));
+            w.write_i32(std::get<6>(key));
+            write_lan_metadata(w, meta);
+        }
+        // Active LAN key.
+        const auto& ck = data.current_lan_key;
+        w.write_u32(std::get<0>(ck));
+        w.write_i32(std::get<1>(ck));
+        w.write_i32(std::get<2>(ck));
+        w.write_u8(std::get<3>(ck) ? 1 : 0);
+        w.write_i32(std::get<4>(ck));
+        w.write_i32(std::get<5>(ck));
+        w.write_i32(std::get<6>(ck));
         w.end_section(pos);
     }
 
@@ -2680,7 +2700,31 @@ bool read_save(const std::string& name, SaveData& data) {
         } else if (std::memcmp(tag, "GRID", 4) == 0) {
             read_grid_network_section(r, data.grid_network);
         } else if (std::memcmp(tag, "LANM", 4) == 0) {
-            read_lan_metadata(r, data.lan_metadata);
+            // v62: per-map LAN metadata.
+            uint32_t n = r.read_u32();
+            data.lan_metadatas.reserve(n);
+            for (uint32_t i = 0; i < n; ++i) {
+                uint32_t sys = r.read_u32();
+                int body    = r.read_i32();
+                int moon    = r.read_i32();
+                bool is_st  = r.read_u8() != 0;
+                int ow_x    = r.read_i32();
+                int ow_y    = r.read_i32();
+                int depth   = r.read_i32();
+                LocationKey key{sys, body, moon, is_st, ow_x, ow_y, depth};
+                LanMetadata meta;
+                read_lan_metadata(r, meta);
+                data.lan_metadatas.emplace(std::move(key), std::move(meta));
+            }
+            // Active LAN key.
+            uint32_t sys = r.read_u32();
+            int body    = r.read_i32();
+            int moon    = r.read_i32();
+            bool is_st  = r.read_u8() != 0;
+            int ow_x    = r.read_i32();
+            int ow_y    = r.read_i32();
+            int depth   = r.read_i32();
+            data.current_lan_key = LocationKey{sys, body, moon, is_st, ow_x, ow_y, depth};
         } else {
             // Unknown section — skip
             r.skip(size);

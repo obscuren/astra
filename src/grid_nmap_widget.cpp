@@ -54,10 +54,31 @@ bool node_is_locked(const GridNetwork& net, GridNodeId id) {
     return has_edge;
 }
 
-std::vector<NodeView> visible_nodes(const GridNetwork& net, NmapMode zoom) {
+// Plan 5.5: when the active LAN root is provided, restrict LAN-mode nodes
+// to: the root itself + every Subnet directly edged from that root +
+// RegionalDarknet nodes (which are global). Sibling maps' LAN trees (post-
+// multi-map LAN persistence) stay hidden so the player only sees their
+// current LAN. Atlas mode is unaffected — anchors are global.
+std::vector<NodeView> visible_nodes(const GridNetwork& net, NmapMode zoom,
+                                    GridNodeId active_lan_root = {}) {
     std::vector<NodeView> out;
+
+    auto include_lan_node = [&](const GridNode& n) {
+        if (!active_lan_root.valid()) return true;   // no filter
+        if (n.kind == GridNodeKind::RegionalDarknet) return true;
+        if (n.kind == GridNodeKind::LanRoot) return n.id == active_lan_root;
+        if (n.kind == GridNodeKind::Subnet) {
+            for (const auto& e : net.edges()) {
+                if (e.from == active_lan_root && e.to == n.id) return true;
+            }
+            return false;
+        }
+        return true;
+    };
+
     for (const auto& n : net.nodes()) {
         if (!zoom_match(n.kind, zoom)) continue;
+        if (zoom == NmapMode::Lan && !include_lan_node(n)) continue;
         NodeView v;
         v.id     = n.id;
         v.label  = n.label;
@@ -179,7 +200,8 @@ GridNmapBreachRequest GridNmapWidget::take_breach_request() {
     return r;
 }
 
-bool GridNmapWidget::handle_key(const GridNetwork& net, int key) {
+bool GridNmapWidget::handle_key(const GridNetwork& net, int key,
+                                GridNodeId active_lan_root) {
     if (!open_) return false;
 
     if (key == 27) { close(); return true; }
@@ -202,7 +224,7 @@ bool GridNmapWidget::handle_key(const GridNetwork& net, int key) {
         return true;
     }
 
-    auto nodes = visible_nodes(net, mode_);
+    auto nodes = visible_nodes(net, mode_, active_lan_root);
 
     if (key == ',') {
         // Legacy zoom toggle — kept as an alias for Tab while existing
@@ -295,23 +317,25 @@ bool GridNmapWidget::handle_key(const GridNetwork& net, int key) {
     return true;
 }
 
-void GridNmapWidget::render(UIContext& outer, const GridNetwork& net) const {
+void GridNmapWidget::render(UIContext& outer, const GridNetwork& net,
+                            GridNodeId active_lan_root) const {
     if (!open_) return;
 
     if (mode_ == NmapMode::Atlas) {
         render_atlas(outer);
         return;
     }
-    render_lan(outer, net);
+    render_lan(outer, net, active_lan_root);
 }
 
-void GridNmapWidget::render_lan(UIContext& outer, const GridNetwork& net) const {
+void GridNmapWidget::render_lan(UIContext& outer, const GridNetwork& net,
+                                GridNodeId active_lan_root) const {
     auto panel = outer.panel({
         .title = " NMAP — LAN ",
         .footer = "[arrows] cursor  [enter] jack  [b] breach  [tab] atlas  [esc] close",
         .tag = UITag::Border});
 
-    auto nodes = visible_nodes(net, NmapMode::Lan);
+    auto nodes = visible_nodes(net, NmapMode::Lan, active_lan_root);
     if (nodes.empty()) {
         panel.text({.x = 2, .y = 2,
                     .content = "(no networks discovered — find a Precursor console)",

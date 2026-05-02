@@ -190,7 +190,8 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
 
     // Nmap overlay sits on top of the terminal pane.
     if (world_) {
-        nmap_widget_.render(ctx, world_->grid_network());
+        nmap_widget_.render(ctx, world_->grid_network(),
+                            world_->lan_metadata().lan_root);
     }
 }
 
@@ -215,7 +216,8 @@ void PdaScreen::handle_hacking_key(int key) {
     // funnelled into the existing terminal jack request slot so the game
     // input loop picks it up uniformly.
     if (nmap_widget_.is_open() && world_) {
-        nmap_widget_.handle_key(world_->grid_network(), key);
+        nmap_widget_.handle_key(world_->grid_network(), key,
+                                world_->lan_metadata().lan_root);
         if (uint32_t nid = nmap_widget_.take_jack_in_request(); nid != 0) {
             jack_in_request_node_id_ = nid;
         }
