@@ -160,7 +160,6 @@ public:
     void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
     bool handle_cell_picker_input(int key);  // returns true if input was consumed
     void open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots);
-    void open_hackable_menu(int fixture_id);
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
 
@@ -294,7 +293,6 @@ private:
     void render_pause_menu();
     void render_quit_confirm();
     void render_cell_picker();
-    void render_hackable_menu();
     void render_qh_picker();
 
     // Layout
@@ -417,11 +415,6 @@ private:
     std::vector<int> qh_picker_slots_;
     int qh_picker_target_x_ = 0;
     int qh_picker_target_y_ = 0;
-
-    // Hackable fixture interaction menu — shown when player Uses a cyber fixture
-    MenuState hackable_menu_;
-    int hackable_menu_fid_ = -1;
-    std::vector<int> hackable_menu_slots_;  // slot index; -1 = Jack In sentinel
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

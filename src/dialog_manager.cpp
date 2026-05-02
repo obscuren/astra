@@ -1,16 +1,24 @@
 #include "astra/dialog_manager.h"
 #include "astra/aura.h"
 #include "astra/character.h"
+#include "astra/cyberdeck.h"
 #include "astra/display_name.h"
 #include "astra/dungeon/puzzles.h"
 #include "astra/game.h"
+#include "astra/hackable.h"
+#include "astra/hacking_system.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/playback_viewer.h"
 #include "astra/player.h"
+#include "astra/program.h"
 #include "astra/quest_fixture.h"
 #include "astra/quest_ui.h"
 #include "astra/shop.h"
+#include "astra/skill_defs.h"
+#include "astra/soul_mirror.h"
+
+#include <algorithm>
 
 namespace astra {
 
@@ -37,15 +45,28 @@ void DialogManager::reset_content(const std::string& title, float width_frac) {
     body_.clear();
     options_.clear();
     hotkeys_.clear();
+    option_tags_.clear();
+    option_kinds_.clear();
+    dialog_option_qh_slot_.clear();
     selected_ = 0;
     footer_.clear();
     max_width_frac_ = width_frac;
     entity_ = {};  // clear entity ref
+    dialog_fixture_id_ = -1;
 }
 
 void DialogManager::add_option(char key, const std::string& label) {
+    add_option(key, label, UITag::OptionNormal);
+}
+
+void DialogManager::add_option(char key, const std::string& label, UITag tag) {
     hotkeys_.push_back(key);
     options_.push_back(label);
+    option_tags_.push_back(tag);
+    option_kinds_.push_back(OptionKind::Normal);
+    // Keep the QH-slot vector in lock-step so parallel-index lookups work.
+    // Callers that add an HackingRunQh option overwrite this entry afterwards.
+    dialog_option_qh_slot_.push_back(-1);
 }
 
 namespace {
@@ -129,6 +150,7 @@ void DialogManager::close() {
     interacting_npc_ = nullptr;
     dialog_tree_ = nullptr;
     dialog_node_ = -1;
+    dialog_fixture_id_ = -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +176,19 @@ bool DialogManager::handle_input(int key, Game& game) {
         return true; // Game checks and starts look mode
     }
 
+    // Check hotkeys FIRST so that letters like 'j' (Jack In) and 'k' which
+    // double as vim-nav keys are interpreted as hotkeys when an option uses
+    // them. This means picking a fixture dialog's "(hack) Jack In" with 'j'
+    // works as expected; only when no option claims the key do we fall back
+    // to the vim-style cursor navigation below.
+    for (int i = 0; i < static_cast<int>(hotkeys_.size()); ++i) {
+        if (key == hotkeys_[i]) {
+            selected_ = i;
+            advance_dialog(i, game);
+            return true;
+        }
+    }
+
     switch (key) {
         case 27: // Esc
             close();
@@ -170,14 +205,6 @@ bool DialogManager::handle_input(int key, Game& game) {
             advance_dialog(selected_, game);
             return true;
         default:
-            // Check hotkeys
-            for (int i = 0; i < static_cast<int>(hotkeys_.size()); ++i) {
-                if (key == hotkeys_[i]) {
-                    selected_ = i;
-                    advance_dialog(i, game);
-                    return true;
-                }
-            }
             break;
     }
     return true;
@@ -292,7 +319,9 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
     std::vector<ListItem> items;
     for (int i = 0; i < static_cast<int>(options_.size()); ++i) {
         std::string label = "[" + std::string(1, hotkeys_[i]) + "] " + options_[i];
-        items.push_back({label, UITag::OptionNormal, i == selected_});
+        UITag tag = (i < static_cast<int>(option_tags_.size())) ? option_tags_[i]
+                                                                : UITag::OptionNormal;
+        items.push_back({label, tag, i == selected_});
     }
 
     // Calculate how much vertical space the list gets
@@ -311,19 +340,100 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
 // ---------------------------------------------------------------------------
 
 void DialogManager::interact_fixture(int fid, Game& game) {
-    auto& f = game.world().map().fixture_mut(fid);
-
-    // Plan 5: electrical fixtures auto-route into the hackable menu, which
-    // includes "Use" as its first option (delegating back via
-    // interact_fixture_use_only). When no hacking options are available, the
-    // hackable menu falls straight through to the use-only path, so non-hackers
-    // still get the normal interaction.
-    if (f.cyber) {
-        game.open_hackable_menu(fid);
-        return;
-    }
-
+    // Plan 5 single-dialog refactor: there's no longer a separate
+    // "hackable menu" layer. The per-FixtureType dialog is the only dialog;
+    // hacking-related options (Jack In, Sync Soul, QH) are appended into it
+    // via append_*_option helpers when the fixture's tags + player capability
+    // permit. Fixtures without a `cyber` field obviously skip those.
     interact_fixture_use_only(fid, game);
+}
+
+// ---------------------------------------------------------------------------
+// Plan 5 single-dialog refactor: hacking option injectors
+// ---------------------------------------------------------------------------
+
+// Hostile QHs are suppressed when the target is on the player's own ship —
+// stealing data from your own console / blinding your own optics is weird.
+// Same rule the legacy hackable_menu used.
+namespace {
+bool on_own_ship(const Game& game) {
+    return game.world().map().map_type() == MapType::Starship;
+}
+} // namespace
+
+void DialogManager::append_qh_options(int fid, Game& game) {
+    if (on_own_ship(game)) return;
+    auto& fd = game.world().map().fixture_mut(fid);
+    if (!fd.cyber) return;
+    Hackable& hack = *fd.cyber;
+
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+    auto& deck = *(*deck_slot)->deck;
+
+    for (int i = 0; i < deck.stats.slots; ++i) {
+        const auto& s = deck.loaded[i];
+        if (s.program_def_id == 0) continue;
+        Item probe = build_by_def_id(s.program_def_id);
+        if (!probe.program) continue;
+        const ProgramDef* def = find_program(probe.program->id);
+        if (!def || def->kind != ProgramKind::Qh) continue;
+        bool match = std::any_of(def->target_filter.begin(),
+                                 def->target_filter.end(),
+                                 [&](TagSet req){ return covers(hack.tags, req); });
+        if (!match) continue;
+
+        // Prefer letter keys a..z; fall back if the dialog already used some.
+        // Skip 'j' (Jack In) and 's' (Sync Soul) so they remain stable.
+        char k = 0;
+        for (char c = 'a'; c <= 'z'; ++c) {
+            if (c == 'j' || c == 's') continue;
+            bool taken = false;
+            for (char h : hotkeys_) { if (h == c) { taken = true; break; } }
+            if (!taken) { k = c; break; }
+        }
+        if (!k) continue;  // out of letters — drop silently
+
+        std::string label = "(qh) " + std::string(def->filename) +
+                            "  (" + std::to_string(def->ram_cost) + " RAM)";
+        add_option(k, label, UITag::TextSuccess);
+        // Mark this newly-added option as a QH dispatch point.
+        option_kinds_.back() = OptionKind::HackingRunQh;
+        dialog_option_qh_slot_.back() = i;
+    }
+}
+
+void DialogManager::append_jack_in_option(int fid, Game& game) {
+    auto& fd = game.world().map().fixture_mut(fid);
+    if (!fd.cyber) return;
+    if (!has_tag(fd.cyber->tags, HackTag::JackInPort)) return;
+
+    std::string label = "(hack) Jack In";
+    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
+        label += "  (requires Cat_Hacking)";
+    } else {
+        // Even with the skill, you need an equipped deck to actually jack in.
+        auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+        if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+            label += "  (no cyberdeck)";
+        }
+    }
+    add_option('j', label, UITag::TextSuccess);
+    option_kinds_.back() = OptionKind::HackingJackIn;
+}
+
+void DialogManager::append_sync_soul_option(int fid, Game& game) {
+    auto& fd = game.world().map().fixture_mut(fid);
+    if (!fd.cyber) return;
+    // Sync Soul gates: AlienTech tag (Precursor consoles) AND the lore-mirror
+    // capability. Until Task 11 retags PrecursorConsole variants the option
+    // stays hidden on plain Console fixtures, which matches the design.
+    if (!has_tag(fd.cyber->tags, HackTag::AlienTech)) return;
+    add_option('s', "(hack) Sync Soul", UITag::TextSuccess);
+    option_kinds_.back() = OptionKind::HackingSyncSoul;
+    // (We don't gate on a "SoulMirror" skill explicitly here — soul_mirror::
+    //  begin_active will surface a friendly log if the player can't proceed.)
+    (void)game;
 }
 
 void DialogManager::interact_fixture_use_only(int fid, Game& game) {
@@ -604,9 +714,52 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
             }
             break;
         }
+        case FixtureType::Console:
+        case FixtureType::DataTerminal:
+        case FixtureType::BookCabinet: {
+            // Plan 5 single-dialog refactor: these JackInPort fixtures don't
+            // have rich native interactions yet, but the player still needs a
+            // dialog so the (hack) Jack In option can be appended below. Use a
+            // tiny "Read"/"Use" dialog with a single 'u' (Use) acknowledgement.
+            const char* title = "Console";
+            const char* greeting = "It's an unsecured terminal — text scrolls past too fast to follow.";
+            const char* use_label = "Use Console";
+            if (f.type == FixtureType::DataTerminal) {
+                title = "Data Terminal";
+                greeting = "A bank of stacked screens cycles through scrolling logs and diagnostic feeds.";
+                use_label = "Read Terminal";
+            } else if (f.type == FixtureType::BookCabinet) {
+                title = "Book Cabinet";
+                greeting = "Shelves of dog-eared printouts and ring-bound manuals.";
+                use_label = "Read Books";
+            }
+            reset_content(title, 0.45f);
+            body_ = std::string("\"") + greeting + "\"";
+            game.log(greeting);
+            add_option('u', use_label);
+            add_option('c', "Close");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -13; // sentinel: generic Use/Close fixture dialog
+            break;
+        }
         default:
             game.log("Nothing happens.");
             break;
+    }
+
+    // Plan 5 single-dialog refactor: append (hack)/(qh) options to the dialog
+    // we just built (if any), so the player gets a SINGLE dialog rather than
+    // a hackable-menu hop. Only meaningful when (a) a dialog is now open and
+    // (b) the fixture is electrical. The helpers gate themselves on tags +
+    // skill + deck so non-applicable cases stay no-ops.
+    if (open_ && f.cyber) {
+        dialog_fixture_id_ = fid;
+        append_qh_options(fid, game);
+        append_jack_in_option(fid, game);
+        append_sync_soul_option(fid, game);
     }
 }
 
@@ -788,6 +941,68 @@ void DialogManager::open_npc_dialog(Npc& npc, Game& game) {
 // ---------------------------------------------------------------------------
 
 void DialogManager::advance_dialog(int selected, Game& game) {
+    // Plan 5 single-dialog refactor: hacking-related options are short-circuited
+    // here BEFORE any per-fixture dispatch, so they work uniformly on every
+    // fixture dialog (food terminal, ARIA, ship terminal, ...). The fixture id
+    // was stamped onto dialog_fixture_id_ when the dialog was opened.
+    if (selected >= 0 && selected < static_cast<int>(option_kinds_.size())) {
+        OptionKind kind = option_kinds_[selected];
+        if (kind != OptionKind::Normal) {
+            int fid = dialog_fixture_id_;
+            // Always close the dialog first — pickling state across the action
+            // (jack-in transitions to a new sector, QH advances world) leaves
+            // the dialog stale and confusing.
+            open_ = false;
+            dialog_node_ = -1;
+            dialog_tree_ = nullptr;
+
+            if (fid < 0) return;
+            auto& fd = game.world().map().fixture_mut(fid);
+            if (!fd.cyber) return;
+            Hackable& hack = *fd.cyber;
+
+            if (kind == OptionKind::HackingJackIn) {
+                if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
+                    game.log("You need the Cat_Hacking skill to jack in.");
+                    return;
+                }
+                auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+                if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+                    game.log("You need an equipped cyberdeck to jack in.");
+                    return;
+                }
+                if (hack.jack_in_node_id <= 0) {
+                    game.log("This device isn't on any network.");
+                    return;
+                }
+                GridNodeId nid;
+                nid.value = static_cast<uint32_t>(hack.jack_in_node_id);
+                game.hacking().jack_in(game, nid);
+                return;
+            }
+            if (kind == OptionKind::HackingSyncSoul) {
+                soul_mirror::begin_active(game, hack);
+                game.advance_world(ActionCost::interact);
+                return;
+            }
+            if (kind == OptionKind::HackingRunQh) {
+                int slot_idx = (selected < static_cast<int>(dialog_option_qh_slot_.size()))
+                                ? dialog_option_qh_slot_[selected] : -1;
+                auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+                if (slot_idx < 0 || !deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+                auto& deck = *(*deck_slot)->deck;
+                Item probe = build_by_def_id(deck.loaded[slot_idx].program_def_id);
+                auto xy = fixture_xy_by_id(game.world().map(), fid);
+                if (xy.first < 0) return;
+                std::string msg = game.hacking().execute_quickhack(
+                    game, probe, hack, xy.first, xy.second);
+                game.log(msg);
+                game.advance_world(ActionCost::interact);
+                return;
+            }
+        }
+    }
+
     // Food terminal dialog (no NPC involved)
     if (dialog_node_ == -2) {
         dialog_node_ = -1;
@@ -1055,6 +1270,18 @@ void DialogManager::advance_dialog(int selected, Game& game) {
         if (selected == 0) {
             game.enter_ship();
         }
+        return;
+    }
+
+    // Plan 5 single-dialog refactor: generic Use / Close dialog used by
+    // Console / DataTerminal / BookCabinet (and other future JackInPort
+    // fixtures whose only "real" interaction is a flavour line). Both
+    // [u] Use and [c] Close just close the dialog — the flavour log was
+    // emitted at open time.
+    if (dialog_node_ == -13) {
+        dialog_node_ = -1;
+        dialog_tree_ = nullptr;
+        open_ = false;
         return;
     }
 
