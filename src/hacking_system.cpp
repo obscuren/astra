@@ -341,6 +341,13 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         game.log("You lack the Hacking skill category.");
         return false;
     }
+    // Post-Grid-death shock locks the player out until the GE expires.
+    // Both the short Disoriented (NonBlackDeath) and long Convulsing
+    // (BlackIceDeath) shocks share EffectId::BlackIceShock.
+    if (has_effect(game.player().effects, EffectId::BlackIceShock)) {
+        game.log("Your body is still convulsing — neural link refuses to bind.");
+        return false;
+    }
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         game.log("No cyberdeck equipped.");

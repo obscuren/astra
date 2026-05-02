@@ -369,11 +369,13 @@ Effect make_blackice_shock_long_ge() {
     e.duration = 60;
     e.remaining = 60;
     e.show_in_bar = true;
-    // StatModifiers has av (armour value) and quickness as the broadest
-    // combat-relevant stats. -1 to each marks the body as impaired.
-    // Full "all attributes" pipeline is a Plan 4 polish target.
-    e.modifiers.av = -1;
-    e.modifiers.quickness = -1;
+    // Heavy debuff — the body is convulsing post-Black-ICE bleed-through.
+    // AV-5 reduces armour across all damage types. QN-50 marks the body
+    // as crippled (note: player quickness isn't currently consumed by
+    // advance_world, only NPC quickness is — so this displays the
+    // intent but doesn't yet slow the player's turn cadence).
+    e.modifiers.av = -5;
+    e.modifiers.quickness = -50;
     return e;
 }
 
