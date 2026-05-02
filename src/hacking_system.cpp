@@ -10,9 +10,12 @@
 #include "astra/hackable.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
+#include "astra/lan.h"
+#include "astra/lan_sector_generator.h"
 #include "astra/npc.h"
 #include "astra/program.h"
 #include "astra/program_effects.h"   // Task 9 will populate; Task 7 ships a stub
+#include "astra/sector_runtime_state.h"
 #include "astra/skill_defs.h"
 #include "astra/visibility_map.h"
 #include "astra/world_manager.h"
@@ -391,20 +394,34 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     s.skill_neural_fortitude   = nf;
 
     // Resolve sector
-    if (node->kind == GridNodeKind::DeepGridAnchor) {
-        s.sector = make_consciousness_anchor_sector();
-    } else if (node->kind == GridNodeKind::RegionalDarknet) {
-        s.sector = gen_regional_sector(node->source_seed, node->security_tier);
-    } else {
-        s.sector = gen_subnet_sector(node->source_seed, node->security_tier);
-    }
-    s.sector.source_node = entry_node;
+    resolve_sector_for_(game, s, *node);
+    s.sector.source_node = node->id;
     s.avatar_x = s.sector.spawn_x;
     s.avatar_y = s.sector.spawn_y;
 
-    // Spawn ICE per tier (anchor stays empty in v1)
-    if (node->kind != GridNodeKind::DeepGridAnchor) {
+    // Spawn ICE per tier (anchor stays empty in v1; LAN sectors stay empty
+    // for now — ICE lives inside the per-Subnet sectors the player traverses
+    // into via ⌬). Persisted killed-ICE coordinates suppress respawn on
+    // re-entry.
+    if (node->kind != GridNodeKind::DeepGridAnchor &&
+        node->kind != GridNodeKind::LanRoot) {
         grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
+        // Drop any ICE that the player previously killed in this sector.
+        const auto& meta = game.world().lan_metadata();
+        const SectorRuntimeState* state = nullptr;
+        if (node->kind == GridNodeKind::Subnet) {
+            auto it = meta.subnet_states.find(node->id.value);
+            if (it != meta.subnet_states.end()) state = &it->second;
+        }
+        if (state && !state->killed_ice.empty()) {
+            s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
+                [&](const GridIce& ice) {
+                    for (const auto& k : state->killed_ice) {
+                        if (k.first == ice.x && k.second == ice.y) return true;
+                    }
+                    return false;
+                }), s.ice.end());
+        }
     }
 
     // Body phase-out
@@ -413,6 +430,87 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     session_ = std::move(s);
     game.set_state(GameState::Grid);
     game.log("Uploading consciousness... You jack in.");
+    return true;
+}
+
+void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
+                                        const GridNode& node) {
+    const auto& meta = game.world().lan_metadata();
+    switch (node.kind) {
+        case GridNodeKind::LanRoot: {
+            s.sector = generate_lan_sector(meta, game.world().grid_network());
+            apply_mutations(s.sector, meta.lan_sector_state);
+            break;
+        }
+        case GridNodeKind::DeepGridAnchor: {
+            s.sector = make_consciousness_anchor_sector();
+            break;
+        }
+        case GridNodeKind::RegionalDarknet: {
+            s.sector = gen_regional_sector(node.source_seed, node.security_tier);
+            break;
+        }
+        case GridNodeKind::Subnet:
+        default: {
+            s.sector = gen_subnet_sector(node.source_seed, node.security_tier);
+            auto it = meta.subnet_states.find(node.id.value);
+            if (it != meta.subnet_states.end()) {
+                apply_mutations(s.sector, it->second);
+            }
+            break;
+        }
+    }
+}
+
+bool HackingSystem::traverse_to(Game& game, GridNodeId target_id) {
+    if (!session_) return false;
+    GridSession& s = *session_;
+    auto& net = game.world().grid_network();
+    const auto* node = net.find(target_id);
+    if (!node) {
+        game.log("traverse: unknown node.");
+        return false;
+    }
+
+    GridNodeId prev = s.current_node;
+
+    // Build the new sector. Mutations apply during resolve_sector_for_.
+    resolve_sector_for_(game, s, *node);
+    s.sector.source_node = node->id;
+    s.current_node       = target_id;
+    s.return_node        = prev;
+    s.avatar_x           = s.sector.spawn_x;
+    s.avatar_y           = s.sector.spawn_y;
+
+    // Re-spawn ICE for the new sector; LAN + Anchor stay empty.
+    s.ice.clear();
+    if (node->kind != GridNodeKind::DeepGridAnchor &&
+        node->kind != GridNodeKind::LanRoot) {
+        grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
+        const auto& meta = game.world().lan_metadata();
+        const SectorRuntimeState* state = nullptr;
+        if (node->kind == GridNodeKind::Subnet) {
+            auto it = meta.subnet_states.find(node->id.value);
+            if (it != meta.subnet_states.end()) state = &it->second;
+        }
+        if (state && !state->killed_ice.empty()) {
+            s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
+                [&](const GridIce& ice) {
+                    for (const auto& k : state->killed_ice) {
+                        if (k.first == ice.x && k.second == ice.y) return true;
+                    }
+                    return false;
+                }), s.ice.end());
+        }
+    }
+
+    // Tier-driven trace tick mirrors jack_in's switch.
+    switch (node->kind) {
+        case GridNodeKind::Subnet:           s.trace_tick_per_turn = 1; break;
+        case GridNodeKind::LanRoot:          s.trace_tick_per_turn = 2; break;
+        case GridNodeKind::RegionalDarknet:  s.trace_tick_per_turn = 2; break;
+        case GridNodeKind::DeepGridAnchor:   s.trace_tick_per_turn = 3; break;
+    }
     return true;
 }
 

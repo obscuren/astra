@@ -4,10 +4,12 @@
 #include "astra/game.h"
 #include "astra/grid_constants.h"
 #include "astra/grid_network.h"
+#include "astra/grid_persistence.h"
 #include "astra/grid_session.h"
 #include "astra/hacking_system.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
+#include "astra/lan.h"
 #include "astra/program.h"
 #include "astra/program_effects.h"
 #include "astra/renderer.h"
@@ -30,50 +32,107 @@ bool try_move(GridSession& s, int dx, int dy) {
     return true;
 }
 
+// Look up the edge from `from` to `to` (LAN root edges fan out from the
+// LAN root, so we also accept that). Returns nullptr if no such edge.
+const GridEdge* find_outbound_edge(const GridNetwork& net,
+                                   GridNodeId from,
+                                   GridNodeId to) {
+    for (const auto& e : net.edges()) {
+        if (e.to == to && (e.from == from)) return &e;
+    }
+    return nullptr;
+}
+
+// Step onto a ⌬ Gateway or ⊕ DeepGridGateway. Resolves the target node from
+// the tile's gateway_target map, checks the corresponding edge's cracked
+// state (tier 0 always open), and traverses if open.
+void traverse_via_gateway(Game& game, GridSession& s) {
+    auto it = s.sector.gateway_target.find(
+        std::pair<int,int>{s.avatar_x, s.avatar_y});
+    if (it == s.sector.gateway_target.end()) {
+        game.log("Gateway has no destination wired.");
+        return;
+    }
+    GridNodeId tgt = it->second;
+    if (!tgt.valid()) {
+        game.log("Gateway: host unreachable.");
+        return;
+    }
+
+    auto& net = game.world().grid_network();
+    const auto& meta = game.world().lan_metadata();
+
+    // Edge can fan out from current_node, OR from the LAN root (LAN→Subnet
+    // edges live on the root, but the player triggers them from inside the
+    // LAN sector — same node).
+    const GridEdge* e = find_outbound_edge(net, s.current_node, tgt);
+    if (!e && meta.lan_root.valid() && s.current_node == meta.lan_root) {
+        // already covered by the previous lookup; fallthrough.
+    }
+    if (!e) {
+        game.log("Gateway has no edge to that target.");
+        return;
+    }
+    bool open = (e->gateway_tier == 0) || e->cracked;
+    if (!open && s.skill_deepgrid_navigator) {
+        // 50/50 passive crack — preserves prior DeepGridNavigator behaviour.
+        std::uniform_int_distribution<int> coin(0, 1);
+        if (coin(game.world().rng()) == 0) {
+            for (auto& em : net.edges_mut()) {
+                if (em.to == tgt && em.from == e->from) {
+                    em.cracked = true;
+                    open = true;
+                    s.trace = std::min(kTraceMax, s.trace + 5);
+                    game.log("DeepGridNavigator: gateway cracked. Trace +5.");
+                    break;
+                }
+            }
+        }
+    }
+    if (!open) {
+        game.log("Gateway locked. Try breach.exe.");
+        return;
+    }
+    if (!game.hacking().traverse_to(game, tgt)) {
+        game.log("Gateway traversal failed.");
+        return;
+    }
+    game.log("You slip through the gateway.");
+}
+
 void on_step(Game& game, GridSession& s) {
     GridTile here = s.sector.at(s.avatar_x, s.avatar_y);
     switch (here) {
-        case GridTile::ExitNode:
+        case GridTile::ExitNode: {
+            // If we're inside a sub-sector reached via traversal, the ⊙ tile
+            // bounces back to the LAN instead of jacking out. This keeps the
+            // session alive across multi-sector exploration.
+            if (s.return_node.valid()) {
+                GridNodeId back = s.return_node;
+                if (game.hacking().traverse_to(game, back)) {
+                    game.log("Returning to host LAN.");
+                    return;
+                }
+            }
             game.log("Disconnect channel...");
             game.hacking().jack_out(game, JackOutKind::Voluntary);
             return;
+        }
         case GridTile::DataNode: {
             int credits = 5 + 5 * s.trace_tick_per_turn;
             s.loot.credits += credits;
             s.sector.set(s.avatar_x, s.avatar_y, GridTile::Floor);
+            record_sector_mutation(game, s.avatar_x, s.avatar_y, GridTile::Floor);
             game.log("Data node ripped: +" + std::to_string(credits) + " credits.");
             return;
         }
         case GridTile::EncryptedFile:
             game.log("Encrypted file. Run decrypt.exe to read.");
             return;
-        case GridTile::Gateway: {
-            // DeepGridNavigator: 50/50 chance to passively crack a locked
-            // gateway when the avatar steps onto it, no breach.exe required.
-            // Already-cracked gateways pass through with no roll.
-            auto& net = game.world().grid_network();
-            for (auto& e : net.edges_mut()) {
-                bool touches = (e.from == s.current_node || e.to == s.current_node);
-                if (!touches) continue;
-                if (e.cracked) {
-                    game.log("Gateway open. (Traversal lands in a later task.)");
-                    return;
-                }
-                if (s.skill_deepgrid_navigator) {
-                    std::uniform_int_distribution<int> coin(0, 1);
-                    if (coin(game.world().rng()) == 0) {
-                        e.cracked = true;
-                        s.trace = std::min(kTraceMax, s.trace + 5);
-                        game.log("DeepGridNavigator: gateway cracked. Trace +5.");
-                        return;
-                    }
-                }
-                game.log("Gateway locked. Use breach.exe.");
-                return;
-            }
-            game.log("Gateway has no destination wired.");
+        case GridTile::Gateway:
+        case GridTile::DeepGridGateway:
+            traverse_via_gateway(game, s);
             return;
-        }
         default:
             return;
     }

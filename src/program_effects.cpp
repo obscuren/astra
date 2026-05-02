@@ -6,8 +6,10 @@
 #include "astra/grid_constants.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_network.h"
+#include "astra/grid_persistence.h"
 #include "astra/grid_session.h"
 #include "astra/hackable.h"
+#include "astra/lan.h"
 #include "astra/npc.h"
 #include "astra/world_manager.h"
 
@@ -63,6 +65,19 @@ void apply_data_leech(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
 
 // ── Grid-.exe helpers ────────────────────────────────────────────────
 
+// Records the kill against the active LAN's runtime state when the ICE
+// reached HP <= 0. Returns true if the ICE was just killed.
+bool kill_and_persist(Game& game, GridSession& s, GridIce& ice) {
+    if (ice.hp > 0) return false;
+    int kx = ice.x;
+    int ky = ice.y;
+    bool killed = grid_ice::kill_if_dead(s, ice);
+    if (killed) {
+        record_killed_ice(game, kx, ky);
+    }
+    return killed;
+}
+
 std::string apply_icebreaker_lite_grid(GridProgramContext c) {
     GridIce* tgt = nullptr;
     int best = INT_MAX;
@@ -77,7 +92,7 @@ std::string apply_icebreaker_lite_grid(GridProgramContext c) {
             + (c.session.skill_icebreaking ? 1 : 0);
 
     grid_ice::damage(c.session, *tgt, dmg);
-    grid_ice::kill_if_dead(c.session, *tgt);
+    kill_and_persist(c.game, c.session, *tgt);
     return "icebreaker_lite: " + std::to_string(dmg) + " damage to ICE.";
 }
 
@@ -95,32 +110,70 @@ std::string apply_cooldown_grid(GridProgramContext c) {
     return "cooldown: heat -4.";
 }
 
+// Try to crack the edge from (the LAN root or `from_node`) -> `target`.
+// Sets `cracked = true` on the matching edge if found. Returns true on hit.
+bool crack_gateway_edge(GridNetwork& net,
+                        GridNodeId from_node,
+                        GridNodeId lan_root,
+                        GridNodeId target) {
+    for (auto& e : net.edges_mut()) {
+        if (e.to == target &&
+            (e.from == from_node || (lan_root.valid() && e.from == lan_root))) {
+            e.cracked = true;
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string apply_breach_grid(GridProgramContext c) {
+    GridSession& s = c.session;
+
+    // Candidate tiles: the avatar's tile first (gateways are passable so the
+    // player typically stands on them), then the four orthogonal neighbours
+    // (firewalls block movement so they live adjacent to the player).
+    auto try_breach = [&](int x, int y) -> std::string {
+        if (!s.sector.in_bounds(x, y)) return {};
+        GridTile t = s.sector.at(x, y);
+
+        if (t == GridTile::Firewall) {
+            s.sector.set(x, y, GridTile::Floor);
+            s.trace = std::min(kTraceMax, s.trace + 5);
+            record_sector_mutation(c.game, x, y, GridTile::Floor);
+            return "breach: firewall down. Trace +5.";
+        }
+        if (t == GridTile::Gateway || t == GridTile::DeepGridGateway) {
+            auto it = s.sector.gateway_target.find(std::pair<int,int>{x, y});
+            if (it == s.sector.gateway_target.end()) {
+                return "breach: gateway has no target node.";
+            }
+            GridNodeId tgt = it->second;
+            auto& net = c.game.world().grid_network();
+            const auto& meta = c.game.world().lan_metadata();
+            if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
+                return "breach: edge not found for gateway target.";
+            }
+            s.trace = std::min(kTraceMax, s.trace + 5);
+            return "breach: gateway cracked. Trace +5.";
+        }
+        return {};
+    };
+
+    // 1. The avatar's own tile.
+    if (auto msg = try_breach(s.avatar_x, s.avatar_y); !msg.empty()) {
+        return msg;
+    }
+    // 2. Adjacent tiles (N/S/W/E).
     static constexpr int dx[4] = { 0, 0, -1, 1 };
     static constexpr int dy[4] = { -1, 1, 0, 0 };
     for (int d = 0; d < 4; ++d) {
-        int nx = c.session.avatar_x + dx[d];
-        int ny = c.session.avatar_y + dy[d];
-        GridTile t = c.session.sector.at(nx, ny);
-        if (t == GridTile::Firewall) {
-            c.session.sector.set(nx, ny, GridTile::Floor);
-            c.session.trace = std::min(kTraceMax, c.session.trace + 5);
-            return "breach: firewall down. Trace +5.";
-        }
-        if (t == GridTile::Gateway) {
-            auto& net = c.game.world().grid_network();
-            for (auto& e : net.edges_mut()) {
-                if ((e.from == c.session.current_node ||
-                     e.to == c.session.current_node) && !e.cracked) {
-                    e.cracked = true;
-                    c.session.trace = std::min(kTraceMax, c.session.trace + 5);
-                    return "breach: gateway cracked. Trace +5.";
-                }
-            }
-            return "breach: no locked gateway here.";
+        int nx = s.avatar_x + dx[d];
+        int ny = s.avatar_y + dy[d];
+        if (auto msg = try_breach(nx, ny); !msg.empty()) {
+            return msg;
         }
     }
-    return "breach: nothing adjacent to break.";
+    return "breach: nothing to break here.";
 }
 
 std::string apply_decrypt_grid(GridProgramContext c) {
@@ -131,6 +184,7 @@ std::string apply_decrypt_grid(GridProgramContext c) {
         int ny = c.session.avatar_y + dy[d];
         if (c.session.sector.at(nx, ny) == GridTile::EncryptedFile) {
             c.session.sector.set(nx, ny, GridTile::Floor);
+            record_sector_mutation(c.game, nx, ny, GridTile::Floor);
             c.session.loot.lore_unlocked.push_back(
                 "ARCH-" + std::to_string(c.session.entry_node.value) +
                 "-" + std::to_string(d));
@@ -171,8 +225,8 @@ std::string apply_pulse_hammer_grid(GridProgramContext c) {
         grid_ice::damage(c.session, *tgt, dmg);
         ++hit;
     }
-    // Prune dead ICE.
-    for (auto& ice : c.session.ice) grid_ice::kill_if_dead(c.session, ice);
+    // Prune dead ICE; persist coords of any kills.
+    for (auto& ice : c.session.ice) kill_and_persist(c.game, c.session, ice);
     return "pulse_hammer: hit " + std::to_string(hit) + " ICE.";
 }
 

@@ -23,8 +23,11 @@ bool GridSector::passable(int x, int y) const {
     return t == GridTile::Floor
         || t == GridTile::DataNode
         || t == GridTile::Gateway
+        || t == GridTile::DeepGridGateway
         || t == GridTile::ExitNode
-        || t == GridTile::EncryptedFile;
+        || t == GridTile::EncryptedFile
+        || t == GridTile::Connector
+        || t == GridTile::WarpAnchor;
 }
 
 GridSector gen_subnet_sector(uint32_t seed, int security_tier) {

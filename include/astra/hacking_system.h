@@ -62,6 +62,11 @@ public:
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
     bool jack_in(Game& game, GridNodeId entry_node);
 
+    // Mid-jack-in sector swap. Used when the player steps onto a ⌬ Gateway
+    // or ⊕ DeepGridGateway. Returns false if there is no active session, the
+    // target node is unknown, or the target's edge is locked.
+    bool traverse_to(Game& game, GridNodeId target_id);
+
     // Drains/persists loot per kind, restores body, returns to previous game state.
     void jack_out(Game& game, JackOutKind kind);
 
@@ -90,6 +95,11 @@ private:
     void commit_loot_(Game& game, GridLootBuffer& loot, int pct);
     void spawn_black_ice_(GridSession& s);
     void spawn_gray_ice_reinforcement_(GridSession& s);
+
+    // Resolve the sector for `node` into `s.sector`, applying any persisted
+    // mutations from `lan_metadata`. Pure data-side helper — does NOT touch
+    // avatar position, ICE, or session identity.
+    void resolve_sector_for_(Game& game, GridSession& s, const GridNode& node);
 };
 
 } // namespace astra
