@@ -837,6 +837,13 @@ void Game::new_game() {
         boot.play();
     }
 
+    // Wipe any leftover GridNetwork state from a previous session so the
+    // Plan 5 LAN auto-registration (triggered by on_map_loaded() below)
+    // populates a clean graph. The galaxy-gen block further down used to
+    // do this clear() AFTER on_map_loaded ran, which silently wiped every
+    // freshly-registered Subnet node.
+    world_.grid_network().clear();
+
     world_.seed() = static_cast<unsigned>(std::time(nullptr));
     world_.rng().seed(world_.seed());
 
@@ -1171,7 +1178,9 @@ void Game::new_game() {
         current_phase = "Generating star chart...";
         render_progress();
     }
-    world_.grid_network().clear();
+    // grid_network().clear() moved to the top of new_game() so it runs
+    // BEFORE on_map_loaded() registers Plan 5 LAN nodes — clearing here
+    // wiped the freshly-registered Subnets.
     world_.navigation() = generate_galaxy(world_.seed());
     apply_lore_to_galaxy(world_.navigation(), world_.lore());
     assign_system_factions(world_.navigation(), world_.seed());
@@ -1212,6 +1221,11 @@ void Game::new_game(const CreationResult& cr) {
     // Boot sequence
     BootSequence boot(renderer_.get());
     boot.play();
+
+    // Wipe any leftover GridNetwork state from a previous session so the
+    // Plan 5 LAN auto-registration (triggered by on_map_loaded() below)
+    // populates a clean graph.
+    world_.grid_network().clear();
 
     world_.seed() = static_cast<unsigned>(std::time(nullptr));
     world_.rng().seed(world_.seed());
@@ -1444,7 +1458,9 @@ void Game::new_game(const CreationResult& cr) {
         current_phase = "Generating star chart...";
         render_progress();
     }
-    world_.grid_network().clear();
+    // grid_network().clear() moved to the top of new_game() so it runs
+    // BEFORE on_map_loaded() registers Plan 5 LAN nodes — clearing here
+    // wiped the freshly-registered Subnets.
     world_.navigation() = generate_galaxy(world_.seed());
     apply_lore_to_galaxy(world_.navigation(), world_.lore());
     assign_system_factions(world_.navigation(), world_.seed());

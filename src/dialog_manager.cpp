@@ -313,11 +313,21 @@ void DialogManager::draw(Renderer* renderer, int screen_w, int screen_h) {
 void DialogManager::interact_fixture(int fid, Game& game) {
     auto& f = game.world().map().fixture_mut(fid);
 
+    // Plan 5: electrical fixtures auto-route into the hackable menu, which
+    // includes "Use" as its first option (delegating back via
+    // interact_fixture_use_only). When no hacking options are available, the
+    // hackable menu falls straight through to the use-only path, so non-hackers
+    // still get the normal interaction.
     if (f.cyber) {
         game.open_hackable_menu(fid);
         return;
     }
 
+    interact_fixture_use_only(fid, game);
+}
+
+void DialogManager::interact_fixture_use_only(int fid, Game& game) {
+    auto& f = game.world().map().fixture_mut(fid);
     switch (f.type) {
         case FixtureType::HealPod: {
             if (f.last_used_tick >= 0 && f.cooldown > 0) {

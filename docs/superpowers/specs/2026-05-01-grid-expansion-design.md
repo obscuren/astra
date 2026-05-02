@@ -863,7 +863,18 @@ Each cut is internally complete and shippable; merge between cuts.
 - Persistence round-trip verified: crack/loot/decrypt/kill, save, reload, re-enter sector — all four mutations and the ICE absence are present.
 - `JackInPort` tag opens the "Jack In" fixture-menu entry on every tagged fixture.
 
-**Validation:** jack into Heavens Above, walk a generated LAN sector, breach a firewall, enter a subnet, return.
+#### Cut 1 carry-over deltas (added during Cut 1 playtest)
+
+The following items emerged during Cut 1 playtesting and are absorbed into Cut 2:
+
+- **Multi-map LanMetadata.** WorldManager currently holds a single `lan_metadata_`. `lan_full_reset` blasts it on every map enter, so cross-map persistence is lost (cracked firewall on the ship is gone after walking back to the station). Cut 2 graduates to a `std::map<LocationKey, LanMetadata>` keyed by stable map identity, with a "current LAN" pointer that switches on map enter. Persistence round-trips per LAN, not per session.
+- **Ship-merges-into-docked-LAN.** Per the spec's design intent ("anything electrical can be hacked") and explicit user direction: when the player is docked at a station/asteroid (anywhere `enter_ship` would return them to the station map), the ship's electrical fixtures must appear *inside* the host LAN — `nmap -l` from the ship's CommandTerminal lists everything in the host station + ship, and the same nmap from a station console lists ship terminals too. When in flight (between systems), the ship is its own isolated LAN. Implementation hint: `register_hackables_in_lan` looks at `WorldManager::is_docked()` (or equivalent); when true, it walks both the ship interior map AND the host station's map and registers all hackables under one `LanRoot`.
+- **Hostile-QH owner suppression — proper model.** Cut 1 ships a placeholder: when active map is `MapType::Starship`, hide all QHs from the menu. Cut 2 graduates to a per-fixture ownership flag (`Hackable::owned_by_player`) plus a `ProgramDef::hostile = bool` flag (most QHs are hostile by default). The menu filter excludes hostile QHs against owned fixtures. Owned-by-player covers ship fixtures unconditionally and could later cover NPC implants the player has befriended, base assets the player has decrypted, etc. Removes the map-type heuristic from `open_hackable_menu`.
+- **PrecursorConsole AlienTech variant on map-gen.** `tags_for_fixture(Console)` returns base terminal tags (`Electronic | DataStore | JackInPort`); ruin/crashed-ship generators stamp Console fixtures without the `AlienTech` overlay, so Soul Mirror / lore-archive paths silently skip in-world Precursor consoles. Cut 2 needs a per-call-site stamp in `ruin_generator.cpp` and `crashed_ship_generator.cpp` (the dev `:spawn fixture Console` workaround does not cover production).
+- **NPC-death tombstone vs proper removal.** `on_hackable_removed` currently relabels the orphan Subnet node `"[removed]"` and zeros its tier but leaves it in the GridNetwork. Cut 2's nmap rewrite should either physically remove these nodes (preferred) or filter them from `visible_nodes`.
+- **Dev `:spawn fixture PrecursorConsole`.** Plan 5 retired `:spawn-hackable console` (which stamped AlienTech + lore fragments + regional darknet jack target). The replacement `:spawn fixture Console` produces a plain Console with no Precursor flavour. Cut 2 (or as a small Cut 1.5) should add a `:spawn fixture PrecursorConsole` shorthand that stamps the AlienTech tag and seeds lore fragments.
+
+**Validation:** jack into Heavens Above, walk a generated LAN sector, breach a firewall, enter a subnet, return. Walk to ship, dock at HA — both nmap views show the merged LAN. Quit/reload — every cracked-firewall, looted-DataNode, decrypted-file mutation persists across all visited LANs.
 
 ### Cut 3 — Deep-Grid expansion + saved base + galaxy reseed
 

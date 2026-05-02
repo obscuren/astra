@@ -264,8 +264,15 @@ void Game::handle_play_input(int key) {
             auto& fd = world_.map().fixture_mut(fid);
             if (fd.cyber) {
                 Hackable& hack = *fd.cyber;
-                // Slot sentinels: -1 = Jack In, -2 = Sync Soul.
-                if (slot_idx == -1) {
+                // Slot sentinels: -1 = Jack In, -2 = Sync Soul, -3 = Use (front-door interaction).
+                if (slot_idx == -3) {
+                    // Run the normal per-FixtureType interaction (board ship,
+                    // browse vending, read star chart, etc.). The dialog manager
+                    // re-enters via the "use_only" path which skips the cyber
+                    // redirect.
+                    dialog_.interact_fixture_use_only(fid, *this);
+                    advance_world(ActionCost::interact);
+                } else if (slot_idx == -1) {
                     GridNodeId nid;
                     nid.value = static_cast<uint32_t>(hack.jack_in_node_id);
                     hacking_.jack_in(*this, nid);
@@ -689,6 +696,37 @@ void Game::open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots) {
     qh_picker_slots_ = menu_slots;
 }
 
+// Per-FixtureType "Use" verb label for the hackable menu's first option.
+// Returns nullptr for fixture types with no front-door interaction (raw
+// Conduit, plain Lamp), in which case "Use" is omitted from the menu.
+static const char* fixture_use_verb(FixtureType t) {
+    switch (t) {
+        case FixtureType::HealPod:        return "Use Heal Pod";
+        case FixtureType::FoodTerminal:   return "Order Food";
+        case FixtureType::WeaponDisplay:  return "Browse Weapons";
+        case FixtureType::RepairBench:    return "Repair Gear";
+        case FixtureType::SupplyLocker:   return "Search Locker";
+        case FixtureType::Locker:         return "Search Locker";
+        case FixtureType::StarChart:
+        case FixtureType::StarChartL:
+        case FixtureType::StarChartR:     return "Read Star Chart";
+        case FixtureType::DataTerminal:   return "Read Terminal";
+        case FixtureType::BookCabinet:    return "Read Books";
+        case FixtureType::ShipTerminal:   return "Board Ship";
+        case FixtureType::CommandTerminal:return "Talk to ARIA";
+        case FixtureType::RestPod:        return "Rest";
+        case FixtureType::Console:        return "Use Console";
+        case FixtureType::DungeonHatch:   return "Descend";
+        case FixtureType::StairsUp:       return "Ascend";
+        case FixtureType::StairsDown:
+        case FixtureType::StairsDownPrecursor: return "Descend";
+        case FixtureType::Door:           return "Open / Close";
+        case FixtureType::Gate:           return "Open / Close";
+        case FixtureType::Kitchen:        return "Cook";
+        default:                          return nullptr;
+    }
+}
+
 void Game::open_hackable_menu(int fixture_id) {
     auto& fd = world_.map().fixture_mut(fixture_id);
     if (!fd.cyber) return;
@@ -699,8 +737,25 @@ void Game::open_hackable_menu(int fixture_id) {
                            " (tier " + std::to_string(hack.security_tier) + ")";
     hackable_menu_slots_.clear();
 
+    // First option (when applicable): "Use" — runs the normal front-door
+    // interaction. Slot sentinel -3.
+    const char* use_label = fixture_use_verb(fd.type);
+    if (use_label) {
+        hackable_menu_.add_option('u', use_label);
+        hackable_menu_slots_.push_back(-3);
+    }
+
+    // Hostile QHs are suppressed when the target is on the player's own ship —
+    // stealing data from your own console / blinding your own optics is weird.
+    // TODO(Cut 2): when LanMetadata graduates to multi-map, the ship's fixtures
+    // should be merged into the docked station's LAN (so ship terminals appear
+    // in the station's nmap when in orbit). For now the simpler rule is: while
+    // the active map is the player's Starship, skip hostile QHs entirely.
+    // Use + Jack In remain available.
+    const bool on_own_ship = (world_.map().map_type() == MapType::Starship);
+
     auto* deck_slot = player_.equipment.equipped_cyberdeck();
-    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+    if (deck_slot && *deck_slot && (*deck_slot)->deck && !on_own_ship) {
         auto& deck = *(*deck_slot)->deck;
         for (int i = 0; i < deck.stats.slots; ++i) {
             const auto& s = deck.loaded[i];
@@ -740,8 +795,20 @@ void Game::open_hackable_menu(int fixture_id) {
     }
 
     if (hackable_menu_.options.empty()) {
+        // No Use verb defined for this FixtureType, no QHs match, no JackInPort —
+        // nothing to offer. Tell the player and bail. (E.g. plain Conduit with
+        // no compatible programs loaded.)
         log(std::string(tag_summary(hack.tags)) +
-            ": no compatible programs loaded.");
+            ": no actions available.");
+        return;
+    }
+
+    // Single-option fast path: if only "Use" is available, just run the front-door
+    // interaction without the menu UI. Pre-Plan-5 behaviour for non-cyber fixtures
+    // was always-instant; preserve that for cyber fixtures with no hacks queued.
+    if (hackable_menu_.options.size() == 1 && hackable_menu_slots_.front() == -3) {
+        dialog_.interact_fixture_use_only(fixture_id, *this);
+        advance_world(ActionCost::interact);
         return;
     }
 

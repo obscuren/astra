@@ -281,12 +281,26 @@ void register_hackables_in_lan(WorldManager& world,
         return;
     }
 
+    // Layout constants. IP labels render as `[10.X.Y.NNN]` — up to 16 cells
+    // wide with three-digit host octets, so columns need at least 17 cells of
+    // pitch to avoid `[10.X.Y.10[10.X.Y.11[...` overlap. Cut 4 will replace
+    // this with world-coord mirroring per spec §10; for Cut 1 we just want
+    // the IP labels to be readable in the existing widget.
+    constexpr int kLanRootX   = 2;
+    constexpr int kLanRootY   = 2;
+    constexpr int kSubnetTopY = 5;
+    constexpr int kSubnetColW = 18;   // 16-cell IP label + 2-cell gutter
+    constexpr int kSubnetRowH = 2;
+    constexpr int kSubnetCols = 3;
+
     // 1) LanRoot node.
     GridNode root_node;
     root_node.kind          = GridNodeKind::LanRoot;
     root_node.label         = meta.display_name;
     root_node.security_tier = meta.security_tier;
     root_node.source_seed   = meta.gen_seed;
+    root_node.layout_x      = kLanRootX;
+    root_node.layout_y      = kLanRootY;
     meta.lan_root = net.add_node(std::move(root_node));
 
     // 2) One Subnet per Hackable + IP allocation.
@@ -303,6 +317,9 @@ void register_hackables_in_lan(WorldManager& world,
         sn.security_tier = hl.h->security_tier;
         sn.source_seed   = (meta.gen_seed << 8) | static_cast<uint32_t>(host);
         sn.label         = format_ip(hl.h->ip);
+        const int idx0   = host - 1;
+        sn.layout_x      = kLanRootX + (idx0 % kSubnetCols) * kSubnetColW;
+        sn.layout_y      = kSubnetTopY + (idx0 / kSubnetCols) * kSubnetRowH;
         GridNodeId sid   = net.add_node(std::move(sn));
         hl.h->jack_in_node_id = static_cast<int>(sid.value);
         subnet_ids.push_back(sid);

@@ -25,8 +25,14 @@ public:
     void open_npc_dialog(Npc& npc, Game& game);
     void advance_dialog(int selected, Game& game);
 
-    // Fixture interaction
+    // Fixture interaction. The default form auto-routes electrical fixtures
+    // (those with `cyber` set) into the hackable menu so the player sees both
+    // the front-door interaction (Use, Board Ship, ...) and the QH/Jack-In
+    // options together. The `_use_only` form skips that redirect and runs the
+    // per-FixtureType interaction directly — used when the hackable menu has
+    // already presented the choice and the player picked Use.
     void interact_fixture(int fixture_id, Game& game);
+    void interact_fixture_use_only(int fixture_id, Game& game);
 
     // Tutorial choice dialog
     void show_tutorial_choice(Game& game);
