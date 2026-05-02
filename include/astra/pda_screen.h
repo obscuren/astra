@@ -1,6 +1,6 @@
 #pragma once
 
-#include "astra/grid_netmap_widget.h"
+#include "astra/grid_nmap_widget.h"
 #include "astra/player.h"
 #include "astra/quest.h"
 #include "astra/recipe.h"
@@ -174,7 +174,9 @@ private:
     void hack_term_cmd_uname(const std::vector<std::string>& args);
     void hack_term_cmd_whoami();
     void hack_term_cmd_ping(const std::vector<std::string>& args);
-    void hack_term_cmd_netmap();
+    void hack_term_cmd_nmap(const std::vector<std::string>& args);
+    void hack_term_cmd_nmap_list();
+    void hack_term_cmd_nmap_map();
     void hack_term_cmd_jack(const std::vector<std::string>& args);
     void hack_term_cmd_lore();
     void hack_term_cmd_clear();
@@ -222,8 +224,13 @@ private:
     std::string installed_ship_slot_;
     // Jack-in request — terminal `jack -t <node>`. 0 = none.
     uint32_t jack_in_request_node_id_ = 0;
-    // Netmap overlay — shown above the Hacking terminal pane.
-    GridNetmapWidget netmap_widget_;
+    // Nmap overlay — shown above the Hacking terminal pane.
+    GridNmapWidget nmap_widget_;
+    // Pending nmap-side breach (Plan 5 Task 39). The widget never mutates
+    // GridNetwork directly; the host (game_input) consumes this slot, charges
+    // the deck for breach.exe, and flips the matching edge's `cracked = true`.
+    // {0, 0} = none.
+    GridNmapBreachRequest pending_breach_request_ = {};
     // Skill side-effect request — set when a skill with a side effect is learned.
     // Consumed by game_input.cpp which calls apply_skill_side_effects(game, id).
     // 0 = none (SkillId 0 is not a real skill).
@@ -246,6 +253,11 @@ public:
         uint32_t v = jack_in_request_node_id_;
         jack_in_request_node_id_ = 0;
         return v;
+    }
+    GridNmapBreachRequest consume_breach_request() {
+        GridNmapBreachRequest r = pending_breach_request_;
+        pending_breach_request_ = {};
+        return r;
     }
     uint32_t consume_skill_side_effect_request() {
         uint32_t v = pending_skill_side_effect_id_;

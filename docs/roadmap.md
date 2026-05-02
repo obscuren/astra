@@ -182,8 +182,8 @@
 
 ### Deferred / next
 
-- [ ] **Hacking & The Grid — Plan 5 (Grid HUD redesign)** — replace the per-tile bars + HUD strip with a structured top/bottom HUD (RAM/Trace/Heat live readouts, ICE legend, breach indicator, breakpoint timeline). Includes the breach UX hinted by the netmap widget.
-- [ ] **Hacking & The Grid — Plan 6 (Grid content expansion / LAN subnets)** — LAN-style subnets layered between the regional darknet and individual devices, multi-device Hackable webs, faction-flavoured deep-Grid anchors, AI contact reputation effects.
+- [ ] **Hacking & The Grid — Plan 5 (Grid expansion and change)** — LAN redesign: every electrical fixture auto-registers in its map's LAN, jacking in drops the player into a generated cyberspace sector with Gateway tiles to individual device subnets, deep-Grid is the universal layer that ties connected LANs together. Tag-based capability model retires `Hackable::available_qh`. Absorbs the Plan 4 stitching gaps (deep-Grid reachability, sector-source dispatch, galaxy reseed, lore viewer, AI contacts, multi-Gateway-per-sector, fixture-menu/netmap asymmetry). Includes the netmap-side breach UX.
+- [ ] **Hacking & The Grid — Plan 6 (UI / Grid HUD redesign)** — replace the per-tile bars + HUD strip with a structured top/bottom HUD (RAM/Trace/Heat live readouts, ICE legend, breach indicator, breakpoint timeline, LAN hop indicator + topology breadcrumb from Plan 5). Designed against the final LAN gameplay state.
 
 ---
 

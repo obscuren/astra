@@ -178,7 +178,7 @@ set(ASTRA_SOURCES
     src/grid_anchor_layout.cpp
     src/grid_camera.cpp
     src/grid_ice.cpp
-    src/grid_netmap_widget.cpp
+    src/grid_nmap_widget.cpp
     src/grid_persistence.cpp
     src/rebirth_sequence.cpp
     src/grid_session.cpp

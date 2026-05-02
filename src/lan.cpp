@@ -355,6 +355,27 @@ void register_hackables_in_lan(WorldManager& world,
     meta.rooms = cluster_rooms(hacks, subnet_ids, k, meta.flavour);
 }
 
+// Plan 5 Cut 4 Task 38: slugify a region name for AI contact id generation.
+// Lowercases alphanumerics, converts spaces/underscores/hyphens to hyphens,
+// skips other characters.
+static std::string slugify(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+    for (unsigned char c : s) {
+        if (std::isalnum(c)) {
+            out.push_back(static_cast<char>(std::tolower(c)));
+        } else if (c == ' ' || c == '_' || c == '-') {
+            if (out.empty() || out.back() != '-') {
+                out.push_back('-');
+            }
+        }
+        // else: skip
+    }
+    // Trim trailing hyphen if present.
+    while (!out.empty() && out.back() == '-') out.pop_back();
+    return out;
+}
+
 // Plan 5 Cut 3 Task 31 — see header for contract.
 bool register_deep_grid_warp_anchor(WorldManager& world, GridNodeId lan_root_id) {
     if (!lan_root_id.valid()) return false;
@@ -391,6 +412,17 @@ bool register_deep_grid_warp_anchor(WorldManager& world, GridNodeId lan_root_id)
     rec.nodes_cracked    = meta.nodes_cracked;
     rec.warpable         = true;
     cs.warp_anchors.push_back(rec);
+
+    // Plan 5 Cut 4 Task 38: schema-only AI contact for this LAN. Plan 7
+    // will hand-author personalities + interactions; Cut 4 just stamps a
+    // placeholder so future cuts have data to render.
+    {
+        AiContactRecord contact;
+        contact.id               = "aria." + slugify(meta.region_label);
+        contact.display_name     = "ARIA — " + meta.region_label;
+        contact.origin_galaxy_id = galaxy_id;
+        cs.ai_contacts.push_back(std::move(contact));
+    }
 
     // Stamp a WarpAnchor tile in the Atlas region (cols 14-44, rows 1-30
     // per Task 30's hand-authored layout). First free Floor tile in scan

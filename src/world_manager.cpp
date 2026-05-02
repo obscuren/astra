@@ -83,4 +83,20 @@ void WorldManager::lan_full_reset() {
     register_hackables_in_lan(*this, net, meta);
 }
 
+const Hackable* WorldManager::find_hackable_by_ip(uint32_t ip) const {
+    const auto& m = map();
+    for (int i = 0; i < m.fixture_count(); ++i) {
+        const FixtureData& fd = m.fixture(i);
+        if (!fd.cyber) continue;
+        if (fd.cyber->ip != ip) continue;
+        return &*fd.cyber;
+    }
+    for (const auto& npc : npcs()) {
+        if (!npc.alive() || !npc.cyber) continue;
+        if (npc.cyber->ip != ip) continue;
+        return &*npc.cyber;
+    }
+    return nullptr;
+}
+
 } // namespace astra

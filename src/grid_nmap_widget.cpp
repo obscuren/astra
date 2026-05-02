@@ -1,5 +1,6 @@
-#include "astra/grid_netmap_widget.h"
+#include "astra/grid_nmap_widget.h"
 
+#include "astra/consciousness_save.h"
 #include "astra/grid_network.h"
 #include "astra/renderer.h"
 #include "astra/ui.h"
@@ -21,13 +22,13 @@ struct NodeView {
     bool         locked;
 };
 
-bool zoom_match(GridNodeKind k, NetmapZoom z) {
+bool zoom_match(GridNodeKind k, NmapMode z) {
     switch (z) {
-        case NetmapZoom::Regional:
+        case NmapMode::Lan:
             return k == GridNodeKind::Subnet
                 || k == GridNodeKind::RegionalDarknet
                 || k == GridNodeKind::LanRoot;
-        case NetmapZoom::DeepGrid:
+        case NmapMode::Atlas:
             return k == GridNodeKind::DeepGridAnchor;
     }
     return false;
@@ -53,7 +54,7 @@ bool node_is_locked(const GridNetwork& net, GridNodeId id) {
     return has_edge;
 }
 
-std::vector<NodeView> visible_nodes(const GridNetwork& net, NetmapZoom zoom) {
+std::vector<NodeView> visible_nodes(const GridNetwork& net, NmapMode zoom) {
     std::vector<NodeView> out;
     for (const auto& n : net.nodes()) {
         if (!zoom_match(n.kind, zoom)) continue;
@@ -153,30 +154,60 @@ void draw_edge_lshape(UIContext& ctx,
 
 } // namespace
 
-void GridNetmapWidget::open() {
-    open_       = true;
-    cursor_idx_ = 0;
+void GridNmapWidget::open(bool in_deep_grid) {
+    open_          = true;
+    in_deep_grid_  = in_deep_grid;
+    cursor_idx_    = 0;
+    // Default to LAN view; Tab swaps to Atlas when the player is in the
+    // deep-Grid sector.
+    mode_          = NmapMode::Lan;
 }
 
-void GridNetmapWidget::close() {
+void GridNmapWidget::close() {
     open_ = false;
 }
 
-uint32_t GridNetmapWidget::take_jack_in_request() {
+uint32_t GridNmapWidget::take_jack_in_request() {
     uint32_t v = pending_jack_in_;
     pending_jack_in_ = 0;
     return v;
 }
 
-bool GridNetmapWidget::handle_key(const GridNetwork& net, int key) {
+GridNmapBreachRequest GridNmapWidget::take_breach_request() {
+    GridNmapBreachRequest r = pending_breach_;
+    pending_breach_ = {};
+    return r;
+}
+
+bool GridNmapWidget::handle_key(const GridNetwork& net, int key) {
     if (!open_) return false;
 
-    auto nodes = visible_nodes(net, zoom_);
-
     if (key == 27) { close(); return true; }
+
+    // Tab cycles LAN ↔ Atlas. Plan 5 §10 wants this gated to "only in deep
+    // Grid", but the host doesn't currently surface that signal — the
+    // `in_deep_grid_` flag is wired through `open()` for future polish but
+    // unused as a gate today. For Cut 4 the cycle is always allowed; Atlas
+    // mode is informative regardless of where the player is standing.
+    if (key == '\t') {
+        mode_       = (mode_ == NmapMode::Lan) ? NmapMode::Atlas
+                                               : NmapMode::Lan;
+        cursor_idx_ = 0;
+        return true;
+    }
+
+    // Atlas mode: arrows + Esc only for now. Enter/breach UX in Atlas is
+    // out of scope for Cut 4 — Atlas is a read-only listing.
+    if (mode_ == NmapMode::Atlas) {
+        return true;
+    }
+
+    auto nodes = visible_nodes(net, mode_);
+
     if (key == ',') {
-        zoom_       = (zoom_ == NetmapZoom::Regional) ? NetmapZoom::DeepGrid
-                                                      : NetmapZoom::Regional;
+        // Legacy zoom toggle — kept as an alias for Tab while existing
+        // muscle memory transitions to Tab. Always allowed, like Tab.
+        mode_       = NmapMode::Atlas;
         cursor_idx_ = 0;
         return true;
     }
@@ -206,6 +237,18 @@ bool GridNetmapWidget::handle_key(const GridNetwork& net, int key) {
         cursor_idx_ = best;
     };
 
+    // Find the locked edge whose `to` is the cursor's selected node. The
+    // netmap renders inbound L-shapes pointing AT each subnet, so the edge
+    // most users associate with a locked node is the one terminating there.
+    auto locked_edge_under_cursor =
+        [&]() -> const GridEdge* {
+        const auto& sel = nodes[cursor_idx_];
+        for (const auto& e : net.edges()) {
+            if (e.to == sel.id && edge_locked(e)) return &e;
+        }
+        return nullptr;
+    };
+
     switch (key) {
         case KEY_LEFT:  step_cursor(-1, 0); return true;
         case KEY_RIGHT: step_cursor(+1, 0); return true;
@@ -214,37 +257,65 @@ bool GridNetmapWidget::handle_key(const GridNetwork& net, int key) {
         case '\n':
         case '\r': {
             const auto& sel = nodes[cursor_idx_];
-            if (sel.locked) return true;
+            const GridNode* n = net.find(sel.id);
+            if (!n) return true;
+
+            // Self-anchor bypass (Plan 5 Task 41): the player owns this
+            // DeepGridAnchor — the lock predicate doesn't apply, since
+            // the consciousness save is the source of truth and the
+            // deep-Grid base is always reachable for its owner.
+            bool self_owned = false;
+            if (n->kind == GridNodeKind::DeepGridAnchor &&
+                n->owned_by_consciousness_id != 0) {
+                ConsciousnessSave cs;
+                if (read_consciousness(cs) && cs.consciousness_id != 0 &&
+                    n->owned_by_consciousness_id == cs.consciousness_id) {
+                    self_owned = true;
+                }
+            }
+
+            if (!self_owned && sel.locked) return true;
+
             pending_jack_in_ = sel.id.value;
             close();
             return true;
         }
-        case 'b': {
-            // Breach UX deferred to Plan 5 — swallow the key.
+        case 'b':
+        case 'B': {
+            // Plan 5 Task 39: netmap-side breach. Charge breach.exe cost
+            // (handled by the host via take_breach_request()) and flip
+            // cracked=true on the matching edge — no sector entry.
+            if (const GridEdge* e = locked_edge_under_cursor()) {
+                pending_breach_.from_id = e->from.value;
+                pending_breach_.to_id   = e->to.value;
+            }
             return true;
         }
     }
     return true;
 }
 
-void GridNetmapWidget::render(UIContext& outer, const GridNetwork& net) const {
+void GridNmapWidget::render(UIContext& outer, const GridNetwork& net) const {
     if (!open_) return;
 
-    const char* title = (zoom_ == NetmapZoom::Regional)
-                        ? " NETMAP — REGIONAL "
-                        : " NETMAP — DEEP-GRID ";
+    if (mode_ == NmapMode::Atlas) {
+        render_atlas(outer);
+        return;
+    }
+    render_lan(outer, net);
+}
 
+void GridNmapWidget::render_lan(UIContext& outer, const GridNetwork& net) const {
     auto panel = outer.panel({
-        .title = title,
-        .footer = "[arrows] cursor  [enter] jack  [b] breach  [,] zoom  [esc] close",
+        .title = " NMAP — LAN ",
+        .footer = "[arrows] cursor  [enter] jack  [b] breach  [tab] atlas  [esc] close",
         .tag = UITag::Border});
 
-    auto nodes = visible_nodes(net, zoom_);
+    auto nodes = visible_nodes(net, NmapMode::Lan);
     if (nodes.empty()) {
-        const char* msg = (zoom_ == NetmapZoom::Regional)
-            ? "(no networks discovered — find a Precursor console)"
-            : "(no deep-Grid anchors — unlock ConsciousnessAnchor)";
-        panel.text({.x = 2, .y = 2, .content = msg, .tag = UITag::TextDim});
+        panel.text({.x = 2, .y = 2,
+                    .content = "(no networks discovered — find a Precursor console)",
+                    .tag = UITag::TextDim});
         return;
     }
 
@@ -310,6 +381,53 @@ void GridNetmapWidget::render(UIContext& outer, const GridNetwork& net) const {
                       v.locked ? "  [locked]" : "");
         panel.text({.x = 2, .y = panel.height() - 2, .content = buf,
                     .tag = v.locked ? UITag::TextDim : UITag::TextBright});
+    }
+}
+
+// Plan 5 Task 42: read-only Atlas listing. Shows every WarpAnchorRecord in
+// the consciousness save, grouped by galaxy. Past-galaxy entries (warpable
+// == false) render dimmed; the player has them as memorial-only after a
+// rebirth wipes their galaxy.
+void GridNmapWidget::render_atlas(UIContext& outer) const {
+    auto panel = outer.panel({
+        .title = " NMAP — ATLAS ",
+        .footer = "[tab] LAN view  [esc] close",
+        .tag = UITag::Border});
+
+    ConsciousnessSave cs;
+    bool have = read_consciousness(cs);
+
+    if (!have || cs.warp_anchors.empty()) {
+        panel.text({.x = 2, .y = 2,
+                    .content = "(no warp anchors discovered — crack a connected LAN's "
+                               "\xe2\x8a\x95)",
+                    .tag = UITag::TextDim});
+        return;
+    }
+
+    int y = 2;
+    uint16_t last_galaxy = 0;
+    bool     first       = true;
+    for (const auto& a : cs.warp_anchors) {
+        if (first || a.galaxy_id != last_galaxy) {
+            if (!first) ++y;   // blank line between galaxy groups
+            char hdr[96];
+            std::snprintf(hdr, sizeof hdr, "GALAXY: #%u%s",
+                          static_cast<unsigned>(a.galaxy_id),
+                          a.warpable ? "" : "  (past life)");
+            panel.text({.x = 2, .y = y++, .content = hdr,
+                        .tag = a.warpable ? UITag::TextAccent : UITag::TextDim});
+            last_galaxy = a.galaxy_id;
+            first       = false;
+        }
+        char line[160];
+        std::snprintf(line, sizeof line, "  [%s]   %d/%d cracked",
+                      a.lan_display_name.c_str(),
+                      a.nodes_cracked, a.nodes_total);
+        panel.text({.x = 2, .y = y++,
+                    .content = line,
+                    .tag = a.warpable ? UITag::TextDefault : UITag::TextDim});
+        if (y >= panel.height() - 2) break;   // overflow guard
     }
 }
 

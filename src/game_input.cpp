@@ -159,6 +159,28 @@ void Game::handle_play_input(int key) {
             hacking_.jack_in(*this, nid);
             return;
         }
+        if (auto br = pda_screen_.consume_breach_request(); br.valid()) {
+            // Plan 5 Task 39: netmap-side breach. Find the matching edge
+            // in the (mutable) world and flip cracked=true. No sector entry.
+            //
+            // TODO(Plan 6): charge breach.exe RAM/Heat from the equipped
+            // deck. The widget can't reach the deck and Plan 6's HUD
+            // redesign threads costing through HackingSystem; until then
+            // the netmap-side breach is free.
+            auto& net = world_.grid_network();
+            bool ok = false;
+            for (auto& e : net.edges_mut()) {
+                if (e.from.value == br.from_id && e.to.value == br.to_id) {
+                    if (e.gateway_tier > 0 && !e.cracked) {
+                        e.cracked = true;
+                        ok = true;
+                    }
+                    break;
+                }
+            }
+            log(ok ? "breach: gateway cracked from netmap."
+                   : "breach: gateway already open.");
+        }
         if (uint32_t sid_v = pda_screen_.consume_skill_side_effect_request(); sid_v != 0) {
             apply_skill_side_effects(*this, static_cast<SkillId>(sid_v));
         }

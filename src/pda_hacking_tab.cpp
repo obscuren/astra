@@ -1,8 +1,10 @@
 #include "astra/pda_screen.h"
 
+#include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/grid_network.h"
 #include "astra/hackable.h"
+#include "astra/ip.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/program.h"
@@ -186,9 +188,9 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
         ctx.text({.x = 2, .y = row, .content = prompt, .tag = UITag::TextDefault});
     }
 
-    // Netmap overlay sits on top of the terminal pane.
+    // Nmap overlay sits on top of the terminal pane.
     if (world_) {
-        netmap_widget_.render(ctx, world_->grid_network());
+        nmap_widget_.render(ctx, world_->grid_network());
     }
 }
 
@@ -209,13 +211,16 @@ void PdaScreen::handle_hacking_key(int key) {
     auto* deck_slot = player_->equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
 
-    // Netmap overlay swallows input while open. A confirmed jack-in is
+    // Nmap overlay swallows input while open. A confirmed jack-in is
     // funnelled into the existing terminal jack request slot so the game
     // input loop picks it up uniformly.
-    if (netmap_widget_.is_open() && world_) {
-        netmap_widget_.handle_key(world_->grid_network(), key);
-        if (uint32_t nid = netmap_widget_.take_jack_in_request(); nid != 0) {
+    if (nmap_widget_.is_open() && world_) {
+        nmap_widget_.handle_key(world_->grid_network(), key);
+        if (uint32_t nid = nmap_widget_.take_jack_in_request(); nid != 0) {
             jack_in_request_node_id_ = nid;
+        }
+        if (auto br = nmap_widget_.take_breach_request(); br.valid()) {
+            pending_breach_request_ = br;
         }
         return;
     }
@@ -304,7 +309,7 @@ void PdaScreen::handle_hacking_key(int key) {
         static const char* cmds[] = {
             "help", "man ", "deck info", "ps", "ls",
             "load ", "unload ", "cat ", "echo ", "uname",
-            "whoami", "ping ", "netmap", "jack -t",
+            "whoami", "ping ", "nmap ", "nmap -l", "nmap -m", "jack ",
             "lore", "clear", "history"
         };
         for (const char* c : cmds) {
@@ -323,7 +328,7 @@ void PdaScreen::handle_hacking_key(int key) {
             case '?': hack_term_run_command("help"); return;
             case 'P': hack_term_run_command("ps"); return;
             case 'I': hack_term_run_command("ls"); return;
-            case 'N': hack_term_run_command("netmap"); return;
+            case 'N': hack_term_run_command("nmap -m"); return;
             case 'L': hack_term_run_command("lore"); return;
         }
     }
@@ -358,7 +363,7 @@ void PdaScreen::hack_term_run_command(const std::string& line) {
     if (v == "uname")   return hack_term_cmd_uname(args);
     if (v == "whoami")  return hack_term_cmd_whoami();
     if (v == "ping")    return hack_term_cmd_ping(args);
-    if (v == "netmap")  return hack_term_cmd_netmap();
+    if (v == "nmap")    return hack_term_cmd_nmap(args);
     if (v == "jack")    return hack_term_cmd_jack(args);
     if (v == "lore")    return hack_term_cmd_lore();
     if (v == "clear")   return hack_term_cmd_clear();
@@ -380,9 +385,9 @@ void PdaScreen::hack_term_cmd_help() {
         "  echo <text>         — print text",
         "  uname [-a]          — system identity",
         "  whoami              — operator identity",
-        "  ping <node>         — probe a node (stub in Plan 2)",
-        "  netmap              — known networks (stub in Plan 2)",
-        "  jack -t <node>      — jack in (Grid coming in Plan 3)",
+        "  ping <ip>           — probe a node (free recon)",
+        "  nmap [-l|-m]        — list or map LAN nodes",
+        "  jack <ip>           — jack into a node",
         "  lore                — decrypted archives",
         "  clear / history",
     };
@@ -634,10 +639,10 @@ void PdaScreen::hack_term_cmd_man(const std::vector<std::string>& args) {
         {"echo",   {"NAME", "  echo — print arguments to the terminal.", "", "USAGE", "  echo <text...>", nullptr}},
         {"uname",  {"NAME", "  uname — print system identification.", "", "FLAGS", "  -a : full identity (deck + version + operator)", nullptr}},
         {"whoami", {"NAME", "  whoami — print the current operator handle.", nullptr, nullptr, nullptr, nullptr}},
-        {"ping",   {"NAME", "  ping — probe a node (stub).", "", "USAGE", "  ping <node>", nullptr}},
-        {"netmap", {"NAME", "  netmap — show known networks (stub in Plan 2).", nullptr, nullptr, nullptr, nullptr}},
-        {"jack",   {"NAME", "  jack — jack into a node (Grid mode).", "", "STATUS", "  Stub in Plan 2; the Grid arrives in Plan 3.", nullptr}},
-        {"lore",   {"NAME", "  lore — list decrypted lore archives.", nullptr, nullptr, nullptr, nullptr}},
+        {"ping",   {"NAME", "  ping — probe a node (free recon).", "", "USAGE", "  ping <ip>", nullptr}},
+        {"nmap",   {"NAME", "  nmap — list or map nodes on the current LAN.", "", "FLAGS", "  -l/--list : text list   -m/--map : visual widget", nullptr}},
+        {"jack",   {"NAME", "  jack — jack into a node.", "", "USAGE", "  jack <ip>", nullptr}},
+        {"lore",   {"NAME", "  lore — list decrypted lore archives.", "", "OUTPUT", "  archive ids + origin tick. Use 'cat <archive-id>' to read.", nullptr}},
         {"clear",  {"NAME", "  clear — wipe the scrollback and re-greet.", nullptr, nullptr, nullptr, nullptr}},
         {"history",{"NAME", "  history — replay this session's command history.", nullptr, nullptr, nullptr, nullptr}},
     };
@@ -655,10 +660,30 @@ void PdaScreen::hack_term_cmd_man(const std::vector<std::string>& args) {
 
 void PdaScreen::hack_term_cmd_cat(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        hack_term_emit("usage: cat <filename>", UITag::TextDim);
+        hack_term_emit("usage: cat <filename-or-archive-id>", UITag::TextDim);
         return;
     }
     const std::string& fname = args[1];
+
+    // Plan 5 Cut 4: try lore_archive first.
+    {
+        ConsciousnessSave cs;
+        read_consciousness(cs);
+        for (const auto& a : cs.lore_archive) {
+            if (a.archive_id == fname) {
+                hack_term_emit(">> archive: " + a.archive_id);
+                hack_term_emit(">> origin: galaxy " + std::to_string(a.galaxy_seed_origin) +
+                               ", tick " + std::to_string(a.world_tick_origin));
+                hack_term_emit("");
+                hack_term_emit("(lore body text — Plan 7)", UITag::TextDim);
+                hack_term_emit("");
+                hack_term_emit(">> end of archive.");
+                return;
+            }
+        }
+    }
+
+    // Existing logic (program inventory lookup).
     for (const auto& it : player_->inventory.items) {
         if (it.type != ItemType::Program || !it.program) continue;
         const ProgramDef* def = find_program(it.program->id);
@@ -684,7 +709,7 @@ void PdaScreen::hack_term_cmd_cat(const std::vector<std::string>& args) {
         hack_term_emit(std::string(def->description), UITag::TextDim);
         return;
     }
-    hack_term_emit("cat: " + fname + ": no such file in inventory.", UITag::TextDim);
+    hack_term_emit("cat: " + fname + ": no such file or archive.", UITag::TextDim);
 }
 
 void PdaScreen::hack_term_cmd_echo(const std::vector<std::string>& args) {
@@ -719,28 +744,122 @@ void PdaScreen::hack_term_cmd_whoami() {
 
 void PdaScreen::hack_term_cmd_ping(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        hack_term_emit("usage: ping <node>", UITag::TextDim);
+        hack_term_emit("usage: ping <ip>", UITag::TextDim);
         return;
     }
-    const std::string& node = args[1];
-    hack_term_emit("PING " + node + " (deep-grid.unknown): 64 bytes");
-    hack_term_emit("Request timed out.", UITag::TextDim);
-    hack_term_emit("Request timed out.", UITag::TextDim);
-    hack_term_emit("ping: gateway unreachable — netmap empty (Plan 3).", UITag::TextDim);
+    auto parsed = parse_ip(args[1]);
+    if (!parsed) {
+        hack_term_emit("ping: invalid IP '" + args[1] + "'", UITag::TextDim);
+        return;
+    }
+    if (!world_) {
+        hack_term_emit("ping: world unavailable.", UITag::TextDim);
+        return;
+    }
+    auto* h = world_->find_hackable_by_ip(*parsed);
+    if (!h) {
+        hack_term_emit("ping: " + format_ip(*parsed) + ": host unreachable", UITag::TextDim);
+        return;
+    }
+
+    char line1[160], line2[160], line3[160];
+    std::snprintf(line1, sizeof line1, "PING %s (%s):",
+                  format_ip(*parsed).c_str(), tag_summary(h->tags));
+    int latency = 1 + (static_cast<int>(*parsed) & 7);   // deterministic, cosmetic
+    std::snprintf(line2, sizeof line2, "  64 bytes from %s: time=%dms",
+                  format_ip(*parsed).c_str(), latency);
+    std::snprintf(line3, sizeof line3, "  tier:    %d (%s)",
+                  h->security_tier,
+                  h->state == HackState::Compromised ? "compromised"
+                  : h->state == HackState::Alarmed   ? "alarmed"
+                                                    : "clean");
+    hack_term_emit(line1);
+    hack_term_emit(line2);
+    hack_term_emit(line3);
+
+    // Tags line — use tag_set_describe for a readable summary.
+    std::string tags_line = "  tags:    ";
+    tags_line += tag_set_describe(h->tags);
+    hack_term_emit(tags_line);
 }
 
-void PdaScreen::hack_term_cmd_netmap() {
-    if (!world_) {
-        hack_term_emit("netmap: world unavailable.", UITag::TextDim);
+void PdaScreen::hack_term_cmd_nmap(const std::vector<std::string>& args) {
+    if (args.size() < 2 || args[1] == "-h" || args[1] == "--help") {
+        hack_term_emit("usage: nmap [-l|--list] [-m|--map] [-h|--help]", UITag::TextDim);
+        hack_term_emit("  -l   list nodes on the current LAN", UITag::TextDim);
+        hack_term_emit("  -m   open the visual map widget", UITag::TextDim);
         return;
     }
-    netmap_widget_.open();
+    if (args[1] == "-l" || args[1] == "--list") return hack_term_cmd_nmap_list();
+    if (args[1] == "-m" || args[1] == "--map")  return hack_term_cmd_nmap_map();
+    hack_term_emit("nmap: unknown flag '" + args[1] + "'; try -l, -m, or -h.", UITag::TextDim);
+}
+
+void PdaScreen::hack_term_cmd_nmap_list() {
+    if (!world_) {
+        hack_term_emit("nmap: world unavailable.", UITag::TextDim);
+        return;
+    }
+    const auto& meta = world_->lan_metadata();
+    if (meta.nodes_total <= 0 || !meta.lan_root.valid()) {
+        hack_term_emit("nmap: no LAN on this map.", UITag::TextDim);
+        return;
+    }
+
+    char header[160];
+    std::snprintf(header, sizeof header,
+                  "LAN: %s   (%s/24)   %d nodes, %d cracked",
+                  meta.display_name.c_str(),
+                  format_ip(meta.subnet_base).c_str(),
+                  meta.nodes_total, meta.nodes_cracked);
+    hack_term_emit(header);
+    hack_term_emit("");
+    hack_term_emit("  IP            HOST                       STATUS    TAGS");
+
+    const auto& net = world_->grid_network();
+    for (const auto& e : net.edges()) {
+        if (e.from != meta.lan_root) continue;
+        const GridNode* n = net.find(e.to);
+        if (!n || n->kind != GridNodeKind::Subnet) continue;
+
+        // Status: "open" if edge is tier-0; "cracked" if breached;
+        // otherwise "locked.<tier>" so the player sees the gateway depth.
+        std::string status;
+        if (e.gateway_tier == 0)        status = "open";
+        else if (e.cracked)             status = "cracked";
+        else                            status = "locked." + std::to_string(e.gateway_tier);
+
+        // Subnet labels are stamped to the device IP at registration time.
+        // Cut 4 batch 1 prints IP twice for the HOST column — Cut 4.5 will
+        // surface a friendlier device label via source_fixture_type.
+        char line[256];
+        std::snprintf(line, sizeof line, "  %-13s %-26s %-9s tier %d",
+                      n->label.c_str(), n->label.c_str(),
+                      status.c_str(), n->security_tier);
+        hack_term_emit(line);
+    }
+
+    if (meta.has_deep_grid_edge) {
+        hack_term_emit("  10.x.y.254     [\xe2\x8a\x95 deep-grid]              locked.2  DeepGridGateway");
+    }
+}
+
+void PdaScreen::hack_term_cmd_nmap_map() {
+    if (!world_) {
+        hack_term_emit("nmap: world unavailable.", UITag::TextDim);
+        return;
+    }
+    nmap_widget_.open();
 }
 
 void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {
-    // args[0] is "jack". Expect: jack -t <node-label>
-    if (args.size() < 3 || args[1] != "-t") {
-        hack_term_emit("usage: jack -t <node-label>", UITag::TextDim);
+    if (args.size() < 2) {
+        hack_term_emit("usage: jack <ip>", UITag::TextDim);
+        return;
+    }
+    auto parsed = parse_ip(args[1]);
+    if (!parsed) {
+        hack_term_emit("jack: invalid IP '" + args[1] + "'", UITag::TextDim);
         return;
     }
     if (!world_ || !player_) {
@@ -751,23 +870,38 @@ void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {
         hack_term_emit("jack: requires Cat_Hacking skill.", UITag::TextDim);
         return;
     }
-    const std::string& label = args[2];
-    const auto& net = world_->grid_network();
-    const GridNode* match = nullptr;
-    for (const auto& n : net.nodes()) {
-        if (n.label == label) { match = &n; break; }
-    }
-    if (!match) {
-        hack_term_emit("Unknown node: " + label, UITag::TextDim);
+    auto* h = world_->find_hackable_by_ip(*parsed);
+    if (!h) {
+        hack_term_emit("jack: " + format_ip(*parsed) + ": host unreachable", UITag::TextDim);
         return;
     }
-    // Game polls jack_in_request_node_id_ after handle_input and performs
-    // the actual jack-in (which closes this screen).
-    jack_in_request_node_id_ = match->id.value;
+    if (h->jack_in_node_id <= 0) {
+        hack_term_emit("jack: target has no node id (not yet registered)", UITag::TextDim);
+        return;
+    }
+    jack_in_request_node_id_ = static_cast<uint32_t>(h->jack_in_node_id);
     hack_term_emit(">> uploading consciousness... <<");
 }
 void PdaScreen::hack_term_cmd_lore() {
-    hack_term_emit("no decrypted archives (Plan 3+).", UITag::TextDim);
+    ConsciousnessSave cs;
+    read_consciousness(cs);
+
+    if (cs.lore_archive.empty()) {
+        hack_term_emit("no decrypted archives.", UITag::TextDim);
+        hack_term_emit("hint: sync soul at a Precursor console to commit lore fragments.", UITag::TextDim);
+        return;
+    }
+
+    hack_term_emit("decrypted archives:");
+    for (const auto& a : cs.lore_archive) {
+        char line[160];
+        std::snprintf(line, sizeof line, "  %-24s  (origin: tick %d)",
+                      a.archive_id.c_str(),
+                      static_cast<int>(a.world_tick_origin));
+        hack_term_emit(line);
+    }
+    hack_term_emit("");
+    hack_term_emit("use:  cat <archive-id>", UITag::TextDim);
 }
 void PdaScreen::hack_term_cmd_clear() {
     hack_term_lines_.clear();

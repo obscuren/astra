@@ -1,0 +1,100 @@
+[  0%] Building CXX object CMakeFiles/astra-dev.dir/src/main.cpp.o
+[  0%] Building CXX object CMakeFiles/astra-dev.dir/src/game.cpp.o
+[  1%] Building CXX object CMakeFiles/astra-dev.dir/src/dungeon/puzzles.cpp.o
+[  2%] Building CXX object CMakeFiles/astra-dev.dir/src/program_effects.cpp.o
+[  3%] Building CXX object CMakeFiles/astra-dev.dir/src/save_file.cpp.o
+[  4%] Building CXX object CMakeFiles/astra-dev.dir/src/star_chart_viewer.cpp.o
+[  4%] Building CXX object CMakeFiles/astra-dev.dir/src/map_editor.cpp.o
+[  4%] Building CXX object CMakeFiles/astra-dev.dir/src/lan.cpp.o
+[  5%] Building CXX object CMakeFiles/astra-dev.dir/src/trap.cpp.o
+[  5%] Building CXX object CMakeFiles/astra-dev.dir/src/grenade.cpp.o
+[  5%] Building CXX object CMakeFiles/astra-dev.dir/src/ground_effect.cpp.o
+[  6%] Building CXX object CMakeFiles/astra-dev.dir/src/noise_event.cpp.o
+[  6%] Building CXX object CMakeFiles/astra-dev.dir/src/pda_screen.cpp.o
+[  6%] Building CXX object CMakeFiles/astra-dev.dir/src/pda_journal_tab.cpp.o
+[  6%] Building CXX object CMakeFiles/astra-dev.dir/src/pda_hacking_tab.cpp.o
+[  6%] Building CXX object CMakeFiles/astra-dev.dir/src/consciousness_save.cpp.o
+[  7%] Building CXX object CMakeFiles/astra-dev.dir/src/energy_system.cpp.o
+[  7%] Building CXX object CMakeFiles/astra-dev.dir/src/aura_system.cpp.o
+[  7%] Building CXX object CMakeFiles/astra-dev.dir/src/scenario_effects.cpp.o
+[  8%] Building CXX object CMakeFiles/astra-dev.dir/src/scenarios/stage4_hostility.cpp.o
+[  8%] Building CXX object CMakeFiles/astra-dev.dir/src/sector_runtime_state.cpp.o
+[  9%] Building CXX object CMakeFiles/astra-dev.dir/src/soul_mirror.cpp.o
+[  9%] Building CXX object CMakeFiles/astra-dev.dir/src/hacking_system.cpp.o
+[ 10%] Building CXX object CMakeFiles/astra-dev.dir/src/grid_input.cpp.o
+[ 11%] Building CXX object CMakeFiles/astra-dev.dir/src/grid_renderer.cpp.o
+/Users/jeffrey/dev/crawler/src/grid_renderer.cpp:23:13: warning: enumeration values 'Connector', 'DeepGridGateway', and 'WarpAnchor' not handled in switch [-Wswitch]
+   23 |     switch (t) {
+      |             ^
+/Users/jeffrey/dev/crawler/src/grid_renderer.cpp:23:13: note: add missing switch cases
+   23 |     switch (t) {
+      |             ^
+   24 |         case GridTile::Floor:         return floor_glyph;
+   25 |         case GridTile::Firewall:      return firewall_glyph;
+   26 |         case GridTile::DataNode:      return data_node_glyph;
+   27 |         case GridTile::Gateway:       return gateway_glyph;
+   28 |         case GridTile::ExitNode:      return exit_glyph;
+   29 |         case GridTile::EncryptedFile: return encrypted_glyph;
+   30 |         case GridTile::Wall:          return " ";
+   31 |     }
+/Users/jeffrey/dev/crawler/src/grid_renderer.cpp:37:13: warning: enumeration values 'Connector', 'DeepGridGateway', and 'WarpAnchor' not handled in switch [-Wswitch]
+   37 |     switch (t) {
+      |             ^
+/Users/jeffrey/dev/crawler/src/grid_renderer.cpp:37:13: note: add missing switch cases
+   37 |     switch (t) {
+      |             ^
+   38 |         case GridTile::Floor:         return floor;
+   39 |         case GridTile::Firewall:      return firewall;
+   40 |         case GridTile::DataNode:      return data_node;
+   41 |         case GridTile::Gateway:       return gateway;
+   42 |         case GridTile::ExitNode:      return exit_node;
+   43 |         case GridTile::EncryptedFile: return encrypted;
+   44 |         case GridTile::Wall:          return Color::Black;
+   45 |     }
+2 warnings generated.
+[ 11%] Building CXX object CMakeFiles/astra-dev.dir/src/grid_sector.cpp.o
+[ 12%] Building CXX object CMakeFiles/astra-dev.dir/src/grid_anchor_layout.cpp.o
+[ 13%] Building CXX object CMakeFiles/astra-dev.dir/src/grid_ice.cpp.o
+[ 14%] Building CXX object CMakeFiles/astra-dev.dir/src/rebirth_sequence.cpp.o
+[ 14%] Building CXX object CMakeFiles/astra-dev.dir/src/grid_session.cpp.o
+[ 14%] Building CXX object CMakeFiles/astra-dev.dir/src/dialog_manager.cpp.o
+[ 15%] Building CXX object CMakeFiles/astra-dev.dir/src/ability.cpp.o
+[ 15%] Building CXX object CMakeFiles/astra-dev.dir/src/ability_bar.cpp.o
+[ 16%] Building CXX object CMakeFiles/astra-dev.dir/src/skill_grant.cpp.o
+[ 16%] Building CXX object CMakeFiles/astra-dev.dir/src/telegraph.cpp.o
+[ 17%] Building CXX object CMakeFiles/astra-dev.dir/src/quest.cpp.o
+[ 17%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/missing_hauler.cpp.o
+[ 18%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/getting_airborne.cpp.o
+[ 18%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/hauler_b.cpp.o
+[ 19%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/hauler_c.cpp.o
+[ 19%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/hauler_d.cpp.o
+[ 20%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/stellar_signal_beacon.cpp.o
+[ 20%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/stellar_signal_conclave_probe.cpp.o
+[ 21%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/stellar_signal_echoes.cpp.o
+[ 21%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/stellar_signal_hook.cpp.o
+[ 21%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/stellar_signal_return.cpp.o
+[ 22%] Building CXX object CMakeFiles/astra-dev.dir/src/quests/stellar_signal_siege.cpp.o
+[ 22%] Building CXX object CMakeFiles/astra-dev.dir/src/game_combat.cpp.o
+[ 23%] Building CXX object CMakeFiles/astra-dev.dir/src/game_input.cpp.o
+[ 23%] Building CXX object CMakeFiles/astra-dev.dir/src/game_interaction.cpp.o
+[ 24%] Building CXX object CMakeFiles/astra-dev.dir/src/game_world.cpp.o
+[ 24%] Building CXX object CMakeFiles/astra-dev.dir/src/game_rendering.cpp.o
+/Users/jeffrey/dev/crawler/src/game_rendering.cpp:93:13: warning: enumeration value 'StairsDown' not handled in switch [-Wswitch]
+   93 |     switch (type) {
+      |             ^~~~
+/Users/jeffrey/dev/crawler/src/game_rendering.cpp:93:13: note: add missing switch cases
+   93 |     switch (type) {
+      |             ^
+/Users/jeffrey/dev/crawler/src/game_rendering.cpp:170:13: warning: enumeration value 'StairsDown' not handled in switch [-Wswitch]
+  170 |     switch (type) {
+      |             ^~~~
+/Users/jeffrey/dev/crawler/src/game_rendering.cpp:170:13: note: add missing switch cases
+  170 |     switch (type) {
+      |             ^
+2 warnings generated.
+[ 25%] Building CXX object CMakeFiles/astra-dev.dir/src/map_renderer.cpp.o
+[ 26%] Building CXX object CMakeFiles/astra-dev.dir/src/save_system.cpp.o
+[ 26%] Building CXX object CMakeFiles/astra-dev.dir/src/dev_console.cpp.o
+[ 27%] Building CXX object CMakeFiles/astra-dev.dir/src/world_manager.cpp.o
+[ 28%] Linking CXX executable astra-dev
+[100%] Built target astra-dev
