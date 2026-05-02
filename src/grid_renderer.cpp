@@ -413,19 +413,169 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
 // Right log pane
 // ---------------------------------------------------------------------------
 
+// Width (in visual cells) of the leading log-line prefix, used as the indent
+// for wrapped continuation lines. Recognises the conventions in §4 of the
+// spec: "> ", ">> ", and "[TAG] " (e.g. "[ERR] ", "[BLOCK] ").
+int detect_log_prefix_width(const std::string& line) {
+    if (line.empty()) return 0;
+    if (line[0] == '[') {
+        size_t close = line.find(']');
+        if (close != std::string::npos &&
+            close + 1 < line.size() &&
+            line[close + 1] == ' ') {
+            return static_cast<int>(close + 2);  // e.g. "[ERR] " → 6
+        }
+        return 0;
+    }
+    if (line[0] == '>') {
+        size_t i = 0;
+        while (i < line.size() && line[i] == '>') ++i;
+        if (i < line.size() && line[i] == ' ') return static_cast<int>(i + 1);
+        return 0;
+    }
+    return 0;
+}
+
+// Word-wrap one log line to `width` visible cells. Continuation lines are
+// indented by `detect_log_prefix_width(line)` so wrapped output reads as one
+// message. Words longer than `width` are hard-broken at the column edge.
+std::vector<std::string> wrap_log_line(const std::string& line, int width) {
+    std::vector<std::string> out;
+    if (width < 4) width = 4;
+    int indent = detect_log_prefix_width(line);
+    if (indent >= width - 4) indent = 0;  // fall back if prefix dominates
+
+    std::string indent_str(static_cast<size_t>(indent), ' ');
+    std::string current;
+    int current_w = 0;
+    bool first = true;
+
+    auto flush = [&]() {
+        if (!current.empty() || first) {
+            out.push_back(current);
+            current.clear();
+            current_w = 0;
+            first = false;
+        }
+    };
+
+    auto emit_indent = [&]() {
+        if (out.empty()) return;
+        current = indent_str;
+        current_w = indent;
+    };
+
+    // Tokenise on spaces; treat each contiguous non-space run as a word.
+    size_t i = 0;
+    while (i < line.size()) {
+        // Skip a single leading space so word boundaries align.
+        size_t word_start = i;
+        while (i < line.size() && line[i] != ' ') ++i;
+        std::string word = line.substr(word_start, i - word_start);
+        // Consume the following space if any.
+        bool had_space = (i < line.size() && line[i] == ' ');
+        if (had_space) ++i;
+
+        int word_w = visual_width(word);
+        int target_max = first ? width : width;
+        // First word on a fresh line just gets emitted (with continuation
+        // indent if this is a wrap).
+        if (current_w == 0) {
+            emit_indent();
+            if (word_w > target_max - current_w) {
+                // Hard-break long word at column edge.
+                size_t pos = 0;
+                while (pos < word.size()) {
+                    size_t take = 0;
+                    int taken_w = 0;
+                    while (pos + take < word.size() && taken_w < target_max - current_w) {
+                        unsigned char b = static_cast<unsigned char>(word[pos + take]);
+                        int len = 1;
+                        if      ((b & 0xE0) == 0xC0) len = 2;
+                        else if ((b & 0xF0) == 0xE0) len = 3;
+                        else if ((b & 0xF8) == 0xF0) len = 4;
+                        if (pos + take + len > word.size()) break;
+                        take += len;
+                        ++taken_w;
+                    }
+                    current += word.substr(pos, take);
+                    current_w += taken_w;
+                    pos += take;
+                    if (pos < word.size()) {
+                        flush();
+                        emit_indent();
+                    }
+                }
+            } else {
+                current += word;
+                current_w += word_w;
+            }
+        } else if (current_w + 1 + word_w <= target_max) {
+            current += ' ';
+            current += word;
+            current_w += 1 + word_w;
+        } else {
+            // Word doesn't fit on the current line; flush and retry on a
+            // fresh wrapped line.
+            flush();
+            emit_indent();
+            if (word_w > target_max - current_w) {
+                // Long word — hard-break.
+                size_t pos = 0;
+                while (pos < word.size()) {
+                    size_t take = 0;
+                    int taken_w = 0;
+                    while (pos + take < word.size() && taken_w < target_max - current_w) {
+                        unsigned char b = static_cast<unsigned char>(word[pos + take]);
+                        int len = 1;
+                        if      ((b & 0xE0) == 0xC0) len = 2;
+                        else if ((b & 0xF0) == 0xE0) len = 3;
+                        else if ((b & 0xF8) == 0xF0) len = 4;
+                        if (pos + take + len > word.size()) break;
+                        take += len;
+                        ++taken_w;
+                    }
+                    current += word.substr(pos, take);
+                    current_w += taken_w;
+                    pos += take;
+                    if (pos < word.size()) {
+                        flush();
+                        emit_indent();
+                    }
+                }
+            } else {
+                current += word;
+                current_w += word_w;
+            }
+        }
+        (void)had_space;
+    }
+    if (!current.empty()) out.push_back(current);
+    if (out.empty()) out.push_back(line);
+    return out;
+}
+
 void draw_log_pane(Renderer& r, const LogPaneRect& lr, const GridSession& s) {
     draw_colored_string(r, lr.x + 1, lr.y, "[F1] Messages", Color::Cyan);
 
     int rows = lr.h - 1;
     if (rows < 1) return;
-    int total = static_cast<int>(s.log_lines.size());
+    int max_w = lr.w - 2;
+    if (max_w < 4) return;
+
+    // Build the full wrapped buffer (oldest → newest), then take the
+    // last `rows` entries. Older messages get dropped when they scroll off.
+    std::vector<std::string> wrapped;
+    wrapped.reserve(s.log_lines.size() * 2);
+    for (const auto& line : s.log_lines) {
+        auto pieces = wrap_log_line(line, max_w);
+        for (auto& p : pieces) wrapped.push_back(std::move(p));
+    }
+
+    int total = static_cast<int>(wrapped.size());
     int start = std::max(0, total - rows);
     for (int i = 0; i < rows && start + i < total; ++i) {
-        const std::string& line = s.log_lines[start + i];
-        int max_w = lr.w - 2;
-        std::string trimmed = (static_cast<int>(line.size()) > max_w)
-                              ? line.substr(0, static_cast<size_t>(max_w)) : line;
-        draw_colored_string(r, lr.x + 1, lr.y + 1 + i, trimmed, Color::Cyan);
+        draw_colored_string(r, lr.x + 1, lr.y + 1 + i, wrapped[start + i], Color::Cyan);
     }
 }
 
