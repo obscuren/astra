@@ -1,7 +1,19 @@
 #pragma once
 #include "astra/renderer.h"
 
+#include <cstdint>
+
+namespace astra {
+// FixtureType is defined in tilemap.h; forward-declare to avoid the heavy include.
+enum class FixtureType : uint8_t;
+}
+
 namespace astra::grid_theme {
+
+// Plan 5 Cut 2.6: pick the wall-mounted device-avatar glyph (UTF-8) for the
+// FixtureType that a subnet sector mirrors. Used by the subnet renderer when
+// drawing the GridTile::DeviceAvatar tile. All avatars render in BrightWhite.
+const char* device_avatar_glyph(astra::FixtureType type);
 
 // Color palette — Tron-style Cyan/Magenta family.
 // Substitutions where the plan-named Color entry is absent in the enum,

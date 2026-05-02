@@ -1,5 +1,7 @@
 #include "astra/grid_sector.h"
 
+#include "astra/tilemap.h"   // FixtureType — Cut 2.6 device avatar source
+
 #include <random>
 
 namespace astra {
@@ -31,6 +33,10 @@ bool GridSector::passable(int x, int y) const {
 }
 
 GridSector gen_subnet_sector(uint32_t seed, int security_tier) {
+    return gen_subnet_sector(seed, security_tier, FixtureType::Console);
+}
+
+GridSector gen_subnet_sector(uint32_t seed, int security_tier, FixtureType source_type) {
     std::mt19937 rng(seed);
     GridSector s;
     s.w = 8;
@@ -48,6 +54,23 @@ GridSector gen_subnet_sector(uint32_t seed, int security_tier) {
         std::uniform_int_distribution<int> fx_dist(2, s.w - 3);
         std::uniform_int_distribution<int> fy_dist(2, s.h - 3);
         s.set(fx_dist(rng), fy_dist(rng), GridTile::Firewall);
+    }
+
+    // Plan 5 Cut 2.6: stamp a wall-mounted device-avatar on the north wall
+    // mid-x. The renderer picks the glyph from source_fixture_type.
+    s.source_fixture_type = source_type;
+    int ax = s.w / 2;
+    int ay = 0;
+    if (s.in_bounds(ax, ay) && s.at(ax, ay) == GridTile::Wall) {
+        s.set(ax, ay, GridTile::DeviceAvatar);
+    } else {
+        // Fallback: scan the top row for the first Wall tile.
+        for (int x = 0; x < s.w; ++x) {
+            if (s.at(x, 0) == GridTile::Wall) {
+                s.set(x, 0, GridTile::DeviceAvatar);
+                break;
+            }
+        }
     }
     return s;
 }

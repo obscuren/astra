@@ -347,6 +347,45 @@ Scope: **global** — all hacking sectors use the new wall renderer, including t
 
 **None.** The palette is uniform across all LAN flavours. Per-flavour differentiation comes from structural parameters (office density, ring count) and ICE composition. No "rotted" / "alien" / "corporate" palette swap.
 
+### Per-subnet device avatars
+
+When the player jacks into a per-Hackable Subnet sector, the sector contains a single wall-mounted glyph that represents the real-world fixture this subnet mirrors. Purely visual in Cut 2; future cuts may attach interactions (e.g. examining the avatar surfaces device metadata, or jacking out to the world drops you back at the corresponding fixture instead of the world spawn).
+
+**Data model.**
+- `Hackable::source_type : FixtureType` — set by `make_hackable(FixtureType, int)` and persisted with the Hackable.
+- `GridNode::source_fixture_type : FixtureType` — set on the per-Subnet GridNode by `register_hackables_in_lan` (mirrors the Hackable's `source_type` so the dispatcher can read it without crossing back to the world's fixture vector).
+- `GridSector::source_fixture_type : FixtureType` — stamped on the sector at generation time (`gen_subnet_sector(seed, tier, FixtureType source_type)`) so the renderer can pick the correct glyph without re-querying the GridNetwork.
+- `GridTile::DeviceAvatar` — a new tile type stamped at the north wall (mid-x) of every subnet sector. The renderer reads `source_fixture_type` and emits the per-FixtureType glyph.
+
+**Glyph table.** All glyphs render in **`BrightWhite`** (matches the `exit_node` / structural-accent slot — fits the existing palette without introducing a new color). Differentiation is by glyph alone.
+
+| FixtureType | Avatar glyph | Notes |
+|---|---|---|
+| `Console`, `DataTerminal` | `▤` | terminal screen |
+| `CommandTerminal` (ARIA) | `▦` | premium / flagship terminal |
+| `ShipTerminal` | `≫` | outbound arrow (board-your-ship) |
+| `StarChart` (+L+R) | `※` | constellation |
+| `Door`, `Gate` | `║` | door bar |
+| `Conduit` | `≈` | power flow |
+| `Lamp`, `HoloLight`, `Torch` | `※` | lamp burst (same as StarChart — both "radiant") |
+| `Locker`, `SupplyLocker` | `▣` | locker slot |
+| `HealPod` | `⊞` | medical cross |
+| `FoodTerminal` | `╥` | vending slot |
+| `WeaponDisplay` | `╳` | weapon X |
+| `RepairBench` | `Π` | workbench |
+| `RestPod` | `○` | sleep capsule |
+| Precursor `Console` (`AlienTech`) | `Ψ` | Greek psi — alien terminal *(Plan 5 Cut 2.5+ stamps `AlienTech` on map-gen Precursor consoles; until then PrecursorConsoles render as plain `▤`)* |
+| NPC implant | `◊` | floating diamond |
+| (future) `Camera` | `◉` | optic — reserved when Camera is added as a real FixtureType |
+| (future) `Turret` | `◈` | weaponised optic — reserved |
+| **Default fallback** | `▢` | generic device |
+
+**Placement rule.** `gen_subnet_sector` stamps exactly one `DeviceAvatar` tile per sector at the **north wall, mid-x**. If that wall cell isn't `Wall` (some procedural variants don't have a perimeter), it scans the top row for the first `Wall` tile and stamps there. If no wall is found at all (rare), the avatar is skipped silently.
+
+**No interaction in Cut 2/2.6.** The tile is impassable (it's a wall). Stepping onto adjacent floor doesn't trigger anything. **Future cuts will wire interactions** — likely candidates: examining the avatar surfaces device metadata (IP, tags, security tier, last cracked timestamp); using a `decrypt`-style program on it could yield extra info; jacking out from the subnet via the avatar (instead of the gateway-back) could deposit the player back at the source fixture's world coords.
+
+**Save schema.** Adding `Hackable::source_type` and `GridNode::source_fixture_type` (one `u8` each) bumped `SAVE_FILE_VERSION` from v60 → v61.
+
 ---
 
 ## 7. Deep-Grid sector
@@ -883,6 +922,17 @@ The following items emerged during Cut 1 playtesting and are absorbed into Cut 2
 - `HackingSystem::jack_in` sector dispatch honours `consciousness.dat.deep_grid_base` for self-owned anchors.
 - `RebirthSequence::apply` → `Game::start_new_galaxy(fresh_seed)`.
 - Past-galaxy Atlas entries flagged `warpable = false`.
+
+#### Cut 2 carry-over deltas (added during Cut 2 playtest)
+
+The following emerged during Cut 2 playtesting and remain open for Cut 3 (or absorbed where indicated):
+
+- **Cut 1 carry-overs from §17.Cut 2 still open.** Multi-map LanMetadata (single-LAN scope persists), ship-merges-into-docked-LAN (still using map-type heuristic for hostile-QH suppression), PrecursorConsole AlienTech variant on map-gen, `:spawn fixture PrecursorConsole` shorthand, NPC-death proper removal — all still pending. Cut 3 should at minimum address: (a) PrecursorConsole AlienTech stamp in ruin/crashed-ship generators (so Soul Mirror / lore-archive paths recognise in-world Precursor consoles, which Cut 3's `lore_archive` viewer needs); (b) `:spawn fixture PrecursorConsole` dev shorthand stamping AlienTech + lore fragments (so Cut 3 development can iterate on Anchor Region's lore-DataNode without manually constructing fixtures).
+- **Device avatars on JackInPort fixtures.** Cut 2.6 stamps a wall-mounted `DeviceAvatar` glyph on every Subnet sector. The Anchor Region of the deep-Grid (Cut 3) is the player's "home" — consider stamping the player's Cyberdeck or `ConsciousnessAnchor`-themed avatar on the Anchor's wall as the Your.Anchor v1 visual cue.
+- **Deep-Grid sector schema field.** Cut 1 Task 15 reserved `consciousness.dat.deep_grid_base_v2` (note the implementer's `_v2` suffix to avoid collision with Plan 4's existing field). Cut 3 must populate this with the new 60×40 hand-authored geometry. Plan 4's existing 30×20 `deep_grid_base` lives next to it; choose: (a) ignore the v1 field at load time (already wiped by v1 reject), or (b) repurpose its slot. Recommendation: rename the new field to plain `deep_grid_base` after dropping the v1 field at the schema level. Confirm with the user before changing the field name to avoid breaking Cut 1's serializer.
+- **Region-label fallback "Unknown LAN".** `register_hackables_in_lan` falls back to the literal string `"Unknown LAN"` when `world.map().location_name().empty()`. The deep-Grid sector inherits this if the consciousness anchor map name isn't set. Cut 3 should give the deep-Grid a stable display name like `"Your Deep-Grid Anchor"`.
+- **`world_.grid_network().clear()` ordering.** `Game::new_game()` clears the GridNetwork **at the top** of the function (Cut 1 fix). `Cut 3's `Game::start_new_galaxy(fresh_seed)` must follow the same pattern: clear the GridNetwork BEFORE running map-load + on_map_loaded, otherwise Cut 1's fresh-game LAN wipe regresses.
+- **`make_consciousness_anchor_sector()` is the existing fallback.** Plan 4's anchor sector (30×20) is the placeholder when no saved deep-Grid base exists. Cut 3's hand-authored 60×40 sector replaces this for owned anchors. Keep `make_consciousness_anchor_sector` as the unowned fallback (other consciousnesses' anchors? non-Cat_Hacking players?) per spec §11 stitching gap "jack_in ignores saved base".
 
 **Validation:** crack Heavens Above's `⊕`, see new Atlas entry, jack out and back in via Atlas, rebirth and see past-life entry dimmed.
 

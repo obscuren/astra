@@ -91,6 +91,7 @@ Hackable make_hackable(FixtureType type, int tier) {
     Hackable h;
     h.tags = tags_for_fixture(type);
     h.security_tier = tier;
+    h.source_type = type;
     return h;
 }
 

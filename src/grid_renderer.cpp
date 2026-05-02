@@ -10,9 +10,50 @@
 #include "astra/item.h"
 #include "astra/player.h"
 #include "astra/renderer.h"
+#include "astra/tilemap.h"
 
 #include <cstdio>
 #include <string>
+
+namespace astra::grid_theme {
+
+// Plan 5 Cut 2.6: per-FixtureType wall-mounted device avatar glyph. All
+// avatars render in BrightWhite via the renderer's DeviceAvatar branch.
+const char* device_avatar_glyph(FixtureType type) {
+    switch (type) {
+        // Optics / consoles / data
+        case FixtureType::Console:
+        case FixtureType::CommandTerminal:    return "\xe2\x96\xa6";   // ▦ data block (ARIA flagship)
+        case FixtureType::DataTerminal:       return "\xe2\x96\xa4";   // ▤ terminal screen
+        case FixtureType::ShipTerminal:       return "\xe2\x89\xab";   // ≫ outbound arrow
+        case FixtureType::StarChart:
+        case FixtureType::StarChartL:
+        case FixtureType::StarChartR:         return "\xe2\x80\xbb";   // ※ constellation
+
+        // Doors / locks
+        case FixtureType::Door:
+        case FixtureType::Gate:               return "\xe2\x95\x91";   // ║ door bar
+
+        // Power / lighting
+        case FixtureType::Conduit:            return "\xe2\x89\x88";   // ≈ power flow
+        case FixtureType::Lamp:
+        case FixtureType::HoloLight:
+        case FixtureType::Torch:              return "\xe2\x80\xbb";   // ※ lamp burst
+
+        // Storage / commerce / health
+        case FixtureType::Locker:
+        case FixtureType::SupplyLocker:       return "\xe2\x96\xa3";   // ▣ locker slot
+        case FixtureType::HealPod:            return "\xe2\x8a\x9e";   // ⊞ medical cross
+        case FixtureType::FoodTerminal:       return "\xe2\x95\xa5";   // ╥ vending slot
+        case FixtureType::WeaponDisplay:      return "\xe2\x95\xb3";   // ╳ weapon X
+        case FixtureType::RepairBench:        return "\xce\xa0";       // Π workbench
+        case FixtureType::RestPod:            return "\xe2\x97\x8b";   // ○ sleep capsule
+
+        default:                              return "\xe2\x96\xa2";   // ▢ generic device
+    }
+}
+
+} // namespace astra::grid_theme
 
 namespace astra::grid_renderer {
 
@@ -54,6 +95,7 @@ const char* glyph_for(GridTile t) {
         case GridTile::Connector:       return connector_glyph;        // overridden by neighbour-aware path
         case GridTile::DeepGridGateway: return deep_grid_gateway_glyph;
         case GridTile::WarpAnchor:      return warp_anchor_glyph;
+        case GridTile::DeviceAvatar:    return " ";   // overridden in render() via device_avatar_glyph
     }
     return " ";
 }
@@ -71,6 +113,7 @@ Color color_for(GridTile t) {
         case GridTile::Connector:       return connector;         // DarkGray
         case GridTile::DeepGridGateway: return deep_grid_gateway; // Cyan
         case GridTile::WarpAnchor:      return warp_anchor;       // BrightWhite
+        case GridTile::DeviceAvatar:    return Color::BrightWhite; // device-avatar always BrightWhite
     }
     return Color::White;
 }
@@ -104,7 +147,12 @@ void render(Game& game, Renderer& r) {
             GridTile t = s.sector.at(tx, ty);
             const char* glyph;
             Color       color;
-            if (t == GridTile::Wall || t == GridTile::Connector) {
+            if (t == GridTile::DeviceAvatar) {
+                // Plan 5 Cut 2.6: themed wall-mounted avatar glyph for the
+                // FixtureType this subnet sector mirrors. BrightWhite for all.
+                glyph = grid_theme::device_avatar_glyph(s.sector.source_fixture_type);
+                color = Color::BrightWhite;
+            } else if (t == GridTile::Wall || t == GridTile::Connector) {
                 glyph = wall_glyph_for_neighbours(
                     neigh(tx, ty - 1), neigh(tx, ty + 1),
                     neigh(tx + 1, ty), neigh(tx - 1, ty));

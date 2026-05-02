@@ -30,7 +30,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 60;   // v60: Plan 5 — Hackable.tags + Hackable.ip; available_qh + device_kind retired
+inline constexpr uint32_t SAVE_FILE_VERSION = 61;   // v61: Plan 5 Cut 2.6 — Hackable.source_type + GridNode.source_fixture_type for subnet device-avatars
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

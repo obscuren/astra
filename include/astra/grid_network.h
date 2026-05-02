@@ -6,6 +6,11 @@
 
 namespace astra {
 
+// FixtureType lives in tilemap.h. Forward-declared here so GridNode can carry
+// the source-fixture hint (Plan 5 Cut 2.6) without a heavy header dependency.
+enum class FixtureType : uint8_t;
+
+
 enum class GridNodeKind : uint8_t {
     Subnet,           // 1 device, 1 small sector
     LanRoot,          // Plan 5: per-LAN root node — subnets edge from this; deep-Grid edge from this
@@ -44,6 +49,12 @@ struct GridNode {
     // while still landing the player in the shared regional darknet sector
     // (same experience as the fixture-menu jack-in).
     GridNodeId        entry_redirect;
+
+    // Plan 5 Cut 2.6: for Subnet nodes only — the FixtureType that this
+    // subnet mirrors (Door, Console, HealPod, ...). Stamped at registration
+    // time and forwarded into gen_subnet_sector() so the sector renders a
+    // wall-mounted device-avatar themed to the real-world fixture.
+    FixtureType       source_fixture_type = static_cast<FixtureType>(0);
 };
 
 class GridNetwork {

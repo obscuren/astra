@@ -452,7 +452,10 @@ void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
         }
         case GridNodeKind::Subnet:
         default: {
-            s.sector = gen_subnet_sector(node.source_seed, node.security_tier);
+            // Plan 5 Cut 2.6: pass the source FixtureType through so the
+            // sector renders a themed wall-mounted device-avatar.
+            s.sector = gen_subnet_sector(node.source_seed, node.security_tier,
+                                         node.source_fixture_type);
             auto it = meta.subnet_states.find(node.id.value);
             if (it != meta.subnet_states.end()) {
                 apply_mutations(s.sector, it->second);

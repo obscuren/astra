@@ -705,6 +705,8 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
         w.write_u8(f.committed ? 1 : 0);
     }
     w.write_i32(h.soul_mirror_progress);
+    // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
+    w.write_u8(static_cast<uint8_t>(h.source_type));
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -727,6 +729,8 @@ static Hackable read_hackable(BinaryReader& r) {
         h.lore_fragments.push_back(std::move(f));
     }
     h.soul_mirror_progress = r.read_i32();
+    // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
+    h.source_type = static_cast<FixtureType>(r.read_u8());
     return h;
 }
 
@@ -2521,6 +2525,8 @@ static void write_grid_network_section(BinaryWriter& w, const GridNetwork& net) 
         // v59: Plan 4 — per-node entry redirect (Precursor consoles point
         // at their regional darknet so netmap and fixture-menu jacks agree).
         w.write_u32(n.entry_redirect.value);
+        // v61: Plan 5 Cut 2.6 — source FixtureType for subnet device-avatar.
+        w.write_u8(static_cast<uint8_t>(n.source_fixture_type));
     }
     w.write_u32(static_cast<uint32_t>(net.edges().size()));
     for (const auto& e : net.edges()) {
@@ -2551,6 +2557,8 @@ static void read_grid_network_section(BinaryReader& r, GridNetwork& net) {
         n.owned_by_consciousness_id  = r.read_u64();
         // v59: Plan 4 — per-node entry redirect.
         n.entry_redirect.value       = r.read_u32();
+        // v61: Plan 5 Cut 2.6 — source FixtureType for subnet device-avatar.
+        n.source_fixture_type        = static_cast<FixtureType>(r.read_u8());
         net.load_raw(std::move(n));
     }
     uint32_t n_edges = r.read_u32();

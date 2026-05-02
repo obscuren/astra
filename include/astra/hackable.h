@@ -87,6 +87,10 @@ struct Hackable {
     // v57 — Plan 4 (PrecursorConsole only): lore fragments + Soul Mirror progress.
     std::vector<LoreFragmentSeed> lore_fragments;
     int soul_mirror_progress = 0;
+
+    // v61 — Plan 5 Cut 2.6: source FixtureType, used to pick a wall-mounted
+    // device-avatar glyph inside the per-Hackable subnet sector.
+    FixtureType source_type = static_cast<FixtureType>(0);
 };
 
 // Returns a Hackable populated from the fixture type's tag mask. Returns

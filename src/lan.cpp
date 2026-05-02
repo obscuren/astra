@@ -317,6 +317,9 @@ void register_hackables_in_lan(WorldManager& world,
         sn.security_tier = hl.h->security_tier;
         sn.source_seed   = (meta.gen_seed << 8) | static_cast<uint32_t>(host);
         sn.label         = format_ip(hl.h->ip);
+        // Plan 5 Cut 2.6: forward FixtureType so the subnet sector can render
+        // a wall-mounted device-avatar matching the real-world fixture.
+        sn.source_fixture_type = hl.h->source_type;
         const int idx0   = host - 1;
         sn.layout_x      = kLanRootX + (idx0 % kSubnetCols) * kSubnetColW;
         sn.layout_y      = kSubnetTopY + (idx0 / kSubnetCols) * kSubnetRowH;
