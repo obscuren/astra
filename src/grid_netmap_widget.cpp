@@ -24,7 +24,9 @@ struct NodeView {
 bool zoom_match(GridNodeKind k, NetmapZoom z) {
     switch (z) {
         case NetmapZoom::Regional:
-            return k == GridNodeKind::Subnet || k == GridNodeKind::RegionalDarknet;
+            return k == GridNodeKind::Subnet
+                || k == GridNodeKind::RegionalDarknet
+                || k == GridNodeKind::LanRoot;
         case NetmapZoom::DeepGrid:
             return k == GridNodeKind::DeepGridAnchor;
     }
@@ -72,6 +74,7 @@ UITag tag_for(GridNodeKind k, bool locked, bool selected) {
     if (locked)   return UITag::TextDim;
     switch (k) {
         case GridNodeKind::Subnet:          return UITag::TextDefault;
+        case GridNodeKind::LanRoot:         return UITag::TextAccent;
         case GridNodeKind::RegionalDarknet: return UITag::TextAccent;
         case GridNodeKind::DeepGridAnchor:  return UITag::TextWarning;
     }
@@ -81,6 +84,7 @@ UITag tag_for(GridNodeKind k, bool locked, bool selected) {
 const char* kind_tag(GridNodeKind k) {
     switch (k) {
         case GridNodeKind::Subnet:          return "[subnet]";
+        case GridNodeKind::LanRoot:         return "[lan]";
         case GridNodeKind::RegionalDarknet: return "[regional]";
         case GridNodeKind::DeepGridAnchor:  return "[anchor]";
     }

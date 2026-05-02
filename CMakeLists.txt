@@ -125,9 +125,11 @@ set(ASTRA_SOURCES
     src/galaxy_sim.cpp
     src/item_defs.cpp
     src/item_gen.cpp
-    src/loot_table.cpp
-    src/recipe_defs.cpp
+    src/ip.cpp
     src/journal.cpp
+    src/loot_table.cpp
+    src/lan.cpp
+    src/recipe_defs.cpp
     src/tinkering.cpp
     src/trap.cpp
     src/grenade.cpp

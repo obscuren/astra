@@ -3,6 +3,7 @@
 #include "astra/dungeon_recipe.h"
 #include "astra/grid_network.h"
 #include "astra/item.h"
+#include "astra/lan.h"
 #include "astra/location_key.h"
 #include "astra/lore_influence_map.h"
 #include "astra/lore_types.h"
@@ -141,6 +142,11 @@ public:
     GridNetwork&       grid_network()       { return grid_network_; }
     const GridNetwork& grid_network() const { return grid_network_; }
 
+    // Plan 5: single LAN per active map for Cut 1.
+    // TODO(Cut 2): replace with per-map keyed lookup (lan_metadata_for(int)).
+    LanMetadata&       lan_metadata()       { return lan_metadata_; }
+    const LanMetadata& lan_metadata() const { return lan_metadata_; }
+
     OverworldReturnPos& overworld_return() { return overworld_return_; }
     const OverworldReturnPos& overworld_return() const { return overworld_return_; }
 
@@ -210,6 +216,19 @@ public:
         return "";
     }
 
+    // Production path: NPC death or fixture deletion. Removes the Subnet node
+    // + its edge from GridNetwork. Does NOT touch LanMetadata persistence —
+    // the orphan ⌬ Gateway tile in any active LAN sector remains visually
+    // but becomes inert (jack returns host-unreachable).
+    void on_hackable_removed(GridNodeId subnet_id);
+
+    // Dev path (testing only). Wipes the active LAN's persisted runtime
+    // state (cracked firewalls, looted nodes, decrypted files, killed ICE),
+    // drops every Subnet + LanRoot node belonging to this LAN, and re-runs
+    // register_hackables_in_lan to rebuild. Documented as destructive in
+    // the :spawn help text.
+    void lan_full_reset();
+
 private:
     TileMap map_;
     VisibilityMap visibility_;
@@ -231,6 +250,7 @@ private:
     std::mt19937 rng_;
     NavigationData navigation_;
     GridNetwork grid_network_;
+    LanMetadata lan_metadata_;
     OverworldReturnPos overworld_return_;
     WorldLore lore_;
     std::map<LocationKey, LocationState> location_cache_;

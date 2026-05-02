@@ -377,6 +377,7 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     // Tier-driven Trace tick
     switch (node->kind) {
         case GridNodeKind::Subnet:           s.trace_tick_per_turn = 1; break;
+        case GridNodeKind::LanRoot:          s.trace_tick_per_turn = 2; break;
         case GridNodeKind::RegionalDarknet:  s.trace_tick_per_turn = 2; break;
         case GridNodeKind::DeepGridAnchor:   s.trace_tick_per_turn = 3; break;
     }

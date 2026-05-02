@@ -8,7 +8,8 @@ namespace astra {
 
 enum class GridNodeKind : uint8_t {
     Subnet,           // 1 device, 1 small sector
-    RegionalDarknet,  // station/asteroid scope, 3-4 sectors
+    LanRoot,          // Plan 5: per-LAN root node — subnets edge from this; deep-Grid edge from this
+    RegionalDarknet,  // RETIRED in Plan 5 — kept for save compat through Cut 1; do not generate new ones
     DeepGridAnchor,   // hand-authored, persists across rebirth (Plan 4)
 };
 
