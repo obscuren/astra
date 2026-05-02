@@ -860,7 +860,15 @@ void Game::render() {
         case GameState::GameOver:   render_gameover();      break;
         case GameState::LoadMenu:   render_load_menu();     break;
         case GameState::HallOfFame: render_hall_of_fame();  break;
-        case GameState::Grid:       grid_renderer::render(*this, *renderer_); break;
+        case GameState::Grid: {
+            // Render world + world UI dimmed behind the Grid overlay window.
+            // World state is frozen — no ticks during a Grid session.
+            renderer_->set_monochrome(true);
+            render_play();
+            renderer_->set_monochrome(false);
+            grid_renderer::render(*this, *renderer_);
+            break;
+        }
     }
 
     if (rebirth_.is_active()) {

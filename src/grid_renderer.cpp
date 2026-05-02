@@ -12,6 +12,7 @@
 #include "astra/renderer.h"
 #include "astra/tilemap.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -120,102 +121,72 @@ Color color_for(GridTile t) {
 
 } // namespace
 
+namespace {
+
+// Window geometry — 70% × 70% of screen, centered.
+struct WindowRect { int x, y, w, h; };
+
+WindowRect compute_window_rect(int screen_w, int screen_h) {
+    int w = screen_w * 7 / 10;
+    int h = screen_h * 7 / 10;
+    if (w < 50) w = std::min(50, screen_w);
+    if (h < 18) h = std::min(18, screen_h);
+    int x = (screen_w - w) / 2;
+    int y = (screen_h - h) / 2;
+    return {x, y, w, h};
+}
+
+// Tron palette helpers — used by every chrome path.
+constexpr Color kChrome = Color::Cyan;
+
+void draw_window_chrome(Renderer& r, const WindowRect& wr) {
+    // Corners
+    r.draw_glyph(wr.x,            wr.y,            "\xe2\x95\x94", kChrome); // ╔
+    r.draw_glyph(wr.x + wr.w - 1, wr.y,            "\xe2\x95\x97", kChrome); // ╗
+    r.draw_glyph(wr.x,            wr.y + wr.h - 1, "\xe2\x95\x9a", kChrome); // ╚
+    r.draw_glyph(wr.x + wr.w - 1, wr.y + wr.h - 1, "\xe2\x95\x9d", kChrome); // ╝
+    // Top + bottom edges
+    for (int i = 1; i < wr.w - 1; ++i) {
+        r.draw_glyph(wr.x + i,            wr.y,            "\xe2\x95\x90", kChrome); // ═
+        r.draw_glyph(wr.x + i,            wr.y + wr.h - 1, "\xe2\x95\x90", kChrome);
+    }
+    // Left + right edges
+    for (int j = 1; j < wr.h - 1; ++j) {
+        r.draw_glyph(wr.x,            wr.y + j,        "\xe2\x95\x91", kChrome); // ║
+        r.draw_glyph(wr.x + wr.w - 1, wr.y + j,        "\xe2\x95\x91", kChrome);
+    }
+}
+
+void draw_horizontal_separator(Renderer& r, const WindowRect& wr, int y_in_window) {
+    int y = wr.y + y_in_window;
+    r.draw_glyph(wr.x,            y, "\xe2\x95\xa0", kChrome); // ╠
+    r.draw_glyph(wr.x + wr.w - 1, y, "\xe2\x95\xa3", kChrome); // ╣
+    for (int i = 1; i < wr.w - 1; ++i) {
+        r.draw_glyph(wr.x + i, y, "\xe2\x95\x90", kChrome); // ═
+    }
+}
+
+} // namespace
+
 void render(Game& game, Renderer& r) {
     const auto* sess = game.hacking().session();
     if (!sess) return;
-    const auto& s = *sess;
 
-    r.clear();
+    int sw = r.get_width();
+    int sh = r.get_height();
+    WindowRect wr = compute_window_rect(sw, sh);
 
-    static GridCamera s_camera;
-    s_camera.follow(s.avatar_x, s.avatar_y, s.sector.w, s.sector.h);
+    // Chrome — outer border + horizontal separators between layout rows.
+    draw_window_chrome(r, wr);
+    draw_horizontal_separator(r, wr, 2);              // below top status (row 1)
+    draw_horizontal_separator(r, wr, 4);              // below deck strip (row 3)
+    draw_horizontal_separator(r, wr, wr.h - 3);       // above program bar (last-1)
 
-    const int origin_x = 1;
-    const int origin_y = 1;
-
-    auto neigh = [&](int x, int y) -> bool {
-        if (x < 0 || y < 0 || x >= s.sector.w || y >= s.sector.h) return false;
-        return is_connectable(s.sector.at(x, y));
-    };
-
-    // Tiles — only iterate the viewport, source from camera-shifted sector.
-    for (int y = 0; y < s_camera.viewport_h; ++y) {
-        for (int x = 0; x < s_camera.viewport_w; ++x) {
-            int tx = x + s_camera.cam_x;
-            int ty = y + s_camera.cam_y;
-            if (tx < 0 || ty < 0 || tx >= s.sector.w || ty >= s.sector.h) continue;
-            GridTile t = s.sector.at(tx, ty);
-            const char* glyph;
-            Color       color;
-            if (t == GridTile::DeviceAvatar) {
-                // Plan 5 Cut 2.6: themed wall-mounted avatar glyph for the
-                // FixtureType this subnet sector mirrors. BrightWhite for all.
-                glyph = grid_theme::device_avatar_glyph(s.sector.source_fixture_type);
-                color = Color::BrightWhite;
-            } else if (t == GridTile::Wall || t == GridTile::Connector) {
-                glyph = wall_glyph_for_neighbours(
-                    neigh(tx, ty - 1), neigh(tx, ty + 1),
-                    neigh(tx + 1, ty), neigh(tx - 1, ty));
-                color = (t == GridTile::Connector) ? grid_theme::connector : grid_theme::floor;
-            } else {
-                glyph = glyph_for(t);
-                color = color_for(t);
-            }
-            r.draw_glyph(origin_x + x, origin_y + y, glyph, color);
-        }
-    }
-
-    auto cull = [&](int wx, int wy, int& sx, int& sy) {
-        sx = wx - s_camera.cam_x;
-        sy = wy - s_camera.cam_y;
-        return sx >= 0 && sy >= 0 && sx < s_camera.viewport_w && sy < s_camera.viewport_h;
-    };
-
-    // ICE
-    for (const auto& ice : s.ice) {
-        int sx, sy;
-        if (!cull(ice.x, ice.y, sx, sy)) continue;
-        const char* g = ice.color == IceColor::White ? grid_theme::white_ice_glyph
-                      : ice.color == IceColor::Gray  ? grid_theme::gray_ice_glyph
-                      :                                 grid_theme::black_ice_glyph;
-        Color c = ice.color == IceColor::White ? grid_theme::white_ice
-                : ice.color == IceColor::Gray  ? grid_theme::gray_ice
-                :                                grid_theme::black_ice;
-        r.draw_glyph(origin_x + sx, origin_y + sy, g, c);
-    }
-
-    // Avatar — always within the viewport thanks to the deadzone follow.
-    {
-        int sx, sy;
-        if (cull(s.avatar_x, s.avatar_y, sx, sy)) {
-            r.draw_glyph(origin_x + sx, origin_y + sy,
-                         grid_theme::avatar_glyph, grid_theme::avatar);
-        }
-    }
-
-    // HUD: stack hp/ram/trace/heat at top of right pane.
-    const int hud_x = origin_x + s_camera.viewport_w + 2;
-    int hy = origin_y;
-
-    auto bar = [&](const char* label, int v, int max) {
-        char buf[64];
-        std::snprintf(buf, sizeof(buf), "%-6s %3d/%3d", label, v, max);
-        r.draw_string(hud_x, hy, buf);
-        ++hy;
-    };
-
-    bar("HP",    s.avatar_hp, s.avatar_hp_max);
-    bar("RAM",   s.ram,       s.ram_max);
-    bar("Trace", s.trace,     100);
-
-    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
-        const auto& cd = *(*deck_slot)->deck;
-        bar("Heat", cd.heat_current, cd.stats.heat_cap);
-    }
-
-    r.draw_string(hud_x, hy + 1, "GRID");
-    r.draw_string(hud_x, hy + 2, "[`] dev console");
+    // Stubbed slots — populated in Cut 3.
+    r.draw_string(wr.x + 2, wr.y + 1,        "TOP STATUS [stub]");
+    r.draw_string(wr.x + 2, wr.y + 3,        "DECK STRIP [stub]");
+    r.draw_string(wr.x + 2, wr.y + 5,        "PLAYFIELD [stub]");
+    r.draw_string(wr.x + 2, wr.y + wr.h - 2, "PROGRAM BAR [stub]");
 }
 
 } // namespace astra::grid_renderer
