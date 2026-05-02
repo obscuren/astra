@@ -265,7 +265,28 @@ Cut 4's `cat <archive-id>` shows archive metadata only — `LoreArchiveRecord` d
 
 ### 4.8 nmap `-l` host column
 
-The HOST column duplicates the IP because each Subnet node's label is its IP (set in `register_hackables_in_lan`). When Plan 6 rebuilds the HUD, derive a friendly per-fixture name from `Hackable.source_type` (e.g. `tag_summary` produces "console" / "lock" / "power" / etc.).
+**(DONE — superseded by `lan_hostname()` in `src/lan.cpp`.)** The HOST column now shows `<tag>-<host>.<region-slug>.lan` (e.g. `console-3.tha.lan`). Original concern: HOST duplicated IP. Resolved Cut 4.5.
+
+### 4.9 `decrypt.exe` — lore archive integration
+
+The `decrypt.exe` Grid program runs successfully (turns the `EncryptedFile` tile into floor + records the mutation) but only writes the archive id into a transient `session.loot.lore_unlocked` vector. **The archive never reaches `consciousness_save.lore_archive`**, so the `lore` PDA command never surfaces decrypted archives.
+
+Wire-up needed:
+- On jack-out, push every `loot.lore_unlocked` entry into `consciousness_save.lore_archive` as a `LoreFragmentRef` (or whatever the actual struct shape is). Persist via `write_consciousness`.
+- Optionally seed body text per archive id at decrypt time. Currently no body text exists for player-decrypted archives — the `cat <archive-id>` command shows metadata only. Plan 7 owns the body-text content layer; for the wire-up, generating a placeholder paragraph from a per-id seed is enough to make the chain visible.
+
+Touches: `src/program_effects.cpp::apply_decrypt_grid` (record more than just the id?), `src/hacking_system.cpp::jack_out` (commit loot.lore_unlocked → cs.lore_archive), `src/consciousness_save.h` (verify LoreFragmentRef is the right shape).
+
+### 4.10 `reboot_optics.qh` — no in-game targets
+
+The QH is fully wired (sets `Compromised` state for 4 turns + log line) but its filter is `{HasOptics}`, and **no fixture in `tags_for_fixture` carries `HasOptics`**. The legacy DeviceKind-era Camera/Turret entities are not yet present as separate `FixtureType`s; their content lives in a future plan.
+
+Until then, `reboot_optics.qh` is dead content — it loads from cyberdecks and consumes RAM if loaded, but its filter never matches anything in the world.
+
+**Resolution paths (Plan 6 or Plan 7):**
+- Add `FixtureType::Camera` and `FixtureType::Turret`. Tag them `Electronic | HasOptics` (Camera) / `Electronic | HasOptics | Weaponized` (Turret). Place them in station / asteroid generators. `reboot_optics.qh` and `friendly_fire.qh` (against turrets specifically) become reachable.
+- OR: assign `HasOptics` to existing fixtures that have lensed surfaces (StarChart's observatory dome could plausibly count).
+- Until either lands, leaving the program in the registry is fine — `nmap -l`'s tag column already shows what each device matches, so the player sees "no compatible programs loaded" and moves on.
 
 ---
 

@@ -112,20 +112,25 @@ namespace {
 
 // Plan 5 Task 13 — attach a per-NPC cybernetic implant `Hackable`.
 // Mechanical NPCs (drones, sentinels, automatons) are inherently electronic
-// and mobile; the spec §14 calls for `Electronic | Mobile` tags. We override
-// the default Console-derived tags from `make_hackable` because Console's
-// JackInPort+DataStore mask is wrong for an NPC implant — implants are
-// bypass / disable / reroute targets, not jack-in entry points.
+// and mobile; the spec §14 calls for `Electronic | Mobile` tags, plus
+// `Weaponized` for hostile combat platforms so `friendly_fire.qh` (filter:
+// Weaponized | Mobile) can target them.
 //
-// TODO: implant tagging when faction-cybernetic biological NPCs land — for
-// now only mechanical NPCs receive an implant. A future helper
-// `make_implant_hackable()` may centralise this if more NPC variants need
-// per-faction tag adjustments.
+// We override the default Console-derived tags from `make_hackable` because
+// Console's JackInPort+DataStore mask is wrong for an NPC implant — implants
+// are bypass / disable / reroute targets, not jack-in entry points.
+//
+// All current mechanical NPCs are weapon platforms (Sentry Drones, Archon
+// Sentinels, Rust Hounds, etc.) so we apply Weaponized to all of them.
+// A future faction-cybernetic biological NPC might NOT be Weaponized — at
+// that point a per-NpcRole tag pass via `make_implant_hackable()` will
+// pick out the non-weaponised cases.
 void maybe_attach_implant(Npc& npc) {
     if (!has_flag(npc.flags, CreatureFlag::Mechanical)) return;
     Hackable h = make_hackable(FixtureType::Console, /*tier*/ 1);
     h.tags = static_cast<HackTagMask>(HackTag::Electronic)
-           | static_cast<HackTagMask>(HackTag::Mobile);
+           | static_cast<HackTagMask>(HackTag::Mobile)
+           | static_cast<HackTagMask>(HackTag::Weaponized);
     npc.cyber = std::move(h);
 }
 

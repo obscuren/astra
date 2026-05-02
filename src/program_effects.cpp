@@ -33,9 +33,11 @@ void apply_reboot_optics(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
 }
 
 void apply_friendly_fire(Game& game, Hackable& target, int tx, int ty) {
-    // Friendly Fire only works on weaponized targets (turrets).
+    // Friendly Fire's tag filter is {Weaponized | Mobile} — mobile weapon
+    // platforms (drones, sentries with cybernetic implants). The in-effect
+    // guard mirrors the filter's most distinctive bit.
     if (!has_tag(target.tags, HackTag::Weaponized)) {
-        game.log("Friendly Fire only works on turrets.");
+        game.log("Friendly Fire only works on weapon platforms.");
         return;
     }
     target.state = HackState::Compromised;
