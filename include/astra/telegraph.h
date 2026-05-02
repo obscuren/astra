@@ -27,6 +27,12 @@ struct TelegraphSpec {
     bool stop_at_wall = true;
     bool stop_at_enemy = false;
     bool require_walkable_dest = false;
+
+    // Optional. When set, used instead of game.world().map().passable(x,y).
+    // Returning false means "blocked" (wall or out-of-bounds — the function
+    // is responsible for bounds-checking). Used by the Grid HUD to drive
+    // Telegraph from a GridSector instead of the world map.
+    std::function<bool(int x, int y)> passable_fn;
 };
 
 struct TelegraphTile {

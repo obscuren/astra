@@ -12,6 +12,12 @@ namespace astra {
 static bool tile_blocks_line(const Game& game, int x, int y, const TelegraphSpec& spec) {
     // TODO(phase 3): respect FoV — currently a telegraph line can reveal
     // tiles the player hasn't seen. Phase 3 (Tumble) will need this.
+    if (spec.passable_fn) {
+        if (spec.stop_at_wall && !spec.passable_fn(x, y)) return true;
+        // stop_at_enemy is world-only — Grid mode handles ICE collisions
+        // separately via the per-program valid_target predicate.
+        return false;
+    }
     const auto& map = game.world().map();
     if (x < 0 || y < 0 || x >= map.width() || y >= map.height()) return true;
     if (spec.stop_at_wall && !map.passable(x, y)) return true;
@@ -83,7 +89,16 @@ void Telegraph::recompute(const Game& game) {
         preview_.dest_x = cursor_x_;
         preview_.dest_y = cursor_y_;
         preview_.blocked_los = false;
-        const auto& map = game.world().map();
+
+        // Choose passable + bounds source. Spec's passable_fn (Grid mode)
+        // returns false for both walls and out-of-bounds, so we don't
+        // need a separate width/height query when it's set.
+        auto is_passable = [&](int x, int y) -> bool {
+            if (spec_.passable_fn) return spec_.passable_fn(x, y);
+            const auto& map = game.world().map();
+            if (x < 0 || y < 0 || x >= map.width() || y >= map.height()) return false;
+            return map.passable(x, y);
+        };
 
         // Wall block check: walk Bresenham origin → dest; any impassable
         // *intermediate* tile blocks the throw (you can't toss past a wall).
@@ -100,10 +115,9 @@ void Telegraph::recompute(const Game& game) {
                 if (e2 >= ady) { err += ady; x += sx_step; }
                 if (e2 <= adx) { err += adx; y += sy_step; }
                 if (x == x1 && y == y1) break;
-                if (x < 0 || y < 0 || x >= map.width() || y >= map.height()) {
+                if (!is_passable(x, y)) {
                     preview_.blocked_los = true; break;
                 }
-                if (!map.passable(x, y)) { preview_.blocked_los = true; break; }
             }
         }
 
@@ -113,7 +127,7 @@ void Telegraph::recompute(const Game& game) {
                 int tx = cursor_x_ + dx;
                 int ty = cursor_y_ + dy;
                 bool blocked = preview_.blocked_los;
-                if (tx < 0 || ty < 0 || tx >= map.width() || ty >= map.height()) {
+                if (!is_passable(tx, ty)) {
                     blocked = true;
                 }
                 preview_.path.push_back({tx, ty, blocked});
@@ -179,13 +193,22 @@ bool Telegraph::handle_input(int key, Game& game) {
                 // For placement-style telegraphs, validity = the centre tile
                 // is in-map, (optionally) walkable, and there is no wall
                 // blocking the throw line from origin to dest.
-                const auto& map = game.world().map();
                 int dx = preview_.dest_x;
                 int dy = preview_.dest_y;
-                ok = (dx >= 0 && dy >= 0 &&
-                      dx < map.width() && dy < map.height());
-                if (ok && spec_.require_walkable_dest) {
-                    ok = map.passable(dx, dy);
+                if (spec_.passable_fn) {
+                    // Grid mode: passable_fn already returns false for OOB.
+                    // Bounds-check via the predicate at dest.
+                    ok = true;  // dest in-bounds is implied by clamped cursor
+                    if (spec_.require_walkable_dest) {
+                        ok = spec_.passable_fn(dx, dy);
+                    }
+                } else {
+                    const auto& map = game.world().map();
+                    ok = (dx >= 0 && dy >= 0 &&
+                          dx < map.width() && dy < map.height());
+                    if (ok && spec_.require_walkable_dest) {
+                        ok = map.passable(dx, dy);
+                    }
                 }
                 if (ok && preview_.blocked_los) {
                     game.log("Can't throw through walls.");
@@ -194,7 +217,11 @@ bool Telegraph::handle_input(int key, Game& game) {
             } else {
                 ok = !preview_.path.empty() && !preview_.path.back().blocked;
                 if (ok && spec_.require_walkable_dest) {
-                    ok = game.world().map().passable(preview_.dest_x, preview_.dest_y);
+                    if (spec_.passable_fn) {
+                        ok = spec_.passable_fn(preview_.dest_x, preview_.dest_y);
+                    } else {
+                        ok = game.world().map().passable(preview_.dest_x, preview_.dest_y);
+                    }
                 }
             }
             if (!ok) {
