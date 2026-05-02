@@ -263,9 +263,16 @@ void register_hackables_in_lan(WorldManager& world,
     meta.flavour            = infer_flavour(world);
     meta.connected          = infer_connected(meta.flavour);
     meta.has_deep_grid_edge = false;   // set true only if we actually wire it
-    const uint32_t map_seed = static_cast<uint32_t>(world.seed());
-    meta.gen_seed           = map_seed ^ 0xA5A5A5A5u;
-    meta.subnet_base        = derive_subnet_base(map_seed);
+    // Plan 5.5: mix the active LocationKey hash into the seed so sibling LANs
+    // (e.g. Heavens Above + your ship + an asteroid) don't all collide on the
+    // same 10.X.Y.0/24 subnet. Without this, every LAN's first hackable
+    // resolves to the same 10.X.Y.1 IP string.
+    const uint32_t world_seed = static_cast<uint32_t>(world.seed());
+    const uint32_t key_hash   = static_cast<uint32_t>(
+        LocationKeyHash{}(world.current_location_key()));
+    const uint32_t lan_seed   = world_seed ^ key_hash;
+    meta.gen_seed             = lan_seed ^ 0xA5A5A5A5u;
+    meta.subnet_base          = derive_subnet_base(lan_seed);
 
     // Region label — use the map's location name; fall back to a sane default.
     const std::string& loc_name = world.map().location_name();
