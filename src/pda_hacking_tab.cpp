@@ -7,6 +7,7 @@
 #include "astra/ip.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
+#include "astra/lan.h"
 #include "astra/program.h"
 #include "astra/skill_defs.h"
 #include "astra/world_manager.h"
@@ -786,8 +787,11 @@ void PdaScreen::hack_term_cmd_ping(const std::vector<std::string>& args) {
 }
 
 void PdaScreen::hack_term_cmd_nmap(const std::vector<std::string>& args) {
-    if (args.size() < 2 || args[1] == "-h" || args[1] == "--help") {
+    // No args -> list (the natural default; matches `-l`).
+    if (args.size() < 2) return hack_term_cmd_nmap_list();
+    if (args[1] == "-h" || args[1] == "--help") {
         hack_term_emit("usage: nmap [-l|--list] [-m|--map] [-h|--help]", UITag::TextDim);
+        hack_term_emit("  (no args) list nodes on the current LAN (default)", UITag::TextDim);
         hack_term_emit("  -l   list nodes on the current LAN", UITag::TextDim);
         hack_term_emit("  -m   open the visual map widget", UITag::TextDim);
         return;
@@ -816,7 +820,7 @@ void PdaScreen::hack_term_cmd_nmap_list() {
                   meta.nodes_total, meta.nodes_cracked);
     hack_term_emit(header);
     hack_term_emit("");
-    hack_term_emit("  IP            HOST                       STATUS    TAGS");
+    hack_term_emit("  IP            HOST                            STATUS    TAGS");
 
     const auto& net = world_->grid_network();
     for (const auto& e : net.edges()) {
@@ -832,11 +836,18 @@ void PdaScreen::hack_term_cmd_nmap_list() {
         else                            status = "locked." + std::to_string(e.gateway_tier);
 
         // Subnet labels are stamped to the device IP at registration time.
-        // Cut 4 batch 1 prints IP twice for the HOST column — Cut 4.5 will
-        // surface a friendlier device label via source_fixture_type.
+        // Resolve the Hackable behind the IP so we can render a friendly
+        // hostname for the HOST column ("turret-13.tha.lan" etc.).
+        std::string host = n->label;  // fallback: raw IP if lookup misses
+        if (auto parsed = parse_ip(n->label)) {
+            if (auto* h = world_->find_hackable_by_ip(*parsed)) {
+                host = lan_hostname(*h, meta);
+            }
+        }
+
         char line[256];
-        std::snprintf(line, sizeof line, "  %-13s %-26s %-9s tier %d",
-                      n->label.c_str(), n->label.c_str(),
+        std::snprintf(line, sizeof line, "  %-13s %-31s %-9s tier %d",
+                      n->label.c_str(), host.c_str(),
                       status.c_str(), n->security_tier);
         hack_term_emit(line);
     }
@@ -890,7 +901,6 @@ void PdaScreen::hack_term_cmd_lore() {
 
     if (cs.lore_archive.empty()) {
         hack_term_emit("no decrypted archives.", UITag::TextDim);
-        hack_term_emit("hint: sync soul at a Precursor console to commit lore fragments.", UITag::TextDim);
         return;
     }
 

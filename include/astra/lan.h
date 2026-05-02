@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/grid_network.h"
+#include "astra/hackable.h"
 #include "astra/rect.h"
 #include "astra/sector_runtime_state.h"
 
@@ -13,6 +14,11 @@
 namespace astra {
 
 enum class LanFlavour : uint8_t { Station, Asteroid, Dungeon, Precursor };
+
+// Lowercases alphanumerics, converts spaces / underscores / hyphens to a single
+// '-' and strips everything else. Trailing hyphens are trimmed. Used both for
+// AI contact ids and for nmap hostname construction.
+std::string slugify(const std::string& s);
 
 struct LanRoom {
     std::string name;                                 // "security", "lobby", "exec"; never rendered in-sector
@@ -43,6 +49,14 @@ struct LanMetadata {
     SectorRuntimeState                              lan_sector_state;
     std::unordered_map<uint32_t, SectorRuntimeState> subnet_states;   // keyed by Subnet GridNodeId.value
 };
+
+// Build a per-device hostname for nmap output. Format:
+//   <short-tag>-<host_octet>.<region-slug>.lan
+// Examples: "console-3.tha.lan", "door-7.hub-lyra.lan", "conduit-12.tha.lan".
+//
+// short-tag derives from tag_summary(h.tags) (the dominant single-word
+// label); host_octet is `h.ip & 0xFF`; region-slug is slugify(meta.region_label).
+std::string lan_hostname(const Hackable& h, const LanMetadata& meta);
 
 // Walk the active world map's electrical fixtures + NPC implants. Each
 // Hackable is assigned an IP and registered in the GridNetwork as a Subnet

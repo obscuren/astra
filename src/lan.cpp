@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstdint>
+#include <cstdio>
 #include <utility>
 #include <vector>
 
@@ -365,7 +366,7 @@ void register_hackables_in_lan(WorldManager& world,
 // Plan 5 Cut 4 Task 38: slugify a region name for AI contact id generation.
 // Lowercases alphanumerics, converts spaces/underscores/hyphens to hyphens,
 // skips other characters.
-static std::string slugify(const std::string& s) {
+std::string slugify(const std::string& s) {
     std::string out;
     out.reserve(s.size());
     for (unsigned char c : s) {
@@ -381,6 +382,17 @@ static std::string slugify(const std::string& s) {
     // Trim trailing hyphen if present.
     while (!out.empty() && out.back() == '-') out.pop_back();
     return out;
+}
+
+// Plan 5 hostname: per-device dotted name for nmap output.
+// Format: "<short-tag>-<host_octet>.<region-slug>.lan"
+std::string lan_hostname(const Hackable& h, const LanMetadata& meta) {
+    char buf[96];
+    std::snprintf(buf, sizeof buf, "%s-%u.%s.lan",
+                  tag_summary(h.tags),
+                  static_cast<unsigned>(h.ip & 0xFF),
+                  slugify(meta.region_label).c_str());
+    return buf;
 }
 
 // Plan 5 Cut 3 Task 31 — see header for contract.
