@@ -875,6 +875,11 @@ void Game::render() {
         rebirth_.render(*this, *renderer_);
     }
 
+    // Dev console renders absolute-last so it sits on top of every state —
+    // including the Grid overlay window. Moved here from render_play() so
+    // it's not occluded by the Grid window in Grid mode.
+    console_.draw(renderer_.get(), screen_w_, screen_h_);
+
     renderer_->present();
 }
 
@@ -1072,9 +1077,8 @@ void Game::render_play() {
         render_welcome_screen();
     }
 
-    // Dev console renders absolute-last so it's never occluded by any other
-    // overlay — makes it usable when a journal, chart, or dialog is open.
-    console_.draw(renderer_.get(), screen_w_, screen_h_);
+    // Dev console draw moved to Game::render() so it sits on top of every
+    // GameState (including the Grid overlay window).
 }
 
 void Game::render_stats_bar() {
