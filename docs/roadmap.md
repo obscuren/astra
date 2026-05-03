@@ -197,16 +197,13 @@
 
 ### Deferred / next
 
-- [ ] **Hacking & The Grid — Plan 6 (UI / Grid HUD redesign)** — replace the per-tile bars + HUD strip with a structured top/bottom HUD (RAM/Trace/Heat live readouts, ICE legend, breach indicator, breakpoint timeline, LAN hop indicator + topology breadcrumb from Plan 5). Designed against the final LAN gameplay state.
-- [ ] **Hacking & The Grid — Plan 7 (Darknet content + Your.Anchor expansion + AI contacts UI)**
-  - Frontier zone content (the deep-Grid's east region, currently firewalled placeholder)
-  - Your.Anchor full mechanics: stash, customization, AI-contact locus, ownership rules beyond Plan 4's self-anchor bypass, rebirth-survivor identity surface
-  - AI contacts UI (schema-only after Plan 5; first impressions, dialog, gameplay loops)
-  - Multi-map LanMetadata (replace single-LAN scope; cross-map persistence; ship-merges-into-docked-LAN semantics)
-  - Hostile-QH owner suppression model (ProgramDef::hostile flag + per-fixture owned_by_player flag)
-  - PrecursorConsole AlienTech variant on map-gen (ruin/crashed-ship generators)
-  - Sgr A* in-world warp trigger (currently :rebirth dev-only)
-  - Possible: WarpAnchor traversal (physically warp the @ avatar to the destination station)
+- [x] **Hacking & The Grid — Plan 6 (UI / Grid HUD redesign)** (2026-05-03) — Tron-styled 70%×70% overlay window with world+UI rendered monochrome behind. Top status (▶ GRID + breadcrumb + IP + tier-coloured Trace gauge), deck strip (HP/RAM/Heat block-bars), playfield (re-anchored sector + Telegraph preview), right-pane message log (F1, word-wrapped, prefix-aware continuation indent), program bar (1–8 fire, abbrev + dim-when-unaffordable + active-slot inverse-video). Number keys 1–8 fire programs through Telegraph; per-program TargetingMode/TelegraphSpec/valid_target predicate. UTF-8-aware text helper. GridSession log isolated from world log; Convulsing GE bumped to AV-5 / QN-50 with jack-in lockout; player quickness now wired into advance_world's NPC energy scaling. Dev `:mono on/off` toggle for the monochrome filter.
+- [ ] **Hacking & The Grid — Plan 7+ (multi-track)** — see `docs/plans/2026-05-03-plan-7-roadmap.md` for the full sub-project map. Summary:
+  - **Plan 7 — Device Shells.** Per-`docs/superpowers/specs/2026-05-01-device-shells-design.md`. Diegetic CLI shells for every electronic fixture; tag-driven command set; guest/root auth; long-channels; pivot vs wired doorways. Subsumes the old plan's nmap-from-Grid binding, help overlay, lore-archive viewer, hostile-QH model, PrecursorConsole AlienTech.
+  - **Plan 8 — Grid Layout / Generator changes** *(TBD spec)*. Reshapes how LAN/subnet sectors are generated. Foundation that Plan 9 reads against.
+  - **Plan 9 — Your.Anchor v2 + AI contacts.** Stash, customisation, AI characters as Grid-side dialogs (NOT shell endpoints — uses `DialogManager` rendered Tron-themed). Depends on Plan 8.
+  - **Plan 10 — Galaxy Survival.** Sgr A* in-world warp trigger, WarpAnchor traversal, `galaxy_id` save round-trip, past-galaxy memorial surface.
+  - **Plan 11 — Polish.** Frontier zone content, real-body damage decision, NPC death tombstones, residual hostile-QH model.
 
 ---
 
