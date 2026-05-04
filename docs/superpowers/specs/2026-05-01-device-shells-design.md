@@ -1,14 +1,15 @@
 # Per-Device Diegetic Shells (Plan 7) — Design Spec
 
-**Date:** 2026-05-01
-**Status:** Draft, awaiting user review
-**Branch (target):** TBD (Plan 7 work — not started)
+**Date:** 2026-05-01 (drafted) / 2026-05-03 (revised post-brainstorm)
+**Status:** Approved
+**Branch (target):** `feature/device-shells`
 **Parent specs:**
 - `2026-04-29-hacking-design.md` (root hacking spec)
 - `2026-04-30-hacking-deep-grid-design.md` (Plan 4 — deep-Grid)
-- `2026-05-01-grid-expansion-design.md` (Plan 5 — LAN sector + tags; current branch)
+- `2026-05-01-grid-expansion-design.md` (Plan 5 — LAN sector + tags)
+- `2026-05-02-grid-hud-design.md` (Plan 6 — Tron HUD)
 
-Plan 7 work; sequenced after Plan 5 (LAN/tag system) and Plan 6 (HUD redesign). This spec is one of multiple Plan 7 features (Your.Anchor full mechanics, darknet revival, etc.) — it does not own the whole plan.
+This is the Plan 7 spec, sequenced after Plan 5 (LAN/tag system) and Plan 6 (HUD redesign). Other Plan 7-adjacent ideas (Your.Anchor full mechanics, alien-tech hacking dialect, darknet revival) are scoped to later plans — see §16.
 
 ---
 
@@ -18,17 +19,17 @@ Every electronic device runs a fake mini-OS the player can drop a CLI shell into
 
 The shell is reachable from two doorways, both gated by `Cat_Hacking`:
 
-- **Real-world.** Walk up to an electronic fixture; an extra "Hack" interaction opens the PDA hacking tab and autoruns `ssh root@<device-ip>`. The player's body becomes physically wired into the device's data port — frozen, vulnerable, Esc to yank the cable.
-- **In-Grid.** While inside a LAN/subnet sector (Plan 5), the shell is reachable as a UI overlay from anywhere — no walking back to a port required. Body is already phased out, so vulnerability lives on the Grid clock (Trace, Heat) rather than meatspace.
+- **Real-world.** Walk up to an electronic fixture; the interactables widget shows a `(hack) Shell Access` option. Selecting it wires the player's body into the device's data port and autoruns `ssh ...@<device-ip>` in the cyberdeck shell. Body is frozen, vulnerable, Esc to yank the cable. Wired-in access reaches **only the one device** the cable is plugged into.
+- **In-Grid.** The player has jacked into a LAN spatial sector (via a `(hack) Jack In` interactable on a `JackInPort` fixture). Avatar walks the LAN. To open a device shell, the avatar must be **adjacent to that device's gateway tile** in the spatial sector; from there the cyberdeck shell can ssh it.
 
-Two playstyles emerge from one set of mechanics: the **Netrunner** walks the spatial LAN sector and engages ICE; the **Sysadmin** pivots through device shells and never sees an ICE. Same gear, same skills, same LAN — totally different rhythm.
+The shells share one machinery — the spatial walking layer (Plan 5/6) is how you reach devices, and the shell layer is what you do at them. There is no "Sysadmin path" that bypasses spatial movement.
 
 ### Pillars
 
 - **The shell is a UI surface, not a parallel universe.** It rides Plan 5's tag system. Adding a tag adds commands; adding a fixture inherits commands automatically. No central switch statement.
-- **Two privilege tiers, one shell.** `ssh` always succeeds at `guest`. `hashcat` (long-channel) escalates to `root`. Locked-vs-unlocked is visible diegetically — no out-of-shell crack minigame.
+- **Two privilege tiers, one shell.** `ssh root@<ip>` succeeds at root only when the device is unlocked or already escalated; otherwise it rejects with a "permission denied" message and the player tries `ssh guest@<ip>`. `hashcat` (long-channel, inside the shell) is the only path to escalate guest → root. Locked-vs-unlocked is visible diegetically — no out-of-shell crack minigame.
 - **Reads are free, privileged actions are committed.** Reading `cat /var/log` is instant, paused world. Privileged actions (`firmware --wipe`, `blind`, `friendly_fire`, etc.) are long-channel: world ticks, body is wired-in (real-world), Trace ticks (Grid). Inline progress bar shows in the shell itself.
-- **Shell pivots are Grid-only.** From inside the Grid, `ssh root@<other-ip>` jumps to any device on the breached LAN, costs Heat, lowers Trace. From real-world, you're physically wired — pivots are blocked.
+- **Walking is mandatory.** SSH only succeeds against a device the player can reach — adjacent to its gateway tile (in-Grid) or wired into it via Shell Access (real-world). There is no remote ssh, no pivot, no chain. Each device interaction is an atomic walk-and-shell.
 - **Authoring scales with content, not code.** Three orthogonal authoring layers (tag-derived commands / per-FixtureType banner / per-faction flavor) keep content debt linear. New fixture = pick tags + write banner string. New faction = write flavor pack.
 - **Diegetic legibility.** `--help` exposes duration and cost *for this player* (post-INT/skill scaling). The system documents itself.
 
@@ -37,11 +38,12 @@ Two playstyles emerge from one set of mechanics: the **Netrunner** walks the spa
 - New tags beyond the Plan 5 set (`Electronic`, `Locked`, `PowerNode`, `DataStore`, `HasOptics`, `Weaponized`, `Mobile`, `AlienTech`, `JackInPort`).
 - New programs / quickhacks. Shell commands are *not* programs and don't ship from inventory.
 - Shell-driven combat. ICE is a Grid concept; the shell never spawns or fights ICE.
-- Real-world pivots. Body is wired into one device.
+- Pivots / device-to-device ssh. Each device shell session is atomic; ssh originates only from the cyberdeck.
 - Pre-shell crack minigames. The shell is always the only UI.
-- Replacing the spatial LAN/subnet sectors. Shell is *additive*; spatial walking remains.
+- Replacing the spatial LAN/subnet sectors. Shell is *additive*; spatial walking is the only traversal.
 - Replacing quickhacks. QHs stay the fast-twitch combat layer; shell is the deep / slow / privileged layer.
 - File-system simulation beyond what `ls` / `cat` need. No editors, no shells-within-shells, no piping, no scripting.
+- Alien-tech hacking dialect (Precursor, Conclave/Stellari). Deferred to Plan 11 — see §16.
 
 ---
 
@@ -57,58 +59,69 @@ Two playstyles emerge from one set of mechanics: the **Netrunner** walks the spa
 | `HackChannel` | `device_shell.h` (member) | Long-channel state machine: command, args, base/scaled duration, Heat/Detection cost, progress, interrupt handlers, partial-state hooks. |
 | `HackFlavor` | `hack_flavor.h/cpp` | Faction flavor packs (banner templates, MOTD lines, user-name tables, file-content templates, prompt suffixes). In-code tables. |
 | `DeviceFsView` | `device_fs.h/cpp` | Procedurally generates the device's "filesystem" (path → content map) from tags + flavor pack. Used by `ls`, `cat`, `grep`, `find`. |
+| `CyberdeckMods` | `cyberdeck_mods.h/cpp` | Tracks installed mods on the player's cyberdeck. v1 ships only the gate for `WirelessJackIn` (Aerojack / Untether). |
 
 ### Existing systems extended
 
 - **`Hackable`** (`hackable.h`, exists post-Plan 5) — gains `firmware_state: enum { Stock, Wiped, Glitched }`, `cracked_digits: uint8_t` (for `hashcat` partial-state), `escalated: bool` (true once `root`), `dumped_bytes: uint32_t` (for `data --dump` partial-state). Plan 5's `tags` and `ip` already provide what the shell needs to address and gate.
-- **`PdaHackingTab`** (`pda_hacking_tab.cpp`) — gains the `ssh` command. Resolves IP → Hackable → opens `DeviceShell`. The PDA's `pda>` shell stays for `nmap`/`programs`/`jack`/etc; the device's shell is a separate sub-mode the PDA "tunnels into."
+- **`PdaHackingTab`** (`pda_hacking_tab.cpp`) — gains the `ssh` command. Resolves IP → Hackable → opens `DeviceShell`. The PDA's `pda>` shell stays for `nmap`/`programs`/`jack`/etc; the device's shell is a sub-mode the PDA tunnels into.
 - **`HackingSystem`** (`hacking_system.h/cpp`) — drives the long-channel ticker, applies command effects, persists mutations. Owns the active `DeviceShell` (at most one).
-- **Interactables (`interactables_widget`)** — gains a "Hack" entry on any `Hackable` with `Electronic` tag if the player has `Cat_Hacking`. Triggering it routes through `HackingSystem::open_real_world_shell(Hackable*)`.
-- **`Cat_Hacking` skills** — three new skill nodes: `PivotMaster` (pivot magnitudes), `ColdHands` (fewer Detection ticks per privileged command), `RootKit` (faster `hashcat`). Stubbed out elsewhere; this plan unlocks the slots.
-- **Save (`galaxy_*.dat`)** — schema bumps for the new `Hackable` fields. Per project rule: reject old saves, no migration.
+- **Interactables (`interactables_widget`)** — gains two new entries on any `Hackable` with `Electronic` tag if the player has `Cat_Hacking`:
+  - `(hack) Shell Access` — opens the device shell directly (wired-in real-world).
+  - `(hack) Jack In` — only on `JackInPort`-tagged fixtures. Avatar enters the LAN spatial sector. As before.
+- **`Cat_Hacking` skills** — two new skill nodes for v1: `ColdHands` (fewer Detection ticks per privileged command), `RootKit` (faster `hashcat`). The originally-spec'd `PivotMaster` is dropped (no pivot in v1).
+- **Save (`galaxy_*.dat`)** — schema bumps for the new `Hackable` fields + `CyberdeckMods` slot. Per project rule: reject old saves, no migration.
 
 ### File-size discipline
 
-`device_shell.cpp` ≤ ~400 lines. `hack_flavor.cpp` likely ~600 lines (5 packs × ~120 lines of templates) — split per-faction (`hack_flavor_corp.cpp`, etc.) if it crosses 800. Each `cmd_*.cpp` ≤ ~150 lines; if a command needs more, the command is too big — split or trim. `device_fs.cpp` ≤ ~250 lines.
+`device_shell.cpp` ≤ ~400 lines. `hack_flavor.cpp` likely ~400 lines (3 packs × ~120 lines of templates) — split per-faction (`hack_flavor_corp.cpp`, etc.) if it crosses 800. Each `cmd_*.cpp` ≤ ~150 lines; if a command needs more, split or trim. `device_fs.cpp` ≤ ~250 lines.
 
 ---
 
 ## 3. The two doorways
 
-### 3a. Real-world doorway
+### 3a. Real-world doorway (Shell Access)
 
-**Trigger.** Player adjacent to any `Hackable` with `Electronic` tag and has `Cat_Hacking` unlocked. `interactables_widget` shows `Hack` as an extra option (or sole option if nothing else applies, e.g., a power conduit).
+**Trigger.** Player adjacent to any `Hackable` with `Electronic` tag and has `Cat_Hacking` unlocked. `interactables_widget` shows `(hack) Shell Access` as one of the hack options.
 
 **Sequence.**
 
-1. Player selects `Hack`.
+1. Player selects `Shell Access`.
 2. Body becomes wired-in. State flag `player.is_jacked_into = hackable_id`. Movement, attack, item-use disabled. Render: `@` glyph gains a subtle cyan pulse / `[⟳]` superscript.
-3. PDA opens to the Hacking tab. The `pda>` terminal autotypes `ssh root@<device-ip>` with a small typing animation (~0.3s) for vibe.
-4. Connection ritual runs (1s, non-skippable):
-   ```
-   Connecting to 10.0.4.17.... [SUCCESS]
-   Negotiating cipher... [SUCCESS]
-   Authentication accepted. Welcome Guest.
-   ```
+3. PDA opens to the Hacking tab. The `pda>` terminal autotypes `ssh <user>@<device-ip>` (smart-typed user — see §4) with a small typing animation (~0.3s) for vibe.
+4. Connection ritual runs (1s, non-skippable). See §5.
 5. Banner renders.
-6. Prompt appears: `<DEVICE-NAME>:guest$ _`.
+6. Prompt appears: `<DEVICE-NAME>:<tier>$ _`.
 
 **Exit.** `exit`, closing the PDA, or pressing Esc at the prompt yanks the cable. Body unfreezes, shell session ends. Esc *during* a long-channel only aborts the channel; you're still in the shell.
 
+**Reach.** The wire connects to ONE device. The cyberdeck cannot ssh other devices on the LAN through the wire. To reach more, the player must exit, walk away, and either Shell Access another device or Jack In via a `JackInPort` fixture.
+
 **Constraints.**
 - Body frozen for the entire shell duration — including idle time at the prompt. Tactical decision: open shell only when safe.
-- Damage to the body interrupts the active channel (per Edge 1) but does **not** auto-close the shell. Shell remains open; the player can continue or exit. (Open question for plan: should an alarm trigger an auto-yank?)
-- Real-world shell cannot pivot. The `pivot` command refuses with `pivot: unavailable from a wired session`.
+- Damage to the body interrupts the active channel but does **not** auto-close the shell. Shell remains open; the player can continue or exit.
+- An alarm on the LAN does not auto-yank — it only interrupts an active channel (same rule). The shell stays open. Player decides whether to continue or exit.
 
-### 3b. In-Grid doorway
+### 3b. In-Grid doorway (cyberdeck ssh after spatial entry)
 
-**Trigger.** Player is inside a LAN or subnet sector (Plan 5). At any time, opens the PDA (or a dedicated key — to be settled in implementation plan) → terminal sub-mode → types `ssh root@<ip>`.
+**Trigger.** Player has jacked into a LAN spatial sector via a `(hack) Jack In` interactable on a `JackInPort` fixture (this is the *only* way to enter a LAN spatially in v1 — `jack <ip>` from cyberdeck is mod-gated; see §15). Avatar is in the LAN sector. To shell a device, the avatar must walk to a tile **adjacent** to that device's gateway tile.
+
+**Sequence.**
+
+1. Player walks avatar adjacent to target device's gateway tile.
+2. Player opens the cyberdeck shell (existing PDA toggle key) and types `ssh <user>@<ip>` — OR uses an in-Grid `(hack) Shell Access` interactable on the adjacent device, which autoruns ssh.
+3. SSH validates: target IP must be the IP of the device whose gateway the avatar is currently adjacent to. If not: `ssh: <ip>: host unreachable (out of range)`.
+4. Connection ritual fires (per §5). The Tron window content swaps from the spatial sector view to the device shell. HUD chrome (Trace/Heat, log pane) stays visible — this is critical for seeing Trace tick during long-channels.
+5. Banner renders. Prompt appears.
+
+**Exit.** `exit` or Esc at prompt closes the shell. Tron window swaps back to spatial sector view. Avatar at the same tile.
+
+**During the shell.** Avatar is frozen at its tile in the spatial sector while the shell is open. ICE present in the same LAN sector continues moving and may attack the avatar. HP damage from Black ICE breaks the active channel (per §7). The player sees this in the log pane, e.g., `[!] Black ICE adjacent — channel will break on next strike`.
 
 **Differences from real-world.**
-- Body is already phased out (per Plan 4 hacking spec). No new physical-vulnerability state; the player is already "in" the Grid.
+- Body phased out per Plan 4. No physical-vulnerability state.
 - Long-channel ticks the **Grid clock** (Trace, Heat), not the world clock.
-- `pivot` is available. From a Grid shell session you can `ssh` into any device on the breached LAN.
-- No connection-ritual gate to physical proximity — proximity in the Grid is logical (LAN-graph membership), not spatial. The IP must resolve to a device on the currently-breached LAN.
+- Avatar lives in the LAN sector and can be attacked by ICE while shell is open.
 
 The shell *itself* — banner, commands, flavor, channel mechanics, interrupt rules — is identical in both doorways. Only the surrounding context differs.
 
@@ -118,18 +131,37 @@ The shell *itself* — banner, commands, flavor, channel mechanics, interrupt ru
 
 ### Two-tier privilege
 
-`ssh` always succeeds. The shell opens at one of two privileges, derived from `Hackable` runtime state:
+`ssh` always *attempts*; whether root succeeds depends on `Hackable` state.
 
 | Tier | When | Visible as | Allowed |
 |---|---|---|---|
-| `guest` | `Hackable` is `Locked` and not yet escalated | `<DEVICE>:guest$` and `Welcome Guest.` | Reads (`ls`, `cat`, `whoami`, `help`, `clear`, `history`), and the `Locked`-tag commands (`hashcat`, `unlock`) |
+| `guest` | `Hackable` is `Locked` and not yet escalated, OR player typed `guest@<ip>` | `<DEVICE>:guest$` and `Welcome Guest.` | Reads (`ls`, `cat`, `whoami`, `help`, `clear`, `history`), and the `Locked`-tag commands (`hashcat`, `unlock`) |
 | `root` | `Hackable` is unlocked OR has been escalated this session | `<DEVICE>:root#` and `Welcome <root-name>.` | All tag-derived commands + reads + universals |
 
-A device with no `Locked` tag opens directly at `root`.
+A device with no `Locked` tag opens directly at `root` on `ssh root@<ip>`.
+
+### Manual vs autorun ssh
+
+**Manual ssh (player typing at `pda>`):** strict semantics.
+- `ssh root@<ip>` to a Locked-and-not-escalated device: rejects with
+  ```
+  ssh: <ip>: permission denied (root login disabled).
+        try: ssh guest@<ip>
+  ```
+  No shell opens. The player tries again as guest.
+- `ssh guest@<ip>`: always succeeds at guest tier (or root tier if device has no `Locked` tag — the privilege requested floors at what the player asked for).
+- `ssh <ip>` (no user): defaults to `root@`.
+
+The `nmap -l` listing exposes lock state per device, so the player knows which user to type without trial-and-error. See §15.
+
+**Autorun ssh (from `Shell Access` interactable):** smart semantics.
+- The cyberdeck inspects `Hackable.locked` and `Hackable.escalated`, then autotypes `ssh guest@<ip>` for locked-unescalated devices, `ssh root@<ip>` otherwise.
+- The player always lands a shell — no rejection beat from an autorun.
+- Diegesis: the cyberdeck is yours and knows what it's connecting to.
 
 ### Escalation
 
-`hashcat --fast` is a long-channel command (typical: 8–14 turns, 4–8 Heat, +10–20 Detection scaled by INT/skill). On success, sets `Hackable.escalated = true`, prompt switches to `root#`, full command set unlocks. On failure (skill check), Heat is spent, `cracked_digits` increments by 1–2 (partial-state for next attempt), prompt stays `guest$`.
+`hashcat --fast` is a long-channel command (typical: 8–14 turns, 4–8 Heat, +10–20 Detection scaled by INT/skill). On success: `Hackable.escalated = true`, prompt switches to `root#`, full command set unlocks. On failure (skill check): Heat is spent, `cracked_digits` increments by 1–2 (partial-state for next attempt), prompt stays `guest$`.
 
 `hashcat --fast` reveals digits one at a time:
 ```
@@ -152,7 +184,9 @@ TURRET-OS:guest$ hashcat --fast    # later: resumes from cracked_digits=5
 
 ## 5. Connection ritual
 
-Hard-coded sequence, 1 second, non-skippable. Output streams character-by-character at ~60 chars/sec:
+### Successful ssh
+
+Hard-coded sequence, ~1 second, non-skippable. Output streams character-by-character at ~60 chars/sec:
 
 ```
 Connecting to <DOTTED-IP>.... [SUCCESS]
@@ -166,9 +200,23 @@ Authentication accepted. Welcome <TIER-NAME>.
 <DEVICE-NAME>:<TIER>$ _
 ```
 
-`TIER-NAME` is `Guest` (guest tier) or one of the faction's authored root names (e.g., `Welcome root.` for Corp; `Welcome ROOT_USER (mikko)` for Cartel; `Welcome ▲` for Precursor).
+`TIER-NAME` is `Guest` (guest tier) or one of the faction's authored root names (e.g., `Welcome root.` for Corp; `Welcome ROOT_USER (mikko)` for Cartel).
 
 `MOTD-FROM-FACTION-PACK` is one randomly-selected line from the faction's MOTD list. Examples below in §10.
+
+### Manual-ssh root rejection
+
+When the player manually types `ssh root@<locked-ip>`, the ritual aborts at the auth step:
+
+```
+Connecting to <DOTTED-IP>.... [SUCCESS]
+Negotiating cipher... [SUCCESS]
+ssh: <ip>: permission denied (root login disabled).
+      try: ssh guest@<ip>
+pda> _
+```
+
+No shell opens. The player retypes as guest.
 
 ### Cursor rendering
 
@@ -178,11 +226,11 @@ The shell prompt's cursor is an **inverted-color block**, mirroring the existing
 - Background = the prompt's foreground color (typically `Color::White`).
 - Foreground = the prompt's background color (typically `Color::Black`).
 - Drawn *on top of* the character at the cursor position — so a cursor over `firmwa█e` shows the `r` as black-on-white in that one cell. End-of-line cursor shows a solid block over a space.
-- Implementation reference: `dev_console::render` at `src/dev_console.cpp:1730–1732` — same `ctx.put(col, row, ch, Color::Black, Color::White)` pattern with the under-cursor character supplied.
-- Behavior: arrow keys move the cursor through the input buffer (left/right), Home/End jumps to ends, Backspace/Delete edit, characters insert at cursor — full mid-line editing matching dev console.
-- During an active long-channel the prompt is busy (showing the progress bar); the input cursor is suppressed and the bar's last `▓` cell acts as the visual focus instead.
+- Implementation reference: `dev_console::render` at `src/dev_console.cpp:1730–1732`.
+- Behavior: arrow keys move the cursor through the input buffer, Home/End jumps to ends, Backspace/Delete edit, characters insert at cursor.
+- During an active long-channel the prompt is busy (showing the progress bar); the input cursor is suppressed.
 
-In the spec's sample blocks, the trailing `_` represents "cursor here, line empty" — read it as the inverted block at end-of-line.
+In sample blocks, the trailing `_` represents "cursor here, line empty" — read it as the inverted block at end-of-line.
 
 ---
 
@@ -205,14 +253,12 @@ struct HackCommand {
 };
 ```
 
-Commands self-register at static-init time into a global registry indexed by name. The registry exposes:
+Commands self-register at static-init time into a global registry. The registry exposes:
 
 ```cpp
 const HackCommand* find_command(std::string_view name);
 std::vector<const HackCommand*> commands_for(HackTagMask tags, bool is_root);
 ```
-
-Adding a new command = drop a `cmd_<name>.cpp` file. Adding a new device-side capability bound to a new tag = add the tag to the Plan 5 `HackTag` enum, write the `cmd_*` files for that tag.
 
 ### Universal commands
 
@@ -220,13 +266,14 @@ Tag-less, always available:
 
 | Command | Behavior |
 |---|---|
-| `help` | Lists all commands available on this device (current tier). One line per command: `name — short description`. |
-| `<cmd> --help` | Synopsis + description + scaled cost (`Cost for you: 6 turns, 3 Heat, +12 Detection`). |
+| `help` | Lists all commands available on this device (current tier). |
+| `<cmd> --help` | Synopsis + description + scaled cost. |
 | `whoami` | Prints current user (`guest@TURRET-OS-2.7` or `root@TURRET-OS-2.7`). |
 | `clear` | Clears the visible scroll. |
 | `history` | Prints command history (this session). |
-| `exit` | Yanks cable (real-world) or closes shell (in-Grid). |
-| `pivot <ip>` | Grid-only. Lateral move to another device on the LAN. (See §8.) |
+| `exit` | Closes the shell. |
+
+No `pivot` — see §8.
 
 ### Tag → command starting map
 
@@ -238,7 +285,7 @@ Tag-less, always available:
 | `PowerNode` | `surge`, `kill`, `reroute`, `dim` |
 | `DataStore` | `ls`, `cat`, `grep`, `dump`, `wipe`, `find` |
 | `Mobile` | `halt`, `redirect`, `gps` |
-| `AlienTech` | `decode`, `mirror`, `query` |
+| `AlienTech` | *(deferred to Plan 11 — see §16)* |
 
 Commands are **additive** — a Camera with `Electronic | HasOptics` exposes `blind`, `feed`, `restream`, `purge` plus universals plus reads. A Turret with `Electronic | HasOptics | Weaponized` adds `disarm`, `lockout`, `friendly_fire`, `targetlist` on top.
 
@@ -263,7 +310,7 @@ NOTES:
   Wipe persists across saves; reflash requires firmware in inventory (future).
 ```
 
-The cost numbers are computed live from `base_*` × INT/skill modifiers. The `--help` text is per-command authored.
+The cost numbers are computed live from `base_*` × INT/skill modifiers.
 
 ---
 
@@ -274,13 +321,9 @@ The cost numbers are computed live from `base_*` × INT/skill modifiers. The `--
 A **long-channel** is any command where `base_turns > 0`. When executed:
 
 1. Cost is paid up front: Heat += scaled, Detection += scaled (real-world only).
-2. `HackChannel` becomes active. The shell renders an inline progress bar that updates every world tick:
-   ```
-   TURRET-OS:root# firmware --wipe
-   Wipe in progress [▓▓▓▓▓             ] 25%
-   ```
+2. `HackChannel` becomes active. The shell renders an inline progress bar that updates every world tick.
 3. Each world tick (or Grid tick, in-Grid) advances progress by `1 / scaled_turns`.
-4. World/Grid simulation **continues** while the channel runs. AI moves, alarms tick, ICE moves, body remains frozen (real-world) or phased out (Grid).
+4. World/Grid simulation **continues** while the channel runs.
 5. On completion: `execute()` runs, applies the effect, prints the success line, prompt returns. Channel cleared.
 
 ### INT and skill scaling
@@ -304,64 +347,46 @@ While a channel is active, the prompt accepts only **read commands** and Esc. At
 
 On abort:
 
-- **Heat-spent-is-spent.** No refund.
-- Detection already added stays added.
+- **Heat-spent-is-spent.** No refund. Detection already added stays added.
 - Effect is not applied — *unless* the command is `allow_partial = true`.
-- For partial-state commands (`hashcat`, `data --dump`), the command's `on_partial(progress, Hackable&)` hook fires — typically writing a small persistent token (`cracked_digits++`, `dumped_bytes += amount`) so the next attempt resumes.
+- For partial-state commands (`hashcat`, `dump`), the command's `on_partial(progress, Hackable&)` hook fires.
 
 Authored partial-state commands in v1: `hashcat`, `dump`. Everything else aborts atomically.
 
 ### Body during channel (real-world)
 
 - **Frozen.** No movement, no attacks, no item use. Esc and read commands only.
-- Wired-in state is shown by an `@` glyph cyan pulse / `[⟳]` superscript.
+- Wired-in state shown by `@` glyph cyan pulse / `[⟳]` superscript.
 - Enemies can target the player normally. AI sees the player as a normal target (no special "is hacking" awareness for v1).
-- Open question for plan: do nearby AIs gain a *suspicion* tick when a hack is in progress? Probably no for v1 — keep AI-side unchanged.
 
-### Body during channel (Grid)
+### Avatar during channel (in-Grid)
 
-- Player is phased out per Plan 4. Trace and Heat tick on the Grid clock.
-- ICE present in the same LAN sector continues moving and attacking the player avatar at the device's location while the channel runs. (Open: does the avatar "freeze" in the LAN sector while channeling? Recommend: yes, mirror the real-world frozen behavior. ICE can still hit the avatar.)
+- Avatar phased per Plan 4. Frozen at its tile in the LAN sector while shell is open.
+- ICE present in the same sector continues moving. Black ICE adjacency triggers a log warning; HP damage breaks the channel.
 
 ---
 
-## 8. Pivots (Grid-only)
+## 8. SSH adjacency rule
 
-### Mechanics
+This replaces the original spec's "Pivots" section (deleted).
 
-`pivot <ip>` (or `ssh root@<ip>` — alias) inside a Grid shell session:
+**Rule.** SSH succeeds against a target IP only if:
 
-1. Validates target: must be on the breached LAN, must be `Electronic`. If not, `pivot: no route to <ip>`.
-2. Skill check: `1d100 ≤ 50 + 5 × INT_mod + 10 × CatHacking_rank + 15 × PivotMaster_rank`.
-3. **Long-channel**: 3 base turns, 4 Heat, no Detection (Grid-only). Skill scaling applies.
-4. On success:
-   - Trace -= 8 (`PivotMaster` ranks add -3 each).
-   - Current shell session closes; new shell session opens against target IP.
-   - Connection ritual replays for the new device.
-   - History is preserved in the underlying terminal scroll — readable via the PDA's outer terminal scrollback, but the new session has its own banner and prompt.
-5. On failure:
-   - Trace += 15, Detection += 0 (Grid-only).
-   - 25% chance: alarm on the LAN sector (spawns a Gray ICE on the route).
-   - Prompt remains on the original device.
-   - Message: `pivot: connection refused — honeypot detected, trace boosted`.
+1. The player is **wired into that exact device** via Shell Access (real-world doorway), OR
+2. The player's avatar is **adjacent to that device's gateway tile** in the LAN spatial sector (in-Grid doorway).
 
-### Real-world block
+Anything else: `ssh: <ip>: host unreachable (out of range)`.
 
-`pivot` is registered but unconditionally rejects when `DeviceShell.via == RealWorld`:
-```
-TURRET-OS:root# pivot 10.0.4.18
-pivot: unavailable from a wired session.
-       (Yank the cable and walk to the next device, or jack into the LAN.)
-```
+### Consequences
 
-### Why pivots matter
+- **No pivots.** A device shell cannot ssh another device. To go elsewhere, the player exits, walks the avatar to the next device's gateway, and ssh's from cyberdeck.
+- **No remote ssh from a corner.** Walking is required for every device interaction.
+- **Region firewalls (tier 2/3) act as walls** — they block avatar movement, which automatically blocks ssh-reach to devices on the far side. To reach those devices, breach the firewall in the spatial sector first (`breach.exe`, walked-up-to).
+- **Wired-in real-world is single-device.** The wire grants no LAN reach beyond the device it's plugged into.
 
-This is the crux of the playstyle split:
+### Why this is the model
 
-- **Netrunner** — walks the LAN spatial sector. Engages ICE. Manages Trace through gateway choice and breach timing. Never relies on `pivot`.
-- **Sysadmin** — never leaves the shell. Pivots through the LAN's logical graph, dumping Trace as they go, picking off devices one by one.
-
-Both can clear the same LAN. Different gear emphasis (the Sysadmin wants Heat capacity, the Netrunner wants Trace decay), different skill-tree paths, different vibes.
+The original spec experimented with `pivot` (device-to-device ssh) as a way to make a "Sysadmin" playstyle. In design review (2026-05-03), this was rejected as creating a parallel path that bypassed Plan 5/6's spatial work. The chosen rule (adjacency-only ssh) collapses the playstyle space: walking is the only traversal, shells are what you do at the destinations.
 
 ---
 
@@ -395,7 +420,7 @@ Per-faction tables, in code:
 ```cpp
 struct HackFlavorPack {
     const char* faction_name;      // "Kaguya Heavy Industries" / "Cartel" / etc.
-    const char* root_user_name;    // "root" / "ROOT_USER (mikko)" / "▲"
+    const char* root_user_name;    // "root" / "ROOT_USER (mikko)" / "greta"
     std::span<const char*> motd_lines;     // pool, one selected at random
     std::span<const char*> log_lines;      // templates with %TIME%, %USER%, %IP%
     std::span<const char*> user_names;     // for fake home dirs and fs entries
@@ -405,9 +430,9 @@ struct HackFlavorPack {
 const HackFlavorPack& flavor_for(Faction f);
 ```
 
-**Stored in code**, not external files. `hack_flavor_corp.cpp` etc. are pure data tables.
+**Stored in code**, not external files.
 
-### Authoring budget
+### Authoring budget (v1 — three packs)
 
 | Asset | Per-faction count (target) |
 |---|---|
@@ -417,11 +442,15 @@ const HackFlavorPack& flavor_for(Faction f);
 | File-content templates | 10 |
 | Banner chrome variants | 3 |
 
-Five factions × ~40 lines of strings per asset class = ~1000 string literals. Substantial but linear in code, no parser, no asset pipeline.
+Three factions × ~40 lines per asset class = ~600 string literals. Linear in code, no parser.
+
+### Civilian as fallback
+
+Any device whose `Faction` does not match an authored pack falls back to **Civilian**. This includes `Faction::None` and any faction whose pack isn't shipped yet (Precursor, Conclave, future factions). Civilian's "you-are-in-an-ungated-place" tone is the safe default.
 
 ---
 
-## 10. v1 faction packs
+## 10. v1 faction packs (Plan 7)
 
 ### Corp (Kaguya / Helion / generic Corporate)
 
@@ -452,34 +481,7 @@ Five factions × ~40 lines of strings per asset class = ~1000 string literals. S
      -- mikko
   ```
 
-### Precursor
-
-- **Voice.** Cryptic, glyphic, wrong-feeling timestamps, fragmentary.
-- **Sample MOTD.** `we left this here for them` / `the door is the door is the door` / `▲ touch the mirror`
-- **Sample log line.** `CYCLE 11704883 ⟁ ▲▼▲ ⟁ ???`
-- **Banner sample (Console):**
-  ```
-  ⟁ ARCH.PRE / NODE-▲▼▲ / CYCLE 11704883
-     we left this here for them
-     the door is the door is the door
-     ▲ touch the mirror
-  ```
-
-### Conclave
-
-- **Voice.** Liturgical, preachy, "the door is closed to the unworthy."
-- **Sample MOTD.** `What is closed shall remain closed to the unworthy.` / `Keep faith. Be patient.` / `The Lit Path watches.`
-- **Sample log line.** `Day 412 of the Lit Path — 8th hour — admission of the worthy: roenne`
-- **Banner sample (Door):**
-  ```
-    ✚ The Conclave of the Lit Path ✚
-    ✚ Door 7-3 / Sanctum Gate          ✚
-    ✚ "What is closed shall remain     ✚
-    ✚  closed to the unworthy."        ✚
-    ✚ Keep faith. Be patient.          ✚
-  ```
-
-### Civilian / Outpost
+### Civilian / Outpost (also serves as Faction::None fallback)
 
 - **Voice.** Mundane, friendly, careless ("password is on the fridge").
 - **Sample MOTD.** `hi! please dont mess with the settings` / `wifi password is on the fridge` / `if you find a bug pls let greta know`
@@ -491,6 +493,10 @@ Five factions × ~40 lines of strings per asset class = ~1000 string literals. S
   the wifi password is on the fridge — please don't
   mess with the settings, last time it took us a week.
   ```
+
+### Deferred to Plan 11
+
+Precursor and Conclave (Stellari) ship as the **alien hacking dialect** — see §16. Not faction flavor packs but a parallel command vocabulary with their own filesystem-equivalent and escalation analog.
 
 ---
 
@@ -504,11 +510,11 @@ When the shell opens, `DeviceFsView` builds an in-memory map of `path → conten
 - `/etc/motd` — always present. Selected MOTD line.
 - `/var/log/auth.log` — always present. 5–10 generated log lines using faction templates.
 - `/var/log/<system>.log` — one per relevant tag (`optics.log` for `HasOptics`, `power.log` for `PowerNode`, etc.).
-- `/home/<user>/` — one user from the faction pool. Contains 1–3 small files (`notes.txt`, `todo.txt`) using `file_contents` templates.
+- `/home/<user>/` — one user from the faction pool. Contains 1–3 small files (`notes.txt`, `todo.txt`).
 - `/firmware/<tag>.fw` — one entry per tag. Permission denied at guest, readable as a hex blob at root.
-- `/data/` — present only for `DataStore`-tagged devices. Contains the "loot": lore fragments (Plan 4), credit balances (vending), encrypted archives (Precursor consoles).
+- `/data/` — present only for `DataStore`-tagged devices. Contains the "loot": lore fragments (Plan 4), credit balances (vending), encrypted archives.
 
-Generation is seeded from `(network_id, hackable_id)` so re-opening the shell always shows the same files — but new devices and new playthroughs get fresh content.
+Generation is seeded from `(network_id, hackable_id)` so re-opening the shell always shows the same files.
 
 ### Permission model
 
@@ -517,28 +523,28 @@ Generation is seeded from `(network_id, hackable_id)` so re-opening the shell al
 
 ### Reads stay free
 
-`ls`, `cat`, `grep`, `find` are all instant. The whole filesystem is a flavor + lore vehicle. Reading a Cartel terminal's `/home/mikko/notes.txt` and finding a clue about a stash location is the *point*.
+`ls`, `cat`, `grep`, `find` are all instant. The whole filesystem is a flavor + lore vehicle.
 
 ### `dump` and `wipe`
 
-`dump <path>` is the privileged sibling — leeches the file contents to player inventory as a `data fragment` item (long-channel, partial-state via `dumped_bytes`). `wipe <path>` permanently removes the file from the device (long-channel, atomic).
+`dump <path>` — privileged sibling, leeches contents to player inventory as a `data fragment` item (long-channel, partial-state via `dumped_bytes`). `wipe <path>` — permanently removes the file from the device (long-channel, atomic).
 
 ---
 
 ## 12. UX walkthroughs
 
-### Walkthrough A — real-world door bypass
+### Walkthrough A — real-world Shell Access door bypass
 
 ```
 [player approaches a locked corp door, has Cat_Hacking + cyberdeck]
 
 > press E (interactables widget)
-  → menu: [Open (locked)] [Hack]
-> select [Hack]
+  → menu: [Open (locked)] [(hack) Shell Access] [(hack) Jack In  -- not on this door]
+> select [(hack) Shell Access]
   → body becomes wired-in
   → PDA opens, hacking tab active
 
-pda> ssh root@10.0.4.22
+pda> ssh guest@10.0.4.22    # smart-typed: door is locked, autorun chose guest
 
 Connecting to 10.0.4.22.... [SUCCESS]
 Negotiating cipher... [SUCCESS]
@@ -567,12 +573,25 @@ KAGUYA-DOOR-22:root# exit
 [player unwires; door is now unlocked, walks through]
 ```
 
-### Walkthrough B — in-Grid pivot chain
+### Walkthrough B — in-Grid spatial walk + ssh chain
 
 ```
-[player has jacked into a station LAN, walked the spatial sector,
- reached a Camera node's gateway tile, breached it]
+[player has jacked into a station LAN via a JackInPort fixture]
+[avatar in LAN sector; player walked to a CAM-07 gateway tile]
 
+pda> nmap -l
+HOST          OS         TIER             FACTION
+10.0.4.07     CAM-OS     2 (locked)       cartel
+10.0.4.17     TUR-OS     2 (locked)       cartel
+10.0.4.22     DOR-OS     1 (cracked)      cartel
+...
+
+pda> ssh root@10.0.4.07
+ssh: 10.0.4.07: permission denied (root login disabled).
+      try: ssh guest@10.0.4.07
+
+pda> ssh guest@10.0.4.07
+[connection ritual — Tron window swaps to shell view]
 CAM-07:guest$ hashcat --fast
 [+] Recovered.
 CAM-07:root# ls /home/mikko/
@@ -580,21 +599,32 @@ notes.txt  todo.txt
 CAM-07:root# cat /home/mikko/notes.txt
 "the turret in 4-A is on default creds. dont tell denis."
 
-CAM-07:root# pivot 10.0.4.17
-[*] Pivoting... [▓▓▓░░░░░░░] 30%   trace -3, heat +2
+CAM-07:root# exit
+[Tron window swaps back to spatial sector]
+[avatar still at the CAM-07 gateway tile]
 
-Connecting to 10.0.4.17.... [SUCCESS]
-...
-KAGUYA-TUR-17:guest$ hashcat --fast      # default creds — instant
+[player walks avatar through the sector to the TUR-17 gateway tile]
+
+pda> ssh root@10.0.4.17
+[autorun? no — manual; root@ on locked turret rejects]
+ssh: 10.0.4.17: permission denied (root login disabled).
+      try: ssh guest@10.0.4.17
+
+pda> ssh guest@10.0.4.17
+CAM-... wait, actually the turret notes said "default creds"
+
+[player tries hashcat on TUR-17 — Cartel default-creds shortcut applies, instant]
+TUR-17:guest$ hashcat --fast
 [+] Recovered immediately (default credentials).
-KAGUYA-TUR-17:root# friendly_fire --target=cartel
+TUR-17:root# friendly_fire --target=cartel
 [*] Reconfiguring target priority... [▓▓▓▓▓▓▓▓▓▓] 100%
 [+] Turret will engage Cartel-tagged actors as hostile.
 
-KAGUYA-TUR-17:root# pivot 10.0.4.18
-...
-[player chains through 4 devices without ever walking back to a gateway]
+TUR-17:root# exit
+[player walks to next device, repeats]
 ```
+
+The Sysadmin-who-never-walks chain from the original spec is gone. Each new device requires the avatar to physically walk to its gateway tile.
 
 ---
 
@@ -602,13 +632,15 @@ KAGUYA-TUR-17:root# pivot 10.0.4.18
 
 All shell-driven mutations persist via Plan 5's tile-mutation persistence:
 
-- `Hackable.escalated` — sticks across sessions. Once cracked, always cracked (until firmware reflash).
-- `Hackable.cracked_digits` — partial-crack progress, sticks across save/load.
-- `Hackable.firmware_state` — Stock/Wiped/Glitched. Wiped turret is permanently dead until tinkered.
+- `Hackable.escalated` — sticks across sessions.
+- `Hackable.cracked_digits` — partial-crack progress.
+- `Hackable.firmware_state` — Stock/Wiped/Glitched.
 - `Hackable.dumped_bytes` — partial dump progress.
-- Filesystem mutations (`wipe`) — encoded as a small bitmask of "wiped-paths" on the Hackable. Persists.
+- Filesystem mutations (`wipe`) — encoded as a small bitmask of "wiped-paths" on the Hackable.
 
-No new save file. Schema bump on `galaxy_*.dat` (per project rule, reject old saves).
+Plus `CyberdeckMods` slots — see §15. Empty in v1 saves; populated when mods land.
+
+Schema bump on `galaxy_*.dat` (per project rule, reject old saves).
 
 ---
 
@@ -617,92 +649,132 @@ No new save file. Schema bump on `galaxy_*.dat` (per project rule, reject old sa
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | Command count balloons during authoring | High | Hard cap at "one cmd file per concept." If a tag wants more than 5 commands, redesign the tag. |
-| Faction flavor packs feel samey in play | Medium | Specific banner samples are designed to vary on register, not just word choice. Playtest after pack 2; if the texture isn't differentiated, rework before shipping pack 3+. |
+| Faction flavor packs feel samey in play | Medium | Three-pack v1 was specifically scoped to maximize voice contrast (sterile / personal / friendly). Playtest after Plan 7 ships before committing to alien-tech dialect work. |
 | Long-channel pacing wrong on first play | High | All `base_turns` and `base_heat` are constants in `cmd_*.cpp`. Tunable post-merge. |
-| Real-world frozen body feels frustrating | Medium | The flow is opt-in (skill-gated) and short-loop (most channels < 15 turns). If still bad, add a "hold-to-channel" ergonomic shortcut so common actions feel responsive. |
+| Real-world frozen body feels frustrating | Medium | The flow is opt-in (skill-gated) and short-loop (most channels < 15 turns). |
 | `--help` cost numbers drift from runtime values | Medium | Single source: scaling lives in one helper; both `--help` and channel-runtime call it. |
-| Pivot makes spatial walking feel useless | Medium | Pivot costs Heat per hop; a deep pivot chain runs out of Heat before a deep walk runs out of patience. Trace-dump benefit is small per pivot, so reckless pivoting still trips alarms. Tune in playtest. |
+| Walking-to-each-gateway feels grindy in dense regions | Medium | LAN gen sets gateway placement; if dense regions feel like a slog, sparsify gateways or cluster devices. Tune in playtest. |
 | Filesystem becomes lore-firehose / dilutes signal | Low | Per-device file count capped; lore fragments live behind `DataStore` only; rest is texture. |
 | In-code flavor packs balloon `hack_flavor.cpp` | Low | Split per-faction file the moment any single pack crosses ~150 lines. |
 
 ---
 
-## 15. Open questions (for the implementation plan)
+## 15. Cyberdeck mod system (gate only in v1)
 
-These are tactical, not design — they belong in the plan:
+### Concept
 
-- Which key opens the in-Grid shell sub-mode? (Reuse PDA toggle? Dedicated key?)
-- Visual rendering of the inline progress bar — terminal cell width, refresh rate, character set.
-- Does an alarm on the LAN auto-yank a real-world wired-in player, or only abort the active channel?
-- AI awareness of "hacking in progress" — v1 keeps AI dumb to it; revisit if playtest shows guards walk past frozen players too obliviously.
-- Order of cuts: real-world doorway first vs. in-Grid doorway first? (Recommend real-world first — simpler context, faster iteration.)
-- Skills `PivotMaster`, `ColdHands`, `RootKit` — placement in the `Cat_Hacking` tree.
-- `cmd_pivot.cpp` lives in `src/hack_commands/` like the others, even though it's special-cased Grid-only.
+The cyberdeck has installable mods that unlock new capabilities. v1 ships **only the gate** for one mod category — `WirelessJackIn` — used to gate `jack <ip>` from the cyberdeck shell. The mod system itself (slots, install UI, tinkerer NPCs, mod balance) is deferred to Plan 11+.
+
+### `WirelessJackIn` category
+
+When installed, allows `pda> jack <ip>` to enter the LAN spatial sector at the IP's location. When NOT installed, the command returns:
+
+```
+pda> jack 10.0.4.17
+jack: no wireless jack-in device installed.
+       (requires Wireless Jack-In Module.)
+```
+
+### Brand variants
+
+Two brands ship as items in v1 — both functionally identical at install time (since the install UI doesn't exist yet) but defined so they can be tested:
+
+- **Aerojack** — short, punchy, a one-word inventory entry. Tier 1.
+- **Untether** — alternative brand from a different in-world manufacturer. Tier 1.
+
+Both items must be:
+1. Defined in `docs/items.md` with stats stub (range, trace cost, install slot — values TBD; v1 stats can be placeholder).
+2. Registered in the item database so they can be spawned.
+3. Wired through `CyberdeckMods` such that having one in inventory (as a placeholder for "installed") enables the `jack <ip>` command.
+
+For v1 testing: the mod is "installed" simply by being present in inventory. No install ritual. When Plan 11 lands the proper mod system, this rule changes.
 
 ---
 
-## 16. Plan 5 amendments — `nmap` / `jack` / breach semantics
+## 16. Alien tech (Precursor / Conclave / Stellari) — deferred to Plan 11
 
-Plan 5's hacking-terminal CLI (`pda_hacking_tab`) and `GridNmapWidget` ship with two affordances that **conflict with this spec's auth model** and must be revised when this spec lands. They're called out here so Plan 7's implementation plan can carry the change as part of its scope.
+Precursor and Conclave (the Stellari) are non-human civilizations. Their devices are not running BSD with a different MOTD; POSIX `ls`/`cat`/`grep` is a *human* idiom. Plan 7 punts on alien tech entirely — `AlienTech`-tagged devices are not hackable in v1.
 
-### The conflict
+### v1 behavior for AlienTech-tagged devices
 
-Plan 5 (current) gates Grid entry on per-device lock state in two places:
+- The `interactables_widget` does **not** show `(hack) Shell Access` on `AlienTech`-tagged devices.
+- Manual `ssh root@<alien-ip>` returns: `ssh: <ip>: protocol not understood (alien tech).`
+- They still appear in `nmap` listings — marked as `OS: ??? (unknown)` — so the player knows they exist but can't interact.
 
-1. **`jack <ip>` CLI** — returns `jack: locked — try breach.exe` when the destination's gateway edge is locked. The player must run `breach.exe` first, then re-issue `jack`.
-2. **`nmap -m` widget — `b` key** — runs `breach.exe` on the cursor's current edge from outside the sector. Per-device "button-mash breach" with no other interaction.
+### Plan 11 scope (preview)
 
-Both treat **per-device locks** as a Grid-traversal gate that must be cleared before entry. This contradicts the device-shells design, where:
+When Plan 11 lands the alien hacking dialect, it ships:
+- A parallel command vocabulary (`attune`, `resonate`, `mirror`, `query`, `decode` instead of `ls`/`cat`/`grep`).
+- A glyph-node "filesystem" analog (no `/etc/motd`; instead, addressable echo nodes).
+- An escalation analog (`attune` as the alien `hashcat`).
+- Precursor and Conclave/Stellari packs (formerly intended as faction flavor packs, now full command sets).
+- Reuses the same `HackChannel`, partial-state, and persistence machinery as v1's POSIX shells.
 
-- `ssh root@<ip>` always succeeds and lands the player at `guest` tier on locked devices.
-- `hashcat` (long-channel, inside the shell) is the only path to escalation.
-- There is no remote per-device unlock. Lock state is resolved diegetically, not as an external gate.
+---
 
-If both systems coexist, the player has two parallel unlock paths (`b`-press in nmap; `hashcat` in shell) that diverge in cost, speed, risk, and skill expression — exactly the kind of redundancy the original hacking spec rules out.
+## 17. Plan 5 amendments
 
-### Required changes
+Plan 5's hacking-terminal CLI ships with affordances that conflict with this spec's model. The amendments below land **in the same plan** as Plan 7 implementation.
 
-1. **Drop the `jack <ip>` lock error.** `jack <ip>` succeeds for any reachable IP on the current LAN (and Atlas warp tiles in deep-Grid). Locked devices still resolve normally — the player arrives in the device's subnet sector at guest privilege and can crack from there. The error string `jack: <ip>: host unreachable` remains for unknown IPs; `jack: requires Cat_Hacking skill.` remains. The `locked — try breach.exe` line is removed.
+### A1. `jack <ip>` is now mod-gated
 
-2. **Drop `nmap -m`'s `b` key for per-device gateway edges.** Per-device `╳` gateway edges in the LAN graph are no longer breachable from the netmap. The Enter key (jump-to-sector) works on any node regardless of lock state — it routes through the new always-succeeding `jack` path.
+Plan 5 (current): `jack <ip>` lands the player's avatar in the LAN sector for any reachable IP.
 
-3. **Retain `breach.exe` for spatial firewalls only.** The breach mechanic survives but is **scoped to region/zone firewalls**: tier-2/3 walls in the LAN spatial sector that gate a *region* (not a device), and the deep-Grid Atlas↔Frontier and inter-Frontier firewalls. These are walked-up-to-and-pressed in the spatial sector itself; they are not netmap-side actions.
+Plan 7 (revised): `jack <ip>` requires a Wireless Jack-In Module mod installed in the cyberdeck. v1 ships no mod (or ships Aerojack/Untether as findable items), so the default behavior is the error in §15.
 
-4. **`nmap -m` `b` key — removed or repurposed.** Cleanest: remove. If retained, only fires on region-firewall edges (not per-device gateway edges) and still runs `breach.exe` with full program cost — but the simpler call is to remove the netmap-side breach affordance entirely and let the spatial sector own it. **Recommended: remove.**
+The §16 amendment from the original Plan 7 spec ("jack always succeeds for any IP regardless of lock") is superseded — `jack` doesn't run at all without the mod.
 
-5. **`nmap -l` listing — keep tier column, mark it informational.** The `tier: 2 (locked)` field stays in `ping` and `nmap -l` output so the player knows what they're walking into. Make explicit (in `man nmap` and `--help`): "Tier indicates the privilege you'll receive on connect; locked devices land you at guest. Locked is not a barrier to `jack`."
+### A2. Spatial entry to a LAN requires a `(hack) Jack In` interactable
+
+The only way to enter a LAN spatially in v1 is via a `(hack) Jack In` interactable on a `JackInPort`-tagged fixture in the real world. Walk up, select Jack In, avatar lands in the LAN.
+
+### A3. `nmap -m` `b` key removed
+
+Per the original Plan 7 spec §16: `nmap -m`'s `b` key (per-device breach via netmap) is removed. `breach.exe` survives only for region-scope firewalls walked-up-to in the spatial sector.
+
+### A4. `nmap -l` lock-state column kept
+
+`nmap -l` and `ping <ip>` continue to show per-device tier and lock state. This is canonical info — players use it to plan ssh attempts (manual ssh strict means knowing lock state up front avoids reject beats).
+
+### A5. `breach.exe` retained for region firewalls only
+
+`breach.exe` survives but scoped to region/zone firewalls (tier-2/3 walls in the LAN spatial sector that gate a *region*) and the deep-Grid Atlas↔Frontier and inter-Frontier firewalls. Walked-up-to-and-pressed in the spatial sector. Not netmap-side.
 
 ### What this preserves
 
-- LAN sector firewalls between regions still exist as spatial obstacles. The Netrunner playstyle still has Grid-walking gates to clear.
-- `breach.exe` program is still useful — just for region-scope obstacles instead of per-device.
+- LAN sector firewalls between regions still exist as spatial obstacles.
+- `breach.exe` stays useful — for region-scope obstacles.
 - Plan 5's existing `apply_breach_grid` machinery stays; its callers shrink.
 
 ### What this breaks (and that's fine)
 
-- Players who currently use `nmap -m` + `b` + Enter as a fast unlock path lose that path. The replacement — `jack <ip>` → `hashcat --fast` — is *richer* (skill check, partial state, INT/skill scaling, faction-flavored shell) and explicitly the design.
-- One-step quickhacks against locked devices remain unaffected; QHs target by tag mask, not lock state.
-
-### Where this lives in the implementation plan
-
-This amendment lands in the same plan as the device-shells implementation, because:
-
-- Removing `jack`'s lock error without `hashcat` available leaves locked devices unreachable.
-- Removing `nmap -m`'s `b` without the shell-tier model leaves players with no unlock path at all.
-
-The two changes are atomic: device-shells ships and the Plan 5 amendments land in the same sequence of commits.
+- Players who used `nmap -m` + `b` + Enter as a fast unlock path lose it. Replacement: `(hack) Jack In` to enter spatially → walk → `(hack) Shell Access` adjacent → `hashcat --fast`. Richer, deliberately so.
+- `jack <ip>` from cyberdeck no longer works in v1. Players use the physical `Jack In` interactable.
 
 ---
 
-## 17. Cross-references
+## 18. Open questions for the implementation plan
+
+These are tactical, not design — they belong in the plan file:
+
+- Visual rendering of the inline progress bar — terminal cell width, refresh rate, character set.
+- AI awareness of "hacking in progress" — v1 keeps AI dumb to it; revisit if playtest shows guards walk past frozen players too obliviously.
+- Tinkerer / install-ritual UX for cyberdeck mods — out of scope for Plan 7; ships in Plan 11+.
+- Aerojack vs Untether stat curves — both placeholder-equivalent in v1 since install UI doesn't exist; differentiate in Plan 11+.
+- Real-world Shell Access on a `JackInPort` fixture — does it offer Shell Access AND Jack In as two options, or only Jack In? Recommend: both, since `JackInPort` devices have their own `Hackable` state.
+
+---
+
+## 19. Cross-references
 
 - Plan 4 spec — `2026-04-30-hacking-deep-grid-design.md` — body-phased-out behavior, Trace/Heat semantics.
-- Plan 5 spec — `2026-05-01-grid-expansion-design.md` — tag taxonomy, LAN sector, `Hackable.ip`, persistence machinery, current `nmap`/`jack`/breach semantics that §16 amends.
-- Root hacking spec — `2026-04-29-hacking-design.md` — `Cat_Hacking` skill tree, PDA structure, the v1-exclusion line that this spec answers.
-- Plan 5 handoff — `docs/plans/2026-05-01-grid-loop-handoff.md` — current branch context.
+- Plan 5 spec — `2026-05-01-grid-expansion-design.md` — tag taxonomy, LAN sector, `Hackable.ip`, persistence machinery.
+- Plan 6 spec — `2026-05-02-grid-hud-design.md` — Tron HUD overlay, log pane, render context.
+- Root hacking spec — `2026-04-29-hacking-design.md` — `Cat_Hacking` skill tree, PDA structure.
+- Plan 7 roadmap — `docs/plans/2026-05-03-plan-7-roadmap.md` — sub-project map.
 
 ---
 
-## 18. Status
+## 20. Status
 
-Draft. Awaiting user review. Implementation plan to follow once approved.
+Approved. Implementation plan to follow at `docs/superpowers/plans/2026-05-03-device-shells.md`.
