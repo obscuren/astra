@@ -40,6 +40,11 @@ namespace astra {
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
     hacking_.bind_game(this);
+    // Plan 7 unified terminal: the PDA's Hacking tab is the device shell's
+    // output sink. Bind once at construction so the binding holds whether or
+    // not the PDA is open (in-Grid Tron-window doorway can render the shell
+    // without the PDA being open).
+    hacking_.device_shell().bind_sink(&pda_screen_);
 }
 
 std::string Game::dominant_faction_in_current_map() const {
@@ -102,14 +107,6 @@ void Game::run() {
             // Auto-walk/explore step
             if (auto_walking_ || auto_exploring_) {
                 auto_step();
-            }
-            // Plan 7: drive the device shell's per-frame updater while it's
-            // open so the connection ritual streams char-by-char even when
-            // the player is idle. Long-channel progress rides world ticks
-            // (HackingSystem::tick) so the player must spend an action to
-            // advance it.
-            if (hacking_.device_shell_open()) {
-                hacking_.device_shell().tick_frame(*this);
             }
         } else {
             // Any keypress stops auto-walk/explore

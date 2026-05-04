@@ -289,6 +289,23 @@ void Game::handle_play_input(int key) {
                                    PdaTab::Skills, can_board_ship(), &world_,
                                    this, &hacking_);
         }
+        // Plan 7: (hack) Shell Access doorway autotypes `ssh <user>@<ip>`
+        // into the PDA's pda> input buffer, which leaves an ssh request on
+        // the PDA queue. Drain it now so the device shell opens immediately
+        // without requiring a follow-up keypress.
+        if (pda_screen_.is_open()) {
+            bool as_root = true;
+            if (uint32_t ip_v = pda_screen_.consume_ssh_request(as_root); ip_v != 0) {
+                Hackable* h = world_.find_hackable_by_ip(ip_v);
+                if (h) {
+                    ShellTier tier = as_root ? ShellTier::Root : ShellTier::Guest;
+                    hacking_.open_device_shell(*this, *h, tier,
+                                               ShellVia::RealWorld,
+                                               /*manual_ssh=*/true,
+                                               as_root ? "root" : "guest");
+                }
+            }
+        }
         return;
     }
 

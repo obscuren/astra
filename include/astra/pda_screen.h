@@ -1,9 +1,11 @@
 #pragma once
 
+#include "astra/device_shell.h"
 #include "astra/grid_nmap_widget.h"
 #include "astra/player.h"
 #include "astra/quest.h"
 #include "astra/recipe.h"
+#include "astra/rect.h"
 #include "astra/ui.h"
 
 #include <cstdint>
@@ -33,7 +35,7 @@ enum class PdaTab : uint8_t {
 
 static constexpr int pda_tab_count = 10;
 
-class PdaScreen {
+class PdaScreen : public ShellOutputSink {
 public:
     PdaScreen() = default;
 
@@ -157,6 +159,36 @@ private:
 
     void draw_cooking(UIContext& ctx);
 
+public:
+    // ── ShellOutputSink overrides (Plan 7 unified terminal) ──
+    // The Hacking tab terminal IS the cyberdeck shell. While a DeviceShell
+    // session is active, all session output (ritual, command output, channel
+    // ticks, logout) appends to the same scrollback. Prompt + dispatch morph
+    // by `hacking_system_->device_shell_open()`; on exit the prompt reverts
+    // to `pda> ` and the entire ssh transcript stays in scrollback.
+    void shell_emit_line(const std::string& text, UITag tag) override;
+    void shell_clear_scroll() override;
+    void shell_set_progress_line(const std::string& text, UITag tag) override;
+    void shell_commit_progress_line() override;
+    // Render the unified Hacking-tab terminal into an arbitrary rect. Used
+    // by the in-Grid Tron-window (grid_renderer.cpp) so the same scroll +
+    // prompt swap into the playfield rect when the avatar is jacked into a
+    // device. HUD chrome (Trace/Heat panes, log pane, program bar) stays
+    // visible because it lives outside this rect.
+    void draw_hacking_into(Renderer* renderer, Rect bounds);
+
+    // Public entry-point for the in-Grid Tron-window: when the Grid input
+    // handler sees that a Grid-via DeviceShell is active, it forwards keys
+    // here so the unified terminal handles them just like the PDA does.
+    void hack_term_handle_key_for_grid(int key) { handle_hacking_key(key); }
+
+    // Plan 7 §4: (hack) Shell Access doorway autotypes a smart-formed
+    // `ssh <user>@<ip>` into the existing pda> input buffer and submits it.
+    // The connection ritual + session open just like a manual `ssh` typed
+    // by the player, keeping the unified scroll the single source of truth.
+    void hack_term_autotype_and_submit(const std::string& line);
+
+private:
     // Hacking tab — terminal subwindow
     struct HackTermLine {
         std::string text;
@@ -169,6 +201,17 @@ private:
     int                       hack_term_history_cursor_ = -1;
     int                       hack_term_scroll_ = 0;         // lines scrolled up from bottom (0 = latest)
     uint16_t                  hack_term_greeted_deck_def_id_ = 0;
+
+    // ── Plan 7 unified terminal ──
+    // Transient progress-bar slot — overwritten in place each world tick by
+    // active long-channels. Empty string = no transient line shown.
+    std::string hack_term_progress_text_;
+    UITag       hack_term_progress_tag_ = UITag::TextWarning;
+    bool        hack_term_progress_set_ = false;
+    // Pending ssh autotype: if non-empty, the next frame sets the input
+    // buffer to this string and submits it (mirrors typing `ssh root@<ip>`
+    // and pressing Enter). Used by Shell Access doorway.
+    std::string hack_term_pending_autotype_;
 
     void hack_term_emit(const std::string& line, UITag tag = UITag::TextDefault);
     void hack_term_greet_for_deck(uint16_t deck_def_id);

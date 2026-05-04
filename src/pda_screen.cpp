@@ -41,6 +41,14 @@ void PdaScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
     game_ = game;
     hacking_system_ = hacking_system;
     open_ = true;
+
+    // Plan 7 unified terminal: bind the DeviceShell's output sink to us so
+    // ritual, command output, and channel ticks all flow into the PDA's
+    // single Hacking-tab scroll. Safe to bind even when no shell is open;
+    // the sink is consulted only while a session is active.
+    if (hacking_system_) {
+        hacking_system_->device_shell().bind_sink(this);
+    }
     if (initial_tab) active_tab_ = *initial_tab;
     // else: keep active_tab_ from last close
     cursor_ = 0;
@@ -109,14 +117,14 @@ bool PdaScreen::handle_input(int key) {
             nmap_widget_.close();
             return true;
         }
-        // Plan 7 §3a: if a real-world DeviceShell is active in the Hacking
-        // tab, ESC routes to the shell so it closes (yanks the cable). The
-        // PDA itself stays open so the user can keep using it.
+        // Plan 7 unified terminal: if a real-world DeviceShell session is
+        // active, ESC routes to the Hacking tab key handler which closes the
+        // session (yanks the cable). The PDA itself stays open so the user
+        // can keep using it.
         if (active_tab_ == PdaTab::Hacking &&
             hacking_system_ && hacking_system_->device_shell_open() &&
-            hacking_system_->device_shell().via() == ShellVia::RealWorld &&
-            game_) {
-            hacking_system_->device_shell().handle_input(key, *game_);
+            hacking_system_->device_shell().via() == ShellVia::RealWorld) {
+            handle_hacking_key(key);
             return true;
         }
         close();

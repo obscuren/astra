@@ -3,11 +3,9 @@
 #include "astra/device_fs.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
-#include "astra/rect.h"
-#include "astra/ui.h"
+#include "astra/ui_types.h"
 
 #include <cstdint>
-#include <deque>
 #include <optional>
 #include <string>
 #include <vector>
@@ -15,7 +13,6 @@
 namespace astra {
 
 class Game;
-class Renderer;
 
 enum class ShellTier : uint8_t { Guest, Root };
 enum class ShellVia  : uint8_t { RealWorld, Grid };
@@ -41,20 +38,39 @@ struct HackChannel {
     }
 };
 
-// One line in the shell output scroll. Tagged for color / vibe.
-struct ShellLine {
-    std::string text;
-    UITag       tag = UITag::TextDefault;
+// Render-side abstraction used by DeviceShell + cmd_*.cpp. The PdaScreen
+// implements this — the unified terminal (cyberdeck shell + ssh session) is
+// a single scroll/input/prompt that morphs by session presence. While a shell
+// is open, all output (ritual, command output, channel completion lines, the
+// `logout` line) appends to the same scroll. While a long channel is active,
+// the bar overwrites a single transient line in place; on commit/abort the
+// final state is pushed into the scroll.
+class ShellOutputSink {
+public:
+    virtual ~ShellOutputSink() = default;
+    // Append a finished line to the scroll.
+    virtual void shell_emit_line(const std::string& text, UITag tag) = 0;
+    // Wipe the scroll. cmd_clear uses this.
+    virtual void shell_clear_scroll() = 0;
+    // Update the in-place progress line (overwritten each tick). Empty
+    // string clears the transient slot without committing it.
+    virtual void shell_set_progress_line(const std::string& text, UITag tag) = 0;
+    // Push the current transient progress line into the scroll (used on
+    // channel complete / abort). No-op when no transient line is set.
+    virtual void shell_commit_progress_line() = 0;
 };
 
 class DeviceShell {
 public:
     DeviceShell() = default;
 
+    // Bind the output sink (PdaScreen). Must be set before open().
+    void bind_sink(ShellOutputSink* sink) { sink_ = sink; }
+    ShellOutputSink* sink() { return sink_; }
+
     // Open a shell session. `target` is the wired/adjacent Hackable.
     // `via` chooses the surrounding-context (real-world body wired or in-Grid
-    // avatar). `manual_ssh` toggles the strict ssh-reject behaviour for
-    // root@locked.
+    // avatar). The connection ritual is queued through the sink.
     void open(Game& game, Hackable* target, ShellTier tier, ShellVia via,
               const std::string& requested_user);
     void close(Game& game);
@@ -65,34 +81,24 @@ public:
     ShellTier tier() const { return tier_; }
     ShellVia  via()  const { return via_; }
 
-    // Idle/frame tick: drives the connection-ritual char streaming. Called
-    // once per renderer frame from the main loop's idle branch.
-    void tick_frame(Game& game);
-
     // World tick: advances the active long-channel by one tick. Called from
     // HackingSystem::tick (which fires from Game::advance_world).
     void tick_world(Game& game);
 
-    // Backwards-compat shim — calls both for callers that don't differentiate.
-    void tick(Game& game) { tick_frame(game); tick_world(game); }
-
-    // Input — returns true if the key was consumed. Handles arrow keys,
-    // Home/End, Backspace/Delete, mid-line insert, Enter, Esc.
-    bool handle_input(int key, Game& game);
-
-    // Render a full-screen panel. The default path picks a centred ~80x24
-    // panel (real-world doorway: shell over the world). Plan 7 §3b lets
-    // the in-Grid doorway render into a bounded rect — the Tron window
-    // playfield rect — so HUD chrome (Trace/Heat panes, log pane) stays
-    // visible. Pass a non-empty `bounds` to use that rect instead.
-    void render(Renderer* renderer, int screen_w, int screen_h, const Game& game) const;
-    void render_into(Renderer* renderer, Rect bounds, const Game& game) const;
-
-    // Append an output line. Use this from cmd_*.cpp.
+    // ── Output API used by cmd_*.cpp ──
+    // emit() forwards to the sink. Safe to call before open() / after close()
+    // (becomes a no-op if sink is null).
     void emit(const std::string& line, UITag tag = UITag::TextDefault);
+    void clear_scroll();
 
-    // Submit current input buffer as a command.
-    void submit_input(Game& game);
+    // Submit a line typed at the device prompt — runs the matching HackCommand
+    // through the registry, with tier + tag filters. Echo + tag-reject lines
+    // are emitted via the sink. PdaScreen calls this when the user submits a
+    // command while the session is active.
+    void submit_command(const std::string& line, Game& game);
+
+    // Prompt string for the current session (e.g. "TURRET-OS-2.7:guest$ ").
+    std::string prompt() const { return prompt_(); }
 
     // Start a long channel for the given parsed command. Returns false if
     // a channel is already active (caller should print the in-progress error).
@@ -106,11 +112,13 @@ public:
     const HackChannel& channel() const { return channel_; }
     bool channel_active() const { return channel_.active(); }
 
-    // Clear scroll. Called by `cmd_clear`.
-    void clear_scroll();
-
-    // Ringed history (most-recent first).
+    // Session-only history (typed inside this device session). Used by the
+    // universal `history` command to print just this session's lines.
     const std::vector<std::string>& history() const { return history_; }
+    void push_history(const std::string& cmd) {
+        history_.push_back(cmd);
+        if (history_.size() > 64) history_.erase(history_.begin());
+    }
 
     // Procedural per-device filesystem (Plan 7 §11). Built on open(); rebuilt
     // when wiped_paths changes (cmd_wipe rebuilds in-place).
@@ -123,27 +131,16 @@ public:
     void set_faction(std::string s) { faction_ = std::move(s); }
 
 private:
+    ShellOutputSink* sink_ = nullptr;
+
     bool open_ = false;
     Hackable* target_ = nullptr;
     ShellTier tier_ = ShellTier::Guest;
     ShellVia  via_ = ShellVia::RealWorld;
     std::string requested_user_;
 
-    // Output scroll.
-    std::deque<ShellLine> lines_;
-
-    // Input buffer + cursor.
-    std::string input_;
-    int         cursor_ = 0;
-    int         history_cursor_ = -1;
+    // Session-only command history (used by `history` cmd).
     std::vector<std::string> history_;
-
-    // Connection ritual streaming. While ritual_remaining_ > 0, we're
-    // playing the connect/banner sequence and the prompt is suppressed.
-    std::vector<std::string> ritual_pending_;  // queued lines to stream
-    int  ritual_remaining_chars_ = 0;          // chars of current line still to reveal
-    int  ritual_tick_acc_ = 0;
-    bool ritual_done_ = false;
 
     HackChannel channel_;
     DeviceFsView fs_view_;
@@ -151,19 +148,12 @@ private:
 
     // Build host string used in prompt + banner.
     std::string host_label_() const;
-
     // Build the prompt string, e.g. "TURRET-OS-2.7:guest$ " or "DOR-OS:root# ".
     std::string prompt_() const;
-
-    // Stream-render: emit a banner block + MOTD + prompt.
+    // Stream the connection ritual (banner + MOTD) through the sink.
     void emit_banner_(Game& game);
 
-    // Streaming helper — split text into lines and queue for char-by-char.
-    void queue_ritual_line_(const std::string& line);
-
-    // Handle an `<cmd>` or `<cmd> --help`.
-    void dispatch_command_(const std::string& line, Game& game);
-
+    // Render the per-cmd `--help` output.
     void render_help_for_(const HackCommand& cmd, Game& game);
 };
 

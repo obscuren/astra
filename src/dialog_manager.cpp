@@ -7,6 +7,8 @@
 #include "astra/game.h"
 #include "astra/hackable.h"
 #include "astra/hacking_system.h"
+#include "astra/ip.h"
+#include "astra/pda_screen.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/playback_viewer.h"
@@ -1104,21 +1106,19 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     game.player().is_jacked_into = 0x40000000;
                     bool locked = has_tag(hack.tags, HackTag::Locked);
                     bool wants_root = !(locked && !hack.escalated);
-                    ShellTier tier = wants_root ? ShellTier::Root : ShellTier::Guest;
-                    // Plan 7 §3a: real-world shells render inside the PDA's
-                    // Hacking tab content area. Open the PDA on Hacking so
-                    // the shell has a home; PdaScreen draws the device shell
-                    // when via=RealWorld and routes input to it.
+                    // Plan 7 unified terminal: open PDA on Hacking and
+                    // autotype the smart `ssh <user>@<ip>` so the connection
+                    // ritual + session open the same way as a manually-typed
+                    // ssh — single contiguous scroll, prompt morph included.
                     game.pda_screen().open(&game.player(), game.renderer(),
                                            &game.quests(),
                                            game.world().navigation().on_ship,
                                            PdaTab::Hacking,
                                            game.can_board_ship(),
                                            &game.world(), &game, &game.hacking());
-                    game.hacking().open_device_shell(
-                        game, hack, tier, ShellVia::RealWorld,
-                        /*manual_ssh=*/false,
-                        wants_root ? "root" : "guest");
+                    std::string user = wants_root ? "root" : "guest";
+                    std::string cmd = "ssh " + user + "@" + format_ip(hack.ip);
+                    game.pda_screen().hack_term_autotype_and_submit(cmd);
                 }
                 return;
             }
@@ -1165,22 +1165,21 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 // Autorun smart-ssh: locked-unescalated -> guest, else -> root.
                 bool locked = has_tag(hack.tags, HackTag::Locked);
                 bool wants_root = !(locked && !hack.escalated);
-                ShellTier tier = wants_root ? ShellTier::Root : ShellTier::Guest;
-                // Plan 7 §3a: real-world shells render inside the PDA's
-                // Hacking tab. Open the PDA on Hacking so the shell has a
-                // home; PdaScreen draws the device shell when via=RealWorld
-                // and routes input to it. On `exit` the PDA stays open and
-                // reverts to the pda> shell.
+                // Plan 7 unified terminal: open PDA on Hacking and autotype
+                // the smart `ssh <user>@<ip>` so the connection ritual +
+                // session open through the same single-scroll flow as a
+                // manually-typed ssh. On `exit` the PDA stays open and the
+                // prompt reverts to `pda> ` with the entire session still in
+                // scrollback above.
                 game.pda_screen().open(&game.player(), game.renderer(),
                                        &game.quests(),
                                        game.world().navigation().on_ship,
                                        PdaTab::Hacking,
                                        game.can_board_ship(),
                                        &game.world(), &game, &game.hacking());
-                game.hacking().open_device_shell(
-                    game, hack, tier, ShellVia::RealWorld,
-                    /*manual_ssh=*/false,
-                    wants_root ? "root" : "guest");
+                std::string user = wants_root ? "root" : "guest";
+                std::string cmd = "ssh " + user + "@" + format_ip(hack.ip);
+                game.pda_screen().hack_term_autotype_and_submit(cmd);
                 return;
             }
             if (kind == OptionKind::HackingRunQh) {

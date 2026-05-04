@@ -66,19 +66,6 @@ const char* next_motd() {
 } // namespace
 
 void PdaScreen::draw_hacking(UIContext& ctx) {
-    // Plan 7 §3a: while a real-world DeviceShell is open, the Hacking tab's
-    // content area becomes the device shell. The pda> outer shell stays in
-    // memory (history, MOTD greeter latch); on shell exit we revert. The
-    // in-Grid path renders into the Tron window via grid_renderer; it is
-    // never seen here.
-    if (hacking_system_ && hacking_system_->device_shell_open() &&
-        hacking_system_->device_shell().via() == ShellVia::RealWorld &&
-        game_ && renderer_) {
-        hacking_system_->device_shell().render_into(
-            renderer_, ctx.bounds(), *game_);
-        return;
-    }
-
     if (!has_cat_hacking(*player_)) {
         // Locked splash. The .qh programs in the deck stay visible because
         // the H-key flow doesn't require Cat_Hacking — only jacking in does.
@@ -175,11 +162,21 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
     // Terminal flow: history lines start at top; the live prompt is the
     // last line. When the combined output overflows the visible area,
     // oldest lines scroll off (or are pushed up by hack_term_scroll_).
+    //
+    // Plan 7 unified terminal: in-flight ritual reveal-bytes count as one
+    // (partial) line at the bottom of scroll. The transient progress line
+    // (long-channel `[#---] N%`) sits one row above the prompt — overwritten
+    // each tick — so we don't pollute scroll with each tick.
     int top = 3;
     int bottom = ctx.height() - 2;
     int visible = bottom - top + 1;
     int hist_count = static_cast<int>(hack_term_lines_.size());
-    int total = hist_count + 1;                 // +1 for live prompt
+
+    // Optional rows: transient progress, prompt. (Ritual lines are committed
+    // straight to scroll — no partial-reveal row needed.)
+    bool show_progress = hack_term_progress_set_ && !hack_term_progress_text_.empty();
+    int extra_rows = (show_progress ? 1 : 0) + 1;  // +1 for prompt
+    int total = hist_count + extra_rows;
 
     // Clamp scroll: we can scroll up at most (total - visible) lines.
     int max_scroll = std::max(0, total - visible);
@@ -193,6 +190,13 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
                   .content = hack_term_lines_[i].text,
                   .tag = hack_term_lines_[i].tag});
     }
+    // Transient progress line.
+    if (hack_term_scroll_ == 0 && show_progress && row <= bottom) {
+        ctx.text({.x = 2, .y = row,
+                  .content = hack_term_progress_text_,
+                  .tag = hack_term_progress_tag_});
+        ++row;
+    }
     // Render the prompt only if it's still in view (not scrolled past).
     if (hack_term_scroll_ == 0 && row <= bottom) {
         // Cursor sits at hack_term_input_cursor_; render an underscore at
@@ -200,7 +204,15 @@ void PdaScreen::draw_hacking(UIContext& ctx) {
         int cur = hack_term_input_cursor_;
         if (cur < 0) cur = 0;
         if (cur > static_cast<int>(hack_term_input_.size())) cur = static_cast<int>(hack_term_input_.size());
-        std::string prefix = prompt_for_deck((*active_deck_slot)->item_def_id);
+        // Plan 7 unified prompt: morphs to the device shell prompt while a
+        // session is active.
+        bool session_active = hacking_system_ && hacking_system_->device_shell_open();
+        std::string prefix;
+        if (session_active) {
+            prefix = hacking_system_->device_shell().prompt();
+        } else {
+            prefix = prompt_for_deck((*active_deck_slot)->item_def_id);
+        }
         std::string prompt = prefix + hack_term_input_.substr(0, cur) + "_" +
                              hack_term_input_.substr(cur);
         ctx.text({.x = 2, .y = row, .content = prompt, .tag = UITag::TextDefault});
@@ -224,14 +236,28 @@ void PdaScreen::hack_term_emit(const std::string& line, UITag tag) {
 }
 
 void PdaScreen::handle_hacking_key(int key) {
-    // Plan 7 §3a: when a real-world DeviceShell is active, the Hacking tab's
-    // input goes to the device shell line editor. On `exit` (Esc or cmd_exit)
-    // the shell closes and control returns to the pda> shell with its prior
-    // state intact.
-    if (hacking_system_ && hacking_system_->device_shell_open() &&
-        hacking_system_->device_shell().via() == ShellVia::RealWorld &&
-        game_) {
-        hacking_system_->device_shell().handle_input(key, *game_);
+    // Plan 7 unified terminal: the ssh session is a state transition of the
+    // pda> terminal. While a DeviceShell session is active the same line
+    // editor is used; only the prompt rendering and submission dispatch
+    // morph. ESC routes to the shell so it closes (yanks cable in real-world
+    // / returns to spatial sector view in-Grid). The PDA itself stays open.
+    bool session_active = hacking_system_ && hacking_system_->device_shell_open();
+
+    if (session_active && key == 27 && game_) {
+        // ESC outside ritual = exit / yank. DeviceShell::close emits the
+        // logout pair and reverts the prompt. If a long channel is active,
+        // ESC instead aborts that channel (and keeps the session open).
+        if (hacking_system_->device_shell().channel_active()) {
+            hacking_system_->device_shell().abort_channel(*game_, "user");
+        } else {
+            hacking_system_->device_shell().close(*game_);
+        }
+        return;
+    }
+    // While a long channel is in flight we still allow ESC (handled above)
+    // and Enter (no-op so the player can't submit a stale line). Movement
+    // keys / typing are swallowed so the player just watches the bar.
+    if (session_active && hacking_system_->device_shell().channel_active()) {
         return;
     }
 
@@ -264,15 +290,32 @@ void PdaScreen::handle_hacking_key(int key) {
 
     if (key == '\n' || key == '\r') {
         if (!hack_term_input_.empty()) {
-            const char* prefix = prompt_for_deck((*deck_slot)->item_def_id);
-            hack_term_emit(prefix + hack_term_input_, UITag::TextDefault);
-            hack_term_history_.push_back(hack_term_input_);
-            if (hack_term_history_.size() > 50)
-                hack_term_history_.erase(hack_term_history_.begin());
-            hack_term_run_command(hack_term_input_);
+            // Echo the prompt + input into the SAME scrollback. Whether we're
+            // at pda> or inside an ssh session, output flows into one buffer.
+            std::string echo_prefix;
+            if (session_active) {
+                echo_prefix = hacking_system_->device_shell().prompt();
+            } else {
+                echo_prefix = prompt_for_deck((*deck_slot)->item_def_id);
+            }
+            hack_term_emit(echo_prefix + hack_term_input_, UITag::TextDefault);
+            // Cyberdeck shell maintains its own typed-history; device shell
+            // tracks session-only history (used by the universal `history`
+            // command).
+            if (!session_active) {
+                hack_term_history_.push_back(hack_term_input_);
+                if (hack_term_history_.size() > 50)
+                    hack_term_history_.erase(hack_term_history_.begin());
+            }
+            std::string line = hack_term_input_;
             hack_term_input_.clear();
             hack_term_input_cursor_ = 0;
             hack_term_history_cursor_ = -1;
+            if (session_active && game_) {
+                hacking_system_->device_shell().submit_command(line, *game_);
+            } else {
+                hack_term_run_command(line);
+            }
         }
         return;
     }
@@ -353,8 +396,10 @@ void PdaScreen::handle_hacking_key(int key) {
         }
         return;
     }
-    // Single-key shortcuts (menu fallbacks) — only when input buffer is empty.
-    if (hack_term_input_.empty()) {
+    // Single-key shortcuts (menu fallbacks) — only when input buffer is empty
+    // AND no session is active (these are pda>-only menu fallbacks; inside an
+    // ssh session 'P', 'I', 'N', 'L' are valid characters in commands).
+    if (!session_active && hack_term_input_.empty()) {
         switch (key) {
             case '?': hack_term_run_command("help"); return;
             case 'P': hack_term_run_command("ps"); return;
@@ -1103,6 +1148,64 @@ void PdaScreen::hack_term_cmd_history() {
     for (size_t i = 0; i < hack_term_history_.size(); ++i) {
         hack_term_emit("  " + std::to_string(i) + "  " + hack_term_history_[i]);
     }
+}
+
+// ── ShellOutputSink overrides (Plan 7 unified terminal) ──
+
+void PdaScreen::shell_emit_line(const std::string& text, UITag tag) {
+    hack_term_emit(text, tag);
+}
+
+void PdaScreen::shell_clear_scroll() {
+    // Wipe the scroll. Don't re-greet the deck — a session-side `clear`
+    // shouldn't print the cyberdeck banner. The pda>-side `clear` cyberdeck
+    // command (hack_term_cmd_clear) is responsible for re-greeting.
+    hack_term_lines_.clear();
+    hack_term_scroll_ = 0;
+}
+
+void PdaScreen::shell_set_progress_line(const std::string& text, UITag tag) {
+    hack_term_progress_text_ = text;
+    hack_term_progress_tag_ = tag;
+    hack_term_progress_set_ = !text.empty();
+    // Snap to bottom so the bar stays visible while it ticks.
+    if (hack_term_progress_set_) hack_term_scroll_ = 0;
+}
+
+void PdaScreen::shell_commit_progress_line() {
+    if (hack_term_progress_set_ && !hack_term_progress_text_.empty()) {
+        hack_term_emit(hack_term_progress_text_, hack_term_progress_tag_);
+    }
+    hack_term_progress_text_.clear();
+    hack_term_progress_set_ = false;
+}
+
+void PdaScreen::hack_term_autotype_and_submit(const std::string& line) {
+    if (line.empty()) return;
+    // Echo + dispatch through the existing pda> path so the line lives in
+    // history, the prompt printed in scroll matches what the player would
+    // see if they typed it themselves, and any tag/permission rejects fall
+    // through the same code path.
+    auto* deck_slot = player_ ? player_->equipment.equipped_cyberdeck() : nullptr;
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+    const char* prefix = prompt_for_deck((*deck_slot)->item_def_id);
+    hack_term_emit(prefix + line, UITag::TextDefault);
+    hack_term_history_.push_back(line);
+    if (hack_term_history_.size() > 50)
+        hack_term_history_.erase(hack_term_history_.begin());
+    hack_term_run_command(line);
+}
+
+void PdaScreen::draw_hacking_into(Renderer* renderer, Rect bounds) {
+    if (!renderer || bounds.w <= 0 || bounds.h <= 0) return;
+    UIContext ctx(renderer, bounds);
+    // Paint a clean background so the Tron playfield doesn't bleed through.
+    for (int j = 0; j < ctx.height(); ++j) {
+        for (int i = 0; i < ctx.width(); ++i) {
+            ctx.put(i, j, ' ', Color::White, Color::Black);
+        }
+    }
+    draw_hacking(ctx);
 }
 
 } // namespace astra

@@ -752,14 +752,16 @@ void render(Game& game, Renderer& r) {
     draw_deck_strip(game, r, wr, *sess);
 
     // Plan 7 §3b: while a DeviceShell is open via the in-Grid doorway,
-    // swap the playfield content for the shell terminal. HUD chrome
-    // (Trace/Heat panes, log pane, program bar, borders) stays put — the
-    // log pane keeps streaming Trace/Heat updates so the player can see
-    // the cost of long-channels in-Grid.
+    // swap the playfield content for the unified PDA Hacking-tab terminal.
+    // It's literally the same scroll + prompt the PDA renders — single
+    // contiguous scrollback. HUD chrome (Trace/Heat panes, log pane, program
+    // bar, borders) stays put — the log pane keeps streaming Trace/Heat
+    // updates so the player can see the cost of long-channels in-Grid.
     const auto& shell = game.hacking().device_shell();
     bool grid_shell = shell.is_open() && shell.via() == ShellVia::Grid;
     if (grid_shell) {
-        shell.render_into(&r, Rect{pr.x, pr.y, pr.w, pr.h}, game);
+        const_cast<Game&>(game).pda_screen().draw_hacking_into(
+            &r, Rect{pr.x, pr.y, pr.w, pr.h});
     } else {
         draw_playfield(game, r, pr, *sess);
     }

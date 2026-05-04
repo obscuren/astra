@@ -7,24 +7,16 @@
 #include "astra/hacking_system.h"
 #include "astra/ip.h"
 #include "astra/player.h"
-#include "astra/renderer.h"
-#include "astra/ui.h"
 #include "astra/world_manager.h"
 
 #include <algorithm>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <sstream>
 
 namespace astra {
 
 namespace {
-
-// Approx chars-per-tick of streaming output. The host is at 60Hz; the spec
-// asks for ~60 chars/sec which is one char per tick. Keeping it at 1 means
-// the ritual streams in real-time without depending on world ticks.
-constexpr int kRitualCharsPerTick = 1;
 
 // Convenience — substitution for banner template strings.
 std::string subst_banner_(std::string_view tpl,
@@ -64,36 +56,26 @@ void DeviceShell::open(Game& game, Hackable* target, ShellTier tier,
     tier_ = tier;
     via_ = via;
     requested_user_ = requested_user;
-    lines_.clear();
-    input_.clear();
-    cursor_ = 0;
-    history_cursor_ = -1;
-    ritual_pending_.clear();
-    ritual_remaining_chars_ = 0;
-    ritual_tick_acc_ = 0;
-    ritual_done_ = false;
+    history_.clear();
+    channel_ = HackChannel{};
 
-    // Queue the ritual + banner. Streamed out by tick().
+    // Build the per-device filesystem before banner emit (banner doesn't
+    // touch fs but commands might run during ritual).
+    rebuild_fs_view();
+
+    if (!sink_) return;
+
+    // Single "Connected" line + banner + MOTD. No multi-step auth ritual.
     char ip_str[32];
     if (target_) {
         std::snprintf(ip_str, sizeof ip_str, "%s", format_ip(target_->ip).c_str());
     } else {
         std::snprintf(ip_str, sizeof ip_str, "0.0.0.0");
     }
-    queue_ritual_line_(std::string("Connecting to ") + ip_str + ".... [SUCCESS]");
-    queue_ritual_line_("Negotiating cipher... [SUCCESS]");
-    {
-        std::string welcome = "Authentication accepted. Welcome ";
-        welcome += (tier_ == ShellTier::Root ? "root." : "Guest.");
-        queue_ritual_line_(welcome);
-    }
-    queue_ritual_line_("");
+    sink_->shell_emit_line(std::string("Connected to ") + ip_str + ".",
+                           UITag::TextDim);
+    sink_->shell_emit_line("", UITag::TextDim);
 
-    // Build the per-device filesystem before banner emit (banner doesn't
-    // touch fs but commands might run during ritual).
-    rebuild_fs_view();
-
-    // Banner line(s).
     emit_banner_(game);
 }
 
@@ -102,12 +84,20 @@ void DeviceShell::rebuild_fs_view() {
 }
 
 void DeviceShell::close(Game& game) {
+    if (!open_) return;
     open_ = false;
+    Hackable* prev_target = target_;
     target_ = nullptr;
     channel_ = HackChannel{};
-    lines_.clear();
-    input_.clear();
-    cursor_ = 0;
+
+    // Print the standard ssh "logout / Connection closed." pair into the
+    // shared scroll so it stays visible above the reverted prompt.
+    if (sink_) {
+        sink_->shell_emit_line("logout", UITag::TextDim);
+        std::string ip_str = "device";
+        if (prev_target) ip_str = format_ip(prev_target->ip);
+        sink_->shell_emit_line("Connection to " + ip_str + " closed.", UITag::TextDim);
+    }
 
     // Real-world doorway: yank cable.
     if (via_ == ShellVia::RealWorld && game.player().is_jacked_into >= 0) {
@@ -117,12 +107,11 @@ void DeviceShell::close(Game& game) {
 }
 
 void DeviceShell::emit(const std::string& line, UITag tag) {
-    lines_.push_back({line, tag});
-    while (lines_.size() > 200) lines_.pop_front();
+    if (sink_) sink_->shell_emit_line(line, tag);
 }
 
 void DeviceShell::clear_scroll() {
-    lines_.clear();
+    if (sink_) sink_->shell_clear_scroll();
 }
 
 std::string DeviceShell::host_label_() const {
@@ -144,61 +133,35 @@ std::string DeviceShell::prompt_() const {
     return p;
 }
 
-void DeviceShell::queue_ritual_line_(const std::string& line) {
-    ritual_pending_.push_back(line);
-    if (ritual_remaining_chars_ == 0 && !ritual_pending_.empty()) {
-        ritual_remaining_chars_ = static_cast<int>(ritual_pending_.front().size());
-    }
-}
-
 void DeviceShell::emit_banner_(Game& game) {
-    if (!target_) return;
+    if (!target_ || !sink_) return;
     const FixtureOsId& os = os_id_for(target_->source_type);
     const HackFlavorPack& fp = flavor_for(faction_);
 
     // Banner chrome — pick deterministically from the seed so repeated opens
-    // look consistent.
+    // look consistent. Templates contain literal newlines for box-drawing
+    // rows; emit each line as its own scroll entry so the renderer doesn't
+    // squash multi-row ASCII art into one cell.
     uint64_t seed = shell_seed_(target_);
     const char* chrome_tpl = pick_(fp.banner_chrome, seed, 1);
     std::string banner = subst_banner_(chrome_tpl, fp.faction_name, os.prompt_host, os.version);
-    queue_ritual_line_(banner);
-
-    // MOTD.
-    queue_ritual_line_(std::string("# ") + pick_(fp.motd_lines, seed, 2));
-    queue_ritual_line_("");
-
-    (void)game;
-}
-
-void DeviceShell::tick_frame(Game& game) {
-    if (!open_) return;
-    (void)game;
-
-    // Ritual streaming: char-by-char.
-    if (!ritual_done_) {
-        ritual_tick_acc_ += kRitualCharsPerTick;
-        while (!ritual_pending_.empty() && ritual_tick_acc_ > 0) {
-            std::string& head = ritual_pending_.front();
-            int reveal = std::min<int>(ritual_tick_acc_,
-                                       std::max(0, ritual_remaining_chars_));
-            ritual_tick_acc_ -= reveal;
-            ritual_remaining_chars_ -= reveal;
-            if (ritual_remaining_chars_ <= 0) {
-                emit(head, UITag::TextDim);
-                ritual_pending_.erase(ritual_pending_.begin());
-                if (!ritual_pending_.empty()) {
-                    ritual_remaining_chars_ = static_cast<int>(ritual_pending_.front().size());
-                } else {
-                    ritual_remaining_chars_ = 0;
-                }
-            } else {
-                break; // not enough budget to finish current line
-            }
-        }
-        if (ritual_pending_.empty() && ritual_remaining_chars_ == 0) {
-            ritual_done_ = true;
+    {
+        std::size_t start = 0;
+        while (start <= banner.size()) {
+            std::size_t nl = banner.find('\n', start);
+            std::string line = banner.substr(start,
+                nl == std::string::npos ? std::string::npos : nl - start);
+            sink_->shell_emit_line(line, UITag::TextDim);
+            if (nl == std::string::npos) break;
+            start = nl + 1;
         }
     }
+
+    sink_->shell_emit_line(std::string("# ") + pick_(fp.motd_lines, seed, 2),
+                           UITag::TextDim);
+    sink_->shell_emit_line("", UITag::TextDim);
+
+    (void)game;
 }
 
 void DeviceShell::tick_world(Game& game) {
@@ -207,9 +170,34 @@ void DeviceShell::tick_world(Game& game) {
     // Active long-channel: advance progress per world tick.
     if (channel_.active()) {
         channel_.progress_ticks++;
+
+        // Update the transient progress line in the shared scroll. We commit
+        // it on completion (so the final 100% line stays in scrollback).
+        if (sink_) {
+            constexpr int kBarCells = 10;
+            std::string bar = "[*] ";
+            bar += channel_.cmd ? channel_.cmd->name : "channel";
+            bar += "... [";
+            int filled = (channel_.percent() * kBarCells) / 100;
+            if (filled > kBarCells) filled = kBarCells;
+            for (int i = 0; i < kBarCells; ++i) {
+                bar += (i < filled) ? '#' : '-';
+            }
+            char tail[16];
+            std::snprintf(tail, sizeof tail, "] %d%%", channel_.percent());
+            bar += tail;
+            sink_->shell_set_progress_line(bar, UITag::TextWarning);
+        }
+
         if (channel_.progress_ticks >= channel_.scaled_turns) {
             const HackCommand* cmd = channel_.cmd;
             ParsedArgs args = channel_.args;
+            // Commit the bar at 100% into scroll, clear the transient slot,
+            // then run the cmd's completion path.
+            if (sink_) {
+                sink_->shell_commit_progress_line();
+                sink_->shell_set_progress_line("", UITag::TextWarning);
+            }
             // Sentinel flag so commands can disambiguate "completion" from
             // "start". The runtime calls execute() once on submit and once
             // again here on completion; the first call typically fires
@@ -224,111 +212,17 @@ void DeviceShell::tick_world(Game& game) {
     }
 }
 
-bool DeviceShell::handle_input(int key, Game& game) {
-    if (!open_) return false;
-
-    // While a long-channel is active, only Esc and ENTER (no-op) are accepted.
-    if (channel_.active()) {
-        if (key == 27) {
-            abort_channel(game, "user");
-            return true;
-        }
-        return true;
-    }
-
-    // Suppress input editing during ritual streaming — Esc still aborts shell.
-    if (!ritual_done_) {
-        if (key == 27) {
-            close(game);
-            return true;
-        }
-        return true;
-    }
-
-    switch (key) {
-        case 27: // Esc — close / yank
-            close(game);
-            return true;
-        case '\n': case '\r':
-            submit_input(game);
-            return true;
-        case 127: case 8: // Backspace
-            if (cursor_ > 0) {
-                input_.erase(cursor_ - 1, 1);
-                --cursor_;
-            }
-            return true;
-        case KEY_DELETE:
-            if (cursor_ < static_cast<int>(input_.size())) {
-                input_.erase(cursor_, 1);
-            }
-            return true;
-        case KEY_LEFT:
-            if (cursor_ > 0) --cursor_;
-            return true;
-        case KEY_RIGHT:
-            if (cursor_ < static_cast<int>(input_.size())) ++cursor_;
-            return true;
-        case KEY_UP: {
-            int sz = static_cast<int>(history_.size());
-            if (sz > 0) {
-                if (history_cursor_ < 0) history_cursor_ = sz;
-                if (history_cursor_ > 0) {
-                    --history_cursor_;
-                    input_ = history_[history_cursor_];
-                    cursor_ = static_cast<int>(input_.size());
-                }
-            }
-            return true;
-        }
-        case KEY_DOWN: {
-            int sz = static_cast<int>(history_.size());
-            if (history_cursor_ >= 0) {
-                ++history_cursor_;
-                if (history_cursor_ >= sz) {
-                    history_cursor_ = -1;
-                    input_.clear();
-                } else {
-                    input_ = history_[history_cursor_];
-                }
-                cursor_ = static_cast<int>(input_.size());
-            }
-            return true;
-        }
-        default:
-            if (key >= 32 && key < 127) {
-                if (input_.size() < 256) {
-                    input_.insert(cursor_, 1, static_cast<char>(key));
-                    ++cursor_;
-                }
-            }
-            return true;
-    }
-}
-
-void DeviceShell::submit_input(Game& game) {
-    std::string line = input_;
-    input_.clear();
-    cursor_ = 0;
-    history_cursor_ = -1;
-
-    // Echo the prompt + line into the scroll.
-    emit(prompt_() + line, UITag::TextDefault);
-
-    // Trim leading/trailing whitespace.
+void DeviceShell::submit_command(const std::string& raw_line, Game& game) {
+    // Trim whitespace.
+    std::string line = raw_line;
     auto first = line.find_first_not_of(" \t");
     if (first == std::string::npos) return;
     line = line.substr(first);
     while (!line.empty() && (line.back() == ' ' || line.back() == '\t')) line.pop_back();
     if (line.empty()) return;
 
-    history_.push_back(line);
-    if (history_.size() > 64) history_.erase(history_.begin());
+    push_history(line);
 
-    dispatch_command_(line, game);
-}
-
-void DeviceShell::dispatch_command_(const std::string& line, Game& game) {
     ParsedArgs args = parse_command_line(line);
     if (args.argv.empty()) return;
     const std::string& name = args.argv[0];
@@ -349,8 +243,9 @@ void DeviceShell::dispatch_command_(const std::string& line, Game& game) {
     }
     // Root check.
     bool tier_root = (tier_ == ShellTier::Root);
-    if (cmd->requires_root && !is_player_root(*target_, tier_root)) {
-        emit(name + ": permission denied (root required). Try `hashcat --fast`.", UITag::TextDim);
+    if (cmd->requires_root && target_ && !is_player_root(*target_, tier_root)) {
+        emit(name + ": permission denied (root required). Try `hashcat --fast`.",
+             UITag::TextDim);
         return;
     }
 
@@ -359,8 +254,7 @@ void DeviceShell::dispatch_command_(const std::string& line, Game& game) {
         return;
     }
 
-    // Execute. Long-channel commands call shell.start_channel() inside.
-    if (cmd->execute) {
+    if (cmd->execute && target_) {
         HackCommandResult r = cmd->execute(args, *target_, *this, game);
         if (!r.message.empty()) emit(r.message, UITag::TextDefault);
     }
@@ -419,6 +313,13 @@ void DeviceShell::abort_channel(Game& game, const char* reason) {
     bool partial_ok = channel_.allow_partial && cmd && cmd->execute && target_;
     ParsedArgs args = channel_.args;
 
+    // Commit the in-place progress line into scroll at its abort %, then
+    // clear the transient slot.
+    if (sink_) {
+        sink_->shell_commit_progress_line();
+        sink_->shell_set_progress_line("", UITag::TextWarning);
+    }
+
     char buf[160];
     std::snprintf(buf, sizeof buf, "[!] %s aborted (%s) at %d%%.",
                   cmd ? cmd->name : "channel",
@@ -437,107 +338,6 @@ void DeviceShell::abort_channel(Game& game, const char* reason) {
         HackCommandResult r = cmd->execute(args, *target_, *this, game);
         if (!r.message.empty()) emit(r.message, UITag::TextDim);
     }
-}
-
-void DeviceShell::render(Renderer* renderer, int screen_w, int screen_h, const Game& game) const {
-    if (!open_) return;
-    if (!renderer) return;
-
-    // Centred ~80x24 panel. Bound to a minimum so it doesn't break on
-    // tiny terminals. Used for the real-world doorway (shell over world).
-    int w = std::min(80, screen_w - 4);
-    int h = std::min(24, screen_h - 4);
-    if (w < 40) w = std::min(screen_w, 40);
-    if (h < 12) h = std::min(screen_h, 12);
-    int x = (screen_w - w) / 2;
-    int y = (screen_h - h) / 2;
-    render_into(renderer, Rect{x, y, w, h}, game);
-}
-
-void DeviceShell::render_into(Renderer* renderer, Rect bounds, const Game& game) const {
-    if (!open_) return;
-    if (!renderer) return;
-    if (bounds.w <= 0 || bounds.h <= 0) return;
-
-    UIContext outer(renderer, bounds);
-
-    // In-Grid doorway (Plan 7 §3b): the shell renders into the Tron
-    // window's playfield rect — Trace/Heat HUD + log pane stay visible
-    // because they live OUTSIDE this rect. The chrome is the
-    // grid-renderer's own border, so we suppress our own panel border
-    // here and just paint plain content into `bounds`.
-    bool in_grid = (via_ == ShellVia::Grid);
-
-    UIContext ctx = in_grid ? outer : outer.panel({
-        .title = " Device Shell ",
-        .footer = " [Esc] yank cable / close shell  [Enter] run command ",
-    });
-
-    // Paint a clean black background under the shell so the Tron-window
-    // playfield doesn't bleed through. (real-world path's panel() already
-    // clears its interior.)
-    if (in_grid) {
-        for (int j = 0; j < ctx.height(); ++j) {
-            for (int i = 0; i < ctx.width(); ++i) {
-                ctx.put(i, j, ' ', Color::White, Color::Black);
-            }
-        }
-    }
-
-    int content_h = ctx.height();
-    int content_w = ctx.width();
-    if (content_h <= 0 || content_w <= 0) return;
-    int input_row = content_h - 1;
-
-    // Output scroll — render most-recent lines into the rows above the prompt.
-    int rows_for_output = input_row;
-    int total = static_cast<int>(lines_.size());
-    int start = std::max(0, total - rows_for_output);
-    int row = 0;
-    for (int i = start; i < total && row < rows_for_output; ++i, ++row) {
-        const auto& l = lines_[i];
-        std::string line = l.text;
-        if (static_cast<int>(line.size()) > content_w) line.resize(content_w);
-        ctx.text({.x = 0, .y = row, .content = line, .tag = l.tag});
-    }
-
-    // Bottom row: prompt + cursor or active-channel progress.
-    if (channel_.active()) {
-        // Inline progress bar  [▓▓▓░░░░░] N%
-        std::string bar = "[*] ";
-        bar += channel_.cmd ? channel_.cmd->name : "channel";
-        bar += "... [";
-        constexpr int kBarCells = 10;
-        int filled = (channel_.percent() * kBarCells) / 100;
-        if (filled > kBarCells) filled = kBarCells;
-        for (int i = 0; i < kBarCells; ++i) {
-            bar += (i < filled) ? '#' : '-';
-        }
-        char tail[16];
-        std::snprintf(tail, sizeof tail, "] %d%%", channel_.percent());
-        bar += tail;
-        if (static_cast<int>(bar.size()) > content_w) bar.resize(content_w);
-        ctx.text({.x = 0, .y = input_row, .content = bar, .tag = UITag::TextWarning});
-    } else if (!ritual_done_) {
-        // During ritual streaming, no prompt line — output rendering already
-        // shows the streamed lines. Show a blinking dot for vibe.
-        ctx.text({.x = 0, .y = input_row, .content = std::string("..."),
-                  .tag = UITag::TextDim});
-    } else {
-        // Prompt.
-        std::string p = prompt_();
-        std::string display = input_;
-        if (cursor_ >= static_cast<int>(display.size())) display += ' ';
-        // Render prompt + buffer
-        ctx.text({.x = 0, .y = input_row, .content = p + display, .tag = UITag::TextBright});
-        // Inverted cursor block — mirror dev_console pattern.
-        int cur_x = static_cast<int>(p.size()) + cursor_;
-        char ch = (cursor_ < static_cast<int>(input_.size())) ? input_[cursor_] : ' ';
-        if (cur_x >= 0 && cur_x < content_w) {
-            ctx.put(cur_x, input_row, ch, Color::Black, Color::White);
-        }
-    }
-    (void)game;
 }
 
 } // namespace astra
