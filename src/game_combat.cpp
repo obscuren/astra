@@ -116,6 +116,11 @@ static int weapon_skill_bonus(const Player& player, WeaponClass wc) {
 enum class AttackKind { Melee, Ranged };
 
 static int player_contextual_dv(const Player& player, const Game& game, AttackKind kind) {
+    // Any active dv_zero effect (e.g. GridExposed while jacked) bypasses
+    // skill bonuses too — body cannot dodge, period.
+    for (const auto& e : player.effects) {
+        if (e.dv_zero) return 0;
+    }
     int bonus = 0;
     if (kind == AttackKind::Ranged && player_has_skill(player, SkillId::Swiftness)) {
         bonus += kSwiftnessDv;

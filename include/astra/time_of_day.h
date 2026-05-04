@@ -14,8 +14,14 @@ enum class TimePhase : uint8_t {
     Night,
 };
 
+// Day-length tuning. All "normal" tick counts (body presets, derive_*,
+// ticks_per_global_day base) are multiplied by kDayLengthScale at the
+// runtime boundary (set_body_day_length / DayClock construction). Bump
+// this to slow the day/night cycle without touching every call site.
+constexpr int kDayLengthScale = 4;
+
 // Global calendar constants
-constexpr int ticks_per_global_day = 200;
+constexpr int ticks_per_global_day = 200 * kDayLengthScale;
 constexpr int days_per_cycle = 30;
 
 // Phase boundaries as percentage of day_length
@@ -27,19 +33,24 @@ constexpr float night_start = 0.75f;  // 75%
 // Night wraps: 75-100% + 0-10%
 
 struct DayClock {
-    int local_ticks_per_day = 200;
+    int local_ticks_per_day = 200 * kDayLengthScale;
     int local_tick = 0;
 
     void advance(int ticks) {
         local_tick = (local_tick + ticks) % local_ticks_per_day;
     }
 
+    // `len` is in *normal* ticks (the values stored on bodies / returned by
+    // derive_day_length). The scale is applied here so callers can keep
+    // passing unscaled body data and changing kDayLengthScale rescales the
+    // whole world.
     void set_body_day_length(int len) {
         if (len <= 0) len = 200;
+        int scaled = len * kDayLengthScale;
         // Preserve proportional position in the day
         float ratio = static_cast<float>(local_tick) / local_ticks_per_day;
-        local_ticks_per_day = len;
-        local_tick = static_cast<int>(ratio * len) % len;
+        local_ticks_per_day = scaled;
+        local_tick = static_cast<int>(ratio * scaled) % scaled;
     }
 
     float day_fraction() const {
@@ -147,6 +158,8 @@ inline const char* phase_name(TimePhase p) {
 
 // Day length derivation from celestial body properties
 inline int derive_day_length(int body_type, int size, float /*orbital_distance*/) {
+    // Returns *normal* ticks. kDayLengthScale is applied later by
+    // DayClock::set_body_day_length when this value enters the runtime.
     // body_type maps to BodyType enum values
     // 0=Rocky, 1=GasGiant, 2=IceGiant, 3=Terrestrial, 4=DwarfPlanet, 5=AsteroidBelt
     int base = 200;
@@ -166,7 +179,7 @@ inline int derive_day_length(int body_type, int size, float /*orbital_distance*/
     return base;
 }
 
-// Moon day length — tidally locked or very long
+// Moon day length — tidally locked or very long. Returns *normal* ticks.
 inline int derive_moon_day_length(int parent_type) {
     (void)parent_type;
     return 400;

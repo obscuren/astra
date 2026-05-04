@@ -138,11 +138,11 @@ struct PlayfieldRect { int x, y, w, h; };
 struct LogPaneRect   { int x, y, w, h; };
 
 constexpr Color kChrome  = Color::Cyan;
-constexpr int   kLogPaneW = 36;
+constexpr int   kLogPaneW = 40;
 
 WindowRect compute_window_rect(int screen_w, int screen_h) {
-    int w = screen_w * 7 / 10;
-    int h = screen_h * 7 / 10;
+    int w = screen_w * 8 / 10;
+    int h = screen_h * 8 / 10;
     if (w < 50) w = std::min(50, screen_w);
     if (h < 18) h = std::min(18, screen_h);
     int x = (screen_w - w) / 2;
@@ -238,11 +238,22 @@ void draw_block_gauge(Renderer& r, int x, int y, int width,
 // cursor one cell per *visible* glyph.
 void draw_colored_string(Renderer& r, int x, int y, const std::string& text, Color c) {
     int cursor = x;
+    Color cur = c;
     size_t i = 0;
     while (i < text.size()) {
         unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < text.size()) {
+            cur = static_cast<Color>(static_cast<uint8_t>(text[i + 1]));
+            i += 2;
+            continue;
+        }
+        if (b == static_cast<unsigned char>(COLOR_END)) {
+            cur = c;
+            ++i;
+            continue;
+        }
         if (b < 0x80) {
-            r.draw_char(cursor, y, static_cast<char>(b), c);
+            r.draw_char(cursor, y, static_cast<char>(b), cur);
             ++i;
             ++cursor;
         } else {
@@ -254,7 +265,7 @@ void draw_colored_string(Renderer& r, int x, int y, const std::string& text, Col
             for (int k = 0; k < len && i + k < text.size(); ++k) {
                 buf[k] = text[i + k];
             }
-            r.draw_glyph(cursor, y, buf, c);
+            r.draw_glyph(cursor, y, buf, cur);
             i += len;
             ++cursor;
         }
@@ -262,12 +273,21 @@ void draw_colored_string(Renderer& r, int x, int y, const std::string& text, Col
 }
 
 // Visual cell width of a UTF-8 string: ASCII = 1, every multi-byte code
-// point = 1. Caller is responsible for advancing x by this much.
+// point = 1. COLOR_BEGIN/COLOR_END markers are zero-width metadata and
+// skipped. Caller is responsible for advancing x by this much.
 int visual_width(const std::string& text) {
     int w = 0;
     size_t i = 0;
     while (i < text.size()) {
         unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < text.size()) {
+            i += 2;
+            continue;
+        }
+        if (b == static_cast<unsigned char>(COLOR_END)) {
+            ++i;
+            continue;
+        }
         if (b < 0x80) { ++w; ++i; }
         else if ((b & 0xE0) == 0xC0) { ++w; i += 2; }
         else if ((b & 0xF0) == 0xE0) { ++w; i += 3; }
@@ -306,11 +326,12 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
     std::string region = upper(meta.display_name.empty()
                                ? std::string("UNKNOWN")
                                : meta.display_name);
-    draw_colored_string(r, x, y, region, Color::Cyan);
+    draw_colored_string(r, x, y, region, Color::White);
     x += visual_width(region);
 
     // Sub-segment: device hostname when in a Subnet, ATLAS / YOUR.ANCHOR
-    // when in the deep-Grid anchor.
+    // when in the deep-Grid anchor. The " › " separator stays in the chrome
+    // color while the device label itself renders in white.
     const auto& net = game.world().grid_network();
     const GridNode* node = net.find(s.current_node);
     std::string ip_str;
@@ -321,16 +342,21 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
                 if (auto* h = game.world().find_hackable_by_ip(*parsed)) {
                     std::string host = lan_hostname(*h, meta);
                     std::string sub_label = upper(short_host_label(host));
-                    std::string sub = " \xe2\x80\xba " + sub_label; // ›
-                    draw_colored_string(r, x, y, sub, Color::Cyan);
-                    x += visual_width(sub);
+                    std::string sep = " \xe2\x80\xba "; // ›
+                    draw_colored_string(r, x, y, sep, Color::Cyan);
+                    x += visual_width(sep);
+                    draw_colored_string(r, x, y, sub_label, Color::White);
+                    x += visual_width(sub_label);
                 }
             }
         } else if (node->kind == GridNodeKind::DeepGridAnchor) {
-            std::string sub = " \xe2\x80\xba ";
-            sub += (node->owned_by_consciousness_id != 0) ? "YOUR.ANCHOR" : "ATLAS";
-            draw_colored_string(r, x, y, sub, Color::Cyan);
-            x += visual_width(sub);
+            std::string sep = " \xe2\x80\xba "; // ›
+            std::string label = (node->owned_by_consciousness_id != 0)
+                                ? "YOUR.ANCHOR" : "ATLAS";
+            draw_colored_string(r, x, y, sep, Color::Cyan);
+            x += visual_width(sep);
+            draw_colored_string(r, x, y, label, Color::White);
+            x += visual_width(label);
         }
     }
     if (ip_str.empty()) ip_str = format_ip(meta.subnet_base);
@@ -364,32 +390,36 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
     const int y = wr.y + 3;
     int x = wr.x + 2;
 
-    // HP — 10-segment bar
+    // One block per unit: bar width = attribute max. HP 4/4 = 4 blocks,
+    // HEAT 0/12 = 12 blocks (all empty), etc.
+    auto clamp_filled = [](int cur, int max) {
+        if (cur < 0) return 0;
+        if (cur > max) return max;
+        return cur;
+    };
+
+    // HP
     draw_colored_string(r, x, y, "HP ", Color::Cyan);
     x += 3;
-    int hp_filled = s.avatar_hp_max > 0 ? s.avatar_hp * 10 / s.avatar_hp_max : 0;
-    if (hp_filled > 10) hp_filled = 10;
-    draw_block_gauge(r, x, y, 10, hp_filled, Color::Cyan);
-    x += 10;
+    draw_block_gauge(r, x, y, s.avatar_hp_max, clamp_filled(s.avatar_hp, s.avatar_hp_max), Color::Cyan);
+    x += s.avatar_hp_max;
     char hp_buf[24];
     std::snprintf(hp_buf, sizeof(hp_buf), " %3d/%-3d ", s.avatar_hp, s.avatar_hp_max);
     draw_colored_string(r, x, y, hp_buf, Color::Cyan);
     x += static_cast<int>(std::strlen(hp_buf));
 
-    // RAM — 5-segment bar
+    // RAM
     draw_colored_string(r, x, y, " RAM ", Color::Cyan);
     x += 5;
-    int ram_filled = s.ram_max > 0 ? s.ram * 5 / s.ram_max : 0;
-    if (ram_filled > 5) ram_filled = 5;
     Color ram_col = (s.ram < 5) ? Color::DarkGray : Color::Cyan;
-    draw_block_gauge(r, x, y, 5, ram_filled, ram_col);
-    x += 5;
+    draw_block_gauge(r, x, y, s.ram_max, clamp_filled(s.ram, s.ram_max), ram_col);
+    x += s.ram_max;
     char ram_buf[24];
     std::snprintf(ram_buf, sizeof(ram_buf), " %2d/%-2d ", s.ram, s.ram_max);
     draw_colored_string(r, x, y, ram_buf, ram_col);
     x += static_cast<int>(std::strlen(ram_buf));
 
-    // HEAT — 5-segment bar (queries equipped cyberdeck)
+    // HEAT (queries equipped cyberdeck)
     int heat_cur = 0, heat_cap = 0;
     if (auto* deck_slot = game.player().equipment.equipped_cyberdeck()) {
         if (*deck_slot && (*deck_slot)->deck) {
@@ -400,12 +430,10 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
     }
     draw_colored_string(r, x, y, " HEAT ", Color::Cyan);
     x += 6;
-    int heat_filled = heat_cap > 0 ? heat_cur * 5 / heat_cap : 0;
-    if (heat_filled > 5) heat_filled = 5;
     Color heat_col = (heat_cap > 0 && heat_cur * 100 / heat_cap > 80)
                      ? Color::Magenta : Color::Cyan;
-    draw_block_gauge(r, x, y, 5, heat_filled, heat_col);
-    x += 5;
+    draw_block_gauge(r, x, y, heat_cap, clamp_filled(heat_cur, heat_cap), heat_col);
+    x += heat_cap;
     char heat_buf[24];
     std::snprintf(heat_buf, sizeof(heat_buf), " %2d/%-2d", heat_cur, heat_cap);
     draw_colored_string(r, x, y, heat_buf, heat_col);
@@ -419,20 +447,56 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
 // for wrapped continuation lines. Recognises the conventions in §4 of the
 // spec: "> ", ">> ", and "[TAG] " (e.g. "[ERR] ", "[BLOCK] ").
 int detect_log_prefix_width(const std::string& line) {
-    if (line.empty()) return 0;
-    if (line[0] == '[') {
-        size_t close = line.find(']');
-        if (close != std::string::npos &&
-            close + 1 < line.size() &&
-            line[close + 1] == ' ') {
-            return static_cast<int>(close + 2);  // e.g. "[ERR] " → 6
+    // Walk past leading COLOR_BEGIN/END marker bytes so the visible prefix
+    // pattern is matched even when the tag has been wrapped in colored().
+    size_t i = 0;
+    while (i < line.size()) {
+        unsigned char b = static_cast<unsigned char>(line[i]);
+        if (b == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < line.size()) {
+            i += 2;
+        } else if (b == static_cast<unsigned char>(COLOR_END)) {
+            ++i;
+        } else {
+            break;
+        }
+    }
+    if (i >= line.size()) return 0;
+
+    if (line[i] == '[') {
+        size_t j = i + 1;
+        int visible = 1;
+        while (j < line.size() && line[j] != ']') {
+            unsigned char b = static_cast<unsigned char>(line[j]);
+            if (b == static_cast<unsigned char>(COLOR_BEGIN) && j + 1 < line.size()) {
+                j += 2;
+            } else if (b == static_cast<unsigned char>(COLOR_END)) {
+                ++j;
+            } else {
+                ++j;
+                ++visible;
+            }
+        }
+        if (j < line.size() && line[j] == ']') {
+            ++visible;            // count ']'
+            ++j;
+            // Skip any markers between ']' and the trailing space.
+            while (j < line.size()) {
+                unsigned char b = static_cast<unsigned char>(line[j]);
+                if (b == static_cast<unsigned char>(COLOR_END)) { ++j; continue; }
+                if (b == static_cast<unsigned char>(COLOR_BEGIN) && j + 1 < line.size()) { j += 2; continue; }
+                break;
+            }
+            if (j < line.size() && line[j] == ' ') {
+                return visible + 1; // include the trailing space
+            }
         }
         return 0;
     }
-    if (line[0] == '>') {
-        size_t i = 0;
-        while (i < line.size() && line[i] == '>') ++i;
-        if (i < line.size() && line[i] == ' ') return static_cast<int>(i + 1);
+    if (line[i] == '>') {
+        size_t j = i;
+        int visible = 0;
+        while (j < line.size() && line[j] == '>') { ++j; ++visible; }
+        if (j < line.size() && line[j] == ' ') return visible + 1;
         return 0;
     }
     return 0;
@@ -557,10 +621,32 @@ std::vector<std::string> wrap_log_line(const std::string& line, int width) {
     return out;
 }
 
-void draw_log_pane(Renderer& r, const LogPaneRect& lr, const GridSession& s) {
-    draw_colored_string(r, lr.x + 1, lr.y, "[F1] Messages", Color::Cyan);
+// Map the leading "[TAG]" token in a log line to a color. Tags not in the
+// table fall back to Cyan so unknown bracket tokens still read as metadata.
+Color tag_color(const std::string& tag) {
+    if (tag == "[ERR]")    return Color::Red;
+    if (tag == "[WARN]")   return Color::Red;
+    if (tag == "[BLOCK]")  return Color::Yellow;
+    if (tag == "[INFO]")   return Color::Cyan;
+    if (tag == "[ALERT]")  return Color::BrightMagenta;
+    if (tag == "[SYS]")    return Color::Magenta;
+    if (tag == "[OK]")     return Color::Green;
+    return Color::Cyan;
+}
 
-    int rows = lr.h - 1;
+// Wrap any leading "[TAG]" prefix in colored() so it renders in tag_color.
+// No-op if the line doesn't start with a bracket tag, or if it's already
+// been wrapped in markers.
+std::string colorize_leading_tag(const std::string& line) {
+    if (line.empty() || line[0] != '[') return line;
+    size_t close = line.find(']');
+    if (close == std::string::npos) return line;
+    std::string tag = line.substr(0, close + 1);
+    return colored(tag, tag_color(tag)) + line.substr(close + 1);
+}
+
+void draw_log_pane(Renderer& r, const LogPaneRect& lr, const GridSession& s) {
+    int rows = lr.h;
     if (rows < 1) return;
     int max_w = lr.w - 2;
     if (max_w < 4) return;
@@ -570,14 +656,14 @@ void draw_log_pane(Renderer& r, const LogPaneRect& lr, const GridSession& s) {
     std::vector<std::string> wrapped;
     wrapped.reserve(s.log_lines.size() * 2);
     for (const auto& line : s.log_lines) {
-        auto pieces = wrap_log_line(line, max_w);
+        auto pieces = wrap_log_line(colorize_leading_tag(line), max_w);
         for (auto& p : pieces) wrapped.push_back(std::move(p));
     }
 
     int total = static_cast<int>(wrapped.size());
     int start = std::max(0, total - rows);
     for (int i = 0; i < rows && start + i < total; ++i) {
-        draw_colored_string(r, lr.x + 1, lr.y + 1 + i, wrapped[start + i], Color::Cyan);
+        draw_colored_string(r, lr.x + 1, lr.y + i, wrapped[start + i], Color::White);
     }
 }
 

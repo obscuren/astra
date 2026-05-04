@@ -54,8 +54,10 @@ struct GridSession {
     int trace = 0;              // [0, 100]
     int trace_alert_pulses = 0; // bookkeeping for breakpoint side effects
 
-    // Tier-derived turn ticks
+    // Tier-derived turn ticks. Drained through trace_carry (every 2 carry units
+    // = +1 Trace) so subnet's tick=1 means +1 every 2 turns instead of +1/turn.
     int trace_tick_per_turn = 1;
+    int trace_carry         = 0;
 
     // Skill flags (cached at jack-in)
     bool skill_intrusion          = false;

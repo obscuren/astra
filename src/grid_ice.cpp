@@ -3,6 +3,7 @@
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/grid_constants.h"
+#include "astra/grid_display.h"
 #include "astra/grid_session.h"
 #include "astra/player.h"
 
@@ -126,8 +127,10 @@ void tick_all(GridSession& s, Game& game) {
         switch (ice.color) {
             case IceColor::White: {
                 if (sees) {
-                    int bonus = s.skill_intrusion ? 1 : 2;
-                    s.trace = std::min(kTraceMax, s.trace + bonus);
+                    int bonus = s.skill_intrusion ? 0 : 1;
+                    if (bonus > 0) {
+                        s.trace = std::min(kTraceMax, s.trace + bonus);
+                    }
                 } else {
                     int d = ice.patrol_dir;
                     int nx = ice.x + dxs[d];
@@ -172,7 +175,8 @@ void tick_all(GridSession& s, Game& game) {
             s.ice[s.hijacked_ice_idx].hp <= 0) {
             s.hijacked_ice_idx = -1;
             s.hijacked_turns_left = 0;
-            s.push_log(">> daemon_hijack: target lost — control reverted.");
+            s.push_log(">> " + display_name(ProgramId::DaemonHijack)
+                       + ": target lost — control reverted.");
         }
     }
 

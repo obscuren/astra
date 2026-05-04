@@ -801,8 +801,8 @@ When the player moves to a different zone, the Detection counter resets to 0.
 
 | Source | Effect |
 |---|---|
-| Tier baseline | Subnet +1, Regional darknet +2, Deep-Grid anchor +3 / turn |
-| White ICE in vision (manhattan ≤ 5) | +2 / turn (+1 with `Intrusion` skill) |
+| Tier baseline | Subnet +0.5, Regional darknet +1, Deep-Grid anchor +1.5 / turn (accumulated; +1 Trace per 2 carry units) |
+| White ICE in vision (manhattan ≤ 4) | +1 / turn (+0 with `Intrusion` skill) |
 | Heat > 5 on equipped deck | +1 / turn |
 | Forced deck reboot (heat > heat_cap) | +10 burst (one-shot) |
 | Killing ICE | +3 per kill (`kill_if_dead`) |
@@ -866,7 +866,7 @@ Set on `JackOutKind`; chosen by `tick_grid`'s avatar-HP-zero check (Gray/White �
 
 ```cpp
 constexpr int kTraceMax       = 100;
-constexpr int kIceVisionRange = 5;
+constexpr int kIceVisionRange = 4;
 constexpr int kKillIceTrace   = 3;
 ```
 

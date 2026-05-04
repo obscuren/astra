@@ -4,6 +4,7 @@
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/grid_constants.h"
+#include "astra/grid_display.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_network.h"
 #include "astra/grid_persistence.h"
@@ -89,29 +90,33 @@ std::string apply_icebreaker_lite_grid(GridProgramContext c) {
             tgt = &i; break;
         }
     }
-    if (!tgt) return "icebreaker_lite: target lost.";
+    const std::string prefix = display_name(ProgramId::IcebreakerLite) + ": ";
+    if (!tgt) return prefix + "target lost.";
 
     std::uniform_int_distribution<int> roll(1, 4);
     int dmg = 1 + roll(c.game.world().rng())
             + (c.session.skill_icebreaking ? 1 : 0);
 
+    IceColor col = tgt->color;
     grid_ice::damage(c.session, *tgt, dmg);
     kill_and_persist(c.game, c.session, *tgt);
-    return "icebreaker_lite: " + std::to_string(dmg) + " damage to ICE.";
+    return prefix + std::to_string(dmg) + " damage to " + display_name(col) + ".";
 }
 
 std::string apply_ghost_trace_grid(GridProgramContext c) {
     c.session.trace = std::max(0, c.session.trace - 3);
     add_effect(c.game.player().effects, make_ghost_cloak_ge(3));
-    return "ghost_trace: invisible to white ICE for 3 turns. Trace -3.";
+    return display_name(ProgramId::GhostTrace)
+         + ": invisible to " + display_name(IceColor::White) + " for 3 turns. Trace -3.";
 }
 
 std::string apply_cooldown_grid(GridProgramContext c) {
+    const std::string prefix = display_name(ProgramId::Cooldown) + ": ";
     auto* slot = c.game.player().equipment.equipped_cyberdeck();
-    if (!slot || !*slot || !(*slot)->deck) return "cooldown: no deck.";
+    if (!slot || !*slot || !(*slot)->deck) return prefix + "no deck.";
     auto& cd = *(*slot)->deck;
     cd.heat_current = std::max(0, cd.heat_current - 4);
-    return "cooldown: heat -4.";
+    return prefix + "heat -4.";
 }
 
 // Try to crack the edge from (the LAN root or `from_node`) -> `target`.
@@ -134,26 +139,28 @@ std::string apply_breach_grid(GridProgramContext c) {
     // Plan 6: target tile supplied by Telegraph; valid_target predicate
     // already guaranteed (tx, ty) is a Firewall, Gateway, or DeepGridGateway.
     GridSession& s = c.session;
+    const std::string prefix = display_name(ProgramId::Breach) + ": ";
     int x = c.target_x, y = c.target_y;
-    if (!s.sector.in_bounds(x, y)) return "breach: target out of bounds.";
+    if (!s.sector.in_bounds(x, y)) return prefix + "target out of bounds.";
     GridTile t = s.sector.at(x, y);
 
     if (t == GridTile::Firewall) {
         s.sector.set(x, y, GridTile::Floor);
         s.trace = std::min(kTraceMax, s.trace + 5);
         record_sector_mutation(c.game, x, y, GridTile::Floor);
-        return "breach: firewall down. Trace +5.";
+        return prefix + display_name(GridTile::Firewall) + " down. Trace +5.";
     }
     if (t == GridTile::Gateway || t == GridTile::DeepGridGateway) {
+        const std::string gw = display_name(t);
         auto it = s.sector.gateway_target.find(std::pair<int,int>{x, y});
         if (it == s.sector.gateway_target.end()) {
-            return "breach: gateway has no target node.";
+            return prefix + gw + " has no target node.";
         }
         GridNodeId tgt = it->second;
         auto& net = c.game.world().grid_network();
         const auto& meta = c.game.world().lan_metadata();
         if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
-            return "breach: edge not found for gateway target.";
+            return prefix + "edge not found for " + gw + " target.";
         }
         s.trace = std::min(kTraceMax, s.trace + 5);
 
@@ -163,30 +170,32 @@ std::string apply_breach_grid(GridProgramContext c) {
         if (t == GridTile::DeepGridGateway) {
             register_deep_grid_warp_anchor(c.game.world(), s.current_node);
         }
-        return "breach: gateway cracked. Trace +5.";
+        return prefix + gw + " cracked. Trace +5.";
     }
-    return "breach: nothing to break here.";
+    return prefix + "nothing to break here.";
 }
 
 std::string apply_decrypt_grid(GridProgramContext c) {
     // Plan 6: target tile supplied by Telegraph; valid_target predicate
     // already guaranteed (tx, ty) is an EncryptedFile.
+    const std::string prefix = display_name(ProgramId::Decrypt) + ": ";
     int x = c.target_x, y = c.target_y;
     if (!c.session.sector.in_bounds(x, y) ||
         c.session.sector.at(x, y) != GridTile::EncryptedFile) {
-        return "decrypt: target lost.";
+        return prefix + "target lost.";
     }
     c.session.sector.set(x, y, GridTile::Floor);
     record_sector_mutation(c.game, x, y, GridTile::Floor);
     c.session.loot.lore_unlocked.push_back(
         "ARCH-" + std::to_string(c.session.entry_node.value) +
         "-" + std::to_string(x * 1000 + y));
-    return "decrypt: archive read.";
+    return prefix + "archive read.";
 }
 
 std::string apply_pulse_hammer_grid(GridProgramContext c) {
     // Plan 6: AoE 3×3 centered on the Telegraph-supplied tile. Hits any ICE
     // in the footprint (1d6 each).
+    const std::string prefix = display_name(ProgramId::PulseHammer) + ": ";
     int tx = c.target_x, ty = c.target_y;
     int hit = 0;
     std::uniform_int_distribution<int> roll(1, 6);
@@ -201,8 +210,8 @@ std::string apply_pulse_hammer_grid(GridProgramContext c) {
         }
     }
     for (auto& ice : c.session.ice) kill_and_persist(c.game, c.session, ice);
-    if (hit == 0) return "pulse_hammer: no ICE in blast radius.";
-    return "pulse_hammer: hit " + std::to_string(hit) + " ICE.";
+    if (hit == 0) return prefix + "no ICE in blast radius.";
+    return prefix + "hit " + std::to_string(hit) + " ICE.";
 }
 
 std::string apply_daemon_hijack_grid(GridProgramContext c) {
@@ -221,13 +230,14 @@ std::string apply_daemon_hijack_grid(GridProgramContext c) {
             break;
         }
     }
-    if (!tgt) return "daemon_hijack: target lost.";
+    const std::string prefix = display_name(ProgramId::DaemonHijack) + ": ";
+    if (!tgt) return prefix + "target lost.";
 
     constexpr int kHijackTurns = 3;
     tgt->charmed_turns_left = kHijackTurns;
     s.hijacked_ice_idx      = best_idx;
     s.hijacked_turns_left   = kHijackTurns;
-    return "daemon_hijack: ICE puppeteered for " +
+    return prefix + display_name(tgt->color) + " puppeteered for " +
            std::to_string(kHijackTurns) +
            " turns. Movement keys drive it. Avatar holds.";
 }

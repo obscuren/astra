@@ -339,14 +339,15 @@ Effect make_hijacked_ge(int duration) {
     return e;
 }
 
-Effect make_grid_invulnerable_ge() {
+Effect make_grid_exposed_ge() {
     Effect e;
-    e.id = EffectId::GridInvulnerable;
-    e.name = "Phased Out";
-    e.color = Color::Cyan;
+    e.id = EffectId::GridExposed;
+    e.name = "Wired In";
+    e.color = Color::Red;
     e.duration = -1;
     e.remaining = -1;
     e.show_in_bar = true;
+    e.dv_zero = true;       // body cannot dodge while jacked
     return e;
 }
 
@@ -398,7 +399,7 @@ Effect effect_for_id(EffectId id) {
         case EffectId::Hearty:          return make_hearty_ge();
         case EffectId::EmpDisabled:     return make_emp_disabled_ge(5);
         case EffectId::Hijacked:        return make_hijacked_ge(2);
-        case EffectId::GridInvulnerable: return make_grid_invulnerable_ge();
+        case EffectId::GridExposed: return make_grid_exposed_ge();
         case EffectId::BlackIceShock:    return make_blackice_shock_long_ge();
         case EffectId::GhostCloak:       return make_ghost_cloak_ge(3);
         default: return Effect{};

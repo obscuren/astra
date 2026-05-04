@@ -118,6 +118,12 @@ public:
     void ascend_stairs();
     void advance_world(int cost);
 
+    // Time-dilation: while jacked into the Grid, the real world ticks at this
+    // fraction of grid speed. 1.0f = parity, 0.3f = real world slows to ~3
+    // grid keypresses per real-world tick. Set in dev console / scenarios.
+    float world_time_progression_rate() const { return world_time_progression_rate_; }
+    void  set_world_time_progression_rate(float r) { world_time_progression_rate_ = r; }
+
     GameState state() const { return state_; }
     void set_state(GameState s) { state_ = s; }
 
@@ -265,6 +271,10 @@ private:
     void recharge_weapon();
     void remove_dead_npcs();
     void check_player_death();
+    // Run one real-world tick (NPCs, day clock, effects, water/lava, …).
+    // Extracted from advance_world so the Grid time-dilation path can drive
+    // it via accumulator without involving player input.
+    void tick_real_world(int cost);
     void check_level_up();
     void check_region_change();
     void save_game();
@@ -359,6 +369,12 @@ private:
 
     SaveSystem save_system_;
     SoulMirrorChannelState soul_mirror_state_;
+
+    // Time-dilation while jacked. real_tick_carry_ accumulates fractional
+    // real-world ticks per grid keypress; once it crosses 1.0, one real
+    // tick fires and 1.0 is subtracted.
+    float world_time_progression_rate_ = 0.01f;
+    float real_tick_carry_             = 0.0f;
 
     // Widgets
     uint8_t active_widgets_ = widget_default;

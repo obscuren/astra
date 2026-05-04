@@ -7,6 +7,7 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/grid_constants.h"
+#include "astra/grid_display.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_sector.h"
 #include "astra/hackable.h"
@@ -569,7 +570,7 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     }
 
     // Body phase-out
-    add_effect(game.player().effects, make_grid_invulnerable_ge());
+    add_effect(game.player().effects, make_grid_exposed_ge());
 
     session_ = std::move(s);
     game.set_state(GameState::Grid);
@@ -702,7 +703,7 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
             game.player().hp -= bleed;
             if (game.player().hp < 0) game.player().hp = 0;
             if (game.player().hp <= 0) {
-                remove_effect(game.player().effects, EffectId::GridInvulnerable);
+                remove_effect(game.player().effects, EffectId::GridExposed);
                 game.set_death_message("Killed by black ICE in the Grid.");
                 game.set_state(GameState::GameOver);
                 session_.reset();
@@ -717,7 +718,7 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
             break;
     }
 
-    remove_effect(game.player().effects, EffectId::GridInvulnerable);
+    remove_effect(game.player().effects, EffectId::GridExposed);
     game.set_state(s.body_state);
     session_.reset();
 }
@@ -735,7 +736,7 @@ void HackingSystem::tick_grid(Game& game) {
         --s.hijacked_turns_left;
         if (s.hijacked_turns_left == 0) {
             s.hijacked_ice_idx = -1;
-            s.push_log(">> daemon_hijack: control released.");
+            s.push_log(">> " + display_name(ProgramId::DaemonHijack) + ": control released.");
         }
     }
 
@@ -757,17 +758,25 @@ void HackingSystem::tick_grid(Game& game) {
     }
 
     // 3. Tier baseline trace tick. Note: still applies on overheated turns.
-    s.trace = std::min(kTraceMax, s.trace + s.trace_tick_per_turn);
+    // Accumulate into trace_carry; emit +1 Trace per 2 carry units. This halves
+    // the effective baseline (subnet 1→0.5/turn, regional 2→1/turn,
+    // anchor 3→1.5/turn) while preserving the tier hierarchy.
+    s.trace_carry += s.trace_tick_per_turn;
+    if (s.trace_carry >= 2) {
+        int delta = s.trace_carry / 2;
+        s.trace_carry %= 2;
+        s.trace = std::min(kTraceMax, s.trace + delta);
+    }
 
     // 4. Breakpoint side effects.
     if (s.trace >= kTraceBreakpoint3 && s.trace_alert_pulses < 3) {
         spawn_black_ice_(s);
         s.trace_alert_pulses = 3;
-        s.push_log(">> BLACK ICE CONVERGING.");
+        s.push_log(">> " + display_name(IceColor::Black) + " CONVERGING.");
     } else if (s.trace >= kTraceBreakpoint2 && s.trace_alert_pulses < 2) {
         spawn_gray_ice_reinforcement_(s);
         s.trace_alert_pulses = 2;
-        s.push_log(">> Gray ICE reinforcements detected.");
+        s.push_log(">> " + display_name(IceColor::Gray) + " reinforcements detected.");
     } else if (s.trace >= kTraceBreakpoint1 && s.trace_alert_pulses < 1) {
         s.trace_alert_pulses = 1;
         s.push_log("[WARN] Trace at 50%.");

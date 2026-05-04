@@ -158,8 +158,13 @@ struct Player {
         return total;
     }
 
-    // Derived stats — attribute modifier + equipment + implants + active effects
+    // Derived stats — attribute modifier + equipment + implants + active effects.
+    // Any active effect with `dv_zero` (e.g. GridExposed while jacked in)
+    // forces the result to 0 — body cannot dodge.
     int effective_dv() const {
+        for (const auto& e : effects) {
+            if (e.dv_zero) return 0;
+        }
         auto eq = equipment.total_modifiers();
         auto ef = effect_modifiers(effects);
         auto im = implant_modifiers();

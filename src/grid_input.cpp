@@ -4,6 +4,7 @@
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
 #include "astra/grid_constants.h"
+#include "astra/grid_display.h"
 #include "astra/grid_network.h"
 #include "astra/grid_persistence.h"
 #include "astra/grid_session.h"
@@ -83,12 +84,12 @@ void traverse_via_gateway(Game& game, GridSession& s) {
     auto it = s.sector.gateway_target.find(
         std::pair<int,int>{s.avatar_x, s.avatar_y});
     if (it == s.sector.gateway_target.end()) {
-        s.push_log("[ERR] Gateway has no destination wired.");
+        s.push_log("[ERR] " + display_name(GridTile::Gateway) + " has no destination wired.");
         return;
     }
     GridNodeId tgt = it->second;
     if (!tgt.valid()) {
-        s.push_log("[ERR] Gateway: host unreachable.");
+        s.push_log("[ERR] " + display_name(GridTile::Gateway) + ": host unreachable.");
         return;
     }
 
@@ -103,7 +104,7 @@ void traverse_via_gateway(Game& game, GridSession& s) {
         // already covered by the previous lookup; fallthrough.
     }
     if (!e) {
-        s.push_log("[ERR] Gateway has no edge to that target.");
+        s.push_log("[ERR] " + display_name(GridTile::Gateway) + " has no edge to that target.");
         return;
     }
     bool open = (e->gateway_tier == 0) || e->cracked;
@@ -116,21 +117,24 @@ void traverse_via_gateway(Game& game, GridSession& s) {
                     em.cracked = true;
                     open = true;
                     s.trace = std::min(kTraceMax, s.trace + 5);
-                    s.push_log(">> DeepGridNavigator: gateway cracked. Trace +5.");
+                    s.push_log(">> " + colored("DeepGridNavigator", Color::Yellow)
+                               + ": " + display_name(GridTile::Gateway)
+                               + " cracked. Trace +5.");
                     break;
                 }
             }
         }
     }
     if (!open) {
-        s.push_log("[BLOCK] Gateway locked. Run breach.exe.");
+        s.push_log("[BLOCK] " + display_name(GridTile::Gateway)
+                   + " locked. Run " + display_name(ProgramId::Breach) + ".");
         return;
     }
     if (!game.hacking().traverse_to(game, tgt)) {
-        s.push_log("[ERR] Gateway traversal failed.");
+        s.push_log("[ERR] " + display_name(GridTile::Gateway) + " traversal failed.");
         return;
     }
-    s.push_log("> You slip through the gateway.");
+    s.push_log("> You slip through the " + display_name(GridTile::Gateway) + ".");
 }
 
 void on_step(Game& game, GridSession& s) {
@@ -162,11 +166,13 @@ void on_step(Game& game, GridSession& s) {
             s.loot.credits += credits;
             s.sector.set(s.avatar_x, s.avatar_y, GridTile::Floor);
             record_sector_mutation(game, s.avatar_x, s.avatar_y, GridTile::Floor);
-            s.push_log("> Data node ripped: +" + std::to_string(credits) + " credits.");
+            s.push_log("> " + display_name(GridTile::DataNode) + " ripped: +"
+                       + colored(std::to_string(credits), Color::Yellow) + " credits.");
             return;
         }
         case GridTile::EncryptedFile:
-            s.push_log("[INFO] Encrypted file. Run decrypt.exe to read.");
+            s.push_log("[INFO] " + display_name(GridTile::EncryptedFile)
+                       + ". Run " + display_name(ProgramId::Decrypt) + " to read.");
             return;
         case GridTile::Gateway:
         case GridTile::DeepGridGateway:
@@ -194,21 +200,24 @@ void on_step(Game& game, GridSession& s) {
                 }
             }
             if (!found || idx >= cs.warp_anchors.size()) {
-                s.push_log("[ERR] Warp anchor: connection target unknown.");
+                s.push_log("[ERR] " + display_name(GridTile::WarpAnchor)
+                           + ": connection target unknown.");
                 return;
             }
             const auto& rec = cs.warp_anchors[idx];
             if (!rec.warpable) {
-                s.push_log("[WARN] Warp anchor: " + rec.lan_display_name +
-                           " — connection lost (galaxy purged on rebirth).");
+                s.push_log("[WARN] " + display_name(GridTile::WarpAnchor) + ": "
+                           + colored(rec.lan_display_name, Color::Cyan)
+                           + " — connection lost (galaxy purged on rebirth).");
                 return;
             }
-            char buf[160];
-            std::snprintf(buf, sizeof buf,
-                          ">> Warp anchor: %s — %d/%d cracked. (Warp traversal arrives in a future cut.)",
-                          rec.lan_display_name.c_str(),
+            char buf[64];
+            std::snprintf(buf, sizeof buf, " — %d/%d cracked.",
                           rec.nodes_cracked, rec.nodes_total);
-            s.push_log(buf);
+            s.push_log(">> " + display_name(GridTile::WarpAnchor) + ": "
+                       + colored(rec.lan_display_name, Color::Cyan)
+                       + buf
+                       + " (Warp traversal arrives in a future cut.)");
             return;
         }
         default:
@@ -223,15 +232,13 @@ void on_step(Game& game, GridSession& s) {
 bool can_afford_program(GridSession& s, const CyberdeckData& cd,
                         const ProgramDef& def) {
     if (s.ram < def.ram_cost) {
-        char buf[128];
-        std::snprintf(buf, sizeof(buf),
-                      "[BLOCK] %s — %d RAM required, %d available",
-                      def.filename, def.ram_cost, s.ram);
-        s.push_log(buf);
+        s.push_log("[BLOCK] " + display_name(def) + " — "
+                   + std::to_string(def.ram_cost) + " RAM required, "
+                   + std::to_string(s.ram) + " available");
         return false;
     }
     if (cd.heat_current + def.heat_cost > cd.stats.heat_cap) {
-        s.push_log(std::string("[BLOCK] ") + def.filename + " — heat over cap");
+        s.push_log("[BLOCK] " + display_name(def) + " — heat over cap");
         return false;
     }
     return true;
@@ -249,7 +256,7 @@ void fire_program(Game& game, GridSession& s, CyberdeckData& cd,
 
     GridProgramContext ctx{game, s, tx, ty};
     std::string msg = apply_program_in_grid(def.id, ctx);
-    s.push_log(std::string("> ") + def.filename);
+    s.push_log("> " + display_name(def));
     if (!msg.empty()) s.push_log(std::string("  ") + msg);
 }
 
@@ -294,7 +301,7 @@ void fire_program_slot(Game& game, GridSession& s, int slot_idx) {
 
     auto on_confirm = [&game, sess_ptr = &s, def_ptr = def](const TelegraphResult& r) {
         if (def_ptr->valid_target && !def_ptr->valid_target(*sess_ptr, r.dest_x, r.dest_y)) {
-            sess_ptr->push_log(std::string("[ERR] invalid target for ") + def_ptr->filename);
+            sess_ptr->push_log("[ERR] invalid target for " + display_name(*def_ptr));
             return;
         }
         auto* deck_slot2 = game.player().equipment.equipped_cyberdeck();

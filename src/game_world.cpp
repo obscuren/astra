@@ -1663,7 +1663,7 @@ void Game::travel_to_destination(const ChartAction& action) {
             world_.navigation().at_station = true;
             world_.navigation().current_body_index = -1;
             world_.navigation().current_moon_index = -1;
-            world_.day_clock().set_body_day_length(200); // station standard day
+            world_.day_clock().set_body_day_length(200); // station standard day (normal ticks)
             break;
         case ChartActionType::TravelToBody: {
             world_.navigation().on_ship = false;
@@ -2183,10 +2183,48 @@ void Game::recompute_fov() {
 
 void Game::advance_world(int cost) {
     if (state_ == GameState::Grid) {
+        // Snapshot body HP so we can warn the Grid log if the meatspace
+        // body takes damage during the dilated real-world tick.
+        int hp_before = player_.hp;
+
         hacking_.tick_grid(*this);
+
+        // Time-dilation: drip real-world ticks at the configured rate.
+        // 0.01 default → ~1 real tick per 100 grid keypresses.
+        if (world_time_progression_rate_ > 0.0f) {
+            real_tick_carry_ += world_time_progression_rate_;
+            while (real_tick_carry_ >= 1.0f && state_ == GameState::Grid) {
+                real_tick_carry_ -= 1.0f;
+                tick_real_world(ActionCost::wait);
+            }
+        }
+
+        // Body damage warning + force jack-out on death. check_player_death
+        // (called inside tick_real_world) already flips state_ to GameOver
+        // when the body dies; we still want to leave a final log line so
+        // the player understands the cause.
+        if (auto* sess = hacking_.session()) {
+            int delta = hp_before - player_.hp;
+            if (delta > 0) {
+                if (player_.hp <= 0) {
+                    sess->push_log("[ALERT] Meatspace body killed (-" +
+                                   std::to_string(delta) + " HP). Connection severed.");
+                } else {
+                    sess->push_log("[WARN] Meatspace body under attack (-" +
+                                   std::to_string(delta) + " HP, " +
+                                   std::to_string(player_.hp) + "/" +
+                                   std::to_string(player_.effective_max_hp()) +
+                                   " left).");
+                }
+            }
+        }
         return;
     }
 
+    tick_real_world(cost);
+}
+
+void Game::tick_real_world(int cost) {
     // Scale per-action world cost by inverse of player quickness. Baseline
     // QN = 100 → cost unchanged. QN = 50 (e.g. Convulsing) → cost doubles,
     // so NPCs get 2× energy per player action and effectively act twice
