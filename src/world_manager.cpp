@@ -156,4 +156,20 @@ const Hackable* WorldManager::find_hackable_by_ip(uint32_t ip) const {
     return nullptr;
 }
 
+Hackable* WorldManager::find_hackable_by_ip(uint32_t ip) {
+    auto& m = map();
+    for (int i = 0; i < m.fixture_count(); ++i) {
+        FixtureData& fd = m.fixture_mut(i);
+        if (!fd.cyber) continue;
+        if (fd.cyber->ip != ip) continue;
+        return &*fd.cyber;
+    }
+    for (auto& npc : npcs()) {
+        if (!npc.alive() || !npc.cyber) continue;
+        if (npc.cyber->ip != ip) continue;
+        return &*npc.cyber;
+    }
+    return nullptr;
+}
+
 } // namespace astra

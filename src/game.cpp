@@ -64,15 +64,21 @@ void Game::run() {
 
     while (running_) {
         bool revealing = playback_viewer_.is_revealing();
+        // Plan 7: while the device shell is open, give the loop a short
+        // timeout so the connection ritual streams char-by-char and the
+        // optional inline progress bar redraws without keystrokes.
+        bool shell_open = hacking_.device_shell_open();
         bool needs_timeout = combat_.targeting() || input_.looking()
                            || quit_confirm_.open
                            || auto_walking_ || auto_exploring_
                            || animations_.has_any()
-                           || revealing;
+                           || revealing
+                           || shell_open;
         int timeout_ms = revealing                                 ? 33
                        : (auto_walking_ || auto_exploring_)         ? 50
                        : animations_.has_active_effects()           ? 80
                        : animations_.has_any()                      ? 200
+                       : shell_open                                 ? 50
                                                                     : 300;
         int key = needs_timeout ? renderer_->wait_input_timeout(timeout_ms)
                                 : renderer_->wait_input();
@@ -96,6 +102,14 @@ void Game::run() {
             // Auto-walk/explore step
             if (auto_walking_ || auto_exploring_) {
                 auto_step();
+            }
+            // Plan 7: drive the device shell's per-frame updater while it's
+            // open so the connection ritual streams char-by-char even when
+            // the player is idle. Long-channel progress rides world ticks
+            // (HackingSystem::tick) so the player must spend an action to
+            // advance it.
+            if (hacking_.device_shell_open()) {
+                hacking_.device_shell().tick_frame(*this);
             }
         } else {
             // Any keypress stops auto-walk/explore

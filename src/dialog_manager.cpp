@@ -458,6 +458,35 @@ void DialogManager::append_jack_in_option(int fid, Game& game) {
     option_kinds_.back() = OptionKind::HackingJackIn;
 }
 
+// Plan 7: `(hack) Shell Access` — opens the per-device shell at the player's
+// current adjacency (real-world doorway). Wires the body in (frozen) and
+// autoruns smart-ssh: guest@ for locked-unescalated, root@ otherwise.
+void DialogManager::append_shell_access_option(int fid, Game& game) {
+    auto& fd = game.world().map().fixture_mut(fid);
+    if (!fd.cyber) return;
+    if (!has_tag(fd.cyber->tags, HackTag::Electronic)) return;
+    // Phase A AlienTech opt-out: hide the option on AlienTech devices.
+    // Phase B will land the manual-ssh "protocol not understood" path too.
+    if (has_tag(fd.cyber->tags, HackTag::AlienTech)) return;
+
+    std::string label = build_hacking_label("Shell Access");
+    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
+        label += "  (requires Cat_Hacking)";
+    } else {
+        auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+        if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+            label += "  (no cyberdeck)";
+        }
+    }
+    // Hotkey 'h' (for "hack/shell"). Skip if already taken by an earlier
+    // option — fall through to nothing if so.
+    char hotkey = 'h';
+    for (char ex : hotkeys_) { if (ex == hotkey) { hotkey = 0; break; } }
+    if (!hotkey) return;
+    add_option(hotkey, label, UITag::OptionNormal);
+    option_kinds_.back() = OptionKind::HackingShellAccess;
+}
+
 void DialogManager::append_sync_soul_option(int fid, Game& game) {
     auto& fd = game.world().map().fixture_mut(fid);
     if (!fd.cyber) return;
@@ -796,6 +825,7 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
         append_qh_options(fid, game);
         append_jack_in_option(fid, game);
         append_sync_soul_option(fid, game);
+        append_shell_access_option(fid, game);
     }
 }
 
@@ -1019,6 +1049,28 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             if (kind == OptionKind::HackingSyncSoul) {
                 soul_mirror::begin_active(game, hack);
                 game.advance_world(ActionCost::interact);
+                return;
+            }
+            if (kind == OptionKind::HackingShellAccess) {
+                if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
+                    game.log("You need the Cat_Hacking skill to open a shell.");
+                    return;
+                }
+                auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+                if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+                    game.log("You need an equipped cyberdeck to open a shell.");
+                    return;
+                }
+                // Wire the body in (real-world doorway).
+                game.player().is_jacked_into = fid;
+                // Autorun smart-ssh: locked-unescalated -> guest, else -> root.
+                bool locked = has_tag(hack.tags, HackTag::Locked);
+                bool wants_root = !(locked && !hack.escalated);
+                ShellTier tier = wants_root ? ShellTier::Root : ShellTier::Guest;
+                game.hacking().open_device_shell(
+                    game, hack, tier, ShellVia::RealWorld,
+                    /*manual_ssh=*/false,
+                    wants_root ? "root" : "guest");
                 return;
             }
             if (kind == OptionKind::HackingRunQh) {

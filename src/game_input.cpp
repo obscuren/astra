@@ -128,6 +128,21 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Plan 7: Device Shell intercepts input above PDA. The shell sits on
+    // top of the PDA; closing it returns control to the PDA (or the world,
+    // if PDA was not the entry path).
+    if (hacking_.device_shell_open()) {
+        hacking_.device_shell().handle_input(key, *this);
+        // If the shell auto-closed (cmd_exit), advance the world to spend
+        // the action cost the player paid by selecting Shell Access.
+        if (!hacking_.device_shell_open()) {
+            // Advance world by interact-cost so spending shell time at the
+            // device costs the same as a typical interact.
+            advance_world(ActionCost::interact);
+        }
+        return;
+    }
+
     // PDA screen intercepts input when open
     if (pda_screen_.is_open()) {
         pda_screen_.handle_input(key);
@@ -157,6 +172,23 @@ void Game::handle_play_input(int key) {
             nid.value = nid_v;
             hacking_.jack_in(*this, nid);
             return;
+        }
+        // Plan 7: `pda> ssh ...` — open per-device shell.
+        {
+            bool as_root = true;
+            if (uint32_t ip_v = pda_screen_.consume_ssh_request(as_root); ip_v != 0) {
+                Hackable* h = world_.find_hackable_by_ip(ip_v);
+                if (!h) {
+                    log("ssh: host unreachable.");
+                    return;
+                }
+                ShellTier tier = as_root ? ShellTier::Root : ShellTier::Guest;
+                hacking_.open_device_shell(*this, *h, tier,
+                                           ShellVia::RealWorld,
+                                           /*manual_ssh=*/true,
+                                           as_root ? "root" : "guest");
+                return;
+            }
         }
         if (auto br = pda_screen_.consume_breach_request(); br.valid()) {
             // Plan 5 Task 39: netmap-side breach. Find the matching edge
@@ -373,6 +405,18 @@ void Game::handle_play_input(int key) {
             default:
                 log("Cancelled.");
                 return;
+        }
+    }
+
+    // Plan 7: while body is wired into a device, block movement/attack/item-
+    // use. The shell intercept above takes care of input while the shell is
+    // open; if the shell closed but the wired-in flag wasn't cleared, we
+    // still gate here so corrupted state can't drive the avatar around.
+    if (player_.is_jacked_into >= 0) {
+        // Esc still opens the pause menu; everything else logs and bails.
+        if (key != '\033') {
+            log("Body is wired in. Esc to yank cable.");
+            return;
         }
     }
 

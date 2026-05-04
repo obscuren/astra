@@ -368,6 +368,7 @@ void PdaScreen::hack_term_run_command(const std::string& line) {
     if (v == "ping")    return hack_term_cmd_ping(args);
     if (v == "nmap")    return hack_term_cmd_nmap(args);
     if (v == "jack")    return hack_term_cmd_jack(args);
+    if (v == "ssh")     return hack_term_cmd_ssh(args);
     if (v == "lore")    return hack_term_cmd_lore();
     if (v == "clear")   return hack_term_cmd_clear();
     if (v == "history") return hack_term_cmd_history();
@@ -391,6 +392,7 @@ void PdaScreen::hack_term_cmd_help() {
         "  ping <ip>           — probe a node (free recon)",
         "  nmap [-l|-m]        — list or map LAN nodes",
         "  jack <ip>           — jack into a node",
+        "  ssh [<user>@]<ip>   — open a device shell (default user: root)",
         "  lore                — decrypted archives",
         "  clear / history",
     };
@@ -895,6 +897,66 @@ void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {
     jack_in_request_node_id_ = static_cast<uint32_t>(h->jack_in_node_id);
     hack_term_emit(">> uploading consciousness... <<");
 }
+
+// Plan 7: `ssh [<user>@]<ip>` — opens a per-device shell.
+// Manual ssh strict semantics (spec §4): root@locked-unescalated rejects with
+// permission-denied + try-guest hint and DOES NOT open. guest@ always succeeds.
+// TODO(Phase B): AlienTech opt-out — return "protocol not understood (alien
+// tech)" before validation.
+void PdaScreen::hack_term_cmd_ssh(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        hack_term_emit("usage: ssh [<user>@]<ip>", UITag::TextDim);
+        return;
+    }
+    if (!world_ || !player_) {
+        hack_term_emit("ssh: state unavailable.", UITag::TextDim);
+        return;
+    }
+    if (!has_cat_hacking(*player_)) {
+        hack_term_emit("ssh: requires Cat_Hacking skill.", UITag::TextDim);
+        return;
+    }
+
+    // Parse `[user@]ip`.
+    std::string user = "root";
+    std::string ip_str = args[1];
+    if (auto at = ip_str.find('@'); at != std::string::npos) {
+        user   = ip_str.substr(0, at);
+        ip_str = ip_str.substr(at + 1);
+    }
+    auto parsed = parse_ip(ip_str);
+    if (!parsed) {
+        hack_term_emit("ssh: invalid IP '" + ip_str + "'", UITag::TextDim);
+        return;
+    }
+    const auto* h = world_->find_hackable_by_ip(*parsed);
+    if (!h) {
+        hack_term_emit("ssh: " + format_ip(*parsed) + ": host unreachable", UITag::TextDim);
+        return;
+    }
+
+    // TODO(Phase B): if has_tag(h->tags, HackTag::AlienTech) -> emit
+    // "ssh: <ip>: protocol not understood (alien tech)." and return.
+
+    bool wants_root = (user == "root");
+    bool locked = has_tag(h->tags, HackTag::Locked);
+    if (wants_root && locked && !h->escalated) {
+        // Strict reject: permission-denied + try-guest hint. No shell opens.
+        hack_term_emit("ssh: " + format_ip(*parsed) +
+                       ": permission denied (root login disabled).",
+                       UITag::TextDim);
+        hack_term_emit("      try: ssh guest@" + format_ip(*parsed),
+                       UITag::TextDim);
+        return;
+    }
+
+    // Queue the shell-open request for game_input.cpp to consume.
+    ssh_request_ip_   = *parsed;
+    ssh_request_root_ = wants_root;
+    hack_term_emit("ssh: connecting to " + format_ip(*parsed) + " as " + user + "...",
+                   UITag::TextDim);
+}
+
 void PdaScreen::hack_term_cmd_lore() {
     ConsciousnessSave cs;
     read_consciousness(cs);

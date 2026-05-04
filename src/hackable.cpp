@@ -2,6 +2,7 @@
 #include "astra/program.h"
 #include "astra/tilemap.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace astra {
@@ -100,6 +101,20 @@ Hackable make_hackable(FixtureType type, int tier) {
     h.security_tier = tier;
     h.source_type = type;
     return h;
+}
+
+void tick_runtime_state(Hackable& h, int dt) {
+    if (dt <= 0) return;
+    auto step = [dt](int& v) { if (v > 0) v = std::max(0, v - dt); };
+    step(h.optics_blind_ticks);
+    step(h.optics_restream_ticks);
+    step(h.optics_dim_ticks);
+    step(h.disarmed_ticks);
+    step(h.surged_ticks);
+    step(h.power_off_ticks);
+    step(h.halt_ticks);
+    // state_ticks_left is the older Compromised cooldown — we don't own it
+    // here yet (Plan 5/QH responsibility), so leave it.
 }
 
 } // namespace astra

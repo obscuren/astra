@@ -137,6 +137,12 @@ struct Player {
     // Tutorial — tracks which datapad tabs have shown their help overlay
     uint16_t tab_help_seen = 0;  // bitfield, one bit per PdaTab
 
+    // Plan 7 — Device Shells: when wired into a real-world device via
+    // (hack) Shell Access, this stores the fixture id of the target.
+    // Body movement/attack/item-use are blocked while >= 0. Transient: not
+    // serialized; closing the shell or saving wipes it. -1 = not wired.
+    int is_jacked_into = -1;
+
     // Aggregate modifiers from all equipped implants.
     StatModifiers implant_modifiers() const {
         StatModifiers total;

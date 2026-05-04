@@ -30,7 +30,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 62;   // v62: Plan 5.5 — multi-map LAN persistence (lan_metadatas keyed by LocationKey)
+inline constexpr uint32_t SAVE_FILE_VERSION = 64;   // v64: Plan 7 Phase B — Hackable gains wiped_paths + friendly_fire_target_faction
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

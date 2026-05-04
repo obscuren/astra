@@ -707,6 +707,15 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     w.write_i32(h.soul_mirror_progress);
     // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
     w.write_u8(static_cast<uint8_t>(h.source_type));
+    // v63 — Plan 7: device-shell persistent state.
+    w.write_u8(static_cast<uint8_t>(h.firmware_state));
+    w.write_u8(h.cracked_digits);
+    w.write_u8(h.escalated ? 1 : 0);
+    w.write_u32(h.dumped_bytes);
+    // v64 — Plan 7 Phase B: persisted shell mutations.
+    w.write_u32(static_cast<uint32_t>(h.wiped_paths.size()));
+    for (const auto& p : h.wiped_paths) w.write_string(p);
+    w.write_string(h.friendly_fire_target_faction);
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -731,6 +740,22 @@ static Hackable read_hackable(BinaryReader& r) {
     h.soul_mirror_progress = r.read_i32();
     // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
     h.source_type = static_cast<FixtureType>(r.read_u8());
+    // v63 — Plan 7: device-shell persistent state.
+    h.firmware_state = static_cast<FirmwareState>(r.read_u8());
+    h.cracked_digits = r.read_u8();
+    h.escalated      = (r.read_u8() != 0);
+    h.dumped_bytes   = r.read_u32();
+    // v64 — Plan 7 Phase B: persisted shell mutations.
+    {
+        uint32_t n = r.read_u32();
+        h.wiped_paths.clear();
+        h.wiped_paths.reserve(n);
+        for (uint32_t i = 0; i < n; ++i) h.wiped_paths.push_back(r.read_string());
+    }
+    h.friendly_fire_target_faction = r.read_string();
+    // Tick-based runtime fields (optics_blind_ticks, disarmed_ticks, etc.)
+    // are deliberately NOT persisted (per spec §13). They reset to 0 on
+    // reload — i.e. cmd-blind/disarm/etc. effects expire on save/load.
     return h;
 }
 

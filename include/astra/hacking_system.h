@@ -1,8 +1,10 @@
 #pragma once
 
+#include "astra/device_shell.h"
 #include "astra/grid_session.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -73,6 +75,23 @@ public:
     // Per-turn Grid update. Called from Game::advance_world when state == Grid.
     void tick_grid(Game& game);
 
+    // Plan 7: Device Shell (per-device CLI). At most one shell open at a time.
+    DeviceShell&       device_shell()       { return device_shell_; }
+    const DeviceShell& device_shell() const { return device_shell_; }
+    bool device_shell_open() const { return device_shell_.is_open(); }
+
+    // Open a shell on the given target. Returns true if the shell opened
+    // (Phase A: always true, except when the manual_ssh strict reject path
+    // applies — in which case the caller prints the error and the shell
+    // does not open). For autorun shells, the caller picks the tier.
+    // `manual_ssh` enables the strict reject for root@locked-unescalated.
+    bool open_device_shell(Game& game, Hackable& target,
+                           ShellTier requested_tier, ShellVia via,
+                           bool manual_ssh,
+                           const std::string& requested_user);
+
+    void close_device_shell(Game& game) { device_shell_.close(game); }
+
 private:
     bool targeting_ = false;
     int  target_x_ = 0;
@@ -84,6 +103,11 @@ private:
     std::optional<GridSession> session_;
 
     Game* game_ = nullptr;
+
+    // Plan 7 — Device Shells. Lives inside HackingSystem so the per-tick
+    // updater for the active channel rides the existing tick() / tick_grid()
+    // surfaces. At most one shell is open at a time.
+    DeviceShell device_shell_;
 
     // Cached zone-change detector. Composes navigation + zone_x/zone_y.
     // When the signature changes, detection_ resets to zero.

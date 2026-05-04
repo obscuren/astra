@@ -78,6 +78,21 @@ HackTarget hackable_at(Game& game, int x, int y) {
 
 } // namespace
 
+// Plan 7: forward-declared anchors for the per-cmd TU registrations. Each
+// `cmd_*.cpp` defines a static initializer that registers HackCommands into
+// the global registry; calling these anchors from a TU we know is always
+// linked guarantees the registrations survive whole-program-optimization.
+void register_universal_hack_commands();
+
+namespace {
+struct HackCommandAnchor {
+    HackCommandAnchor() {
+        register_universal_hack_commands();
+    }
+};
+const HackCommandAnchor k_hack_command_anchor;
+}
+
 void HackingSystem::add_detection(int delta) {
     int prev = detection_.value;
     detection_.value = std::clamp(detection_.value + delta, kDetectionMin, kDetectionMax);
@@ -145,6 +160,27 @@ uint64_t HackingSystem::compute_zone_signature(const Game& game) {
 }
 
 void HackingSystem::tick(Game& game) {
+    // Plan 7: device shell rides world ticks for its long-channel progress.
+    // Ritual char-streaming uses the frame-tick, driven from Game's idle path.
+    if (device_shell_.is_open()) {
+        device_shell_.tick_world(game);
+    }
+
+    // Plan 7 Phase B — decrement Hackable runtime countdowns (optics_blind,
+    // disarmed, surge/kill/dim/halt, etc.). Per spec §13 these fields are
+    // ephemeral and reset on save/load; per-world-tick decrement keeps them
+    // tracking the world clock.
+    {
+        auto& m = game.world().map();
+        for (int i = 0; i < m.fixture_count(); ++i) {
+            auto& fd = m.fixture_mut(i);
+            if (fd.cyber) tick_runtime_state(*fd.cyber, 1);
+        }
+        for (auto& npc : game.world().npcs()) {
+            if (npc.cyber) tick_runtime_state(*npc.cyber, 1);
+        }
+    }
+
     uint64_t sig = compute_zone_signature(game);
     if (sig != last_zone_signature_) {
         last_zone_signature_ = sig;
@@ -156,6 +192,43 @@ void HackingSystem::tick(Game& game) {
         detection_.decay_acc = 0;
         detection_.value = std::max(kDetectionMin, detection_.value - 1);
     }
+}
+
+bool HackingSystem::open_device_shell(Game& game, Hackable& target,
+                                      ShellTier requested_tier, ShellVia via,
+                                      bool manual_ssh,
+                                      const std::string& requested_user) {
+    // Manual ssh strict-reject: root@locked-unescalated → no shell, just the
+    // permission-denied beat. Plan 7 §4.
+    bool locked = has_tag(target.tags, HackTag::Locked);
+    bool wants_root = (requested_tier == ShellTier::Root);
+    if (manual_ssh && wants_root && locked && !target.escalated) {
+        // Caller is responsible for printing the message into pda> shell.
+        return false;
+    }
+
+    // Floor the actual tier against device state. Locked-unescalated capped
+    // to Guest, regardless of what user the player typed.
+    ShellTier actual_tier = requested_tier;
+    if (locked && !target.escalated) actual_tier = ShellTier::Guest;
+
+    // Resolve faction for flavor pack: use the current star system's
+    // controlling_faction. Empty / unknown -> Civilian fallback (handled
+    // inside flavor_for).
+    std::string faction;
+    {
+        const auto& nav = game.world().navigation();
+        for (const auto& sys : nav.systems) {
+            if (sys.id == nav.current_system_id) {
+                faction = sys.controlling_faction;
+                break;
+            }
+        }
+    }
+    device_shell_.set_faction(std::move(faction));
+
+    device_shell_.open(game, &target, actual_tier, via, requested_user);
+    return true;
 }
 
 void HackingSystem::reset() {

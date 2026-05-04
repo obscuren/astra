@@ -436,6 +436,16 @@ void render_map(const MapRenderContext& rc) {
             RenderDescriptor desc;
             desc.category = RenderCategory::Player;
             wctx.put(rc.player.x - rc.camera_x, rc.player.y - rc.camera_y, desc);
+            // Plan 7: while body is wired into a device, overlay a cyan @
+            // (pulsing via the hacking blink phase) so the avatar reads as
+            // physically tethered to a console.
+            if (rc.player.is_jacked_into >= 0) {
+                int sx = rc.map_rect.x + (rc.player.x - rc.camera_x);
+                int sy = rc.map_rect.y + (rc.player.y - rc.camera_y);
+                Color pulse = (rc.hacking.blink_phase() & 4) ? Color::Cyan
+                                                             : Color::BrightWhite;
+                rc.renderer->draw_char(sx, sy, '@', pulse);
+            }
         }
     }
 

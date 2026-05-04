@@ -178,6 +178,7 @@ private:
     void hack_term_cmd_nmap_list();
     void hack_term_cmd_nmap_map();
     void hack_term_cmd_jack(const std::vector<std::string>& args);
+    void hack_term_cmd_ssh(const std::vector<std::string>& args);
     void hack_term_cmd_lore();
     void hack_term_cmd_clear();
     void hack_term_cmd_history();
@@ -224,6 +225,12 @@ private:
     std::string installed_ship_slot_;
     // Jack-in request — terminal `jack -t <node>`. 0 = none.
     uint32_t jack_in_request_node_id_ = 0;
+    // Plan 7 Phase A: ssh request from `pda> ssh [<user>@]<ip>`. The game
+    // input loop pops this, locates the mutable Hackable, and opens the
+    // device shell at the requested tier (root or guest).
+    // 0 = none.
+    uint32_t ssh_request_ip_ = 0;
+    bool     ssh_request_root_ = true;
     // Nmap overlay — shown above the Hacking terminal pane.
     GridNmapWidget nmap_widget_;
     // Pending nmap-side breach (Plan 5 Task 39). The widget never mutates
@@ -252,6 +259,15 @@ public:
     uint32_t consume_jack_in_request() {
         uint32_t v = jack_in_request_node_id_;
         jack_in_request_node_id_ = 0;
+        return v;
+    }
+    // Returns 0 if no ssh pending. `as_root` is set to whether the player
+    // typed `ssh root@` (true) or `ssh guest@` (false). Manual semantics.
+    uint32_t consume_ssh_request(bool& as_root) {
+        uint32_t v = ssh_request_ip_;
+        as_root   = ssh_request_root_;
+        ssh_request_ip_  = 0;
+        ssh_request_root_ = true;
         return v;
     }
     GridNmapBreachRequest consume_breach_request() {

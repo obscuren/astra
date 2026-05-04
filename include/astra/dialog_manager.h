@@ -87,6 +87,7 @@ private:
         HackingJackIn,
         HackingSyncSoul,
         HackingRunQh,
+        HackingShellAccess,   // Plan 7: opens per-device shell (real-world doorway)
     };
     std::vector<OptionKind> option_kinds_;
 
@@ -108,6 +109,10 @@ private:
     void append_qh_options(int fid, Game& game);
     void append_jack_in_option(int fid, Game& game);
     void append_sync_soul_option(int fid, Game& game);
+    // Plan 7: appends `(hack) Shell Access` on any Hackable with the
+    // Electronic tag (and not AlienTech) when the player has Cat_Hacking.
+    // Hotkey 's' is taken by Sync Soul on AlienTech devices, so we use 'h'.
+    void append_shell_access_option(int fid, Game& game);
 
     // Word-wrap body text respecting COLOR_BEGIN/COLOR_END markers
     static std::vector<std::string> word_wrap(const std::string& text, int width);

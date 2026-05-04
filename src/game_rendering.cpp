@@ -1073,6 +1073,10 @@ void Game::render_play() {
     repair_bench_.draw(screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     pda_screen_.draw(screen_w_, screen_h_);
+    // Plan 7: Device Shell sits on top of PDA when active.
+    if (hacking_.device_shell_open()) {
+        hacking_.device_shell().render(renderer_.get(), screen_w_, screen_h_, *this);
+    }
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
     render_cell_picker();

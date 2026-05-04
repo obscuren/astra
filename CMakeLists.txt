@@ -135,6 +135,23 @@ set(ASTRA_SOURCES
     src/trap.cpp
     src/grenade.cpp
     src/hackable.cpp
+    src/hack_command.cpp
+    src/device_shell.cpp
+    src/device_fs.cpp
+    src/fixture_os_id.cpp
+    src/hack_flavor_civilian.cpp
+    src/hack_flavor_corp.cpp
+    src/hack_flavor_cartel.cpp
+    src/hack_commands/cmd_universals.cpp
+    src/hack_commands/cmd_hashcat.cpp
+    src/hack_commands/cmd_unlock.cpp
+    src/hack_commands/cmd_datastore_reads.cpp
+    src/hack_commands/cmd_dump.cpp
+    src/hack_commands/cmd_wipe.cpp
+    src/hack_commands/cmd_optics.cpp
+    src/hack_commands/cmd_weaponized.cpp
+    src/hack_commands/cmd_powernode.cpp
+    src/hack_commands/cmd_mobile.cpp
     src/ground_effect.cpp
     src/noise_event.cpp
     src/skill_defs.cpp

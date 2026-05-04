@@ -60,6 +60,13 @@ enum class HackState : uint8_t {
     Alarmed,       // detected; broadcasts to faction
 };
 
+// v63 — Plan 7: device firmware state (shell-driven mutations).
+enum class FirmwareState : uint8_t {
+    Stock,         // factory firmware
+    Wiped,         // permanently bricked via shell `firmware --wipe`
+    Glitched,      // partially corrupted (future)
+};
+
 // Forward-declared in headers that don't need ProgramId (program.h includes hackable.h).
 enum class ProgramId : uint16_t;
 
@@ -91,7 +98,40 @@ struct Hackable {
     // v61 — Plan 5 Cut 2.6: source FixtureType, used to pick a wall-mounted
     // device-avatar glyph inside the per-Hackable subnet sector.
     FixtureType source_type = static_cast<FixtureType>(0);
+
+    // v63 — Plan 7: device-shell driven persistent state.
+    FirmwareState firmware_state = FirmwareState::Stock;
+    uint8_t       cracked_digits = 0;     // hashcat partial-state (0..N revealed)
+    bool          escalated      = false; // true once root via hashcat success
+    uint32_t      dumped_bytes   = 0;     // dump partial-state accumulator
+
+    // v63 — Plan 7 Phase B: shell-driven mutations that persist across save.
+    // `wiped_paths`: filesystem entries removed via `wipe` (rebuilt on every
+    // shell open by DeviceFsView, then filtered by this list).
+    std::vector<std::string> wiped_paths;
+    // Persisted target priority override set by `friendly_fire`. Empty = default.
+    std::string friendly_fire_target_faction;
+
+    // Phase B: ephemeral countdowns + flags driven by privileged shell
+    // commands. Decremented per world tick by tick_runtime_state(). NOT
+    // persisted (cleared on save/load) per spec §13 — only the four canon
+    // persisted fields (escalated, cracked_digits, firmware_state,
+    // dumped_bytes) plus wiped_paths and friendly_fire_target_faction stick.
+    int  optics_blind_ticks    = 0;   // cmd_blind: vision cone disabled
+    int  optics_restream_ticks = 0;   // cmd_restream: looped feed
+    int  optics_dim_ticks      = 0;   // cmd_dim (PowerNode): downstream cone halved
+    int  disarmed_ticks        = 0;   // cmd_disarm: turret won't fire
+    bool locked_out_to_player  = false; // cmd_lockout: cosmetic
+    int  surged_ticks          = 0;   // cmd_surge: brief power buff
+    int  power_off_ticks       = 0;   // cmd_kill: downstream powerless
+    int  halt_ticks            = 0;   // cmd_halt: mobile fixture stopped
+
+    // Decrement all tick-based runtime fields by `dt` (typically 1/world tick).
+    // Called from HackingSystem::tick(). Free function below.
 };
+
+// Decrement Hackable's per-tick runtime countdowns. No-op for fields == 0.
+void tick_runtime_state(Hackable& h, int dt = 1);
 
 // Returns a Hackable populated from the fixture type's tag mask. Returns
 // Hackable with tags=0 if the fixture is not hackable (caller checks).

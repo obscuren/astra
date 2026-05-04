@@ -274,6 +274,7 @@ public:
     // Find a Hackable on the active map (fixtures + alive NPCs) by its packed IP.
     // Returns nullptr if no match. Used by `ping <ip>` and `jack <ip>`.
     const Hackable* find_hackable_by_ip(uint32_t ip) const;
+    Hackable*       find_hackable_by_ip(uint32_t ip);
 
 private:
     TileMap map_;
