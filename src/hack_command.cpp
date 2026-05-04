@@ -1,6 +1,8 @@
 #include "astra/hack_command.h"
 
+#include "astra/device_shell.h"
 #include "astra/player.h"
+#include "astra/shell_context.h"
 #include "astra/skill_defs.h"
 
 #include <algorithm>
@@ -126,11 +128,32 @@ const HackCommand* HackCommandRegistry::find(std::string_view name) const {
     return nullptr;
 }
 
+const HackCommand* HackCommandRegistry::find_for(std::string_view name,
+                                                 const ShellContext& ctx) const {
+    bool device_ctx = const_cast<ShellContext&>(ctx).as_device() != nullptr;
+    // Two-pass: prefer the scope-specific match over Universal, so that a
+    // scope-specific override (e.g. cyberdeck `ls` overriding the device
+    // `ls`) wins. If neither found, fall through to Universal.
+    const HackCommand* universal_hit = nullptr;
+    for (const auto* c : commands_) {
+        if (!c || name != c->name) continue;
+        if (c->scope == CommandScope::Universal) {
+            if (!universal_hit) universal_hit = c;
+            continue;
+        }
+        if (device_ctx && c->scope == CommandScope::Device) return c;
+        if (!device_ctx && c->scope == CommandScope::Cyberdeck) return c;
+    }
+    return universal_hit;
+}
+
 std::vector<const HackCommand*>
 HackCommandRegistry::commands_for(HackTagMask tags, bool is_root) const {
     std::vector<const HackCommand*> out;
     for (const auto* c : commands_) {
         if (!c) continue;
+        // Filter by scope: only Device + Universal show up in a device shell.
+        if (c->scope == CommandScope::Cyberdeck) continue;
         if (c->required_tag != HackTag::None) {
             if (!has_tag(tags, c->required_tag)) continue;
         }
@@ -147,6 +170,34 @@ HackCommandRegistry::universals(bool is_root) const {
         if (!c) continue;
         if (c->required_tag != HackTag::None) continue;
         if (c->requires_root && !is_root) continue;
+        // Universals returned here flow through device-shell help; skip
+        // pure-cyberdeck commands.
+        if (c->scope == CommandScope::Cyberdeck) continue;
+        out.push_back(c);
+    }
+    return out;
+}
+
+std::vector<const HackCommand*>
+HackCommandRegistry::commands_for(const ShellContext& ctx) const {
+    // DeviceShellContext: scope == Device or Universal, plus tag/tier checks.
+    if (auto* dev = const_cast<ShellContext&>(ctx).as_device()) {
+        Hackable* target = dev->target();
+        HackTagMask tags = target ? target->tags : HackTagMask{};
+        bool tier_root = (dev->tier() == ShellTier::Root);
+        bool root = target ? is_player_root(*target, tier_root) : tier_root;
+        return commands_for(tags, root);
+    }
+    // CyberdeckShellContext (or any non-device): scope == Cyberdeck or Universal.
+    return cyberdeck_commands();
+}
+
+std::vector<const HackCommand*>
+HackCommandRegistry::cyberdeck_commands() const {
+    std::vector<const HackCommand*> out;
+    for (const auto* c : commands_) {
+        if (!c) continue;
+        if (c->scope == CommandScope::Device) continue;
         out.push_back(c);
     }
     return out;

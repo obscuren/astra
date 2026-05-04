@@ -47,6 +47,22 @@ const char* pick_(std::span<const char* const> pool, uint64_t seed, uint32_t sal
     return pool[rng() % pool.size()];
 }
 
+// Format the transient progress bar text. `cells` is the number of bar
+// cells (each one terminal column); the bar reads as `[▓▓▓     ] NN%`.
+std::string format_progress_bar_(int percent, int cells) {
+    if (cells < 4) cells = 4;
+    std::string bar = "[";
+    int filled = (percent * cells) / 100;
+    if (filled > cells) filled = cells;
+    for (int i = 0; i < cells; ++i) {
+        bar += (i < filled) ? "\xe2\x96\x93" : " ";  // U+2593 ▓
+    }
+    char tail[16];
+    std::snprintf(tail, sizeof tail, "] %d%%", percent);
+    bar += tail;
+    return bar;
+}
+
 } // namespace
 
 void DeviceShell::open(Game& game, Hackable* target, ShellTier tier,
@@ -171,23 +187,14 @@ void DeviceShell::tick_world(Game& game) {
     if (channel_.active()) {
         channel_.progress_ticks++;
 
-        // Update the transient progress line in the shared scroll. Format
-        // is `[▓▓▓       ] 30%` — bare bar, no command-name prefix; the
-        // typed command line is already echoed in scroll just above. We
-        // commit on completion so the final 100% line stays in scrollback.
+        // Update the transient progress line. Bar width is ~50% of the
+        // Hacking-tab content width via the sink's hint; falls back to 10
+        // cells if no sink is bound.
         if (sink_) {
-            constexpr int kBarCells = 10;
-            std::string bar = "[";
-            int filled = (channel_.percent() * kBarCells) / 100;
-            if (filled > kBarCells) filled = kBarCells;
-            // U+2593 ▓ filled cell, ASCII space empty.
-            for (int i = 0; i < kBarCells; ++i) {
-                bar += (i < filled) ? "\xe2\x96\x93" : " ";
-            }
-            char tail[16];
-            std::snprintf(tail, sizeof tail, "] %d%%", channel_.percent());
-            bar += tail;
-            sink_->shell_set_progress_line(bar, UITag::TextWarning);
+            int cells = sink_->shell_progress_cells_hint();
+            sink_->shell_set_progress_line(
+                format_progress_bar_(channel_.percent(), cells),
+                UITag::TextWarning);
         }
 
         if (channel_.progress_ticks >= channel_.scaled_turns) {
@@ -206,7 +213,7 @@ void DeviceShell::tick_world(Game& game) {
             args.argv.push_back("--__done");
             channel_ = HackChannel{};
             if (cmd && cmd->execute && target_) {
-                HackCommandResult r = cmd->execute(args, *target_, *this, game);
+                HackCommandResult r = cmd->execute(args, *this, game);
                 if (!r.message.empty()) emit(r.message, UITag::TextDefault);
             }
         }
@@ -229,7 +236,9 @@ void DeviceShell::submit_command(const std::string& raw_line, Game& game) {
     const std::string& name = args.argv[0];
 
     auto& reg = HackCommandRegistry::get();
-    const HackCommand* cmd = reg.find(name);
+    // Scope-aware: with multiple `ls` / `clear` registrations across scopes,
+    // pick the device-side entry (or fall back to universal).
+    const HackCommand* cmd = reg.find_for(name, *this);
     if (!cmd) {
         emit(name + ": command not found. Try 'help'.", UITag::TextDim);
         return;
@@ -256,7 +265,7 @@ void DeviceShell::submit_command(const std::string& raw_line, Game& game) {
     }
 
     if (cmd->execute && target_) {
-        HackCommandResult r = cmd->execute(args, *target_, *this, game);
+        HackCommandResult r = cmd->execute(args, *this, game);
         if (!r.message.empty()) emit(r.message, UITag::TextDefault);
     }
 }
@@ -302,8 +311,14 @@ bool DeviceShell::start_channel(const HackCommand& cmd, const ParsedArgs& args, 
     }
 
     // No generic start banner — each command emits its own intent line
-    // before calling start_channel(). The progress bar appears on the
-    // first real-time tick.
+    // before calling start_channel(). Paint the bar at 0% immediately so
+    // the player sees it the moment the channel begins (the first
+    // real-time tick lands ~300ms later).
+    if (sink_) {
+        int cells = sink_->shell_progress_cells_hint();
+        sink_->shell_set_progress_line(format_progress_bar_(0, cells),
+                                       UITag::TextWarning);
+    }
     return true;
 }
 
@@ -336,7 +351,7 @@ void DeviceShell::abort_channel(Game& game, const char* reason) {
         char pf[32];
         std::snprintf(pf, sizeof pf, "--__partial=%d", pct);
         args.argv.push_back(pf);
-        HackCommandResult r = cmd->execute(args, *target_, *this, game);
+        HackCommandResult r = cmd->execute(args, *this, game);
         if (!r.message.empty()) emit(r.message, UITag::TextDim);
     }
 }

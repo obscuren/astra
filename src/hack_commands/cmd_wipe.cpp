@@ -10,6 +10,7 @@
 #include "astra/game.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 
 #include <algorithm>
 
@@ -17,8 +18,11 @@ namespace astra {
 
 namespace {
 
-HackCommandResult exec_wipe(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game& game) {
+HackCommandResult exec_wipe(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""}; // atomic: no partial
     if (a.has_flag("--__done")) {
         // Apply the wipe.
@@ -49,6 +53,7 @@ HackCommandResult exec_wipe(const ParsedArgs& a, Hackable& target,
 const HackCommand k_wipe{
     "wipe", "wipe <path>",
     "permanently remove a file from the device (privileged)",
+    CommandScope::Device,
     HackTag::DataStore, /*requires_root=*/true,
     /*base_turns=*/4, /*base_heat=*/2, /*base_detection=*/10,
     /*allow_partial=*/false,

@@ -170,6 +170,7 @@ public:
     void shell_clear_scroll() override;
     void shell_set_progress_line(const std::string& text, UITag tag) override;
     void shell_commit_progress_line() override;
+    int  shell_progress_cells_hint() const override;
     // Render the unified Hacking-tab terminal into an arbitrary rect. Used
     // by the in-Grid Tron-window (grid_renderer.cpp) so the same scroll +
     // prompt swap into the playfield rect when the avatar is jacked into a
@@ -188,6 +189,34 @@ public:
     // by the player, keeping the unified scroll the single source of truth.
     void hack_term_autotype_and_submit(const std::string& line);
 
+    // Plan 7 — accessors used by the cyberdeck commands now living in
+    // src/hack_commands/cmd_*.cpp. Each command receives a ShellContext& and
+    // a Game&; from there it reaches the PdaScreen via game.pda_screen() to
+    // queue request fields, open the nmap widget, etc. Visible behaviour is
+    // unchanged — these are 1:1 setters for the previously private state.
+    void hack_term_set_jack_in_request(uint32_t node_id) { jack_in_request_node_id_ = node_id; }
+    void hack_term_set_ssh_request(uint32_t ip, bool as_root) {
+        ssh_request_ip_   = ip;
+        ssh_request_root_ = as_root;
+    }
+    void hack_term_open_nmap_widget() { nmap_widget_.open(); }
+    GridNmapWidget& hack_term_nmap_widget() { return nmap_widget_; }
+    // Re-greet on `clear` — re-emits the per-deck banner + MOTD into scroll.
+    void hack_term_re_greet() {
+        auto* slot = player_ ? player_->equipment.equipped_cyberdeck() : nullptr;
+        if (slot && *slot && (*slot)->deck) {
+            hack_term_greet_for_deck((*slot)->item_def_id);
+            hack_term_greeted_deck_def_id_ = (*slot)->item_def_id;
+        }
+    }
+    // Wipe the visible scroll (for cyberdeck `clear`). Does NOT re-greet.
+    void hack_term_clear_lines() {
+        hack_term_lines_.clear();
+        hack_term_scroll_ = 0;
+    }
+    // Close the PDA from inside a cyberdeck command (`exit`).
+    void hack_term_close_pda() { close(); }
+
 private:
     // Hacking tab — terminal subwindow
     struct HackTermLine {
@@ -195,9 +224,10 @@ private:
         UITag tag = UITag::TextDim;
     };
     std::vector<HackTermLine> hack_term_lines_;
-    std::vector<std::string>  hack_term_history_;
     std::string               hack_term_input_;
     int                       hack_term_input_cursor_ = 0;   // byte index into hack_term_input_
+    // Up/down history index into the active ShellContext's history vector.
+    // -1 = "below the bottom" / fresh buffer.
     int                       hack_term_history_cursor_ = -1;
     int                       hack_term_scroll_ = 0;         // lines scrolled up from bottom (0 = latest)
     uint16_t                  hack_term_greeted_deck_def_id_ = 0;
@@ -208,34 +238,13 @@ private:
     std::string hack_term_progress_text_;
     UITag       hack_term_progress_tag_ = UITag::TextWarning;
     bool        hack_term_progress_set_ = false;
-    // Pending ssh autotype: if non-empty, the next frame sets the input
-    // buffer to this string and submits it (mirrors typing `ssh root@<ip>`
-    // and pressing Enter). Used by Shell Access doorway.
-    std::string hack_term_pending_autotype_;
+    // Cached on each Hacking-tab render so shell_progress_cells_hint() can
+    // size the bar to ~50% of the visible width even when called from
+    // device_shell::tick_world (outside the render path).
+    int         hack_term_content_width_ = 0;
 
     void hack_term_emit(const std::string& line, UITag tag = UITag::TextDefault);
     void hack_term_greet_for_deck(uint16_t deck_def_id);
-    void hack_term_run_command(const std::string& line);
-    void hack_term_cmd_help();
-    void hack_term_cmd_deck_info();
-    void hack_term_cmd_ps(const std::vector<std::string>& args);
-    void hack_term_cmd_ls(const std::vector<std::string>& args);
-    void hack_term_cmd_load(const std::vector<std::string>& args);
-    void hack_term_cmd_unload(const std::vector<std::string>& args);
-    void hack_term_cmd_man(const std::vector<std::string>& args);
-    void hack_term_cmd_cat(const std::vector<std::string>& args);
-    void hack_term_cmd_echo(const std::vector<std::string>& args);
-    void hack_term_cmd_uname(const std::vector<std::string>& args);
-    void hack_term_cmd_whoami();
-    void hack_term_cmd_ping(const std::vector<std::string>& args);
-    void hack_term_cmd_nmap(const std::vector<std::string>& args);
-    void hack_term_cmd_nmap_list();
-    void hack_term_cmd_nmap_map();
-    void hack_term_cmd_jack(const std::vector<std::string>& args);
-    void hack_term_cmd_ssh(const std::vector<std::string>& args);
-    void hack_term_cmd_lore();
-    void hack_term_cmd_clear();
-    void hack_term_cmd_history();
     void handle_hacking_key(int key);
 
     void draw_journal(UIContext& ctx);

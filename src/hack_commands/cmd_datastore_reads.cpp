@@ -9,6 +9,7 @@
 #include "astra/game.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 
 #include <sstream>
 #include <string>
@@ -21,8 +22,11 @@ bool is_root_now(const Hackable& t, const DeviceShell& s) {
     return is_player_root(t, s.tier() == ShellTier::Root);
 }
 
-HackCommandResult exec_ls(const ParsedArgs& a, Hackable& target,
-                          DeviceShell& shell, Game&) {
+HackCommandResult exec_ls(const ParsedArgs& a, ShellContext& ctx, Game&) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     std::string dir = "/";
     if (a.argv.size() > 1) dir = a.argv[1];
@@ -41,8 +45,11 @@ HackCommandResult exec_ls(const ParsedArgs& a, Hackable& target,
     return {true, false, ""};
 }
 
-HackCommandResult exec_cat(const ParsedArgs& a, Hackable& target,
-                           DeviceShell& shell, Game&) {
+HackCommandResult exec_cat(const ParsedArgs& a, ShellContext& ctx, Game&) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     if (a.argv.size() < 2) return {false, false, "cat: usage: cat <path>"};
     bool root = is_root_now(target, shell);
@@ -57,8 +64,11 @@ HackCommandResult exec_cat(const ParsedArgs& a, Hackable& target,
     return {true, false, ""};
 }
 
-HackCommandResult exec_grep(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game&) {
+HackCommandResult exec_grep(const ParsedArgs& a, ShellContext& ctx, Game&) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     if (a.argv.size() < 2) return {false, false, "grep: usage: grep <pattern>"};
     bool root = is_root_now(target, shell);
@@ -70,8 +80,11 @@ HackCommandResult exec_grep(const ParsedArgs& a, Hackable& target,
     return {true, false, ""};
 }
 
-HackCommandResult exec_find(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game&) {
+HackCommandResult exec_find(const ParsedArgs& a, ShellContext& ctx, Game&) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     if (a.argv.size() < 2) return {false, false, "find: usage: find <pattern>"};
     bool root = is_root_now(target, shell);
@@ -83,18 +96,22 @@ HackCommandResult exec_find(const ParsedArgs& a, Hackable& target,
 
 const HackCommand k_ls{
     "ls", "ls [<dir>]", "list files at path",
+    CommandScope::Device,
     HackTag::DataStore, false, 0, 0, 0, false, &exec_ls,
 };
 const HackCommand k_cat{
     "cat", "cat <path>", "print file contents",
+    CommandScope::Device,
     HackTag::DataStore, false, 0, 0, 0, false, &exec_cat,
 };
 const HackCommand k_grep{
     "grep", "grep <pattern>", "substring search across the device",
+    CommandScope::Device,
     HackTag::DataStore, false, 0, 0, 0, false, &exec_grep,
 };
 const HackCommand k_find{
     "find", "find <glob>", "path-pattern search (supports *)",
+    CommandScope::Device,
     HackTag::DataStore, false, 0, 0, 0, false, &exec_find,
 };
 

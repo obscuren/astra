@@ -137,8 +137,9 @@ void Game::handle_play_input(int key) {
 
     // PDA screen intercepts input when open
     if (pda_screen_.is_open()) {
-        bool shell_open_before = hacking_.device_shell_open() &&
-                                 hacking_.device_shell().via() == ShellVia::RealWorld;
+        auto* dev_before = hacking_.device_shell();
+        bool shell_open_before = dev_before &&
+                                 dev_before->via() == ShellVia::RealWorld;
         pda_screen_.handle_input(key);
         // If the device shell auto-closed during this input (cmd_exit) advance
         // the world by interact-cost so shell time at the device costs the

@@ -757,8 +757,8 @@ void render(Game& game, Renderer& r) {
     // contiguous scrollback. HUD chrome (Trace/Heat panes, log pane, program
     // bar, borders) stays put — the log pane keeps streaming Trace/Heat
     // updates so the player can see the cost of long-channels in-Grid.
-    const auto& shell = game.hacking().device_shell();
-    bool grid_shell = shell.is_open() && shell.via() == ShellVia::Grid;
+    const auto* shell = game.hacking().device_shell();
+    bool grid_shell = shell && shell->via() == ShellVia::Grid;
     if (grid_shell) {
         const_cast<Game&>(game).pda_screen().draw_hacking_into(
             &r, Rect{pr.x, pr.y, pr.w, pr.h});

@@ -5,6 +5,7 @@
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
 #include "astra/npc.h"
+#include "astra/shell_context.h"
 #include "astra/tilemap.h"
 #include "astra/world_manager.h"
 
@@ -36,8 +37,11 @@ std::pair<int,int> locate_target(Game& game, const Hackable& target) {
     return {-1, -1};
 }
 
-HackCommandResult exec_halt(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game& game) {
+HackCommandResult exec_halt(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         target.halt_ticks = kHaltDuration;
@@ -52,8 +56,10 @@ HackCommandResult exec_halt(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_redirect(const ParsedArgs& a, Hackable& /*target*/,
-                                DeviceShell& shell, Game& game) {
+HackCommandResult exec_redirect(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev) return {false, false, ""};
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         std::string to(a.value_of("--to"));
@@ -67,8 +73,11 @@ HackCommandResult exec_redirect(const ParsedArgs& a, Hackable& /*target*/,
     return {true, true, ""};
 }
 
-HackCommandResult exec_gps(const ParsedArgs& a, Hackable& target,
-                           DeviceShell& shell, Game& game) {
+HackCommandResult exec_gps(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     auto [x, y] = locate_target(game, target);
     if (x < 0) return {true, false, "gps: location unknown (target offline)."};
@@ -82,16 +91,19 @@ HackCommandResult exec_gps(const ParsedArgs& a, Hackable& target,
 
 const HackCommand k_halt{
     "halt", "halt", "stop the mobile fixture for N turns",
+    CommandScope::Device,
     HackTag::Mobile, /*requires_root=*/true,
     3, 3, 8, false, &exec_halt,
 };
 const HackCommand k_redirect{
     "redirect", "redirect --to=<x,y>", "set a new patrol target (cosmetic v1)",
+    CommandScope::Device,
     HackTag::Mobile, /*requires_root=*/true,
     6, 4, 12, false, &exec_redirect,
 };
 const HackCommand k_gps{
     "gps", "gps", "print current location",
+    CommandScope::Device,
     HackTag::Mobile, false, 0, 0, 0, false, &exec_gps,
 };
 

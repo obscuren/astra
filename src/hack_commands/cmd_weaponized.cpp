@@ -6,6 +6,7 @@
 #include "astra/game.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 
 #include <cstdio>
 #include <string>
@@ -16,8 +17,11 @@ namespace {
 
 constexpr int kDisarmDuration = 30;
 
-HackCommandResult exec_disarm(const ParsedArgs& a, Hackable& target,
-                              DeviceShell& shell, Game& game) {
+HackCommandResult exec_disarm(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         target.disarmed_ticks = kDisarmDuration;
@@ -32,8 +36,11 @@ HackCommandResult exec_disarm(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_lockout(const ParsedArgs& a, Hackable& target,
-                               DeviceShell& shell, Game& game) {
+HackCommandResult exec_lockout(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         target.locked_out_to_player = true;
@@ -45,8 +52,11 @@ HackCommandResult exec_lockout(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_friendly_fire(const ParsedArgs& a, Hackable& target,
-                                     DeviceShell& shell, Game& game) {
+HackCommandResult exec_friendly_fire(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         std::string fac(a.value_of("--target"));
@@ -63,8 +73,11 @@ HackCommandResult exec_friendly_fire(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_targetlist(const ParsedArgs& a, Hackable& target,
-                                  DeviceShell& shell, Game&) {
+HackCommandResult exec_targetlist(const ParsedArgs& a, ShellContext& ctx, Game&) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     shell.emit("[+] Target priority list:", UITag::TextDim);
     if (!target.friendly_fire_target_faction.empty()) {
@@ -80,22 +93,26 @@ HackCommandResult exec_targetlist(const ParsedArgs& a, Hackable& target,
 
 const HackCommand k_disarm{
     "disarm", "disarm", "turret disarmed for N turns",
+    CommandScope::Device,
     HackTag::Weaponized, /*requires_root=*/true,
     5, 4, 15, false, &exec_disarm,
 };
 const HackCommand k_lockout{
     "lockout", "lockout", "turret refuses inputs from anyone but you",
+    CommandScope::Device,
     HackTag::Weaponized, /*requires_root=*/true,
     3, 3, 12, false, &exec_lockout,
 };
 const HackCommand k_friendly_fire{
     "friendly_fire", "friendly_fire --target=<faction>",
     "reconfigure target priority by faction",
+    CommandScope::Device,
     HackTag::Weaponized, /*requires_root=*/true,
     10, 8, 25, false, &exec_friendly_fire,
 };
 const HackCommand k_targetlist{
     "targetlist", "targetlist", "print current target priority",
+    CommandScope::Device,
     HackTag::Weaponized, false, 0, 0, 0, false, &exec_targetlist,
 };
 

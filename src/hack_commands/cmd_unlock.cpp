@@ -8,6 +8,7 @@
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
 #include "astra/player.h"
+#include "astra/shell_context.h"
 #include "astra/tilemap.h"
 #include "astra/world_manager.h"
 
@@ -24,8 +25,11 @@ FixtureData* find_fixture_for_target(Game& game, Hackable& target) {
     return nullptr;
 }
 
-HackCommandResult exec_unlock(const ParsedArgs& a, Hackable& target,
-                              DeviceShell& shell, Game& game) {
+HackCommandResult exec_unlock(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__done")) return {true, false, ""};
     if (!has_tag(target.tags, HackTag::Locked)) {
         return {false, false, "unlock: target is not locked."};
@@ -55,6 +59,7 @@ const HackCommand k_unlock{
     "unlock",
     "unlock",
     "request open / disengage lock",
+    CommandScope::Device,
     HackTag::Locked, /*requires_root=*/true,
     0, 0, 0, false,
     &exec_unlock,

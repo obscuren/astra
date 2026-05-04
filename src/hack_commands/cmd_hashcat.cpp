@@ -14,6 +14,7 @@
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
 #include "astra/player.h"
+#include "astra/shell_context.h"
 #include "astra/skill_defs.h"
 
 #include <cstdio>
@@ -45,8 +46,8 @@ bool roll_success(const Player& p, std::mt19937_64& rng) {
     return roll <= dc;
 }
 
-HackCommandResult exec_hashcat(const ParsedArgs& args, Hackable& target,
-                               DeviceShell& shell, Game& game) {
+HackCommandResult exec_hashcat_inner(const ParsedArgs& args, Hackable& target,
+                                     DeviceShell& shell, Game& game) {
     if (!has_tag(target.tags, HackTag::Locked)) {
         return {false, false, "hashcat: target is not locked."};
     }
@@ -163,6 +164,7 @@ const HackCommand k_hashcat{
     "hashcat",
     "hashcat <hashfile>",
     "attempt password recovery (escalation)",
+    CommandScope::Device,
     HackTag::Locked, false,
     /*base_turns=*/10, /*base_heat=*/6, /*base_detection=*/15,
     /*allow_partial=*/true,
@@ -172,7 +174,11 @@ const HackCommand k_hashcat{
     // started one, so it's been cleared). We disambiguate by re-checking
     // whether we still hold the start state: at completion the channel's
     // already-NULL-cmd condition triggers.
-    [](const ParsedArgs& a, Hackable& t, DeviceShell& s, Game& g) -> HackCommandResult {
+    [](const ParsedArgs& a, ShellContext& ctx, Game& g) -> HackCommandResult {
+        auto* dev = ctx.as_device();
+        if (!dev || !dev->target()) return {false, false, ""};
+        Hackable& t = *dev->target();
+        DeviceShell& s = *dev;
         // Heuristic: if we're called and there is NO active channel AND
         // cracked_digits indicates progress was already started (i.e. we got
         // here through completion path), apply completion logic. Otherwise
@@ -213,7 +219,7 @@ const HackCommand k_hashcat{
             s.emit(buf, UITag::TextDim);
             return {true, false, ""};
         }
-        return exec_hashcat(a, t, s, g);
+        return exec_hashcat_inner(a, t, s, g);
     },
 };
 

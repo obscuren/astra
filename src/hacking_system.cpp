@@ -162,8 +162,8 @@ uint64_t HackingSystem::compute_zone_signature(const Game& game) {
 void HackingSystem::tick(Game& game) {
     // Plan 7: device shell rides world ticks for its long-channel progress.
     // Ritual char-streaming uses the frame-tick, driven from Game's idle path.
-    if (device_shell_.is_open()) {
-        device_shell_.tick_world(game);
+    if (auto* dev = device_shell()) {
+        dev->tick_world(game);
     }
 
     // Plan 7 Phase B — decrement Hackable runtime countdowns (optics_blind,
@@ -225,10 +225,55 @@ bool HackingSystem::open_device_shell(Game& game, Hackable& target,
             }
         }
     }
-    device_shell_.set_faction(std::move(faction));
 
-    device_shell_.open(game, &target, actual_tier, via, requested_user);
+    // If a device shell is already on top, close it first (one shell at a
+    // time per spec). This shouldn't happen in normal flow.
+    if (device_shell()) {
+        if (shell_sink_) shell_stack_.pop(*shell_sink_, game);
+    }
+
+    auto dev = std::make_unique<DeviceShell>();
+    dev->bind_sink(shell_sink_);
+    dev->set_faction(std::move(faction));
+    dev->open(game, &target, actual_tier, via, requested_user);
+    // shell_sink_ should always be bound by Game construction. If it isn't
+    // (defensive — e.g. tests construct HackingSystem standalone), we drop
+    // the lifecycle-hook benefits but still push so the stack tracks the
+    // session. on_push for DeviceShell is empty (open() did the banner).
+    if (shell_sink_) {
+        shell_stack_.push(std::move(dev), *shell_sink_, game);
+    } else {
+        // Push without firing on_push — direct stack mutation.
+        // (No public setter; this branch is unreachable in normal builds.)
+        // Fall back to constructing a no-op sink locally.
+        struct NullSink : ShellOutputSink {
+            void shell_emit_line(const std::string&, UITag) override {}
+            void shell_clear_scroll() override {}
+            void shell_set_progress_line(const std::string&, UITag) override {}
+            void shell_commit_progress_line() override {}
+        };
+        static NullSink null_sink;
+        shell_stack_.push(std::move(dev), null_sink, game);
+    }
     return true;
+}
+
+void HackingSystem::close_device_shell(Game& game) {
+    if (!device_shell()) return;
+    // pop() invokes on_pop, which calls DeviceShell::close — emits the
+    // logout pair and yanks the cable. Then the unique_ptr is destroyed.
+    if (shell_sink_) {
+        shell_stack_.pop(*shell_sink_, game);
+    } else {
+        struct NullSink : ShellOutputSink {
+            void shell_emit_line(const std::string&, UITag) override {}
+            void shell_clear_scroll() override {}
+            void shell_set_progress_line(const std::string&, UITag) override {}
+            void shell_commit_progress_line() override {}
+        };
+        static NullSink null_sink;
+        shell_stack_.pop(null_sink, game);
+    }
 }
 
 void HackingSystem::reset() {
@@ -236,6 +281,10 @@ void HackingSystem::reset() {
     target_x_ = 0;
     target_y_ = 0;
     blink_phase_ = 0;
+    // Plan 7: device contexts do NOT survive new_game / load_save.
+    // CyberdeckShellContext (when added) will be re-pushed on first PDA open
+    // with a deck equipped.
+    shell_stack_.force_clear();
 }
 
 void HackingSystem::begin_quickhack_targeting(Game& game) {

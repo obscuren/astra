@@ -30,7 +30,7 @@ struct GridNmapBreachRequest {
 // Pure UI: the widget never calls into HackingSystem directly. When the user
 // confirms a jack-in, `take_jack_in_request()` returns the chosen node id
 // once and the host (PdaScreen) is responsible for invoking the hacking
-// pipeline — same shape as `hack_term_cmd_jack`'s deferred jack flow.
+// pipeline — same shape as `cmd_jack.cpp`'s deferred jack flow.
 class GridNmapWidget {
 public:
     // `in_deep_grid` controls whether Tab cycles to Atlas. When false, Tab is

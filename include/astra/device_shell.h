@@ -3,6 +3,7 @@
 #include "astra/device_fs.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 #include "astra/ui_types.h"
 
 #include <cstdint>
@@ -58,9 +59,13 @@ public:
     // Push the current transient progress line into the scroll (used on
     // channel complete / abort). No-op when no transient line is set.
     virtual void shell_commit_progress_line() = 0;
+    // Hint for the progress-bar cell count. Default 10; PdaScreen overrides
+    // to ~50% of the Hacking-tab content width so the bar scales with the
+    // visible terminal area.
+    virtual int  shell_progress_cells_hint() const { return 10; }
 };
 
-class DeviceShell {
+class DeviceShell : public ShellContext {
 public:
     DeviceShell() = default;
 
@@ -73,7 +78,14 @@ public:
     // avatar). The connection ritual is queued through the sink.
     void open(Game& game, Hackable* target, ShellTier tier, ShellVia via,
               const std::string& requested_user);
+    // Logout / yank-cable side-effects. Idempotent. Most call sites should
+    // use HackingSystem::close_device_shell which also pops the stack —
+    // calling close() directly leaves a dead context on top of the stack.
     void close(Game& game);
+
+    // ShellContext::on_pop hook — runs the same close() side-effects so
+    // popping the stack closes the session cleanly.
+    void on_pop(ShellOutputSink&, Game& game) override { close(game); }
 
     bool is_open() const { return open_; }
     Hackable* target() { return target_; }
@@ -81,9 +93,25 @@ public:
     ShellTier tier() const { return tier_; }
     ShellVia  via()  const { return via_; }
 
+    // ── ShellContext overrides ──
+    int owner_id() const override {
+        return target_ ? target_->jack_in_node_id : -1;
+    }
+    std::string prompt() const override { return prompt_(); }
+    // ShellContext-shape submit (sink unused — DeviceShell already holds its
+    // sink via bind_sink()). Forwards to the legacy Game-only overload.
+    void submit_command(const std::string& line,
+                        ShellOutputSink&, Game& game) override {
+        submit_command(line, game);
+    }
     // World tick: advances the active long-channel by one tick. Called from
     // HackingSystem::tick (which fires from Game::advance_world).
-    void tick_world(Game& game);
+    void tick_world(Game& game) override;
+    bool channel_active() const override { return channel_.active(); }
+    // Abort the active channel (Esc or external interrupt). Calls on_partial
+    // hook for allow_partial commands.
+    void abort_channel(Game& game, const char* reason) override;
+    DeviceShell* as_device() override { return this; }
 
     // ── Output API used by cmd_*.cpp ──
     // emit() forwards to the sink. Safe to call before open() / after close()
@@ -97,28 +125,12 @@ public:
     // command while the session is active.
     void submit_command(const std::string& line, Game& game);
 
-    // Prompt string for the current session (e.g. "TURRET-OS-2.7:guest$ ").
-    std::string prompt() const { return prompt_(); }
-
     // Start a long channel for the given parsed command. Returns false if
     // a channel is already active (caller should print the in-progress error).
     bool start_channel(const HackCommand& cmd, const ParsedArgs& args, Game& game);
 
-    // Abort the active channel (Esc or external interrupt). Calls on_partial
-    // hook for allow_partial commands.
-    void abort_channel(Game& game, const char* reason);
-
     // Read-only channel access (renderers + tests).
     const HackChannel& channel() const { return channel_; }
-    bool channel_active() const { return channel_.active(); }
-
-    // Session-only history (typed inside this device session). Used by the
-    // universal `history` command to print just this session's lines.
-    const std::vector<std::string>& history() const { return history_; }
-    void push_history(const std::string& cmd) {
-        history_.push_back(cmd);
-        if (history_.size() > 64) history_.erase(history_.begin());
-    }
 
     // Procedural per-device filesystem (Plan 7 §11). Built on open(); rebuilt
     // when wiped_paths changes (cmd_wipe rebuilds in-place).
@@ -139,8 +151,7 @@ private:
     ShellVia  via_ = ShellVia::RealWorld;
     std::string requested_user_;
 
-    // Session-only command history (used by `history` cmd).
-    std::vector<std::string> history_;
+    // Session-only command history is inherited as `history_` from ShellContext.
 
     HackChannel channel_;
     DeviceFsView fs_view_;

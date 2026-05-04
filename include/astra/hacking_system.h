@@ -2,6 +2,7 @@
 
 #include "astra/device_shell.h"
 #include "astra/grid_session.h"
+#include "astra/shell_stack.h"
 
 #include <cstdint>
 #include <memory>
@@ -75,10 +76,25 @@ public:
     // Per-turn Grid update. Called from Game::advance_world when state == Grid.
     void tick_grid(Game& game);
 
-    // Plan 7: Device Shell (per-device CLI). At most one shell open at a time.
-    DeviceShell&       device_shell()       { return device_shell_; }
-    const DeviceShell& device_shell() const { return device_shell_; }
-    bool device_shell_open() const { return device_shell_.is_open(); }
+    // Plan 7: Shell stack (cyberdeck below, optional device on top).
+    // At most one device shell at a time per spec.
+    ShellStack& shell_stack() { return shell_stack_; }
+    const ShellStack& shell_stack() const { return shell_stack_; }
+
+    // Convenience accessor — returns the active device shell, or nullptr if
+    // no device shell is on top of the stack. Most call sites used to
+    // reference `device_shell()` directly; they should now null-check.
+    DeviceShell* device_shell() {
+        if (auto* top = shell_stack_.active()) return top->as_device();
+        return nullptr;
+    }
+    const DeviceShell* device_shell() const {
+        if (auto* top = shell_stack_.active()) {
+            return const_cast<ShellContext*>(top)->as_device();
+        }
+        return nullptr;
+    }
+    bool device_shell_open() const { return device_shell() != nullptr; }
 
     // Open a shell on the given target. Returns true if the shell opened
     // (Phase A: always true, except when the manual_ssh strict reject path
@@ -90,7 +106,12 @@ public:
                            bool manual_ssh,
                            const std::string& requested_user);
 
-    void close_device_shell(Game& game) { device_shell_.close(game); }
+    void close_device_shell(Game& game);
+
+    // Bind a shared output sink (PdaScreen). Plumbed into every shell
+    // context pushed onto the stack. Called once at Game construction.
+    void bind_shell_sink(ShellOutputSink* sink) { shell_sink_ = sink; }
+    ShellOutputSink* shell_sink() { return shell_sink_; }
 
 private:
     bool targeting_ = false;
@@ -104,10 +125,12 @@ private:
 
     Game* game_ = nullptr;
 
-    // Plan 7 — Device Shells. Lives inside HackingSystem so the per-tick
-    // updater for the active channel rides the existing tick() / tick_grid()
-    // surfaces. At most one shell is open at a time.
-    DeviceShell device_shell_;
+    // Plan 7 — ShellStack. Lives inside HackingSystem so the per-tick updater
+    // for the active channel rides the existing tick() / tick_grid() surfaces.
+    // Bottom: optional CyberdeckShellContext (pushed at first PDA open with
+    // a deck). Top: optional DeviceShell (pushed on ssh, popped on exit).
+    ShellStack       shell_stack_;
+    ShellOutputSink* shell_sink_ = nullptr;
 
     // Cached zone-change detector. Composes navigation + zone_x/zone_y.
     // When the signature changes, detection_ resets to zero.

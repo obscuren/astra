@@ -321,8 +321,8 @@ bool handle(Game& game, int key) {
     // NOT spend a world tick on plain prompt-typing — the shell's own
     // world-tick path (HackingSystem::tick → DeviceShell::tick_world) drives
     // long-channel progress.
-    if (game.hacking().device_shell_open() &&
-        game.hacking().device_shell().via() == ShellVia::Grid) {
+    if (auto* dev = game.hacking().device_shell();
+        dev && dev->via() == ShellVia::Grid) {
         game.pda_screen().hack_term_handle_key_for_grid(key);
         return false;
     }

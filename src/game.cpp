@@ -41,10 +41,11 @@ Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
     hacking_.bind_game(this);
     // Plan 7 unified terminal: the PDA's Hacking tab is the device shell's
-    // output sink. Bind once at construction so the binding holds whether or
-    // not the PDA is open (in-Grid Tron-window doorway can render the shell
-    // without the PDA being open).
-    hacking_.device_shell().bind_sink(&pda_screen_);
+    // output sink. Bind the shared sink on the HackingSystem so every shell
+    // context pushed onto the stack inherits it. Holds whether or not the
+    // PDA is open (in-Grid Tron-window doorway can render the shell without
+    // the PDA being open).
+    hacking_.bind_shell_sink(&pda_screen_);
 }
 
 std::string Game::dominant_faction_in_current_map() const {
@@ -114,8 +115,8 @@ void Game::run() {
             // tick because the terminal locks input. One world tick per
             // ~300ms (6 idle frames at 50ms each); a 10-turn hashcat lands
             // at ~3s wall-clock.
-            if (hacking_.device_shell_open() &&
-                hacking_.device_shell().channel_active()) {
+            if (auto* dev = hacking_.device_shell();
+                dev && dev->channel_active()) {
                 ++channel_tick_frames_;
                 if (channel_tick_frames_ >= 6) {
                     channel_tick_frames_ = 0;

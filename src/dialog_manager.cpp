@@ -412,7 +412,8 @@ void DialogManager::append_qh_options(int fid, Game& game) {
 // markers — both render_utf8_string (in the renderer) and utf8_display_len
 // already honour them, so the list renderer paints + spaces correctly
 // without any per-marker accommodation here.
-static std::string build_hacking_label(const char* action_text) {
+static std::string build_hacking_label(const char* action_text,
+                                       bool plain_action = false) {
     std::string s;
     auto push_color = [&](Color c) {
         s += COLOR_BEGIN;
@@ -426,13 +427,18 @@ static std::string build_hacking_label(const char* action_text) {
     pop_color();
     s += ' ';
 
-    // Action text — alternate Cyan / BrightMagenta on visible chars.
-    int parity = 0;
-    for (const char* p = action_text; *p; ++p) {
-        if (*p == ' ') { s += ' '; continue; }
-        push_color((parity++ % 2 == 0) ? Color::Cyan : Color::BrightMagenta);
-        s += *p;
-        pop_color();
+    if (plain_action) {
+        // Action text in the option's base color (default white).
+        s += action_text;
+    } else {
+        // Action text — alternate Cyan / BrightMagenta on visible chars.
+        int parity = 0;
+        for (const char* p = action_text; *p; ++p) {
+            if (*p == ' ') { s += ' '; continue; }
+            push_color((parity++ % 2 == 0) ? Color::Cyan : Color::BrightMagenta);
+            s += *p;
+            pop_color();
+        }
     }
     return s;
 }
@@ -471,7 +477,7 @@ void DialogManager::append_shell_access_option(int fid, Game& game) {
     // Phase B will land the manual-ssh "protocol not understood" path too.
     if (has_tag(fd.cyber->tags, HackTag::AlienTech)) return;
 
-    std::string label = build_hacking_label("Shell Access");
+    std::string label = build_hacking_label("Shell Access", /*plain_action=*/true);
     if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
         label += "  (requires Cat_Hacking)";
     } else {
@@ -513,7 +519,7 @@ bool DialogManager::npc_offers_shell_access(const Npc& npc) {
 void DialogManager::append_shell_access_option_npc(Npc& npc, Game& game) {
     if (!npc_offers_shell_access(npc)) return;
 
-    std::string label = build_hacking_label("Shell Access");
+    std::string label = build_hacking_label("Shell Access", /*plain_action=*/true);
     if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
         label += "  (requires Cat_Hacking)";
     } else {

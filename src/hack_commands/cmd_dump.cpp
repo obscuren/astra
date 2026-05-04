@@ -11,6 +11,7 @@
 #include "astra/game.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -20,8 +21,11 @@ namespace astra {
 
 namespace {
 
-HackCommandResult exec_dump(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game& game) {
+HackCommandResult exec_dump(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) {
         // Find the path arg (positional, non-flag).
         std::string path;
@@ -94,6 +98,7 @@ HackCommandResult exec_dump(const ParsedArgs& a, Hackable& target,
 const HackCommand k_dump{
     "dump", "dump <path>",
     "leech file contents to inventory (privileged)",
+    CommandScope::Device,
     HackTag::DataStore, /*requires_root=*/true,
     /*base_turns=*/6, /*base_heat=*/3, /*base_detection=*/8,
     /*allow_partial=*/true,

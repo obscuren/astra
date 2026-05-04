@@ -11,6 +11,7 @@
 #include "astra/game.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 #include "astra/tilemap.h"
 #include "astra/world_manager.h"
 
@@ -33,8 +34,11 @@ FixtureData* find_fixture_for_target(Game& game, Hackable& target) {
     return nullptr;
 }
 
-HackCommandResult exec_blind(const ParsedArgs& a, Hackable& target,
-                             DeviceShell& shell, Game& game) {
+HackCommandResult exec_blind(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         target.optics_blind_ticks = kBlindDuration;
@@ -49,8 +53,11 @@ HackCommandResult exec_blind(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_feed(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game& game) {
+HackCommandResult exec_feed(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         FixtureData* fd = find_fixture_for_target(game, target);
@@ -104,8 +111,11 @@ HackCommandResult exec_feed(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_restream(const ParsedArgs& a, Hackable& target,
-                                DeviceShell& shell, Game& game) {
+HackCommandResult exec_restream(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         target.optics_restream_ticks = kRestreamDuration;
@@ -122,8 +132,10 @@ HackCommandResult exec_restream(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_purge(const ParsedArgs& a, Hackable& /*target*/,
-                             DeviceShell& shell, Game& game) {
+HackCommandResult exec_purge(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev) return {false, false, ""};
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         // Cosmetic: there's no recording buffer in v1. Print and move on.
@@ -137,21 +149,25 @@ HackCommandResult exec_purge(const ParsedArgs& a, Hackable& /*target*/,
 
 const HackCommand k_blind{
     "blind", "blind", "disable vision cone for N turns",
+    CommandScope::Device,
     HackTag::HasOptics, /*requires_root=*/true,
     /*turns=*/4, /*heat=*/4, /*det=*/12, false, &exec_blind,
 };
 const HackCommand k_feed{
     "feed", "feed", "render snapshot of camera vision (root)",
+    CommandScope::Device,
     HackTag::HasOptics, /*requires_root=*/true,
     2, 2, 4, false, &exec_feed,
 };
 const HackCommand k_restream{
     "restream", "restream", "loop a recorded frame (camera reports nothing)",
+    CommandScope::Device,
     HackTag::HasOptics, /*requires_root=*/true,
     8, 6, 18, false, &exec_restream,
 };
 const HackCommand k_purge{
     "purge", "purge", "wipe the camera's recording buffer",
+    CommandScope::Device,
     HackTag::HasOptics, /*requires_root=*/true,
     3, 3, 6, false, &exec_purge,
 };

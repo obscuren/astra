@@ -1,6 +1,7 @@
 #include "astra/pda_screen.h"
 #include "astra/aura.h"
 #include "astra/character.h"
+#include "astra/cyberdeck_shell_context.h"
 #include "astra/device_shell.h"
 #include "astra/hacking_system.h"
 #include "astra/recipe.h"
@@ -42,12 +43,39 @@ void PdaScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
     hacking_system_ = hacking_system;
     open_ = true;
 
-    // Plan 7 unified terminal: bind the DeviceShell's output sink to us so
+    // Plan 7 unified terminal: bind the shared shell output sink to us so
     // ritual, command output, and channel ticks all flow into the PDA's
     // single Hacking-tab scroll. Safe to bind even when no shell is open;
     // the sink is consulted only while a session is active.
     if (hacking_system_) {
-        hacking_system_->device_shell().bind_sink(this);
+        hacking_system_->bind_shell_sink(this);
+
+        // Plan 7 ShellStack — push the cyberdeck context if the player has
+        // a deck equipped and there is no cyberdeck on the stack already.
+        // Persists across PDA close/reopen; cleared by HackingSystem::reset
+        // (new_game / load_save).
+        auto* deck_slot = player_ ? player_->equipment.equipped_cyberdeck() : nullptr;
+        if (deck_slot && *deck_slot && (*deck_slot)->deck && game_) {
+            auto& stack = hacking_system_->shell_stack();
+            // Walk to find an existing cyberdeck context (under any device
+            // shell that may currently be on top — defensive: device shells
+            // shouldn't survive PDA close, but we handle it.)
+            bool has_cyberdeck = false;
+            for (std::size_t i = 0; i < stack.size(); ++i) {
+                if (stack.at(i) && stack.at(i)->as_cyberdeck()) {
+                    has_cyberdeck = true;
+                    // Update its deck id in case the player switched decks.
+                    stack.at(i)->as_cyberdeck()->set_deck_def_id(
+                        (*deck_slot)->item_def_id);
+                    break;
+                }
+            }
+            if (!has_cyberdeck) {
+                auto ctx = std::make_unique<CyberdeckShellContext>(
+                    (*deck_slot)->item_def_id);
+                stack.push(std::move(ctx), *this, *game_);
+            }
+        }
     }
     if (initial_tab) active_tab_ = *initial_tab;
     // else: keep active_tab_ from last close
@@ -121,11 +149,12 @@ bool PdaScreen::handle_input(int key) {
         // active, ESC routes to the Hacking tab key handler which closes the
         // session (yanks the cable). The PDA itself stays open so the user
         // can keep using it.
-        if (active_tab_ == PdaTab::Hacking &&
-            hacking_system_ && hacking_system_->device_shell_open() &&
-            hacking_system_->device_shell().via() == ShellVia::RealWorld) {
-            handle_hacking_key(key);
-            return true;
+        if (active_tab_ == PdaTab::Hacking && hacking_system_) {
+            if (auto* dev = hacking_system_->device_shell();
+                dev && dev->via() == ShellVia::RealWorld) {
+                handle_hacking_key(key);
+                return true;
+            }
         }
         close();
         return true;
@@ -140,10 +169,11 @@ bool PdaScreen::handle_input(int key) {
     }
     // Plan 7 §3a: brackets are valid characters in shell commands; while the
     // device shell is active, route everything (including [ and ]) to it.
-    if (active_tab_ == PdaTab::Hacking &&
-        hacking_system_ && hacking_system_->device_shell_open() &&
-        hacking_system_->device_shell().via() == ShellVia::RealWorld) {
-        tab_switch_blocked = true;
+    if (active_tab_ == PdaTab::Hacking && hacking_system_) {
+        if (auto* dev = hacking_system_->device_shell();
+            dev && dev->via() == ShellVia::RealWorld) {
+            tab_switch_blocked = true;
+        }
     }
     if (key == '[' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);

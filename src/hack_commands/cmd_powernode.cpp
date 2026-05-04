@@ -4,6 +4,7 @@
 #include "astra/game.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/shell_context.h"
 #include "astra/tilemap.h"
 #include "astra/world_manager.h"
 
@@ -70,8 +71,11 @@ void for_network_devices(Game& game, const Hackable& src, F&& apply) {
     }
 }
 
-HackCommandResult exec_surge(const ParsedArgs& a, Hackable& target,
-                             DeviceShell& shell, Game& game) {
+HackCommandResult exec_surge(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         int n = 0;
@@ -89,8 +93,11 @@ HackCommandResult exec_surge(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_kill(const ParsedArgs& a, Hackable& target,
-                            DeviceShell& shell, Game& game) {
+HackCommandResult exec_kill(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         int n = 0;
@@ -117,8 +124,10 @@ HackCommandResult exec_kill(const ParsedArgs& a, Hackable& target,
     return {true, true, ""};
 }
 
-HackCommandResult exec_reroute(const ParsedArgs& a, Hackable& /*target*/,
-                               DeviceShell& shell, Game& game) {
+HackCommandResult exec_reroute(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev) return {false, false, ""};
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         // Cosmetic v1: no downstream-set model yet.
@@ -130,8 +139,11 @@ HackCommandResult exec_reroute(const ParsedArgs& a, Hackable& /*target*/,
     return {true, true, ""};
 }
 
-HackCommandResult exec_dim(const ParsedArgs& a, Hackable& target,
-                           DeviceShell& shell, Game& game) {
+HackCommandResult exec_dim(const ParsedArgs& a, ShellContext& ctx, Game& game) {
+    auto* dev = ctx.as_device();
+    if (!dev || !dev->target()) return {false, false, ""};
+    Hackable& target = *dev->target();
+    DeviceShell& shell = *dev;
     if (a.has_flag("--__partial")) return {true, false, ""};
     if (a.has_flag("--__done")) {
         int n = 0;
@@ -158,21 +170,25 @@ HackCommandResult exec_dim(const ParsedArgs& a, Hackable& target,
 
 const HackCommand k_surge{
     "surge", "surge", "briefly power up adjacent devices",
+    CommandScope::Device,
     HackTag::PowerNode, /*requires_root=*/true,
     4, 4, 10, false, &exec_surge,
 };
 const HackCommand k_kill{
     "kill", "kill", "cut power to downstream devices for N turns",
+    CommandScope::Device,
     HackTag::PowerNode, /*requires_root=*/true,
     5, 5, 15, false, &exec_kill,
 };
 const HackCommand k_reroute{
     "reroute", "reroute", "switch downstream device set",
+    CommandScope::Device,
     HackTag::PowerNode, /*requires_root=*/true,
     8, 6, 18, false, &exec_reroute,
 };
 const HackCommand k_dim{
     "dim", "dim", "reduce vision-cone radius of downstream optics",
+    CommandScope::Device,
     HackTag::PowerNode, /*requires_root=*/true,
     2, 2, 5, false, &exec_dim,
 };
