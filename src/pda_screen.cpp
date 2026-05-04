@@ -1,6 +1,8 @@
 #include "astra/pda_screen.h"
 #include "astra/aura.h"
 #include "astra/character.h"
+#include "astra/device_shell.h"
+#include "astra/hacking_system.h"
 #include "astra/recipe.h"
 #include "astra/display_name.h"
 #include "astra/effect.h"
@@ -27,13 +29,17 @@ bool PdaScreen::is_open() const { return open_; }
 void PdaScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
                            bool on_ship, std::optional<PdaTab> initial_tab,
                            bool can_board_ship,
-                           const WorldManager* world) {
+                           const WorldManager* world,
+                           Game* game,
+                           HackingSystem* hacking_system) {
     player_ = player;
     renderer_ = renderer;
     quests_ = quests;
     on_ship_ = on_ship;
     can_board_ship_ = can_board_ship;
     world_ = world;
+    game_ = game;
+    hacking_system_ = hacking_system;
     open_ = true;
     if (initial_tab) active_tab_ = *initial_tab;
     // else: keep active_tab_ from last close
@@ -103,6 +109,16 @@ bool PdaScreen::handle_input(int key) {
             nmap_widget_.close();
             return true;
         }
+        // Plan 7 §3a: if a real-world DeviceShell is active in the Hacking
+        // tab, ESC routes to the shell so it closes (yanks the cable). The
+        // PDA itself stays open so the user can keep using it.
+        if (active_tab_ == PdaTab::Hacking &&
+            hacking_system_ && hacking_system_->device_shell_open() &&
+            hacking_system_->device_shell().via() == ShellVia::RealWorld &&
+            game_) {
+            hacking_system_->device_shell().handle_input(key, *game_);
+            return true;
+        }
         close();
         return true;
     }
@@ -112,6 +128,13 @@ bool PdaScreen::handle_input(int key) {
     bool tab_switch_blocked = false;
     if (active_tab_ == PdaTab::Cooking &&
         (cooking_picker_active_ || cooking_qty_prompt_active_)) {
+        tab_switch_blocked = true;
+    }
+    // Plan 7 §3a: brackets are valid characters in shell commands; while the
+    // device shell is active, route everything (including [ and ]) to it.
+    if (active_tab_ == PdaTab::Hacking &&
+        hacking_system_ && hacking_system_->device_shell_open() &&
+        hacking_system_->device_shell().via() == ShellVia::RealWorld) {
         tab_switch_blocked = true;
     }
     if (key == '[' && !tab_switch_blocked) {

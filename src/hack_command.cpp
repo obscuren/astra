@@ -1,9 +1,11 @@
 #include "astra/hack_command.h"
 
 #include "astra/player.h"
+#include "astra/skill_defs.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <sstream>
 
 namespace astra {
@@ -52,21 +54,47 @@ ParsedArgs parse_command_line(const std::string& line) {
 
 ScaledCost scaled_cost(const HackCommand& cmd, const Player& player) {
     int int_mod = (player.attributes.intelligence - 10) / 2;
-    // Skill factor — Cat_Hacking rank reduces cost mildly. Specific skill
-    // refinements (RootKit/ColdHands) ship in Phase B; Phase A keeps the
-    // hook in place by exposing scaled_cost() as the single source.
-    double skill_factor = 1.0;
-    // (Phase A: no per-skill reductions yet. Phase B wires RootKit and
-    //  ColdHands into command-specific selectors.)
+
+    // Plan 7 §7 single-source-of-truth scaling formula:
+    //   scaled_turns      = max(1, base_turns × (1 - 0.05*INT_mod) × skill_factor)
+    //   scaled_heat       = max(0, round(base_heat × (1 - 0.04*INT_mod) × skill_factor))
+    //   scaled_detection  = max(0, round(base_detection × cold_hands_factor))
+    //
+    // Per-skill reductions:
+    //   RootKit (rank 1) — multiplies hashcat's `base_turns` by 0.9 (10%
+    //     reduction). Selector: command name == "hashcat".
+    //   ColdHands (rank 1) — multiplies privileged-command Detection by
+    //     0.9 (10% reduction). Selector: cmd.requires_root || cmd.base_detection > 0.
+    //
+    // v1 treats "has the skill" as rank 1 (no rank progression yet — that
+    // arrives with the skill-rank system in a later plan). The hook is
+    // here so future ranks slot in without touching call sites.
 
     double turns_mul = std::max(0.25, 1.0 - 0.05 * int_mod);
     double heat_mul  = std::max(0.25, 1.0 - 0.04 * int_mod);
 
+    // RootKit selector: hashcat duration only.
+    double rootkit_factor = 1.0;
+    if (player_has_skill(player, SkillId::RootKit) &&
+        cmd.name && std::strcmp(cmd.name, "hashcat") == 0) {
+        rootkit_factor = 0.9;
+    }
+
+    // ColdHands selector: any privileged command (any command with
+    // base_detection > 0 in v1, which covers all the privileged paths).
+    double cold_hands_factor = 1.0;
+    if (player_has_skill(player, SkillId::ColdHands) &&
+        cmd.base_detection > 0) {
+        cold_hands_factor = 0.9;
+    }
+
     ScaledCost s;
-    s.turns = std::max(1, static_cast<int>(std::round(cmd.base_turns * turns_mul * skill_factor)));
+    s.turns = std::max(1, static_cast<int>(std::round(
+                                cmd.base_turns * turns_mul * rootkit_factor)));
     if (cmd.base_turns == 0) s.turns = 0;
-    s.heat = std::max(0, static_cast<int>(std::round(cmd.base_heat * heat_mul * skill_factor)));
-    s.detection = std::max(0, cmd.base_detection); // ColdHands wires into this in Phase B
+    s.heat = std::max(0, static_cast<int>(std::round(cmd.base_heat * heat_mul)));
+    s.detection = std::max(0, static_cast<int>(std::round(
+                                cmd.base_detection * cold_hands_factor)));
     return s;
 }
 

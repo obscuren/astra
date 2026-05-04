@@ -942,6 +942,103 @@ Crossing Sgr A* via `:rebirth` runs:
 
 ---
 
+## Hacking — Plan 7 (Device Shells)
+
+Per-device diegetic CLI shells. Spec: [`docs/superpowers/specs/2026-05-01-device-shells-design.md`](superpowers/specs/2026-05-01-device-shells-design.md).
+
+### Two doorways, one shell
+
+- **Real-world** — Walk up to an `Electronic` Hackable (and not `AlienTech`), select `(hack) Shell Access`. Body wires in (`player.is_jacked_into` set), movement/attack/item-use frozen until the shell closes. The cyberdeck autotypes `ssh ...@<ip>` with smart user (`guest@` for locked-unescalated, else `root@`). Same path applies to hostile NPCs carrying Electronic Hackable implants.
+- **In-Grid** — After jacking into a LAN spatial sector via a `(hack) Jack In` interactable, walk the avatar adjacent to a device's gateway tile, then `pda> ssh <user>@<ip>`. The Tron window playfield content swaps from the spatial sector to the shell terminal; HUD chrome (Trace/Heat panes, log pane, program bar) stays visible.
+
+### Manual ssh strict semantics
+
+Manual `pda> ssh root@<ip>` against a `Locked` and not-`escalated` device rejects with:
+
+```
+ssh: <ip>: permission denied (root login disabled).
+      try: ssh guest@<ip>
+```
+
+No shell opens. The autorun path (`Shell Access` interactable) inspects state and picks the right user automatically — no rejection beat.
+
+`pda> ssh root@<alien-ip>` against any `AlienTech`-tagged device returns `ssh: <ip>: protocol not understood (alien tech).` and refuses to handshake. (Plan 11 lands the alien-tech dialect.) `nmap -l` marks AlienTech devices `OS: ??? (unknown)`.
+
+### Long-channel cost scaling
+
+Single source of truth — both `--help` and the channel runtime call `scaled_cost(cmd, player)`:
+
+```
+scaled_turns      = max(1, base_turns × (1 - 0.05 × INT_mod) × rootkit_factor)
+scaled_heat       = max(0, round(base_heat × (1 - 0.04 × INT_mod)))
+scaled_detection  = max(0, round(base_detection × cold_hands_factor))
+
+INT_mod          = (Intelligence - 10) / 2
+rootkit_factor   = 0.9 if (RootKit learned and cmd.name == "hashcat") else 1.0
+cold_hands_factor = 0.9 if (ColdHands learned and base_detection > 0) else 1.0
+```
+
+The `(1 - 0.05 × INT_mod)` and `(1 - 0.04 × INT_mod)` multipliers are floored at 0.25 so absurdly high INT can't reduce a channel below a quarter of base.
+
+### Channel interrupts
+
+A long-channel aborts when:
+- Player takes damage (real-world) or HP damage from Black ICE (in-Grid).
+- Player presses Esc.
+- Real-world only: any forced-move effect (knockback / teleport).
+
+On abort: heat already paid stays paid. Detection already added stays added. Effect is NOT applied — *unless* `cmd.allow_partial == true`. Authored partial-state commands in v1: `hashcat`, `dump`. Both increment a per-Hackable counter (`cracked_digits`, `dumped_bytes`) so resumption progresses from where it left off.
+
+### `hashcat` partial-state behavior
+
+`hashcat --fast` cracks one tier of authentication per channel cycle. On abort: increments `cracked_digits` by 1..2. On success: sets `escalated = true`, fills `cracked_digits = 11`. Skill check on success at completion:
+
+```
+1d100 ≤ 50 + 5*INT_mod + 10*Cat_Hacking_rank + 15*RootKit_rank
+```
+
+### SSH adjacency rule
+
+SSH succeeds against a target IP only if:
+
+1. The player is **wired into that exact device** via Shell Access (real-world doorway), OR
+2. The player's avatar is **adjacent to that device's gateway tile** in the LAN spatial sector (in-Grid doorway).
+
+Anything else: `ssh: <ip>: host unreachable (out of range)`. There is no remote ssh and no device-to-device pivot — every interaction is an atomic walk-and-shell.
+
+### Cyberdeck mod gate
+
+`pda> jack <ip>` is mod-gated: requires a Wireless Jack-In Module in the player's inventory (v1 placeholder for the Plan 11+ install slot). Without one:
+
+```
+jack: no wireless jack-in device installed.
+       (requires Wireless Jack-In Module.)
+```
+
+Two brand variants ship as items: `Aerojack` and `Untether`. Both trigger the gate identically in v1 — placeholder stats until the proper mod system lands. The legacy `jack: locked — try breach.exe` path is removed; the only spatial way into a LAN in v1 is via a `(hack) Jack In` interactable.
+
+### Hacking skills (Plan 7 nodes)
+
+- **ColdHands** — passive, INT 14, 150 SP. Privileged shell commands cost -10% Detection (real-world only).
+- **RootKit** — passive, INT 13, 150 SP. `hashcat` channel duration -10%.
+
+Both ride the `scaled_cost(...)` helper above.
+
+### Persistence
+
+The Plan 7 fields persist on the `Hackable` itself and ride Plan 5's tile-mutation persistence:
+
+- `escalated` — true once root via hashcat
+- `cracked_digits` — partial hashcat progress
+- `firmware_state` — Stock / Wiped / Glitched
+- `dumped_bytes` — partial dump progress
+- `wiped_paths` — files removed via `wipe`
+- `friendly_fire_target_faction` — turret retarget override
+
+Save schema bumped to v64. Per project rule: old saves rejected at load with a "save schema vN required" error; no migration shims.
+
+---
+
 ## Hacking — Plan 4 (D-layer): Consciousness, Deep-Grid, Rebirth
 
 Plan 4 layers a **second save scope** on top of the per-galaxy save: a

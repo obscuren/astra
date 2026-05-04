@@ -83,6 +83,9 @@ enum class SkillId : uint32_t {
     NeuralFortitude     = 1205,  // halve Black ICE adjacent dmg + half bleed-through
     CodeCraft           = 1206,  // unlock T3 program tinker recipes
     ConsciousnessAnchor = 1207,  // (capstone) Your.Anchor + lore-archive DataNode
+    // Plan 7 — device-shell skill nodes.
+    ColdHands           = 1208,  // -10% Detection on privileged shell commands
+    RootKit             = 1209,  // -10% hashcat duration
 };
 
 struct SkillDef {

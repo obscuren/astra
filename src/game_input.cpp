@@ -128,24 +128,24 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Plan 7: Device Shell intercepts input above PDA. The shell sits on
-    // top of the PDA; closing it returns control to the PDA (or the world,
-    // if PDA was not the entry path).
-    if (hacking_.device_shell_open()) {
-        hacking_.device_shell().handle_input(key, *this);
-        // If the shell auto-closed (cmd_exit), advance the world to spend
-        // the action cost the player paid by selecting Shell Access.
-        if (!hacking_.device_shell_open()) {
-            // Advance world by interact-cost so spending shell time at the
-            // device costs the same as a typical interact.
-            advance_world(ActionCost::interact);
-        }
-        return;
-    }
+    // Plan 7 §3a: real-world DeviceShell now renders inside the PDA's
+    // Hacking tab and routes input through PdaScreen. The fullscreen
+    // shell overlay/input intercept have been removed. The in-Grid shell
+    // is handled in grid_input. The only post-shell side-effect we still
+    // need at this layer is advancing the world by interact-cost when the
+    // shell auto-closes (cmd_exit) — see below, after pda_screen_.handle_input.
 
     // PDA screen intercepts input when open
     if (pda_screen_.is_open()) {
+        bool shell_open_before = hacking_.device_shell_open() &&
+                                 hacking_.device_shell().via() == ShellVia::RealWorld;
         pda_screen_.handle_input(key);
+        // If the device shell auto-closed during this input (cmd_exit) advance
+        // the world by interact-cost so shell time at the device costs the
+        // same as a typical interact. Also fires when ESC yanks the cable.
+        if (shell_open_before && !hacking_.device_shell_open()) {
+            advance_world(ActionCost::interact);
+        }
         if (pda_screen_.consume_board_ship_request()) {
             board_ship_from_overworld();
             return;
@@ -270,7 +270,7 @@ void Game::handle_play_input(int key) {
         if (dialog_.consume_aria_ship_tab()) {
             pda_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship, PdaTab::Ship,
-                                   can_board_ship(), &world_);
+                                   can_board_ship(), &world_, this, &hacking_);
         }
         if (dialog_.consume_aria_star_chart()) {
             star_chart_viewer_.set_view_only(false);
@@ -286,7 +286,8 @@ void Game::handle_play_input(int key) {
         if (dialog_.consume_aria_open_datapad()) {
             pda_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
-                                   PdaTab::Skills, can_board_ship(), &world_);
+                                   PdaTab::Skills, can_board_ship(), &world_,
+                                   this, &hacking_);
         }
         return;
     }
@@ -485,7 +486,8 @@ void Game::handle_play_input(int key) {
             // nullopt -> PdaScreen reopens on the last-used tab.
             pda_screen_.open(&player_, renderer_.get(), &quest_manager_,
                                    world_.navigation().on_ship,
-                                   std::nullopt, can_board_ship(), &world_);
+                                   std::nullopt, can_board_ship(), &world_,
+                                   this, &hacking_);
             break;
         case '.':
             log("You wait...");

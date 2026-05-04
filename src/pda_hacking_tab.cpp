@@ -2,8 +2,12 @@
 
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
+#include "astra/cyberdeck_mods.h"
+#include "astra/device_shell.h"
+#include "astra/game.h"
 #include "astra/grid_network.h"
 #include "astra/hackable.h"
+#include "astra/hacking_system.h"
 #include "astra/ip.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
@@ -62,6 +66,19 @@ const char* next_motd() {
 } // namespace
 
 void PdaScreen::draw_hacking(UIContext& ctx) {
+    // Plan 7 §3a: while a real-world DeviceShell is open, the Hacking tab's
+    // content area becomes the device shell. The pda> outer shell stays in
+    // memory (history, MOTD greeter latch); on shell exit we revert. The
+    // in-Grid path renders into the Tron window via grid_renderer; it is
+    // never seen here.
+    if (hacking_system_ && hacking_system_->device_shell_open() &&
+        hacking_system_->device_shell().via() == ShellVia::RealWorld &&
+        game_ && renderer_) {
+        hacking_system_->device_shell().render_into(
+            renderer_, ctx.bounds(), *game_);
+        return;
+    }
+
     if (!has_cat_hacking(*player_)) {
         // Locked splash. The .qh programs in the deck stay visible because
         // the H-key flow doesn't require Cat_Hacking — only jacking in does.
@@ -207,6 +224,17 @@ void PdaScreen::hack_term_emit(const std::string& line, UITag tag) {
 }
 
 void PdaScreen::handle_hacking_key(int key) {
+    // Plan 7 §3a: when a real-world DeviceShell is active, the Hacking tab's
+    // input goes to the device shell line editor. On `exit` (Esc or cmd_exit)
+    // the shell closes and control returns to the pda> shell with its prior
+    // state intact.
+    if (hacking_system_ && hacking_system_->device_shell_open() &&
+        hacking_system_->device_shell().via() == ShellVia::RealWorld &&
+        game_) {
+        hacking_system_->device_shell().handle_input(key, *game_);
+        return;
+    }
+
     if (!has_cat_hacking(*player_)) return;
     // The terminal is hidden when no deck is equipped — swallow keystrokes
     // so they don't accumulate in an invisible input buffer.
@@ -822,7 +850,10 @@ void PdaScreen::hack_term_cmd_nmap_list() {
                   meta.nodes_total, meta.nodes_cracked);
     hack_term_emit(header);
     hack_term_emit("");
-    hack_term_emit("  IP            HOST                            STATUS    TAGS");
+    // Plan 7 §17 A4: surface per-device tier and lock state in a single
+    // canonical "tier:N (locked|cracked|unlocked)" column. Manual ssh is
+    // strict; players plan attempts off this listing.
+    hack_term_emit("  IP            HOST                            EDGE      DEVICE                 OS");
 
     const auto& net = world_->grid_network();
     for (const auto& e : net.edges()) {
@@ -830,32 +861,63 @@ void PdaScreen::hack_term_cmd_nmap_list() {
         const GridNode* n = net.find(e.to);
         if (!n || n->kind != GridNodeKind::Subnet) continue;
 
-        // Status: "open" if edge is tier-0; "cracked" if breached;
-        // otherwise "locked.<tier>" so the player sees the gateway depth.
-        std::string status;
-        if (e.gateway_tier == 0)        status = "open";
-        else if (e.cracked)             status = "cracked";
-        else                            status = "locked." + std::to_string(e.gateway_tier);
+        // Edge status: "open" if tier-0; "cracked" if breached;
+        // "locked.<tier>" otherwise (tells the player the gateway depth).
+        std::string edge_status;
+        if (e.gateway_tier == 0)        edge_status = "open";
+        else if (e.cracked)             edge_status = "cracked";
+        else                            edge_status = "locked." + std::to_string(e.gateway_tier);
 
         // Subnet labels are stamped to the device IP at registration time.
         // Resolve the Hackable behind the IP so we can render a friendly
-        // hostname for the HOST column ("turret-13.tha.lan" etc.).
+        // hostname for the HOST column ("turret-13.tha.lan" etc.) AND the
+        // device-tier / device-lock-state column.
         std::string host = n->label;  // fallback: raw IP if lookup misses
+        const Hackable* h = nullptr;
         if (auto parsed = parse_ip(n->label)) {
-            if (auto* h = world_->find_hackable_by_ip(*parsed)) {
-                host = lan_hostname(*h, meta);
+            h = world_->find_hackable_by_ip(*parsed);
+            if (h) host = lan_hostname(*h, meta);
+        }
+
+        // Plan 7 §17 A4 + §16: per-device tier + lock state and OS slot.
+        // Cracked = device.escalated == true (root is mine).
+        // Locked  = has Locked tag and not escalated.
+        // Unlocked = no Locked tag.
+        // AlienTech rows display OS: ??? (unknown).
+        std::string device_state;
+        std::string os_slot;
+        if (h) {
+            int dtier = h->security_tier;
+            const char* lock_label;
+            if (h->escalated)                            lock_label = "cracked";
+            else if (has_tag(h->tags, HackTag::Locked))  lock_label = "locked";
+            else                                         lock_label = "unlocked";
+            char ds[64];
+            std::snprintf(ds, sizeof ds, "tier:%d (%s)", dtier, lock_label);
+            device_state = ds;
+            if (has_tag(h->tags, HackTag::AlienTech)) {
+                os_slot = "??? (unknown)";
+            } else {
+                os_slot = tag_summary(h->tags);
             }
+        } else {
+            char ds[64];
+            std::snprintf(ds, sizeof ds, "tier:%d (?)", n->security_tier);
+            device_state = ds;
+            os_slot = "?";
         }
 
         char line[256];
-        std::snprintf(line, sizeof line, "  %-13s %-31s %-9s tier %d",
+        std::snprintf(line, sizeof line, "  %-13s %-31s %-9s %-22s %s",
                       n->label.c_str(), host.c_str(),
-                      status.c_str(), n->security_tier);
+                      edge_status.c_str(),
+                      device_state.c_str(),
+                      os_slot.c_str());
         hack_term_emit(line);
     }
 
     if (meta.has_deep_grid_edge) {
-        hack_term_emit("  10.x.y.254     [\xe2\x8a\x95 deep-grid]              locked.2  DeepGridGateway");
+        hack_term_emit("  10.x.y.254     [\xe2\x8a\x95 deep-grid]              locked.2  tier:2 (locked)        DeepGridGateway");
     }
 }
 
@@ -885,6 +947,17 @@ void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {
         hack_term_emit("jack: requires Cat_Hacking skill.", UITag::TextDim);
         return;
     }
+    // Plan 7 §15 / §17 A1: `jack <ip>` is mod-gated. Without a Wireless
+    // Jack-In Module installed (v1: present in inventory), the command
+    // refuses to dial. The §16 lock-check path is gone — the mod gate is
+    // the only error before reachability.
+    if (!CyberdeckMods::wireless_jackin_installed(*player_)) {
+        hack_term_emit("jack: no wireless jack-in device installed.",
+                       UITag::TextDim);
+        hack_term_emit("       (requires Wireless Jack-In Module.)",
+                       UITag::TextDim);
+        return;
+    }
     auto* h = world_->find_hackable_by_ip(*parsed);
     if (!h) {
         hack_term_emit("jack: " + format_ip(*parsed) + ": host unreachable", UITag::TextDim);
@@ -901,8 +974,8 @@ void PdaScreen::hack_term_cmd_jack(const std::vector<std::string>& args) {
 // Plan 7: `ssh [<user>@]<ip>` — opens a per-device shell.
 // Manual ssh strict semantics (spec §4): root@locked-unescalated rejects with
 // permission-denied + try-guest hint and DOES NOT open. guest@ always succeeds.
-// TODO(Phase B): AlienTech opt-out — return "protocol not understood (alien
-// tech)" before validation.
+// Spec §16: AlienTech-tagged devices reject with "protocol not understood
+// (alien tech)" — no shell opens.
 void PdaScreen::hack_term_cmd_ssh(const std::vector<std::string>& args) {
     if (args.size() < 2) {
         hack_term_emit("usage: ssh [<user>@]<ip>", UITag::TextDim);
@@ -935,8 +1008,14 @@ void PdaScreen::hack_term_cmd_ssh(const std::vector<std::string>& args) {
         return;
     }
 
-    // TODO(Phase B): if has_tag(h->tags, HackTag::AlienTech) -> emit
-    // "ssh: <ip>: protocol not understood (alien tech)." and return.
+    // Plan 7 §16 — AlienTech opt-out. Precursor / Conclave / Stellari
+    // consoles speak a non-POSIX dialect; ssh just refuses to handshake.
+    if (has_tag(h->tags, HackTag::AlienTech)) {
+        hack_term_emit("ssh: " + format_ip(*parsed) +
+                       ": protocol not understood (alien tech).",
+                       UITag::TextDim);
+        return;
+    }
 
     bool wants_root = (user == "root");
     bool locked = has_tag(h->tags, HackTag::Locked);

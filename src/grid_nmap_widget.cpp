@@ -259,17 +259,10 @@ bool GridNmapWidget::handle_key(const GridNetwork& net, int key,
         cursor_idx_ = best;
     };
 
-    // Find the locked edge whose `to` is the cursor's selected node. The
-    // netmap renders inbound L-shapes pointing AT each subnet, so the edge
-    // most users associate with a locked node is the one terminating there.
-    auto locked_edge_under_cursor =
-        [&]() -> const GridEdge* {
-        const auto& sel = nodes[cursor_idx_];
-        for (const auto& e : net.edges()) {
-            if (e.to == sel.id && edge_locked(e)) return &e;
-        }
-        return nullptr;
-    };
+    // Plan 7 §17 A3: per-device netmap-side `b` (breach) is removed.
+    // breach.exe survives only for region-scope firewalls walked-up-to in
+    // the spatial sector. The locked_edge_under_cursor lambda + 'b'
+    // handler are gone.
 
     switch (key) {
         case KEY_LEFT:  step_cursor(-1, 0); return true;
@@ -302,17 +295,6 @@ bool GridNmapWidget::handle_key(const GridNetwork& net, int key,
             close();
             return true;
         }
-        case 'b':
-        case 'B': {
-            // Plan 5 Task 39: netmap-side breach. Charge breach.exe cost
-            // (handled by the host via take_breach_request()) and flip
-            // cracked=true on the matching edge — no sector entry.
-            if (const GridEdge* e = locked_edge_under_cursor()) {
-                pending_breach_.from_id = e->from.value;
-                pending_breach_.to_id   = e->to.value;
-            }
-            return true;
-        }
     }
     return true;
 }
@@ -332,7 +314,7 @@ void GridNmapWidget::render_lan(UIContext& outer, const GridNetwork& net,
                                 GridNodeId active_lan_root) const {
     auto panel = outer.panel({
         .title = " NMAP — LAN ",
-        .footer = "[arrows] cursor  [enter] jack  [b] breach  [tab] atlas  [esc] close",
+        .footer = "[arrows] cursor  [enter] jack  [tab] atlas  [esc] close",
         .tag = UITag::Border});
 
     auto nodes = visible_nodes(net, NmapMode::Lan, active_lan_root);

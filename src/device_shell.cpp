@@ -443,21 +443,46 @@ void DeviceShell::render(Renderer* renderer, int screen_w, int screen_h, const G
     if (!open_) return;
     if (!renderer) return;
 
-    // Centred ~80x24 panel. Bound to a minimum so it doesn't break on tiny
-    // terminals.
+    // Centred ~80x24 panel. Bound to a minimum so it doesn't break on
+    // tiny terminals. Used for the real-world doorway (shell over world).
     int w = std::min(80, screen_w - 4);
     int h = std::min(24, screen_h - 4);
     if (w < 40) w = std::min(screen_w, 40);
     if (h < 12) h = std::min(screen_h, 12);
     int x = (screen_w - w) / 2;
     int y = (screen_h - h) / 2;
-    Rect bounds{x, y, w, h};
+    render_into(renderer, Rect{x, y, w, h}, game);
+}
+
+void DeviceShell::render_into(Renderer* renderer, Rect bounds, const Game& game) const {
+    if (!open_) return;
+    if (!renderer) return;
+    if (bounds.w <= 0 || bounds.h <= 0) return;
+
     UIContext outer(renderer, bounds);
 
-    auto ctx = outer.panel({
+    // In-Grid doorway (Plan 7 §3b): the shell renders into the Tron
+    // window's playfield rect — Trace/Heat HUD + log pane stay visible
+    // because they live OUTSIDE this rect. The chrome is the
+    // grid-renderer's own border, so we suppress our own panel border
+    // here and just paint plain content into `bounds`.
+    bool in_grid = (via_ == ShellVia::Grid);
+
+    UIContext ctx = in_grid ? outer : outer.panel({
         .title = " Device Shell ",
         .footer = " [Esc] yank cable / close shell  [Enter] run command ",
     });
+
+    // Paint a clean black background under the shell so the Tron-window
+    // playfield doesn't bleed through. (real-world path's panel() already
+    // clears its interior.)
+    if (in_grid) {
+        for (int j = 0; j < ctx.height(); ++j) {
+            for (int i = 0; i < ctx.width(); ++i) {
+                ctx.put(i, j, ' ', Color::White, Color::Black);
+            }
+        }
+    }
 
     int content_h = ctx.height();
     int content_w = ctx.width();

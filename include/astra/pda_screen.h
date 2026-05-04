@@ -15,6 +15,8 @@
 namespace astra {
 
 class WorldManager;
+class HackingSystem;
+class Game;
 
 enum class PdaTab : uint8_t {
     Skills,
@@ -43,7 +45,9 @@ public:
               bool on_ship = false,
               std::optional<PdaTab> initial_tab = std::nullopt,
               bool can_board_ship = false,
-              const WorldManager* world = nullptr);
+              const WorldManager* world = nullptr,
+              Game* game = nullptr,
+              HackingSystem* hacking_system = nullptr);
     bool consume_board_ship_request() {
         bool r = board_ship_requested_;
         board_ship_requested_ = false;
@@ -58,6 +62,13 @@ private:
     QuestManager* quests_ = nullptr;
     Renderer* renderer_ = nullptr;
     const WorldManager* world_ = nullptr;
+    // Plan 7: pointers used to render/route the device shell into the
+    // Hacking tab when a real-world shell is active. Both can be null when
+    // the PDA is opened from a context that doesn't need a device shell
+    // (tests, intro, etc.); the Hacking tab gracefully falls back to the
+    // pda> shell rendering and input in that case.
+    Game* game_ = nullptr;
+    HackingSystem* hacking_system_ = nullptr;
     std::mt19937 rng_{std::random_device{}()};
     bool open_ = false;
     PdaTab active_tab_ = PdaTab::Skills;

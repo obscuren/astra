@@ -157,6 +157,7 @@ set(ASTRA_SOURCES
     src/skill_defs.cpp
     src/character.cpp
     src/cyberdeck.cpp
+    src/cyberdeck_mods.cpp
     src/shop.cpp
     src/trade_window.cpp
     src/pda_screen.cpp

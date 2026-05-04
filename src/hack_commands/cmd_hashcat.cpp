@@ -1,11 +1,12 @@
-// Plan 7 Phase B — `hashcat` escalation long-channel.
+// Plan 7 — `hashcat` escalation long-channel.
 //
 // Long-channel that flips Hackable.escalated to true on success. Partial
 // state on abort: increments cracked_digits by 1..2 (resumes next attempt).
 // Skill check formula (per plan-7):
 //   1d100 <= 50 + 5*INT_mod + 10*Cat_Hacking_rank + 15*RootKit_rank
-// RootKit doesn't exist in the skill tree yet (Phase B-2 lands it); we
-// hard-code its rank to 0.
+//
+// RootKit also reduces the channel `base_turns` by 10% — wired in
+// `scaled_cost(...)` in hack_command.cpp.
 
 #include "astra/device_shell.h"
 #include "astra/dice.h"
@@ -28,9 +29,10 @@ int cat_hacking_rank(const Player& p) {
     return player_has_skill(p, SkillId::Cat_Hacking) ? 1 : 0;
 }
 
-int rootkit_rank(const Player&) {
-    // RootKit ships in Phase B-2. Treat as 0 for now.
-    return 0;
+int rootkit_rank(const Player& p) {
+    // v1: rank 1 if learned, 0 otherwise. Rank progression slots in
+    // alongside the broader skill-rank system.
+    return player_has_skill(p, SkillId::RootKit) ? 1 : 0;
 }
 
 bool roll_success(const Player& p, std::mt19937_64& rng) {

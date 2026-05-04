@@ -3,6 +3,7 @@
 #include "astra/device_fs.h"
 #include "astra/hack_command.h"
 #include "astra/hackable.h"
+#include "astra/rect.h"
 #include "astra/ui.h"
 
 #include <cstdint>
@@ -79,9 +80,13 @@ public:
     // Home/End, Backspace/Delete, mid-line insert, Enter, Esc.
     bool handle_input(int key, Game& game);
 
-    // Render a full-screen panel. (Phase A: a centred ~80x24 panel painted
-    // on top of the game world.)
+    // Render a full-screen panel. The default path picks a centred ~80x24
+    // panel (real-world doorway: shell over the world). Plan 7 §3b lets
+    // the in-Grid doorway render into a bounded rect — the Tron window
+    // playfield rect — so HUD chrome (Trace/Heat panes, log pane) stays
+    // visible. Pass a non-empty `bounds` to use that rect instead.
     void render(Renderer* renderer, int screen_w, int screen_h, const Game& game) const;
+    void render_into(Renderer* renderer, Rect bounds, const Game& game) const;
 
     // Append an output line. Use this from cmd_*.cpp.
     void emit(const std::string& line, UITag tag = UITag::TextDefault);

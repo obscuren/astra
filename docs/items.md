@@ -387,6 +387,17 @@ PDA Equipment-tab paper-doll toggle (`Tab` while on the Equipment tab).
 |------|-----|---------|--------|
 | Neural Backup | `neural_backup` | -1 Willpower; auto-syncs lore at Precursor consoles via the Soul Mirror channel. | T2+ deep-Grid drops, BlackMarket. |
 
+## Cyberdeck Mods
+
+Plan 7 ships only the **gate** for one mod category — `WirelessJackIn` — used to gate `pda> jack <ip>` from the cyberdeck shell. The mod system itself (slots, install UI, tinkerer NPCs, mod balance) is deferred to **Plan 11+**. v1 treats "in inventory" as "installed" — when Plan 11 lands the proper system, the rule changes to a per-cyberdeck slot.
+
+Both items below are Tier 1, functionally identical at install time, and exist in v1 so playtesting can spawn either and confirm the gate works.
+
+| Name | Dev | Tier | Effects | Source |
+|------|-----|------|---------|--------|
+| Aerojack | `aerojack` | 1 | Presence in inventory enables `pda> jack <ip>`. (v1 placeholder; install ritual lands in Plan 11+.) | MerchantArms, BlackMarket, Chest. |
+| Untether (Mod) | `untether` | 1 | Same as Aerojack — alternative brand. (v1 placeholder; install ritual lands in Plan 11+.) | MerchantArms, BlackMarket, Chest. |
+
 **Plan 5 — NPC cybernetic implants:** Mechanical NPCs (drones, sentries, Archon Automatons per `npc_factory.cpp`) carry synthetic implants with `HackTagMask = Electronic | Mobile`. They auto-register in their map's LAN graph and can be targeted by `quickhack`s with appropriate tag filters. Example: `friendly_fire.qh` requires `Weaponized | Mobile`, so hostile drones and sentries with weapon systems are valid targets. Implant presence on an NPC is signified by a status icon in the creature's sidebar info panel.
 
 ## Code Fragments

@@ -10,10 +10,12 @@ class UIContext;
 
 enum class NmapMode : uint8_t { Lan, Atlas };
 
-// One-shot breach request emitted when the user presses `b` on a locked edge
-// in the netmap. Identifies the edge by its (from, to) node id pair. The host
-// (game_input) is responsible for charging breach.exe cost and flipping
-// `cracked = true` — the widget never mutates the network directly.
+// One-shot breach request — pre-Plan-7 the netmap had a `b` key binding
+// that emitted these for per-device gateway edges. Plan 7 §17 A3 removed
+// that binding (per-device netmap-side breach is gone). The struct is
+// retained as a stub so existing callers (game_input::consume_breach_request)
+// keep compiling; it just always reports invalid. Region-firewall breach
+// still exists but happens spatially via breach.exe walked-up-to.
 struct GridNmapBreachRequest {
     uint32_t from_id = 0;
     uint32_t to_id   = 0;

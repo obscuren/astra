@@ -314,6 +314,17 @@ bool handle(Game& game, int key) {
     if (!sess) return false;
     auto& s = *sess;
 
+    // Plan 7 §3b: while the device shell is open via the in-Grid doorway,
+    // it owns input. The avatar is frozen at its tile in the LAN sector;
+    // the Tron window content is the shell terminal. Returns false so the
+    // caller does NOT spend a world tick on plain prompt-typing — the
+    // shell's own world-tick path drives long-channel progress.
+    if (game.hacking().device_shell_open() &&
+        game.hacking().device_shell().via() == ShellVia::Grid) {
+        game.hacking().device_shell().handle_input(key, game);
+        return false;
+    }
+
     // Telegraph eats input first when active.
     if (game.telegraph().active()) {
         game.telegraph().handle_input(key, game);

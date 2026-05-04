@@ -142,6 +142,8 @@ public:
     CombatSystem& combat() { return combat_; }
     HackingSystem& hacking() { return hacking_; }
     const HackingSystem& hacking() const { return hacking_; }
+    PdaScreen& pda_screen() { return pda_screen_; }
+    const PdaScreen& pda_screen() const { return pda_screen_; }
     RebirthSequence& rebirth() { return rebirth_; }
     const RebirthSequence& rebirth() const { return rebirth_; }
     Telegraph& telegraph() { return telegraph_; }
