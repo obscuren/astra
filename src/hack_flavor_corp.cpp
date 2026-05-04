@@ -55,15 +55,16 @@ const char* k_files[] = {
 };
 
 const char* k_chrome[] = {
-    "+============================================+\n"
-    "|  %FACTION% - %FIXTURE_NAME% %VERSION%  |\n"
-    "|  Property of Kaguya Heavy Industries.      |\n"
-    "|  Unauthorized access prosecuted.            |\n"
-    "+============================================+",
+    "╔══════════════════════════════════════════════╗\n"
+    "║  %FACTION% — %FIXTURE_NAME% %VERSION%\n"
+    "║  Property of Kaguya Heavy Industries.\n"
+    "║  Unauthorized access prosecuted under\n"
+    "║  Sec. 12 of the Combined Charter.\n"
+    "╚══════════════════════════════════════════════╝",
     "[ KHI / %FACTION% ] :: %FIXTURE_NAME% rev %VERSION%\n"
     "  Authorized personnel only.  Sessions logged.",
-    "## %FACTION% - %FIXTURE_NAME% %VERSION% ##\n"
-    "## All access is monitored.   Compliance is non-optional. ##",
+    "── %FACTION% / %FIXTURE_NAME% %VERSION% ──\n"
+    "── All access is monitored. Compliance is non-optional. ──",
 };
 
 const HackFlavorPack k_corp{

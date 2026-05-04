@@ -375,6 +375,7 @@ private:
     // Input modes
     bool awaiting_interact_ = false;
     bool awaiting_autowalk_ = false;
+    int channel_tick_frames_ = 0;  // Plan 7: real-time channel tick accumulator
     bool auto_walking_ = false;
     int auto_walk_dx_ = 0, auto_walk_dy_ = 0;
     bool auto_exploring_ = false;

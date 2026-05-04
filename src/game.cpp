@@ -108,6 +108,22 @@ void Game::run() {
             if (auto_walking_ || auto_exploring_) {
                 auto_step();
             }
+            // Plan 7: real-time channel ticks. While a device shell is
+            // running a long-channel, the world (and the channel) advance
+            // automatically — the player can't take actions to drive the
+            // tick because the terminal locks input. One world tick per
+            // ~300ms (6 idle frames at 50ms each); a 10-turn hashcat lands
+            // at ~3s wall-clock.
+            if (hacking_.device_shell_open() &&
+                hacking_.device_shell().channel_active()) {
+                ++channel_tick_frames_;
+                if (channel_tick_frames_ >= 6) {
+                    channel_tick_frames_ = 0;
+                    advance_world(ActionCost::interact);
+                }
+            } else {
+                channel_tick_frames_ = 0;
+            }
         } else {
             // Any keypress stops auto-walk/explore
             if (auto_walking_ || auto_exploring_) {

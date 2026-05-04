@@ -171,17 +171,18 @@ void DeviceShell::tick_world(Game& game) {
     if (channel_.active()) {
         channel_.progress_ticks++;
 
-        // Update the transient progress line in the shared scroll. We commit
-        // it on completion (so the final 100% line stays in scrollback).
+        // Update the transient progress line in the shared scroll. Format
+        // is `[▓▓▓       ] 30%` — bare bar, no command-name prefix; the
+        // typed command line is already echoed in scroll just above. We
+        // commit on completion so the final 100% line stays in scrollback.
         if (sink_) {
             constexpr int kBarCells = 10;
-            std::string bar = "[*] ";
-            bar += channel_.cmd ? channel_.cmd->name : "channel";
-            bar += "... [";
+            std::string bar = "[";
             int filled = (channel_.percent() * kBarCells) / 100;
             if (filled > kBarCells) filled = kBarCells;
+            // U+2593 ▓ filled cell, ASCII space empty.
             for (int i = 0; i < kBarCells; ++i) {
-                bar += (i < filled) ? '#' : '-';
+                bar += (i < filled) ? "\xe2\x96\x93" : " ";
             }
             char tail[16];
             std::snprintf(tail, sizeof tail, "] %d%%", channel_.percent());
@@ -300,9 +301,9 @@ bool DeviceShell::start_channel(const HackCommand& cmd, const ParsedArgs& args, 
         game.hacking().add_detection(cost.detection);
     }
 
-    char buf[160];
-    std::snprintf(buf, sizeof buf, "[*] %s... (channel %d turns)", cmd.name, cost.turns);
-    emit(buf, UITag::TextDim);
+    // No generic start banner — each command emits its own intent line
+    // before calling start_channel(). The progress bar appears on the
+    // first real-time tick.
     return true;
 }
 

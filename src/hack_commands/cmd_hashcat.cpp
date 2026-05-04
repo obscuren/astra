@@ -54,6 +54,32 @@ HackCommandResult exec_hashcat(const ParsedArgs& args, Hackable& target,
         return {false, false, "hashcat: already root."};
     }
 
+    // Require an explicit hashfile path. Diegetic invocation: capture the
+    // shadow file from the device fs, then point hashcat at it. Anything
+    // other than /etc/shadow is rejected — that's the only readable hash
+    // file the device exposes.
+    std::string_view hashfile;
+    for (size_t i = 1; i < args.argv.size(); ++i) {
+        const std::string& a = args.argv[i];
+        if (a.empty() || a[0] == '-') continue;  // skip flags/synthetic
+        hashfile = a;
+        break;
+    }
+    if (hashfile.empty()) {
+        shell.emit("hashcat: usage: hashcat <hashfile>", UITag::TextDim);
+        shell.emit("       try: hashcat /etc/shadow", UITag::TextDim);
+        return {false, false, ""};
+    }
+    if (hashfile != "/etc/shadow") {
+        std::string msg = "hashcat: ";
+        msg += hashfile;
+        msg += ": not a hash file (try /etc/shadow)";
+        return {false, false, msg};
+    }
+    if (!shell.fs_view().exists("/etc/shadow")) {
+        return {false, false, "hashcat: /etc/shadow: no such file"};
+    }
+
     // Show partial-state preview if any digits cracked.
     if (target.cracked_digits > 0) {
         char buf[64];
@@ -67,6 +93,10 @@ HackCommandResult exec_hashcat(const ParsedArgs& args, Hackable& target,
         std::snprintf(buf, sizeof buf, "[+] Recovered: %s", mask.c_str());
         shell.emit(buf, UITag::TextSuccess);
     }
+
+    // Per-command intent line (replaces the old generic
+    // "[*] hashcat... (channel N turns)" emitted by start_channel).
+    shell.emit("[*] hashcat... cracking file", UITag::TextDim);
 
     // Find the registered HackCommand for ourselves so start_channel sees the
     // full descriptor (cost numbers).
@@ -111,8 +141,7 @@ HackCommandResult exec_hashcat_complete(Hackable& target, DeviceShell& shell,
         target.escalated = true;
         target.cracked_digits = 11;
         shell.emit("[+] Recovered: full passphrase.", UITag::TextSuccess);
-        shell.emit("[+] Authentication elevated. Reconnect or run `whoami`.",
-                   UITag::TextSuccess);
+        shell.emit("[+] Root pwnd. Elevated privileges.", UITag::TextSuccess);
         // Note: we don't auto-promote shell tier mid-session; spec §4 requires
         // a re-issue of `ssh root@` for that. Tier escalation in-session is
         // deferred to Phase C polish.
@@ -132,7 +161,7 @@ HackCommandResult exec_hashcat_complete(Hackable& target, DeviceShell& shell,
 
 const HackCommand k_hashcat{
     "hashcat",
-    "hashcat [--fast]",
+    "hashcat <hashfile>",
     "attempt password recovery (escalation)",
     HackTag::Locked, false,
     /*base_turns=*/10, /*base_heat=*/6, /*base_detection=*/15,

@@ -961,9 +961,9 @@ void PdaScreen::hack_term_cmd_nmap_list() {
         hack_term_emit(line);
     }
 
-    if (meta.has_deep_grid_edge) {
-        hack_term_emit("  10.x.y.254     [\xe2\x8a\x95 deep-grid]              locked.2  tier:2 (locked)        DeepGridGateway");
-    }
+    // Deep-grid gateway intentionally omitted — nmap is a local-LAN tool.
+    // The deep-grid edge is a separate layer; player reaches it via the
+    // netmap-side jump or by walking to a JackInPort that gates it.
 }
 
 void PdaScreen::hack_term_cmd_nmap_map() {

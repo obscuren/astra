@@ -74,8 +74,12 @@ bool simple_glob(std::string_view pat, std::string_view s) {
 }
 
 bool guest_readable(std::string_view path) {
+    // /etc/shadow is the diegetic hashfile target for `hashcat`. Real Unix
+    // restricts it to root, but here it's the attacker's input — readable
+    // as guest so the player can confirm the hash before cracking.
     return path == "/etc/version" ||
            path == "/etc/motd" ||
+           path == "/etc/shadow" ||
            path == "/var/log/auth.log";
 }
 
@@ -149,6 +153,24 @@ void DeviceFsView::build(const Hackable& target, std::string_view faction) {
         entries_["/etc/motd"] = motd;
     }
     entries_["/var/log/auth.log"] = build_auth_log(fp, rng);
+
+    // /etc/shadow — only on Locked devices. The hash blob is the diegetic
+    // input to `hashcat`. Format mimics a real shadow line; the hash is
+    // deterministic per device (seed-derived) so the same file shows up on
+    // re-open. On a cracked device the line gains a `[CRACKED: ...]` tail.
+    if (has_tag(target.tags, HackTag::Locked)) {
+        char hash[64];
+        std::snprintf(hash, sizeof hash, "$6$%08x$%016llx%016llx",
+                      static_cast<unsigned>(rng()),
+                      static_cast<unsigned long long>(rng()),
+                      static_cast<unsigned long long>(rng()));
+        std::string shadow = "root:";
+        shadow += hash;
+        if (target.escalated) shadow += " [CRACKED]";
+        shadow += ":18987:0:99999:7:::\n";
+        shadow += "admin:!:18987:0:99999:7:::\n";
+        entries_["/etc/shadow"] = shadow;
+    }
 
     // Tag-conditional system logs and firmware blobs.
     auto add_for_tag = [&](HackTag t, const char* sysname, const char* fwname) {
