@@ -218,9 +218,9 @@ bool PdaScreen::handle_input(int key) {
                             if (count == sel) {
                                 workbench_inv_idx_ = i;
                                 workbench_item_ = &player_->inventory.items[i];
-                                // Init enhancement slots if needed
-                                if (workbench_item_->enhancement_slots == 0 && workbench_item_->slot.has_value())
-                                    init_enhancement_slots(*workbench_item_);
+                                // build_by_def_id already populates
+                                // enhancement_slots from rarity, so no
+                                // workbench-side init is needed.
                                 context_message_ = "Placed " + workbench_item_->name + " on workbench.";
                                 context_msg_timer_ = 2;
                                 break;
@@ -950,7 +950,7 @@ void PdaScreen::open_context_menu() {
             context_menu_.open = true;
             return;
         }
-        auto slot = static_cast<EquipSlot>(equip_cursor_);
+        auto slot = paperdoll_slot_at_cursor(equip_cursor_);
         const auto& item = player_->equipment.slot_ref(slot);
         if (!item) return;
         context_menu_.add_option('l', "look");
@@ -1076,7 +1076,7 @@ void PdaScreen::execute_context_action(char key) {
             }
             return;
         }
-        auto slot = static_cast<EquipSlot>(equip_cursor_);
+        auto slot = paperdoll_slot_at_cursor(equip_cursor_);
         auto& equipped = player_->equipment.slot_ref(slot);
         if (!equipped) return;
 
@@ -1284,7 +1284,7 @@ void PdaScreen::draw_context_menu(int screen_w, int screen_h) {
             inv_cursor_ >= 0 && inv_cursor_ < static_cast<int>(player_->inventory.items.size())) {
             ctx_item = &player_->inventory.items[inv_cursor_];
         } else if (equip_focus_ == EquipFocus::PaperDoll) {
-            auto slot = static_cast<EquipSlot>(equip_cursor_);
+            auto slot = paperdoll_slot_at_cursor(equip_cursor_);
             const auto& equipped = player_->equipment.slot_ref(slot);
             if (equipped) ctx_item = &(*equipped);
         }

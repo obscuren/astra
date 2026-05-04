@@ -34,6 +34,26 @@
 
 namespace astra {
 
+namespace {
+
+// Apply a class template's starting_items to a player. Items with
+// `equip_to` set go into that equipment slot (clobbering anything already
+// there); the rest go into the inventory. Stack counts apply to stackable
+// item defs.
+void apply_starting_items(Player& player, const ClassTemplate& tmpl) {
+    for (const auto& si : tmpl.starting_items) {
+        Item it = build_by_def_id(static_cast<uint16_t>(si.def_id));
+        if (si.count > 1 && it.stackable) it.stack_count = si.count;
+        if (si.equip_to) {
+            player.equipment.slot_ref(*si.equip_to) = std::move(it);
+        } else {
+            player.inventory.items.push_back(std::move(it));
+        }
+    }
+}
+
+} // namespace
+
 
 // Map overworld terrain to detail/dungeon biome, falling back to planet biome for POIs
 
@@ -914,19 +934,10 @@ void Game::new_game() {
         player_.money += tmpl.starting_money;
         player_.attribute_points = 10;
 
-        // Dev Commander: knows the three Basic recipes, carries a full
-        // ingredient pantry, and gets one of each cookbook in inventory so
-        // the whole discovery/read flow can be exercised in-game.
+        // Dev Commander: knows the three Basic recipes; pantry + cookbooks
+        // come from the template's starting_items.
         player_.known_recipes = { 1, 2, 3 };
-        auto stack_of = [](Item it, int n) { it.stack_count = n; return it; };
-        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_RAW_MEAT),       10));
-        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_CARROT),         10));
-        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_FLOUR),          10));
-        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_HERBS),          10));
-        player_.inventory.items.push_back(stack_of(build_by_def_id(ITEM_SYNTH_PROTEIN), 10));
-        player_.inventory.items.push_back(build_by_def_id(ITEM_COOKBOOK_HEARTY_STEW));
-        player_.inventory.items.push_back(build_by_def_id(ITEM_COOKBOOK_PROTEIN_BAKE));
-        player_.inventory.items.push_back(build_by_def_id(ITEM_COOKBOOK_HEROS_FEAST));
+        apply_starting_items(player_, tmpl);
 
         player_.max_hp = player_.effective_max_hp();
         player_.hp = player_.max_hp;
@@ -1287,6 +1298,7 @@ void Game::new_game(const CreationResult& cr) {
     ability_bar::reconcile_from_learned(player_);
     player_.skill_points = tmpl.starting_sp;
     player_.money += tmpl.starting_money;
+    apply_starting_items(player_, tmpl);
 
     // All players start knowing the three Basic recipes.
     player_.known_recipes = { 1, 2, 3 };

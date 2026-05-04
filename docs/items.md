@@ -355,8 +355,8 @@ A **cyberdeck** is the device required to fire any quickhack (`.qh`) program in 
 
 | Tier | Name | Dev | Slots | RAM | CPU | Stealth | Heat cap | Notes |
 |------|------|-----|-------|-----|-----|---------|----------|-------|
-| 1 | Pidgin Mark I | `pidgin_mk1` | 3 | 4 | 1 | +0 | 10 | Pawn-shop deck. |
-| 2 | Polyglot DCK-2 | `polyglot_dck2` | 4 | 8 | 2 | +1 | 12 | Corp surplus. |
+| 1 | Pidgin Mark I | `pidgin_mk1` | 3 | 8 | 1 | +0 | 10 | Pawn-shop deck. |
+| 2 | Polyglot DCK-2 | `polyglot_dck2` | 4 | 12 | 2 | +1 | 12 | Corp surplus. |
 
 ## Programs
 

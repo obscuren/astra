@@ -3,10 +3,15 @@
 #include "astra/skill_defs.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace astra {
+
+// Forward-declared so ClassTemplate can carry starting equipment without
+// dragging the full item.h dependency stack into character.h.
+enum class EquipSlot : uint8_t;
 
 enum class PlayerClass : uint8_t {
     DevCommander, // developer mode only — all-rounder for testing
@@ -15,6 +20,7 @@ enum class PlayerClass : uint8_t {
     Technomancer, // tinkering/intel — engineer and hacker
     Operative,    // stealth/social — short blades and persuasion
     Marauder,     // survivalist — high toughness, luck-driven crits
+    Gridrunner,   // netrunner — frail body, lethal in cyberspace
 };
 
 const char* class_name(PlayerClass c);
@@ -53,10 +59,22 @@ ReputationTier reputation_tier(int reputation);
 const char* reputation_tier_name(ReputationTier tier);
 int reputation_price_pct(int reputation);  // buy modifier: +30/+15/0/-10/-20
 
-// Class template — defines starting stats for each PlayerClass
+// One pre-rolled starting item. If `equip_to` is set, the item is built and
+// placed into that equipment slot directly; otherwise it is pushed into the
+// player's inventory. `count` >1 stacks the item (caller must ensure the
+// item def is stackable — non-stackable items at count >1 will be silently
+// clamped to 1).
+struct StartingItem {
+    int                       def_id;
+    int                       count = 1;
+    std::optional<EquipSlot>  equip_to;  // unset → goes into inventory
+};
+
+// Class template — defines starting stats and gear for each PlayerClass
 struct ClassTemplate {
     PlayerClass player_class;
     const char* description;
+    char        card_glyph = '@';   // shown on the class-pick card in character creation
     PrimaryAttributes attributes;
     Resistances resistances;
     int bonus_hp = 0;            // added to base max_hp
@@ -64,6 +82,7 @@ struct ClassTemplate {
     std::vector<SkillId> starting_skills;  // pre-learned skills (including category unlocks)
     int starting_sp = 0;         // bonus starting skill points
     int starting_money = 0;      // starting credits
+    std::vector<StartingItem> starting_items; // gear granted on character spawn
 };
 
 const ClassTemplate& class_template(PlayerClass c);

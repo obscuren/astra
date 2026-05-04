@@ -589,10 +589,10 @@ void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
         }
         case GridNodeKind::DeepGridAnchor: {
             // Owned-anchor dispatch: if this DeepGridAnchor belongs to the
-            // current consciousness AND a base has been written (Anchor
-            // capstone taken), serve the saved 60×40 hand-authored base
-            // with runtime overlay. Otherwise fall back to the legacy
-            // 14×10 anchor (Plan 4) for unowned / pre-capstone cases.
+            // current consciousness AND a customised base has been written
+            // (ConsciousnessAnchor capstone taken + edits made), serve the
+            // saved sector with runtime overlay. Otherwise serve the
+            // canonical 60×40 hand-authored hub (Anchor + Atlas + Frontier).
             ConsciousnessSave cs;
             const bool have = read_consciousness(cs);
             if (have &&
@@ -603,7 +603,7 @@ void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
                 s.sector = cs.deep_grid_base;
                 apply_mutations(s.sector, cs.deep_grid_sector_state);
             } else {
-                s.sector = make_consciousness_anchor_sector();
+                s.sector = make_player_deep_grid_base();
             }
             break;
         }

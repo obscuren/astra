@@ -20,6 +20,13 @@ class WorldManager;
 class HackingSystem;
 class Game;
 
+// Map a paper-doll cursor index (visual layout order) to the actual
+// EquipSlot it represents. Defined in pda_equipment_tab.cpp; the layout
+// order does not match the EquipSlot enum's declaration order, so this
+// lookup is the only safe way to translate.
+EquipSlot paperdoll_slot_at_cursor(int cursor);
+int       paperdoll_slot_count();
+
 enum class PdaTab : uint8_t {
     Skills,
     Attributes,

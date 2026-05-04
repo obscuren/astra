@@ -110,7 +110,7 @@ void Game::handle_play_input(int key) {
                     quit_confirm_.title = "Quit without saving?";
                     quit_confirm_.add_option('y', "Yes, quit without saving");
                     quit_confirm_.add_option('n', "No, keep playing");
-                    quit_confirm_.selection = 0;
+                    quit_confirm_.selection = 1;   // default to "No" — too easy to mash Enter on "Yes"
                     quit_confirm_.open = true;
                 }
             }

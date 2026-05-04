@@ -37,7 +37,7 @@ HackCommandResult exec_wipe(const ParsedArgs& a, ShellContext& ctx, Game& game) 
             target.wiped_paths.push_back(path);
         }
         shell.rebuild_fs_view();
-        return {true, false, std::string("[+] ") + path + " wiped. Persisted across saves."};
+        return {true, false, std::string("[+] ") + path + " wiped."};
     }
     if (a.argv.size() < 2) return {false, false, "wipe: usage: wipe <path>"};
     const std::string& path = a.argv[1];

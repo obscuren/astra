@@ -6,6 +6,37 @@
 
 namespace astra {
 
+// Single source of truth for paper-doll cursor → EquipSlot. The visual
+// layout (left → right, top → bottom) is independent of the EquipSlot
+// enum's declaration order, so action sites must look up the slot for a
+// cursor through this table — `static_cast<EquipSlot>(equip_cursor_)` is
+// a bug.
+static constexpr EquipSlot kPaperdollSlots[] = {
+    EquipSlot::Face,       // 0
+    EquipSlot::Head,       // 1
+    EquipSlot::LeftHand,   // 2
+    EquipSlot::LeftArm,    // 3
+    EquipSlot::Body,       // 4
+    EquipSlot::RightArm,   // 5
+    EquipSlot::RightHand,  // 6
+    EquipSlot::Back,       // 7
+    EquipSlot::Feet,       // 8
+    EquipSlot::Thrown,     // 9
+    EquipSlot::Missile,    // 10
+    EquipSlot::Shield,     // 11
+    EquipSlot::Utility1,   // 12
+    EquipSlot::Utility2,   // 13
+};
+static constexpr int kPaperdollSlotCount =
+    static_cast<int>(std::size(kPaperdollSlots));
+
+EquipSlot paperdoll_slot_at_cursor(int cursor) {
+    if (cursor < 0 || cursor >= kPaperdollSlotCount) return EquipSlot::Face;
+    return kPaperdollSlots[cursor];
+}
+
+int paperdoll_slot_count() { return kPaperdollSlotCount; }
+
 void PdaScreen::draw_equipment(UIContext& ctx) {
     int w = ctx.width();
     int half = w / 2;
@@ -62,23 +93,28 @@ void PdaScreen::draw_equipment_paperdoll(UIContext& ctx, int dy) {
     int col_ll = col_l - bw - 2;
     int col_rr = col_r + bw + 2;
 
-    struct SlotPos { int x; int y; EquipSlot slot; const char* label; };
+    struct SlotPos { int x; int y; const char* label; };
+    // The slot for index i is kPaperdollSlots[i] — same order. Keep these
+    // two arrays in lockstep; if you reorder the visual layout, update
+    // kPaperdollSlots above to match.
     SlotPos positions[] = {
-        {col_c,  dy,              EquipSlot::Face,      "Face"},
-        {col_c,  dy + slot_h,     EquipSlot::Head,      "Head"},
-        {col_ll, dy + slot_h * 2, EquipSlot::LeftHand,  "L.Hand"},
-        {col_l,  dy + slot_h * 2, EquipSlot::LeftArm,   "L.Arm"},
-        {col_c,  dy + slot_h * 2, EquipSlot::Body,      "Body"},
-        {col_r,  dy + slot_h * 2, EquipSlot::RightArm,  "R.Arm"},
-        {col_rr, dy + slot_h * 2, EquipSlot::RightHand, "R.Hand"},
-        {col_c,  dy + slot_h * 3, EquipSlot::Back,      "Back"},
-        {col_c,  dy + slot_h * 4, EquipSlot::Feet,      "Feet"},
-        {col_l,  dy + slot_h * 5, EquipSlot::Thrown,    "Thrown"},
-        {col_r,  dy + slot_h * 5, EquipSlot::Missile,   "Missile"},
-        {col_l,  dy + slot_h * 3, EquipSlot::Shield,    "Shield"},
-        {col_r,  dy + slot_h * 3, EquipSlot::Utility1,  "Util 1"},
-        {col_rr, dy + slot_h * 3, EquipSlot::Utility2,  "Util 2"},
+        {col_c,  dy,              "Face"},   // 0  Face
+        {col_c,  dy + slot_h,     "Head"},   // 1  Head
+        {col_ll, dy + slot_h * 2, "L.Hand"}, // 2  LeftHand
+        {col_l,  dy + slot_h * 2, "L.Arm"},  // 3  LeftArm
+        {col_c,  dy + slot_h * 2, "Body"},   // 4  Body
+        {col_r,  dy + slot_h * 2, "R.Arm"},  // 5  RightArm
+        {col_rr, dy + slot_h * 2, "R.Hand"}, // 6  RightHand
+        {col_c,  dy + slot_h * 3, "Back"},   // 7  Back
+        {col_c,  dy + slot_h * 4, "Feet"},   // 8  Feet
+        {col_l,  dy + slot_h * 5, "Thrown"}, // 9  Thrown
+        {col_r,  dy + slot_h * 5, "Missile"},// 10 Missile
+        {col_l,  dy + slot_h * 3, "Shield"}, // 11 Shield
+        {col_r,  dy + slot_h * 3, "Util 1"}, // 12 Utility1
+        {col_rr, dy + slot_h * 3, "Util 2"}, // 13 Utility2
     };
+    static_assert(std::size(positions) == kPaperdollSlotCount,
+                  "positions[] and kPaperdollSlots[] must stay in lockstep");
 
     Color line_color = Color::DarkGray;
     auto draw_vconn = [&](int row_top, int row_bot) {
@@ -110,7 +146,7 @@ void PdaScreen::draw_equipment_paperdoll(UIContext& ctx, int dy) {
         const auto& sp = positions[i];
         bool selected = (equip_focus_ == EquipFocus::PaperDoll && equip_cursor_ == i);
         Color border_color = selected ? Color::Yellow : Color::DarkGray;
-        const auto& item = player_->equipment.slot_ref(sp.slot);
+        const auto& item = player_->equipment.slot_ref(kPaperdollSlots[i]);
 
         int bx = sp.x;
         int by = sp.y;

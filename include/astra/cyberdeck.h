@@ -7,7 +7,7 @@ namespace astra {
 
 // Per-deck stats.
 struct CyberdeckStats {
-    int  ram_max       = 4;
+    int  ram_max       = 8;
     int  cpu           = 1;
     int  slots         = 3;       // number of program slots
     int  stealth       = 0;       // additive bonus to Trace reduction (Plan 3)

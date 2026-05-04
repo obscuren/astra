@@ -611,13 +611,11 @@ void CharacterCreation::draw_class_step(UIContext& ctx) {
     int start_x = (ctx.width() - total_w) / 2;
     int card_y = 5;
 
-    // Glyph per class
-    static const char class_glyphs[] = {'V', 'G', 'T', 'O', 'M'};
-
     for (int i = 0; i < count; ++i) {
         int x = start_x + i * (card_w + gap);
+        const auto& tmpl = class_template(classes[i]);
         draw_card(ctx, x, card_y, card_w, card_h,
-                  class_glyphs[i], class_name(classes[i]), i == class_cursor_);
+                  tmpl.card_glyph, class_name(classes[i]), i == class_cursor_);
     }
 
     // Description

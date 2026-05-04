@@ -8,7 +8,7 @@ CyberdeckStats cyberdeck_stats_tier1() {
 
 CyberdeckStats cyberdeck_stats_tier2() {
     CyberdeckStats s;
-    s.ram_max      = 8;
+    s.ram_max      = 12;
     s.cpu          = 2;
     s.slots        = 4;
     s.stealth      = 1;

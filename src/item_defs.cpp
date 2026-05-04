@@ -1349,7 +1349,11 @@ Item build_navi_computer_mk2() {
     return it;
 }
 
-Item build_by_def_id(uint16_t def_id) {
+// Inner builder dispatch — every per-item factory returns from here directly.
+// build_by_def_id wraps this so freshly built items always have their
+// rarity-driven enhancement_slots populated, regardless of which factory
+// constructed them.
+static Item build_by_def_id_impl(uint16_t def_id) {
     switch (def_id) {
         // Ranged weapons
         case ITEM_PLASMA_PISTOL:           return build_plasma_pistol();
@@ -1564,6 +1568,18 @@ Item build_by_def_id(uint16_t def_id) {
     return Item{};
 }
 
+Item build_by_def_id(uint16_t def_id) {
+    Item it = build_by_def_id_impl(def_id);
+    // Every equippable item gets rarity-driven mod slots at build time so
+    // they're visible immediately (inventory hover, look, paper-doll inspect)
+    // — not just after the workbench's first auto-init pass. Factories that
+    // already set enhancement_slots (e.g. cells, flashlight) keep their value.
+    if (it.slot.has_value() && it.enhancement_slots == 0) {
+        init_enhancement_slots(it);
+    }
+    return it;
+}
+
 // ---------------------------------------------------------------------------
 // Cyberdecks
 // ---------------------------------------------------------------------------
@@ -1572,7 +1588,7 @@ Item build_pidgin_mk1() {
     Item it;
     it.item_def_id = ITEM_PIDGIN_MK1;
     it.id = 9000; it.name = "Pidgin Mark I"; it.type = ItemType::Cyberdeck;
-    it.description = "A pawn-shop deck. Three slots, four RAM. Chunky but it boots.";
+    it.description = "A pawn-shop deck. Three slots, eight RAM. Chunky but it boots.";
     it.slot = EquipSlot::Utility1; it.rarity = Rarity::Common;
     it.weight = 2;
     it.stackable = false; it.buy_value = 250; it.sell_value = 80;
@@ -1587,7 +1603,7 @@ Item build_polyglot_dck2() {
     Item it;
     it.item_def_id = ITEM_POLYGLOT_DCK2;
     it.id = 9001; it.name = "Polyglot DCK-2"; it.type = ItemType::Cyberdeck;
-    it.description = "Corp surplus. Cleaner thermal envelope, four slots, eight RAM.";
+    it.description = "Corp surplus. Cleaner thermal envelope, four slots, twelve RAM.";
     it.slot = EquipSlot::Utility1; it.rarity = Rarity::Uncommon;
     it.weight = 2;
     it.stackable = false; it.buy_value = 600; it.sell_value = 200;
