@@ -11,7 +11,7 @@ struct GridCamera {
     int viewport_h = 22;
     int cam_x = 0;
     int cam_y = 0;
-    int deadzone_margin = 4;
+    int deadzone_margin = 12;
 
     void follow(int avatar_x, int avatar_y, int sector_w, int sector_h);
 };

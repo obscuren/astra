@@ -48,4 +48,11 @@ void record_killed_ice(Game& game, int x, int y) {
     }
 }
 
+void record_cracked_door(Game& game, int x, int y) {
+    if (auto* state = active_runtime_state(game)) {
+        state->cracked_doors.emplace_back(static_cast<uint8_t>(x),
+                                          static_cast<uint8_t>(y));
+    }
+}
+
 } // namespace astra

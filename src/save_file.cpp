@@ -772,6 +772,13 @@ static void write_sector_runtime_state(BinaryWriter& w, const SectorRuntimeState
         w.write_u8(x);
         w.write_u8(y);
     }
+    // Plan 8 Cut 7 v65: persist cracked doors (unlock_door() does not change
+    // tile — only removes from locked_doors — so mutations can't capture it).
+    w.write_u32(static_cast<uint32_t>(s.cracked_doors.size()));
+    for (const auto& [x, y] : s.cracked_doors) {
+        w.write_u8(x);
+        w.write_u8(y);
+    }
 }
 
 static void read_sector_runtime_state(BinaryReader& r, SectorRuntimeState& s) {
@@ -785,6 +792,13 @@ static void read_sector_runtime_state(BinaryReader& r, SectorRuntimeState& s) {
     uint32_t ni = r.read_u32();
     s.killed_ice.resize(ni);
     for (auto& [x, y] : s.killed_ice) {
+        x = r.read_u8();
+        y = r.read_u8();
+    }
+    // Plan 8 Cut 7 v65: cracked doors.
+    uint32_t nd = r.read_u32();
+    s.cracked_doors.resize(nd);
+    for (auto& [x, y] : s.cracked_doors) {
         x = r.read_u8();
         y = r.read_u8();
     }
@@ -803,8 +817,8 @@ static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
     w.write_u32(meta.subnet_base);
 
     // Rooms
-    w.write_u32(static_cast<uint32_t>(meta.rooms.size()));
-    for (const auto& room : meta.rooms) {
+    w.write_u32(static_cast<uint32_t>(meta.zones.size()));
+    for (const auto& room : meta.zones) {
         w.write_string(room.name);
         w.write_i32(room.extents.x);
         w.write_i32(room.extents.y);
@@ -843,8 +857,8 @@ static void read_lan_metadata(BinaryReader& r, LanMetadata& meta) {
     meta.subnet_base         = r.read_u32();
 
     uint32_t nr = r.read_u32();
-    meta.rooms.resize(nr);
-    for (auto& room : meta.rooms) {
+    meta.zones.resize(nr);
+    for (auto& room : meta.zones) {
         room.name = r.read_string();
         room.extents.x = r.read_i32();
         room.extents.y = r.read_i32();

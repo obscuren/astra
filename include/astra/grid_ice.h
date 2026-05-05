@@ -22,6 +22,8 @@ class Game;         // fwd
 namespace grid_ice {
 
 void spawn_for_sector(GridSession& s, uint32_t seed, int security_tier);
+void spawn_from_seeds(GridSession& s);       // Plan 8 v2 path: seeds with min_trace ≤ current trace
+void promote_pending_seeds(GridSession& s);  // Plan 8: per-tick — materializes newly-eligible seeds
 void tick_all(GridSession& s, Game& game);
 
 // Damage hooks. Called from program effects.

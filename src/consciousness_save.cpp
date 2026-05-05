@@ -48,8 +48,8 @@ private:
 // ---------------------------------------------------------------------------
 // GridSector body serialization.
 // Only persists the fields that matter for consciousness.dat: grid geometry,
-// tiles, and spawn position. GatewayLinks are runtime-resolved and rebuilt
-// when the sector is visited, so they are not persisted here.
+// tiles, and spawn position. The gateway destination (deep_grid_destination)
+// is a single per-sector field resolved at runtime and is not persisted here.
 // ---------------------------------------------------------------------------
 
 static void write_grid_sector(Writer& w, const GridSector& s) {

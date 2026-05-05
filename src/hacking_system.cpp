@@ -507,8 +507,8 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     // pre-set return_node to the Subnet's owning LAN root — so when the
     // player walks onto the subnet's ⊙ ExitNode, on_step's bounce-back
     // logic traverses to the LAN sector instead of jacking out to the world.
+    const auto& meta = game.world().lan_metadata();
     if (node->kind == GridNodeKind::Subnet) {
-        const auto& meta = game.world().lan_metadata();
         if (meta.lan_root.valid()) {
             s.return_node = meta.lan_root;
         }
@@ -540,23 +540,30 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
 
     // Resolve sector
     resolve_sector_for_(game, s, *node);
-    s.sector.source_node = node->id;
+    // Plan 8: for Subnet jack-ins, source_node is the LAN root (the sector's
+    // identity), not the target Subnet. The Subnet target lives in s.current_node.
+    s.sector.source_node =
+        (node->kind == GridNodeKind::Subnet) ? meta.lan_root : node->id;
     s.avatar_x = s.sector.spawn_x;
     s.avatar_y = s.sector.spawn_y;
 
-    // Spawn ICE per tier (anchor stays empty in v1; LAN sectors stay empty
-    // for now — ICE lives inside the per-Subnet sectors the player traverses
-    // into via ⌬). Persisted killed-ICE coordinates suppress respawn on
-    // re-entry.
-    if (node->kind != GridNodeKind::DeepGridAnchor &&
-        node->kind != GridNodeKind::LanRoot) {
-        grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
+    // Spawn ICE per tier (anchor stays empty; all other node kinds — including
+    // LanRoot v2 sectors — consume ice_seeds seeded at generation time).
+    // Persisted killed-ICE coordinates suppress respawn on re-entry.
+    if (node->kind != GridNodeKind::DeepGridAnchor) {
+        // Plan 8 Cut 5: v2 sectors populate ice_seeds at generation time;
+        // use them when present. Fall back to v1 scatter spawn.
+        if (!s.sector.ice_seeds.empty()) {
+            grid_ice::spawn_from_seeds(s);
+        } else {
+            grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
+        }
         // Drop any ICE that the player previously killed in this sector.
-        const auto& meta = game.world().lan_metadata();
+        // Plan 8: Subnet jacks now load the LAN sector, so both LanRoot and
+        // Subnet kinds share the same mutation bucket (lan_sector_state).
         const SectorRuntimeState* state = nullptr;
-        if (node->kind == GridNodeKind::Subnet) {
-            auto it = meta.subnet_states.find(node->id.value);
-            if (it != meta.subnet_states.end()) state = &it->second;
+        if (node->kind == GridNodeKind::Subnet || node->kind == GridNodeKind::LanRoot) {
+            state = &meta.lan_sector_state;
         }
         if (state && !state->killed_ice.empty()) {
             s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
@@ -583,7 +590,7 @@ void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
     const auto& meta = game.world().lan_metadata();
     switch (node.kind) {
         case GridNodeKind::LanRoot: {
-            s.sector = generate_lan_sector(meta, game.world().grid_network());
+            s.sector = generate_lan_sector_v2(meta, game.world().grid_network(), game.world());
             apply_mutations(s.sector, meta.lan_sector_state);
             break;
         }
@@ -611,16 +618,30 @@ void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
             s.sector = gen_regional_sector(node.source_seed, node.security_tier);
             break;
         }
-        case GridNodeKind::Subnet:
-        default: {
-            // Plan 5 Cut 2.6: pass the source FixtureType through so the
-            // sector renders a themed wall-mounted device-avatar.
-            s.sector = gen_subnet_sector(node.source_seed, node.security_tier,
-                                         node.source_fixture_type);
-            auto it = meta.subnet_states.find(node.id.value);
-            if (it != meta.subnet_states.end()) {
-                apply_mutations(s.sector, it->second);
+        case GridNodeKind::Subnet: {
+            // Plan 8 flat-model: jacking into a Subnet loads the LAN sector
+            // and spawns at the Subnet's per_node_spawn cell within it.
+            if (!meta.lan_root.valid()) {
+                game.log("[ERR] resolve_sector_for_: Subnet has no LAN root — empty sector.");
+                s.sector = GridSector{};
+                break;
             }
+            s.sector = generate_lan_sector_v2(meta, game.world().grid_network(), game.world());
+            apply_mutations(s.sector, meta.lan_sector_state);
+
+            // Override spawn to land inside the target Subnet's room.
+            auto it = s.sector.per_node_spawn.find(node.id);
+            if (it != s.sector.per_node_spawn.end()) {
+                s.sector.spawn_x = it->second.first;
+                s.sector.spawn_y = it->second.second;
+            }
+            // Otherwise fall through to the generator's default lobby spawn — defensive.
+            break;
+        }
+        default: {
+            // Truly unexpected — log and serve empty.
+            game.log("[ERR] resolve_sector_for_: unexpected node kind. Serving empty sector.");
+            s.sector = GridSector{};
             break;
         }
     }
@@ -638,7 +659,26 @@ bool HackingSystem::traverse_to(Game& game, GridNodeId target_id) {
 
     GridNodeId prev = s.current_node;
 
-    // Build the new sector. Mutations apply during resolve_sector_for_.
+    // Plan 8 flat-model: Subnet traversal within the current LAN sector
+    // is a teleport, not a sector regen. ICE, mutations, and content
+    // already live in the sector — only the avatar position + current_node
+    // change.
+    if (node->kind == GridNodeKind::Subnet) {
+        auto it = s.sector.per_node_spawn.find(target_id);
+        if (it != s.sector.per_node_spawn.end()) {
+            s.avatar_x           = it->second.first;
+            s.avatar_y           = it->second.second;
+            s.current_node       = target_id;
+            s.return_node        = prev;
+            s.trace_tick_per_turn = 1;  // Subnet tier
+            return true;
+        }
+        // No per_node_spawn entry — must be cross-LAN or a v1 sector. Fall
+        // through to the v1 sector-regen path.
+    }
+
+    // Existing v1 logic — sector regen for LanRoot, DeepGridAnchor,
+    // RegionalDarknet, and v1 Subnet fallback.
     resolve_sector_for_(game, s, *node);
     s.sector.source_node = node->id;
     s.current_node       = target_id;
@@ -646,16 +686,23 @@ bool HackingSystem::traverse_to(Game& game, GridNodeId target_id) {
     s.avatar_x           = s.sector.spawn_x;
     s.avatar_y           = s.sector.spawn_y;
 
-    // Re-spawn ICE for the new sector; LAN + Anchor stay empty.
+    // Re-spawn ICE for the new sector; only the hand-authored Anchor stays
+    // empty. LanRoot v2 sectors now consume ice_seeds just like Subnets.
     s.ice.clear();
-    if (node->kind != GridNodeKind::DeepGridAnchor &&
-        node->kind != GridNodeKind::LanRoot) {
-        grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
+    if (node->kind != GridNodeKind::DeepGridAnchor) {
+        // Plan 8 Cut 5: v2 sectors populate ice_seeds at generation time;
+        // use them when present. Fall back to v1 scatter spawn.
+        if (!s.sector.ice_seeds.empty()) {
+            grid_ice::spawn_from_seeds(s);
+        } else {
+            grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
+        }
         const auto& meta = game.world().lan_metadata();
+        // Plan 8: Subnet traversal (v1 fallback) loads the LAN sector, so
+        // both LanRoot and Subnet kinds share lan_sector_state.
         const SectorRuntimeState* state = nullptr;
-        if (node->kind == GridNodeKind::Subnet) {
-            auto it = meta.subnet_states.find(node->id.value);
-            if (it != meta.subnet_states.end()) state = &it->second;
+        if (node->kind == GridNodeKind::Subnet || node->kind == GridNodeKind::LanRoot) {
+            state = &meta.lan_sector_state;
         }
         if (state && !state->killed_ice.empty()) {
             s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
@@ -729,6 +776,8 @@ void HackingSystem::tick_grid(Game& game) {
 
     // 1. ICE actions (gray/black approach + attack; white patrols).
     grid_ice::tick_all(s, game);
+    // 1a. Promote any ICE seeds that became eligible this tick (trace-gated).
+    grid_ice::promote_pending_seeds(s);
 
     // 1b. DaemonHijack countdown. tick_all already cleared the handle if the
     // puppet died this tick; here we just count down on a still-live hijack.

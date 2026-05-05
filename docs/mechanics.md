@@ -902,15 +902,7 @@ The graph persists in the `GridNetwork` save field (schema v60). On galaxy resee
 
 ### LAN cyberspace sectors
 
-Jacking into a subnet node spawns a procedural cyberspace sector (28×14 for subnets, 40×24 for regional darknet, hand-authored for deep-Grid). The sector contains:
-
-- **Firewall rings**: Concentric wall structures that partition the sector. Lower tiers have fewer rings; each ring is a gateway requiring breach to pass.
-- **Office floor plan**: Interior layout with desks, storage racks, and connectors, generated via BSP or hand-shaped layouts.
-- **Connector wiring**: Floor and ceiling runs between offices, appearing as `~` and `═` glyphs.
-- **Subnet gateways** (`⌬`): Each connected subnet (on the same map) has a gateway tile. Walking to a gateway allows re-entry into that device's cyberspace if not yet fully looted.
-- **Deep-Grid gateway** (`⊕`): One-way portal to the deep-Grid (if the fixture supports it or if the LAN is tier 2+). First crack costs Trace +5 and unlocks the deep-Grid node in the graph.
-- **Jack-out node** (`⊙`): Safe exit. Voluntary jack-out returns the player and grants full credits + lore unlock (if the sector was fully explored).
-- **Per-subnet device avatar**: A glyph or fixture-specific icon mounted on the sector wall showing the source device (camera → `◉`, door → `⊟`, turret → `⚡`, etc.).
+Jacking into a LAN spawns one flat sector (no per-subnet sub-sectors). The sector is a packed cluster of independently-walled rooms connected by 3-tile bridges (no shared walls). Each subnet on the LAN becomes its own room; room size and content are driven by the subnet's `HackTagMask` (e.g. turret rooms spawn ICE patrols, data vaults place `$`/`⊘` clusters, precursor shrines lock their incoming door). Rooms are grouped into three security zones (T1 lobby → T2 core → T3 vault) that cluster spatially; the only crossing between zones is a single locked door per zone boundary. `breach.exe` cracks locked doors (door-only; no longer opens firewall ring tiles). Full detail: [`docs/superpowers/specs/2026-05-04-plan-8-grid-layout-design.md`](superpowers/specs/2026-05-04-plan-8-grid-layout-design.md).
 
 Tile mutations (cracked firewalls, looted DataNodes, decrypted EncryptedFiles, killed ICE) persist on the `SectorMap` in the world's `GridNetwork`. Once generated, a sector is never regenerated during normal play—only on galaxy reseed.
 
@@ -939,6 +931,20 @@ Crossing Sgr A* via `:rebirth` runs:
 ### Persistence and save schema
 
 `GridNetwork` persists in the save file (schema v60, `consciousness.dat` v2). Sector tile mutations (cracks, loots, ICE kills) are stored per-SectorMap via `SectorState` entries in the network. Player-visited sectors are never regenerated during the same galaxy playthrough.
+
+---
+
+## Hacking — Plan 8 (Layout / Generator)
+
+The LAN sector generator is reshaped: instead of an outer firewall ring
+with organic offices and A* corridors, sectors are now packed clusters
+of independently-walled rooms connected by short bridges. Each subnet
+becomes its own room. Per-room visual identity is driven by the
+subnet's `HackTagMask` (turret rooms have ICE patrols, data vaults have
+`$`/`⊘` clusters, precursor shrines lock their incoming doors, etc.).
+Three security zones (T1/T2/T3) cluster spatially; the only inter-zone
+crossing is a single locked door per pair. `breach.exe` cracks locked
+doors. Spec: [`docs/superpowers/specs/2026-05-04-plan-8-grid-layout-design.md`](superpowers/specs/2026-05-04-plan-8-grid-layout-design.md).
 
 ---
 

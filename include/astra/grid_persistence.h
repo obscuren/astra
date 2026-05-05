@@ -24,4 +24,8 @@ void record_sector_mutation(Game& game, int x, int y, GridTile new_tile);
 // Convenience: append a killed-ICE coordinate to the active runtime state.
 void record_killed_ice(Game& game, int x, int y);
 
+// Plan 8 Cut 7: record a door crack into the active runtime state so
+// unlock_door() is replayed on save/load via apply_mutations().
+void record_cracked_door(Game& game, int x, int y);
+
 } // namespace astra

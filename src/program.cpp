@@ -41,8 +41,11 @@ bool icebreaker_valid_target(const GridSession& s, int x, int y) {
 bool breach_valid_target(const GridSession& s, int x, int y) {
     if (!s.sector.in_bounds(x, y)) return false;
     GridTile t = s.sector.at(x, y);
+    // breach.exe targets locked Doors (the bridge tile between rooms),
+    // and the deep-grid gateway. Firewall is retained for hand-authored
+    // sectors that still stamp impassable walls.
+    if (t == GridTile::Door) return s.sector.is_locked_door(x, y);
     return t == GridTile::Firewall ||
-           t == GridTile::Gateway ||
            t == GridTile::DeepGridGateway;
 }
 

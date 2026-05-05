@@ -93,22 +93,61 @@ void spawn_for_sector(GridSession& s, uint32_t seed, int security_tier) {
     }
 }
 
+void spawn_from_seeds(GridSession& s) {
+    // Only spawn seeds whose min_trace ≤ current trace. Others wait for
+    // promote_pending_seeds to materialize them as the trace meter rises.
+    //
+    // Plan 8 bug-fix: idempotency is tracked by seed INDEX, not position.
+    // White ICE patrols away from its spawn point each tick, so checking
+    // "is anything at seed.x/seed.y" re-spawned a duplicate every turn.
+    const auto& seeds = s.sector.ice_seeds;
+    // Resize tracker to match the seed list (idempotent — only grows).
+    if (s.ice_seed_spawned.size() < seeds.size()) {
+        s.ice_seed_spawned.resize(seeds.size(), false);
+    }
+    for (size_t i = 0; i < seeds.size(); ++i) {
+        if (s.ice_seed_spawned[i]) continue;        // already spawned this session
+        if (seeds[i].min_trace > s.trace) continue; // not yet eligible
+        GridIce ice;
+        ice.x          = seeds[i].x;
+        ice.y          = seeds[i].y;
+        ice.hp         = seeds[i].hp;
+        ice.color      = seeds[i].color;
+        ice.patrol_dir = 0;
+        s.ice.push_back(ice);
+        s.ice_seed_spawned[i] = true;
+    }
+}
+
+void promote_pending_seeds(GridSession& s) {
+    // Runs per tick — idempotent. Materializes seeds newly eligible by trace.
+    spawn_from_seeds(s);
+}
+
+// Centralised damage + trace mutation. Single chokepoint for the
+// Invulnerable GE — extends the real-world dev-cheat to the Grid.
+// `last_killer_color` is updated even while invulnerable so post-mortem
+// telemetry stays correct if invuln is later removed mid-fight.
+static void damage_avatar(GridSession& s, Game& game, int dmg, IceColor by) {
+    if (s.last_killer_color != IceColor::Black) {
+        s.last_killer_color = by;
+    }
+    if (has_effect(game.player().effects, EffectId::Invulnerable)) return;
+    s.avatar_hp -= dmg;
+}
+
+static void tick_trace(GridSession& s, Game& game, int amount) {
+    if (amount <= 0) return;
+    if (has_effect(game.player().effects, EffectId::Invulnerable)) return;
+    s.trace = std::min(kTraceMax, s.trace + amount);
+}
+
 void tick_all(GridSession& s, Game& game) {
     static const int dxs[4] = { 0, 0, -1, 1 };
     static const int dys[4] = { -1, 1,  0, 0 };
 
     // ghost_trace.exe makes the avatar invisible to white ICE for N turns.
     const bool ghost_cloaked = has_effect(game.player().effects, EffectId::GhostCloak);
-
-    // Black takes precedence: avatar_hp_max is small, so gray + black
-    // attacking on the same tick is plausible. Without this guard, the
-    // last attacker in iteration order wins last_killer_color and the
-    // wrong death-outcome can fire (NonBlackDeath instead of BlackIceDeath).
-    auto record_hit = [&](IceColor c) {
-        if (s.last_killer_color != IceColor::Black) {
-            s.last_killer_color = c;
-        }
-    };
 
     for (auto& ice : s.ice) {
         if (ice.hp <= 0) continue;
@@ -128,9 +167,7 @@ void tick_all(GridSession& s, Game& game) {
             case IceColor::White: {
                 if (sees) {
                     int bonus = s.skill_intrusion ? 0 : 1;
-                    if (bonus > 0) {
-                        s.trace = std::min(kTraceMax, s.trace + bonus);
-                    }
+                    tick_trace(s, game, bonus);
                 } else {
                     int d = ice.patrol_dir;
                     int nx = ice.x + dxs[d];
@@ -147,8 +184,7 @@ void tick_all(GridSession& s, Game& game) {
             case IceColor::Gray: {
                 if (!sees) break;
                 if (manhattan(ice.x, ice.y, s.avatar_x, s.avatar_y) == 1) {
-                    s.avatar_hp -= 1;
-                    record_hit(IceColor::Gray);
+                    damage_avatar(s, game, 1, IceColor::Gray);
                 } else {
                     step_toward(s, ice, s.avatar_x, s.avatar_y);
                 }
@@ -157,8 +193,7 @@ void tick_all(GridSession& s, Game& game) {
             case IceColor::Black: {
                 if (manhattan(ice.x, ice.y, s.avatar_x, s.avatar_y) == 1) {
                     int dmg = s.skill_neural_fortitude ? 1 : 2;
-                    s.avatar_hp -= dmg;
-                    record_hit(IceColor::Black);
+                    damage_avatar(s, game, dmg, IceColor::Black);
                 } else {
                     step_toward(s, ice, s.avatar_x, s.avatar_y);
                 }

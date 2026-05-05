@@ -7,6 +7,7 @@
 #include "astra/grid_ice.h"
 #include "astra/grid_session.h"
 #include "astra/grid_theme.h"
+#include "astra/grid_zone_overlay.h"
 #include "astra/hacking_system.h"
 #include "astra/ip.h"
 #include "astra/item.h"
@@ -93,13 +94,28 @@ bool is_connectable(GridTile t) {
     return t == GridTile::Wall || t == GridTile::Connector;
 }
 
+// Return the floor color appropriate for the zone tier at (x, y).
+// Linear scan over zone_boxes is trivial (1–3 zones per visible cell).
+Color floor_color_for_zone_at(const GridSector& sec, int x, int y) {
+    for (const auto& zb : sec.zone_boxes) {
+        if (x >= zb.x && x < zb.x + zb.w &&
+            y >= zb.y && y < zb.y + zb.h) {
+            switch (zb.tier) {
+                case 1: return Color::Blue;
+                case 2: return Color::Magenta;
+                case 3: return Color::Red;
+            }
+        }
+    }
+    return grid_theme::floor;  // cells outside any zone keep the default
+}
+
 const char* glyph_for(GridTile t) {
     using namespace grid_theme;
     switch (t) {
         case GridTile::Floor:           return floor_glyph;
         case GridTile::Firewall:        return firewall_glyph;
         case GridTile::DataNode:        return data_node_glyph;
-        case GridTile::Gateway:         return gateway_glyph;
         case GridTile::ExitNode:        return exit_glyph;
         case GridTile::EncryptedFile:   return encrypted_glyph;
         case GridTile::Wall:            return " ";
@@ -107,6 +123,10 @@ const char* glyph_for(GridTile t) {
         case GridTile::DeepGridGateway: return deep_grid_gateway_glyph;
         case GridTile::WarpAnchor:      return warp_anchor_glyph;
         case GridTile::DeviceAvatar:    return " ";
+        // Door: glyph and color depend on lock state; resolved per-cell in draw_playfield.
+        case GridTile::Door:            return door_open_glyph;
+        // Void: v2 out-of-room background — renders as blank space.
+        case GridTile::Void:            return " ";
     }
     return " ";
 }
@@ -117,7 +137,6 @@ Color color_for(GridTile t) {
         case GridTile::Floor:           return floor;
         case GridTile::Firewall:        return firewall;
         case GridTile::DataNode:        return data_node;
-        case GridTile::Gateway:         return gateway;
         case GridTile::ExitNode:        return exit_node;
         case GridTile::EncryptedFile:   return encrypted;
         case GridTile::Wall:            return floor;
@@ -125,6 +144,10 @@ Color color_for(GridTile t) {
         case GridTile::DeepGridGateway: return deep_grid_gateway;
         case GridTile::WarpAnchor:      return warp_anchor;
         case GridTile::DeviceAvatar:    return Color::BrightWhite;
+        // Door: color depends on lock state; resolved per-cell in draw_playfield.
+        case GridTile::Door:            return door_open;
+        // Void: v2 out-of-room background — color irrelevant (space glyph).
+        case GridTile::Void:            return floor;
     }
     return Color::White;
 }
@@ -329,36 +352,49 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
     draw_colored_string(r, x, y, region, Color::White);
     x += visual_width(region);
 
-    // Sub-segment: device hostname when in a Subnet, ATLAS / YOUR.ANCHOR
-    // when in the deep-Grid anchor. The " › " separator stays in the chrome
-    // color while the device label itself renders in white.
+    // Sub-segment:
+    //   - Plan 8 LAN sector: device hostname for the room the player is
+    //     currently standing in. On a bridge / corridor / void cell, no
+    //     sub-label is shown (LAN only). Lobby reads "LOBBY".
+    //   - Deep-grid anchor: ATLAS / YOUR.ANCHOR.
     const auto& net = game.world().grid_network();
     const GridNode* node = net.find(s.current_node);
     std::string ip_str;
-    if (node) {
-        if (node->kind == GridNodeKind::Subnet) {
-            ip_str = node->label;  // node label IS the IP for Subnet nodes
-            if (auto parsed = parse_ip(node->label)) {
-                if (auto* h = game.world().find_hackable_by_ip(*parsed)) {
-                    std::string host = lan_hostname(*h, meta);
-                    std::string sub_label = upper(short_host_label(host));
-                    std::string sep = " \xe2\x80\xba "; // ›
-                    draw_colored_string(r, x, y, sep, Color::Cyan);
-                    x += visual_width(sep);
-                    draw_colored_string(r, x, y, sub_label, Color::White);
-                    x += visual_width(sub_label);
+
+    const auto* room = s.sector.room_at(s.avatar_x, s.avatar_y);
+    if (room) {
+        std::string sub_label;
+        if (room->is_lobby) {
+            sub_label = "LOBBY";
+        } else if (room->subnet.valid()) {
+            if (const GridNode* sn = net.find(room->subnet)) {
+                if (auto parsed = parse_ip(sn->label)) {
+                    ip_str = sn->label;
+                    if (auto* h = game.world().find_hackable_by_ip(*parsed)) {
+                        sub_label = upper(short_host_label(lan_hostname(*h, meta)));
+                    }
                 }
             }
-        } else if (node->kind == GridNodeKind::DeepGridAnchor) {
+        }
+        if (!sub_label.empty()) {
             std::string sep = " \xe2\x80\xba "; // ›
-            std::string label = (node->owned_by_consciousness_id != 0)
-                                ? "YOUR.ANCHOR" : "ATLAS";
             draw_colored_string(r, x, y, sep, Color::Cyan);
             x += visual_width(sep);
-            draw_colored_string(r, x, y, label, Color::White);
-            x += visual_width(label);
+            draw_colored_string(r, x, y, sub_label, Color::White);
+            x += visual_width(sub_label);
         }
+    } else if (node && node->kind == GridNodeKind::DeepGridAnchor) {
+        std::string sep = " \xe2\x80\xba "; // ›
+        std::string label = (node->owned_by_consciousness_id != 0)
+                            ? "YOUR.ANCHOR" : "ATLAS";
+        draw_colored_string(r, x, y, sep, Color::Cyan);
+        x += visual_width(sep);
+        draw_colored_string(r, x, y, label, Color::White);
+        x += visual_width(label);
     }
+    // On a bridge / corridor / void cell in a LAN sector: no sub-label,
+    // only the LAN region above. IP fallback below shows the LAN's base.
+
     if (ip_str.empty()) ip_str = format_ip(meta.subnet_base);
 
     x += 2;
@@ -764,8 +800,21 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             GridTile t = s.sector.at(tx, ty);
             const char* glyph;
             Color       color;
-            if (t == GridTile::DeviceAvatar) {
-                glyph = grid_theme::device_avatar_glyph(s.sector.source_fixture_type);
+            if (t == GridTile::Floor) {
+                glyph = grid_theme::floor_glyph;
+                color = floor_color_for_zone_at(s.sector, tx, ty);
+            } else if (t == GridTile::Door) {
+                bool locked = s.sector.is_locked_door(tx, ty);
+                glyph = locked ? grid_theme::door_locked_glyph : grid_theme::door_open_glyph;
+                color = locked ? grid_theme::door_locked : grid_theme::door_open;
+            } else if (t == GridTile::DeviceAvatar) {
+                // Plan 8 Cut 4: prefer per-tile FixtureType from avatar_fixture_type;
+                // fall back to source_fixture_type for v1 sectors.
+                auto ait = s.sector.avatar_fixture_type.find({tx, ty});
+                FixtureType ft = (ait != s.sector.avatar_fixture_type.end())
+                                 ? ait->second
+                                 : s.sector.source_fixture_type;
+                glyph = grid_theme::device_avatar_glyph(ft);
                 color = Color::BrightWhite;
             } else if (t == GridTile::Wall || t == GridTile::Connector) {
                 glyph = wall_glyph_for_neighbours(
@@ -779,6 +828,9 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);
         }
     }
+
+    // Plan 8 Cut 8: dashed zone perimeters + banners, between floor and content.
+    grid_zone_overlay::draw(r, s.sector, s_camera, pr.x, pr.y, pr.w, pr.h);
 
     for (const auto& ice : s.ice) {
         int sx, sy;

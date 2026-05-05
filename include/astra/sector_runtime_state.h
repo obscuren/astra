@@ -22,6 +22,10 @@ struct SectorMutation {
 struct SectorRuntimeState {
     std::vector<SectorMutation>                       mutations;
     std::vector<std::pair<uint8_t, uint8_t>>          killed_ice;
+    // Plan 8 Cut 7: doors that have been cracked open (removed from locked_doors).
+    // Stored separately because Door tiles remain GridTile::Door after unlock —
+    // only the locked_doors set changes, which tile-mutation tracking can't capture.
+    std::vector<std::pair<uint8_t, uint8_t>>          cracked_doors;
 };
 
 // Apply mutations as overlay onto the regenerated base sector.

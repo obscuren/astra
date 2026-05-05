@@ -77,34 +77,29 @@ const GridEdge* find_outbound_edge(const GridNetwork& net,
     return nullptr;
 }
 
-// Step onto a ⌬ Gateway or ⊕ DeepGridGateway. Resolves the target node from
-// the tile's gateway_target map, checks the corresponding edge's cracked
+// Step onto a ⊕ DeepGridGateway. Resolves the target node from
+// sector.deep_grid_destination, checks the corresponding edge's cracked
 // state (tier 0 always open), and traverses if open.
 void traverse_via_gateway(Game& game, GridSession& s) {
-    auto it = s.sector.gateway_target.find(
-        std::pair<int,int>{s.avatar_x, s.avatar_y});
-    if (it == s.sector.gateway_target.end()) {
-        s.push_log("[ERR] " + display_name(GridTile::Gateway) + " has no destination wired.");
-        return;
-    }
-    GridNodeId tgt = it->second;
+    GridNodeId tgt = s.sector.deep_grid_destination;
     if (!tgt.valid()) {
-        s.push_log("[ERR] " + display_name(GridTile::Gateway) + ": host unreachable.");
+        s.push_log("[ERR] " + display_name(GridTile::DeepGridGateway) + " has no destination wired.");
         return;
     }
 
     auto& net = game.world().grid_network();
     const auto& meta = game.world().lan_metadata();
 
-    // Edge can fan out from current_node, OR from the LAN root (LAN→Subnet
-    // edges live on the root, but the player triggers them from inside the
-    // LAN sector — same node).
+    // Primary lookup: edge from the player's current node.
+    // Fallback: Plan 8 flat-model — subnet rooms live inside the LAN sector;
+    // the LAN→DeepGridAnchor edge is registered on the LAN root, not on
+    // whichever subnet room the player most recently walked through.
     const GridEdge* e = find_outbound_edge(net, s.current_node, tgt);
-    if (!e && meta.lan_root.valid() && s.current_node == meta.lan_root) {
-        // already covered by the previous lookup; fallthrough.
+    if (!e && meta.lan_root.valid() && s.current_node != meta.lan_root) {
+        e = find_outbound_edge(net, meta.lan_root, tgt);
     }
     if (!e) {
-        s.push_log("[ERR] " + display_name(GridTile::Gateway) + " has no edge to that target.");
+        s.push_log("[ERR] " + display_name(GridTile::DeepGridGateway) + " has no edge to that target.");
         return;
     }
     bool open = (e->gateway_tier == 0) || e->cracked;
@@ -118,7 +113,7 @@ void traverse_via_gateway(Game& game, GridSession& s) {
                     open = true;
                     s.trace = std::min(kTraceMax, s.trace + 5);
                     s.push_log(">> " + colored("DeepGridNavigator", Color::Yellow)
-                               + ": " + display_name(GridTile::Gateway)
+                               + ": " + display_name(GridTile::DeepGridGateway)
                                + " cracked. Trace +5.");
                     break;
                 }
@@ -126,37 +121,24 @@ void traverse_via_gateway(Game& game, GridSession& s) {
         }
     }
     if (!open) {
-        s.push_log("[BLOCK] " + display_name(GridTile::Gateway)
+        s.push_log("[BLOCK] " + display_name(GridTile::DeepGridGateway)
                    + " locked. Run " + display_name(ProgramId::Breach) + ".");
         return;
     }
     if (!game.hacking().traverse_to(game, tgt)) {
-        s.push_log("[ERR] " + display_name(GridTile::Gateway) + " traversal failed.");
+        s.push_log("[ERR] " + display_name(GridTile::DeepGridGateway) + " traversal failed.");
         return;
     }
-    s.push_log("> You slip through the " + display_name(GridTile::Gateway) + ".");
+    s.push_log("> You slip through the " + display_name(GridTile::DeepGridGateway) + ".");
 }
 
 void on_step(Game& game, GridSession& s) {
     GridTile here = s.sector.at(s.avatar_x, s.avatar_y);
     switch (here) {
         case GridTile::ExitNode: {
-            // ⊙ inside a Subnet sector bounces back to the host LAN
-            // (return_node is set by jack_in / traverse_to). ⊙ inside a
-            // LanRoot or DeepGridAnchor sector is the canonical jack-out
-            // back to the real world — never bounce, otherwise we loop:
-            // Subnet ⊙ → LAN, then LAN ⊙ would re-enter the Subnet.
-            const auto& net = game.world().grid_network();
-            const GridNode* cur = net.find(s.current_node);
-            const bool is_subnet =
-                cur != nullptr && cur->kind == GridNodeKind::Subnet;
-            if (is_subnet && s.return_node.valid()) {
-                GridNodeId back = s.return_node;
-                if (game.hacking().traverse_to(game, back)) {
-                    s.push_log(">> Returning to host LAN.");
-                    return;
-                }
-            }
+            // Plan 8 flat model: ⊙ lives only in the lobby, and there is no
+            // separate per-Subnet sector to bounce back to. Stepping on ⊙
+            // always jacks out to the real world.
             s.push_log(">> Disconnect channel...");
             game.hacking().jack_out(game, JackOutKind::Voluntary);
             return;
@@ -174,7 +156,6 @@ void on_step(Game& game, GridSession& s) {
             s.push_log("[INFO] " + display_name(GridTile::EncryptedFile)
                        + ". Run " + display_name(ProgramId::Decrypt) + " to read.");
             return;
-        case GridTile::Gateway:
         case GridTile::DeepGridGateway:
             traverse_via_gateway(game, s);
             return;

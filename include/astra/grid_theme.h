@@ -24,6 +24,8 @@ const char* device_avatar_glyph(astra::FixtureType type);
 //   BrightBlue -> Green          (avoid collision with floor's Blue)
 constexpr Color floor       = Color::Blue;
 constexpr Color firewall    = Color::Magenta;
+constexpr Color door_open   = Color::Cyan;
+constexpr Color door_locked = Color::Yellow;          // orange-ish in palette
 constexpr Color avatar      = Color::Cyan;
 constexpr Color white_ice   = Color::White;
 constexpr Color gray_ice    = Color::DarkGray;
@@ -37,6 +39,8 @@ constexpr Color deep_grid_gateway = Color::Cyan;
 constexpr Color warp_anchor       = Color::BrightWhite;
 
 // Glyphs — UTF-8 strings per spec; rendered via Renderer::draw_glyph.
+constexpr const char* door_open_glyph   = "+";
+constexpr const char* door_locked_glyph = "\xe2\x96\xa3";  // ▣
 constexpr const char* floor_glyph     = "░";
 constexpr const char* firewall_glyph  = "▓";
 constexpr const char* avatar_glyph    = "@";

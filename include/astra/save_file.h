@@ -30,7 +30,9 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 64;   // v64: Plan 7 Phase B — Hackable gains wiped_paths + friendly_fire_target_faction
+inline constexpr uint32_t SAVE_FILE_VERSION = 65;   // v65: Plan 8 Cut 7 — LanZone rename,
+                                                    //   GridTile::Gateway removed, gen_subnet_sector
+                                                    //   retired, SectorRuntimeState::cracked_doors added
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

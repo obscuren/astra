@@ -20,7 +20,7 @@ enum class LanFlavour : uint8_t { Station, Asteroid, Dungeon, Precursor };
 // AI contact ids and for nmap hostname construction.
 std::string slugify(const std::string& s);
 
-struct LanRoom {
+struct LanZone {
     std::string name;                                 // "security", "lobby", "exec"; never rendered in-sector
     Rect        extents = {};
     int         tier = 1;                             // 1=open doorway, 2=breach-required, 3=inner sanctum
@@ -39,7 +39,7 @@ struct LanMetadata {
     bool            connected = false;
     uint32_t        gen_seed = 0;
     uint32_t        subnet_base = 0;                  // packed 10.X.Y.0
-    std::vector<LanRoom>           rooms;
+    std::vector<LanZone>           zones;
     uint64_t        last_visited_tick = 0;
     int             nodes_total = 0;
     int             nodes_cracked = 0;
@@ -49,6 +49,10 @@ struct LanMetadata {
     SectorRuntimeState                              lan_sector_state;
     std::unordered_map<uint32_t, SectorRuntimeState> subnet_states;   // keyed by Subnet GridNodeId.value
 };
+
+// Plan 8: zone banner label for grid-layout HUD overlay. Returns
+// "<name> (T<n>)" when LanZone.name is non-empty, else "T<n> ZONE".
+std::string zone_banner_label(const LanZone& room);
 
 // Build a per-device hostname for nmap output. Format:
 //   <short-tag>-<host_octet>.<region-slug>.lan

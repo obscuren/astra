@@ -128,14 +128,19 @@ const char* pick_room_name(LanFlavour flavour, int idx) {
     return "lan";
 }
 
+std::string zone_banner_label(const LanZone& room) {
+    if (!room.name.empty()) return room.name + " (T" + std::to_string(room.tier) + ")";
+    return "T" + std::to_string(room.tier) + " ZONE";
+}
+
 // Lloyd's k-means on (x, y) with deterministic init from the
 // already-sorted hack list. Bounded at 8 iterations.
-std::vector<LanRoom> cluster_rooms(const std::vector<HackableLoc>& hacks,
+std::vector<LanZone> cluster_rooms(const std::vector<HackableLoc>& hacks,
                                    const std::vector<GridNodeId>&  subnet_ids,
                                    int k,
                                    LanFlavour flavour) {
     if (k < 1) k = 1;
-    std::vector<LanRoom> rooms(static_cast<size_t>(k));
+    std::vector<LanZone> rooms(static_cast<size_t>(k));
     for (int i = 0; i < k; ++i) {
         rooms[i].name = pick_room_name(flavour, i);
         rooms[i].tier = 1;
@@ -286,7 +291,7 @@ void register_hackables_in_lan(WorldManager& world,
 
     if (hacks.empty()) {
         meta.lan_root = {};
-        meta.rooms.clear();
+        meta.zones.clear();
         return;
     }
 
@@ -360,7 +365,7 @@ void register_hackables_in_lan(WorldManager& world,
 
     // 4) k-means cluster (x,y) into rooms.
     int k = std::max(1, static_cast<int>((hacks.size() + 2) / 3));
-    meta.rooms = cluster_rooms(hacks, subnet_ids, k, meta.flavour);
+    meta.zones = cluster_rooms(hacks, subnet_ids, k, meta.flavour);
 }
 
 // Plan 5 Cut 4 Task 38: slugify a region name for AI contact id generation.

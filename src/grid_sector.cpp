@@ -1,7 +1,5 @@
 #include "astra/grid_sector.h"
 
-#include "astra/tilemap.h"   // FixtureType — Cut 2.6 device avatar source
-
 #include <random>
 
 namespace astra {
@@ -22,9 +20,10 @@ bool GridSector::in_bounds(int x, int y) const {
 
 bool GridSector::passable(int x, int y) const {
     GridTile t = at(x, y);
+    if (t == GridTile::Door) return !is_locked_door(x, y);
+    // GridTile::Void is the v2 out-of-room background — impassable like Wall.
     return t == GridTile::Floor
         || t == GridTile::DataNode
-        || t == GridTile::Gateway
         || t == GridTile::DeepGridGateway
         || t == GridTile::ExitNode
         || t == GridTile::EncryptedFile
@@ -32,47 +31,22 @@ bool GridSector::passable(int x, int y) const {
         || t == GridTile::WarpAnchor;
 }
 
-GridSector gen_subnet_sector(uint32_t seed, int security_tier) {
-    return gen_subnet_sector(seed, security_tier, FixtureType::Console);
+bool GridSector::is_locked_door(int x, int y) const {
+    return locked_doors.count({x, y}) != 0;
 }
 
-GridSector gen_subnet_sector(uint32_t seed, int security_tier, FixtureType source_type) {
-    std::mt19937 rng(seed);
-    GridSector s;
-    s.w = 8;
-    s.h = 8;
-    s.tiles.assign(static_cast<size_t>(s.w * s.h), GridTile::Wall);
-    for (int y = 1; y < s.h - 1; ++y)
-        for (int x = 1; x < s.w - 1; ++x)
-            s.set(x, y, GridTile::Floor);
+void GridSector::unlock_door(int x, int y) {
+    locked_doors.erase({x, y});
+}
 
-    s.spawn_x = 1;
-    s.spawn_y = s.h - 2;
-    s.set(s.w - 2, 1, GridTile::ExitNode);
-    s.set(s.w / 2, s.h / 2, GridTile::DataNode);
-    if (security_tier >= 2) {
-        std::uniform_int_distribution<int> fx_dist(2, s.w - 3);
-        std::uniform_int_distribution<int> fy_dist(2, s.h - 3);
-        s.set(fx_dist(rng), fy_dist(rng), GridTile::Firewall);
-    }
-
-    // Plan 5 Cut 2.6: stamp a wall-mounted device-avatar on the north wall
-    // mid-x. The renderer picks the glyph from source_fixture_type.
-    s.source_fixture_type = source_type;
-    int ax = s.w / 2;
-    int ay = 0;
-    if (s.in_bounds(ax, ay) && s.at(ax, ay) == GridTile::Wall) {
-        s.set(ax, ay, GridTile::DeviceAvatar);
-    } else {
-        // Fallback: scan the top row for the first Wall tile.
-        for (int x = 0; x < s.w; ++x) {
-            if (s.at(x, 0) == GridTile::Wall) {
-                s.set(x, 0, GridTile::DeviceAvatar);
-                break;
-            }
+const GridSector::SubnetRoom* GridSector::room_at(int x, int y) const {
+    for (const auto& r : subnet_rooms) {
+        if (x >= r.x && x < r.x + r.w &&
+            y >= r.y && y < r.y + r.h) {
+            return &r;
         }
     }
-    return s;
+    return nullptr;
 }
 
 namespace {
@@ -170,7 +144,6 @@ GridSector gen_regional_sector(uint32_t seed, int security_tier) {
     for (int i = 0; i < n_enc; ++i) place_random_floor(s, GridTile::EncryptedFile, rng);
     int n_data = static_cast<int>(rng() % 3);
     for (int i = 0; i < n_data; ++i) place_random_floor(s, GridTile::DataNode, rng);
-    if ((rng() & 1u) == 0) place_random_floor(s, GridTile::Gateway, rng);
 
     if (security_tier >= 3) {
         place_random_floor(s, GridTile::EncryptedFile, rng);

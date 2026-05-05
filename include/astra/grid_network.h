@@ -52,8 +52,7 @@ struct GridNode {
 
     // Plan 5 Cut 2.6: for Subnet nodes only — the FixtureType that this
     // subnet mirrors (Door, Console, HealPod, ...). Stamped at registration
-    // time and forwarded into gen_subnet_sector() so the sector renders a
-    // wall-mounted device-avatar themed to the real-world fixture.
+    // time; used by v2 generator for per-avatar theming.
     FixtureType       source_fixture_type = static_cast<FixtureType>(0);
 };
 

@@ -150,13 +150,12 @@ std::string apply_breach_grid(GridProgramContext c) {
         record_sector_mutation(c.game, x, y, GridTile::Floor);
         return prefix + display_name(GridTile::Firewall) + " down. Trace +5.";
     }
-    if (t == GridTile::Gateway || t == GridTile::DeepGridGateway) {
+    if (t == GridTile::DeepGridGateway) {
         const std::string gw = display_name(t);
-        auto it = s.sector.gateway_target.find(std::pair<int,int>{x, y});
-        if (it == s.sector.gateway_target.end()) {
+        GridNodeId tgt = s.sector.deep_grid_destination;
+        if (!tgt.valid()) {
             return prefix + gw + " has no target node.";
         }
-        GridNodeId tgt = it->second;
         auto& net = c.game.world().grid_network();
         const auto& meta = c.game.world().lan_metadata();
         if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
@@ -167,10 +166,21 @@ std::string apply_breach_grid(GridProgramContext c) {
         // First-time crack of a connected LAN's ⊕ registers an Atlas
         // WarpAnchor in the consciousness save and stamps a ◉ tile in the
         // deep-Grid Atlas region.
-        if (t == GridTile::DeepGridGateway) {
-            register_deep_grid_warp_anchor(c.game.world(), s.current_node);
-        }
+        register_deep_grid_warp_anchor(c.game.world(), s.current_node);
         return prefix + gw + " cracked. Trace +5.";
+    }
+    // Plan 8 (Cut 3): Door branch for v2 generator locked bridges. Valid_target
+    // predicate already ensured this is a locked Door. Unlock in-memory; no tile
+    // change needed — renderer reads locked_doors set. v1 Firewall/Gateway
+    // branches above stay alive through Cut 6; removed in Cut 7.
+    if (t == GridTile::Door) {
+        if (!s.sector.is_locked_door(x, y)) {
+            return prefix + "door already open.";
+        }
+        s.sector.unlock_door(x, y);
+        record_cracked_door(c.game, x, y);
+        s.trace = std::min(kTraceMax, s.trace + 5);
+        return prefix + "lock cracked — door open. Trace +5.";
     }
     return prefix + "nothing to break here.";
 }

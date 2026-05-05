@@ -71,6 +71,7 @@ struct GridSession {
     // Sector
     GridSector sector;
     std::vector<GridIce> ice;
+    std::vector<bool> ice_seed_spawned;  // Plan 8: true once seed_idx has materialized
 
     // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
     // instead of the avatar. -1 = no active hijack. The countdown decrements
