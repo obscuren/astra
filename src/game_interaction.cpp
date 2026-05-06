@@ -260,11 +260,13 @@ void Game::try_interact(int dx, int dy) {
         // cyber implant get the implant Shell Access doorway. Open the
         // tiny dialog regardless of skill/deck — the option itself shows
         // the gate so the player learns what they're missing.
-        if (DialogManager::npc_offers_shell_access(*target)) {
-            dialog_.open_npc_implant_dialog(*target, *this);
-            advance_world(ActionCost::interact);
-            return;
-        }
+        // Spec 1: Plan 7 device-shell layer is dormant. This call path
+        // is disconnected per §11 of the spec.
+        // if (DialogManager::npc_offers_shell_access(*target)) {
+        //     dialog_.open_npc_implant_dialog(*target, *this);
+        //     advance_world(ActionCost::interact);
+        //     return;
+        // }
         log(target->label() + " snarls at you.");
         advance_world(ActionCost::interact);
         return;

@@ -1,9 +1,8 @@
-// Plan 7 — `ssh [<user>@]<ip>` cyberdeck command. Opens a per-device shell.
+// Plan 7 — `ssh [<user>@]<ip>` cyberdeck command (deprecated).
 //
-// Manual ssh strict semantics (spec §4): root@locked-unescalated rejects with
-// permission-denied + try-guest hint and DOES NOT open. guest@ always succeeds.
-// Spec §16: AlienTech-tagged devices reject with "protocol not understood
-// (alien tech)" — no shell opens.
+// Spec 1 §11 Plan 7 dormancy: the ssh path no longer opens a device shell.
+// The device-shell layer is dormant. Sigils are fired in the Grid; couple via
+// a JackInPort fixture. This stub emits a deprecation message and returns.
 
 #include "astra/cyberdeck_shell_context.h"
 #include "astra/game.h"
@@ -25,57 +24,11 @@ namespace {
 HackCommandResult exec_ssh(const ParsedArgs& args, ShellContext& ctx, Game& game) {
     auto* deck = ctx.as_cyberdeck();
     if (!deck) return {};
-    if (args.argv.size() < 2) {
-        deck->emit("usage: ssh [<user>@]<ip>", UITag::TextDim);
-        return {};
-    }
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        deck->emit("ssh: requires Cat_Hacking skill.", UITag::TextDim);
-        return {};
-    }
 
-    // Parse `[user@]ip`.
-    std::string user = "root";
-    std::string ip_str = args.argv[1];
-    if (auto at = ip_str.find('@'); at != std::string::npos) {
-        user   = ip_str.substr(0, at);
-        ip_str = ip_str.substr(at + 1);
-    }
-    auto parsed = parse_ip(ip_str);
-    if (!parsed) {
-        deck->emit("ssh: invalid IP '" + ip_str + "'", UITag::TextDim);
-        return {};
-    }
-    const auto* h = game.world().find_hackable_by_ip(*parsed);
-    if (!h) {
-        deck->emit("ssh: " + format_ip(*parsed) + ": host unreachable", UITag::TextDim);
-        return {};
-    }
-
-    // Plan 7 §16 — AlienTech opt-out.
-    if (has_tag(h->tags, HackTag::AlienTech)) {
-        deck->emit("ssh: " + format_ip(*parsed) +
-                   ": protocol not understood (alien tech).",
-                   UITag::TextDim);
-        return {};
-    }
-
-    bool wants_root = (user == "root");
-    bool locked = has_tag(h->tags, HackTag::Locked);
-    if (wants_root && locked && !h->escalated) {
-        // Strict reject: permission-denied + try-guest hint. No shell opens.
-        deck->emit("ssh: " + format_ip(*parsed) +
-                   ": permission denied (root login disabled).",
-                   UITag::TextDim);
-        deck->emit("      try: ssh guest@" + format_ip(*parsed),
-                   UITag::TextDim);
-        return {};
-    }
-
-    // Queue the shell-open request for game_input.cpp to consume.
-    game.pda_screen().hack_term_set_ssh_request(
-        static_cast<uint32_t>(*parsed), wants_root);
-    deck->emit("ssh: connecting to " + format_ip(*parsed) + " as " + user + "...",
+    // Spec 1 §11: Plan 7 device-shell layer is dormant. The ssh path no
+    // longer opens a shell. Sigils are fired in the Grid; couple via a
+    // JackInPort fixture.
+    deck->emit("ssh: deprecated. Sigils are fired in the Grid; couple via a JackInPort fixture.",
                UITag::TextDim);
     return {};
 }

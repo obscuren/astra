@@ -660,7 +660,11 @@ void DialogManager::open_npc_implant_dialog(Npc& npc, Game& game) {
         "Their implant flickers as you crouch. The cyberdeck blinks: "
         "an open data port sits exposed under the carapace.";
 
-    append_shell_access_option_npc(npc, game);
+    // Spec 1: Plan 7 device-shell layer is dormant. The Shell Access
+    // interactable is no longer offered on world fixtures or NPC implants.
+    // The function definitions remain in tree as dormant code; they're
+    // just not wired into the dialog menus.
+    // append_shell_access_option_npc(npc, game);
     add_option('c', "Cancel");
     interact_options_.push_back(InteractOption::Farewell);
 
@@ -1007,7 +1011,11 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
         append_qh_options(fid, game);
         append_jack_in_option(fid, game);
         append_sync_soul_option(fid, game);
-        append_shell_access_option(fid, game);
+        // Spec 1: Plan 7 device-shell layer is dormant. The Shell Access
+        // interactable is no longer offered on world fixtures or NPC implants.
+        // The function definitions remain in tree as dormant code; they're
+        // just not wired into the dialog menus.
+        // append_shell_access_option(fid, game);
     }
 }
 
