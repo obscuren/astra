@@ -837,7 +837,6 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     // Label above: numeric "※N" by default; NPC name once identified==true.
     // HP overlay below: "hp/max_hp".
     {
-        const auto& npcs = game.world().npcs();
         for (const auto& a : s.anchors()) {
             if (a.severed()) continue;
             int sx, sy;
@@ -851,9 +850,9 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             // Label above the anchor (row sy-1).
             if (sy - 1 >= 0) {
                 std::string label;
-                if (a.identified && a.npc_id >= 0
-                    && static_cast<size_t>(a.npc_id) < npcs.size()) {
-                    label = npcs[static_cast<size_t>(a.npc_id)].name;
+                if (a.identified && a.npc_id >= 0) {
+                    const Npc* npc_ptr = game.world().npc_by_uid(a.npc_id);
+                    if (npc_ptr) label = npc_ptr->name;
                 } else {
                     label = "\xe2\x80\xbb" + std::to_string(a.id + 1);
                 }

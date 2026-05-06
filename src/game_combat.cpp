@@ -138,6 +138,66 @@ static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
     }
 }
 
+void award_npc_kill(Game& game, Npc& npc) {
+    auto& rng = game.world().rng();
+
+    game.player().kills++;
+
+    // Faction reputation penalty
+    if (!npc.faction.empty()) {
+        for (auto& fs : game.player().reputation) {
+            if (fs.faction_name == npc.faction) {
+                fs.reputation = std::max(fs.reputation - 30, -600);
+                game.log("Your reputation with " + npc.faction + " decreased.");
+                break;
+            }
+        }
+    }
+
+    // Quest hook
+    game.quests().on_npc_killed(npc.role);
+
+    // XP grant + level-up check
+    int xp = npc.xp_reward();
+    if (xp > 0) {
+        game.player().xp += xp;
+        game.log("You gain " + std::to_string(xp) + " XP.");
+        game.combat().check_level_up(game);
+    }
+
+    // Credits drop
+    int credits = npc.level * 2 + (npc.elite ? 5 : 0);
+    if (credits > 0) {
+        game.player().money += credits;
+        game.log("You salvage " + std::to_string(credits) + "$.");
+    }
+
+    // Loot drop (50% chance)
+    if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
+        if (auto loot = roll_loot(LootSource::NpcDrop, npc.level, rng)) {
+            game.log("Dropped: " + display_name(*loot));
+            auto [lx, ly] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), npc.x, npc.y);
+            game.world().ground_items().push_back({lx, ly, std::move(*loot)});
+        }
+    }
+
+    // Salvage (mechanical NPC path)
+    apply_salvage_on_kill(game, npc, rng);
+
+    // Spec 1: place a corpse fixture carrying the NPC's Hackable so
+    // Walk the Imprint can be offered after death. Only for Electronic
+    // hackable NPCs (Crystal); silently skip if the tile already holds
+    // a fixture (rare collision) or if not in a dungeon/detail map.
+    if (npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic)) {
+        auto& map = game.world().map();
+        if (map.get(npc.x, npc.y) != Tile::Fixture) {
+            FixtureData corpse_fd = make_fixture(FixtureType::NpcCorpse);
+            corpse_fd.cyber = *npc.cyber;
+            map.add_fixture(npc.x, npc.y, std::move(corpse_fd));
+        }
+    }
+}
+
 static int weapon_skill_bonus(const Player& player, WeaponClass wc) {
     switch (wc) {
         case WeaponClass::ShortBlade:
@@ -410,30 +470,8 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
                 game.log(display_name(npc) + " takes " + std::to_string(dot) +
                          " vulnerability damage.");
                 if (!npc.alive()) {
-                    // Trigger standard death rewards so kill credit is awarded.
-                    game.player().kills++;
-                    if (!npc.faction.empty()) {
-                        for (auto& fs : game.player().reputation) {
-                            if (fs.faction_name == npc.faction) {
-                                fs.reputation = std::max(fs.reputation - 30, -600);
-                                game.log("Your reputation with " + npc.faction +
-                                         " decreased.");
-                                break;
-                            }
-                        }
-                    }
-                    game.quests().on_npc_killed(npc.role);
-                    int xp = npc.xp_reward();
-                    if (xp > 0) {
-                        game.player().xp += xp;
-                        game.log("You gain " + std::to_string(xp) + " XP.");
-                        check_level_up(game);
-                    }
-                    int credits = npc.level * 2 + (npc.elite ? 5 : 0);
-                    if (credits > 0) {
-                        game.player().money += credits;
-                        game.log("You salvage " + std::to_string(credits) + "$.");
-                    }
+                    game.log(display_name(npc) + " is destroyed!");
+                    award_npc_kill(game, npc);
                     npc.vuln.tick();
                     return; // NPC is dead; skip action
                 }
@@ -752,52 +790,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     }
     if (!npc.alive()) {
         game.log(display_name(npc) + " is destroyed!");
-        game.player().kills++;
-        // Reputation penalty for killing a faction NPC
-        if (!npc.faction.empty()) {
-            for (auto& fs : game.player().reputation) {
-                if (fs.faction_name == npc.faction) {
-                    fs.reputation = std::max(fs.reputation - 30, -600);
-                    game.log("Your reputation with " + npc.faction + " decreased.");
-                    break;
-                }
-            }
-        }
-        game.quests().on_npc_killed(npc.role);
-        int xp = npc.xp_reward();
-        if (xp > 0) {
-            game.player().xp += xp;
-            game.log("You gain " + std::to_string(xp) + " XP.");
-            check_level_up(game);
-        }
-        int credits = npc.level * 2 + (npc.elite ? 5 : 0);
-        if (credits > 0) {
-            game.player().money += credits;
-            game.log("You salvage " + std::to_string(credits) + "$.");
-        }
-        // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
-            if (auto loot = roll_loot(LootSource::NpcDrop, npc.level, rng)) {
-                game.log("Dropped: " + display_name(*loot));
-                auto [lx, ly] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), npc.x, npc.y);
-                game.world().ground_items().push_back({lx, ly, std::move(*loot)});
-            }
-        }
-        apply_salvage_on_kill(game, npc, rng);
-
-        // Spec 1: place a corpse fixture carrying the NPC's Hackable so
-        // Walk the Imprint can be offered after death. Only for Electronic
-        // hackable NPCs (Crystal); silently skip if the tile already holds
-        // a fixture (rare collision) or if not in a dungeon/detail map.
-        if (npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic)) {
-            // Only place on floor tiles (not Tile::Fixture already).
-            auto& map = game.world().map();
-            if (map.get(npc.x, npc.y) != Tile::Fixture) {
-                FixtureData corpse_fd = make_fixture(FixtureType::NpcCorpse);
-                corpse_fd.cyber = *npc.cyber;
-                map.add_fixture(npc.x, npc.y, std::move(corpse_fd));
-            }
-        }
+        award_npc_kill(game, npc);
     }
 }
 
@@ -1000,33 +993,7 @@ void CombatSystem::shoot_target(Game& game) {
 
     if (!target_npc_->alive()) {
         game.log(display_name(*target_npc_) + " is destroyed!");
-        game.player().kills++;
-        // Reputation penalty for killing a faction NPC
-        if (!target_npc_->faction.empty()) {
-            for (auto& fs : game.player().reputation) {
-                if (fs.faction_name == target_npc_->faction) {
-                    fs.reputation = std::max(fs.reputation - 30, -600);
-                    game.log("Your reputation with " + target_npc_->faction + " decreased.");
-                    break;
-                }
-            }
-        }
-        game.quests().on_npc_killed(target_npc_->role);
-        int xp = target_npc_->xp_reward();
-        if (xp > 0) {
-            game.player().xp += xp;
-            game.log("You gain " + std::to_string(xp) + " XP.");
-            check_level_up(game);
-        }
-        // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
-            if (auto loot = roll_loot(LootSource::NpcDrop, target_npc_->level, rng)) {
-                game.log("Dropped: " + display_name(*loot));
-                auto [lx, ly] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), target_npc_->x, target_npc_->y);
-                game.world().ground_items().push_back({lx, ly, std::move(*loot)});
-            }
-        }
-        apply_salvage_on_kill(game, *target_npc_, rng);
+        award_npc_kill(game, *target_npc_);
         target_npc_ = nullptr;
     }
 

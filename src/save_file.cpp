@@ -1140,6 +1140,8 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_i32(npc.anchor_id);
     // v67: force_bind flag (Bind action — D2)
     w.write_u8(npc.force_bind ? 1 : 0);
+    // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
+    w.write_i32(npc.uid);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -2062,6 +2064,8 @@ static Npc read_npc(BinaryReader& r) {
     npc.anchor_id = r.read_i32();
     // v67: force_bind flag (Bind action — D2)
     npc.force_bind = r.read_u8() != 0;
+    // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
+    npc.uid = r.read_i32();
 
     return npc;
 }

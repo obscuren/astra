@@ -194,7 +194,7 @@ void HackingSystem::tick(Game& game) {
             if (!npc.alive()) continue;
             if (npc.anchor_id < 0) continue;
 
-            Anchor* a = session_->anchor_for_npc(static_cast<int>(i));
+            Anchor* a = session_->anchor_for_npc(npc.uid);
             if (!a) continue;
             if (a->severed()) continue;  // dead anchors don't move
 
@@ -644,8 +644,9 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
 
             int sx, sy;
             project_rw_to_site(proj, npc.x, npc.y, sx, sy);
+            // Pass the stable UID (not the vector index) for cross-session linkage.
             Anchor* a = s.add_anchor_for_npc(
-                static_cast<int>(i),
+                npc.uid,
                 sx, sy,
                 npc.level,   // npc.level used as threat-tier proxy (B3)
                 /*bound=*/bound_target);

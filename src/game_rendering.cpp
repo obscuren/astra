@@ -405,13 +405,11 @@ void Game::render_look_popup() {
     struct CrystalLine { std::string text; Color color; };
     std::vector<CrystalLine> crystal_lines;
     const Npc* look_npc = nullptr;
-    int look_npc_idx = -1;
     {
         const auto& npcs = world_.npcs();
         for (int i = 0; i < static_cast<int>(npcs.size()); ++i) {
             if (npcs[i].x == input_.look_x() && npcs[i].y == input_.look_y()) {
                 look_npc = &npcs[i];
-                look_npc_idx = i;
                 break;
             }
         }
@@ -423,7 +421,7 @@ void Game::render_look_popup() {
             if (has_electronic) {
                 crystal_lines.push_back({"Crystal: HAS", Color::Cyan});
                 if (auto* sess = hacking_.session()) {
-                    if (auto* a = sess->anchor_for_npc(look_npc_idx)) {
+                    if (auto* a = sess->anchor_for_npc(look_npc->uid)) {
                         if (!a->severed()) {
                             char buf[80];
                             std::snprintf(buf, sizeof buf,

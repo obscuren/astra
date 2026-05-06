@@ -166,6 +166,24 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     world.noise_events() = ms.noise_events;
     world.ground_effects() = ms.ground_effects;
 
+    // v68: rebuild next_npc_uid_ from the maximum UID seen across all maps
+    // so that future spawns never collide with persisted UIDs.
+    {
+        int32_t max_uid = 0;
+        for (const auto& npc : world.npcs()) {
+            if (npc.uid > max_uid) max_uid = npc.uid;
+        }
+        for (size_t i = 1; i < data.maps.size(); ++i) {
+            for (const auto& npc : data.maps[i].npcs) {
+                if (npc.uid > max_uid) max_uid = npc.uid;
+            }
+        }
+        // Also scan the location cache (populated just below) — npcs in
+        // data.maps[1+] will land in location_cache after the loop below;
+        // we scan them above using data.maps directly.
+        world.set_next_npc_uid(max_uid + 1);
+    }
+
     world.map().set_poi_budget(ms.poi_budget);
     world.map().hidden_pois_mut() = ms.hidden_pois;
     for (const auto& [k, h] : ms.anchor_hints) {

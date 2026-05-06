@@ -281,9 +281,9 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
     a->hp = std::max(0, a->hp - anchor_dmg);
 
     if (a->npc_id < 0) return "Mark hit, target unlinked.";
-    auto& npcs = game.world().npcs();
-    if (static_cast<size_t>(a->npc_id) >= npcs.size()) return "Mark hit, target gone.";
-    Npc& npc = npcs[static_cast<size_t>(a->npc_id)];
+    Npc* npc_ptr = game.world().npc_by_uid(a->npc_id);
+    if (!npc_ptr) return "Mark hit, target gone.";
+    Npc& npc = *npc_ptr;
     if (!npc.alive()) return "Mark hit, target dead.";
 
     // If the anchor severed, apply persistent Severed (overriding the
@@ -310,29 +310,8 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
             game.log(display_name(npc) + " takes " + std::to_string(dmg) +
                      " Lance damage.");
             if (!npc.alive()) {
-                game.player().kills++;
-                if (!npc.faction.empty()) {
-                    for (auto& fs : game.player().reputation) {
-                        if (fs.faction_name == npc.faction) {
-                            fs.reputation = std::max(fs.reputation - 30, -600);
-                            game.log("Your reputation with " + npc.faction +
-                                     " decreased.");
-                            break;
-                        }
-                    }
-                }
-                game.quests().on_npc_killed(npc.role);
-                int xp = npc.xp_reward();
-                if (xp > 0) {
-                    game.player().xp += xp;
-                    game.log("You gain " + std::to_string(xp) + " XP.");
-                    game.combat().check_level_up(game);
-                }
-                int credits = npc.level * 2 + (npc.elite ? 5 : 0);
-                if (credits > 0) {
-                    game.player().money += credits;
-                    game.log("You salvage " + std::to_string(credits) + "$.");
-                }
+                game.log(display_name(npc) + " is destroyed!");
+                award_npc_kill(game, npc);
             }
         }
     }

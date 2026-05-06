@@ -346,16 +346,15 @@ bool handle(Game& game, int key) {
                 // Auto-sever: anchor just dropped to 0 — apply persistent
                 // Severed status to the linked NPC.
                 if (a->severed() && a->npc_id >= 0) {
-                    auto& npcs = game.world().npcs();
-                    if (static_cast<size_t>(a->npc_id) < npcs.size()) {
-                        npcs[a->npc_id].vuln.apply(
+                    if (Npc* npc_ptr = game.world().npc_by_uid(a->npc_id)) {
+                        npc_ptr->vuln.apply(
                             VulnerabilityKind::Severed,
                             ProgramId::Echo,   // melee source — no named sentinel; Echo is a harmless stand-in
                             /*turns=*/-1);
                         // Grant sever XP once per Anchor (xp_granted guards double-pay).
                         if (!a->xp_granted) {
                             a->xp_granted = true;
-                            int tier = std::max(1, npcs[static_cast<size_t>(a->npc_id)].level);
+                            int tier = std::max(1, npc_ptr->level);
                             grant_grid_xp(game, kXpAnchorSeverPerTier * tier);
                         }
                     }

@@ -71,7 +71,6 @@ struct ProgramDef {
     TargetingMode       targeting   = TargetingMode::Self;
     TelegraphSpec       telegraph_spec;
     bool (*valid_target)(const GridSession&, int x, int y) = nullptr;
-    bool                requires_adjacency = false;  // E1: if true, Sigil must be adjacent to target tile
 };
 
 const std::vector<ProgramDef>& program_registry();

@@ -1525,6 +1525,16 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         case ITEM_PROG_DATA_LEECH:         return build_program_data_leech();
         case ITEM_PROG_PULSE_HAMMER:       return build_program_pulse_hammer();
         case ITEM_PROG_DAEMON_HIJACK:      return build_program_daemon_hijack();
+        // Sigils (Spec 1 §5.2)
+        case ITEM_PROG_ECHO:               return build_program_echo();
+        case ITEM_PROG_LULL:               return build_program_lull();
+        case ITEM_PROG_VEIL:               return build_program_veil();
+        case ITEM_PROG_FALTER:             return build_program_falter();
+        case ITEM_PROG_SHROUD:             return build_program_shroud();
+        case ITEM_PROG_WITHER:             return build_program_wither();
+        case ITEM_PROG_SNUFF:              return build_program_snuff();
+        case ITEM_PROG_FESTER:             return build_program_fester();
+        case ITEM_PROG_LANCE:              return build_program_lance();
 
         // Code fragments
         case ITEM_CODE_FRAGMENT_T1:        return build_code_fragment_t1();
@@ -1706,6 +1716,73 @@ Item build_program_daemon_hijack() {
         "daemon_hijack.exe",
         "UTL | tier 3 | 5 RAM, 4 Heat. Take control of one ICE for 3 turns.",
         Rarity::Rare, 650, 220);
+}
+
+// ---------------------------------------------------------------------------
+// Sigils — Spec 1 §5.2 mark-interaction programs
+// ---------------------------------------------------------------------------
+
+Item build_program_echo() {
+    return make_program_(ITEM_PROG_ECHO, 9110, ProgramId::Echo,
+        "echo.exe",
+        "UTL | tier 1 | 1 RAM, 1 Heat. Refreshes or propagates a Mark on the target tile.",
+        Rarity::Common, 50, 16);
+}
+
+Item build_program_lull() {
+    return make_program_(ITEM_PROG_LULL, 9111, ProgramId::Lull,
+        "lull.exe",
+        "UTL | tier 1 | 2 RAM, 2 Heat. Suppresses a target's reaction — delays ICE activation.",
+        Rarity::Common, 50, 16);
+}
+
+Item build_program_veil() {
+    return make_program_(ITEM_PROG_VEIL, 9112, ProgramId::Veil,
+        "veil.exe",
+        "UTL | tier 1 | 2 RAM, 3 Heat. Cloaks a Marked tile, hiding it from ICE detection routines.",
+        Rarity::Common, 60, 20);
+}
+
+Item build_program_falter() {
+    return make_program_(ITEM_PROG_FALTER, 9113, ProgramId::Falter,
+        "falter.exe",
+        "UTL | tier 2 | 4 RAM, 5 Heat. Disrupts a target's logic loop, causing it to skip its next action.",
+        Rarity::Uncommon, 150, 50);
+}
+
+Item build_program_shroud() {
+    return make_program_(ITEM_PROG_SHROUD, 9114, ProgramId::Shroud,
+        "shroud.exe",
+        "UTL | tier 2 | 5 RAM, 6 Heat. Wraps a Marked zone in noise, reducing trace accumulation.",
+        Rarity::Uncommon, 150, 50);
+}
+
+Item build_program_wither() {
+    return make_program_(ITEM_PROG_WITHER, 9115, ProgramId::Wither,
+        "wither.exe",
+        "ATK | tier 2 | 3 RAM, 4 Heat. Degrades a Marked target's defences over successive turns.",
+        Rarity::Uncommon, 160, 55);
+}
+
+Item build_program_snuff() {
+    return make_program_(ITEM_PROG_SNUFF, 9116, ProgramId::Snuff,
+        "snuff.exe",
+        "ATK | tier 3 | 8 RAM, 10 Heat. Instantly kills a Marked target at close range.",
+        Rarity::Rare, 500, 165);
+}
+
+Item build_program_fester() {
+    return make_program_(ITEM_PROG_FESTER, 9117, ProgramId::Fester,
+        "fester.exe",
+        "ATK | tier 3 | 5 RAM, 6 Heat. Infects an adjacent Marked target with a damage-over-time payload.",
+        Rarity::Rare, 400, 135);
+}
+
+Item build_program_lance() {
+    return make_program_(ITEM_PROG_LANCE, 9118, ProgramId::Lance,
+        "lance.exe",
+        "ATK | tier 3 | 7 RAM, 8 Heat. Drives a focused data spike through an adjacent Marked target.",
+        Rarity::Rare, 450, 150);
 }
 
 // ---------------------------------------------------------------------------

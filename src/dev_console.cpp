@@ -244,7 +244,7 @@ static void cmd_spawn_npc(DevConsole& con, Game& game, const std::string& role_a
         if (occupied) continue;
         npc.x = nx;
         npc.y = ny;
-        game.world().npcs().push_back(std::move(npc));
+        game.world().add_npc(std::move(npc));
         con.log("Spawned " + role_name + " at (" + std::to_string(nx) +
                 "," + std::to_string(ny) + ")");
         placed = true;

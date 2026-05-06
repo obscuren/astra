@@ -143,15 +143,17 @@ const std::vector<ProgramDef>& program_registry() {
         { ProgramId::Wither, ProgramKind::Atk, 2, 3, 4,  "Wither", "wither.exe",
           "Degrades a Marked target's defences over successive turns.", 0, {},
           TM::Tile, burst_at(4), nullptr },
+        // Adjacency restriction is enforced via TelegraphSpec range
+        // (burst_at(1) restricts the picker to a 1-tile reach).
         { ProgramId::Snuff,  ProgramKind::Atk, 3, 8, 10, "Snuff",  "snuff.exe",
           "Instantly kills a Marked target at close range.", 0, {},
-          TM::Tile, burst_at(1), nullptr, true },
+          TM::Tile, burst_at(1), nullptr },
         { ProgramId::Fester, ProgramKind::Atk, 3, 5, 6,  "Fester", "fester.exe",
           "Infects an adjacent Marked target with a damage-over-time payload.", 0, {},
-          TM::Tile, burst_at(1), nullptr, true },
+          TM::Tile, burst_at(1), nullptr },
         { ProgramId::Lance,  ProgramKind::Atk, 3, 7, 8,  "Lance",  "lance.exe",
           "Drives a focused data spike through an adjacent Marked target.", 0, {},
-          TM::Tile, burst_at(1), nullptr, true },
+          TM::Tile, burst_at(1), nullptr },
     };
     return regs;
 }

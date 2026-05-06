@@ -51,6 +51,9 @@ enum class NpcRole : uint8_t {
 };
 
 struct Npc {
+    int32_t uid = -1;             // stable monotonic ID assigned on spawn (NEVER reused).
+                                  // Use this for cross-system linkage (Anchors,
+                                  // saved references) instead of the vector index.
     int x = 0;
     int y = 0;
     std::string name;           // personal name, e.g. "Krath"

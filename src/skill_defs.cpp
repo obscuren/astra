@@ -709,9 +709,13 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::BindL2, "Bind II",
              bind_l2_description(),
              false, 100, 15, "Intelligence"},
-            {SkillId::BindL3, "Bind III",
-             bind_l3_description(),
-             false, 125, 16, "Intelligence"},
+            // Spec 1: BindL3 (AoE 3-tile) is intentionally NOT in the catalog yet —
+            // the AoE implementation is incomplete (see confirm_bind_targeting TODO).
+            // The SkillId::BindL3 enum value remains so existing saves with the
+            // perk learned still load. Re-enable when AoE is wired.
+            // {SkillId::BindL3, "Bind III",
+            //  bind_l3_description(),
+            //  false, 125, 16, "Intelligence"},
          }},
     };
     return catalog;

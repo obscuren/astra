@@ -353,7 +353,7 @@ void MapEditor::place_npc(int x, int y, Game& game) {
     npc.hp = 10;
     npc.max_hp = 10;
     npc.level = 1;
-    world_->npcs().push_back(std::move(npc));
+    world_->add_npc(std::move(npc));
 }
 
 void MapEditor::remove_at(int x, int y, Game& game) {

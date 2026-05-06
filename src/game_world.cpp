@@ -401,7 +401,7 @@ void Game::enter_maintenance_tunnels() {
                 if (world_.map().find_open_spot_in_region(r, rx, ry, occupied)) {
                     xeno.x = rx; xeno.y = ry;
                     occupied.push_back({rx, ry});
-                    world_.npcs().push_back(std::move(xeno));
+                    world_.add_npc(std::move(xeno));
                     placed = true;
                 }
             }
@@ -410,7 +410,7 @@ void Game::enter_maintenance_tunnels() {
                         player_.x, player_.y, rx, ry, occupied, &npc_rng)) {
                     xeno.x = rx; xeno.y = ry;
                     occupied.push_back({rx, ry});
-                    world_.npcs().push_back(std::move(xeno));
+                    world_.add_npc(std::move(xeno));
                 }
             }
         }
@@ -610,7 +610,12 @@ void Game::enter_overworld_tile() {
         // Spawn NPCs
         std::mt19937 npc_rng(detail_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
-        debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+        {
+            size_t before = world_.npcs().size();
+            debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+            for (size_t i = before; i < world_.npcs().size(); ++i)
+                if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+        }
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     }
@@ -840,11 +845,16 @@ void Game::enter_detail_map() {
 
         // Spawn NPCs in settlements and outposts (after player placement)
         std::mt19937 npc_rng(detail_seed ^ 0xC1A5u);
-        if (props.detail_poi_type == Tile::OW_Settlement) {
-            spawn_settlement_npcs_v2(world_.map(), world_.npcs(), player_.x, player_.y,
-                                     npc_rng, &player_, 1, "frontier", props.biome);
-        } else if (props.detail_poi_type == Tile::OW_Outpost) {
-            spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+        {
+            size_t before = world_.npcs().size();
+            if (props.detail_poi_type == Tile::OW_Settlement) {
+                spawn_settlement_npcs_v2(world_.map(), world_.npcs(), player_.x, player_.y,
+                                         npc_rng, &player_, 1, "frontier", props.biome);
+            } else if (props.detail_poi_type == Tile::OW_Outpost) {
+                spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+            }
+            for (size_t i = before; i < world_.npcs().size(); ++i)
+                if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
         }
 
         // Quest-driven fixtures on fresh detail maps
@@ -884,7 +894,7 @@ void Game::enter_detail_map() {
                     npc.x = nx;
                     npc.y = ny;
                     occupied.push_back({nx, ny});
-                    world_.npcs().push_back(std::move(npc));
+                    world_.add_npc(std::move(npc));
                 }
 
                 place_quest_fixtures(world_.map(), qit->second,
@@ -941,7 +951,7 @@ void Game::enter_detail_map() {
                             guard.x = gx;
                             guard.y = gy;
                             occupied.push_back({gx, gy});
-                            world_.npcs().push_back(std::move(guard));
+                            world_.add_npc(std::move(guard));
                             ++placed;
                         }
                     }
@@ -1128,7 +1138,7 @@ void Game::enter_dungeon_from_detail() {
                 if (world_.map().find_open_spot_other_room(
                         player_.x, player_.y, npc.x, npc.y, occupied, &npc_rng)) {
                     occupied.push_back({npc.x, npc.y});
-                    world_.npcs().push_back(std::move(npc));
+                    world_.add_npc(std::move(npc));
                 }
             }
             // Place quest items on the ground
@@ -1150,7 +1160,12 @@ void Game::enter_dungeon_from_detail() {
                                  player_.x, player_.y, occupied, npc_rng);
         } else {
             world_.pending_quest_cleanup().erase(dungeon_key);
-            debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+            {
+                size_t before = world_.npcs().size();
+                debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+                for (size_t i = before; i < world_.npcs().size(); ++i)
+                    if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+            }
         }
 
         world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -1301,7 +1316,7 @@ void Game::descend_stairs(std::pair<int,int> from_fixture_pos) {
             n.x = nx;
             n.y = ny;
             occupied.push_back({nx, ny});
-            world_.npcs().push_back(std::move(n));
+            world_.add_npc(std::move(n));
         }
 
         // Player spawns at StairsUp (deterministic from generator).
@@ -1831,24 +1846,29 @@ void Game::travel_to_destination(const ChartAction& action) {
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
 
         // Dispatch NPC spawning based on station type.
-        switch (sctx.type) {
-            case StationType::NormalHub:
-                spawn_hub_npcs(world_.map(), world_.npcs(),
-                               player_.x, player_.y, npc_rng,
-                               &player_, sctx);
-                break;
-            case StationType::Scav:
-                spawn_scav_npcs(world_.map(), world_.npcs(),
-                                player_.x, player_.y, npc_rng,
-                                sctx, &player_);
-                break;
-            case StationType::Pirate:
-                spawn_pirate_npcs(world_.map(), world_.npcs(),
-                                  player_.x, player_.y, npc_rng,
-                                  sctx, &player_);
-                break;
-            default:
-                break;
+        {
+            size_t before = world_.npcs().size();
+            switch (sctx.type) {
+                case StationType::NormalHub:
+                    spawn_hub_npcs(world_.map(), world_.npcs(),
+                                   player_.x, player_.y, npc_rng,
+                                   &player_, sctx);
+                    break;
+                case StationType::Scav:
+                    spawn_scav_npcs(world_.map(), world_.npcs(),
+                                    player_.x, player_.y, npc_rng,
+                                    sctx, &player_);
+                    break;
+                case StationType::Pirate:
+                    spawn_pirate_npcs(world_.map(), world_.npcs(),
+                                      player_.x, player_.y, npc_rng,
+                                      sctx, &player_);
+                    break;
+                default:
+                    break;
+            }
+            for (size_t i = before; i < world_.npcs().size(); ++i)
+                if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
         }
 
         // Abandoned stations: spawn 1-2 wandering xytomorphs (weak variant),
@@ -1870,7 +1890,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                     if (world_.map().find_open_spot_in_region(r, rx, ry, occupied)) {
                         xeno.x = rx; xeno.y = ry;
                         occupied.push_back({rx, ry});
-                        world_.npcs().push_back(std::move(xeno));
+                        world_.add_npc(std::move(xeno));
                         placed = true;
                     }
                 }
@@ -1879,7 +1899,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                             player_.x, player_.y, rx, ry, occupied, &xeno_rng)) {
                         xeno.x = rx; xeno.y = ry;
                         occupied.push_back({rx, ry});
-                        world_.npcs().push_back(std::move(xeno));
+                        world_.add_npc(std::move(xeno));
                     }
                 }
             }
@@ -1925,7 +1945,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                 if (world_.map().find_open_spot_in_region(region, rx, ry, occupied)) {
                     xeno.x = rx; xeno.y = ry;
                     occupied.push_back({rx, ry});
-                    world_.npcs().push_back(std::move(xeno));
+                    world_.add_npc(std::move(xeno));
                     placed = true;
                 }
                 if (!placed) {
@@ -1934,7 +1954,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                             player_.x, player_.y, rx, ry, occupied, &xeno_rng)) {
                         xeno.x = rx; xeno.y = ry;
                         occupied.push_back({rx, ry});
-                        world_.npcs().push_back(std::move(xeno));
+                        world_.add_npc(std::move(xeno));
                     }
                 }
             }
@@ -1957,7 +1977,7 @@ void Game::travel_to_destination(const ChartAction& action) {
                     qnpc.x = rx;
                     qnpc.y = ry;
                     occupied.push_back({rx, ry});
-                    world_.npcs().push_back(std::move(qnpc));
+                    world_.add_npc(std::move(qnpc));
                 }
             }
             // Place quest fixtures

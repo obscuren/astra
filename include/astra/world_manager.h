@@ -91,6 +91,19 @@ public:
     std::vector<Npc>& npcs() { return npcs_; }
     const std::vector<Npc>& npcs() const { return npcs_; }
 
+    // Stable UID allocation — assigns the next monotonic UID (never reused).
+    int32_t allocate_npc_uid() { return next_npc_uid_++; }
+    int32_t next_npc_uid() const { return next_npc_uid_; }
+    void    set_next_npc_uid(int32_t v) { next_npc_uid_ = v; }
+
+    // Add an NPC to the world, assigning it a stable UID if not already set.
+    // Returns a reference to the stored NPC (valid until npcs_ is modified).
+    Npc& add_npc(Npc&& npc);
+
+    // Look up a live NPC by stable UID. Returns nullptr if not found.
+    Npc*       npc_by_uid(int32_t uid);
+    const Npc* npc_by_uid(int32_t uid) const;
+
     std::vector<GroundItem>& ground_items() { return ground_items_; }
     const std::vector<GroundItem>& ground_items() const { return ground_items_; }
 
@@ -277,6 +290,7 @@ public:
     Hackable*       find_hackable_by_ip(uint32_t ip);
 
 private:
+    int32_t next_npc_uid_ = 1;   // 0 / negative reserved as "invalid"; 1 is first valid UID
     TileMap map_;
     VisibilityMap visibility_;
     std::vector<Npc> npcs_;
