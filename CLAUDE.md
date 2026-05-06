@@ -37,15 +37,15 @@ Key virtual keycodes (`KEY_UP`, `KEY_DOWN`, etc.) are defined in `renderer.h` so
 - Headers: `#pragma once`, located in `include/astra/`
 - Compile definition for SDL: `ASTRA_HAS_SDL`
 - Default compile: Terminal
-- Update `docs/roadmap.md` and checkof boxes as wel implement features.
-- All game mechanics and formulas go in `docs/mechanics.md` and must be updated.
-- All item stats (weapons, armor, cells, mods, etc.) go in `docs/items.md` and must be updated when items change.
+- Update `docs/design/roadmap.md` and check off boxes as we implement features.
+- All game mechanics and formulas go in `docs/design/mechanics.md` and must be updated.
+- All item stats (weapons, armor, cells, mods, etc.) go in `docs/design/items.md` and must be updated when items change.
 
 ## Rules
 
 - **Platform isolation**: game logic (`game.h/cpp`, `renderer.h`, `options.h`) must contain zero platform-specific includes, ifdefs, or system calls. All platform differences live in renderer implementations.
 - SDL work is deferred — focus on the terminal renderer unless explicitly asked otherwise.
-- **Hackable fixtures**: Every new "electronic" fixture must be wired into the hacking system — it does not auto-opt-in. When adding a new `FixtureType` that represents anything electrical (terminal, lock, conduit, light, vending machine, lift, NPC implant, ship subsystem, etc.), ask the user "How should this be hacked?" before finalizing, and decide its `HackTagMask` (must include `Electronic` plus relevant capability tags like `Locked`, `PowerNode`, `DataStore`, `HasOptics`, `Weaponized`, `Mobile`, `AlienTech`, `JackInPort`). Tag mask drives both LAN registration and program filtering. See the Plan 5 spec under `docs/superpowers/specs/` for the tag taxonomy.
+- **Hackable fixtures**: Every new "electronic" fixture must be wired into the hacking system — it does not auto-opt-in. When adding a new `FixtureType` that represents anything electrical (terminal, lock, conduit, light, vending machine, lift, NPC implant, ship subsystem, etc.), ask the user "How should this be hacked?" before finalizing, and decide its `HackTagMask` (must include `Electronic` plus relevant capability tags like `Locked`, `PowerNode`, `DataStore`, `HasOptics`, `Weaponized`, `Mobile`, `AlienTech`, `JackInPort`). Tag mask drives both LAN registration and program filtering. The tag taxonomy is in `docs/design/mechanics.md` under "Hacking"; the in-fiction Relay Network framing is in `docs/lore/overview.md`.
 
 ## Custom Agents
 
@@ -111,9 +111,27 @@ The inventory for example displays the players items in their "bag" and what the
 
 The entire world state need to be able to be persisted. 
 
-## Plans
+## Documentation
 
-After each plan is made also write it to the docs/plans/ folder so we can track the plans
+The `docs/` tree is organized into five subfolders, all reachable from the catalog at `docs/README.md`:
+
+| Folder | What goes here |
+|---|---|
+| `docs/design/` | Game design and mechanics — `mechanics.md`, `items.md`, `tinkering.md`, `quest-system.md`, `roadmap.md`. Player-facing rules, formulas, content. |
+| `docs/lore/` | Narrative and worldbuilding — story arc, factions, the Relay Network, the Substrate, Sgr A*, tone. |
+| `docs/technical/` | Code-side architecture and system reference — POI generators, animation system, scenario graph, etc. |
+| `docs/specs/` | **Active design specs only.** In-flight feature work. Specs are *transient* — they get deleted once the feature ships and persistent docs (design / lore / technical) have absorbed anything load-bearing. |
+| `docs/ideas/` | Pre-spec sketches. Loose concepts. May be promoted to specs or dropped without ceremony. |
+
+**No documents at `docs/` root** except `README.md` (the catalog index).
+
+**Workflow:**
+- Brainstorming a new feature → spec lands in `docs/specs/`.
+- Spec drives implementation → code lands.
+- After ship → fold load-bearing details into the appropriate living doc (`design/mechanics.md`, `design/items.md`, `lore/overview.md`, or a new `technical/<system>.md`). **Then delete the spec.**
+- Update `docs/README.md` whenever a doc is added, moved, or deleted.
+- Use kebab-case filenames. No dates in filenames; git history carries that.
+- Cross-reference using relative paths from each doc's own folder (e.g. `[mechanics.md](mechanics.md)` for siblings, `[../lore/overview.md](../lore/overview.md)` for cross-folder).
 
 ## C++ structure
 

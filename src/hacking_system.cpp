@@ -37,7 +37,7 @@ constexpr int kDetectionDecayInterval = 5;   // tick every N world steps, -1 to 
 constexpr int kDetectionMax = 100;
 constexpr int kDetectionMin = 0;
 
-// Grid-side tuning constants (see docs/mechanics.md).
+// Grid-side tuning constants (see docs/design/mechanics.md).
 // kTraceMax lives in grid_constants.h; everything below is local to this TU.
 constexpr int kHeatTraceCouplingThreshold = 5;   // +1 Trace/turn while heat exceeds this
 constexpr int kRebootTracePenalty         = 10;

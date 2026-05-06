@@ -2,7 +2,7 @@
 
 namespace astra {
 
-// Shared Grid-mode tuning constants. See docs/mechanics.md.
+// Shared Grid-mode tuning constants. See docs/design/mechanics.md.
 constexpr int kTraceMax     = 100;
 constexpr int kIceVisionRange = 4;
 constexpr int kKillIceTrace = 3;
