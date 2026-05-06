@@ -1132,6 +1132,8 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
         }
     }
     w.write_i32(npc.anchor_id);
+    // v67: force_bind flag (Bind action — D2)
+    w.write_u8(npc.force_bind ? 1 : 0);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -1883,6 +1885,9 @@ static void read_player_section(BinaryReader& r, Player& p) {
     ability_bar::validate_and_dedupe(p);
     // Rebuild cached skill flags from learned_skills (non-serialized).
     p.skill_crystal_decoder = player_has_skill(p, SkillId::CrystalDecoder);
+    p.skill_bind_l1 = player_has_skill(p, SkillId::BindL1);
+    p.skill_bind_l2 = player_has_skill(p, SkillId::BindL2);
+    p.skill_bind_l3 = player_has_skill(p, SkillId::BindL3);
     uint32_t rep_count = r.read_u32();
     p.reputation.resize(rep_count);
     for (uint32_t i = 0; i < rep_count; ++i) {
@@ -2049,6 +2054,8 @@ static Npc read_npc(BinaryReader& r) {
         }
     }
     npc.anchor_id = r.read_i32();
+    // v67: force_bind flag (Bind action — D2)
+    npc.force_bind = r.read_u8() != 0;
 
     return npc;
 }

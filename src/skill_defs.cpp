@@ -497,6 +497,21 @@ static std::string crystal_decoder_description() {
     return s;
 }
 
+// Plan 8 — Bind L1/L2/L3: project a Mark for targets without an active Crystal.
+// Used by Drifter to mark animals, drones, and Feral for hacking / control.
+static std::string bind_l1_description() {
+    return "Bind: project a Mark for a target without a Crystal (animals, drones, Feral). "
+           "Line-of-sight, range 1 tile.";
+}
+
+static std::string bind_l2_description() {
+    return "Bind II: long-range Bind (range 8 tiles).";
+}
+
+static std::string bind_l3_description() {
+    return "Bind III: AoE Bind (3 adjacent targets at once).";
+}
+
 static std::string consciousness_anchor_description() {
     std::string s = "Capstone: a permanent deep-Grid base sector that survives Sgr A* rebirth.\n\n";
     s += "Unlocks ";
@@ -688,6 +703,15 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::CrystalDecoder, "Crystal-Decoder",
              crystal_decoder_description(),
              true, 50, 13, "Intelligence"},
+            {SkillId::BindL1, "Bind",
+             bind_l1_description(),
+             false, 75, 14, "Intelligence"},
+            {SkillId::BindL2, "Bind II",
+             bind_l2_description(),
+             false, 100, 15, "Intelligence"},
+            {SkillId::BindL3, "Bind III",
+             bind_l3_description(),
+             false, 125, 16, "Intelligence"},
          }},
     };
     return catalog;

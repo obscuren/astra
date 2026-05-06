@@ -1,13 +1,115 @@
 #include "astra/ability_bar.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
+#include "astra/grid_combat.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/program.h"
 #include "astra/skill_defs.h"
 #include "astra/skill_grant.h"
 
+#include <algorithm>
+
 namespace astra {
+
+// ── Bind action (D2) ─────────────────────────────────────────────────────
+// Real-world Bind: marks a non-Crystal-bearing NPC for Mark projection on
+// the next jack-in. Costs only Drift (Heat) — Channel (RAM) is a session-
+// only resource; v2 in-Grid Bind can pay Channel at that time.
+//
+// Range: L3 → 8 tiles (AoE TODO), L2 → 8 tiles, L1 → 1 tile (adjacent only).
+void Game::begin_bind_targeting() {
+    // 1. Skill gate
+    if (!player_.skill_bind_l1) {
+        log("You don't know how to Bind a target.");
+        return;
+    }
+
+    // 2. Cyberdeck gate
+    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        log("No cyberdeck equipped \xe2\x80\x94 Bind requires a neural link.");
+        return;
+    }
+    auto& cd = *(*deck_slot)->deck;
+
+    // 3. Drift (Heat) budget gate
+    // v1 simplification: real-world Bind charges only Drift because Channel
+    // is a session-only resource that doesn't exist outside an active Grid
+    // session. v2 in-Grid Bind will pay Channel instead.
+    if (cd.heat_current + kBindDriftCost > cd.stats.heat_cap) {
+        log("Drift over cap \xe2\x80\x94 Bind would overheat the deck.");
+        return;
+    }
+
+    // 4. Enter look-cursor targeting mode so the player can pick a target.
+    //    bind_targeting_ is cleared on confirm or cancel.
+    bind_targeting_ = true;
+    input_.begin_look(player_.x, player_.y);
+    log("Bind target. Move cursor, [Enter] confirm, [Esc] cancel.");
+}
+
+void Game::confirm_bind_targeting() {
+    bind_targeting_ = false;
+    input_.cancel_look();
+
+    int tx = input_.look_x();
+    int ty = input_.look_y();
+
+    // Determine range from highest learned tier.
+    int bind_range = 1;  // L1 default: adjacent only
+    if (player_.skill_bind_l3 || player_.skill_bind_l2) {
+        bind_range = 8;
+    }
+    // TODO L3 AoE: future v2 should burst all visible targets within 3 tiles.
+
+    // Find NPC at cursor
+    Npc* target_npc = nullptr;
+    for (auto& npc : world_.npcs()) {
+        if (npc.x == tx && npc.y == ty && npc.alive()) {
+            target_npc = &npc;
+            break;
+        }
+    }
+
+    if (!target_npc) {
+        log("No target there.");
+        return;
+    }
+
+    // Chebyshev range check
+    int dist = std::max(std::abs(tx - player_.x),
+                        std::abs(ty - player_.y));
+    if (dist > bind_range) {
+        log("Target out of range.");
+        return;
+    }
+
+    // LoS check: the tile must be currently visible (FOV implies LoS from player).
+    if (world_.visibility().get(tx, ty) != Visibility::Visible) {
+        log("No line of sight to target.");
+        return;
+    }
+
+    // Don't double-bind
+    if (target_npc->force_bind && target_npc->anchor_id >= 0) {
+        log(target_npc->name + " is already Bound.");
+        return;
+    }
+
+    // Commit: mark + pay Drift
+    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        log("Deck disappeared.");
+        return;
+    }
+    auto& cd = *(*deck_slot)->deck;
+    target_npc->force_bind = true;
+    cyberdeck_add_heat(cd, kBindDriftCost);
+    log("Bound " + target_npc->name +
+        " \xe2\x80\x94 projection ready next jack-in.  [Drift +"
+        + std::to_string(kBindDriftCost) + "]");
+}
 
 void Game::handle_play_input(int key) {
     // Welcome screen — space dismisses
@@ -312,7 +414,23 @@ void Game::handle_play_input(int key) {
 
 
     // Look mode intercept
+    // When bind_targeting_ is active the look cursor is used for target pick.
+    // Enter confirms the Bind; Esc cancels both bind mode and look mode.
     if (input_.looking()) {
+        if (bind_targeting_) {
+            if (key == '\n' || key == '\r') {
+                confirm_bind_targeting();
+                compute_camera();
+                return;
+            }
+            if (key == '\033') {
+                bind_targeting_ = false;
+                input_.cancel_look();
+                log("Bind cancelled.");
+                compute_camera();
+                return;
+            }
+        }
         input_.handle_look_input(key, world_.map().width(), world_.map().height());
         compute_camera(); // follow look cursor, or snap back to player on exit
         return;
@@ -524,6 +642,7 @@ void Game::handle_play_input(int key) {
         case 'T': use_thrown(); break;
         case 's': combat_.shoot_target(*this); break;
         case 'H': hacking_.begin_quickhack_targeting(*this); break;
+        case 'N': begin_bind_targeting(); break;   // D2: Bind action
         case 'r': combat_.recharge_weapon(*this); break;
         case 'b': combat_.recharge_shield(*this); break;
         case 'R': open_cell_picker(/*target_is_shield=*/false); break;

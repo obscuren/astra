@@ -37,6 +37,9 @@ void apply_skill_side_effects(Game& game, SkillId id) {
     // Rebuild cached player skill flags whenever a skill is applied.
     game.player().skill_crystal_decoder =
         player_has_skill(game.player(), SkillId::CrystalDecoder);
+    game.player().skill_bind_l1 = player_has_skill(game.player(), SkillId::BindL1);
+    game.player().skill_bind_l2 = player_has_skill(game.player(), SkillId::BindL2);
+    game.player().skill_bind_l3 = player_has_skill(game.player(), SkillId::BindL3);
 
     switch (id) {
         case SkillId::ConsciousnessAnchor: {

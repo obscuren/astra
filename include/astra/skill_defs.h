@@ -88,6 +88,10 @@ enum class SkillId : uint32_t {
     RootKit             = 1209,  // -10% hashcat duration
     // Plan 8 — Crystal-Decoder
     CrystalDecoder      = 1210,  // reveals NPC Crystal status in look widget
+    // Plan 8 — Bind perks: project Mark on no-Crystal targets
+    BindL1              = 1211,  // Cat_Hacking — Bind L1: project Mark (LoS, short range 1 tile)
+    BindL2              = 1212,  // Cat_Hacking — Bind L2: long range (8 tiles)
+    BindL3              = 1213,  // Cat_Hacking — Bind L3: AoE 3 tiles
 };
 
 struct SkillDef {

@@ -627,6 +627,8 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     // Spec 1: spawn an Anchor per hostile, Crystal-bearing NPC on the
     // current map. Each NPC's anchor_id is set; the Anchor's Site
     // coordinates mirror the NPC's RW position via linear projection.
+    // D2: also spawn Anchors for Bind-marked NPCs (force_bind == true)
+    // even if they carry no native Electronic Crystal.
     {
         AnchorProjection proj = make_anchor_projection(s.sector, game.world());
         auto& npcs = game.world().npcs();
@@ -634,16 +636,18 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
             Npc& npc = npcs[i];
             if (!npc.alive()) continue;
             if (!is_hostile_to_player(npc.faction, game.player())) continue;
-            if (!npc.cyber) continue;
-            if (!has_tag(npc.cyber->tags, HackTag::Electronic)) continue;
+
+            bool has_native_crystal = npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic);
+            bool bound_target       = npc.force_bind;
+            if (!has_native_crystal && !bound_target) continue;
 
             int sx, sy;
             project_rw_to_site(proj, npc.x, npc.y, sx, sy);
             Anchor* a = s.add_anchor_for_npc(
                 static_cast<int>(i),
                 sx, sy,
-                npc.level,
-                /*bound=*/false);
+                npc.level,   // npc.level used as threat-tier proxy (B3)
+                /*bound=*/bound_target);
             npc.anchor_id = a->id;
         }
     }

@@ -86,6 +86,9 @@ struct Npc {
     // Runtime vulnerability/DoT tracking (Plan 8 — Sigil system)
     VulnerabilityStack vuln;
     int32_t anchor_id = -1;             // index into GridSession::anchors_ (-1 = none)
+    bool force_bind = false;            // Spec 1: Drifter has Bind-marked this target;
+                                        // next jack-in will project a Mark even though
+                                        // the NPC has no native Electronic Crystal.
 
     // When displaced by player swap, NPC tries to return here next tick
     int return_x = -1;
