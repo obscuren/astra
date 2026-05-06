@@ -13,6 +13,7 @@
 #include "astra/loot_table.h"
 #include "astra/noise_event.h"
 #include "astra/skill_defs.h"
+#include "astra/vulnerability.h"
 
 #include <algorithm>
 #include <array>
@@ -359,6 +360,49 @@ void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
 
 void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     if (!npc.alive()) return;
+
+    // Apply vulnerability DoT before the NPC acts, then decay the stack.
+    {
+        int dot = npc.vuln.dot_per_turn();
+        if (dot > 0) {
+            dot = apply_damage_effects(npc.effects, dot);
+            if (dot > 0) {
+                npc.hp -= dot;
+                if (npc.hp < 0) npc.hp = 0;
+                game.log(display_name(npc) + " takes " + std::to_string(dot) +
+                         " vulnerability damage.");
+                if (!npc.alive()) {
+                    // Trigger standard death rewards so kill credit is awarded.
+                    game.player().kills++;
+                    if (!npc.faction.empty()) {
+                        for (auto& fs : game.player().reputation) {
+                            if (fs.faction_name == npc.faction) {
+                                fs.reputation = std::max(fs.reputation - 30, -600);
+                                game.log("Your reputation with " + npc.faction +
+                                         " decreased.");
+                                break;
+                            }
+                        }
+                    }
+                    game.quests().on_npc_killed(npc.role);
+                    int xp = npc.xp_reward();
+                    if (xp > 0) {
+                        game.player().xp += xp;
+                        game.log("You gain " + std::to_string(xp) + " XP.");
+                        check_level_up(game);
+                    }
+                    int credits = npc.level * 2 + (npc.elite ? 5 : 0);
+                    if (credits > 0) {
+                        game.player().money += credits;
+                        game.log("You salvage " + std::to_string(credits) + "$.");
+                    }
+                    npc.vuln.tick();
+                    return; // NPC is dead; skip action
+                }
+            }
+        }
+        npc.vuln.tick();
+    }
 
     if (npc.return_x >= 0 && npc.return_y >= 0) {
         int rx = npc.return_x, ry = npc.return_y;

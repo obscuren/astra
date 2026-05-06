@@ -136,6 +136,7 @@ set(ASTRA_SOURCES
     src/trap.cpp
     src/grenade.cpp
     src/hackable.cpp
+    src/vulnerability.cpp
     src/hack_command.cpp
     src/shell_stack.cpp
     src/cyberdeck_shell_context.cpp
@@ -194,6 +195,7 @@ set(ASTRA_SOURCES
     src/effect.cpp
     src/energy.cpp
     src/energy_system.cpp
+    src/anchor.cpp
     src/aura.cpp
     src/aura_system.cpp
     src/event_bus.cpp

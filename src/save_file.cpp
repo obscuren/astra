@@ -1120,6 +1120,18 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_u8(npc.cyber.has_value() ? 1 : 0);
     if (npc.cyber) write_hackable(w, *npc.cyber);
     w.write_string(npc.pre_hijack_faction);
+    // v66: vulnerability stack + anchor_id (Sigil system)
+    {
+        const auto& entries = npc.vuln.entries();
+        w.write_u16(static_cast<uint16_t>(entries.size()));
+        for (const auto& e : entries) {
+            w.write_u8(static_cast<uint8_t>(e.kind));
+            w.write_u16(static_cast<uint16_t>(e.source));
+            w.write_i32(e.remaining_turns);
+            w.write_i32(e.magnitude);
+        }
+    }
+    w.write_i32(npc.anchor_id);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -2023,6 +2035,18 @@ static Npc read_npc(BinaryReader& r) {
     // v52: cyber + pre_hijack_faction (hacking)
     if (r.read_u8() != 0) npc.cyber = read_hackable(r);
     npc.pre_hijack_faction = r.read_string();
+    // v66: vulnerability stack + anchor_id (Sigil system)
+    {
+        uint16_t vuln_count = r.read_u16();
+        for (uint16_t i = 0; i < vuln_count; ++i) {
+            VulnerabilityKind kind   = static_cast<VulnerabilityKind>(r.read_u8());
+            ProgramId         source = static_cast<ProgramId>(r.read_u16());
+            int remaining_turns      = r.read_i32();
+            int magnitude            = r.read_i32();
+            npc.vuln.apply(kind, source, remaining_turns, magnitude);
+        }
+    }
+    npc.anchor_id = r.read_i32();
 
     return npc;
 }

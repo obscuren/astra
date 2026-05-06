@@ -6,6 +6,7 @@
 #include "astra/hackable.h"
 #include "astra/interaction.h"
 #include "astra/race.h"
+#include "astra/vulnerability.h"
 
 #include <cstdint>
 #include <optional>
@@ -81,6 +82,10 @@ struct Npc {
     InteractionData interactions;
     std::optional<Hackable> cyber;       // present iff this NPC is hackable
     std::string pre_hijack_faction;      // restored when Hijacked effect expires
+
+    // Runtime vulnerability/DoT tracking (Plan 8 — Sigil system)
+    VulnerabilityStack vuln;
+    int32_t anchor_id = -1;             // index into GridSession::anchors_ (-1 = none)
 
     // When displaced by player swap, NPC tries to return here next tick
     int return_x = -1;
