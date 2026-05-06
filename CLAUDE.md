@@ -120,16 +120,22 @@ The `docs/` tree is organized into five subfolders, all reachable from the catal
 | `docs/design/` | Game design and mechanics — `mechanics.md`, `items.md`, `tinkering.md`, `quest-system.md`, `roadmap.md`. Player-facing rules, formulas, content. |
 | `docs/lore/` | Narrative and worldbuilding — story arc, factions, the Relay Network, the Substrate, Sgr A*, tone. |
 | `docs/technical/` | Code-side architecture and system reference — POI generators, animation system, scenario graph, etc. |
-| `docs/specs/` | **Active design specs only.** In-flight feature work. Specs are *transient* — they get deleted once the feature ships and persistent docs (design / lore / technical) have absorbed anything load-bearing. |
+| `docs/specs/` | Reserved for the rare design decision big enough to warrant permanent commit-history (the Relay reframe was the first such case). **Most specs do *not* go here.** |
 | `docs/ideas/` | Pre-spec sketches. Loose concepts. May be promoted to specs or dropped without ceremony. |
 
 **No documents at `docs/` root** except `README.md` (the catalog index).
 
+### Where new specs and implementation plans go
+
+**All in-flight specs and implementation plans are written to `.claude/specs/` (gitignored, untracked).** Never commit working specs by default. The exception is `docs/specs/` — used only when a design decision is significant enough to deserve a permanent commit record.
+
 **Workflow:**
-- Brainstorming a new feature → spec lands in `docs/specs/`.
-- Spec drives implementation → code lands.
-- After ship → fold load-bearing details into the appropriate living doc (`design/mechanics.md`, `design/items.md`, `lore/overview.md`, or a new `technical/<system>.md`). **Then delete the spec.**
-- Update `docs/README.md` whenever a doc is added, moved, or deleted.
+- Brainstorming a new feature → write the spec to `.claude/specs/<topic>.md` (untracked).
+- `writing-plans` produces an implementation plan → also `.claude/specs/<topic>-plan.md` (untracked).
+- Plan drives implementation → code lands in tracked commits.
+- After ship → fold load-bearing details into the appropriate living doc (`docs/design/mechanics.md`, `docs/design/items.md`, `docs/lore/overview.md`, or a new `docs/technical/<system>.md`).
+- The `.claude/specs/` working file is then either deleted or left as personal scratch — it never enters git either way.
+- Update `docs/README.md` whenever a tracked doc is added, moved, or deleted.
 - Use kebab-case filenames. No dates in filenames; git history carries that.
 - Cross-reference using relative paths from each doc's own folder (e.g. `[mechanics.md](mechanics.md)` for siblings, `[../lore/overview.md](../lore/overview.md)` for cross-folder).
 

@@ -24,3 +24,6 @@ node_modules/
 
 # Tooling scratch
 .superpowers/
+
+# Spec / implementation-plan scratch (untracked working docs)
+.claude/specs/
