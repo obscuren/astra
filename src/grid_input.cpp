@@ -1,8 +1,10 @@
 #include "astra/grid_input.h"
 
+#include "astra/anchor.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
+#include "astra/grid_combat.h"
 #include "astra/grid_constants.h"
 #include "astra/grid_display.h"
 #include "astra/grid_network.h"
@@ -12,12 +14,15 @@
 #include "astra/item.h"
 #include "astra/item_defs.h"
 #include "astra/lan.h"
+#include "astra/npc.h"
 #include "astra/program.h"
 #include "astra/program_effects.h"
 #include "astra/renderer.h"
+#include "astra/vulnerability.h"
 #include "astra/world_manager.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <random>
 #include <string>
 
@@ -325,11 +330,72 @@ bool handle(Game& game, int key) {
     }
 
     auto move_with_step = [&](int dx, int dy) -> bool {
-        // DaemonHijack: while puppeting an ICE, movement keys drive the ICE
-        // and the avatar holds. Still consume the turn (so trace ticks, etc.).
+        int nx = s.avatar_x + dx;
+        int ny = s.avatar_y + dy;
+
+        // DaemonHijack: movement keys drive the puppeted ICE; skip bump-attack
+        // logic for the avatar.
         if (s.hijacked_ice_idx >= 0) {
             return try_move_hijacked_ice(s, dx, dy);
         }
+
+        // Bump-attack on Anchor (Mark).
+        if (Anchor* a = s.anchor_at(nx, ny)) {
+            if (!a->severed()) {
+                a->hp = std::max(0, a->hp - kGridMeleeDamage);
+                // Auto-sever: anchor just dropped to 0 — apply persistent
+                // Severed status to the linked NPC.
+                if (a->severed() && a->npc_id >= 0) {
+                    auto& npcs = game.world().npcs();
+                    if (static_cast<size_t>(a->npc_id) < npcs.size()) {
+                        npcs[a->npc_id].vuln.apply(
+                            VulnerabilityKind::Severed,
+                            ProgramId::Echo,   // melee source — no named sentinel; Echo is a harmless stand-in
+                            /*turns=*/-1);
+                    }
+                }
+                // Pay melee costs (both 0 by default; kept for future tuning).
+                s.ram = std::max(0, s.ram - kGridMeleeChannelCost);
+                if (kGridMeleeDriftCost > 0) {
+                    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+                    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeDriftCost);
+                    }
+                }
+                char buf[80];
+                std::snprintf(buf, sizeof buf,
+                              "> Strike: Mark %d HP %d/%d.",
+                              a->id + 1, a->hp, a->max_hp);
+                s.push_log(buf);
+                return true;   // turn consumed; avatar does not move
+            }
+            // Severed Mark is walkable — fall through to normal movement.
+        }
+
+        // Bump-attack on Ice (Warden).
+        for (size_t i = 0; i < s.ice.size(); ++i) {
+            auto& warden = s.ice[i];
+            if (warden.hp <= 0) continue;
+            if (warden.x == nx && warden.y == ny) {
+                warden.hp = std::max(0, warden.hp - kGridMeleeDamage);
+                // Pay melee costs.
+                s.ram = std::max(0, s.ram - kGridMeleeChannelCost);
+                if (kGridMeleeDriftCost > 0) {
+                    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+                    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeDriftCost);
+                    }
+                }
+                char buf[80];
+                std::snprintf(buf, sizeof buf,
+                              "> Strike: Warden HP %d.",
+                              warden.hp);
+                s.push_log(buf);
+                return true;   // turn consumed
+            }
+        }
+
+        // Default: existing movement path.
         bool moved = try_move(s, dx, dy);
         if (moved) on_step(game, s);
         return moved;
