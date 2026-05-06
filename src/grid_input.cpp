@@ -352,6 +352,12 @@ bool handle(Game& game, int key) {
                             VulnerabilityKind::Severed,
                             ProgramId::Echo,   // melee source — no named sentinel; Echo is a harmless stand-in
                             /*turns=*/-1);
+                        // Grant sever XP once per Anchor (xp_granted guards double-pay).
+                        if (!a->xp_granted) {
+                            a->xp_granted = true;
+                            int tier = std::max(1, npcs[static_cast<size_t>(a->npc_id)].level);
+                            grant_grid_xp(game, kXpAnchorSeverPerTier * tier);
+                        }
                     }
                 }
                 // Pay melee costs (both 0 by default; kept for future tuning).
@@ -377,6 +383,7 @@ bool handle(Game& game, int key) {
             auto& warden = s.ice[i];
             if (warden.hp <= 0) continue;
             if (warden.x == nx && warden.y == ny) {
+                IceColor warden_color = warden.color;
                 warden.hp = std::max(0, warden.hp - kGridMeleeDamage);
                 // Pay melee costs.
                 s.ram = std::max(0, s.ram - kGridMeleeChannelCost);
@@ -385,6 +392,13 @@ bool handle(Game& game, int key) {
                     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
                         cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeDriftCost);
                     }
+                }
+                // Grant XP if the strike destroyed the Warden.
+                if (warden.hp <= 0) {
+                    int xp = (warden_color == IceColor::White) ? kXpIceWhite
+                           : (warden_color == IceColor::Gray)  ? kXpIceGray
+                           :                                     kXpIceBlack;
+                    grant_grid_xp(game, xp);
                 }
                 char buf[80];
                 std::snprintf(buf, sizeof buf,

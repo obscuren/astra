@@ -6,6 +6,7 @@
 #include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/game.h"
+#include "astra/grid_combat.h"
 #include "astra/grid_constants.h"
 #include "astra/grid_display.h"
 #include "astra/grid_ice.h"
@@ -78,9 +79,14 @@ bool kill_and_persist(Game& game, GridSession& s, GridIce& ice) {
     if (ice.hp > 0) return false;
     int kx = ice.x;
     int ky = ice.y;
+    IceColor col = ice.color;
     bool killed = grid_ice::kill_if_dead(s, ice);
     if (killed) {
         record_killed_ice(game, kx, ky);
+        int xp = (col == IceColor::White) ? kXpIceWhite
+               : (col == IceColor::Gray)  ? kXpIceGray
+               :                            kXpIceBlack;
+        grant_grid_xp(game, xp);
     }
     return killed;
 }
@@ -284,6 +290,12 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
     // requested status — Severed always wins).
     if (a->severed()) {
         npc.vuln.apply(VulnerabilityKind::Severed, source, /*turns=*/-1);
+        // Grant sever XP once per Anchor (xp_granted guards double-pay).
+        if (!a->xp_granted) {
+            a->xp_granted = true;
+            int tier = std::max(1, npc.level);
+            grant_grid_xp(game, kXpAnchorSeverPerTier * tier);
+        }
     } else {
         npc.vuln.apply(kind, source, turns, magnitude);
     }

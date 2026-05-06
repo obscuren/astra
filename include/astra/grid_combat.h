@@ -2,6 +2,8 @@
 
 namespace astra {
 
+class Game; // forward declare
+
 // Bump-attack melee tunables (Spec 1 §6.2).
 inline constexpr int kGridMeleeDamage      = 3;
 inline constexpr int kGridMeleeChannelCost = 0;   // RAM in code identifiers (deferred rename)
@@ -24,5 +26,9 @@ inline int anchor_max_hp(int npc_threat_tier) {
     int t = npc_threat_tier <= 0 ? 1 : npc_threat_tier;
     return 10 + (t - 1) * 22;
 }
+
+// Grant Grid-kill XP into the main player pool and check for level-up.
+// No-op if amount <= 0.
+void grant_grid_xp(Game& game, int amount);
 
 }  // namespace astra

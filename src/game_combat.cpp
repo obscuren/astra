@@ -15,6 +15,7 @@
 #include "astra/noise_event.h"
 #include "astra/skill_defs.h"
 #include "astra/tilemap.h"
+#include "astra/grid_combat.h"
 #include "astra/vulnerability.h"
 
 #include <algorithm>
@@ -1160,6 +1161,13 @@ void CombatSystem::check_level_up(Game& game) {
     }
 }
 
+
+void grant_grid_xp(Game& game, int amount) {
+    if (amount <= 0) return;
+    game.player().xp += amount;
+    game.log("+" + std::to_string(amount) + " XP");
+    game.combat().check_level_up(game);
+}
 
 void CombatSystem::reset() {
     targeting_ = false;
