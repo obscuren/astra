@@ -1135,6 +1135,9 @@ static ResolvedVisual resolve_fixture(uint16_t type_id, uint8_t flags, Biome bio
             // which RenderDescriptor doesn't carry. Render placeholder here;
             // richer resolution can be added when the descriptor is extended.
             vis = {'?', nullptr, Color::Magenta, Color::Default}; break;
+        case FixtureType::NpcCorpse:
+            // Spec 1: NPC corpse — muted red/grey body silhouette.
+            vis = {'%', nullptr, Color::Red, Color::Default}; break;
     }
 
     if (remembered) {
@@ -1922,6 +1925,7 @@ char fixture_glyph(FixtureType type) {
         case FixtureType::Brazier:          return '*';
         case FixtureType::PrecursorButton:  return 'o';
         case FixtureType::QuestFixture:     return '?';
+        case FixtureType::NpcCorpse:        return '%';
     }
     return '?';
 }

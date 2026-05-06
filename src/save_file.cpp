@@ -716,6 +716,9 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     w.write_u32(static_cast<uint32_t>(h.wiped_paths.size()));
     for (const auto& p : h.wiped_paths) w.write_string(p);
     w.write_string(h.friendly_fire_target_faction);
+    // v67 — Spec 1: per-corpse Imprint state.
+    w.write_u8(h.corpse_imprint_exhausted ? 1 : 0);
+    w.write_u32(h.corpse_imprint_seed);
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -753,6 +756,9 @@ static Hackable read_hackable(BinaryReader& r) {
         for (uint32_t i = 0; i < n; ++i) h.wiped_paths.push_back(r.read_string());
     }
     h.friendly_fire_target_faction = r.read_string();
+    // v67 — Spec 1: per-corpse Imprint state.
+    h.corpse_imprint_exhausted = (r.read_u8() != 0);
+    h.corpse_imprint_seed      = r.read_u32();
     // Tick-based runtime fields (optics_blind_ticks, disarmed_ticks, etc.)
     // are deliberately NOT persisted (per spec §13). They reset to 0 on
     // reload — i.e. cmd-blind/disarm/etc. effects expire on save/load.

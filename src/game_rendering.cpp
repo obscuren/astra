@@ -151,6 +151,7 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::ScrapComponent:  return "Salvage";
         case FixtureType::PrecursorButton: return "Precursor stud";
         case FixtureType::QuestFixture:    return "Quest Fixture";
+        case FixtureType::NpcCorpse:       return "Corpse";
         case FixtureType::ResonancePillar: return "Resonance Pillar";
         case FixtureType::ResonancePillarTop: return "Resonance Pillar";
         case FixtureType::ResonancePillarBot: return "Resonance Pillar";
@@ -228,6 +229,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::ScrapComponent:  return "Salvageable scrap metal and circuitry.";
         case FixtureType::PrecursorButton: return "A recessed Precursor stud, dimly lit.";
         case FixtureType::QuestFixture:    return "A quest-related object.";
+        case FixtureType::NpcCorpse:       return "A fallen body, still warm. The neural lattice may yet hold an echo.";
         case FixtureType::ResonancePillar: return "A Precursor resonance pillar humming with stored energy.";
         case FixtureType::ResonancePillarTop: return "A capped Precursor pillar, inscribed along its upper ring.";
         case FixtureType::ResonancePillarBot: return "A capped Precursor pillar, inscribed along its lower ring.";

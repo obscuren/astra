@@ -7,6 +7,7 @@
 #include "astra/game.h"
 #include "astra/hackable.h"
 #include "astra/hacking_system.h"
+#include "astra/imprint_sector_generator.h"
 #include "astra/ip.h"
 #include "astra/pda_screen.h"
 #include "astra/item_defs.h"
@@ -535,6 +536,110 @@ void DialogManager::append_shell_access_option_npc(Npc& npc, Game& game) {
     option_kinds_.back() = OptionKind::HackingShellAccess;
 }
 
+// Spec 1: append `(read) Walk the Imprint` on an NpcCorpse fixture whose
+// Electronic Hackable imprint has not yet been consumed. Gated on Cat_Hacking.
+void DialogManager::append_walk_imprint_option(int fid, Game& game) {
+    auto& fd = game.world().map().fixture_mut(fid);
+    if (fd.type != FixtureType::NpcCorpse) return;
+    if (!fd.cyber) return;
+    if (!has_tag(fd.cyber->tags, HackTag::Electronic)) return;
+
+    if (fd.cyber->corpse_imprint_exhausted) {
+        // Imprint already consumed — show a disabled info line so the player
+        // understands what happened.
+        add_option('-', "imprint dissolved", UITag::OptionNormal);
+        // Mark Normal so it falls through to the no-op default dispatch.
+        return;
+    }
+
+    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) return;
+
+    std::string label = build_hacking_label("Walk the Imprint", /*plain_action=*/true);
+    char hotkey = 'r';
+    for (char ex : hotkeys_) { if (ex == hotkey) { hotkey = 0; break; } }
+    if (!hotkey) return;
+    add_option(hotkey, label, UITag::OptionNormal);
+    option_kinds_.back() = OptionKind::WalkImprint;
+}
+
+// Spec 1: activate a transient GridSession seeded from a corpse fixture's
+// Hackable. Does NOT require a network node — the sector is generated on
+// the spot and injected directly into HackingSystem.
+void DialogManager::walk_imprint(Game& game, int fid) {
+    if (game.hacking().jacked_in()) {
+        game.log("You are already jacked into a network.");
+        return;
+    }
+    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
+        game.log("You need the Cat_Hacking skill to walk an imprint.");
+        return;
+    }
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        game.log("You need an equipped cyberdeck to walk an imprint.");
+        return;
+    }
+
+    auto& fd = game.world().map().fixture_mut(fid);
+    if (!fd.cyber) return;
+    Hackable& hack = *fd.cyber;
+
+    if (hack.corpse_imprint_exhausted) {
+        game.log("The imprint has already dissolved.");
+        return;
+    }
+
+    // Seed: derive from fixture position if not already stamped.
+    if (hack.corpse_imprint_seed == 0) {
+        auto [cx, cy] = fixture_xy_by_id(game.world().map(), fid);
+        uint32_t pos_hash = (static_cast<uint32_t>(cx) * 2654435761u) ^
+                            (static_cast<uint32_t>(cy) * 2246822519u) ^
+                            static_cast<uint32_t>(game.world().world_tick());
+        hack.corpse_imprint_seed = (pos_hash != 0) ? pos_hash : 0xDEADBEEFu;
+    }
+
+    ImprintGenInput in;
+    in.seed            = hack.corpse_imprint_seed;
+    in.faction_id      = 0;
+    in.npc_threat_tier = hack.security_tier;
+    GridSector sec     = gen_imprint_sector(in);
+
+    const auto& cd = *(*deck_slot)->deck;
+
+    GridSession s;
+    // No network node — use a zeroed sentinel node id.
+    s.entry_node   = GridNodeId{};
+    s.current_node = GridNodeId{};
+    s.body_x       = game.player().x;
+    s.body_y       = game.player().y;
+    s.body_state   = GameState::Playing;
+
+    bool nf = player_has_skill(game.player(), SkillId::NeuralFortitude);
+    s.avatar_hp_max = 3 + (nf ? 1 : 0);
+    s.avatar_hp     = s.avatar_hp_max;
+    s.ram_max       = cd.stats.ram_max;
+    s.ram           = cd.ram_current;
+    s.trace_tick_per_turn = 1;  // imprint is a small isolated pocket
+
+    s.skill_intrusion          = player_has_skill(game.player(), SkillId::Intrusion);
+    s.skill_icebreaking        = player_has_skill(game.player(), SkillId::IceBreaking);
+    s.skill_daemon_mastery     = player_has_skill(game.player(), SkillId::DaemonMastery);
+    s.skill_ghost_protocol     = player_has_skill(game.player(), SkillId::GhostProtocol);
+    s.skill_deepgrid_navigator = player_has_skill(game.player(), SkillId::DeepGridNavigator);
+    s.skill_neural_fortitude   = nf;
+
+    s.sector    = std::move(sec);
+    s.avatar_x  = s.sector.spawn_x;
+    s.avatar_y  = s.sector.spawn_y;
+
+    // Mark as transient imprint so jack_out knows to exhaust the corpse.
+    s.is_imprint_transient = true;
+    s.corpse_fid           = fid;
+
+    game.hacking().inject_imprint_session(game, std::move(s));
+    game.log("You close your eyes and dive into the fading neural echo...");
+}
+
 // Plan 7: implant Shell Access on a hostile NPC. Tiny dialog, single
 // (hack) Shell Access option + Cancel. No talk/trade/quest paths — the
 // NPC is hostile, this is purely the diegetic hacking doorway.
@@ -872,6 +977,21 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
             dialog_node_ = -13; // sentinel: generic Use/Close fixture dialog
             break;
         }
+        case FixtureType::NpcCorpse: {
+            // Spec 1: NPC corpse with possible Walk the Imprint option.
+            reset_content("Corpse", 0.45f);
+            body_ = "The body is still warm. Neural lattice integrity: uncertain.";
+            game.log("You crouch over the fallen body.");
+            dialog_fixture_id_ = fid;
+            append_walk_imprint_option(fid, game);
+            add_option('c', "Leave");
+            footer_ = "[Space] Select  [Esc] Close";
+            open_ = true;
+            interacting_npc_ = nullptr;
+            dialog_tree_ = nullptr;
+            dialog_node_ = -14; // sentinel: corpse dialog
+            return;  // skip the generic hack-option appender below (handled above)
+        }
         default:
             game.log("Nothing happens.");
             break;
@@ -1201,6 +1321,10 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     game, probe, hack, xy.first, xy.second);
                 game.log(msg);
                 game.advance_world(ActionCost::interact);
+                return;
+            }
+            if (kind == OptionKind::WalkImprint) {
+                walk_imprint(game, fid);
                 return;
             }
         }

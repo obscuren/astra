@@ -310,6 +310,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::StarChartL:
         case FixtureType::StarChartR:      return "Star Chart";
         case FixtureType::Kitchen:         return "Kitchen";
+        case FixtureType::NpcCorpse:       return "NPC Corpse";
     }
     return "?";
 }

@@ -65,6 +65,12 @@ public:
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
     bool jack_in(Game& game, GridNodeId entry_node);
 
+    // Spec 1: inject a pre-built GridSession (Imprint sector). Transitions
+    // the game state to Grid and activates ICE from seeds if present.
+    // Preconditions (skill, deck, no active session) must have been checked
+    // by the caller (walk_imprint in dialog_manager.cpp).
+    void inject_imprint_session(Game& game, GridSession s);
+
     // Mid-jack-in sector swap. Used when the player steps onto a ⌬ Gateway
     // or ⊕ DeepGridGateway. Returns false if there is no active session, the
     // target node is unknown, or the target's edge is locked.

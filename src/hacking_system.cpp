@@ -1,6 +1,7 @@
 #include "astra/hacking_system.h"
 
 #include "astra/anchor.h"
+#include "astra/tilemap.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/deep_grid_sector.h"
@@ -661,6 +662,19 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     return true;
 }
 
+// Spec 1: inject a pre-built GridSession (Imprint sector). Bypasses the
+// network-node lookup; preconditions checked by caller (walk_imprint).
+void HackingSystem::inject_imprint_session(Game& game, GridSession s) {
+    // Spawn ICE from seeds if the generator populated them.
+    if (!s.sector.ice_seeds.empty()) {
+        grid_ice::spawn_from_seeds(s);
+    }
+    // Body phase-out effect (same as normal jack-in).
+    add_effect(game.player().effects, make_grid_exposed_ge());
+    session_ = std::move(s);
+    game.set_state(GameState::Grid);
+}
+
 void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
                                         const GridNode& node) {
     const auto& meta = game.world().lan_metadata();
@@ -839,6 +853,16 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
         case JackOutKind::SoftDisconnect:
             // Load-time recovery — no penalty, no loot.
             break;
+    }
+
+    // Spec 1: mark the source corpse exhausted when leaving a transient
+    // Imprint sector, regardless of jack-out kind (voluntary, death, etc.).
+    if (s.is_imprint_transient && s.corpse_fid >= 0) {
+        auto& map = game.world().map();
+        if (s.corpse_fid < static_cast<int>(map.fixtures_vec().size())) {
+            FixtureData& corpse_fd = map.fixture_mut(s.corpse_fid);
+            if (corpse_fd.cyber) corpse_fd.cyber->corpse_imprint_exhausted = true;
+        }
     }
 
     remove_effect(game.player().effects, EffectId::GridExposed);

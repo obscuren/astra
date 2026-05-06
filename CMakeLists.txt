@@ -129,6 +129,7 @@ set(ASTRA_SOURCES
     src/journal.cpp
     src/loot_table.cpp
     src/lan.cpp
+    src/imprint_sector_generator.cpp
     src/lan_sector_generator.cpp
     src/grid_room_templates.cpp
     src/recipe_defs.cpp

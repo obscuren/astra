@@ -128,6 +128,10 @@ struct Hackable {
 
     // Decrement all tick-based runtime fields by `dt` (typically 1/world tick).
     // Called from HackingSystem::tick(). Free function below.
+
+    // Spec 1: per-corpse Imprint deep-dive state (only meaningful on corpse fixtures).
+    bool     corpse_imprint_exhausted = false;
+    uint32_t corpse_imprint_seed      = 0;
 };
 
 // Decrement Hackable's per-tick runtime countdowns. No-op for fields == 0.

@@ -423,6 +423,11 @@ enum class FixtureType : uint8_t {
     ScrapComponent,
     PrecursorButton,   // '◘' — gold Precursor stud, unlocks a linked puzzle
     QuestFixture,   // generic quest-driven interactable; visuals/prompt via quest_fixture.h registry
+
+    // Spec 1: NPC corpse — placed at death site of Electronic-Hackable NPCs.
+    // Passable, interactable. Carries the NPC's Hackable (with corpse_imprint_*
+    // fields) so Walk the Imprint can be offered when Cat_Hacking is known.
+    NpcCorpse,      // '%'  — biological/cybernetic remains
 };
 
 // Bitflags describing a fixture's affordances. Used for proximity queries

@@ -100,6 +100,7 @@ private:
         HackingSyncSoul,
         HackingRunQh,
         HackingShellAccess,   // Plan 7: opens per-device shell (real-world doorway)
+        WalkImprint,          // Spec 1: couple into per-corpse Imprint sector
     };
     std::vector<OptionKind> option_kinds_;
 
@@ -129,6 +130,14 @@ private:
     // the npc's `cyber` Hackable. Routed by advance_dialog via
     // OptionKind::HackingShellAccess + interacting_npc_ pointer.
     void append_shell_access_option_npc(Npc& npc, Game& game);
+
+    // Spec 1: append `(read) Walk the Imprint` on an NpcCorpse fixture that
+    // carries an Electronic Hackable whose imprint is not yet exhausted,
+    // gated on Cat_Hacking.
+    void append_walk_imprint_option(int fid, Game& game);
+
+    // Spec 1: activate a transient GridSession seeded from the corpse fixture.
+    void walk_imprint(Game& game, int fid);
 
     // Word-wrap body text respecting COLOR_BEGIN/COLOR_END markers
     static std::vector<std::string> word_wrap(const std::string& text, int width);

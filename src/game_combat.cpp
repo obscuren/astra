@@ -8,11 +8,13 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/loot_table.h"
 #include "astra/noise_event.h"
 #include "astra/skill_defs.h"
+#include "astra/tilemap.h"
 #include "astra/vulnerability.h"
 
 #include <algorithm>
@@ -745,6 +747,20 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
             }
         }
         apply_salvage_on_kill(game, npc, rng);
+
+        // Spec 1: place a corpse fixture carrying the NPC's Hackable so
+        // Walk the Imprint can be offered after death. Only for Electronic
+        // hackable NPCs (Crystal); silently skip if the tile already holds
+        // a fixture (rare collision) or if not in a dungeon/detail map.
+        if (npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic)) {
+            // Only place on floor tiles (not Tile::Fixture already).
+            auto& map = game.world().map();
+            if (map.get(npc.x, npc.y) != Tile::Fixture) {
+                FixtureData corpse_fd = make_fixture(FixtureType::NpcCorpse);
+                corpse_fd.cyber = *npc.cyber;
+                map.add_fixture(npc.x, npc.y, std::move(corpse_fd));
+            }
+        }
     }
 }
 
