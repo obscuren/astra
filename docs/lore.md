@@ -6,7 +6,7 @@
 
 ## 1. Premise
 
-Astra is a sci-fi roguelike set in a far future where humanity has spread across the Milky Way and discovered it was never the first to do so. The galaxy is layered, dangerous, and *old.* Civilizations have risen and fallen for billions of years; the oldest ones left infrastructure nobody alive fully understands. The player is one tiny operator — a **Drifter** — picking through that inheritance.
+Astra is a sci-fi roguelike set in a far future where humanity has spread across the Milky Way and discovered it was never the first to do so. The galaxy is layered, dangerous, and *old.* Civilizations have risen and fallen for billions of years; the oldest ones left infrastructure nobody alive fully understands. The player is one tiny operator picking through that inheritance — a tinker, a marksman, a melee scrapper, a **Drifter**, or some combination. The path is theirs to choose; most viable runs blend two or more.
 
 Every run begins on The Heavens Above (Jupiter station). Every run ends — if it ends well — at **Sagittarius A***, the galactic core, where the player is *touched* by the Substrate and reborn into a new life with fragments of the many travelers who came before.
 
@@ -14,7 +14,7 @@ Every run begins on The Heavens Above (Jupiter station). Every run ends — if i
 
 ## 2. The Heavens Above
 
-The player wakes on **The Heavens Above** — Jupiter's great orbital, humanity's central station, the gateway between the Sol system and the wider galaxy. It's a port, a market, a refuge, a launching point. Vendors of all factions trade here (some don't even speak the same language). Shipwrights can fuel up, repair, refit. Drifters can pick up their first **Resonator,** their first **Sigils,** their first hints of what lies further out.
+The player wakes on **The Heavens Above** — Jupiter's great orbital, humanity's central station, the gateway between the Sol system and the wider galaxy. It's a port, a market, a refuge, a launching point. Vendors of all factions trade here (some don't even speak the same language). Shipwrights can fuel up, repair, refit. Tinkers can buy their first parts. Marksmen can pick up a sidearm. Aspiring Drifters can find their first **Resonator,** a starter **Sigil,** and the first hints of what lies further out.
 
 The player's own starship is docked here. Its hold is small. Its Hyperspace Engine is the cheapest grade. Its Navi Computer can plot maybe one or two systems out before it loses confidence. From the Heavens Above the galaxy is a faint pinprick chart of possibility.
 
@@ -109,39 +109,53 @@ There is a strong unspoken consensus among scholars and Drifters that the pre-ci
 
 The end of all paths.
 
-**Sagittarius A*** sits at the heart of the Milky Way — a supermassive black hole, four million solar masses, a singularity older than human civilization by every meaningful margin. From a Drifter's perspective, every relay route, every starlane, every blackhole transit eventually points inward toward it.
+**Sagittarius A*** sits at the heart of the Milky Way — a supermassive black hole, four million solar masses, a singularity older than human civilization by every meaningful margin. Every relay route, every starlane, every blackhole transit eventually points inward toward it.
 
 Drifter rumor — and the more careful murmurs of Stellari elders — says Sgr A* is the **heart of the Substrate.** The place where the Substrate is most awake, most accessible, most assimilating. Reaching it is not death. Reaching it is being *fully assimilated and re-emitted* — the deepest version of what the Substrate does.
 
-This is the canonical mechanism behind **rebirth.** A Drifter who reaches Sgr A* enters the Substrate fully. Their body dies. Their mind enters the assimilation. Aeons of accumulated knowledge are layered in. A new mind is given back — in a new body, on a new run, with the prior runs and the older travelers' fragments stitched in.
+This is the canonical mechanism behind **rebirth.** A traveler who reaches Sgr A* — Drifter or not — enters the Substrate fully. Their body dies. Their mind enters the assimilation. Aeons of accumulated knowledge are layered in. A new mind is given back — in a new body, on a new run, with the prior runs and the older travelers' fragments stitched in. Drifters arrive better-prepared to interpret what's happening; non-Drifters are taken in just the same.
 
 The traveler who comes out of Sgr A* is not the traveler who went in. They carry the same name, perhaps. They are not the same.
 
 ---
 
-## 8. The player — a Drifter
+## 8. The player and the available paths
 
-The player is a **Drifter** — an operator who has mastered the rudimentary techniques of coupling with the Relay Network through their **Resonator.** A scavenger. A wildcatter. Not a scientist, not a priest. Someone who knows enough to exploit the Network for gain, and not enough to know what the Network really is.
+The player is a generic protagonist — a small operator out of The Heavens Above with a starship and an empty bag. **What the player *becomes*** is determined by the paths they pursue. Astra offers several **professions**; most viable runs blend two or more. None of them are mandatory. None of them are the player's identity by default.
 
-A Drifter is **never just a Drifter.** Hacking pairs with another build. Tinker + Drift. Pistol + Drift. Melee + Drift. The Drifter contributes control, prep, sabotage, intel — never the kill. The kill comes from the rest of you.
+The professions, in broad strokes (each has its own deeper lore in future docs):
 
-A Drifter is also **part of the wider population.** The galaxy holds traders, soldiers, tinkerers, marksmen, settlers, pirates. The Drifter path is one of many. It is the only path that goes *deep.*
+- **Tinker.** Builds, modifies, deploys. Turrets, mines, drones, gear-crafting from schematics. The shop-floor mind. Reaches into ancient tech with a wrench.
+- **Marksman.** Pistols, rifles, energy weapons. Range and precision. Stays out of the worst of it.
+- **Brawler / Melee.** Close work. Blades, fists, augmented limbs. The shortest distance between you and a problem.
+- **Drifter.** The one path this lore doc treats in depth, because it is the path that touches the Substrate. **Drifters couple to the Relay Network through a Resonator and run Sigils** — small operators who exploit the inheritance of the pre-civilizations without quite understanding what they're exploiting. Scavengers. Wildcatters. Not scientists, not priests. The path that goes *deepest.*
+- **Other paths exist** and will be detailed in their own lore expansions — pilots, traders, settlers, scrapped-together hybrids. The roster grows.
+
+### 8.1. The Drifter profession
+
+A Drifter is **never just a Drifter.** Drifting pairs with another build. Tinker + Drift. Marksman + Drift. Melee + Drift. The Drifter contributes control, prep, sabotage, intel — never the kill. The kill comes from the rest of you.
+
+A Drifter is **part of the wider population.** The galaxy holds traders, soldiers, tinkerers, marksmen, settlers, pirates — and a smattering of Drifters across the human, alien, and Remnant worlds. The Drifter path is one of many. It is the only path that goes *deep* into the Substrate.
+
+The rest of this lore doc focuses on the Substrate side of Astra's setting; that's the angle Drifters care about. Tinkers have their own story (workshops, schematics, ancient tech they can rebuild). Marksmen have theirs (the gun-cultures of various factions). Melee fighters have theirs (martial traditions, augmentation, the close-distance ethic). Each gets its own deepening.
 
 ---
 
 ## 9. The macro arc — a single run
 
-A typical run, in lore terms:
+A typical run, in lore terms (path-neutral except where noted):
 
-1. **Wake on The Heavens Above.** Pick up your Resonator. A few starting Sigils. A small starship.
+1. **Wake on The Heavens Above.** Pick up your starting kit — guns, gear, schematics, or a Resonator and a starter Sigil, depending on the path you're taking. A small starship.
 2. **Travel.** Star to star, system to system, blackhole transit by blackhole transit. Asteroid belts, abandoned outposts, dungeon-rich worlds. Faction encounters. The galaxy is large.
-3. **Drift.** Couple into local Relay Sites. Walk Chambers. Loot Caches. Bind targets. Read Crystals from the dead. Build your Sigil library, your Crystals, your Resonator's capacity.
-4. **Go deeper.** Sites get older the further you travel. Chambers get stranger. Wardens get stronger. References to "the Substrate" begin to appear in NPC dialogue. The Network begins to feel *alive* in ways it didn't at the surface.
+3. **Build your run.** Profession-specific: Tinkers gather schematics and craft. Marksmen hunt for better weapons and ammo. Melee fighters chase combat skill and augmentations. **Drifters couple into local Relay Sites, walk Chambers, loot Caches, Bind targets, read Crystals from the dead, and build their Sigil library and Resonator capacity.** Most runs blend two or more.
+4. **Go deeper.** The further out you travel, the older the inheritance gets. Stations get stranger. Enemies get stronger. For Drifters specifically: references to "the Substrate" begin to appear in NPC dialogue. The Network begins to feel *alive* in ways it didn't at the surface.
 5. **Approach the core.** Long blackhole chains, dangerous transits, fewer maintained stations. The galactic core nears.
 6. **Sgr A*.** The final approach. Whatever ritual or mechanic delivers the player into Sgr A*'s event horizon. **Rebirth.**
-7. **Begin again.** A new run starts. The new Drifter carries fragments — of the prior run, and of older travelers folded into the Substrate before. Each rebirth deepens the layering.
+7. **Begin again.** A new run starts. The new traveler carries fragments — of the prior run, and of older travelers folded into the Substrate before. Each rebirth deepens the layering, regardless of which path the next run takes.
 
 The game does *not* end at Sgr A*. The game **renews** there.
+
+Note: rebirth happens to *anyone* who reaches Sgr A* — Drifter or not. Drifters arrive better-prepared to interpret what's happening, but the assimilation does not require their understanding. A pure tinker who reaches the core is also taken in, also re-emitted. The Substrate doesn't care.
 
 ---
 
