@@ -64,6 +64,40 @@ static int roll_d10(std::mt19937& rng) {
     return std::uniform_int_distribution<int>(1, 10)(rng);
 }
 
+// Pick a destination tile for a corpse-drop item:
+//   1. orthogonal-walkable tiles first (N, E, S, W)
+//   2. diagonal-walkable tiles (NE, SE, SW, NW)
+//   3. fall back to the death tile (corpse glyph wins on render; the
+//      item still picks up via stand-on)
+//
+// "Walkable" means passable AND no fixture AND no existing ground item.
+static std::pair<int,int> find_loot_drop_tile(
+    const TileMap& map,
+    const std::vector<GroundItem>& ground_items,
+    int cx, int cy)
+{
+    auto free = [&](int x, int y) -> bool {
+        if (!map.passable(x, y)) return false;
+        if (map.fixture_id(x, y) >= 0) return false;
+        for (const auto& gi : ground_items) {
+            if (gi.x == x && gi.y == y) return false;
+        }
+        return true;
+    };
+
+    constexpr int orth[4][2] = { {0,-1}, {1,0}, {0,1}, {-1,0} };
+    for (auto& d : orth) {
+        int x = cx + d[0], y = cy + d[1];
+        if (free(x, y)) return {x, y};
+    }
+    constexpr int diag[4][2] = { {-1,-1}, {1,-1}, {1,1}, {-1,1} };
+    for (auto& d : diag) {
+        int x = cx + d[0], y = cy + d[1];
+        if (free(x, y)) return {x, y};
+    }
+    return {cx, cy};
+}
+
 static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
     if (is_mechanical(npc)) {
         // Gated: requires Cat_Tinkering. Mechanical kills do NOT roll the
@@ -99,7 +133,8 @@ static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
     // Ungated universal path: 5% chance to drop Spare Parts to the ground.
     if (std::uniform_int_distribution<int>(0, 99)(rng) < 5) {
         Item spare = build_by_def_id(ITEM_SPARE_PARTS);
-        game.world().ground_items().push_back({npc.x, npc.y, std::move(spare)});
+        auto [dx, dy] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), npc.x, npc.y);
+        game.world().ground_items().push_back({dx, dy, std::move(spare)});
     }
 }
 
@@ -744,7 +779,8 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
             if (auto loot = roll_loot(LootSource::NpcDrop, npc.level, rng)) {
                 game.log("Dropped: " + display_name(*loot));
-                game.world().ground_items().push_back({npc.x, npc.y, std::move(*loot)});
+                auto [lx, ly] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), npc.x, npc.y);
+                game.world().ground_items().push_back({lx, ly, std::move(*loot)});
             }
         }
         apply_salvage_on_kill(game, npc, rng);
@@ -986,7 +1022,8 @@ void CombatSystem::shoot_target(Game& game) {
         if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
             if (auto loot = roll_loot(LootSource::NpcDrop, target_npc_->level, rng)) {
                 game.log("Dropped: " + display_name(*loot));
-                game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(*loot)});
+                auto [lx, ly] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), target_npc_->x, target_npc_->y);
+                game.world().ground_items().push_back({lx, ly, std::move(*loot)});
             }
         }
         apply_salvage_on_kill(game, *target_npc_, rng);
