@@ -39,6 +39,17 @@ enum class ProgramId : uint16_t {
     RebootOptics   = 100,
     FriendlyFire   = 101,
     DataLeech      = 102,
+
+    // Spec 1 §5.2 — Mark-interaction Sigils (E2)
+    Echo           = 300,
+    Lull           = 301,
+    Veil           = 302,
+    Falter         = 303,
+    Shroud         = 304,
+    Wither         = 305,
+    Snuff          = 306,
+    Fester         = 307,
+    Lance          = 308,
 };
 
 struct ProgramDef {
@@ -60,6 +71,7 @@ struct ProgramDef {
     TargetingMode       targeting   = TargetingMode::Self;
     TelegraphSpec       telegraph_spec;
     bool (*valid_target)(const GridSession&, int x, int y) = nullptr;
+    bool                requires_adjacency = false;  // E1: if true, Sigil must be adjacent to target tile
 };
 
 const std::vector<ProgramDef>& program_registry();
