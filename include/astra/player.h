@@ -143,6 +143,10 @@ struct Player {
     // serialized; closing the shell or saving wipes it. -1 = not wired.
     int is_jacked_into = -1;
 
+    // Cached skill flags (non-serialized; rebuilt after load and on skill grant).
+    // Plan 8 — Crystal-Decoder: gates NPC Crystal info in the look widget.
+    bool skill_crystal_decoder = false;
+
     // Aggregate modifiers from all equipped implants.
     StatModifiers implant_modifiers() const {
         StatModifiers total;

@@ -34,6 +34,10 @@ bool revoke_skill(Player& player, SkillId id) {
 }
 
 void apply_skill_side_effects(Game& game, SkillId id) {
+    // Rebuild cached player skill flags whenever a skill is applied.
+    game.player().skill_crystal_decoder =
+        player_has_skill(game.player(), SkillId::CrystalDecoder);
+
     switch (id) {
         case SkillId::ConsciousnessAnchor: {
             // 1. Load (or initialise) consciousness.dat and stamp the node.

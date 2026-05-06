@@ -485,6 +485,18 @@ static std::string rootkit_description() {
     return s;
 }
 
+// Plan 8 — CrystalDecoder: identifies whether an NPC carries an active Crystal.
+// Gated by this skill; the look widget reveals the Mark's Site coordinates and HP.
+static std::string crystal_decoder_description() {
+    std::string s = "You can read the faint electromagnetic signature of an active Crystal implant.\n\n";
+    s += colored("Passive:", Color::White);
+    s += " the ";
+    s += colored("look", Color::Yellow);
+    s += " widget reveals whether an NPC carries an active Crystal and, if so, its "
+         "Mark's Site coordinates and current HP.";
+    return s;
+}
+
 static std::string consciousness_anchor_description() {
     std::string s = "Capstone: a permanent deep-Grid base sector that survives Sgr A* rebirth.\n\n";
     s += "Unlocks ";
@@ -673,6 +685,9 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::RootKit, "Root Kit",
              rootkit_description(),
              true, 150, 13, "Intelligence"},
+            {SkillId::CrystalDecoder, "Crystal-Decoder",
+             crystal_decoder_description(),
+             true, 50, 13, "Intelligence"},
          }},
     };
     return catalog;

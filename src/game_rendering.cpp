@@ -399,8 +399,54 @@ void Game::render_look_popup() {
         if (!line.empty()) desc_lines.push_back(line);
     }
 
+    // Crystal status lines — NPC only, Drifter Crystal-Decoder perk.
+    struct CrystalLine { std::string text; Color color; };
+    std::vector<CrystalLine> crystal_lines;
+    const Npc* look_npc = nullptr;
+    int look_npc_idx = -1;
+    {
+        const auto& npcs = world_.npcs();
+        for (int i = 0; i < static_cast<int>(npcs.size()); ++i) {
+            if (npcs[i].x == input_.look_x() && npcs[i].y == input_.look_y()) {
+                look_npc = &npcs[i];
+                look_npc_idx = i;
+                break;
+            }
+        }
+    }
+    if (look_npc) {
+        if (player_.skill_crystal_decoder) {
+            bool has_electronic = look_npc->cyber
+                && has_tag(look_npc->cyber->tags, HackTag::Electronic);
+            if (has_electronic) {
+                crystal_lines.push_back({"Crystal: HAS", Color::Cyan});
+                if (auto* sess = hacking_.session()) {
+                    if (auto* a = sess->anchor_for_npc(look_npc_idx)) {
+                        if (!a->severed()) {
+                            char buf[80];
+                            std::snprintf(buf, sizeof buf,
+                                          "  Mark @ (%d, %d)  HP %d/%d",
+                                          a->x, a->y, a->hp, a->max_hp);
+                            crystal_lines.push_back({buf, Color::Cyan});
+                        }
+                        // Mark anchor as identified so renderer shows NPC name
+                        a->identified = true;
+                    }
+                }
+            } else {
+                crystal_lines.push_back({"Crystal: NONE — bind required", Color::DarkGray});
+            }
+        } else {
+            crystal_lines.push_back({"Crystal: unrecognized hardware", Color::DarkGray});
+        }
+    }
+
+    bool has_crystal_section = !crystal_lines.empty();
+
     // Popup height: top(1) + glyph_row(1) + name_row(1) + sep(1) + desc_lines + bottom(1)
-    int popup_h = 4 + static_cast<int>(desc_lines.size()) + (desc_lines.empty() ? 0 : 1);
+    // Plus crystal separator(1) + crystal_lines when present.
+    int popup_h = 4 + static_cast<int>(desc_lines.size()) + (desc_lines.empty() ? 0 : 1)
+                + (has_crystal_section ? 1 + static_cast<int>(crystal_lines.size()) : 0);
 
     // Center popup on screen
     int px = (screen_w_ - popup_w) / 2;
@@ -447,6 +493,17 @@ void Game::render_look_popup() {
         // Description lines
         for (const auto& dl : desc_lines) {
             ctx.text(2, row, dl, Color::DarkGray);
+            row++;
+        }
+    }
+
+    // Crystal status section
+    if (has_crystal_section) {
+        for (int x = 1; x < popup_w - 1; ++x)
+            ctx.put(x, row, BoxDraw::H, Color::DarkGray);
+        row++;
+        for (const auto& cl : crystal_lines) {
+            ctx.text(2, row, cl.text, cl.color);
             row++;
         }
     }

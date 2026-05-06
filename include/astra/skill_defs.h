@@ -86,6 +86,8 @@ enum class SkillId : uint32_t {
     // Plan 7 — device-shell skill nodes.
     ColdHands           = 1208,  // -10% Detection on privileged shell commands
     RootKit             = 1209,  // -10% hashcat duration
+    // Plan 8 — Crystal-Decoder
+    CrystalDecoder      = 1210,  // reveals NPC Crystal status in look widget
 };
 
 struct SkillDef {

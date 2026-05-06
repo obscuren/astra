@@ -1881,6 +1881,8 @@ static void read_player_section(BinaryReader& r, Player& p) {
     // SkillIds removed by data revisions or duplicated by a bug in older
     // builds.
     ability_bar::validate_and_dedupe(p);
+    // Rebuild cached skill flags from learned_skills (non-serialized).
+    p.skill_crystal_decoder = player_has_skill(p, SkillId::CrystalDecoder);
     uint32_t rep_count = r.read_u32();
     p.reputation.resize(rep_count);
     for (uint32_t i = 0; i < rep_count; ++i) {
