@@ -297,17 +297,30 @@ When a hostile NPC with an implant dies, the corpse retains a **dormant implant*
 
 ### 9.3. Content
 
-Each brain-space contains 1–3 reward tiles, drawn from a faction-weighted table:
+Loot is **deliberately scarce.** Most corpses yield **nothing** beyond the diegetic experience of poking around a dead implant. The brain-space itself is the payoff — the rare loot is a bonus.
 
-| Reward | Frequency | Notes |
+**Reward count distribution** (per brain-space):
+
+| Rewards in brain-space | Probability |
+|---|---|
+| 0 rewards (empty / mood only) | ~60% |
+| 1 reward                      | ~30% |
+| 2 rewards                     | ~10% |
+| 3+ rewards                    | never (hard cap at 2) |
+
+**Reward type table** (rolled per reward slot, faction-weighted):
+
+| Reward | Frequency within slot | Notes |
 |---|---|---|
-| Lore note (memory fragment) | common | hooks into Spec 7's lore-fragment system once that lands |
-| Schematic (blueprint)       | uncommon | hooks into Spec 2's schematic system |
-| Encrypted file (intel)      | uncommon | hooks into Spec 6's intel/map system |
+| Lore note (memory fragment) | uncommon | hooks into Spec 7's lore-fragment system once that lands |
+| Schematic (blueprint)       | rare | hooks into Spec 2's schematic system |
+| Encrypted file (intel)      | rare | hooks into Spec 6's intel/map system |
 | Credits cache               | rare | small, never bank-breaking |
-| Program (`.exe` drop)       | very rare | rare master-tier programs may drop here |
+| Program (`.exe` drop)       | very rare | only master-tier programs drop here, signature loot |
 
-Drop tables finalize in Spec 2 (loot economy retune). Spec 1 ships placeholder rewards.
+Drop tables finalize in Spec 2 (loot economy retune). Spec 1 ships these as placeholders.
+
+**Global scarcity principle.** Astra's loot economy as a whole is intentionally lean — players should not be drowned in rewards. The corpse-implant numbers above follow that principle and will be **rebalanced in concert with the rest of the loot tables in Spec 2**. If Spec 2's overall scarcity dial is set higher / lower, the brain-space numbers shift accordingly.
 
 ### 9.4. Generator
 
@@ -483,6 +496,7 @@ These are tactical, not design — belong in the plan file:
 | 11 | Loot drops offset from corpse glyph. | User callout. |
 | 12 | Plan 7 stays dormant in tree; combat loop disconnects from it. | User decision. |
 | 13 | Save schema bump v63 → v64; reject older saves. | Project policy (no backcompat pre-ship). |
+| 14 | Brain-space loot is deliberately scarce — ~60% empty, ~30% 1 reward, ~10% 2 rewards. Aligns with Astra's global loot scarcity principle. | User decision — most corpses yield mood, not loot. Rebalance lives in Spec 2. |
 
 ---
 
