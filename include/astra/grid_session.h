@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/anchor.h"
 #include "astra/game_state.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_network.h"
@@ -73,6 +74,15 @@ struct GridSession {
     std::vector<GridIce> ice;
     std::vector<bool> ice_seed_spawned;  // Plan 8: true once seed_idx has materialized
 
+    // Anchors
+    std::vector<Anchor>&       anchors()       { return anchors_; }
+    const std::vector<Anchor>& anchors() const { return anchors_; }
+    Anchor* anchor_for_npc(int npc_id);
+    Anchor* anchor_at(int x, int y);
+    void    clear_anchors() { anchors_.clear(); next_anchor_id_ = 0; }
+    Anchor* add_anchor_for_npc(int npc_id, int sx, int sy,
+                               int npc_threat_tier, bool bound = false);
+
     // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
     // instead of the avatar. -1 = no active hijack. The countdown decrements
     // once per turn and clears the index when it hits 0. The ICE's own
@@ -99,6 +109,10 @@ struct GridSession {
     // Plan 6: index of the slot whose Telegraph is currently open. -1 when
     // none. The Grid HUD uses this to inverse-video the active program slot.
     int active_slot = -1;
+
+private:
+    std::vector<Anchor> anchors_;
+    int32_t             next_anchor_id_ = 0;
 };
 
 } // namespace astra

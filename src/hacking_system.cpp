@@ -1,5 +1,6 @@
 #include "astra/hacking_system.h"
 
+#include "astra/anchor.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/deep_grid_sector.h"
@@ -179,6 +180,53 @@ void HackingSystem::tick(Game& game) {
         }
         for (auto& npc : game.world().npcs()) {
             if (npc.cyber) tick_runtime_state(*npc.cyber, 1);
+        }
+    }
+
+    // Plan 8 B4: mirror Anchor positions to follow NPC RW movement.
+    // Runs every in-Grid world tick (tick_real_world calls hacking_.tick).
+    if (session_) {
+        AnchorProjection proj = make_anchor_projection(session_->sector, game.world());
+        auto& npcs = game.world().npcs();
+        for (size_t i = 0; i < npcs.size(); ++i) {
+            Npc& npc = npcs[i];
+            if (!npc.alive()) continue;
+            if (npc.anchor_id < 0) continue;
+
+            Anchor* a = session_->anchor_for_npc(static_cast<int>(i));
+            if (!a) continue;
+            if (a->severed()) continue;  // dead anchors don't move
+
+            int nx, ny;
+            project_rw_to_site(proj, npc.x, npc.y, nx, ny);
+
+            // If the projected tile is unwalkable in the Site, fall back to the
+            // nearest walkable cell (Chebyshev expansion, max radius 4).
+            if (!session_->sector.passable(nx, ny)) {
+                int best_dx = 0, best_dy = 0;
+                int best_d = 1 << 30;
+                for (int rad = 1; rad <= 4 && best_d == (1 << 30); ++rad) {
+                    for (int dy = -rad; dy <= rad; ++dy) {
+                        for (int dx = -rad; dx <= rad; ++dx) {
+                            if (std::max(std::abs(dx), std::abs(dy)) != rad) continue;
+                            int tx = nx + dx, ty = ny + dy;
+                            if (!session_->sector.passable(tx, ty)) continue;
+                            int d = std::abs(dx) + std::abs(dy);
+                            if (d < best_d) {
+                                best_d = d;
+                                best_dx = dx;
+                                best_dy = dy;
+                            }
+                        }
+                    }
+                }
+                if (best_d == (1 << 30)) continue;  // no walkable neighbour — leave anchor in place
+                nx += best_dx;
+                ny += best_dy;
+            }
+
+            a->x = nx;
+            a->y = ny;
         }
     }
 
@@ -573,6 +621,30 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
                     }
                     return false;
                 }), s.ice.end());
+        }
+    }
+
+    // Spec 1: spawn an Anchor per hostile, Crystal-bearing NPC on the
+    // current map. Each NPC's anchor_id is set; the Anchor's Site
+    // coordinates mirror the NPC's RW position via linear projection.
+    {
+        AnchorProjection proj = make_anchor_projection(s.sector, game.world());
+        auto& npcs = game.world().npcs();
+        for (size_t i = 0; i < npcs.size(); ++i) {
+            Npc& npc = npcs[i];
+            if (!npc.alive()) continue;
+            if (!is_hostile_to_player(npc.faction, game.player())) continue;
+            if (!npc.cyber) continue;
+            if (!has_tag(npc.cyber->tags, HackTag::Electronic)) continue;
+
+            int sx, sy;
+            project_rw_to_site(proj, npc.x, npc.y, sx, sy);
+            Anchor* a = s.add_anchor_for_npc(
+                static_cast<int>(i),
+                sx, sy,
+                npc.level,
+                /*bound=*/false);
+            npc.anchor_id = a->id;
         }
     }
 
