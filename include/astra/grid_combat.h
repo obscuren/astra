@@ -5,14 +5,14 @@ namespace astra {
 class Game; // forward declare
 
 // Bump-attack melee tunables (Spec 1 §6.2).
-inline constexpr int kGridMeleeDamage      = 3;
-inline constexpr int kGridMeleeChannelCost = 0;   // RAM in code identifiers (deferred rename)
-inline constexpr int kGridMeleeDriftCost   = 0;   // Heat in code identifiers (deferred rename)
-inline constexpr int kGridMeleeRange       = 1;
+inline constexpr int kGridMeleeDamage   = 3;
+inline constexpr int kGridMeleeRamCost  = 0;   // RAM cost for melee
+inline constexpr int kGridMeleeHeatCost = 0;   // Heat cost for melee
+inline constexpr int kGridMeleeRange    = 1;
 
-// Bind ability tunables (Spec 1 §4.2).
-inline constexpr int kBindChannelCost = 2;
-inline constexpr int kBindDriftCost   = 4;
+// Tether ability tunables (Spec 1 §4.2).
+inline constexpr int kTetherRamCost  = 2;
+inline constexpr int kTetherHeatCost = 4;
 
 // XP grants (Spec 1 §8.2). Tier scalars to be tuned in playtest.
 inline constexpr int kXpIceWhite           = 4;

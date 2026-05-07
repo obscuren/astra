@@ -7,7 +7,7 @@
 #include "astra/game.h"
 #include "astra/hackable.h"
 #include "astra/hacking_system.h"
-#include "astra/imprint_sector_generator.h"
+#include "astra/dead_implant_sector_generator.h"
 #include "astra/ip.h"
 #include "astra/pda_screen.h"
 #include "astra/item_defs.h"
@@ -536,47 +536,47 @@ void DialogManager::append_shell_access_option_npc(Npc& npc, Game& game) {
     option_kinds_.back() = OptionKind::HackingShellAccess;
 }
 
-// Spec 1: append `(read) Walk the Imprint` on an NpcCorpse fixture whose
-// Electronic Hackable imprint has not yet been consumed. Gated on Cat_Hacking.
-void DialogManager::append_walk_imprint_option(int fid, Game& game) {
+// Spec 1: append `(hack) Jack In` on an NpcCorpse fixture whose
+// Electronic Hackable dead implant has not yet been consumed. Gated on Cat_Hacking.
+void DialogManager::append_jack_into_corpse_option(int fid, Game& game) {
     auto& fd = game.world().map().fixture_mut(fid);
     if (fd.type != FixtureType::NpcCorpse) return;
     if (!fd.cyber) return;
     if (!has_tag(fd.cyber->tags, HackTag::Electronic)) return;
 
-    if (fd.cyber->corpse_imprint_exhausted) {
-        // Imprint already consumed — show a disabled info line so the player
+    if (fd.cyber->corpse_dead_implant_exhausted) {
+        // Dead implant already consumed — show a disabled info line so the player
         // understands what happened.
-        add_option('-', "imprint dissolved", UITag::OptionNormal);
+        add_option('-', "implant fried \xe2\x80\x94 nothing left to read", UITag::OptionNormal);
         // Mark Normal so it falls through to the no-op default dispatch.
         return;
     }
 
     if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) return;
 
-    std::string label = build_hacking_label("Walk the Imprint", /*plain_action=*/true);
+    std::string label = build_hacking_label("Jack In", /*plain_action=*/true);
     char hotkey = 'r';
     for (char ex : hotkeys_) { if (ex == hotkey) { hotkey = 0; break; } }
     if (!hotkey) return;
     add_option(hotkey, label, UITag::OptionNormal);
-    option_kinds_.back() = OptionKind::WalkImprint;
+    option_kinds_.back() = OptionKind::JackIntoCorpse;
 }
 
 // Spec 1: activate a transient GridSession seeded from a corpse fixture's
 // Hackable. Does NOT require a network node — the sector is generated on
 // the spot and injected directly into HackingSystem.
-void DialogManager::walk_imprint(Game& game, int fid) {
+void DialogManager::jack_into_corpse(Game& game, int fid) {
     if (game.hacking().jacked_in()) {
         game.log("You are already jacked into a network.");
         return;
     }
     if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        game.log("You need the Cat_Hacking skill to walk an imprint.");
+        game.log("You need the Cat_Hacking skill to jack into a dead implant.");
         return;
     }
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        game.log("You need an equipped cyberdeck to walk an imprint.");
+        game.log("You need an equipped cyberdeck to jack into a dead implant.");
         return;
     }
 
@@ -584,25 +584,25 @@ void DialogManager::walk_imprint(Game& game, int fid) {
     if (!fd.cyber) return;
     Hackable& hack = *fd.cyber;
 
-    if (hack.corpse_imprint_exhausted) {
-        game.log("The imprint has already dissolved.");
+    if (hack.corpse_dead_implant_exhausted) {
+        game.log("implant fried \xe2\x80\x94 nothing left to read");
         return;
     }
 
     // Seed: derive from fixture position if not already stamped.
-    if (hack.corpse_imprint_seed == 0) {
+    if (hack.corpse_dead_implant_seed == 0) {
         auto [cx, cy] = fixture_xy_by_id(game.world().map(), fid);
         uint32_t pos_hash = (static_cast<uint32_t>(cx) * 2654435761u) ^
                             (static_cast<uint32_t>(cy) * 2246822519u) ^
                             static_cast<uint32_t>(game.world().world_tick());
-        hack.corpse_imprint_seed = (pos_hash != 0) ? pos_hash : 0xDEADBEEFu;
+        hack.corpse_dead_implant_seed = (pos_hash != 0) ? pos_hash : 0xDEADBEEFu;
     }
 
-    ImprintGenInput in;
-    in.seed            = hack.corpse_imprint_seed;
+    DeadImplantGenInput in;
+    in.seed            = hack.corpse_dead_implant_seed;
     in.faction_id      = 0;
     in.npc_threat_tier = hack.security_tier;
-    GridSector sec     = gen_imprint_sector(in);
+    GridSector sec     = gen_dead_implant_sector(in);
 
     const auto& cd = *(*deck_slot)->deck;
 
@@ -619,7 +619,7 @@ void DialogManager::walk_imprint(Game& game, int fid) {
     s.avatar_hp     = s.avatar_hp_max;
     s.ram_max       = cd.stats.ram_max;
     s.ram           = cd.ram_current;
-    s.trace_tick_per_turn = 1;  // imprint is a small isolated pocket
+    s.trace_tick_per_turn = 1;  // dead-implant sector is a small isolated pocket
 
     s.skill_intrusion          = player_has_skill(game.player(), SkillId::Intrusion);
     s.skill_icebreaking        = player_has_skill(game.player(), SkillId::IceBreaking);
@@ -632,12 +632,12 @@ void DialogManager::walk_imprint(Game& game, int fid) {
     s.avatar_x  = s.sector.spawn_x;
     s.avatar_y  = s.sector.spawn_y;
 
-    // Mark as transient imprint so jack_out knows to exhaust the corpse.
-    s.is_imprint_transient = true;
-    s.corpse_fid           = fid;
+    // Mark as transient dead-implant session so jack_out knows to exhaust the corpse.
+    s.is_dead_implant_transient = true;
+    s.corpse_fid                = fid;
 
-    game.hacking().inject_imprint_session(game, std::move(s));
-    game.log("You close your eyes and dive into the fading neural echo...");
+    game.hacking().inject_dead_implant_session(game, std::move(s));
+    game.log("You jack into the cooling implant...");
 }
 
 // Plan 7: implant Shell Access on a hostile NPC. Tiny dialog, single
@@ -982,12 +982,12 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
             break;
         }
         case FixtureType::NpcCorpse: {
-            // Spec 1: NPC corpse with possible Walk the Imprint option.
+            // Spec 1: NPC corpse with possible Jack In (dead-implant) option.
             reset_content("Corpse", 0.45f);
             body_ = "The body is still warm. Neural lattice integrity: uncertain.";
             game.log("You crouch over the fallen body.");
             dialog_fixture_id_ = fid;
-            append_walk_imprint_option(fid, game);
+            append_jack_into_corpse_option(fid, game);
             add_option('c', "Leave");
             footer_ = "[Space] Select  [Esc] Close";
             open_ = true;
@@ -1331,8 +1331,8 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                 game.advance_world(ActionCost::interact);
                 return;
             }
-            if (kind == OptionKind::WalkImprint) {
-                walk_imprint(game, fid);
+            if (kind == OptionKind::JackIntoCorpse) {
+                jack_into_corpse(game, fid);
                 return;
             }
         }

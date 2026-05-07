@@ -168,9 +168,9 @@ public:
     void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
     bool handle_cell_picker_input(int key);  // returns true if input was consumed
     void open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots);
-    // Bind targeting mode (D2)
-    void begin_bind_targeting();
-    void confirm_bind_targeting();
+    // Tether targeting mode (D2)
+    void begin_tether_targeting();
+    void confirm_tether_targeting();
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
 
@@ -438,9 +438,9 @@ private:
     int qh_picker_target_x_ = 0;
     int qh_picker_target_y_ = 0;
 
-    // Bind targeting mode (D2): set while the player is picking a Bind target
+    // Tether targeting mode (D2): set while the player is picking a Tether target
     // using the look cursor. Confirmed by Enter; cancelled by Esc.
-    bool bind_targeting_ = false;
+    bool tether_targeting_ = false;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

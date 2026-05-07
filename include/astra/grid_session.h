@@ -110,11 +110,11 @@ struct GridSession {
     // none. The Grid HUD uses this to inverse-video the active program slot.
     int active_slot = -1;
 
-    // Spec 1: Imprint sector flag. When true this session was generated from
+    // Spec 1: Dead-implant sector flag. When true this session was generated from
     // a corpse fixture rather than a live network node. jack_out checks this
     // to mark the corpse exhausted. corpse_fid is the fixture id (-1 = unset).
-    bool is_imprint_transient = false;
-    int  corpse_fid           = -1;
+    bool is_dead_implant_transient = false;
+    int  corpse_fid                = -1;
 
 private:
     std::vector<Mark> anchors_;

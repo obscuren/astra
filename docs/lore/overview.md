@@ -14,7 +14,7 @@ Every run begins on The Heavens Above (Jupiter station). Every run ends — if i
 
 ## 2. The Heavens Above
 
-The player wakes on **The Heavens Above** — Jupiter's great orbital, humanity's central station, the gateway between the Sol system and the wider galaxy. It's a port, a market, a refuge, a launching point. Vendors of all factions trade here (some don't even speak the same language). Shipwrights can fuel up, repair, refit. Tinkers can buy their first parts. Marksmen can pick up a sidearm. Aspiring Drifters can find their first **Resonator,** a starter **Sigil,** and the first hints of what lies further out.
+The player wakes on **The Heavens Above** — Jupiter's great orbital, humanity's central station, the gateway between the Sol system and the wider galaxy. It's a port, a market, a refuge, a launching point. Vendors of all factions trade here (some don't even speak the same language). Shipwrights can fuel up, repair, refit. Tinkers can buy their first parts. Marksmen can pick up a sidearm. Aspiring Drifters can find their first **cyberdeck,** a starter **exploit,** and the first hints of what lies further out.
 
 The player's own starship is docked here. Its hold is small. Its Hyperspace Engine is the cheapest grade. Its Navi Computer can plot maybe one or two systems out before it loses confidence. From the Heavens Above the galaxy is a faint pinprick chart of possibility.
 
@@ -49,7 +49,7 @@ The Relay Network is an ancient, galaxy-spanning lattice of **Sites** — statio
 
 It was built by **pre-civilizations** whose names survive only in fragments — Archons, Precursors, the Builders, others. They built it eons ago. Then they vanished.
 
-The Network is **decaying.** Sites lie abandoned. Half-functional. Wardens — automated guardians from a forgotten era — still patrol some Chambers, on protocols they no longer understand. Many Caches are corrupted. Many Inner Gates won't open at all. Travelers say the Network is **going dark** — it's been growing dimmer for centuries, with no one able to explain why.
+The Network is **decaying.** Sites lie abandoned. Half-functional. ICE — automated guardians from a forgotten era — still patrol some Chambers, on protocols they no longer understand. Many Caches are corrupted. Many Inner Gates won't open at all. Travelers say the Network is **going dark** — it's been growing dimmer for centuries, with no one able to explain why.
 
 The Relay Network is the *surface* of the truth. Most of the galaxy never goes deeper.
 
@@ -77,7 +77,7 @@ This is the deep mechanism behind the player's macro-arc. The Substrate has been
 
 ### 5.2. Drifters and the shallow end
 
-Drifters operate at the *shallow* end of the Substrate. They couple briefly through their Resonator, do their work, decouple. They do not get fully assimilated.
+Drifters operate at the *shallow* end of the Substrate. They jack in through their cyberdeck, do their work, jack out. They do not get fully assimilated.
 
 But the Substrate still *touches* them. A long-time Drifter starts to notice things:
 - Words in tongues they don't speak.
@@ -128,7 +128,7 @@ The professions, in broad strokes (each has its own deeper lore in future docs):
 - **Tinker.** Builds, modifies, deploys. Turrets, mines, drones, gear-crafting from schematics. The shop-floor mind. Reaches into ancient tech with a wrench.
 - **Marksman.** Pistols, rifles, energy weapons. Range and precision. Stays out of the worst of it.
 - **Brawler / Melee.** Close work. Blades, fists, augmented limbs. The shortest distance between you and a problem.
-- **Drifter.** The one path this lore doc treats in depth, because it is the path that touches the Substrate. **Drifters couple to the Relay Network through a Resonator and run Sigils** — small operators who exploit the inheritance of the pre-civilizations without quite understanding what they're exploiting. Scavengers. Wildcatters. Not scientists, not priests. The path that goes *deepest.*
+- **Drifter.** The one path this lore doc treats in depth, because it is the path that touches the Substrate. **Drifters jack into the Relay Network through a cyberdeck and run exploits** — small operators who exploit the inheritance of the pre-civilizations without quite understanding what they're exploiting. Scavengers. Wildcatters. Not scientists, not priests. The path that goes *deepest.*
 - **Other paths exist** and will be detailed in their own lore expansions — pilots, traders, settlers, scrapped-together hybrids. The roster grows.
 
 ### 8.1. The Drifter profession
@@ -145,9 +145,9 @@ The rest of this lore doc focuses on the Substrate side of Astra's setting; that
 
 A typical run, in lore terms (path-neutral except where noted):
 
-1. **Wake on The Heavens Above.** Pick up your starting kit — guns, gear, schematics, or a Resonator and a starter Sigil, depending on the path you're taking. A small starship.
+1. **Wake on The Heavens Above.** Pick up your starting kit — guns, gear, schematics, or a cyberdeck and a starter exploit, depending on the path you're taking. A small starship.
 2. **Travel.** Star to star, system to system, blackhole transit by blackhole transit. Asteroid belts, abandoned outposts, dungeon-rich worlds. Faction encounters. The galaxy is large.
-3. **Build your run.** Profession-specific: Tinkers gather schematics and craft. Marksmen hunt for better weapons and ammo. Melee fighters chase combat skill and augmentations. **Drifters couple into local Relay Sites, walk Chambers, loot Caches, Bind targets, read Crystals from the dead, and build their Sigil library and Resonator capacity.** Most runs blend two or more.
+3. **Build your run.** Profession-specific: Tinkers gather schematics and craft. Marksmen hunt for better weapons and ammo. Melee fighters chase combat skill and augmentations. **Drifters jack into local Relay Sites, walk Chambers, loot Caches, Tether targets, jack into dead implants, and build their exploit library and cyberdeck capacity.** Most runs blend two or more.
 4. **Go deeper.** The further out you travel, the older the inheritance gets. Stations get stranger. Enemies get stronger. For Drifters specifically: references to "the Substrate" begin to appear in NPC dialogue. The Network begins to feel *alive* in ways it didn't at the surface.
 5. **Approach the core.** Long blackhole chains, dangerous transits, fewer maintained stations. The galactic core nears.
 6. **Sgr A*.** The final approach. Whatever ritual or mechanic delivers the player into Sgr A*'s event horizon. **Rebirth.**
@@ -184,7 +184,7 @@ Things this lore document deliberately does **not** resolve:
 - Whether the Drifter's accumulated fragments include those of any *specific* pre-civ traveler — i.e., whether the player is, in some sense, *carrying an Archon* without knowing it.
 - What waits at Sgr A* beyond the rebirth.
 - Whether the Eater (if there is an Eater) is hostile, indifferent, or alien-natured in the same way the Substrate is.
-- How Crystals were originally made, and whether modern Crystals are degraded copies.
+- How implants were originally made, and whether modern implants are degraded copies.
 - Why some species (Stellari, Archon Remnants) seem to know more than others.
 
 These are content seams. Future story specs may or may not close them. Many *should* stay open — Astra's tone is *the unknown,* not *the explained.*
@@ -193,9 +193,9 @@ These are content seams. Future story specs may or may not close them. Many *sho
 
 ## 12. Tone notes for writers and designers
 
-- **Sober, technical, archaeological** for surface description. Writers should describe Sites, Chambers, Wardens, Caches the way a careful investigator would describe a depressurized derelict — clean, observed, undramatic. Reference texture: *The Expanse*, *Roadside Picnic*, *Annihilation*'s clinical first half.
+- **Sober, technical, archaeological** for surface description. Writers should describe Sites, Chambers, ICE, Caches the way a careful investigator would describe a depressurized derelict — clean, observed, undramatic. Reference texture: *The Expanse*, *Roadside Picnic*, *Annihilation*'s clinical first half.
 - **Spare mystical undertones** under the surface. When the Substrate or the deep Network surfaces in writing, allow a single line of strangeness. Don't over-flower it. Reverence is shown by *restraint*, not adjectives.
-- **Not horror.** The Substrate is alien but not malevolent. The Wardens are dangerous but not cruel. The going dark is sad in the way a tide going out is sad — natural, not vindictive. Avoid horror tropes.
+- **Not horror.** The Substrate is alien but not malevolent. ICE is dangerous but not cruel. The going dark is sad in the way a tide going out is sad — natural, not vindictive. Avoid horror tropes.
 - **Drifter voice.** Drifters are scavengers, not sages. They don't lecture. When a Drifter narrates, they should sound like someone who has seen things they don't understand and gotten used to that.
 - **Faction voices vary.** Stellari speak in measured, ceremonial language. Archon Remnants speak in incomplete sentences and old idioms. Terran Federation officials speak like middle managers. Drifters speak like anyone who has been on the road too long.
 
@@ -206,7 +206,7 @@ These are content seams. Future story specs may or may not close them. Many *sho
 - **Manifesto** (technical roadmap for Drift / Relay design): `../specs/relay-manifesto.md`
 - **Spec 1** (Marks, Drifter combat, XP): `../specs/relay-spine.md`
 - **Mechanics** (numbers, formulas): `../design/mechanics.md`
-- **Items** (gear, Sigils, Crystals): `../design/items.md`
+- **Items** (gear, exploits, implants): `../design/items.md`
 - **Factions** (canonical list): `../../include/astra/faction.h`
 
 ---

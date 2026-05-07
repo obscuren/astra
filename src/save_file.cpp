@@ -716,9 +716,9 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     w.write_u32(static_cast<uint32_t>(h.wiped_paths.size()));
     for (const auto& p : h.wiped_paths) w.write_string(p);
     w.write_string(h.friendly_fire_target_faction);
-    // v67 — Spec 1: per-corpse Imprint state.
-    w.write_u8(h.corpse_imprint_exhausted ? 1 : 0);
-    w.write_u32(h.corpse_imprint_seed);
+    // v67 — Spec 1: per-corpse dead-implant state.
+    w.write_u8(h.corpse_dead_implant_exhausted ? 1 : 0);
+    w.write_u32(h.corpse_dead_implant_seed);
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -756,9 +756,9 @@ static Hackable read_hackable(BinaryReader& r) {
         for (uint32_t i = 0; i < n; ++i) h.wiped_paths.push_back(r.read_string());
     }
     h.friendly_fire_target_faction = r.read_string();
-    // v67 — Spec 1: per-corpse Imprint state.
-    h.corpse_imprint_exhausted = (r.read_u8() != 0);
-    h.corpse_imprint_seed      = r.read_u32();
+    // v67 — Spec 1: per-corpse dead-implant state.
+    h.corpse_dead_implant_exhausted = (r.read_u8() != 0);
+    h.corpse_dead_implant_seed      = r.read_u32();
     // Tick-based runtime fields (optics_blind_ticks, disarmed_ticks, etc.)
     // are deliberately NOT persisted (per spec §13). They reset to 0 on
     // reload — i.e. cmd-blind/disarm/etc. effects expire on save/load.
@@ -1138,8 +1138,8 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
         }
     }
     w.write_i32(npc.anchor_id);
-    // v67: force_bind flag (Bind action — D2)
-    w.write_u8(npc.force_bind ? 1 : 0);
+    // v67: force_tether flag (Tether action — D2)
+    w.write_u8(npc.force_tether ? 1 : 0);
     // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
     w.write_i32(npc.uid);
 }
@@ -1892,10 +1892,10 @@ static void read_player_section(BinaryReader& r, Player& p) {
     // builds.
     ability_bar::validate_and_dedupe(p);
     // Rebuild cached skill flags from learned_skills (non-serialized).
-    p.skill_crystal_decoder = player_has_skill(p, SkillId::CrystalDecoder);
-    p.skill_bind_l1 = player_has_skill(p, SkillId::BindL1);
-    p.skill_bind_l2 = player_has_skill(p, SkillId::BindL2);
-    p.skill_bind_l3 = player_has_skill(p, SkillId::BindL3);
+    p.skill_implant_reader = player_has_skill(p, SkillId::ImplantReader);
+    p.skill_tether_l1 = player_has_skill(p, SkillId::TetherL1);
+    p.skill_tether_l2 = player_has_skill(p, SkillId::TetherL2);
+    p.skill_tether_l3 = player_has_skill(p, SkillId::TetherL3);
     uint32_t rep_count = r.read_u32();
     p.reputation.resize(rep_count);
     for (uint32_t i = 0; i < rep_count; ++i) {
@@ -2062,8 +2062,8 @@ static Npc read_npc(BinaryReader& r) {
         }
     }
     npc.anchor_id = r.read_i32();
-    // v67: force_bind flag (Bind action — D2)
-    npc.force_bind = r.read_u8() != 0;
+    // v67: force_tether flag (Tether action — D2)
+    npc.force_tether = r.read_u8() != 0;
     // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
     npc.uid = r.read_i32();
 

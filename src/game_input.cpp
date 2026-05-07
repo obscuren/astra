@@ -12,54 +12,54 @@
 
 namespace astra {
 
-// ── Bind action (D2) ─────────────────────────────────────────────────────
-// Real-world Bind: marks a non-Crystal-bearing NPC for Mark projection on
-// the next jack-in. Costs only Drift (Heat) — Channel (RAM) is a session-
-// only resource; v2 in-Grid Bind can pay Channel at that time.
+// ── Tether action (D2) ───────────────────────────────────────────────────
+// Real-world Tether: marks a non-Crystal-bearing NPC for Mark projection on
+// the next jack-in. Costs only Heat (Drift) — RAM (Channel) is a session-
+// only resource; v2 in-Grid Tether can pay RAM at that time.
 //
 // Range: L3 → 8 tiles (AoE TODO), L2 → 8 tiles, L1 → 1 tile (adjacent only).
-void Game::begin_bind_targeting() {
+void Game::begin_tether_targeting() {
     // 1. Skill gate
-    if (!player_.skill_bind_l1) {
-        log("You don't know how to Bind a target.");
+    if (!player_.skill_tether_l1) {
+        log("You don't know how to Tether a target.");
         return;
     }
 
     // 2. Cyberdeck gate
     auto* deck_slot = player_.equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        log("No cyberdeck equipped \xe2\x80\x94 Bind requires a neural link.");
+        log("No cyberdeck equipped \xe2\x80\x94 Tether requires a neural link.");
         return;
     }
     auto& cd = *(*deck_slot)->deck;
 
-    // 3. Drift (Heat) budget gate
-    // v1 simplification: real-world Bind charges only Drift because Channel
+    // 3. Heat budget gate
+    // v1 simplification: real-world Tether charges only Heat because RAM
     // is a session-only resource that doesn't exist outside an active Grid
-    // session. v2 in-Grid Bind will pay Channel instead.
-    if (cd.heat_current + kBindDriftCost > cd.stats.heat_cap) {
-        log("Drift over cap \xe2\x80\x94 Bind would overheat the deck.");
+    // session. v2 in-Grid Tether will pay RAM instead.
+    if (cd.heat_current + kTetherHeatCost > cd.stats.heat_cap) {
+        log("Heat over cap \xe2\x80\x94 Tether would overheat the deck.");
         return;
     }
 
     // 4. Enter look-cursor targeting mode so the player can pick a target.
-    //    bind_targeting_ is cleared on confirm or cancel.
-    bind_targeting_ = true;
+    //    tether_targeting_ is cleared on confirm or cancel.
+    tether_targeting_ = true;
     input_.begin_look(player_.x, player_.y);
-    log("Bind target. Move cursor, [Enter] confirm, [Esc] cancel.");
+    log("Tether target. Move cursor, [Enter] confirm, [Esc] cancel.");
 }
 
-void Game::confirm_bind_targeting() {
-    bind_targeting_ = false;
+void Game::confirm_tether_targeting() {
+    tether_targeting_ = false;
     input_.cancel_look();
 
     int tx = input_.look_x();
     int ty = input_.look_y();
 
     // Determine range from highest learned tier.
-    int bind_range = 1;  // L1 default: adjacent only
-    if (player_.skill_bind_l3 || player_.skill_bind_l2) {
-        bind_range = 8;
+    int tether_range = 1;  // L1 default: adjacent only
+    if (player_.skill_tether_l3 || player_.skill_tether_l2) {
+        tether_range = 8;
     }
     // TODO L3 AoE: future v2 should burst all visible targets within 3 tiles.
 
@@ -80,7 +80,7 @@ void Game::confirm_bind_targeting() {
     // Chebyshev range check
     int dist = std::max(std::abs(tx - player_.x),
                         std::abs(ty - player_.y));
-    if (dist > bind_range) {
+    if (dist > tether_range) {
         log("Target out of range.");
         return;
     }
@@ -91,24 +91,24 @@ void Game::confirm_bind_targeting() {
         return;
     }
 
-    // Don't double-bind
-    if (target_npc->force_bind && target_npc->anchor_id >= 0) {
-        log(target_npc->name + " is already Bound.");
+    // Don't double-tether
+    if (target_npc->force_tether && target_npc->anchor_id >= 0) {
+        log(target_npc->name + " is already Tethered.");
         return;
     }
 
-    // Commit: mark + pay Drift
+    // Commit: mark + pay Heat
     auto* deck_slot = player_.equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         log("Deck disappeared.");
         return;
     }
     auto& cd = *(*deck_slot)->deck;
-    target_npc->force_bind = true;
-    cyberdeck_add_heat(cd, kBindDriftCost);
-    log("Bound " + target_npc->name +
-        " \xe2\x80\x94 projection ready next jack-in.  [Drift +"
-        + std::to_string(kBindDriftCost) + "]");
+    target_npc->force_tether = true;
+    cyberdeck_add_heat(cd, kTetherHeatCost);
+    log("Tethered " + target_npc->name +
+        " \xe2\x80\x94 projection ready next jack-in.  [Heat +"
+        + std::to_string(kTetherHeatCost) + "]");
 }
 
 void Game::handle_play_input(int key) {
@@ -414,19 +414,19 @@ void Game::handle_play_input(int key) {
 
 
     // Look mode intercept
-    // When bind_targeting_ is active the look cursor is used for target pick.
-    // Enter confirms the Bind; Esc cancels both bind mode and look mode.
+    // When tether_targeting_ is active the look cursor is used for target pick.
+    // Enter confirms the Tether; Esc cancels both tether mode and look mode.
     if (input_.looking()) {
-        if (bind_targeting_) {
+        if (tether_targeting_) {
             if (key == '\n' || key == '\r') {
-                confirm_bind_targeting();
+                confirm_tether_targeting();
                 compute_camera();
                 return;
             }
             if (key == '\033') {
-                bind_targeting_ = false;
+                tether_targeting_ = false;
                 input_.cancel_look();
-                log("Bind cancelled.");
+                log("Tether cancelled.");
                 compute_camera();
                 return;
             }
@@ -642,7 +642,7 @@ void Game::handle_play_input(int key) {
         case 'T': use_thrown(); break;
         case 's': combat_.shoot_target(*this); break;
         case 'H': hacking_.begin_quickhack_targeting(*this); break;
-        case 'N': begin_bind_targeting(); break;   // D2: Bind action
+        case 'N': begin_tether_targeting(); break;   // D2: Tether action
         case 'r': combat_.recharge_weapon(*this); break;
         case 'b': combat_.recharge_shield(*this); break;
         case 'R': open_cell_picker(/*target_is_shield=*/false); break;

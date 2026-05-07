@@ -144,12 +144,12 @@ struct Player {
     int is_jacked_into = -1;
 
     // Cached skill flags (non-serialized; rebuilt after load and on skill grant).
-    // Plan 8 — Crystal-Decoder: gates NPC Crystal info in the look widget.
-    bool skill_crystal_decoder = false;
-    // Plan 8 — Bind L1/L2/L3: project Mark on targets without active Crystal.
-    bool skill_bind_l1 = false;
-    bool skill_bind_l2 = false;
-    bool skill_bind_l3 = false;
+    // Plan 8 — ImplantReader: gates NPC implant info in the look widget.
+    bool skill_implant_reader = false;
+    // Plan 8 — Tether L1/L2/L3: project Mark on targets without active Crystal.
+    bool skill_tether_l1 = false;
+    bool skill_tether_l2 = false;
+    bool skill_tether_l3 = false;
 
     // Aggregate modifiers from all equipped implants.
     StatModifiers implant_modifiers() const {

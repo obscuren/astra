@@ -1,11 +1,11 @@
-#include "astra/imprint_sector_generator.h"
+#include "astra/dead_implant_sector_generator.h"
 
 #include <algorithm>
 #include <random>
 
 namespace astra {
 
-GridSector gen_imprint_sector(const ImprintGenInput& in) {
+GridSector gen_dead_implant_sector(const DeadImplantGenInput& in) {
     std::mt19937 rng(in.seed != 0 ? in.seed : 1u);
 
     // Interior size: 4..8 in each dimension.

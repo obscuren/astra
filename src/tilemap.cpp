@@ -539,7 +539,7 @@ FixtureData make_fixture(FixtureType type) {
             fd.passable = true; fd.interactable = true; break;
         case FixtureType::NpcCorpse:
             // Passable so other NPCs can walk over it; interactable so the
-            // player can read the Walk the Imprint option when adjacent.
+            // player can Jack In to the dead implant when adjacent.
             fd.passable = true; fd.interactable = true; break;
         case FixtureType::Plinth:
             fd.passable = false; fd.interactable = false; break;

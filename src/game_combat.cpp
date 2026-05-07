@@ -185,7 +185,7 @@ void award_npc_kill(Game& game, Npc& npc) {
     apply_salvage_on_kill(game, npc, rng);
 
     // Spec 1: place a corpse fixture carrying the NPC's Hackable so
-    // Walk the Imprint can be offered after death. Only for Electronic
+    // Jack In (dead-implant) can be offered after death. Only for Electronic
     // hackable NPCs (Crystal); silently skip if the tile already holds
     // a fixture (rare collision) or if not in a dungeon/detail map.
     if (npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic)) {

@@ -605,7 +605,7 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     // current map. Each NPC's anchor_id is set; the Mark's Site
     // coordinates mirror the NPC's RW position via linear projection,
     // nudged to the nearest walkable cell if the projected tile is a wall.
-    // D2: also spawn Marks for Bind-marked NPCs (force_bind == true)
+    // D2: also spawn Marks for Tether-marked NPCs (force_tether == true)
     // even if they carry no native Electronic Crystal.
     {
         AnchorProjection proj = make_anchor_projection(s.sector, game.world());
@@ -615,13 +615,13 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
             if (!npc.alive()) continue;
 
             bool has_native_crystal = npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic);
-            bool bound_target       = npc.force_bind;
-            if (!has_native_crystal && !bound_target) continue;
+            bool tethered_target    = npc.force_tether;
+            if (!has_native_crystal && !tethered_target) continue;
 
-            // Hostility gate applies to native-Crystal NPCs only. Bound
+            // Hostility gate applies to native-Crystal NPCs only. Tethered
             // targets are an explicit player action — faction rep is
             // irrelevant; the player has chosen to project a Mark.
-            if (!bound_target && !is_hostile_to_player(npc.faction, game.player())) continue;
+            if (!tethered_target && !is_hostile_to_player(npc.faction, game.player())) continue;
 
             int sx, sy;
             project_rw_to_site(proj, npc.x, npc.y, sx, sy);
@@ -631,7 +631,7 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
                 npc.uid,
                 sx, sy,
                 npc.level,   // npc.level used as threat-tier proxy (B3)
-                /*bound=*/bound_target);
+                /*bound=*/tethered_target);
             npc.anchor_id = a->id;
         }
     }
@@ -645,9 +645,9 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     return true;
 }
 
-// Spec 1: inject a pre-built GridSession (Imprint sector). Bypasses the
-// network-node lookup; preconditions checked by caller (walk_imprint).
-void HackingSystem::inject_imprint_session(Game& game, GridSession s) {
+// Spec 1: inject a pre-built GridSession (dead-implant sector). Bypasses the
+// network-node lookup; preconditions checked by caller (jack_into_corpse).
+void HackingSystem::inject_dead_implant_session(Game& game, GridSession s) {
     // Spawn ICE from seeds if the generator populated them.
     if (!s.sector.ice_seeds.empty()) {
         grid_ice::spawn_from_seeds(s);
@@ -839,12 +839,12 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
     }
 
     // Spec 1: mark the source corpse exhausted when leaving a transient
-    // Imprint sector, regardless of jack-out kind (voluntary, death, etc.).
-    if (s.is_imprint_transient && s.corpse_fid >= 0) {
+    // dead-implant sector, regardless of jack-out kind (voluntary, death, etc.).
+    if (s.is_dead_implant_transient && s.corpse_fid >= 0) {
         auto& map = game.world().map();
         if (s.corpse_fid < static_cast<int>(map.fixtures_vec().size())) {
             FixtureData& corpse_fd = map.fixture_mut(s.corpse_fid);
-            if (corpse_fd.cyber) corpse_fd.cyber->corpse_imprint_exhausted = true;
+            if (corpse_fd.cyber) corpse_fd.cyber->corpse_dead_implant_exhausted = true;
         }
     }
 

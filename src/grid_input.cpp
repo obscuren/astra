@@ -360,11 +360,11 @@ bool handle(Game& game, int key) {
                     }
                 }
                 // Pay melee costs (both 0 by default; kept for future tuning).
-                s.ram = std::max(0, s.ram - kGridMeleeChannelCost);
-                if (kGridMeleeDriftCost > 0) {
+                s.ram = std::max(0, s.ram - kGridMeleeRamCost);
+                if (kGridMeleeHeatCost > 0) {
                     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
                     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
-                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeDriftCost);
+                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeHeatCost);
                     }
                 }
                 char buf[80];
@@ -385,11 +385,11 @@ bool handle(Game& game, int key) {
                 IceColor warden_color = warden.color;
                 warden.hp = std::max(0, warden.hp - kGridMeleeDamage);
                 // Pay melee costs.
-                s.ram = std::max(0, s.ram - kGridMeleeChannelCost);
-                if (kGridMeleeDriftCost > 0) {
+                s.ram = std::max(0, s.ram - kGridMeleeRamCost);
+                if (kGridMeleeHeatCost > 0) {
                     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
                     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
-                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeDriftCost);
+                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeHeatCost);
                     }
                 }
                 // Grant XP if the strike destroyed the Warden.

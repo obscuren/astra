@@ -31,10 +31,10 @@ namespace astra {
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
 inline constexpr uint32_t SAVE_FILE_VERSION = 68;   // v68: stable monotonic NPC UID for Anchor linkage
-                                                    // v67: Bind action — force_bind flag on Npc (D2)
-                                                    // v66: Spec 1 — Mark/Vulnerability/Imprint persistence
+                                                    // v67: Tether action — force_tether flag on Npc (D2)
+                                                    // v66: Spec 1 — Mark/Vulnerability/DeadImplant persistence
                                                     //   (per-NPC vulnerability stack, per-Anchor HP,
-                                                    //   per-corpse imprint state to be added in subsequent tasks)
+                                                    //   per-corpse dead-implant state to be added in subsequent tasks)
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

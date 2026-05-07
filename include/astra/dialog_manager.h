@@ -100,7 +100,7 @@ private:
         HackingSyncSoul,
         HackingRunQh,
         HackingShellAccess,   // Plan 7: opens per-device shell (real-world doorway)
-        WalkImprint,          // Spec 1: couple into per-corpse Imprint sector
+        JackIntoCorpse,       // Spec 1: couple into per-corpse dead-implant sector
     };
     std::vector<OptionKind> option_kinds_;
 
@@ -131,13 +131,13 @@ private:
     // OptionKind::HackingShellAccess + interacting_npc_ pointer.
     void append_shell_access_option_npc(Npc& npc, Game& game);
 
-    // Spec 1: append `(read) Walk the Imprint` on an NpcCorpse fixture that
-    // carries an Electronic Hackable whose imprint is not yet exhausted,
+    // Spec 1: append `(hack) Jack In` on an NpcCorpse fixture that
+    // carries an Electronic Hackable whose dead implant is not yet exhausted,
     // gated on Cat_Hacking.
-    void append_walk_imprint_option(int fid, Game& game);
+    void append_jack_into_corpse_option(int fid, Game& game);
 
     // Spec 1: activate a transient GridSession seeded from the corpse fixture.
-    void walk_imprint(Game& game, int fid);
+    void jack_into_corpse(Game& game, int fid);
 
     // Word-wrap body text respecting COLOR_BEGIN/COLOR_END markers
     static std::vector<std::string> word_wrap(const std::string& text, int width);

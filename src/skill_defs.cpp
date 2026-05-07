@@ -485,31 +485,31 @@ static std::string rootkit_description() {
     return s;
 }
 
-// Plan 8 — CrystalDecoder: identifies whether an NPC carries an active Crystal.
+// Plan 8 — ImplantReader: identifies whether an NPC carries an active Crystal.
 // Gated by this skill; the look widget reveals the Mark's Site coordinates and HP.
-static std::string crystal_decoder_description() {
-    std::string s = "You can read the faint electromagnetic signature of an active Crystal implant.\n\n";
+static std::string implant_reader_description() {
+    std::string s = "You can read the faint electromagnetic signature of an active neural implant.\n\n";
     s += colored("Passive:", Color::White);
     s += " the ";
     s += colored("look", Color::Yellow);
-    s += " widget reveals whether an NPC carries an active Crystal and, if so, its "
+    s += " widget reveals whether an NPC carries an active implant and, if so, its "
          "Mark's Site coordinates and current HP.";
     return s;
 }
 
-// Plan 8 — Bind L1/L2/L3: project a Mark for targets without an active Crystal.
+// Plan 8 — Tether L1/L2/L3: project a Mark for targets without an active Crystal.
 // Used by Drifter to mark animals, drones, and Feral for hacking / control.
-static std::string bind_l1_description() {
-    return "Bind: project a Mark for a target without a Crystal (animals, drones, Feral). "
+static std::string tether_l1_description() {
+    return "Tether: project a Mark for a target without a Crystal (animals, drones, Feral). "
            "Line-of-sight, range 1 tile.";
 }
 
-static std::string bind_l2_description() {
-    return "Bind II: long-range Bind (range 8 tiles).";
+static std::string tether_l2_description() {
+    return "Tether II: long-range Tether (range 8 tiles).";
 }
 
-static std::string bind_l3_description() {
-    return "Bind III: AoE Bind (3 adjacent targets at once).";
+static std::string tether_l3_description() {
+    return "Tether III: AoE Tether (3 adjacent targets at once).";
 }
 
 static std::string consciousness_anchor_description() {
@@ -700,21 +700,21 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::RootKit, "Root Kit",
              rootkit_description(),
              true, 150, 13, "Intelligence"},
-            {SkillId::CrystalDecoder, "Crystal-Decoder",
-             crystal_decoder_description(),
+            {SkillId::ImplantReader, "Implant Reader",
+             implant_reader_description(),
              true, 50, 13, "Intelligence"},
-            {SkillId::BindL1, "Bind",
-             bind_l1_description(),
+            {SkillId::TetherL1, "Tether",
+             tether_l1_description(),
              false, 75, 14, "Intelligence"},
-            {SkillId::BindL2, "Bind II",
-             bind_l2_description(),
+            {SkillId::TetherL2, "Tether II",
+             tether_l2_description(),
              false, 100, 15, "Intelligence"},
-            // Spec 1: BindL3 (AoE 3-tile) is intentionally NOT in the catalog yet —
-            // the AoE implementation is incomplete (see confirm_bind_targeting TODO).
-            // The SkillId::BindL3 enum value remains so existing saves with the
+            // Spec 1: TetherL3 (AoE 3-tile) is intentionally NOT in the catalog yet —
+            // the AoE implementation is incomplete (see confirm_tether_targeting TODO).
+            // The SkillId::TetherL3 enum value remains so existing saves with the
             // perk learned still load. Re-enable when AoE is wired.
-            // {SkillId::BindL3, "Bind III",
-            //  bind_l3_description(),
+            // {SkillId::TetherL3, "Tether III",
+            //  tether_l3_description(),
             //  false, 125, 16, "Intelligence"},
          }},
     };

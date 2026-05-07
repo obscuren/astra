@@ -415,11 +415,11 @@ void Game::render_look_popup() {
         }
     }
     if (look_npc) {
-        if (player_.skill_crystal_decoder) {
+        if (player_.skill_implant_reader) {
             bool has_electronic = look_npc->cyber
                 && has_tag(look_npc->cyber->tags, HackTag::Electronic);
             if (has_electronic) {
-                crystal_lines.push_back({"Crystal: HAS", Color::Cyan});
+                crystal_lines.push_back({"Implant: HAS", Color::Cyan});
                 if (auto* sess = hacking_.session()) {
                     if (auto* a = sess->anchor_for_npc(look_npc->uid)) {
                         if (!a->severed()) {
@@ -434,10 +434,10 @@ void Game::render_look_popup() {
                     }
                 }
             } else {
-                crystal_lines.push_back({"Crystal: NONE — bind required", Color::DarkGray});
+                crystal_lines.push_back({"Implant: NONE — tether required", Color::DarkGray});
             }
         } else {
-            crystal_lines.push_back({"Crystal: unrecognized hardware", Color::DarkGray});
+            crystal_lines.push_back({"Implant: unrecognized hardware", Color::DarkGray});
         }
     }
 
