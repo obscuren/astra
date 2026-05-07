@@ -88,8 +88,8 @@ enum class SkillId : uint32_t {
     RootKit             = 1209,  // -10% hashcat duration
     // Plan 8 — ImplantReader
     ImplantReader       = 1210,  // reveals NPC implant status in look widget
-    // Plan 8 — Tether perks: project Mark on no-Crystal targets
-    TetherL1            = 1211,  // Cat_Hacking — Tether L1: project Mark (LoS, short range 1 tile)
+    // Plan 8 — Tether perks: project Imprint on no-Crystal targets
+    TetherL1            = 1211,  // Cat_Hacking — Tether L1: project Imprint (LoS, short range 1 tile)
     TetherL2            = 1212,  // Cat_Hacking — Tether L2: long range (8 tiles)
     TetherL3            = 1213,  // Cat_Hacking — Tether L3: AoE 3 tiles
 };

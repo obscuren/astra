@@ -7,9 +7,9 @@
 
 namespace astra {
 
-AnchorProjection make_anchor_projection(const GridSector& sec,
+ImprintProjection make_imprint_projection(const GridSector& sec,
                                         const WorldManager& world) {
-    AnchorProjection p;
+    ImprintProjection p;
     p.site_w = sec.w;
     p.site_h = sec.h;
 
@@ -24,7 +24,7 @@ AnchorProjection make_anchor_projection(const GridSector& sec,
     return p;
 }
 
-void project_rw_to_site(const AnchorProjection& p, int rwx, int rwy,
+void project_rw_to_site(const ImprintProjection& p, int rwx, int rwy,
                         int& sx, int& sy) {
     int dx = rwx - p.rw_origin_x;
     int dy = rwy - p.rw_origin_y;

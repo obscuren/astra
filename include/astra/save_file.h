@@ -32,7 +32,7 @@ namespace astra {
 // version are rejected on load; no backward-compatibility or migration code.
 inline constexpr uint32_t SAVE_FILE_VERSION = 68;   // v68: stable monotonic NPC UID for Anchor linkage
                                                     // v67: Tether action — force_tether flag on Npc (D2)
-                                                    // v66: Spec 1 — Mark/Vulnerability/DeadImplant persistence
+                                                    // v66: Spec 1 — Imprint/Vulnerability/DeadImplant persistence
                                                     //   (per-NPC vulnerability stack, per-Anchor HP,
                                                     //   per-corpse dead-implant state to be added in subsequent tasks)
 

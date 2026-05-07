@@ -832,12 +832,12 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     // Plan 8 Cut 8: dashed zone perimeters + banners, between floor and content.
     grid_zone_overlay::draw(r, s.sector, s_camera, pr.x, pr.y, pr.w, pr.h);
 
-    // Spec B5: Anchor (Mark) render layer — between content and ICE.
+    // Spec B5: Anchor (Imprint) render layer — between content and ICE.
     // Each non-severed Anchor renders as ※ (U+203B) in Color::Magenta.
     // Label above: numeric "※N" by default; NPC name once identified==true.
     // HP overlay below: "hp/max_hp".
     {
-        for (const auto& a : s.anchors()) {
+        for (const auto& a : s.imprints()) {
             if (a.severed()) continue;
             int sx, sy;
             if (!cull(a.x, a.y, sx, sy)) continue;

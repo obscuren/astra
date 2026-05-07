@@ -227,16 +227,16 @@ constexpr uint16_t ITEM_PROG_DATA_LEECH      = 317;
 constexpr uint16_t ITEM_PROG_PULSE_HAMMER    = 318;  // Plan 4 — T3 ATK AoE
 constexpr uint16_t ITEM_PROG_DAEMON_HIJACK   = 319;  // Plan 4 — T3 UTL charm
 
-// Sigils (323-331) — Spec 1 §5.2 mark-interaction programs
-constexpr uint16_t ITEM_PROG_ECHO            = 323;  // T1 UTL — propagate Mark
-constexpr uint16_t ITEM_PROG_LULL            = 324;  // T1 UTL — delay ICE activation
-constexpr uint16_t ITEM_PROG_VEIL            = 325;  // T1 UTL — cloak Marked tile
-constexpr uint16_t ITEM_PROG_FALTER          = 326;  // T2 UTL — skip target action
+// Sigils (323-331) — Spec 1 §5.2 imprint-interaction programs
+constexpr uint16_t ITEM_PROG_ECHO            = 323;  // T1 UTL — propagate Imprint
+constexpr uint16_t ITEM_PROG_LAG             = 324;  // T1 UTL — delay ICE activation
+constexpr uint16_t ITEM_PROG_VEIL            = 325;  // T1 UTL — cloak Imprinted tile
+constexpr uint16_t ITEM_PROG_JITTER          = 326;  // T2 UTL — skip target action
 constexpr uint16_t ITEM_PROG_SHROUD          = 327;  // T2 UTL — reduce trace accumulation
-constexpr uint16_t ITEM_PROG_WITHER          = 328;  // T2 ATK — degrade defences over turns
-constexpr uint16_t ITEM_PROG_SNUFF           = 329;  // T3 ATK — instant kill adjacent Marked
-constexpr uint16_t ITEM_PROG_FESTER          = 330;  // T3 ATK — DoT on adjacent Marked
-constexpr uint16_t ITEM_PROG_LANCE           = 331;  // T3 ATK — data spike adjacent Marked
+constexpr uint16_t ITEM_PROG_WORM            = 328;  // T2 ATK — degrade defences over turns
+constexpr uint16_t ITEM_PROG_BRICK           = 329;  // T3 ATK — instant kill adjacent Imprinted
+constexpr uint16_t ITEM_PROG_ROT             = 330;  // T3 ATK — DoT on adjacent Imprinted
+constexpr uint16_t ITEM_PROG_SPIKE           = 331;  // T3 ATK — data spike adjacent Imprinted
 
 // Code fragments (320-322)
 constexpr uint16_t ITEM_CODE_FRAGMENT_T1     = 320;

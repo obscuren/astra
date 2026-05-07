@@ -10,7 +10,7 @@
 
 The Relay layer (formerly "the Grid") is currently a mechanically rich tech demo. Trace, the cyberdeck-equivalent, ICE patrols, two-tier sector geography — all built, none load-bearing. Players can engage with it, but skipping it costs nothing real, and engaging with it produces little beyond credit top-ups. This manifesto locks the design direction: the Relay becomes a **niche-but-meaningful build pillar** for **Drifters**, comparable to tinkering or ranged combat — *always combined* with another playstyle, *never* a solo path.
 
-The first detailed spec covers the spine: **NPC Mark entities + Relay combat mechanics + XP rewards for Relay kills.** Subsequent specs handle loot scarcity, real-world locked doors with Relay-side controls, black-market vendors, intel/maps, and lore fragments.
+The first detailed spec covers the spine: **NPC Imprint entities + Relay combat mechanics + XP rewards for Relay kills.** Subsequent specs handle loot scarcity, real-world locked doors with Relay-side controls, black-market vendors, intel/maps, and lore fragments.
 
 This is a *technical* manifesto. The narrative — the Substrate, the pre-civilizations, the going dark, Sgr A* and rebirth — lives in `../lore/overview.md`.
 
@@ -32,7 +32,7 @@ Vocabulary in this doc and in Spec 1 reflects that framing. See `../lore/overvie
 
 ### 2.1. Two roles, one geography
 
-**A. Combat-time tool layer.** During real-world combat the Drifter dips into the local Relay Site, navigates to an enemy's mobile **Mark** (their Substrate-projected anchor), applies persistent debuffs / impairs / signals, and jacks out. World time ticks slow during the dip. The kill happens in the real world via the player's other build. **Drifting = control and prep, never finisher.**
+**A. Combat-time tool layer.** During real-world combat the Drifter dips into the local Relay Site, navigates to an enemy's mobile **Imprint** (their Substrate-projected projection point), applies persistent debuffs / impairs / signals, and jacks out. World time ticks slow during the dip. The kill happens in the real world via the player's other build. **Drifting = control and prep, never finisher.**
 
 **C. Exploration reward layer.** Same Site, walked at leisure between or ahead of fights. Drifter-relevant rewards drop scarcely (most Sites are flavor; rare Sites are signature). Loot pool: exploits, schematics / blueprints, real-world unlocks (Relay-side fixture → real-world door crack), intel / maps, lore fragments, XP. Credits remain part of the mix but follow normal scarcity rules — the Drifter is not a credit farm.
 
@@ -40,9 +40,9 @@ Vocabulary in this doc and in Spec 1 reflects that framing. See `../lore/overvie
 
 Pure Drifter is not viable. Drifting complements; it does not solo. Intended play patterns:
 
-- **Tinker + Drift.** Lay turrets and mines, couple in, debuff the approaching NPC's Mark, decouple — turrets do the work.
-- **Pistol + Drift.** Speed-walk to the Mark, virus, decouple, finish at range with the debuff active.
-- **Melee + Drift.** Mark + slow at the Mark, decouple, close distance into a softened target.
+- **Tinker + Drift.** Lay turrets and mines, couple in, debuff the approaching NPC's Imprint, decouple — turrets do the work.
+- **Pistol + Drift.** Speed-walk to the Imprint, virus, decouple, finish at range with the debuff active.
+- **Melee + Drift.** Sever + slow at the Imprint, decouple, close distance into a softened target.
 
 The Relay's job is to make whatever else you brought stronger.
 
@@ -59,26 +59,28 @@ The Relay's job is to make whatever else you brought stronger.
 
 | # | Sub-project | Status | Notes |
 |---|---|---|---|
-| **1** | **NPC Mark system + control exploits (THE SPINE)** | New | Mobile guardian projections of real-world hostiles. Damaging / severing the Mark strips the linked NPC's defenses permanently for that instance. |
+| **1** | **NPC Imprint system + control exploits (THE SPINE)** | New | Mobile guardian projections of real-world hostiles. Damaging / severing the Imprint strips the linked NPC's defenses permanently for that instance. |
 | **2** | Real-world locked doors | New | Locked-door system in real-world dungeons does not yet exist. Generic locked-door tile / fixture, breachable from the world or via Relay sub-project 3. |
 | **3** | Relay-fixture → real-world door / object cracks | Depends on 2 | A Relay-side fixture in a Chamber cracks a paired real-world locked door. Lets Drifters route the dungeon. |
-| **4** | Loot economy retune (scarcity + exploit / Schematic / implant drop tables) | Touches existing loot-table work (pre-merge in memory) | Exploits, schematics, implants drop scarcely. Schematics feed tinker crafting (cross-system). |
+| **4** | Loot economy retune (scarcity + exploit / Schematic / implant drop tables) | Partially shipped (item defs + offset rule); core retune pending | Exploits, schematics, implants drop scarcely. Schematics feed tinker crafting (cross-system). |
 | **5** | Black-market vendors | Depends on 4 | New vendor type. Sells exploits, schematics, implants, illegal items. Gated by area / faction. Currency is normal credits. |
 | **6** | Intel / map-reveal mechanic | New | Decoded Relay Caches reveal real-world dungeon info — patrol gaps, hidden vendors, traps, item locations. Mechanic TBD. |
 | **7** | Lore fragments integration | Coupled to a not-yet-implemented world-side lore mechanic | Decoded Caches surface lore on the same surface as the future lore-fragment loop. |
-| **8** | **Relay XP from ICE / Mark kills** | Small fix | Currently 0 XP. Hooks into the existing player XP pool. Folds into Spec 1. |
-| (—) | Original "per-room verb" question (Plan 8 follow-up) | Folds into spine | Chambers hold *exploration* content; combat happens at *Mark entities*, not Chambers. The "what fires when I'm in a turret Chamber" answer is "exploration verbs only — combat is at Marks." |
+| **8** | **Relay XP from ICE / Imprint kills** | Small fix | Currently 0 XP. Hooks into the existing player XP pool. Folds into Spec 1. |
+| (—) | Original "per-room verb" question (Plan 8 follow-up) | Folds into spine | Chambers hold *exploration* content; combat happens at *Imprint entities*, not Chambers. The "what fires when I'm in a turret Chamber" answer is "exploration verbs only — combat is at Imprints." |
 
 ---
 
 ## 4. Dependency order
 
 ### Phase 1 — the spine
-- **Spec 1**: NPC Marks + Relay combat mechanics + Relay XP (sub-projects 1, 8, plus the new "combat" topic).
+- **Spec 1**: NPC Imprints + Relay combat mechanics + Relay XP (sub-projects 1, 8, plus the new "combat" topic).
 - Drafted in the same brainstorm session that produced this manifesto.
 
 ### Phase 2 — economy and content
 - **Spec 2**: Loot economy retune (sub-project 4).
+  - **Already shipped (during Spec 1 implementation):** item defs for the 9 exploits (Echo / Lag / Veil / Jitter / Shroud / Worm / Brick / Rot / Spike); placeholder loot-table entries with placeholder pricing; corpse loot-offset rule; Imprint-mini-sector reward distribution as a placeholder.
+  - **Pending for Spec 2:** drop-rate weights across loot sources; schematics → tinker crafting tie; whether implants are looted off corpses as items (and if so, how player-equippable they are); reconciling Imprint sector reward distribution against the wider scarcity dial.
 - **Spec 3**: Black-market vendors (sub-project 5). Depends on Spec 2.
 
 ### Phase 3 — physical world ties
@@ -101,7 +103,7 @@ The Plan 7 device-shell layer was added before this loop framing. It serves neit
 
 **Likely survives:**
 - The IP / `Hackable` substrate (used to identify devices).
-- The `HackTagMask` taxonomy (drives Mark / fixture behavior).
+- The `HackTagMask` taxonomy (drives Imprint / fixture behavior).
 - The Trace / Heat / RAM economy.
 
 **Disconnected from the new loop (in Spec 1):**
@@ -116,7 +118,7 @@ The shell layer code remains in tree but is no longer wired into the combat loop
 
 ## 6. Vocabulary register
 
-This manifesto and Spec 1 use the **Relay-Network / Drifter** vocabulary throughout for player-facing prose. Code identifiers (file names, class names, variable names) follow the existing `Grid*` / `Anchor*` / `ICE` convention for now — the **code-side rename is a deferred refresh pass** that comes alongside or after Spec 1's mechanic implementation, not a blocker.
+This manifesto and Spec 1 use the **Relay-Network / Drifter** vocabulary throughout for player-facing prose. The `Anchor` → `Imprint` code rename is **complete** (`struct Imprint` in `anchor.h`, methods renamed to `imprint_for_npc` / `imprint_at` / `add_imprint_for_npc`). The file is still named `anchor.h` / `anchor.cpp` — a file-level rename is a separate deferred pass. Remaining `Grid*` / `ICE` identifiers also stay until a broader rename pass.
 
 | Player-facing term | Code identifier | Notes |
 |---|---|---|
@@ -130,7 +132,7 @@ This manifesto and Spec 1 use the **Relay-Network / Drifter** vocabulary through
 | Heat | `heat_*` fields | |
 | Trace (Trace — kept) | `trace_*` fields | No rename |
 | ICE | `Ice` class | |
-| Mark (Anchor entity) | `Anchor` class | Code rename deferred — though the new file is named after the new vocabulary in Spec 1's architecture sketch |
+| Imprint | `struct Imprint` in `anchor.h` | Code rename complete — methods: `imprint_for_npc`, `imprint_at`, `add_imprint_for_npc`. File still named `anchor.h` / `anchor.cpp` (file rename deferred). |
 | Implant | `Hackable`, `implant_*` | Code rename deferred |
 | Tether (skill) | new `Bind*` perk identifiers | New code follows new vocab |
 | Jack in / Jack out | `jack_in`, `jack_out` | Code rename deferred |
@@ -146,16 +148,16 @@ The deferred rename is large but mechanical; tracked as its own follow-up task.
 
 ## 7. The first spec — Spine (Spec 1)
 
-**Sub-projects covered:** 1 (Marks), 8 (XP), and a new "Combat" topic that unifies ICE encounters, Mark takedowns, exploit-as-weapon mechanics, and status-persistence-past-jack-out.
+**Sub-projects covered:** 1 (Imprints), 8 (XP), and a new "Combat" topic that unifies ICE encounters, Imprint takedowns, exploit-as-weapon mechanics, and status-persistence-past-jack-out.
 
-**Resolved during the spine brainstorm** (settled in Spec 1, not re-litigated here): Mark entity model and lifecycle, "fully vulnerable" semantics, Mark regen rules (none — damage persists), ICE vs Mark distinction, combat-time exploit vocabulary (Echo, Lull, Veil, Falter, Shroud, Wither, Snuff, Fester, Lance), XP allocation (standard pool, no separate Cat_Drift track), how much of Plan 7 retires (dormant), time dilation behavior (unchanged from Plan 6), Site walkability (no separate combat-dip view).
+**Resolved during the spine brainstorm** (settled in Spec 1, not re-litigated here): Imprint entity model and lifecycle, "fully vulnerable" semantics, Imprint regen rules (none — damage persists), ICE vs Imprint distinction, combat-time exploit vocabulary (Echo, Lag, Veil, Jitter, Shroud, Worm, Brick, Rot, Spike), XP allocation (standard pool, no separate Cat_Drift track), how much of Plan 7 retires (dormant), time dilation behavior (unchanged from Plan 6), Site walkability (no separate combat-dip view).
 
 ---
 
 ## 8. Cross-references
 
 - **Lore (full story arc):** `../lore/overview.md`
-- **Spec 1 (Marks + combat + XP):** `relay-spine.md`
+- **Spec 1 (Imprints + combat + XP):** `relay-spine.md`
 - **Mechanics:** `../design/mechanics.md`
 - **Items:** `../design/items.md`
 - **Roadmap:** `../design/roadmap.md`

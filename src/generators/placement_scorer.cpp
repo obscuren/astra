@@ -209,7 +209,7 @@ PlacementResult PlacementScorer::score(const TerrainChannels& channels,
     // --- Anchor discovery ---
 
     // Center anchor (always present)
-    Anchor center_anchor;
+    PlacementAnchor center_anchor;
     center_anchor.x = best_x + footprint_w / 2;
     center_anchor.y = best_y + footprint_h / 2;
     center_anchor.type = AnchorType::Center;
@@ -218,7 +218,7 @@ PlacementResult PlacementScorer::score(const TerrainChannels& channels,
     // Waterfront anchor — if water edge detected within/near footprint
     auto [wf_x, wf_y] = find_waterfront_anchor(map, best_x, best_y, footprint_w, footprint_h);
     if (wf_x >= 0) {
-        Anchor wf;
+        PlacementAnchor wf;
         wf.x = wf_x;
         wf.y = wf_y;
         wf.type = AnchorType::Waterfront;
@@ -230,7 +230,7 @@ PlacementResult PlacementScorer::score(const TerrainChannels& channels,
     float center_elev = channels.elev(center_anchor.x, center_anchor.y);
     float peak_elev   = channels.elev(ep_x, ep_y);
     if (peak_elev - center_elev > 0.1f) {
-        Anchor elev;
+        PlacementAnchor elev;
         elev.x = ep_x;
         elev.y = ep_y;
         elev.type = AnchorType::Elevated;

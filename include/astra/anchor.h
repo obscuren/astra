@@ -7,7 +7,7 @@ namespace astra {
 class GridSector;     // forward decl
 class WorldManager;   // forward decl
 
-struct Mark {
+struct Imprint {
     int32_t  id          = -1;     // assigned on spawn (GridSession::next_anchor_id_)
     int      x           = 0;      // Site coords (mirror of NPC's RW position)
     int      y           = 0;
@@ -16,7 +16,7 @@ struct Mark {
     int      npc_id      = -1;     // index into world's NPC list
     bool     bound       = false;  // true if projected via Bind on a no-Crystal target
     bool     identified  = false;  // becomes true after `look` with Crystal-Decoder unlock
-    bool     xp_granted  = false;  // ensures sever-XP is paid only once per Mark
+    bool     xp_granted  = false;  // ensures sever-XP is paid only once per Imprint
 
     bool severed() const { return hp <= 0; }
     float vulnerability_pct() const {
@@ -27,7 +27,7 @@ struct Mark {
 
 // Linear-scaled projection from RW (real-world) tile coords into Site
 // (in-Grid) tile coords. Used to mirror NPC positions onto Anchors.
-struct AnchorProjection {
+struct ImprintProjection {
     int site_w       = 0;    // Site width in tiles
     int site_h       = 0;    // Site height in tiles
     int rw_origin_x  = 0;    // RW origin (top-left) of the region the LAN covers
@@ -38,12 +38,12 @@ struct AnchorProjection {
 
 // Build a projection for the given Site against the world's current map.
 // Defaults to using the active map's dimensions for the RW extent.
-AnchorProjection make_anchor_projection(const GridSector& sec,
+ImprintProjection make_imprint_projection(const GridSector& sec,
                                         const WorldManager& world);
 
 // Project (rwx, rwy) into (sx, sy) inside the Site, clamped to valid
 // range. Mutates sx and sy.
-void project_rw_to_site(const AnchorProjection& proj,
+void project_rw_to_site(const ImprintProjection& proj,
                         int rwx, int rwy, int& sx, int& sy);
 
 // If (sx, sy) is unwalkable in `sector`, BFS-Chebyshev to the nearest

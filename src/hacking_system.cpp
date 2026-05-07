@@ -187,14 +187,14 @@ void HackingSystem::tick(Game& game) {
     // Plan 8 B4: mirror Anchor positions to follow NPC RW movement.
     // Runs every in-Grid world tick (tick_real_world calls hacking_.tick).
     if (session_) {
-        AnchorProjection proj = make_anchor_projection(session_->sector, game.world());
+        ImprintProjection proj = make_imprint_projection(session_->sector, game.world());
         auto& npcs = game.world().npcs();
         for (size_t i = 0; i < npcs.size(); ++i) {
             Npc& npc = npcs[i];
             if (!npc.alive()) continue;
-            if (npc.anchor_id < 0) continue;
+            if (npc.imprint_id < 0) continue;
 
-            Mark* a = session_->anchor_for_npc(npc.uid);
+            Imprint* a = session_->imprint_for_npc(npc.uid);
             if (!a) continue;
             if (a->severed()) continue;  // dead anchors don't move
 
@@ -601,14 +601,14 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         }
     }
 
-    // Spec 1: spawn a Mark per hostile, Crystal-bearing NPC on the
-    // current map. Each NPC's anchor_id is set; the Mark's Site
+    // Spec 1: spawn an Imprint per hostile, Crystal-bearing NPC on the
+    // current map. Each NPC's anchor_id is set; the Imprint's Site
     // coordinates mirror the NPC's RW position via linear projection,
     // nudged to the nearest walkable cell if the projected tile is a wall.
-    // D2: also spawn Marks for Tether-marked NPCs (force_tether == true)
+    // D2: also spawn Imprints for Tether-marked NPCs (force_tether == true)
     // even if they carry no native Electronic Crystal.
     {
-        AnchorProjection proj = make_anchor_projection(s.sector, game.world());
+        ImprintProjection proj = make_imprint_projection(s.sector, game.world());
         auto& npcs = game.world().npcs();
         for (size_t i = 0; i < npcs.size(); ++i) {
             Npc& npc = npcs[i];
@@ -620,19 +620,19 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
 
             // Hostility gate applies to native-Crystal NPCs only. Tethered
             // targets are an explicit player action — faction rep is
-            // irrelevant; the player has chosen to project a Mark.
+            // irrelevant; the player has chosen to project an Imprint.
             if (!tethered_target && !is_hostile_to_player(npc.faction, game.player())) continue;
 
             int sx, sy;
             project_rw_to_site(proj, npc.x, npc.y, sx, sy);
             if (!nudge_to_passable(s.sector, sx, sy)) continue;
 
-            Mark* a = s.add_anchor_for_npc(
+            Imprint* a = s.add_imprint_for_npc(
                 npc.uid,
                 sx, sy,
                 npc.level,   // npc.level used as threat-tier proxy (B3)
                 /*bound=*/tethered_target);
-            npc.anchor_id = a->id;
+            npc.imprint_id = a->id;
         }
     }
 

@@ -1,4 +1,4 @@
-# Relay Spine — Marks, Combat, XP (Spec 1)
+# Relay Spine — Imprints, Combat, XP (Spec 1)
 
 **Date:** 2026-05-05
 **Status:** Spec — pending implementation plan.
@@ -12,9 +12,9 @@
 
 Spec 1 turns the Relay layer into a load-bearing combat-tool layer for **Drifter** builds and a small-but-real exploration reward layer. It introduces:
 
-1. **NPC Mark entities** — Substrate-projected guardian entities of real-world hostile NPCs. Damaging a Mark strips defenses on the linked NPC; severing it leaves the NPC permanently exposed.
-2. **A new exploit pool** focused on Mark control + Relay combat. Atmospheric, ancient-feeling names (`Echo`, `Lull`, `Veil`, `Falter`, `Shroud`, `Wither`, `Snuff`, `Fester`, `Lance`). Exploits deal **Mark damage + real-world status effects**; rare master exploits deal small **real-world HP damage** directly (capped — outright kills via Relay alone are impossible by design).
-3. **Proper Relay combat** — the avatar gets ranged (exploit fire) + melee (bump-attack into adjacent ICE / Mark / hostile entity).
+1. **NPC Imprint entities** — Substrate-projected guardian entities of real-world hostile NPCs. Damaging an Imprint strips defenses on the linked NPC; severing it leaves the NPC permanently exposed.
+2. **A new exploit pool** focused on Imprint control + Relay combat. Hacker-toolkit names (`Echo`, `Lag`, `Veil`, `Jitter`, `Shroud`, `Worm`, `Brick`, `Rot`, `Spike`). Exploits deal **Imprint damage + real-world status effects**; rare master exploits deal small **real-world HP damage** directly (capped — outright kills via Relay alone are impossible by design).
+3. **Proper Relay combat** — the avatar gets ranged (exploit fire) + melee (bump-attack into adjacent ICE / Imprint / hostile entity).
 4. **Relay kills now grant XP** into the player's main pool (currently they grant zero — bug fix).
 5. **Drifter progression is gear-driven**, not skill-XP-driven. No separate Cat_Drift XP track. Drifters level by collecting more exploits and better cyberdeck gear.
 6. **Dead-NPC implant jack-in** — when a hostile NPC dies, the Drifter can jack into the corpse's dormant implant and walk a small per-corpse procgen sector (4×4–8×8) for lore / schematics / data crypts.
@@ -22,7 +22,7 @@ Spec 1 turns the Relay layer into a load-bearing combat-tool layer for **Drifter
 
 The design philosophy: Drifting is **always combo with another build, never solo**. Drifters prep / control; the kill comes from turrets, pistols, melee, etc.
 
-Vocabulary note: this spec uses the player-facing **Relay / Drifter / Exploit / Mark / Implant / ICE** register. Code identifiers (`GridSession`, `Anchor`, `ICE`, etc.) keep their existing names — a separate code-rename pass is a deferred follow-up.
+Vocabulary note: this spec uses the player-facing **Relay / Drifter / Exploit / Imprint / Implant / ICE** register. The `Anchor` → `Imprint` struct rename is complete (`struct Imprint` in `anchor.h`; methods renamed to `imprint_for_npc` / `imprint_at` / `add_imprint_for_npc`). File names `anchor.h` / `anchor.cpp` are unchanged (file rename is a separate deferred pass). Remaining `Grid*` / `ICE` identifiers stay until a broader rename pass.
 
 ---
 
@@ -30,16 +30,16 @@ Vocabulary note: this spec uses the player-facing **Relay / Drifter / Exploit / 
 
 ### 1.1. The Relay does two things, in one geography
 
-- **Combat-time tool layer.** Drifter dips into the local Site mid-fight, navigates to an enemy's mobile Mark, fires exploits to apply persistent debuffs / impairs / signals, jacks out. World ticks slow during the dip (already implemented). Kill happens in real-world via the player's other build. **Drifting = control and prep, never finisher.**
-- **Exploration reward layer.** Same Site, walked at leisure. Scarce Drifter-relevant rewards. Marks are the *combat* targets; Chambers / Caches / corpse jack-ins are the *exploration* targets.
+- **Combat-time tool layer.** Drifter dips into the local Site mid-fight, navigates to an enemy's mobile Imprint, fires exploits to apply persistent debuffs / impairs / signals, jacks out. World ticks slow during the dip (already implemented). Kill happens in real-world via the player's other build. **Drifting = control and prep, never finisher.**
+- **Exploration reward layer.** Same Site, walked at leisure. Scarce Drifter-relevant rewards. Imprints are the *combat* targets; Chambers / Caches / corpse jack-ins are the *exploration* targets.
 
 ### 1.2. Player archetype
 
 The Drifter is **always a combo build** — tinker+drift, pistol+drift, melee+drift. Pure Drifter is not viable. Drifting complements; it does not solo.
 
-- **Tinker + Drift.** Lay turrets/mines, jack in, debuff approaching NPC's Mark, jack out — turrets do the work.
-- **Pistol + Drift.** Speed-walk to Mark, virus, jack out, finish at range with the debuff active.
-- **Melee + Drift.** Mark + slow at the Mark, jack out, close distance into a softened target.
+- **Tinker + Drift.** Lay turrets/mines, jack in, debuff approaching NPC's Imprint, jack out — turrets do the work.
+- **Pistol + Drift.** Speed-walk to Imprint, virus, jack out, finish at range with the debuff active.
+- **Melee + Drift.** Sever + slow at the Imprint, jack out, close distance into a softened target.
 
 ### 1.3. What this spec does NOT do
 
@@ -48,55 +48,55 @@ The Drifter is **always a combo build** — tinker+drift, pistol+drift, melee+dr
 - Does not touch quickhacks (`.qh`). Out-of-scope. They may later be **re-specced as a Drifter-only meatspace mechanic** (a deliberate, scoped feature for the Drifter build), or **replaced by a different meatspace-damage category**, or **retired entirely**. Whichever direction is picked happens in its own spec, not here.
 - Does not implement loot scarcity or new vendor types (Spec 2 / Spec 3).
 - Does not add real-world locked doors (Spec 4).
-- Does not perform the code-side vocabulary rename (deferred follow-up). Player-facing strings, log lines, and new code use the new register; existing `Grid*` / `Anchor` / `ICE` identifiers stay until the rename pass.
+- Does not perform further code-side vocabulary rename beyond the Anchor/PlacementAnchor rename already completed. Player-facing strings, log lines, and new code use the new register; remaining `Grid*` / `ICE` identifiers stay until a broader rename pass.
 
 ---
 
-## 2. The Mark entity
+## 2. The Imprint entity
 
 ### 2.1. Definition
 
-A **Mark** is a Substrate-projected entity tied 1:1 to a single hostile NPC. While the Mark holds, the NPC is "armored" against certain real-world status effects. As the Mark takes damage, the linked NPC's defenses degrade *proportionally*. When the Mark falls (HP = 0), the NPC drops into a **permanent vulnerability state** for that NPC instance.
+An **Imprint** is a Substrate-projected entity tied 1:1 to a single hostile NPC. While the Imprint holds, the NPC is "armored" against certain real-world status effects. As the Imprint takes damage, the linked NPC's defenses degrade *proportionally*. When the Imprint falls (HP = 0), the NPC drops into a **permanent vulnerability state** for that NPC instance.
 
-The Mark is **not** the NPC's HP. Severing the Mark does not kill the NPC — it strips their defense layer so the player's other build can close.
+The Imprint is **not** the NPC's HP. Severing the Imprint does not kill the NPC — it strips their defense layer so the player's other build can close.
 
-In-fiction: every NPC carrying an **implant** projects through it onto the Substrate, where the projection appears (to a Drifter using a cyberdeck) as a tile-bound entity in the local Site. That's the Mark.
+In-fiction: every NPC carrying an **implant** projects through it onto the Substrate, where the projection appears (to a Drifter using a cyberdeck) as a tile-bound entity in the local Site. That's the Imprint.
 
 ### 2.2. Lifecycle
 
 | Event | Behavior |
 |---|---|
-| NPC enters Site's region | Mark projects at mirrored coordinates. |
-| NPC moves in real-world | Mark mirrors position via fixed coord-projection. |
-| Mark takes damage | Mark HP decreases. Real-world NPC's vulnerability stack updates proportionally. |
-| Mark reaches 0 HP | Severed. Vulnerability stack pinned at full. NPC is "fully vulnerable" until killed. |
-| NPC dies in real-world | Mark dissolves from the Site. Corpse retains a dormant **cooling implant** (§ 9). |
+| NPC enters Site's region | Imprint projects at mirrored coordinates. |
+| NPC moves in real-world | Imprint mirrors position via fixed coord-projection. |
+| Imprint takes damage | Imprint HP decreases. Real-world NPC's vulnerability stack updates proportionally. |
+| Imprint reaches 0 HP | Severed. Vulnerability stack pinned at full. NPC is "fully vulnerable" until killed. |
+| NPC dies in real-world | Imprint dissolves from the Site. Corpse retains a dormant **cooling implant** (§ 9). |
 
 NPCs almost never leave the Site's region in v1.
 
-**Marks do not regenerate.** Damage is damage. A half-severed Mark stays half-severed across couple / decouple cycles.
+**Imprints do not regenerate.** Damage is damage. A half-severed Imprint stays half-severed across couple / decouple cycles.
 
-### 2.3. Mark HP and proportional vulnerability
+### 2.3. Imprint HP and proportional vulnerability
 
 ```
-mark_max_hp = f(npc_threat_tier)   // e.g. tier 1 NPC -> 10 HP, tier 5 -> 100 HP
-mark_hp_pct = mark_hp / mark_max_hp
+imprint_max_hp = f(npc_threat_tier)   // e.g. tier 1 NPC -> 10 HP, tier 5 -> 100 HP
+imprint_hp_pct = imprint_hp / imprint_max_hp
 
-vulnerability_pct = 1.0 - mark_hp_pct      // 0% at full HP, 100% at severed
+vulnerability_pct = 1.0 - imprint_hp_pct      // 0% at full HP, 100% at severed
 ```
 
 Vulnerability acts as a *modifier* on the NPC's defenses in real-world combat. Each exploit that requires a "vulnerable" NPC checks the current vulnerability stack. The rule is: damage is damage, applied proportionally, and the cap is "fully vulnerable" at sever.
 
-### 2.4. Mark visual and label
+### 2.4. Imprint visual and label
 
 - **Glyph:** `※` in the linked NPC's faction color.
-- **Label:** by default, Marks render with a numeric ID (`※1`, `※2`, `※3`).
-- **Once identified** via `look` (§ 3) or **Tether** (§ 4), the Mark's label upgrades to the NPC's name in faction color.
-- **HP indicator:** small bar / fraction overlay rendered next to the Mark when within scanner range.
+- **Label:** by default, Imprints render with a numeric ID (`※1`, `※2`, `※3`).
+- **Once identified** via `look` (§ 3) or **Tether** (§ 4), the Imprint's label upgrades to the NPC's name in faction color.
+- **HP indicator:** small bar / fraction overlay rendered next to the Imprint when within scanner range.
 
-### 2.5. Marks vs. ICE — the two combat targets
+### 2.5. Imprints vs. ICE — the two combat targets
 
-| | ICE | Mark |
+| | ICE | Imprint |
 |---|---|---|
 | **Tied to** | Site infrastructure (Chambers, Caches) | A specific real-world NPC |
 | **Behavior** | Patrols, aggros on detection | Mirrors NPC position; may spawn guardian ICE if damaged |
@@ -104,7 +104,7 @@ Vulnerability acts as a *modifier* on the NPC's defenses in real-world combat. E
 | **Drops** | Exploits / RAM upgrades / schematics / credits / XP (Spec 2 finalizes) | Nothing direct — the *NPC* drops normally in real-world. |
 | **Purpose** | Friction during exploration | Setup target during combat |
 
-ICE serves the exploration-friction role. Marks serve the combat-tool role. Same Site, two reasons to fight.
+ICE serves the exploration-friction role. Imprints serve the combat-tool role. Same Site, two reasons to fight.
 
 ---
 
@@ -127,15 +127,15 @@ The widget redesign is part of this spec. Output should be readable in a single 
 A new Cat_Drift skill node, **Implant-Reader**, gates the implant-status info in the look widget:
 
 - **Without unlock:** look at NPC → standard combat info, no implant data. Implant line says `(implant: unrecognized)`.
-- **With unlock:** look at NPC → adds `Implant: HAS / NONE`. If HAS, also shows the linked Mark's Site coordinates and current Mark HP.
-- **In Site:** Mark renders with NPC's name (instead of numeric ID) once that NPC has been `look`-identified at least once.
+- **With unlock:** look at NPC → adds `Implant: HAS / NONE`. If HAS, also shows the linked Imprint's Site coordinates and current Imprint HP.
+- **In Site:** Imprint renders with NPC's name (instead of numeric ID) once that NPC has been `look`-identified at least once.
 
 Skill node placement: low tier of the Cat_Drift tree — first / second unlock. Should be one of the things a player picks early when committing to Drifting.
 
 ### 3.3. NPCs without implants
 
 Some NPC types have no native implant: animals, drones, Feral, raw biological monsters. They have:
-- No Mark in the Site by default.
+- No Imprint in the Site by default.
 - `look` (with Implant-Reader): `Implant: NONE — tether required`.
 - Only addressable from the Site after a successful **Tether** (§ 4).
 
@@ -145,19 +145,19 @@ Some NPC types have no native implant: animals, drones, Feral, raw biological mo
 
 ### 4.1. Concept
 
-**Tether** is a Drifter ability that *forces* a non-implant-bearing target into the Substrate, projecting an artificial Mark for them. In-fiction: the Drifter's cyberdeck improvises an interface for a target without the proper hardware. The Substrate doesn't object — it tolerates — but the Mark is unstable and fades when the target dies.
+**Tether** is a Drifter ability that *forces* a non-implant-bearing target into the Substrate, projecting an artificial Imprint for them. In-fiction: the Drifter's cyberdeck improvises an interface for a target without the proper hardware. The Substrate doesn't object — it tolerates — but the Imprint is unstable and fades when the target dies.
 
 It opens up:
 
 - NPCs without native implants (animals, drones, Feral, etc.).
-- Edge cases where the Mark is hard to find or out of Site range.
+- Edge cases where the Imprint is hard to find or out of Site range.
 
 ### 4.2. UX
 
 - **Trigger:** real-world key (default: `B`?) when a target is selected via `look` cursor or directly adjacent.
-- **Effect:** projectile-like — line-of-sight check from player to target. On success, the target gains a temporary Mark in the Site at the projected position.
+- **Effect:** projectile-like — line-of-sight check from player to target. On success, the target gains a temporary Imprint in the Site at the projected position.
 - **Cost:** RAM + Heat. Defaults: `kBindChannelCost = 2`, `kBindDriftCost = 4` (placeholder, tunable). Constants live next to the melee constants in `grid_combat.h` (file rename deferred).
-- **Duration:** persists until the Mark is severed or the NPC dies.
+- **Duration:** persists until the Imprint is severed or the NPC dies.
 - **Charges:** Tether might consume a consumable item (`tether shard`?) or be charge-limited per cyberdeck mod. v1 ships with one of: free with cooldown, item-consuming, or charge-pool. Pick at implementation time.
 - **Range:** v1 baseline = melee / line-of-sight short range. Tier-2 unlock (Cat_Drift perk): long range. Tier-3: AoE 3-tile.
 
@@ -174,7 +174,7 @@ These are perks unlocked via the existing perk-tree mechanic (level-gated, point
 
 ## 5. New exploit pool
 
-All Mark-affecting actions are **exploits** the Drifter loads into RAM slots on their cyberdeck. (`.qh` quickhacks are out of scope and may be retired or re-specced in a future spec — Spec 1 does not extend them.)
+All Imprint-affecting actions are **exploits** the Drifter loads into RAM slots on their cyberdeck. (`.qh` quickhacks are out of scope and may be retired or re-specced in a future spec — Spec 1 does not extend them.)
 
 ### 5.1. Naming and aesthetic
 
@@ -184,27 +184,27 @@ Exploits read like canonical hacker tooling — short, evocative one-syllable na
 
 Tier and balance numbers are placeholders; tunable in playtest.
 
-| Exploit | Kind | RAM | Heat | Mark dmg | Real-world status applied | RW HP dmg | Duration | Notes |
+| Exploit | Kind | RAM | Heat | Imprint dmg | Real-world status applied | RW HP dmg | Duration | Notes |
 |---|---|---|---|---|---|---|---|---|
 | **Echo**   | Utl | 1 | 1 | 5    | Marked (visible thru walls)   | 0           | 30 t        | resonance pulse |
-| **Lull**   | Utl | 2 | 2 | 10   | Slowed (-50% speed)           | 0           | 10 t        | softens motion |
+| **Lag**    | Utl | 2 | 2 | 10   | Slowed (-50% speed)           | 0           | 10 t        | floods packet queue |
 | **Veil**   | Utl | 2 | 3 | 10   | Blinded (cannot see player)   | 0           | 10 t        | obscures vision |
-| **Falter** | Utl | 4 | 5 | 25   | Impaired (-50% acc / dodge)   | 0           | 15 t        | breaks coordination |
+| **Jitter** | Utl | 4 | 5 | 25   | Impaired (-50% acc / dodge)   | 0           | 15 t        | timing noise |
 | **Shroud** | Utl | 5 | 6 | 40   | Exposed (2× incoming dmg)     | 0           | 10 t        | strips defenses |
-| **Wither** | Atk | 3 | 4 | 15   | DoT-source                    | 1/turn      | 20 t        | sustained corruption |
-| **Snuff**  | Atk | 8 | 10 | full | Severed (perma-vulnerable)    | 0           | persistent  | full Mark takedown |
-| **Fester** | Atk | 5 | 6 | 5    | DoT-source                    | 2/turn      | 15 t        | rare drop, RW DoT |
-| **Lance**  | Atk | 7 | 8 | 10   | none                          | 5–10 instant | —          | rare drop, chunk RW dmg |
+| **Worm**   | Atk | 3 | 4 | 15   | DoT-source                    | 1/turn      | 20 t        | self-replicating payload |
+| **Brick**  | Atk | 8 | 10 | full | Severed (perma-vulnerable)    | 0           | persistent  | full Imprint takedown |
+| **Rot**    | Atk | 5 | 6 | 5    | DoT-source                    | 2/turn      | 15 t        | rare drop, RW DoT |
+| **Spike**  | Atk | 7 | 8 | 10   | none                          | 5–10 instant | —          | rare drop, chunk RW dmg |
 
-**Snuff** is the full takedown — drops the Mark's HP to 0, applies persistent vulnerability stack. Big spend, big payoff.
+**Brick** is the full takedown — drops the Imprint's HP to 0, applies persistent vulnerability stack. Big spend, big payoff.
 
-**Fester** and **Lance** are master-tier rare drops. They demonstrate the principle: most exploits do **Mark damage + status only** (no real-world HP). Master tier adds **small real-world HP damage**, capped — outright Relay-only kills are impossible.
+**Rot** and **Spike** are master-tier rare drops. They demonstrate the principle: most exploits do **Imprint damage + status only** (no real-world HP). Master tier adds **small real-world HP damage**, capped — outright Relay-only kills are impossible.
 
 The existing programs (`Breach`, `Decrypt`, `IcebreakerLite`, `PulseHammer`, `GhostTrace`, etc.) all stay; the v1 exploit pool above sits alongside them. Their player-facing names are flagged for a parallel rename pass (Manifesto §6) — proposed mappings: Breach→Pry, Decrypt→Decode, IcebreakerLite→Pierce, GhostTrace→Whisper, Cooldown→Quench, PulseHammer→Pulse, DaemonHijack→Suborn. Not Spec 1's job to retool.
 
 ### 5.3. Adjacency vs. range
 
-Mark-affecting exploits default to **range** (Telegraph picks the Mark tile from LoS). Some flagged exploits require adjacency (e.g., `Snuff` — full takedown shouldn't be no-risk). Adjacency is a per-exploit flag:
+Imprint-affecting exploits default to **range** (Telegraph picks the Imprint tile from LoS). Some flagged exploits require adjacency (e.g., `Brick` — full takedown shouldn't be no-risk). Adjacency is a per-exploit flag:
 
 ```cpp
 struct ProgramDef {
@@ -213,7 +213,7 @@ struct ProgramDef {
 };
 ```
 
-Master-tier real-world-damage exploits (`Fester`, `Lance`) require adjacency to balance their power.
+Master-tier real-world-damage exploits (`Rot`, `Spike`) require adjacency to balance their power.
 
 ---
 
@@ -221,11 +221,11 @@ Master-tier real-world-damage exploits (`Fester`, `Lance`) require adjacency to 
 
 ### 6.1. Ranged combat — exploits
 
-Existing system. Number-key fires exploit from cyberdeck slot, Telegraph picks the target tile. Hits ICE or Marks. Already implemented; spec 1 just expands the exploit pool (§ 5).
+Existing system. Number-key fires exploit from cyberdeck slot, Telegraph picks the target tile. Hits ICE or Imprints. Already implemented; spec 1 just expands the exploit pool (§ 5).
 
 ### 6.2. Melee combat — bump-attack
 
-The avatar gets a default close-range attack via **bump-into-target**. Walking into a tile occupied by ICE or a Mark triggers a melee hit on that entity.
+The avatar gets a default close-range attack via **bump-into-target**. Walking into a tile occupied by ICE or an Imprint triggers a melee hit on that entity.
 
 | Constant | Default | Notes |
 |---|---|---|
@@ -240,11 +240,11 @@ Melee damage applies to the entity at the target tile. The avatar does not move 
 
 ### 6.3. Targets
 
-Both ICE and Marks are valid targets for ranged exploits and melee. Hostile non-Mark NPCs in the Site (rare — drone-like Site mobs, optional v1) are also bumpable.
+Both ICE and Imprints are valid targets for ranged exploits and melee. Hostile non-Imprint NPCs in the Site (rare — drone-like Site mobs, optional v1) are also bumpable.
 
 ### 6.4. ICE behavior reaction
 
-When a Mark takes damage, with some probability, **guardian ICE** spawn from the Mark's tile (configurable; v1 default: 50% chance per major hit, capped at 2 active guardians per Mark). Guardians patrol the Mark's local area until destroyed.
+When an Imprint takes damage, with some probability, **guardian ICE** spawn from the Imprint's tile (configurable; v1 default: 50% chance per major hit, capped at 2 active guardians per Imprint). Guardians patrol the Imprint's local area until destroyed.
 
 ---
 
@@ -274,8 +274,8 @@ Relay kills grant standard player-pool XP, scaled by the killed entity's tier:
 | ICE (white)           | `kXpWardenWhite` (≈ tier-1 mob) |
 | ICE (gray)            | `kXpWardenGray`  (≈ tier-2) |
 | ICE (black)           | `kXpWardenBlack` (≈ tier-3) |
-| Mark sever            | `kXpMarkSever × npc_threat_tier` |
-| Mark partial dmg      | none — only sever grants the bounty |
+| Imprint sever         | `kXpMarkSever × npc_threat_tier` |
+| Imprint partial dmg   | none — only sever grants the bounty |
 
 All XP goes into the **same pool** as real-world combat XP. There is no separate Cat_Drift XP track. Drifters progress overall character level the same way other classes do; their *Drift power* comes from the exploits and cyberdeck gear they collect (loot-driven).
 
@@ -338,7 +338,7 @@ A new sector generator **`gen_imprint_sector`** produces the corpse sector. Reus
 - 1 oversized Chamber (70%) or 2 small Chambers with one bridge (30%).
 - Walls in faction palette.
 - 0–2 reward tiles placed randomly per the distribution above, ≥1 cell from each wall.
-- No Mark, no ICE, no Cache/Sealed-Cache in the standard sense — only reward tiles.
+- No Imprint, no ICE, no Cache/Sealed-Cache in the standard sense — only reward tiles.
 
 Per-corpse seed = `(npc_id, npc_death_tick)`. Re-jack-in is impossible by design (one-shot), so the seed only ever generates once.
 
@@ -364,7 +364,7 @@ This is a small renderer / drop-system fix coupled to Spec 1 because the corpse 
 Plan 7's device-shell layer (DeviceShell, ssh, FS, flavor packs, `(hack) Shell Access`) **stays in tree, dormant**. Spec 1 disconnects it from the new combat loop:
 
 **Disconnected (no longer wired into the new path):**
-- `(hack) Shell Access` interactable on world fixtures and NPC implants — **removed** from the dialog manager (replaced by Mark adjacency in the Site + the new `(hack) Jack In` interactable on corpses).
+- `(hack) Shell Access` interactable on world fixtures and NPC implants — **removed** from the dialog manager (replaced by Imprint adjacency in the Site + the new `(hack) Jack In` interactable on corpses).
 - `ssh` command from the PDA hacking tab — **removed** (or stays as a no-op stub returning "deprecated"; pick at implementation).
 
 **Kept dormant in tree** (no maintenance, no removal):
@@ -380,24 +380,24 @@ These may find a new purpose later (deep-Relay story content, AlienTech dialect,
 
 ## 12. Architecture sketch
 
-Code identifiers reflect the existing convention (`Anchor`, `GridSession`, `ICE`, etc.) — the deferred code-rename pass aligns them to player-facing terms later.
+Code identifiers: the `Anchor` → `Imprint` struct rename is complete (`struct Imprint` in `anchor.h`); file names `anchor.h` / `anchor.cpp` are unchanged (file rename deferred). Remaining `GridSession`, `ICE`, etc. stay until a broader rename pass.
 
 | Unit | Header | Responsibility | Status |
 |---|---|---|---|
-| `Anchor` (= Mark in player vocab) | `anchor.h` / `anchor.cpp`           | Mark entity: HP, position, NPC link, status. | New |
+| `Imprint` | `anchor.h` / `anchor.cpp`         | Imprint entity: HP, position, NPC link, status. (File still named `anchor.h`.) | New |
 | `AnchorTracker`    | `anchor_tracker.h` / `.cpp`         | Spawn / despawn lifecycle, RW↔Site coord projection, dispatch exploit effects. | New |
 | `VulnerabilityStack` | `vulnerability.h`                 | Real-world-side state on NPCs: status list, source, duration. | New |
 | `grid_combat.h`    | constants + bump-attack logic       | Melee constants, bump-into resolution. | New |
 | `gen_imprint_sector` | `imprint_sector_generator.h/.cpp` | Per-corpse sector generator. | New |
 | `Hackable`         | (existing)                          | Gains: `has_crystal_native: bool`, `bound: bool`, `corpse_exhausted: bool`. | Extended |
-| `Npc`              | (existing)                          | Gains link to its Mark (anchor_id or null). | Extended |
-| `GridSession`      | (existing)                          | New `anchors` (Marks) list; renderer + input pipelines consume. | Extended |
-| `grid_input::on_step`, `move_with_step` | (existing)        | Bump-attack integration (walk into Mark / ICE → melee hit). | Extended |
-| `grid_renderer`    | (existing)                          | Mark glyph + label render layer. | Extended |
+| `Npc`              | (existing)                          | Gains link to its Imprint (anchor_id or null). | Extended |
+| `GridSession`      | (existing)                          | New `anchors` (Imprints) list; renderer + input pipelines consume. | Extended |
+| `grid_input::on_step`, `move_with_step` | (existing)        | Bump-attack integration (walk into Imprint / ICE → melee hit). | Extended |
+| `grid_renderer`    | (existing)                          | Imprint glyph + label render layer. | Extended |
 | `look_widget`      | (existing or new)                   | Unified NPC info display, Drifter-gated implant line. | Extended |
 | `combat.cpp`       | (existing)                          | Apply / decay vulnerability stack; XP grant on Relay kill. | Extended |
-| `program.cpp`      | (existing)                          | New exploit registry entries (Echo, Lull, Veil, …). | Extended |
-| `program_effects`  | (existing)                          | New effect functions per Mark exploit. | Extended |
+| `program.cpp`      | (existing)                          | New exploit registry entries (Echo, Lag, Veil, …). | Extended |
+| `program_effects`  | (existing)                          | New effect functions per Imprint exploit. | Extended |
 | `cat_hacking_perks` (= Cat_Drift in player vocab) | (existing perk tree) | `Implant-Reader`, `Tether L1/L2/L3`. | Extended |
 | `dialog_manager`   | (existing)                          | **Remove** `append_shell_access_option*` wiring; **add** corpse `(hack) Jack In` interactable. | Extended |
 | `device_shell.*`, `hack_command.*`, `hack_flavor.*`, `device_fs.*`, `cmd_*.cpp` | (existing) | **Dormant** — no changes, no deletion. | Untouched |
@@ -414,7 +414,7 @@ Code identifiers reflect the existing convention (`Anchor`, `GridSession`, `ICE`
 ## 13. Save schema — bump v63 → v64
 
 **New persistent fields:**
-- Per-Mark: `npc_id`, `current_hp`, `max_hp`, `severed: bool`.
+- Per-Imprint: `npc_id`, `current_hp`, `max_hp`, `severed: bool`.
 - Per-NPC: `vulnerability_stack` (list of `{status, source_sigil, remaining_turns}`).
 - Per-corpse: `corpse_imprint_exhausted: bool`, `corpse_imprint_seed: uint32`.
 
@@ -426,27 +426,27 @@ Code identifiers reflect the existing convention (`Anchor`, `GridSession`, `ICE`
 
 ### 14.1. Unit tests (gtest)
 
-- Mark coord projection: real-world (x,y) → Site (sx, sy) is deterministic.
-- Mark HP arithmetic: damage clamps at 0; severed flag latches; vulnerability_pct in [0.0, 1.0].
+- Imprint coord projection: real-world (x,y) → Site (sx, sy) is deterministic.
+- Imprint HP arithmetic: damage clamps at 0; severed flag latches; vulnerability_pct in [0.0, 1.0].
 - Vulnerability stack: status entries decay correctly, expire on duration tick.
-- XP grants: ICE kill / Mark sever both produce expected XP into the player's main pool.
+- XP grants: ICE kill / Imprint sever both produce expected XP into the player's main pool.
 - Corpse sector generator: same `(npc_id, death_tick)` seed produces identical sector; reward tiles count in [0, 2].
-- Bump-attack: walking into Mark / ICE deals `kGridMeleeDamage`; walking into floor moves normally.
-- Tether: target-NPC without native implant gains a tracked Mark on success; respects RAM/Heat.
+- Bump-attack: walking into Imprint / ICE deals `kGridMeleeDamage`; walking into floor moves normally.
+- Tether: target-NPC without native implant gains a tracked Imprint on success; respects RAM/Heat.
 
 ### 14.2. Integration
 
-- Player kills an NPC after fully severing the Mark → vulnerability stack persisted into combat → real-world finisher kills NPC → XP for both Mark sever and NPC kill granted.
+- Player kills an NPC after fully severing the Imprint → vulnerability stack persisted into combat → real-world finisher kills NPC → XP for both Imprint sever and NPC kill granted.
 - Player jacks into a cooling implant → walks a 4×4–8×8 sector → picks up rewards → jacks out → corpse marked exhausted → second jack-in returns "signal dissolved" message.
 - `look` at an NPC with Implant-Reader unlocked → widget shows implant info.
 - `look` at an NPC without unlock → widget shows "unrecognized."
-- Tether L1 → projects Mark for an animal; Mark takes damage; effects apply on the linked animal.
+- Tether L1 → projects Imprint for an animal; Imprint takes damage; effects apply on the linked animal.
 
 ### 14.3. Manual
 
-- Dev mode walk: jack into a populated Site, walk to a Mark, fire Echo, observe the linked NPC marked in real-world view; jack out; verify the mark persists.
-- Combat-dip: real-world combat with hostile approaching, mid-fight jack-in, fire Lull, jack out; observe the slowed NPC behavior.
-- Master exploit: drop Lance via dev console; fire at a Mark; observe small real-world HP damage on linked NPC.
+- Dev mode walk: jack into a populated Site, walk to an Imprint, fire Echo, observe the linked NPC marked in real-world view; jack out; verify the mark persists.
+- Combat-dip: real-world combat with hostile approaching, mid-fight jack-in, fire Lag, jack out; observe the slowed NPC behavior.
+- Master exploit: drop Spike via dev console; fire at an Imprint; observe small real-world HP damage on linked NPC.
 
 ---
 
@@ -459,7 +459,7 @@ Code identifiers reflect the existing convention (`Anchor`, `GridSession`, `ICE`
 - Lore-fragment integration (Spec 7).
 - Code-side vocabulary rename (`GridSession` → `RelaySession`, etc.) — deferred follow-up pass.
 - Quickhack (`.qh`) retirement / re-spec as a Drifter-only meatspace category / replacement with another meatspace-damage system. Tracked as a future spec.
-- Boss / multi-Mark encounters (v1 ships 1 Mark per NPC).
+- Boss / multi-Imprint encounters (v1 ships 1 Imprint per NPC).
 - AlienTech / Precursor exploit dialect.
 - Cyberdeck mod system polish (Aerojack / Untether stubs from Plan 7 §15) — re-thought in Spec 2 if still needed.
 
@@ -469,12 +469,12 @@ Code identifiers reflect the existing convention (`Anchor`, `GridSession`, `ICE`
 
 These are tactical, not design — belong in the plan file:
 
-- Mark max HP curve — exact `f(npc_threat_tier)` shape.
+- Imprint max HP curve — exact `f(npc_threat_tier)` shape.
 - Tether resource shape — free with cooldown vs. item-consuming vs. charge-pool. Pick during item authoring.
 - Implant-Reader perk placement in the Cat_Drift tree — first node, second, branch?
 - `ssh` deprecation cleanup — remove the command outright vs. leave as no-op stub.
-- Mark mirror-projection function — direct linear, scaled, modulo? Linear scaled is the default; tune if Sites feel cramped.
-- Guardian ICE spawn parameters (which ICE color, spawn delay, despawn rule when Mark dies).
+- Imprint mirror-projection function — direct linear, scaled, modulo? Linear scaled is the default; tune if Sites feel cramped.
+- Guardian ICE spawn parameters (which ICE color, spawn delay, despawn rule when Imprint dies).
 - Look-widget visual layout — single panel or split panes.
 - Status-effect glyph rendering on real-world NPCs — superscript glyph, color-tint, both?
 - Loot offset rule precise behavior (orthogonal preferred / diagonal fallback / stack-on-corpse-as-last-resort).
@@ -496,9 +496,9 @@ These are tactical, not design — belong in the plan file:
 | # | Decision | Rationale |
 |---|---|---|
 | 1  | The Relay serves A (combat-time tool) + C (exploration) roles, not D (politics). Drifting is niche, never solo. | User decision — pure-Drifter is not viable; Drifters level standard XP, gear-driven Drift power. |
-| 2  | Marks are mobile entities, not Chambers. Mirror NPC position. | User decision. |
-| 3  | Damage is damage; Marks don't regen; severed = persistent vulnerability. | User decision. |
-| 4  | NPC↔Mark identification via `look` + `Implant-Reader` unlock + Tether for non-implant-bearing NPCs. | User decision. |
+| 2  | Imprints are mobile entities, not Chambers. Mirror NPC position. | User decision. |
+| 3  | Damage is damage; Imprints don't regen; severed = persistent vulnerability. | User decision. |
+| 4  | NPC↔Imprint identification via `look` + `Implant-Reader` unlock + Tether for non-implant-bearing NPCs. | User decision. |
 | 5  | Tether is a Cat_Drift perk chain (L1/L2/L3). | User-aligned. |
 | 6  | New exploits only; quickhacks (`.qh`) out-of-scope, possibly re-specced as Drifter-only meatspace later. | User clarification. |
 | 7  | Master-tier exploits deal small real-world HP damage. Outright Relay kill impossible by design. | User decision. |
@@ -509,7 +509,7 @@ These are tactical, not design — belong in the plan file:
 | 12 | Plan 7 stays dormant in tree; combat loop disconnects from it. | User decision. |
 | 13 | Save schema bump v63 → v64; reject older saves. | Project policy (no backcompat pre-ship). |
 | 14 | Corpse sector loot is deliberately scarce — ~60% empty, ~30% 1 reward, ~10% 2 rewards. Aligns with Astra's global loot scarcity principle. | User decision — most corpses yield mood, not loot. Rebalance lives in Spec 2. |
-| 15 | Player-facing vocabulary uses cyberpunk register: Relay / Drifter / Exploit / Mark / Implant / ICE / RAM / Heat / Jack in. Code-side rename deferred to a separate follow-up pass. | User decision — shifted from fantasy-flavored terms (Sigil, Resonator, Crystal, Bind, Warden) to cyberpunk register while keeping lore-world terms (Site, Chamber, Cache, Substrate) intact. |
+| 15 | Player-facing vocabulary uses cyberpunk register: Relay / Drifter / Exploit / Imprint / Implant / ICE / RAM / Heat / Jack in. Code-side rename deferred to a separate follow-up pass. | User decision — shifted from fantasy-flavored terms (Sigil, Resonator, Crystal, Bind, Warden) to cyberpunk register while keeping lore-world terms (Site, Chamber, Cache, Substrate) intact. |
 | 16 | The Substrate is the in-fiction layer beneath the Relay Network; assimilates and bestows in equal measure; named only by ancients early in the game; powers the Relay; player is "touched" by it at Sgr A* for rebirth. Full lore in `../lore/overview.md`. | User narrative direction. |
 
 ---

@@ -485,22 +485,23 @@ static std::string rootkit_description() {
     return s;
 }
 
-// Plan 8 — ImplantReader: identifies whether an NPC carries an active Crystal.
-// Gated by this skill; the look widget reveals the Mark's Site coordinates and HP.
+// ImplantReader: identifies whether an NPC carries an active implant.
+// Gated by this skill; the look widget reveals the Imprint's Site coordinates and HP.
 static std::string implant_reader_description() {
     std::string s = "You can read the faint electromagnetic signature of an active neural implant.\n\n";
     s += colored("Passive:", Color::White);
     s += " the ";
     s += colored("look", Color::Yellow);
     s += " widget reveals whether an NPC carries an active implant and, if so, its "
-         "Mark's Site coordinates and current HP.";
+         "Imprint's Site coordinates and current HP.";
     return s;
 }
 
-// Plan 8 — Tether L1/L2/L3: project a Mark for targets without an active Crystal.
-// Used by Drifter to mark animals, drones, and Feral for hacking / control.
+// Tether L1/L2/L3: project an Imprint for targets without a native implant.
+// Used by Drifter to hook animals, drones, and Feral into the Relay for hacking / control.
 static std::string tether_l1_description() {
-    return "Tether: project a Mark for a target without a Crystal (animals, drones, Feral). "
+    return "Tether: forcefully upload a target with no native implant (animals, drones, Feral) "
+           "into the Relay, projecting an Imprint that can be hacked. "
            "Line-of-sight, range 1 tile.";
 }
 

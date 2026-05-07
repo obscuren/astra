@@ -106,14 +106,14 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_PROG_DAEMON_HIJACK,   "daemon_hijack",    R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
         // Sigils (Spec 1 §5.2) — T1 commons, T2 uncommons, T3 rares
         LootEntry{ ITEM_PROG_ECHO,            "echo",             R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
-        LootEntry{ ITEM_PROG_LULL,            "lull",             R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_LAG,             "lag",              R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
         LootEntry{ ITEM_PROG_VEIL,            "veil",             R::Common,    R::Uncommon,   9, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
-        LootEntry{ ITEM_PROG_FALTER,          "falter",           R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_JITTER,          "jitter",           R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
         LootEntry{ ITEM_PROG_SHROUD,          "shroud",           R::Uncommon,  R::Rare,       5, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
-        LootEntry{ ITEM_PROG_WITHER,          "wither",           R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
-        LootEntry{ ITEM_PROG_SNUFF,           "snuff",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
-        LootEntry{ ITEM_PROG_FESTER,          "fester",           R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
-        LootEntry{ ITEM_PROG_LANCE,           "lance",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        LootEntry{ ITEM_PROG_WORM,            "worm",             R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_BRICK,           "brick",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        LootEntry{ ITEM_PROG_ROT,             "rot",              R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        LootEntry{ ITEM_PROG_SPIKE,           "spike",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
 
         // ----- Implants (Plan 4) ---------------------------------------
         LootEntry{ ITEM_NEURAL_BACKUP,        "neural_backup",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },

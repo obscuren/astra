@@ -339,8 +339,8 @@ bool handle(Game& game, int key) {
             return try_move_hijacked_ice(s, dx, dy);
         }
 
-        // Bump-attack on Mark.
-        if (Mark* a = s.anchor_at(nx, ny)) {
+        // Bump-attack on Anchor.
+        if (Imprint* a = s.imprint_at(nx, ny)) {
             if (!a->severed()) {
                 a->hp = std::max(0, a->hp - kGridMeleeDamage);
                 // Auto-sever: anchor just dropped to 0 — apply persistent
@@ -355,7 +355,7 @@ bool handle(Game& game, int key) {
                         if (!a->xp_granted) {
                             a->xp_granted = true;
                             int tier = std::max(1, npc_ptr->level);
-                            grant_grid_xp(game, kXpAnchorSeverPerTier * tier);
+                            grant_grid_xp(game, kXpImprintSeverPerTier * tier);
                         }
                     }
                 }
@@ -369,12 +369,12 @@ bool handle(Game& game, int key) {
                 }
                 char buf[80];
                 std::snprintf(buf, sizeof buf,
-                              "> Strike: Mark %d HP %d/%d.",
+                              "> Strike: Imprint %d HP %d/%d.",
                               a->id + 1, a->hp, a->max_hp);
                 s.push_log(buf);
                 return true;   // turn consumed; avatar does not move
             }
-            // Severed Mark is walkable — fall through to normal movement.
+            // Severed Anchor is walkable — fall through to normal movement.
         }
 
         // Bump-attack on Ice (Warden).

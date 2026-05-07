@@ -63,7 +63,7 @@ void apply_cell_proc(Item& cell, int drained,
 
 // Centralized post-death book-keeping. Replaces 4 ad-hoc inlined blocks
 // across attack_npc / shoot_target / process_npc_turn (DoT) /
-// apply_to_anchor (Lance/Sigil). Always runs:
+// apply_to_anchor (Spike/Sigil). Always runs:
 //  - kills counter
 //  - faction reputation decay
 //  - quest on_npc_killed hook

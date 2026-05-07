@@ -74,14 +74,14 @@ struct GridSession {
     std::vector<GridIce> ice;
     std::vector<bool> ice_seed_spawned;  // Plan 8: true once seed_idx has materialized
 
-    // Anchors (player-facing: Marks)
-    std::vector<Mark>&       anchors()       { return anchors_; }
-    const std::vector<Mark>& anchors() const { return anchors_; }
-    Mark* anchor_for_npc(int npc_id);
-    Mark* anchor_at(int x, int y);
-    void  clear_anchors() { anchors_.clear(); next_anchor_id_ = 0; }
-    Mark* add_anchor_for_npc(int npc_id, int sx, int sy,
-                              int npc_threat_tier, bool bound = false);
+    // Anchors (player-facing: Anchors)
+    std::vector<Imprint>&       imprints()       { return imprints_; }
+    const std::vector<Imprint>& imprints() const { return imprints_; }
+    Imprint* imprint_for_npc(int npc_id);
+    Imprint* imprint_at(int x, int y);
+    void  clear_imprints() { imprints_.clear(); next_imprint_id_ = 0; }
+    Imprint* add_imprint_for_npc(int npc_id, int sx, int sy,
+                               int npc_threat_tier, bool bound = false);
 
     // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
     // instead of the avatar. -1 = no active hijack. The countdown decrements
@@ -117,8 +117,8 @@ struct GridSession {
     int  corpse_fid                = -1;
 
 private:
-    std::vector<Mark> anchors_;
-    int32_t             next_anchor_id_ = 0;
+    std::vector<Imprint> imprints_;
+    int32_t             next_imprint_id_ = 0;
 };
 
 } // namespace astra

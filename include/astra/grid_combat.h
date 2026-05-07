@@ -18,7 +18,7 @@ inline constexpr int kTetherHeatCost = 4;
 inline constexpr int kXpIceWhite           = 4;
 inline constexpr int kXpIceGray            = 8;
 inline constexpr int kXpIceBlack           = 16;
-inline constexpr int kXpAnchorSeverPerTier = 12;   // multiplied by npc_threat_tier
+inline constexpr int kXpImprintSeverPerTier = 12;   // multiplied by npc_threat_tier
 
 // Anchor HP curve (placeholder linear scale).
 // Tier 1 NPC -> 10 HP, tier 5 -> 98 HP (~100). Tune in playtest.

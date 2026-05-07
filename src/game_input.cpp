@@ -13,7 +13,7 @@
 namespace astra {
 
 // ── Tether action (D2) ───────────────────────────────────────────────────
-// Real-world Tether: marks a non-Crystal-bearing NPC for Mark projection on
+// Real-world Tether: marks a non-Crystal-bearing NPC for Imprint projection on
 // the next jack-in. Costs only Heat (Drift) — RAM (Channel) is a session-
 // only resource; v2 in-Grid Tether can pay RAM at that time.
 //
@@ -92,7 +92,7 @@ void Game::confirm_tether_targeting() {
     }
 
     // Don't double-tether
-    if (target_npc->force_tether && target_npc->anchor_id >= 0) {
+    if (target_npc->force_tether && target_npc->imprint_id >= 0) {
         log(target_npc->name + " is already Tethered.");
         return;
     }

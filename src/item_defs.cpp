@@ -1527,14 +1527,14 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         case ITEM_PROG_DAEMON_HIJACK:      return build_program_daemon_hijack();
         // Sigils (Spec 1 §5.2)
         case ITEM_PROG_ECHO:               return build_program_echo();
-        case ITEM_PROG_LULL:               return build_program_lull();
+        case ITEM_PROG_LAG:                return build_program_lag();
         case ITEM_PROG_VEIL:               return build_program_veil();
-        case ITEM_PROG_FALTER:             return build_program_falter();
+        case ITEM_PROG_JITTER:             return build_program_jitter();
         case ITEM_PROG_SHROUD:             return build_program_shroud();
-        case ITEM_PROG_WITHER:             return build_program_wither();
-        case ITEM_PROG_SNUFF:              return build_program_snuff();
-        case ITEM_PROG_FESTER:             return build_program_fester();
-        case ITEM_PROG_LANCE:              return build_program_lance();
+        case ITEM_PROG_WORM:               return build_program_worm();
+        case ITEM_PROG_BRICK:              return build_program_brick();
+        case ITEM_PROG_ROT:                return build_program_rot();
+        case ITEM_PROG_SPIKE:              return build_program_spike();
 
         // Code fragments
         case ITEM_CODE_FRAGMENT_T1:        return build_code_fragment_t1();
@@ -1725,14 +1725,14 @@ Item build_program_daemon_hijack() {
 Item build_program_echo() {
     return make_program_(ITEM_PROG_ECHO, 9110, ProgramId::Echo,
         "echo.exe",
-        "UTL | tier 1 | 1 RAM, 1 Heat. Refreshes or propagates a Mark on the target tile.",
+        "UTL | tier 1 | 1 RAM, 1 Heat. Refreshes or propagates an Imprint on the target tile.",
         Rarity::Common, 50, 16);
 }
 
-Item build_program_lull() {
-    return make_program_(ITEM_PROG_LULL, 9111, ProgramId::Lull,
-        "lull.exe",
-        "UTL | tier 1 | 2 RAM, 2 Heat. Suppresses a target's reaction — delays ICE activation.",
+Item build_program_lag() {
+    return make_program_(ITEM_PROG_LAG, 9111, ProgramId::Lag,
+        "lag.exe",
+        "UTL | tier 1 | 2 RAM, 2 Heat. Floods a target's packet queue — delays ICE activation.",
         Rarity::Common, 50, 16);
 }
 
@@ -1743,10 +1743,10 @@ Item build_program_veil() {
         Rarity::Common, 60, 20);
 }
 
-Item build_program_falter() {
-    return make_program_(ITEM_PROG_FALTER, 9113, ProgramId::Falter,
-        "falter.exe",
-        "UTL | tier 2 | 4 RAM, 5 Heat. Disrupts a target's logic loop, causing it to skip its next action.",
+Item build_program_jitter() {
+    return make_program_(ITEM_PROG_JITTER, 9113, ProgramId::Jitter,
+        "jitter.exe",
+        "UTL | tier 2 | 4 RAM, 5 Heat. Injects timing noise into a target's logic loop, causing it to skip its next action.",
         Rarity::Uncommon, 150, 50);
 }
 
@@ -1757,31 +1757,31 @@ Item build_program_shroud() {
         Rarity::Uncommon, 150, 50);
 }
 
-Item build_program_wither() {
-    return make_program_(ITEM_PROG_WITHER, 9115, ProgramId::Wither,
-        "wither.exe",
-        "ATK | tier 2 | 3 RAM, 4 Heat. Degrades a Marked target's defences over successive turns.",
+Item build_program_worm() {
+    return make_program_(ITEM_PROG_WORM, 9115, ProgramId::Worm,
+        "worm.exe",
+        "ATK | tier 2 | 3 RAM, 4 Heat. Plants a self-replicating payload that degrades an Imprinted target's defences.",
         Rarity::Uncommon, 160, 55);
 }
 
-Item build_program_snuff() {
-    return make_program_(ITEM_PROG_SNUFF, 9116, ProgramId::Snuff,
-        "snuff.exe",
-        "ATK | tier 3 | 8 RAM, 10 Heat. Instantly kills a Marked target at close range.",
+Item build_program_brick() {
+    return make_program_(ITEM_PROG_BRICK, 9116, ProgramId::Brick,
+        "brick.exe",
+        "ATK | tier 3 | 8 RAM, 10 Heat. Overwrites an Imprinted target's firmware — bricks it at close range.",
         Rarity::Rare, 500, 165);
 }
 
-Item build_program_fester() {
-    return make_program_(ITEM_PROG_FESTER, 9117, ProgramId::Fester,
-        "fester.exe",
-        "ATK | tier 3 | 5 RAM, 6 Heat. Infects an adjacent Marked target with a damage-over-time payload.",
+Item build_program_rot() {
+    return make_program_(ITEM_PROG_ROT, 9117, ProgramId::Rot,
+        "rot.exe",
+        "ATK | tier 3 | 5 RAM, 6 Heat. Corrupts an adjacent Imprinted target's core with a damage-over-time payload.",
         Rarity::Rare, 400, 135);
 }
 
-Item build_program_lance() {
-    return make_program_(ITEM_PROG_LANCE, 9118, ProgramId::Lance,
-        "lance.exe",
-        "ATK | tier 3 | 7 RAM, 8 Heat. Drives a focused data spike through an adjacent Marked target.",
+Item build_program_spike() {
+    return make_program_(ITEM_PROG_SPIKE, 9118, ProgramId::Spike,
+        "spike.exe",
+        "ATK | tier 3 | 7 RAM, 8 Heat. Drives a focused data spike through an adjacent Imprinted target.",
         Rarity::Rare, 450, 150);
 }
 

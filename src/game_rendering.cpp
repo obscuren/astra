@@ -421,11 +421,11 @@ void Game::render_look_popup() {
             if (has_electronic) {
                 crystal_lines.push_back({"Implant: HAS", Color::Cyan});
                 if (auto* sess = hacking_.session()) {
-                    if (auto* a = sess->anchor_for_npc(look_npc->uid)) {
+                    if (auto* a = sess->imprint_for_npc(look_npc->uid)) {
                         if (!a->severed()) {
                             char buf[80];
                             std::snprintf(buf, sizeof buf,
-                                          "  Mark @ (%d, %d)  HP %d/%d",
+                                          "  Imprint @ (%d, %d)  HP %d/%d",
                                           a->x, a->y, a->hp, a->max_hp);
                             crystal_lines.push_back({buf, Color::Cyan});
                         }

@@ -40,16 +40,16 @@ enum class ProgramId : uint16_t {
     FriendlyFire   = 101,
     DataLeech      = 102,
 
-    // Spec 1 §5.2 — Mark-interaction Sigils (E2)
+    // Spec 1 §5.2 — Imprint-interaction Sigils (E2)
     Echo           = 300,
-    Lull           = 301,
+    Lag            = 301,
     Veil           = 302,
-    Falter         = 303,
+    Jitter         = 303,
     Shroud         = 304,
-    Wither         = 305,
-    Snuff          = 306,
-    Fester         = 307,
-    Lance          = 308,
+    Worm           = 305,
+    Brick          = 306,
+    Rot            = 307,
+    Spike          = 308,
 };
 
 struct ProgramDef {

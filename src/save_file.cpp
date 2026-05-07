@@ -1137,7 +1137,7 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
             w.write_i32(e.magnitude);
         }
     }
-    w.write_i32(npc.anchor_id);
+    w.write_i32(npc.imprint_id);
     // v67: force_tether flag (Tether action — D2)
     w.write_u8(npc.force_tether ? 1 : 0);
     // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
@@ -2061,7 +2061,7 @@ static Npc read_npc(BinaryReader& r) {
             npc.vuln.apply(kind, source, remaining_turns, magnitude);
         }
     }
-    npc.anchor_id = r.read_i32();
+    npc.imprint_id = r.read_i32();
     // v67: force_tether flag (Tether action — D2)
     npc.force_tether = r.read_u8() != 0;
     // v68: stable monotonic UID for cross-system linkage (Anchors, saves)

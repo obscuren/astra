@@ -266,7 +266,7 @@ std::string apply_daemon_hijack_grid(GridProgramContext c) {
 
 // Apply a Sigil effect to the Anchor at (tx, ty): reduce anchor HP, then
 // apply a real-world status effect on the linked NPC's vulnerability stack.
-// For master Sigils (Lance), also apply a chunk of RW HP damage.
+// For master Sigils (Spike), also apply a chunk of RW HP damage.
 //
 // Returns a short message string for the caller to log.
 std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
@@ -274,17 +274,17 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
                             VulnerabilityKind kind, ProgramId source,
                             int turns, int magnitude = 0,
                             int rw_hp_dmg = 0) {
-    Mark* a = s.anchor_at(tx, ty);
+    Imprint* a = s.imprint_at(tx, ty);
     if (!a) {
-        return "no Mark at target.";
+        return "no Imprint at target.";
     }
     a->hp = std::max(0, a->hp - anchor_dmg);
 
-    if (a->npc_id < 0) return "Mark hit, target unlinked.";
+    if (a->npc_id < 0) return "Imprint hit, target unlinked.";
     Npc* npc_ptr = game.world().npc_by_uid(a->npc_id);
-    if (!npc_ptr) return "Mark hit, target gone.";
+    if (!npc_ptr) return "Imprint hit, target gone.";
     Npc& npc = *npc_ptr;
-    if (!npc.alive()) return "Mark hit, target dead.";
+    if (!npc.alive()) return "Imprint hit, target dead.";
 
     // If the anchor severed, apply persistent Severed (overriding the
     // requested status — Severed always wins).
@@ -294,13 +294,13 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
         if (!a->xp_granted) {
             a->xp_granted = true;
             int tier = std::max(1, npc.level);
-            grant_grid_xp(game, kXpAnchorSeverPerTier * tier);
+            grant_grid_xp(game, kXpImprintSeverPerTier * tier);
         }
     } else {
         npc.vuln.apply(kind, source, turns, magnitude);
     }
 
-    // Optional RW HP damage (master Sigils — Lance).
+    // Optional RW HP damage (master Sigils — Spike).
     // Mirrors the DoT death-credit idiom from CombatSystem::process_npc_turn.
     if (rw_hp_dmg > 0) {
         int dmg = apply_damage_effects(npc.effects, rw_hp_dmg);
@@ -308,7 +308,7 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
             npc.hp -= dmg;
             if (npc.hp < 0) npc.hp = 0;
             game.log(display_name(npc) + " takes " + std::to_string(dmg) +
-                     " Lance damage.");
+                     " Spike damage.");
             if (!npc.alive()) {
                 game.log(display_name(npc) + " is destroyed!");
                 award_npc_kill(game, npc);
@@ -318,7 +318,7 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
 
     char buf[80];
     std::snprintf(buf, sizeof buf,
-                  "Mark %d hit (%d/%d).",
+                  "Imprint %d hit (%d/%d).",
                   a->id + 1, a->hp, a->max_hp);
     return buf;
 }
@@ -350,47 +350,47 @@ std::string apply_program_in_grid(ProgramId id, GridProgramContext ctx) {
                                    /*anchor_dmg=*/5,
                                    VulnerabilityKind::Marked, ProgramId::Echo,
                                    /*turns=*/30);
-        case ProgramId::Lull:
+        case ProgramId::Lag:
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    10,
-                                   VulnerabilityKind::Slowed, ProgramId::Lull, 10);
+                                   VulnerabilityKind::Slowed, ProgramId::Lag, 10);
         case ProgramId::Veil:
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    10,
                                    VulnerabilityKind::Blinded, ProgramId::Veil, 10);
-        case ProgramId::Falter:
+        case ProgramId::Jitter:
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    25,
-                                   VulnerabilityKind::Impaired, ProgramId::Falter, 15);
+                                   VulnerabilityKind::Impaired, ProgramId::Jitter, 15);
         case ProgramId::Shroud:
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    40,
                                    VulnerabilityKind::Exposed, ProgramId::Shroud, 10);
-        case ProgramId::Wither:
+        case ProgramId::Worm:
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    15,
-                                   VulnerabilityKind::DotSource, ProgramId::Wither,
+                                   VulnerabilityKind::DotSource, ProgramId::Worm,
                                    /*turns=*/20, /*magnitude=*/1);
-        case ProgramId::Snuff:
+        case ProgramId::Brick:
             // Full takedown: huge anchor damage; helper auto-promotes to Severed when hp hits 0.
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    /*anchor_dmg=*/9999,
-                                   VulnerabilityKind::Severed, ProgramId::Snuff,
+                                   VulnerabilityKind::Severed, ProgramId::Brick,
                                    /*turns=*/-1);
-        case ProgramId::Fester:
+        case ProgramId::Rot:
             // Master tier: small anchor dmg + recurring RW DoT via DotSource.
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    5,
-                                   VulnerabilityKind::DotSource, ProgramId::Fester,
+                                   VulnerabilityKind::DotSource, ProgramId::Rot,
                                    /*turns=*/15, /*magnitude=*/2,
                                    /*rw_hp_dmg=*/0);
-        case ProgramId::Lance: {
+        case ProgramId::Spike: {
             // Master tier: small anchor dmg + chunk RW HP (5..10).
             std::uniform_int_distribution<int> roll(5, 10);
             int dmg = roll(ctx.game.world().rng());
             return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
                                    10,
-                                   VulnerabilityKind::Severed, ProgramId::Lance,
+                                   VulnerabilityKind::Severed, ProgramId::Spike,
                                    /*turns=*/-1, /*magnitude=*/0,
                                    /*rw_hp_dmg=*/dmg);
         }
