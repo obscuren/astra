@@ -274,7 +274,7 @@ std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
                             VulnerabilityKind kind, ProgramId source,
                             int turns, int magnitude = 0,
                             int rw_hp_dmg = 0) {
-    Anchor* a = s.anchor_at(tx, ty);
+    Mark* a = s.anchor_at(tx, ty);
     if (!a) {
         return "no Mark at target.";
     }

@@ -194,37 +194,13 @@ void HackingSystem::tick(Game& game) {
             if (!npc.alive()) continue;
             if (npc.anchor_id < 0) continue;
 
-            Anchor* a = session_->anchor_for_npc(npc.uid);
+            Mark* a = session_->anchor_for_npc(npc.uid);
             if (!a) continue;
             if (a->severed()) continue;  // dead anchors don't move
 
             int nx, ny;
             project_rw_to_site(proj, npc.x, npc.y, nx, ny);
-
-            // If the projected tile is unwalkable in the Site, fall back to the
-            // nearest walkable cell (Chebyshev expansion, max radius 4).
-            if (!session_->sector.passable(nx, ny)) {
-                int best_dx = 0, best_dy = 0;
-                int best_d = 1 << 30;
-                for (int rad = 1; rad <= 4 && best_d == (1 << 30); ++rad) {
-                    for (int dy = -rad; dy <= rad; ++dy) {
-                        for (int dx = -rad; dx <= rad; ++dx) {
-                            if (std::max(std::abs(dx), std::abs(dy)) != rad) continue;
-                            int tx = nx + dx, ty = ny + dy;
-                            if (!session_->sector.passable(tx, ty)) continue;
-                            int d = std::abs(dx) + std::abs(dy);
-                            if (d < best_d) {
-                                best_d = d;
-                                best_dx = dx;
-                                best_dy = dy;
-                            }
-                        }
-                    }
-                }
-                if (best_d == (1 << 30)) continue;  // no walkable neighbour — leave anchor in place
-                nx += best_dx;
-                ny += best_dy;
-            }
+            if (!nudge_to_passable(session_->sector, nx, ny)) continue;
 
             a->x = nx;
             a->y = ny;
@@ -625,10 +601,11 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         }
     }
 
-    // Spec 1: spawn an Anchor per hostile, Crystal-bearing NPC on the
-    // current map. Each NPC's anchor_id is set; the Anchor's Site
-    // coordinates mirror the NPC's RW position via linear projection.
-    // D2: also spawn Anchors for Bind-marked NPCs (force_bind == true)
+    // Spec 1: spawn a Mark per hostile, Crystal-bearing NPC on the
+    // current map. Each NPC's anchor_id is set; the Mark's Site
+    // coordinates mirror the NPC's RW position via linear projection,
+    // nudged to the nearest walkable cell if the projected tile is a wall.
+    // D2: also spawn Marks for Bind-marked NPCs (force_bind == true)
     // even if they carry no native Electronic Crystal.
     {
         AnchorProjection proj = make_anchor_projection(s.sector, game.world());
@@ -636,16 +613,21 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         for (size_t i = 0; i < npcs.size(); ++i) {
             Npc& npc = npcs[i];
             if (!npc.alive()) continue;
-            if (!is_hostile_to_player(npc.faction, game.player())) continue;
 
             bool has_native_crystal = npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic);
             bool bound_target       = npc.force_bind;
             if (!has_native_crystal && !bound_target) continue;
 
+            // Hostility gate applies to native-Crystal NPCs only. Bound
+            // targets are an explicit player action — faction rep is
+            // irrelevant; the player has chosen to project a Mark.
+            if (!bound_target && !is_hostile_to_player(npc.faction, game.player())) continue;
+
             int sx, sy;
             project_rw_to_site(proj, npc.x, npc.y, sx, sy);
-            // Pass the stable UID (not the vector index) for cross-session linkage.
-            Anchor* a = s.add_anchor_for_npc(
+            if (!nudge_to_passable(s.sector, sx, sy)) continue;
+
+            Mark* a = s.add_anchor_for_npc(
                 npc.uid,
                 sx, sy,
                 npc.level,   // npc.level used as threat-tier proxy (B3)

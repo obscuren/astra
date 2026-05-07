@@ -36,4 +36,31 @@ void project_rw_to_site(const AnchorProjection& p, int rwx, int rwy,
     sy = std::clamp(sy, 0, std::max(0, p.site_h - 1));
 }
 
+bool nudge_to_passable(const GridSector& sector, int& sx, int& sy,
+                       int max_radius) {
+    if (sector.passable(sx, sy)) return true;
+
+    int best_dx = 0, best_dy = 0;
+    int best_d = 1 << 30;
+    for (int rad = 1; rad <= max_radius && best_d == (1 << 30); ++rad) {
+        for (int dy = -rad; dy <= rad; ++dy) {
+            for (int dx = -rad; dx <= rad; ++dx) {
+                if (std::max(std::abs(dx), std::abs(dy)) != rad) continue;
+                int tx = sx + dx, ty = sy + dy;
+                if (!sector.passable(tx, ty)) continue;
+                int d = std::abs(dx) + std::abs(dy);
+                if (d < best_d) {
+                    best_d = d;
+                    best_dx = dx;
+                    best_dy = dy;
+                }
+            }
+        }
+    }
+    if (best_d == (1 << 30)) return false;
+    sx += best_dx;
+    sy += best_dy;
+    return true;
+}
+
 }  // namespace astra

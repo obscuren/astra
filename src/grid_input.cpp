@@ -339,8 +339,8 @@ bool handle(Game& game, int key) {
             return try_move_hijacked_ice(s, dx, dy);
         }
 
-        // Bump-attack on Anchor (Mark).
-        if (Anchor* a = s.anchor_at(nx, ny)) {
+        // Bump-attack on Mark.
+        if (Mark* a = s.anchor_at(nx, ny)) {
             if (!a->severed()) {
                 a->hp = std::max(0, a->hp - kGridMeleeDamage);
                 // Auto-sever: anchor just dropped to 0 — apply persistent

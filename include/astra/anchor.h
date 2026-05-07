@@ -7,7 +7,7 @@ namespace astra {
 class GridSector;     // forward decl
 class WorldManager;   // forward decl
 
-struct Anchor {
+struct Mark {
     int32_t  id          = -1;     // assigned on spawn (GridSession::next_anchor_id_)
     int      x           = 0;      // Site coords (mirror of NPC's RW position)
     int      y           = 0;
@@ -16,7 +16,7 @@ struct Anchor {
     int      npc_id      = -1;     // index into world's NPC list
     bool     bound       = false;  // true if projected via Bind on a no-Crystal target
     bool     identified  = false;  // becomes true after `look` with Crystal-Decoder unlock
-    bool     xp_granted  = false;  // ensures sever-XP is paid only once per Anchor
+    bool     xp_granted  = false;  // ensures sever-XP is paid only once per Mark
 
     bool severed() const { return hp <= 0; }
     float vulnerability_pct() const {
@@ -45,5 +45,12 @@ AnchorProjection make_anchor_projection(const GridSector& sec,
 // range. Mutates sx and sy.
 void project_rw_to_site(const AnchorProjection& proj,
                         int rwx, int rwy, int& sx, int& sy);
+
+// If (sx, sy) is unwalkable in `sector`, BFS-Chebyshev to the nearest
+// passable cell within `max_radius`. Mutates sx and sy. Returns true if
+// (sx, sy) was already passable or a passable neighbour was found; false
+// if no walkable cell exists within radius (caller decides what to do).
+bool nudge_to_passable(const GridSector& sector, int& sx, int& sy,
+                       int max_radius = 4);
 
 }  // namespace astra
