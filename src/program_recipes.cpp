@@ -47,7 +47,7 @@ const ProgramRecipe* find_program_recipe(uint16_t recipe_id) {
     return nullptr;
 }
 
-TinkerResult learn_program_recipe(Player& player, uint16_t recipe_id,
+ProgramRecipeResult learn_program_recipe(Player& player, uint16_t recipe_id,
                                   const char* name, const char* description) {
     for (const auto& lp : player.learned_programs) {
         if (lp.recipe_id == recipe_id)
@@ -57,7 +57,7 @@ TinkerResult learn_program_recipe(Player& player, uint16_t recipe_id,
     return {true, true, std::string("Learned program recipe: ") + name + "."};
 }
 
-TinkerResult craft_program_recipe(uint16_t recipe_id, Player& player) {
+ProgramRecipeResult compile_program_recipe(uint16_t recipe_id, Player& player) {
     if (!player_has_skill(player, SkillId::Cat_Hacking))
         return {false, false, "Requires Hacking skill unlocked."};
 
