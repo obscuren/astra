@@ -138,40 +138,6 @@ set(ASTRA_SOURCES
     src/grenade.cpp
     src/hackable.cpp
     src/vulnerability.cpp
-    src/hack_command.cpp
-    src/shell_stack.cpp
-    src/cyberdeck_shell_context.cpp
-    src/device_shell.cpp
-    src/device_fs.cpp
-    src/fixture_os_id.cpp
-    src/hack_flavor_civilian.cpp
-    src/hack_flavor_corp.cpp
-    src/hack_flavor_cartel.cpp
-    src/hack_commands/cmd_universals.cpp
-    src/hack_commands/cmd_hashcat.cpp
-    src/hack_commands/cmd_unlock.cpp
-    src/hack_commands/cmd_datastore_reads.cpp
-    src/hack_commands/cmd_dump.cpp
-    src/hack_commands/cmd_wipe.cpp
-    src/hack_commands/cmd_optics.cpp
-    src/hack_commands/cmd_weaponized.cpp
-    src/hack_commands/cmd_powernode.cpp
-    src/hack_commands/cmd_mobile.cpp
-    src/hack_commands/cmd_lore.cpp
-    src/hack_commands/cmd_echo.cpp
-    src/hack_commands/cmd_uname.cpp
-    src/hack_commands/cmd_whoami.cpp
-    src/hack_commands/cmd_deck_info.cpp
-    src/hack_commands/cmd_cat.cpp
-    src/hack_commands/cmd_ping.cpp
-    src/hack_commands/cmd_ps.cpp
-    src/hack_commands/cmd_ls_cyber.cpp
-    src/hack_commands/cmd_load.cpp
-    src/hack_commands/cmd_unload.cpp
-    src/hack_commands/cmd_man.cpp
-    src/hack_commands/cmd_jack.cpp
-    src/hack_commands/cmd_ssh.cpp
-    src/hack_commands/cmd_nmap.cpp
     src/ground_effect.cpp
     src/noise_event.cpp
     src/skill_defs.cpp

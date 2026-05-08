@@ -257,16 +257,6 @@ void Game::try_interact(int dx, int dy) {
 
     if (is_hostile_to_player(target->faction, player_)) {
         // Plan 7: hostile NPCs that carry an Electronic (non-AlienTech)
-        // cyber implant get the implant Shell Access doorway. Open the
-        // tiny dialog regardless of skill/deck — the option itself shows
-        // the gate so the player learns what they're missing.
-        // Spec 1: Plan 7 device-shell layer is dormant. This call path
-        // is disconnected per §11 of the spec.
-        // if (DialogManager::npc_offers_shell_access(*target)) {
-        //     dialog_.open_npc_implant_dialog(*target, *this);
-        //     advance_world(ActionCost::interact);
-        //     return;
-        // }
         log(target->label() + " snarls at you.");
         advance_world(ActionCost::interact);
         return;
@@ -287,9 +277,6 @@ bool Game::is_interactable(int tx, int ty) const {
     for (const auto& npc : world_.npcs()) {
         if (npc.x == tx && npc.y == ty) {
             if (!is_hostile_to_player(npc.faction, player_)) return true;
-            // Plan 7: hostile NPCs with hackable cyber implants are
-            // interactable via the implant Shell Access doorway.
-            if (DialogManager::npc_offers_shell_access(npc)) return true;
         }
     }
     // Check for interactable fixture (including doors)

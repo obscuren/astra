@@ -467,35 +467,6 @@ void DialogManager::append_jack_in_option(int fid, Game& game) {
     option_kinds_.back() = OptionKind::HackingJackIn;
 }
 
-// Plan 7: `(hack) Shell Access` — opens the per-device shell at the player's
-// current adjacency (real-world doorway). Wires the body in (frozen) and
-// autoruns smart-ssh: guest@ for locked-unescalated, root@ otherwise.
-void DialogManager::append_shell_access_option(int fid, Game& game) {
-    auto& fd = game.world().map().fixture_mut(fid);
-    if (!fd.cyber) return;
-    if (!has_tag(fd.cyber->tags, HackTag::Electronic)) return;
-    // Phase A AlienTech opt-out: hide the option on AlienTech devices.
-    // Phase B will land the manual-ssh "protocol not understood" path too.
-    if (has_tag(fd.cyber->tags, HackTag::AlienTech)) return;
-
-    std::string label = build_hacking_label("Shell Access", /*plain_action=*/true);
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        label += "  (requires Cat_Hacking)";
-    } else {
-        auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-        if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-            label += "  (no cyberdeck)";
-        }
-    }
-    // Hotkey 'h' (for "hack/shell"). Skip if already taken by an earlier
-    // option — fall through to nothing if so.
-    char hotkey = 'h';
-    for (char ex : hotkeys_) { if (ex == hotkey) { hotkey = 0; break; } }
-    if (!hotkey) return;
-    add_option(hotkey, label, UITag::OptionNormal);
-    option_kinds_.back() = OptionKind::HackingShellAccess;
-}
-
 void DialogManager::append_sync_soul_option(int fid, Game& game) {
     auto& fd = game.world().map().fixture_mut(fid);
     if (!fd.cyber) return;
@@ -508,32 +479,6 @@ void DialogManager::append_sync_soul_option(int fid, Game& game) {
     // (We don't gate on a "SoulMirror" skill explicitly here — soul_mirror::
     //  begin_active will surface a friendly log if the player can't proceed.)
     (void)game;
-}
-
-bool DialogManager::npc_offers_shell_access(const Npc& npc) {
-    if (!npc.cyber) return false;
-    if (!has_tag(npc.cyber->tags, HackTag::Electronic)) return false;
-    if (has_tag(npc.cyber->tags, HackTag::AlienTech)) return false;
-    return true;
-}
-
-void DialogManager::append_shell_access_option_npc(Npc& npc, Game& game) {
-    if (!npc_offers_shell_access(npc)) return;
-
-    std::string label = build_hacking_label("Shell Access", /*plain_action=*/true);
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        label += "  (requires Cat_Hacking)";
-    } else {
-        auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-        if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-            label += "  (no cyberdeck)";
-        }
-    }
-    char hotkey = 'h';
-    for (char ex : hotkeys_) { if (ex == hotkey) { hotkey = 0; break; } }
-    if (!hotkey) return;
-    add_option(hotkey, label, UITag::OptionNormal);
-    option_kinds_.back() = OptionKind::HackingShellAccess;
 }
 
 // Spec 1: append `(hack) Jack In` on an NpcCorpse fixture whose
@@ -638,38 +583,6 @@ void DialogManager::jack_into_corpse(Game& game, int fid) {
 
     game.hacking().inject_dead_implant_session(game, std::move(s));
     game.log("You jack into the cooling implant...");
-}
-
-// Plan 7: implant Shell Access on a hostile NPC. Tiny dialog, single
-// (hack) Shell Access option + Cancel. No talk/trade/quest paths — the
-// NPC is hostile, this is purely the diegetic hacking doorway.
-void DialogManager::open_npc_implant_dialog(Npc& npc, Game& game) {
-    interacting_npc_ = &npc;
-    dialog_tree_ = nullptr;
-    dialog_node_ = -20;            // sentinel: NPC implant shell dialog
-    interact_options_.clear();
-    pending_story_offers_.clear();
-    detail_offer_quest_id_.clear();
-    dialog_fixture_id_ = -1;       // dispatch resolves via interacting_npc_
-
-    reset_content(npc.label());
-    entity_ = EntityRef{EntityRef::Kind::Npc,
-                        static_cast<uint16_t>(npc.npc_role),
-                        static_cast<uint8_t>(npc.race)};
-    body_ =
-        "Their implant flickers as you crouch. The cyberdeck blinks: "
-        "an open data port sits exposed under the carapace.";
-
-    // Spec 1: Plan 7 device-shell layer is dormant. The Shell Access
-    // interactable is no longer offered on world fixtures or NPC implants.
-    // The function definitions remain in tree as dormant code; they're
-    // just not wired into the dialog menus.
-    // append_shell_access_option_npc(npc, game);
-    add_option('c', "Cancel");
-    interact_options_.push_back(InteractOption::Farewell);
-
-    footer_ = "[Space] Select  [Esc] Close";
-    open_ = true;
 }
 
 void DialogManager::interact_fixture_use_only(int fid, Game& game) {
@@ -1011,11 +924,6 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
         append_qh_options(fid, game);
         append_jack_in_option(fid, game);
         append_sync_soul_option(fid, game);
-        // Spec 1: Plan 7 device-shell layer is dormant. The Shell Access
-        // interactable is no longer offered on world fixtures or NPC implants.
-        // The function definitions remain in tree as dormant code; they're
-        // just not wired into the dialog menus.
-        // append_shell_access_option(fid, game);
     }
 }
 
@@ -1212,48 +1120,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             dialog_node_ = -1;
             dialog_tree_ = nullptr;
 
-            // Plan 7: NPC-implant Shell Access path. dialog_fixture_id_ is
-            // -1 when the dialog was opened via open_npc_implant_dialog.
-            // Resolve through interacting_npc_ instead.
             if (fid < 0) {
-                if (kind == OptionKind::HackingShellAccess && interacting_npc_) {
-                    Npc* npc = interacting_npc_;
-                    interacting_npc_ = nullptr;
-                    if (!npc->cyber) return;
-                    Hackable& hack = *npc->cyber;
-                    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-                        game.log("You need the Cat_Hacking skill to open a shell.");
-                        return;
-                    }
-                    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-                    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-                        game.log("You need an equipped cyberdeck to open a shell.");
-                        return;
-                    }
-                    // Wire the body in. NPC-implant doorway: we don't have
-                    // a fixture id to store in is_jacked_into, but the
-                    // freeze gates (game_input.cpp ~415, map_renderer.cpp
-                    // ~442) all test `>= 0`, so any non-negative value
-                    // freezes the body. Pick a high sentinel that can't
-                    // collide with a real fixture id. close() resets to
-                    // -1 unconditionally for any RealWorld shell.
-                    game.player().is_jacked_into = 0x40000000;
-                    bool locked = has_tag(hack.tags, HackTag::Locked);
-                    bool wants_root = !(locked && !hack.escalated);
-                    // Plan 7 unified terminal: open PDA on Hacking and
-                    // autotype the smart `ssh <user>@<ip>` so the connection
-                    // ritual + session open the same way as a manually-typed
-                    // ssh — single contiguous scroll, prompt morph included.
-                    game.pda_screen().open(&game.player(), game.renderer(),
-                                           &game.quests(),
-                                           game.world().navigation().on_ship,
-                                           PdaTab::Hacking,
-                                           game.can_board_ship(),
-                                           &game.world(), &game, &game.hacking());
-                    std::string user = wants_root ? "root" : "guest";
-                    std::string cmd = "ssh " + user + "@" + format_ip(hack.ip);
-                    game.pda_screen().hack_term_autotype_and_submit(cmd);
-                }
                 return;
             }
             auto& fd = game.world().map().fixture_mut(fid);
@@ -1282,38 +1149,6 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             if (kind == OptionKind::HackingSyncSoul) {
                 soul_mirror::begin_active(game, hack);
                 game.advance_world(ActionCost::interact);
-                return;
-            }
-            if (kind == OptionKind::HackingShellAccess) {
-                if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-                    game.log("You need the Cat_Hacking skill to open a shell.");
-                    return;
-                }
-                auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-                if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-                    game.log("You need an equipped cyberdeck to open a shell.");
-                    return;
-                }
-                // Wire the body in (real-world doorway).
-                game.player().is_jacked_into = fid;
-                // Autorun smart-ssh: locked-unescalated -> guest, else -> root.
-                bool locked = has_tag(hack.tags, HackTag::Locked);
-                bool wants_root = !(locked && !hack.escalated);
-                // Plan 7 unified terminal: open PDA on Hacking and autotype
-                // the smart `ssh <user>@<ip>` so the connection ritual +
-                // session open through the same single-scroll flow as a
-                // manually-typed ssh. On `exit` the PDA stays open and the
-                // prompt reverts to `pda> ` with the entire session still in
-                // scrollback above.
-                game.pda_screen().open(&game.player(), game.renderer(),
-                                       &game.quests(),
-                                       game.world().navigation().on_ship,
-                                       PdaTab::Hacking,
-                                       game.can_board_ship(),
-                                       &game.world(), &game, &game.hacking());
-                std::string user = wants_root ? "root" : "guest";
-                std::string cmd = "ssh " + user + "@" + format_ip(hack.ip);
-                game.pda_screen().hack_term_autotype_and_submit(cmd);
                 return;
             }
             if (kind == OptionKind::HackingRunQh) {

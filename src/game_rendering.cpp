@@ -1130,10 +1130,6 @@ void Game::render_play() {
     repair_bench_.draw(screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     pda_screen_.draw(screen_w_, screen_h_);
-    // Plan 7 §3a: real-world DeviceShell renders inside the PDA's Hacking
-    // tab content area (see PdaScreen::draw_hacking). The in-Grid doorway
-    // renders inside the Tron window playfield (see grid_renderer). There
-    // is no fullscreen DeviceShell overlay anymore.
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
     render_cell_picker();

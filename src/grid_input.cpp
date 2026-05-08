@@ -307,19 +307,6 @@ bool handle(Game& game, int key) {
     if (!sess) return false;
     auto& s = *sess;
 
-    // Plan 7 §3b: while the device shell is open via the in-Grid doorway,
-    // the unified PDA Hacking-tab terminal owns input. The avatar is frozen
-    // at its tile in the LAN sector; the Tron playfield rect renders the
-    // same scroll + prompt the PDA does. Returns false so the caller does
-    // NOT spend a world tick on plain prompt-typing — the shell's own
-    // world-tick path (HackingSystem::tick → DeviceShell::tick_world) drives
-    // long-channel progress.
-    if (auto* dev = game.hacking().device_shell();
-        dev && dev->via() == ShellVia::Grid) {
-        game.pda_screen().hack_term_handle_key_for_grid(key);
-        return false;
-    }
-
     // Telegraph eats input first when active.
     if (game.telegraph().active()) {
         game.telegraph().handle_input(key, game);

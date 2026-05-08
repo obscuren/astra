@@ -1,7 +1,5 @@
 #pragma once
 
-#include "astra/device_shell.h"
-#include "astra/grid_nmap_widget.h"
 #include "astra/player.h"
 #include "astra/quest.h"
 #include "astra/recipe.h"
@@ -42,7 +40,7 @@ enum class PdaTab : uint8_t {
 
 static constexpr int pda_tab_count = 10;
 
-class PdaScreen : public ShellOutputSink {
+class PdaScreen {
 public:
     PdaScreen() = default;
 
@@ -71,11 +69,6 @@ private:
     QuestManager* quests_ = nullptr;
     Renderer* renderer_ = nullptr;
     const WorldManager* world_ = nullptr;
-    // Plan 7: pointers used to render/route the device shell into the
-    // Hacking tab when a real-world shell is active. Both can be null when
-    // the PDA is opened from a context that doesn't need a device shell
-    // (tests, intro, etc.); the Hacking tab gracefully falls back to the
-    // pda> shell rendering and input in that case.
     Game* game_ = nullptr;
     HackingSystem* hacking_system_ = nullptr;
     std::mt19937 rng_{std::random_device{}()};
@@ -167,93 +160,12 @@ private:
     void draw_cooking(UIContext& ctx);
 
 public:
-    // ── ShellOutputSink overrides (Plan 7 unified terminal) ──
-    // The Hacking tab terminal IS the cyberdeck shell. While a DeviceShell
-    // session is active, all session output (ritual, command output, channel
-    // ticks, logout) appends to the same scrollback. Prompt + dispatch morph
-    // by `hacking_system_->device_shell_open()`; on exit the prompt reverts
-    // to `pda> ` and the entire ssh transcript stays in scrollback.
-    void shell_emit_line(const std::string& text, UITag tag) override;
-    void shell_clear_scroll() override;
-    void shell_set_progress_line(const std::string& text, UITag tag) override;
-    void shell_commit_progress_line() override;
-    int  shell_progress_cells_hint() const override;
-    // Render the unified Hacking-tab terminal into an arbitrary rect. Used
-    // by the in-Grid Tron-window (grid_renderer.cpp) so the same scroll +
-    // prompt swap into the playfield rect when the avatar is jacked into a
-    // device. HUD chrome (Trace/Heat panes, log pane, program bar) stays
-    // visible because it lives outside this rect.
+    // Render the Cyberdeck placeholder into an arbitrary rect. The in-Grid
+    // playfield calls this when the player is jacked in so the same content
+    // can appear inside the Tron window if needed in the future.
     void draw_hacking_into(Renderer* renderer, Rect bounds);
 
-    // Public entry-point for the in-Grid Tron-window: when the Grid input
-    // handler sees that a Grid-via DeviceShell is active, it forwards keys
-    // here so the unified terminal handles them just like the PDA does.
-    void hack_term_handle_key_for_grid(int key) { handle_hacking_key(key); }
-
-    // Plan 7 §4: (hack) Shell Access doorway autotypes a smart-formed
-    // `ssh <user>@<ip>` into the existing pda> input buffer and submits it.
-    // The connection ritual + session open just like a manual `ssh` typed
-    // by the player, keeping the unified scroll the single source of truth.
-    void hack_term_autotype_and_submit(const std::string& line);
-
-    // Plan 7 — accessors used by the cyberdeck commands now living in
-    // src/hack_commands/cmd_*.cpp. Each command receives a ShellContext& and
-    // a Game&; from there it reaches the PdaScreen via game.pda_screen() to
-    // queue request fields, open the nmap widget, etc. Visible behaviour is
-    // unchanged — these are 1:1 setters for the previously private state.
-    void hack_term_set_jack_in_request(uint32_t node_id) { jack_in_request_node_id_ = node_id; }
-    void hack_term_set_ssh_request(uint32_t ip, bool as_root) {
-        ssh_request_ip_   = ip;
-        ssh_request_root_ = as_root;
-    }
-    void hack_term_open_nmap_widget() { nmap_widget_.open(); }
-    GridNmapWidget& hack_term_nmap_widget() { return nmap_widget_; }
-    // Re-greet on `clear` — re-emits the per-deck banner + MOTD into scroll.
-    void hack_term_re_greet() {
-        auto* slot = player_ ? player_->equipment.equipped_cyberdeck() : nullptr;
-        if (slot && *slot && (*slot)->deck) {
-            hack_term_greet_for_deck((*slot)->item_def_id);
-            hack_term_greeted_deck_def_id_ = (*slot)->item_def_id;
-        }
-    }
-    // Wipe the visible scroll (for cyberdeck `clear`). Does NOT re-greet.
-    void hack_term_clear_lines() {
-        hack_term_lines_.clear();
-        hack_term_scroll_ = 0;
-    }
-    // Close the PDA from inside a cyberdeck command (`exit`).
-    void hack_term_close_pda() { close(); }
-
 private:
-    // Hacking tab — terminal subwindow
-    struct HackTermLine {
-        std::string text;
-        UITag tag = UITag::TextDim;
-    };
-    std::vector<HackTermLine> hack_term_lines_;
-    std::string               hack_term_input_;
-    int                       hack_term_input_cursor_ = 0;   // byte index into hack_term_input_
-    // Up/down history index into the active ShellContext's history vector.
-    // -1 = "below the bottom" / fresh buffer.
-    int                       hack_term_history_cursor_ = -1;
-    int                       hack_term_scroll_ = 0;         // lines scrolled up from bottom (0 = latest)
-    uint16_t                  hack_term_greeted_deck_def_id_ = 0;
-
-    // ── Plan 7 unified terminal ──
-    // Transient progress-bar slot — overwritten in place each world tick by
-    // active long-channels. Empty string = no transient line shown.
-    std::string hack_term_progress_text_;
-    UITag       hack_term_progress_tag_ = UITag::TextWarning;
-    bool        hack_term_progress_set_ = false;
-    // Cached on each Hacking-tab render so shell_progress_cells_hint() can
-    // size the bar to ~50% of the visible width even when called from
-    // device_shell::tick_world (outside the render path).
-    int         hack_term_content_width_ = 0;
-
-    void hack_term_emit(const std::string& line, UITag tag = UITag::TextDefault);
-    void hack_term_greet_for_deck(uint16_t deck_def_id);
-    void handle_hacking_key(int key);
-
     void draw_journal(UIContext& ctx);
     int journal_cursor_ = 0;
     int journal_scroll_ = 0;
@@ -293,21 +205,6 @@ private:
     int recharge_equipped_request_ = -1;
     // Ship component install output — Game reads this to update quests
     std::string installed_ship_slot_;
-    // Jack-in request — terminal `jack -t <node>`. 0 = none.
-    uint32_t jack_in_request_node_id_ = 0;
-    // Plan 7 Phase A: ssh request from `pda> ssh [<user>@]<ip>`. The game
-    // input loop pops this, locates the mutable Hackable, and opens the
-    // device shell at the requested tier (root or guest).
-    // 0 = none.
-    uint32_t ssh_request_ip_ = 0;
-    bool     ssh_request_root_ = true;
-    // Nmap overlay — shown above the Hacking terminal pane.
-    GridNmapWidget nmap_widget_;
-    // Pending nmap-side breach (Plan 5 Task 39). The widget never mutates
-    // GridNetwork directly; the host (game_input) consumes this slot, charges
-    // the deck for breach.exe, and flips the matching edge's `cracked = true`.
-    // {0, 0} = none.
-    GridNmapBreachRequest pending_breach_request_ = {};
     // Skill side-effect request — set when a skill with a side effect is learned.
     // Consumed by game_input.cpp which calls apply_skill_side_effects(game, id).
     // 0 = none (SkillId 0 is not a real skill).
@@ -325,25 +222,6 @@ public:
         std::string s = std::move(installed_ship_slot_);
         installed_ship_slot_.clear();
         return s;
-    }
-    uint32_t consume_jack_in_request() {
-        uint32_t v = jack_in_request_node_id_;
-        jack_in_request_node_id_ = 0;
-        return v;
-    }
-    // Returns 0 if no ssh pending. `as_root` is set to whether the player
-    // typed `ssh root@` (true) or `ssh guest@` (false). Manual semantics.
-    uint32_t consume_ssh_request(bool& as_root) {
-        uint32_t v = ssh_request_ip_;
-        as_root   = ssh_request_root_;
-        ssh_request_ip_  = 0;
-        ssh_request_root_ = true;
-        return v;
-    }
-    GridNmapBreachRequest consume_breach_request() {
-        GridNmapBreachRequest r = pending_breach_request_;
-        pending_breach_request_ = {};
-        return r;
     }
     uint32_t consume_skill_side_effect_request() {
         uint32_t v = pending_skill_side_effect_id_;

@@ -230,25 +230,9 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Plan 7 §3a: real-world DeviceShell now renders inside the PDA's
-    // Hacking tab and routes input through PdaScreen. The fullscreen
-    // shell overlay/input intercept have been removed. The in-Grid shell
-    // is handled in grid_input. The only post-shell side-effect we still
-    // need at this layer is advancing the world by interact-cost when the
-    // shell auto-closes (cmd_exit) — see below, after pda_screen_.handle_input.
-
     // PDA screen intercepts input when open
     if (pda_screen_.is_open()) {
-        auto* dev_before = hacking_.device_shell();
-        bool shell_open_before = dev_before &&
-                                 dev_before->via() == ShellVia::RealWorld;
         pda_screen_.handle_input(key);
-        // If the device shell auto-closed during this input (cmd_exit) advance
-        // the world by interact-cost so shell time at the device costs the
-        // same as a typical interact. Also fires when ESC yanks the cable.
-        if (shell_open_before && !hacking_.device_shell_open()) {
-            advance_world(ActionCost::interact);
-        }
         if (pda_screen_.consume_board_ship_request()) {
             board_ship_from_overworld();
             return;
@@ -268,52 +252,6 @@ void Game::handle_play_input(int key) {
         if (auto req = pda_screen_.recharge_equipped_request(); req >= 0) {
             open_cell_picker(/*target_is_shield=*/req == 1);
             pda_screen_.clear_recharge_equipped_request();
-        }
-        if (uint32_t nid_v = pda_screen_.consume_jack_in_request(); nid_v != 0) {
-            pda_screen_.close();
-            GridNodeId nid;
-            nid.value = nid_v;
-            hacking_.jack_in(*this, nid);
-            return;
-        }
-        // Plan 7: `pda> ssh ...` — open per-device shell.
-        {
-            bool as_root = true;
-            if (uint32_t ip_v = pda_screen_.consume_ssh_request(as_root); ip_v != 0) {
-                Hackable* h = world_.find_hackable_by_ip(ip_v);
-                if (!h) {
-                    log("ssh: host unreachable.");
-                    return;
-                }
-                ShellTier tier = as_root ? ShellTier::Root : ShellTier::Guest;
-                hacking_.open_device_shell(*this, *h, tier,
-                                           ShellVia::RealWorld,
-                                           /*manual_ssh=*/true,
-                                           as_root ? "root" : "guest");
-                return;
-            }
-        }
-        if (auto br = pda_screen_.consume_breach_request(); br.valid()) {
-            // Plan 5 Task 39: netmap-side breach. Find the matching edge
-            // in the (mutable) world and flip cracked=true. No sector entry.
-            //
-            // TODO(Plan 6): charge breach.exe RAM/Heat from the equipped
-            // deck. The widget can't reach the deck and Plan 6's HUD
-            // redesign threads costing through HackingSystem; until then
-            // the netmap-side breach is free.
-            auto& net = world_.grid_network();
-            bool ok = false;
-            for (auto& e : net.edges_mut()) {
-                if (e.from.value == br.from_id && e.to.value == br.to_id) {
-                    if (e.gateway_tier > 0 && !e.cracked) {
-                        e.cracked = true;
-                        ok = true;
-                    }
-                    break;
-                }
-            }
-            log(ok ? "breach: gateway cracked from netmap."
-                   : "breach: gateway already open.");
         }
         if (uint32_t sid_v = pda_screen_.consume_skill_side_effect_request(); sid_v != 0) {
             apply_skill_side_effects(*this, static_cast<SkillId>(sid_v));
@@ -391,23 +329,6 @@ void Game::handle_play_input(int key) {
                                    world_.navigation().on_ship,
                                    PdaTab::Skills, can_board_ship(), &world_,
                                    this, &hacking_);
-        }
-        // Plan 7: (hack) Shell Access doorway autotypes `ssh <user>@<ip>`
-        // into the PDA's pda> input buffer, which leaves an ssh request on
-        // the PDA queue. Drain it now so the device shell opens immediately
-        // without requiring a follow-up keypress.
-        if (pda_screen_.is_open()) {
-            bool as_root = true;
-            if (uint32_t ip_v = pda_screen_.consume_ssh_request(as_root); ip_v != 0) {
-                Hackable* h = world_.find_hackable_by_ip(ip_v);
-                if (h) {
-                    ShellTier tier = as_root ? ShellTier::Root : ShellTier::Guest;
-                    hacking_.open_device_shell(*this, *h, tier,
-                                               ShellVia::RealWorld,
-                                               /*manual_ssh=*/true,
-                                               as_root ? "root" : "guest");
-                }
-            }
         }
         return;
     }

@@ -60,12 +60,6 @@ void apply_starting_items(Player& player, const ClassTemplate& tmpl) {
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
     hacking_.bind_game(this);
-    // Plan 7 unified terminal: the PDA's Hacking tab is the device shell's
-    // output sink. Bind the shared sink on the HackingSystem so every shell
-    // context pushed onto the stack inherits it. Holds whether or not the
-    // PDA is open (in-Grid Tron-window doorway can render the shell without
-    // the PDA being open).
-    hacking_.bind_shell_sink(&pda_screen_);
 }
 
 std::string Game::dominant_faction_in_current_map() const {
@@ -90,21 +84,15 @@ void Game::run() {
 
     while (running_) {
         bool revealing = playback_viewer_.is_revealing();
-        // Plan 7: while the device shell is open, give the loop a short
-        // timeout so the connection ritual streams char-by-char and the
-        // optional inline progress bar redraws without keystrokes.
-        bool shell_open = hacking_.device_shell_open();
         bool needs_timeout = combat_.targeting() || input_.looking()
                            || quit_confirm_.open
                            || auto_walking_ || auto_exploring_
                            || animations_.has_any()
-                           || revealing
-                           || shell_open;
+                           || revealing;
         int timeout_ms = revealing                                 ? 33
                        : (auto_walking_ || auto_exploring_)         ? 50
                        : animations_.has_active_effects()           ? 80
                        : animations_.has_any()                      ? 200
-                       : shell_open                                 ? 50
                                                                     : 300;
         int key = needs_timeout ? renderer_->wait_input_timeout(timeout_ms)
                                 : renderer_->wait_input();
@@ -128,22 +116,6 @@ void Game::run() {
             // Auto-walk/explore step
             if (auto_walking_ || auto_exploring_) {
                 auto_step();
-            }
-            // Plan 7: real-time channel ticks. While a device shell is
-            // running a long-channel, the world (and the channel) advance
-            // automatically — the player can't take actions to drive the
-            // tick because the terminal locks input. One world tick per
-            // ~300ms (6 idle frames at 50ms each); a 10-turn hashcat lands
-            // at ~3s wall-clock.
-            if (auto* dev = hacking_.device_shell();
-                dev && dev->channel_active()) {
-                ++channel_tick_frames_;
-                if (channel_tick_frames_ >= 6) {
-                    channel_tick_frames_ = 0;
-                    advance_world(ActionCost::interact);
-                }
-            } else {
-                channel_tick_frames_ = 0;
             }
         } else {
             // Any keypress stops auto-walk/explore

@@ -1,7 +1,6 @@
 #include "astra/grid_renderer.h"
 
 #include "astra/cyberdeck.h"
-#include "astra/device_shell.h"
 #include "astra/game.h"
 #include "astra/grid_camera.h"
 #include "astra/grid_ice.h"
@@ -925,20 +924,7 @@ void render(Game& game, Renderer& r) {
     draw_top_status(game, r, wr, *sess);
     draw_deck_strip(game, r, wr, *sess);
 
-    // Plan 7 §3b: while a DeviceShell is open via the in-Grid doorway,
-    // swap the playfield content for the unified PDA Hacking-tab terminal.
-    // It's literally the same scroll + prompt the PDA renders — single
-    // contiguous scrollback. HUD chrome (Trace/Heat panes, log pane, program
-    // bar, borders) stays put — the log pane keeps streaming Trace/Heat
-    // updates so the player can see the cost of long-channels in-Grid.
-    const auto* shell = game.hacking().device_shell();
-    bool grid_shell = shell && shell->via() == ShellVia::Grid;
-    if (grid_shell) {
-        const_cast<Game&>(game).pda_screen().draw_hacking_into(
-            &r, Rect{pr.x, pr.y, pr.w, pr.h});
-    } else {
-        draw_playfield(game, r, pr, *sess);
-    }
+    draw_playfield(game, r, pr, *sess);
     draw_log_pane(r, lr, *sess);
     draw_program_bar(game, r, wr, *sess);
 }

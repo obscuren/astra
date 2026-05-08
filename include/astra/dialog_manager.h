@@ -25,18 +25,6 @@ public:
     void open_npc_dialog(Npc& npc, Game& game);
     void advance_dialog(int selected, Game& game);
 
-    // Plan 7: opens a tiny "implant shell" dialog on a hostile NPC carrying
-    // an Electronic Hackable in its `cyber` slot. Single option: Shell
-    // Access (gated on Cat_Hacking + equipped deck). Used by the Cartel
-    // turret demo path — adjacency to a hostile cyber-NPC routes here
-    // instead of attacking outright.
-    void open_npc_implant_dialog(Npc& npc, Game& game);
-    // Returns true if `npc` carries a hackable cyber implant whose tags
-    // qualify it for the Shell Access doorway (Electronic and not
-    // AlienTech). Used by try_interact to decide whether to route into
-    // the implant shell dialog vs the normal hostile-snarl path.
-    static bool npc_offers_shell_access(const Npc& npc);
-
     // Fixture interaction. Builds the per-FixtureType native dialog (food
     // terminal, ship terminal, ARIA, ...) and — when the fixture is electrical
     // and capability gates are met — appends `(hack) Jack In`, `(hack) Sync
@@ -99,7 +87,6 @@ private:
         HackingJackIn,
         HackingSyncSoul,
         HackingRunQh,
-        HackingShellAccess,   // Plan 7: opens per-device shell (real-world doorway)
         JackIntoCorpse,       // Spec 1: couple into per-corpse dead-implant sector
     };
     std::vector<OptionKind> option_kinds_;
@@ -122,14 +109,6 @@ private:
     void append_qh_options(int fid, Game& game);
     void append_jack_in_option(int fid, Game& game);
     void append_sync_soul_option(int fid, Game& game);
-    // Plan 7: appends `(hack) Shell Access` on any Hackable with the
-    // Electronic tag (and not AlienTech) when the player has Cat_Hacking.
-    // Hotkey 's' is taken by Sync Soul on AlienTech devices, so we use 'h'.
-    void append_shell_access_option(int fid, Game& game);
-    // Plan 7: NPC-implant variant of the above. Opens the same shell on
-    // the npc's `cyber` Hackable. Routed by advance_dialog via
-    // OptionKind::HackingShellAccess + interacting_npc_ pointer.
-    void append_shell_access_option_npc(Npc& npc, Game& game);
 
     // Spec 1: append `(hack) Jack In` on an NpcCorpse fixture that
     // carries an Electronic Hackable whose dead implant is not yet exhausted,
