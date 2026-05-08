@@ -131,7 +131,6 @@ struct SchematicRecipe {
     const char* output_desc = "";
     std::vector<MaterialReq> material_costs;
     int output_count = 1;
-    SkillId skill_gate = static_cast<SkillId>(0);  // if non-zero, player must have this skill
 };
 
 const std::vector<SchematicRecipe>& schematic_recipes();

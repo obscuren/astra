@@ -10,6 +10,7 @@
 #include "astra/race.h"
 #include "astra/recipe.h"
 #include "astra/ship.h"
+#include "astra/program_recipes.h"
 #include "astra/skill_defs.h"
 #include "astra/tinkering.h"
 
@@ -126,6 +127,10 @@ struct Player {
     // Tinkering
     std::vector<BlueprintSignature> learned_blueprints;
     std::vector<LearnedSchematic> learned_schematics;
+
+    // Cyberdeck — compiled programs (mirror of learned_schematics for the
+    // ProgramRecipe table). UI lives in the Cyberdeck PDA tab (TODO).
+    std::vector<LearnedProgramRecipe> learned_programs;
 
     // Cooking
     std::vector<uint16_t> known_recipes;

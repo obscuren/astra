@@ -945,6 +945,13 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_string(ls.name);
         w.write_string(ls.description);
     }
+    // v70: learned_programs (Cyberdeck program recipes — split from schematics)
+    w.write_u32(static_cast<uint32_t>(p.learned_programs.size()));
+    for (const auto& lp : p.learned_programs) {
+        w.write_u16(lp.recipe_id);
+        w.write_string(lp.name);
+        w.write_string(lp.description);
+    }
     // Journal
     w.write_u32(static_cast<uint32_t>(p.journal.size()));
     for (const auto& je : p.journal) {
@@ -1892,6 +1899,14 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.learned_schematics[i].schematic_id = r.read_u16();
         p.learned_schematics[i].name = r.read_string();
         p.learned_schematics[i].description = r.read_string();
+    }
+    // v70: learned_programs
+    uint32_t lp_count = r.read_u32();
+    p.learned_programs.resize(lp_count);
+    for (uint32_t i = 0; i < lp_count; ++i) {
+        p.learned_programs[i].recipe_id = r.read_u16();
+        p.learned_programs[i].name = r.read_string();
+        p.learned_programs[i].description = r.read_string();
     }
     // Journal
     uint32_t journal_count = r.read_u32();
