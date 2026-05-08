@@ -3,6 +3,7 @@
 #include "astra/item.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
+#include "astra/material.h"
 #include "astra/player.h"
 #include "astra/skill_defs.h"
 

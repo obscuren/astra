@@ -1,7 +1,7 @@
 #pragma once
 
+#include "astra/material.h"
 #include "astra/skill_defs.h"
-#include "astra/tinkering.h"   // MaterialReq
 
 #include <cstdint>
 #include <string>
