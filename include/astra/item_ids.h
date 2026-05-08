@@ -246,11 +246,4 @@ constexpr uint16_t ITEM_CODE_FRAGMENT_T3     = 322;
 // Implants (400+)
 constexpr uint16_t ITEM_NEURAL_BACKUP        = 400;
 
-// Cyberdeck mods (410+) — Plan 7 §15. v1 ships only the WirelessJackIn
-// category as two brand variants. No install slot in v1; presence in
-// inventory is enough to gate `pda> jack <ip>` (Plan 11+ adds a proper
-// per-deck slot + install ritual).
-constexpr uint16_t ITEM_AEROJACK             = 410;
-constexpr uint16_t ITEM_UNTETHER             = 411;
-
 } // namespace astra

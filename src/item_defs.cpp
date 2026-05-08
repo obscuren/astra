@@ -1544,10 +1544,6 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         // Implants
         case ITEM_NEURAL_BACKUP:           return build_neural_backup();
 
-        // Cyberdeck mods (Plan 7 §15)
-        case ITEM_AEROJACK:                return build_aerojack();
-        case ITEM_UNTETHER:                return build_untether();
-
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
         case ITEM_HULL_PLATE:              return build_hull_plate();
@@ -1842,55 +1838,6 @@ Item build_neural_backup() {
     it.buy_value = 1200;
     it.sell_value = 400;
     it.modifiers.willpower = -1;  // -1 WIL while equipped
-    return it;
-}
-
-// ---------------------------------------------------------------------------
-// Cyberdeck mods (Plan 7 §15)
-// ---------------------------------------------------------------------------
-//
-// v1 ships two brand variants of the `WirelessJackIn` category. Both are
-// functionally identical at install time (since the install UI doesn't
-// exist yet) — presence in inventory is enough to gate `pda> jack <ip>`.
-// Plan 11+ replaces the inventory-check with a per-cyberdeck slot + install
-// ritual; the items themselves stay.
-//
-// Stats stub: Tier 1, no slot (held in inventory in v1), placeholder
-// buy/sell. Differentiated values land alongside the proper mod system.
-
-Item build_aerojack() {
-    Item it;
-    it.item_def_id = ITEM_AEROJACK;
-    it.id = 9300;
-    it.name = "Aerojack";
-    it.type = ItemType::Special;
-    it.description =
-        "A pop-out cyberdeck mod. Snap it into the deck and the deck can "
-        "jack into a LAN over open air. v1 placeholder; install ritual "
-        "lands in Plan 11+.";
-    it.rarity = Rarity::Uncommon;
-    it.weight = 1;
-    it.stackable = false;
-    it.buy_value = 600;
-    it.sell_value = 200;
-    return it;
-}
-
-Item build_untether() {
-    Item it;
-    it.item_def_id = ITEM_UNTETHER;
-    it.id = 9301;
-    it.name = "Untether (Mod)";
-    it.type = ItemType::Special;
-    it.description =
-        "A rival-brand wireless jack-in module. Snap into the cyberdeck "
-        "for over-the-air LAN entry. v1 placeholder; install ritual "
-        "lands in Plan 11+.";
-    it.rarity = Rarity::Uncommon;
-    it.weight = 1;
-    it.stackable = false;
-    it.buy_value = 580;
-    it.sell_value = 195;
     return it;
 }
 

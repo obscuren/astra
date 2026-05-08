@@ -123,7 +123,6 @@ static const ClassTemplate s_gridrunner = {
     100, 60,                      // 100 SP, 60 credits
     {
         {ITEM_PIDGIN_MK1,           1, EquipSlot::Utility1},   // T1 cyberdeck
-        {ITEM_AEROJACK,             1, EquipSlot::Utility2},   // wireless jack-in module
         {ITEM_PROG_BREACH,          1},                         // load into deck slot 1 manually
         {ITEM_PROG_ICEBREAKER_LITE, 1},
         {ITEM_PROG_GHOST_TRACE,     1},

@@ -118,13 +118,6 @@ const std::vector<LootEntry>& s_loot_table_data() {
         // ----- Implants (Plan 4) ---------------------------------------
         LootEntry{ ITEM_NEURAL_BACKUP,        "neural_backup",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
 
-        // ----- Cyberdeck mods (Plan 7 §15) -----------------------------
-        // v1: presence in inventory enables `pda> jack <ip>`. Plan 11+
-        // gates them on a per-cyberdeck install slot. Two brand variants
-        // ship so playtest can spawn either.
-        LootEntry{ ITEM_AEROJACK,             "aerojack",         R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                            T::Tech,     1, C::Implant },
-        LootEntry{ ITEM_UNTETHER,             "untether",         R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                            T::Tech,     1, C::Implant },
-
         // ----- Code fragments (crafting material) ----------------------
         LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },
         LootEntry{ ITEM_CODE_FRAGMENT_T2,     "code_fragment_t2", R::Uncommon,  R::Uncommon,  10, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,      T::Tech,     2, C::CodeFragment },

@@ -459,32 +459,6 @@ static std::string code_craft_description() {
     return s;
 }
 
-// Plan 7 — ColdHands: shaves Detection cost on privileged shell commands.
-// Per-rank reduction (v1 ships rank 1) of 10% per rank, applied to
-// `base_detection` only (Heat / turns are unaffected).
-static std::string cold_hands_description() {
-    std::string s = "Patient hands and a clean keystroke trail. Privileged "
-                    "shell commands leave less of a fingerprint.\n\n";
-    s += colored("Passive:", Color::White);
-    s += " -";
-    s += colored("10%", Color::Cyan);
-    s += " Detection on every privileged shell command (real-world only).";
-    return s;
-}
-
-// Plan 7 — RootKit: shaves hashcat duration. Applied as a multiplicative
-// reduction on hashcat's `base_turns`.
-static std::string rootkit_description() {
-    std::string s = "Pre-cooked rootkit fragments speed the cracking ritual.\n\n";
-    s += colored("Passive:", Color::White);
-    s += " -";
-    s += colored("10%", Color::Cyan);
-    s += " on ";
-    s += colored("hashcat", Color::Yellow);
-    s += " channel duration.";
-    return s;
-}
-
 // ImplantReader: identifies whether an NPC carries an active implant.
 // Gated by this skill; the look widget reveals the Imprint's Site coordinates and HP.
 static std::string implant_reader_description() {
@@ -695,12 +669,6 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::ConsciousnessAnchor, "Consciousness Anchor",
              consciousness_anchor_description(),
              true, 300, 18, "Willpower"},
-            {SkillId::ColdHands, "Cold Hands",
-             cold_hands_description(),
-             true, 150, 14, "Intelligence"},
-            {SkillId::RootKit, "Root Kit",
-             rootkit_description(),
-             true, 150, 13, "Intelligence"},
             {SkillId::ImplantReader, "Implant Reader",
              implant_reader_description(),
              true, 50, 13, "Intelligence"},
