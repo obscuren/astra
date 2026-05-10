@@ -123,6 +123,9 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_CODE_FRAGMENT_T2,     "code_fragment_t2", R::Uncommon,  R::Uncommon,  10, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,      T::Tech,     2, C::CodeFragment },
         LootEntry{ ITEM_CODE_FRAGMENT_T3,     "code_fragment_t3", R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::CodeFragment },
 
+        // ----- Hacker mats (compile materials) -------------------------
+        LootEntry{ ITEM_PROGRAM_DISK,         "program_disk",     R::Common,    R::Common,    18, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket | LootSource::ScavMerchant, T::Tech,     1, C::CraftingMaterial },
+
         // ----- Batteries (own category, distinct from Consumable) -------
         LootEntry{ ITEM_SMALL_ENERGY_CELL,      "cell_small",      R::Common,    R::Common,    50, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms | LootSource::ScavMerchant, T::Tech, 1, C::Battery },
         LootEntry{ ITEM_STANDARD_ENERGY_CELL,   "cell_standard",   R::Common,    R::Uncommon,  35, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms,                          T::Tech, 1, C::Battery },

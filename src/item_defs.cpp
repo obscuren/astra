@@ -1544,6 +1544,9 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         // Implants
         case ITEM_NEURAL_BACKUP:           return build_neural_backup();
 
+        // Hacker mats
+        case ITEM_PROGRAM_DISK:            return build_program_disk();
+
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
         case ITEM_HULL_PLATE:              return build_hull_plate();
@@ -1838,6 +1841,28 @@ Item build_neural_backup() {
     it.buy_value = 1200;
     it.sell_value = 400;
     it.modifiers.willpower = -1;  // -1 WIL while equipped
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Hacker mats — fragment-system compile materials
+// ---------------------------------------------------------------------------
+
+Item build_program_disk() {
+    Item it;
+    it.item_def_id = ITEM_PROGRAM_DISK;
+    it.id = 9400;
+    it.name = "Program Disk";
+    it.type = ItemType::CraftingMaterial;
+    it.description =
+        "A blank optical disk. Required by the Cyberdeck Compiler to "
+        "compile a program from fragments. One disk per compile.";
+    it.rarity = Rarity::Common;
+    it.weight = 1;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 75;
+    it.sell_value = 25;
     return it;
 }
 

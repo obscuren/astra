@@ -130,6 +130,9 @@ Item build_code_fragment_t3();
 // --- Implants ---
 Item build_neural_backup();
 
+// --- Hacker mats ---
+Item build_program_disk();
+
 // --- Cyberdeck mods (Plan 7 §15) ---
 Item build_aerojack();
 Item build_untether();

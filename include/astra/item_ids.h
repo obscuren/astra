@@ -246,4 +246,7 @@ constexpr uint16_t ITEM_CODE_FRAGMENT_T3     = 322;
 // Implants (400+)
 constexpr uint16_t ITEM_NEURAL_BACKUP        = 400;
 
+// Hacker mats (430+) — fragment-system compile material.
+constexpr uint16_t ITEM_PROGRAM_DISK         = 430;
+
 } // namespace astra
