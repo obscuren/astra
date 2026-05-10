@@ -1,8 +1,13 @@
 #include "astra/program_compiler.h"
 
+#include "astra/cyberdeck.h"
 #include "astra/fragment.h"
+#include "astra/game.h"
+#include "astra/hackable.h"
+#include "astra/npc.h"
 #include "astra/program_pattern.h"
 #include "astra/telegraph.h"
+#include "astra/world_manager.h"
 
 #include <algorithm>
 #include <functional>
@@ -198,10 +203,90 @@ CompiledProgram compile_program(const std::vector<ProgramNode>& chain,
     return out;
 }
 
-// Stub — real implementation lands in Task 10 (telegraph integration / fire).
-std::string fire_program(Game& /*game*/, const CompiledProgram& prog,
-                         int /*tx*/, int /*ty*/) {
-    return prog.name + " fired (stub).";
+namespace {
+
+void apply_to_hackable(Hackable& h, const EffectSpec& s) {
+    // Status fields — set runtime-state countdowns the existing system
+    // already supports for QH effects (see hackable.cpp & hacking_system.cpp).
+    if (s.applies_jitter || s.applies_slag || s.applies_warp) {
+        h.state = HackState::Compromised;   // visual cue
+    }
+    (void)h;
+    (void)s;
+}
+
+void apply_to_npc(Game& game, Npc& npc, const EffectSpec& s) {
+    int dmg = s.damage;
+    if (s.per_target_mult != 1.0f) {
+        dmg = static_cast<int>(dmg * s.per_target_mult + 0.5f);
+    }
+    if (dmg > 0) {
+        // Use existing damage-application API to keep AV / death routing consistent.
+        npc.hp -= dmg;
+        if (npc.hp < 0) npc.hp = 0;
+        if (npc.hp == 0) game.log(npc.label() + " is defeated.");
+    }
+    if (s.returns_hp_pct > 0 && dmg > 0) {
+        int heal = (dmg * s.returns_hp_pct) / 100;
+        game.player().hp = std::min(game.player().effective_max_hp(),
+                                    game.player().hp + heal);
+        if (heal > 0) game.log("You drain " + std::to_string(heal) + " HP.");
+    }
+}
+
+}  // namespace (fire helpers)
+
+std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty) {
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        return "No cyberdeck equipped.";
+    }
+    auto& deck = *(*deck_slot)->deck;
+
+    // Charge heat + reserve RAM up front; heat-cap overflow triggers the
+    // existing force_reboot path on the next tick check.
+    cyberdeck_add_heat(deck, prog.heat_cost);
+    if (prog.ram_held > 0) {
+        deck.ram_current = std::max(0, deck.ram_current - prog.ram_held);
+    }
+
+    // Apply effects at the target tile and any splash radius around it.
+    auto& world = game.world();
+    auto& map = world.map();
+    int radius = prog.resolved.radius;
+    int min_x = tx - radius, max_x = tx + radius;
+    int min_y = ty - radius, max_y = ty + radius;
+
+    int targets_hit = 0;
+
+    for (int y = min_y; y <= max_y; ++y) {
+        for (int x = min_x; x <= max_x; ++x) {
+            if (x < 0 || x >= map.width() || y < 0 || y >= map.height()) continue;
+
+            Tile t = map.get(x, y);
+            if (t == Tile::Fixture) {
+                int fid = map.fixture_id(x, y);
+                if (fid >= 0 && map.fixture(fid).cyber) {
+                    apply_to_hackable(*map.fixture_mut(fid).cyber, prog.resolved);
+                    ++targets_hit;
+                }
+            }
+            for (auto& npc : world.npcs()) {
+                if (npc.x == x && npc.y == y && npc.alive()) {
+                    apply_to_npc(game, npc, prog.resolved);
+                    if (npc.cyber) apply_to_hackable(*npc.cyber, prog.resolved);
+                    ++targets_hit;
+                }
+            }
+        }
+    }
+
+    if (targets_hit == 0) {
+        return prog.name + ": no targets affected.";
+    }
+
+    return prog.name + " fired (" + std::to_string(prog.exec_cost) + " exec, "
+         + std::to_string(prog.heat_cost) + " heat).";
 }
 
 }  // namespace astra

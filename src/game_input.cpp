@@ -5,6 +5,7 @@
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/program.h"
+#include "astra/program_compiler.h"
 #include "astra/skill_defs.h"
 #include "astra/skill_grant.h"
 
@@ -376,6 +377,24 @@ void Game::handle_play_input(int key) {
             Item probe = build_by_def_id(slot.program_def_id);
 
             int tx = qh_picker_target_x_, ty = qh_picker_target_y_;
+
+            // Compiled-program path: route through Telegraph for targeting.
+            if (probe.compiled_program.has_value()) {
+                const CompiledProgram cp = *probe.compiled_program;
+                TelegraphSpec spec = cp.resolved.telegraph;
+                // Close the picker before handing off to Telegraph so the UI
+                // doesn't show two overlays simultaneously.
+                qh_picker_.open = false;
+                telegraph_.begin(spec, player_.x, player_.y,
+                    [this, cp](const TelegraphResult& res) {
+                        std::string msg = fire_program(*this, cp, res.dest_x, res.dest_y);
+                        log(msg);
+                        advance_world(ActionCost::interact);
+                    });
+                return;
+            }
+
+            // Legacy path: direct execute_quickhack for pre-compiled items.
             Hackable* hack = nullptr;
             if (world_.map().get(tx, ty) == Tile::Fixture) {
                 int fid = world_.map().fixture_id(tx, ty);
