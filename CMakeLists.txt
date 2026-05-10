@@ -109,7 +109,6 @@ set(ASTRA_SOURCES
     src/program_compiler.cpp
     src/program_effects.cpp
     src/program_pattern.cpp
-    src/program_recipes.cpp
     src/visibility_map.cpp
     src/save_file.cpp
     src/celestial_body.cpp

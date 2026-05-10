@@ -5,6 +5,7 @@
 #include "astra/faction.h"
 #include "astra/item_ids.h"
 #include "astra/lan.h"
+#include "astra/program_compiler.h"
 #include "astra/sector_runtime_state.h"
 #include "astra/world_manager.h"
 
@@ -286,6 +287,48 @@ static uint16_t item_def_id_from_name(const std::string& name) {
     return 0; // unknown — renders as '?' Magenta
 }
 
+static void write_program_node(BinaryWriter& w, const ProgramNode& node) {
+    w.write_u16(static_cast<uint16_t>(node.fragment));
+    w.write_i32(node.param);
+    w.write_u32(static_cast<uint32_t>(node.body.size()));
+    for (const auto& child : node.body) {
+        write_program_node(w, child);
+    }
+}
+
+static ProgramNode read_program_node(BinaryReader& r) {
+    ProgramNode n;
+    n.fragment = static_cast<FragmentId>(r.read_u16());
+    n.param    = r.read_i32();
+    uint32_t bn = r.read_u32();
+    n.body.resize(bn);
+    for (uint32_t i = 0; i < bn; ++i) n.body[i] = read_program_node(r);
+    return n;
+}
+
+static void write_compiled_program(BinaryWriter& w, const CompiledProgram& cp) {
+    w.write_string(cp.name);
+    w.write_u32(static_cast<uint32_t>(cp.chain.size()));
+    for (const auto& n : cp.chain) write_program_node(w, n);
+    // Costs + resolved spec are recomputed on load; only the chain + name persist.
+}
+
+static CompiledProgram read_compiled_program(BinaryReader& r) {
+    CompiledProgram cp;
+    cp.name = r.read_string();
+    uint32_t n = r.read_u32();
+    cp.chain.resize(n);
+    for (uint32_t i = 0; i < n; ++i) cp.chain[i] = read_program_node(r);
+    // Recompute derived state.
+    auto recomputed = compile_program(cp.chain, cp.name);
+    cp.resolved      = recomputed.resolved;
+    cp.exec_cost     = recomputed.exec_cost;
+    cp.heat_cost     = recomputed.heat_cost;
+    cp.ram_held      = recomputed.ram_held;
+    cp.patterns_lit  = recomputed.patterns_lit;
+    return cp;
+}
+
 static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u32(item.id);
     w.write_string(item.name);
@@ -412,6 +455,10 @@ static void write_item(BinaryWriter& w, const Item& item) {
     if (item.program) {
         w.write_u16(static_cast<uint16_t>(item.program->id));
     }
+    // v71: compiled_program payload
+    bool has_compiled = item.compiled_program.has_value();
+    w.write_u8(has_compiled ? 1 : 0);
+    if (has_compiled) write_compiled_program(w, *item.compiled_program);
 }
 
 static Item read_item(BinaryReader& r) {
@@ -555,6 +602,9 @@ static Item read_item(BinaryReader& r) {
         p.id = static_cast<ProgramId>(r.read_u16());
         item.program = p;
     }
+    // v71: compiled_program payload
+    bool has_compiled = r.read_u8() != 0;
+    if (has_compiled) item.compiled_program = read_compiled_program(r);
     return item;
 }
 
@@ -945,12 +995,14 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_string(ls.name);
         w.write_string(ls.description);
     }
-    // v70: learned_programs (Cyberdeck program recipes — split from schematics)
-    w.write_u32(static_cast<uint32_t>(p.learned_programs.size()));
-    for (const auto& lp : p.learned_programs) {
-        w.write_u16(lp.recipe_id);
-        w.write_string(lp.name);
-        w.write_string(lp.description);
+    // v71: fragment + pattern system (replaces learned_programs)
+    w.write_u32(static_cast<uint32_t>(p.learned_fragments.size()));
+    for (auto fid : p.learned_fragments) {
+        w.write_u16(static_cast<uint16_t>(fid));
+    }
+    w.write_u32(static_cast<uint32_t>(p.discovered_patterns.size()));
+    for (const auto& name : p.discovered_patterns) {
+        w.write_string(name);
     }
     // Journal
     w.write_u32(static_cast<uint32_t>(p.journal.size()));
@@ -1900,13 +1952,16 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.learned_schematics[i].name = r.read_string();
         p.learned_schematics[i].description = r.read_string();
     }
-    // v70: learned_programs
-    uint32_t lp_count = r.read_u32();
-    p.learned_programs.resize(lp_count);
-    for (uint32_t i = 0; i < lp_count; ++i) {
-        p.learned_programs[i].recipe_id = r.read_u16();
-        p.learned_programs[i].name = r.read_string();
-        p.learned_programs[i].description = r.read_string();
+    // v71: fragment + pattern system
+    uint32_t lf_count = r.read_u32();
+    p.learned_fragments.resize(lf_count);
+    for (uint32_t i = 0; i < lf_count; ++i) {
+        p.learned_fragments[i] = static_cast<FragmentId>(r.read_u16());
+    }
+    uint32_t dp_count = r.read_u32();
+    p.discovered_patterns.resize(dp_count);
+    for (uint32_t i = 0; i < dp_count; ++i) {
+        p.discovered_patterns[i] = r.read_string();
     }
     // Journal
     uint32_t journal_count = r.read_u32();

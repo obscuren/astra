@@ -30,11 +30,10 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 68;   // v68: stable monotonic NPC UID for Anchor linkage
-                                                    // v67: Tether action — force_tether flag on Npc (D2)
-                                                    // v66: Spec 1 — Imprint/Vulnerability/DeadImplant persistence
-                                                    //   (per-NPC vulnerability stack, per-Anchor HP,
-                                                    //   per-corpse dead-implant state to be added in subsequent tasks)
+inline constexpr uint32_t SAVE_FILE_VERSION = 71;   // v71: program fragment system — replace ProgramRecipe with fragment+pattern
+                                                    // v70: learned_programs (Cyberdeck program recipes — split from schematics)
+                                                    // v69: drop shell-driven Hackable fields
+                                                    // v68: stable monotonic NPC UID for Anchor linkage
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

@@ -25,7 +25,6 @@
 #include "astra/star_chart.h"
 #include "astra/station_type.h"
 #include "astra/tilemap.h"
-#include "astra/program_recipes.h"
 #include "astra/tinkering.h"
 #include "astra/trap.h"
 
@@ -527,27 +526,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 if (res.success) { ++learned; log(res.message); }
             }
         }
-        // v70: program recipes are separate from schematics; the dev `learn`
-        // command lets you grant either with the same syntax.
-        auto match_program = [&sl = args[1]](const ProgramRecipe& r) {
-            std::string nl = r.output_name ? r.output_name : "";
-            for (auto& c : nl) c = static_cast<char>(std::tolower(c));
-            std::string sql = sl;
-            for (auto& c : sql) c = static_cast<char>(std::tolower(c));
-            if (nl.find(sql) != std::string::npos) return true;
-            std::string alias = sql;
-            for (auto& c : alias) if (c == '_') c = ' ';
-            return nl.find(alias) != std::string::npos;
-        };
-        const auto& progs = program_recipes();
-        for (const auto& r : progs) {
-            if (args[1] == "all" || match_program(r)) {
-                auto res = learn_program_recipe(player, r.recipe_id,
-                                                r.output_name, r.output_desc);
-                if (res.success) { ++learned; log(res.message); }
-            }
-        }
-        if (learned == 0) log("No matching schematic or program recipe for '" + args[1] + "'.");
+        if (learned == 0) log("No matching schematic for '" + args[1] + "'.");
     }
     else if (verb == "solve") {
         auto& map = game.world().map();
