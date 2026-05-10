@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/player.h"
+#include "astra/program_compiler.h"
 #include "astra/quest.h"
 #include "astra/recipe.h"
 #include "astra/rect.h"
@@ -252,6 +253,23 @@ private:
     CyberdeckSubscreen cyberdeck_subscreen_ = CyberdeckSubscreen::Deck;
     bool cyberdeck_show_patterns_overlay_ = false;
 
+    // Compiler workbench state — owned by PdaScreen so the tab can be
+    // closed/reopened without losing the work-in-progress build.
+    std::vector<ProgramNode> compiler_build_;
+    // Path into the build (chain of indices) showing where the cursor sits.
+    // Empty path = top level. Path [0] = inside compiler_build_[0].body.
+    std::vector<int>         compiler_cursor_path_;
+    int                      compiler_palette_cursor_ = 0;
+
+public:
+    int compiler_palette_cursor() const { return compiler_palette_cursor_; }
+    const std::vector<ProgramNode>& compiler_build() const { return compiler_build_; }
+    const std::vector<int>& compiler_cursor_path() const { return compiler_cursor_path_; }
+    std::vector<ProgramNode>& compiler_build_mut() { return compiler_build_; }
+    std::vector<int>& compiler_cursor_path_mut() { return compiler_cursor_path_; }
+    int& compiler_palette_cursor_mut() { return compiler_palette_cursor_; }
+
+private:
     void draw_cyberdeck(UIContext& ctx);
     void handle_cyberdeck_key(int key);
     void draw_tab_help(int screen_w, int screen_h);
