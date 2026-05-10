@@ -19,11 +19,11 @@ constexpr int kBaseDamageDrain   = 4;
 constexpr int kBaseDamageDecay   = 3;        // small, but ignores armor
 // WARP / JITTER / SLAG are non-damage primitives; damage = 0.
 
-float amplify_factor()  { return 1.5f; }
-float broadcast_per_target() { return 0.4f; }
-float relay_falloff()   { return 0.5f; }
-float tick_per_tick()   { return 0.5f; }
-float loop_per_iter()   { return 0.5f; }
+// Scaling constants. The 0.5 falloff is shared by Relay/Tick/Loop on purpose
+// — moving any one of them away from 0.5 should be a deliberate design call.
+constexpr float kAmplifyFactor      = 1.5f;
+constexpr float kBroadcastPerTarget = 0.4f;
+constexpr float kFalloffPerHop      = 0.5f;
 
 int round_dmg(float v) {
     return std::max(0, static_cast<int>(v + 0.5f));
@@ -66,11 +66,11 @@ void apply_transformer(EffectSpec& s, FragmentId id) {
         case FragmentId::Amplify:
             switch (s.dominant_attr) {
                 case DominantAttr::Damage:
-                    s.damage = round_dmg(s.damage * amplify_factor()); break;
+                    s.damage = round_dmg(s.damage * kAmplifyFactor); break;
                 case DominantAttr::Radius:
                     s.radius += 1; break;
                 case DominantAttr::Duration:
-                    s.status_duration = round_dmg(s.status_duration * amplify_factor()); break;
+                    s.status_duration = round_dmg(s.status_duration * kAmplifyFactor); break;
                 case DominantAttr::Hops:
                     s.relay_hops += 1; break;
                 case DominantAttr::None: break;
@@ -78,12 +78,12 @@ void apply_transformer(EffectSpec& s, FragmentId id) {
             break;
         case FragmentId::Broadcast:
             s.radius          = std::max(s.radius, 1);
-            s.per_target_mult = broadcast_per_target();
+            s.per_target_mult = kBroadcastPerTarget;
             s.dominant_attr   = DominantAttr::Radius;
             break;
         case FragmentId::Relay:
             s.relay_hops      = std::max(s.relay_hops, 1);
-            s.relay_falloff   = relay_falloff();
+            s.relay_falloff   = kFalloffPerHop;
             s.dominant_attr   = DominantAttr::Hops;
             break;
         default: break;
@@ -94,14 +94,16 @@ void apply_container(EffectSpec& s, FragmentId id, int n) {
     switch (id) {
         case FragmentId::Tick:
             s.tick_count          = std::max(1, n);
-            s.tick_intensity_mult = tick_per_tick();
+            s.tick_intensity_mult = kFalloffPerHop;
             // Tick wraps a body — but the BODY's effects already populated s.
             // Tick just marks the spec as ticking.
             break;
         case FragmentId::Loop:
             s.loop_count          = std::max(1, n);
-            s.loop_intensity_mult = loop_per_iter();
-            s.loop_ram_held       = n + 2;        // sustain RAM cost
+            s.loop_intensity_mult = kFalloffPerHop;
+            // RAM accounting (per-loop N+2) lives in sum_costs so it composes
+            // across multiple LOOPs in one program; the per-spec field is set
+            // from the program total in compile_program.
             break;
         default: break;
     }
