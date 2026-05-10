@@ -1,6 +1,7 @@
 #include "astra/program_compiler.h"
 
 #include "astra/fragment.h"
+#include "astra/program_pattern.h"
 #include "astra/telegraph.h"
 
 #include <algorithm>
@@ -189,7 +190,7 @@ CompiledProgram compile_program(const std::vector<ProgramNode>& chain,
 
     walk(chain, out.resolved);
     derive_telegraph(out.resolved);
-    // Pattern overlay applied in Task 4 (program_pattern.cpp).
+    out.patterns_lit = apply_patterns(chain, out.resolved);
 
     sum_costs(chain, out.exec_cost, out.heat_cost, out.ram_held);
     out.resolved.loop_ram_held = out.ram_held;
