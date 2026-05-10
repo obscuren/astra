@@ -160,10 +160,7 @@ private:
     void draw_cooking(UIContext& ctx);
 
 public:
-    // Render the Cyberdeck placeholder into an arbitrary rect. The in-Grid
-    // playfield calls this when the player is jacked in so the same content
-    // can appear inside the Tron window if needed in the future.
-    void draw_hacking_into(Renderer* renderer, Rect bounds);
+    Player& player() { return *player_; }
 
 private:
     void draw_journal(UIContext& ctx);
@@ -250,7 +247,13 @@ private:
     void draw_ship(UIContext& ctx);
     void draw_stub(UIContext& ctx, const char* message);
     void draw_reputation(UIContext& ctx);
-    void draw_hacking(UIContext& ctx);
+    // Cyberdeck tab
+    enum class CyberdeckSubscreen : uint8_t { Deck, Compiler };
+    CyberdeckSubscreen cyberdeck_subscreen_ = CyberdeckSubscreen::Deck;
+    bool cyberdeck_show_patterns_overlay_ = false;
+
+    void draw_cyberdeck(UIContext& ctx);
+    void handle_cyberdeck_key(int key);
     void draw_tab_help(int screen_w, int screen_h);
     void show_tab_help();
 

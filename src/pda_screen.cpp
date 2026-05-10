@@ -843,7 +843,7 @@ bool PdaScreen::handle_input(int key) {
             }
         }
     } else if (active_tab_ == PdaTab::Hacking) {
-        // Cyberdeck tab is a placeholder — swallow keys without action.
+        handle_cyberdeck_key(key);
         return true;
     }
 
@@ -1436,7 +1436,7 @@ void PdaScreen::draw(int screen_w, int screen_h) {
         case PdaTab::Quests:    draw_quests(content); break;
         case PdaTab::Ship:       draw_ship(content); break;
         case PdaTab::Cooking:    draw_cooking(full); break;
-        case PdaTab::Hacking:    draw_hacking(content); break;
+        case PdaTab::Hacking:    draw_cyberdeck(content); break;
     }
 
     // Draw vertical divider only for tabs that use a split layout
