@@ -1645,13 +1645,40 @@ Item make_program_(uint16_t def_id, uint32_t inv_id, ProgramId pid,
     it.program = pd;
     return it;
 }
+
+// Helper: build a single ProgramNode (leaf or container).
+ProgramNode mk(FragmentId id, int param = 0, std::vector<ProgramNode> body = {}) {
+    return ProgramNode{ id, param, std::move(body) };
+}
+
+// Helper: build an Item carrying a CompiledProgram payload (fragment-based programs).
+Item build_compiled_program_(uint16_t def_id, uint32_t inv_id, const char* name,
+                             const char* description,
+                             std::vector<ProgramNode> chain,
+                             Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id          = inv_id;
+    it.name        = name;
+    it.description = description;
+    it.type        = ItemType::Program;
+    it.rarity      = rarity;
+    it.weight      = 0;
+    it.stackable   = false;
+    it.buy_value   = buy;
+    it.sell_value  = sell;
+    it.compiled_program = compile_program(chain, name);
+    return it;
+}
 } // namespace
 
 Item build_program_icebreaker_lite() {
-    return make_program_(ITEM_PROG_ICEBREAKER_LITE, 9100, ProgramId::IcebreakerLite,
+    return build_compiled_program_(
+        ITEM_PROG_ICEBREAKER_LITE, 9100,
         "icebreaker_lite.exe",
-        "ATK | tier 1 | 2 RAM, 2 Heat. Light cracker for white ICE. (Used in the Grid.)",
-        Rarity::Common, 80, 25);
+        "ATK program. Single-target electric zap.",
+        { mk(FragmentId::Volt) },
+        Rarity::Common, 80, 30);
 }
 
 Item build_program_ghost_trace() {
@@ -1676,17 +1703,22 @@ Item build_program_breach() {
 }
 
 Item build_program_decrypt() {
-    return make_program_(ITEM_PROG_DECRYPT, 9104, ProgramId::Decrypt,
+    return build_compiled_program_(
+        ITEM_PROG_DECRYPT, 9104,
         "decrypt.exe",
-        "UTL | tier 1 | 2 RAM, 1 Heat. Reads one encrypted file. (Used in the Grid.)",
-        Rarity::Common, 70, 22);
+        "UTL program. Reveals targets in a 3x3 area.",
+        { mk(FragmentId::Broadcast) },
+        Rarity::Common, 80, 30);
 }
 
 Item build_program_reboot_optics() {
-    return make_program_(ITEM_PROG_REBOOT_OPTICS, 9105, ProgramId::RebootOptics,
+    return build_compiled_program_(
+        ITEM_PROG_REBOOT_OPTICS, 9105,
         "reboot_optics.qh",
-        "QH | tier 1 | 1 RAM, +1 Detection. Blinds a camera or turret for 4 turns.",
-        Rarity::Common, 50, 18);
+        "QH program. Blinds a target for 4 turns (BLIND pattern, sustained).",
+        // TICK(4) { WARP -> AMPLIFY }
+        { mk(FragmentId::Tick, 4, { mk(FragmentId::Warp), mk(FragmentId::Amplify) }) },
+        Rarity::Uncommon, 130, 45);
 }
 
 Item build_program_friendly_fire() {
@@ -1704,17 +1736,22 @@ Item build_program_data_leech() {
 }
 
 Item build_program_pulse_hammer() {
-    return make_program_(ITEM_PROG_PULSE_HAMMER, 9108, ProgramId::PulseHammer,
+    return build_compiled_program_(
+        ITEM_PROG_PULSE_HAMMER, 9108,
         "pulse_hammer.exe",
-        "ATK | tier 3 | 4 RAM, 5 Heat. AoE 1d6 dmg to all ICE adjacent to target tile.",
-        Rarity::Rare, 600, 200);
+        "T3 ATK program. Enlarged 5x5 electric burst.",
+        { mk(FragmentId::Volt), mk(FragmentId::Broadcast), mk(FragmentId::Amplify) },
+        Rarity::Rare, 320, 110);
 }
 
 Item build_program_daemon_hijack() {
-    return make_program_(ITEM_PROG_DAEMON_HIJACK, 9109, ProgramId::DaemonHijack,
+    return build_compiled_program_(
+        ITEM_PROG_DAEMON_HIJACK, 9109,
         "daemon_hijack.exe",
-        "UTL | tier 3 | 5 RAM, 4 Heat. Take control of one ICE for 3 turns.",
-        Rarity::Rare, 650, 220);
+        "T3 UTL program. Mind-controls a target for 3 turns (MIND CONTROL pattern, sustained).",
+        // TICK(3) { WARP -> JITTER }
+        { mk(FragmentId::Tick, 3, { mk(FragmentId::Warp), mk(FragmentId::Jitter) }) },
+        Rarity::Rare, 320, 110);
 }
 
 // ---------------------------------------------------------------------------
