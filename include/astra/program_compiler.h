@@ -10,8 +10,6 @@
 
 namespace astra {
 
-class Player;
-
 // Tree node — the AST for a compiled program.
 // Container nodes (TICK, LOOP) carry a non-empty body; other nodes have body == empty.
 struct ProgramNode {
