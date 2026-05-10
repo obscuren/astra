@@ -7,6 +7,7 @@
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/program_compiler.h"
+#include "astra/program_pattern.h"
 #include "astra/skill_defs.h"
 
 #include <string>
@@ -340,10 +341,37 @@ void compile_action(PdaScreen& self, Game& game) {
     self.compiler_cursor_path_mut().clear();
 }
 
-void draw_patterns_overlay(PdaScreen& /*self*/, UIContext& ctx) {
-    int cy = ctx.height() / 2 - 2;
-    ctx.text(ctx.width() / 2 - 12, cy,
-             "-- PATTERNS (TASK 13) --", Color::DarkGray);
+void draw_patterns_overlay(PdaScreen& self, UIContext& ctx) {
+    int total = static_cast<int>(pattern_catalog().size());
+    int discovered = static_cast<int>(self.player().discovered_patterns.size());
+
+    std::string header = "PATTERNS  DISCOVERED " + std::to_string(discovered)
+                       + " / " + std::to_string(total);
+    ctx.text(2, 1, header, Color::White);
+    ctx.text(2, 2, "──────────────────────────────────────", Color::DarkGray);
+
+    int y = 4;
+    for (const auto& p : pattern_catalog()) {
+        bool known = false;
+        for (const auto& d : self.player().discovered_patterns) {
+            if (d == p.name) { known = true; break; }
+        }
+        if (known) {
+            std::string seq;
+            for (auto fid : p.fragment_seq) {
+                const FragmentDef* def = find_fragment(fid);
+                if (!seq.empty()) seq += ", ";
+                seq += def ? def->display : "?";
+            }
+            ctx.text(2, y++, "► " + p.name + "    [" + seq + "]", Color::Green);
+            ctx.text(4, y++, p.description, Color::DarkGray);
+        } else {
+            ctx.text(2, y++, "  ??????????    [???, ???]", Color::DarkGray);
+        }
+        y += 1;
+    }
+
+    ctx.text(2, ctx.height() - 1, "[p / Esc] Back", Color::DarkGray);
 }
 
 }  // namespace
