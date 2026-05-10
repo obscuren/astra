@@ -106,6 +106,7 @@ set(ASTRA_SOURCES
     src/poi_budget.cpp
     src/playback_viewer.cpp
     src/program.cpp
+    src/program_compiler.cpp
     src/program_effects.cpp
     src/program_recipes.cpp
     src/visibility_map.cpp
