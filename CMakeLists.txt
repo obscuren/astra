@@ -170,6 +170,7 @@ set(ASTRA_SOURCES
     src/scenarios/stage4_hostility.cpp
     src/sector_runtime_state.cpp
     src/faction.cpp
+    src/fragment.cpp
     src/ship.cpp
     src/soul_mirror.cpp
     src/station_type.cpp
