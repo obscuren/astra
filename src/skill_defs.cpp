@@ -10,6 +10,13 @@ bool player_has_skill(const Player& player, SkillId id) {
     return false;
 }
 
+int max_program_fragments(const Player& player) {
+    if (player_has_skill(player, SkillId::Programming3)) return 5;
+    if (player_has_skill(player, SkillId::Programming2)) return 4;
+    if (player_has_skill(player, SkillId::Programming1)) return 3;
+    return 0;
+}
+
 static std::string acrobatics_category_description() {
     std::string s = "Mastery of agile movement and evasion in any environment.\n\n";
     s += colored("Passive:", Color::White);
@@ -487,6 +494,23 @@ static std::string tether_l3_description() {
     return "Tether III: AoE Tether (3 adjacent targets at once).";
 }
 
+// Programming I / II / III: unlocks the Cyberdeck Compiler and raises the
+// fragment-chain ceiling.
+static std::string programming1_description() {
+    return "Unlocks the Cyberdeck Compiler. Pick 3 starter fragments. "
+           "Programs may chain up to 3 fragments.";
+}
+
+static std::string programming2_description() {
+    return "Compiler ceiling raised to 4 fragments. Grants 2 random "
+           "fragments from the unlearned pool.";
+}
+
+static std::string programming3_description() {
+    return "Compiler ceiling raised to 5 fragments. Grants 2 random "
+           "fragments from the unlearned pool.";
+}
+
 static std::string consciousness_anchor_description() {
     std::string s = "Capstone: a permanent deep-Grid base sector that survives Sgr A* rebirth.\n\n";
     s += "Unlocks ";
@@ -678,6 +702,15 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::TetherL2, "Tether II",
              tether_l2_description(),
              false, 100, 15, "Intelligence"},
+            {SkillId::Programming1, "Programming I",
+             programming1_description(),
+             true, 0, 13, "Intelligence"},
+            {SkillId::Programming2, "Programming II",
+             programming2_description(),
+             true, 100, 14, "Intelligence"},
+            {SkillId::Programming3, "Programming III",
+             programming3_description(),
+             true, 200, 15, "Intelligence"},
             // Spec 1: TetherL3 (AoE 3-tile) is intentionally NOT in the catalog yet —
             // the AoE implementation is incomplete (see confirm_tether_targeting TODO).
             // The SkillId::TetherL3 enum value remains so existing saves with the

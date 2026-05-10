@@ -89,6 +89,9 @@ enum class SkillId : uint32_t {
     TetherL1            = 1211,  // Cat_Hacking — Tether L1: project Imprint (LoS, short range 1 tile)
     TetherL2            = 1212,  // Cat_Hacking — Tether L2: long range (8 tiles)
     TetherL3            = 1213,  // Cat_Hacking — Tether L3: AoE 3 tiles
+    Programming1        = 1214,  // 3-fragment ceiling, starter pick
+    Programming2        = 1215,  // 4-fragment ceiling, +2 random fragments
+    Programming3        = 1216,  // 5-fragment ceiling, +2 random fragments
 };
 
 struct SkillDef {
@@ -129,5 +132,9 @@ bool player_has_skill(const Player& player, SkillId id);
 
 // Check if the player has the terrain lore skill matching the given overworld tile.
 SkillId terrain_lore_for(Tile terrain);
+
+// Returns the max program-fragment chain length for this player.
+// 0 if no Programming skill; 3/4/5 by tier.
+int max_program_fragments(const Player& player);
 
 } // namespace astra
