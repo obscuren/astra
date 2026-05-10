@@ -3,7 +3,6 @@
 #include "astra/fragment.h"
 #include "astra/program_compiler.h"
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -20,14 +19,12 @@ struct Pattern {
 
 const std::vector<Pattern>& pattern_catalog();
 
-struct PatternMatch {
-    const Pattern* pattern = nullptr;
-    int  start_index_in_chain = -1;          // for top-level matches; -1 if inside body
-};
-
-// Find all pattern matches in a tree. Returns names lit; mutates spec for the
-// override (e.g. BLIND adds a status flag). Sub-trees inside container bodies
-// are also matched.
+// Find all pattern matches in a tree. Returns the deduped list of pattern
+// names lit anywhere in the tree (top-level chain or any container body),
+// and mutates `spec` so its `named_pattern`/`pattern_description` reflect the
+// LAST pattern matched (last-write-wins). Callers that need the full multi-
+// pattern list should read the returned vector — `EffectSpec::named_pattern`
+// is intended for the UI's single-line "primary pattern" highlight only.
 std::vector<std::string> apply_patterns(const std::vector<ProgramNode>& chain,
                                         EffectSpec& spec);
 
