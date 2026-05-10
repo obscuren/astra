@@ -10,6 +10,7 @@
 #include "astra/dungeon/puzzles.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
+#include "astra/fragment.h"
 #include "astra/game.h"
 #include "astra/grid_network.h"
 #include "astra/hackable.h"
@@ -388,7 +389,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  heal               - full heal");
         log("  reveal_traps       - toggle render of all hidden traps");
         log("  spawn-trap <prox|emp|incendiary|decoy|caltrops|dungeon> - spawn a dungeon trap at player feet");
-        log("  learn-schem <name|all> - learn a schematic by output name (prox, emp, caltrops, healing_stim, frag_grenade, ...)");
+        log("  learn-schem <name|all> - learn a schematic by output name (prox, emp, caltrops, healing_stim, frag_grenade, ...) or a fragment (volt, pyre, drain, warp, decay, jitter, slag, relay, broadcast, amplify, tick, loop)");
         log("  bearings           - regain bearings if lost");
         log("  lore list           - list lore-annotated systems");
         log("  lore warp <feature> - warp to system (beacon/megastructure/terraformed/scarred/battle/weapon/plague/tier1-3)");
@@ -526,7 +527,40 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
                 if (res.success) { ++learned; log(res.message); }
             }
         }
-        if (learned == 0) log("No matching schematic for '" + args[1] + "'.");
+
+        // Fragments — granted to Player.learned_fragments by name.
+        if (args[1] != "all") {
+            const FragmentDef* def = find_fragment_by_name(args[1].c_str());
+            if (def) {
+                bool already = false;
+                for (auto fid : player.learned_fragments) {
+                    if (fid == def->id) { already = true; break; }
+                }
+                if (!already) {
+                    player.learned_fragments.push_back(def->id);
+                    log("Learned fragment: " + std::string(def->display));
+                    ++learned;
+                }
+            }
+        } else {
+            // "learn all" grants every fragment too.
+            int frag_added = 0;
+            for (const auto& def : fragment_catalog()) {
+                if (def.id == FragmentId::None) continue;
+                bool already = false;
+                for (auto fid : player.learned_fragments) {
+                    if (fid == def.id) { already = true; break; }
+                }
+                if (!already) {
+                    player.learned_fragments.push_back(def.id);
+                    ++learned;
+                    ++frag_added;
+                }
+            }
+            if (frag_added > 0) log("Granted " + std::to_string(frag_added) + " fragments.");
+        }
+
+        if (learned == 0) log("No matching schematic or fragment for '" + args[1] + "'.");
     }
     else if (verb == "solve") {
         auto& map = game.world().map();
