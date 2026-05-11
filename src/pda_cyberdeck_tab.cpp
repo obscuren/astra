@@ -17,6 +17,28 @@ namespace astra {
 
 namespace {
 
+// Anchor positions on the chipset ornament (ornament-relative coords).
+// The N-th slot is wired to ANCHORS[N-1]. For slot counts < 8 the unused
+// anchors keep their decorative █/▉ glyph; numbered anchors render in cyan.
+struct ChipAnchor {
+    int  x_off;
+    int  y_off;
+    char side;       // 'L', 'R', 'T', 'B'
+    int  lane;       // 0 = inner, 1 = outer (further away from ornament)
+};
+
+constexpr ChipAnchor CHIP_ANCHORS[8] = {
+    // Order chosen to match the user's 4-slot mockup for slots 1-4.
+    { 0, 4, 'L', 0},   // slot 1
+    { 4, 8, 'B', 0},   // slot 2
+    { 8, 8, 'B', 0},   // slot 3
+    {16, 6, 'R', 0},   // slot 4
+    { 0, 2, 'L', 1},   // slot 5
+    {16, 4, 'R', 1},   // slot 6
+    { 8, 0, 'T', 0},   // slot 7 (top — no connector line for now)
+    {12, 0, 'T', 1},   // slot 8 (top — no connector line for now)
+};
+
 // Stylized "chipset" ornament. Verbatim template from /tmp/cyberdeck.
 // 17 wide × 9 tall. Cogs render in magenta with the centre cog in gold;
 // solid block tabs render in cyan; bullet dots in gold; frame in magenta.
@@ -30,7 +52,13 @@ namespace {
 //   │ • ⚙ └─⚙ └─⚙───▉
 //   │ └─│─┘ │ ┌─•─┘ │
 //   ╚───█───█───────╝
-void draw_chip_ornament(UIContext& ctx, int x0, int y0) {
+//
+// `n_slots` controls how many anchors get overdrawn with their slot
+// number. Anchors beyond `n_slots` stay as decorative █/▉ blocks.
+// `selected_slot` (0-based, -1 for none) recolours that anchor's
+// background to yellow so the selected node lights up.
+void draw_chip_ornament(UIContext& ctx, int x0, int y0,
+                        int n_slots, int selected_slot) {
     static const std::vector<std::string> rows = {
         "\xe2\x95\x94\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x88\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x88\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x95\x97",
         "\xe2\x94\x82 \xe2\x94\x8c\xe2\x94\x80\xe2\x80\xa2\xe2\x94\x80\xe2\x94\x98 \xe2\x94\x82 \xe2\x94\x8c\xe2\x94\x80\xe2\x94\x82\xe2\x94\x80\xe2\x94\x90 \xe2\x94\x82",
@@ -82,6 +110,134 @@ void draw_chip_ornament(UIContext& ctx, int x0, int y0) {
             i += len;
             ++col;
         }
+    }
+
+    // Overdraw each anchor 0..n_slots-1 with its slot number, replacing the
+    // decorative █/▉ block. Tethered cells render as black-on-cyan;
+    // the currently-selected slot lights up black-on-yellow.
+    int numbered = std::min(n_slots, 8);
+    for (int i = 0; i < numbered; ++i) {
+        const auto& a = CHIP_ANCHORS[i];
+        Color bg = (i == selected_slot) ? Color::Yellow : Color::Cyan;
+        ctx.text(x0 + a.x_off, y0 + a.y_off,
+                 std::to_string(i + 1), Color::Black, bg);
+    }
+}
+
+// Route a connector line from each numbered chip anchor down to the
+// matching slot card's top border. Called AFTER both ornament and slot
+// cards render, so the final ┴ junction overdraws the card's top ─.
+//
+// Routing per anchor side:
+//   B  — line drops one row into the manifold gap, bends to the slot's
+//        column, terminates with ┴ on the card top.
+//   L  — exits left out of the ornament (with optional ─ stub for outer
+//        lanes), descends down the side, bends across the manifold, drops
+//        to the card.
+//   R  — mirror of L.
+//   T  — top anchors keep their number but no line is drawn (there is no
+//        clean route from the top of the chip down past it).
+void draw_chip_connections(UIContext& ctx, int ox, int oy, int ow, int oh,
+                           int n_slots, int row_x, int row_y,
+                           int card_w, int card_gap, int selected_slot) {
+    const char* H_ = "\xe2\x94\x80";   // ─
+    const char* V_ = "\xe2\x94\x82";   // │
+    const char* TL = "\xe2\x94\x8c";   // ┌
+    const char* TR = "\xe2\x94\x90";   // ┐
+    const char* BL = "\xe2\x94\x94";   // └
+    const char* BR = "\xe2\x94\x98";   // ┘
+    const char* TU = "\xe2\x94\xb4";   // ┴
+
+    // Per-slot route color — yellow for the selected slot, cyan otherwise.
+    // Captured in the per-iteration closure below.
+    Color route_color = Color::Cyan;
+    auto put = [&](int x, int y, const char* g) {
+        ctx.text(x, y, g, route_color);
+    };
+    auto h_run = [&](int x1, int x2, int y) {
+        int a = std::min(x1, x2), b = std::max(x1, x2);
+        for (int x = a; x <= b; ++x) put(x, y, H_);
+    };
+    auto v_run = [&](int x, int y1, int y2) {
+        int a = std::min(y1, y2), b = std::max(y1, y2);
+        for (int y = a; y <= b; ++y) put(x, y, V_);
+    };
+
+    const int manifold_y = oy + oh;   // row immediately below the ornament
+    const int count = std::min(n_slots, 8);
+
+    for (int i = 0; i < count; ++i) {
+        route_color = (i == selected_slot) ? Color::Yellow : Color::Cyan;
+        const auto& a = CHIP_ANCHORS[i];
+        const int ax = ox + a.x_off;
+        const int ay = oy + a.y_off;
+        const int card_x  = row_x + i * (card_w + card_gap);
+        const int target_x = card_x + 2;   // junction at left ── of slot top
+        const int target_y = row_y;        // slot top row
+
+        if (a.side == 'B') {
+            if (ax == target_x) {
+                v_run(ax, manifold_y, target_y - 1);
+            } else if (target_x < ax) {
+                put(ax, manifold_y, BR);                                 // ┘
+                h_run(target_x + 1, ax - 1, manifold_y);
+                put(target_x, manifold_y, TR);                           // ┐
+            } else {
+                put(ax, manifold_y, BL);                                 // └
+                h_run(ax + 1, target_x - 1, manifold_y);
+                put(target_x, manifold_y, TR);                           // ┐
+            }
+            if (target_y - 1 > manifold_y) {
+                v_run(target_x, manifold_y + 1, target_y - 1);
+            }
+            put(target_x, target_y, TU);                                 // ┴
+        }
+        else if (a.side == 'L') {
+            const int exit_x = ox - 1 - a.lane;
+            if (exit_x < 0) continue;          // safety: would overflow left
+            // ─ stub from anchor to the exit column (only when lane > 0).
+            for (int l = 1; l <= a.lane; ++l) put(ox - l, ay, H_);
+            put(exit_x, ay, TL);                                          // ┌
+            v_run(exit_x, ay + 1, manifold_y - 1);
+            if (target_x < exit_x) {
+                put(exit_x, manifold_y, BR);                              // ┘
+                h_run(target_x + 1, exit_x - 1, manifold_y);
+                put(target_x, manifold_y, TL);                            // ┌
+            } else if (target_x > exit_x) {
+                put(exit_x, manifold_y, BL);                              // └
+                h_run(exit_x + 1, target_x - 1, manifold_y);
+                put(target_x, manifold_y, TR);                            // ┐
+            } else {
+                put(exit_x, manifold_y, V_);
+            }
+            if (target_y - 1 > manifold_y) {
+                v_run(target_x, manifold_y + 1, target_y - 1);
+            }
+            put(target_x, target_y, TU);
+        }
+        else if (a.side == 'R') {
+            const int exit_x = ox + ow + a.lane;
+            if (exit_x >= ctx.width()) continue;
+            for (int l = 1; l <= a.lane; ++l) put(ox + ow - 1 + l, ay, H_);
+            put(exit_x, ay, TR);                                          // ┐
+            v_run(exit_x, ay + 1, manifold_y - 1);
+            if (target_x < exit_x) {
+                put(exit_x, manifold_y, BR);                              // ┘
+                h_run(target_x + 1, exit_x - 1, manifold_y);
+                put(target_x, manifold_y, TL);                            // ┌
+            } else if (target_x > exit_x) {
+                put(exit_x, manifold_y, BL);                              // └
+                h_run(exit_x + 1, target_x - 1, manifold_y);
+                put(target_x, manifold_y, TR);                            // ┐
+            } else {
+                put(exit_x, manifold_y, V_);
+            }
+            if (target_y - 1 > manifold_y) {
+                v_run(target_x, manifold_y + 1, target_y - 1);
+            }
+            put(target_x, target_y, TU);
+        }
+        // 'T' anchors: number only, no line.
     }
 }
 
@@ -227,18 +383,19 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     constexpr int ornament_h = 9;
     int ornament_x = (ctx.width() - ornament_w) / 2;
     if (ornament_x < 0) ornament_x = 0;
-    draw_chip_ornament(ctx, ornament_x, y);
+    int ornament_y = y;
+    const int n_slots = deck.stats.slots;
+    int slot_cursor = self.cyberdeck_slot_cursor();
+    draw_chip_ornament(ctx, ornament_x, ornament_y, n_slots, slot_cursor);
     y += ornament_h;
 
     // Horizontal cartridge row, centered on the panel.
     constexpr int card_w = 11;
     constexpr int card_gap = 2;
-    const int n_slots = deck.stats.slots;
     const int total_w = n_slots * card_w + std::max(0, n_slots - 1) * card_gap;
     const int row_x  = (ctx.width() - total_w) / 2;
     const int row_y  = y + 1;
 
-    int slot_cursor = self.cyberdeck_slot_cursor();
     for (int i = 0; i < n_slots; ++i) {
         const auto& sl = deck.loaded[i];
         std::string name;
@@ -256,6 +413,13 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
                        loaded, name, heat_cost,
                        i == slot_cursor);
     }
+
+    // Connector lines from each numbered chip anchor down to its slot
+    // card. Drawn AFTER the cards so the ┴ junctions overdraw the card's
+    // top ── segments cleanly. Selected slot's route renders in yellow.
+    draw_chip_connections(ctx, ornament_x, ornament_y, ornament_w, ornament_h,
+                          n_slots, row_x, row_y, card_w, card_gap,
+                          slot_cursor);
 }
 
 // ── Compiler helpers ──────────────────────────────────────────────────────
