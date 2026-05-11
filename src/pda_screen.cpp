@@ -1705,7 +1705,7 @@ static const char* tab_help_body(PdaTab tab) {
                    "[Space] inserts the palette-selected fragment at the "
                    "build cursor. [Backspace] deletes. [+/-] adjusts N on "
                    "TICK / LOOP. [c] opens the NAME prompt; on Enter the "
-                   "program is compiled — consumes one Program Disk, "
+                   "program is compiled — consumes one Cipher Disk, "
                    "appears in inventory.\n\n"
                    "Patterns: certain ordered fragment sequences produce "
                    "named composite effects. [p] toggles the Patterns "

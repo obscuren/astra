@@ -1889,11 +1889,11 @@ Item build_program_disk() {
     Item it;
     it.item_def_id = ITEM_PROGRAM_DISK;
     it.id = 9400;
-    it.name = "Program Disk";
+    it.name = "Cipher Disk";
     it.type = ItemType::CraftingMaterial;
     it.description =
-        "A blank optical disk. Required by the Cyberdeck Compiler to "
-        "compile a program from fragments. One disk per compile.";
+        "A blank cipher-grade optical disk. Required by the Cyberdeck "
+        "Compiler to compile a program from fragments. One disk per compile.";
     it.rarity = Rarity::Common;
     it.weight = 1;
     it.stackable = true;

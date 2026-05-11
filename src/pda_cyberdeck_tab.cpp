@@ -710,8 +710,8 @@ void begin_compile_prompt(PdaScreen& self, Game& game) {
         if (it.item_def_id == ITEM_PROGRAM_DISK) disks += it.stack_count;
     }
     if (disks <= 0) {
-        self.set_context_message("Compile failed: no Program Disk.", 3);
-        game.log("No Program Disk in inventory.");
+        self.set_context_message("Compile failed: no Cipher Disk.", 3);
+        game.log("No Cipher Disk in inventory.");
         return;
     }
     self.cyberdeck_compile_prompt_open(auto_name(self.compiler_build()));
@@ -730,8 +730,8 @@ void confirm_compile(PdaScreen& self, Game& game, const std::string& name) {
         }
     }
     if (disk_idx < 0) {
-        self.set_context_message("Compile failed: no Program Disk.", 3);
-        game.log("No Program Disk in inventory.");
+        self.set_context_message("Compile failed: no Cipher Disk.", 3);
+        game.log("No Cipher Disk in inventory.");
         return;
     }
 
