@@ -167,8 +167,11 @@ void HackingSystem::tick(Game& game) {
         if (cyberdeck_overheated(deck)) {
             // Force reboot — RAM is wiped, all sustains lose their RAM
             // reservation (it's gone with the reboot) and are dropped.
+            // Apply a 1-turn DeckRebooting effect so no programs can fire
+            // while the deck cycles back up.
             cyberdeck_force_reboot(deck);
             sustains_.clear();
+            add_effect(game.player().effects, make_deck_rebooting_ge());
             game.log("Cyberdeck overheated — forced reboot. RAM lost.");
         } else {
             // Tick sustains: re-fire the body at scaled intensity, decrement

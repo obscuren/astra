@@ -271,6 +271,12 @@ std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty
     }
     auto& deck = *(*deck_slot)->deck;
 
+    // Reboot lock: the deck is cycling back up after an overheat — refuse
+    // to fire anything until the DeckRebooting effect expires.
+    if (has_effect(game.player().effects, EffectId::DeckRebooting)) {
+        return "Cyberdeck rebooting — wait one turn.";
+    }
+
     // Charge heat + reserve RAM up front; heat-cap overflow triggers the
     // existing force_reboot path on the next tick check.
     cyberdeck_add_heat(deck, prog.heat_cost);

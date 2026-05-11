@@ -49,6 +49,7 @@ enum class EffectId : uint32_t {
     BlackIceShock       = 403,    // Grid: debuff after non-black ICE death
     IceBreakerCharge    = 404,    // Grid: IceBreaker program charge active
     GhostCloak          = 405,    // Grid: GhostProtocol cloak active
+    DeckRebooting       = 406,    // Cyberdeck overheated — no programs may fire
 };
 
 struct Effect {
@@ -132,6 +133,7 @@ Effect make_hearty_ge();
 Effect make_emp_disabled_ge(int duration);
 Effect make_hijacked_ge(int duration);
 Effect make_grid_exposed_ge();
+Effect make_deck_rebooting_ge();    // 1-turn cyberdeck reboot block
 Effect make_blackice_shock_short_ge();   // 20 ticks
 Effect make_blackice_shock_long_ge();    // 60 ticks; -1 av/quickness
 Effect make_ghost_cloak_ge(int duration);
