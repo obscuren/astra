@@ -280,6 +280,11 @@ public:
     int& cyberdeck_load_popup_cursor_mut() { return cyberdeck_load_popup_cursor_; }
     void cyberdeck_load_popup_open()  { cyberdeck_load_popup_ = true;  cyberdeck_load_popup_cursor_ = 0; }
     void cyberdeck_load_popup_close() { cyberdeck_load_popup_ = false; }
+    // Generic transient status message — same surface every PDA tab uses.
+    void set_context_message(const std::string& msg, int ticks = 3) {
+        context_message_ = msg;
+        context_msg_timer_ = ticks;
+    }
 
 private:
     void draw_cyberdeck(UIContext& ctx);

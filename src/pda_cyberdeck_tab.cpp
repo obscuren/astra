@@ -320,7 +320,10 @@ void exit_body(PdaScreen& self) {
 }
 
 void compile_action(PdaScreen& self, Game& game) {
-    if (self.compiler_build().empty()) return;
+    if (self.compiler_build().empty()) {
+        self.set_context_message("Compile: empty build.", 3);
+        return;
+    }
 
     // Find a program disk in inventory
     int disk_idx = -1;
@@ -332,6 +335,7 @@ void compile_action(PdaScreen& self, Game& game) {
         }
     }
     if (disk_idx < 0) {
+        self.set_context_message("Compile failed: no Program Disk.", 3);
         game.log("No Program Disk in inventory.");
         return;
     }
@@ -363,6 +367,11 @@ void compile_action(PdaScreen& self, Game& game) {
     const auto& saved = inv.back();
     game.log("Compiled: " + saved.name + ".");
 
+    // Build a status line that includes the pattern (if any), so the on-tab
+    // result is informative without forcing the player to read the world log.
+    std::string status = "Compiled: " + saved.name;
+    bool first_pattern = true;
+
     // Pattern discovery
     if (saved.compiled_program.has_value()) {
         for (const auto& pat : saved.compiled_program->patterns_lit) {
@@ -372,9 +381,15 @@ void compile_action(PdaScreen& self, Game& game) {
             if (!already) {
                 self.player().discovered_patterns.push_back(pat);
                 game.log("Pattern discovered: " + pat + "!");
+                status += first_pattern ? "  [Discovered: " : ", ";
+                status += pat;
+                first_pattern = false;
             }
         }
+        if (!first_pattern) status += "]";
     }
+
+    self.set_context_message(status + ".", 4);
 
     // Reset workbench
     self.compiler_build_mut().clear();
@@ -498,8 +513,10 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                 if (cyberdeck_slot_cursor_ < deck.stats.slots) {
                     const Item* prog_item = progs[cyberdeck_load_popup_cursor_].second;
                     deck.loaded[cyberdeck_slot_cursor_].program_def_id = prog_item->item_def_id;
-                    if (game_) game_->log("Loaded " + prog_item->name + " into slot "
-                                         + std::to_string(cyberdeck_slot_cursor_ + 1) + ".");
+                    std::string msg = "Loaded " + prog_item->name + " into slot "
+                                    + std::to_string(cyberdeck_slot_cursor_ + 1) + ".";
+                    if (game_) game_->log(msg);
+                    set_context_message(msg, 3);
                 }
             }
             cyberdeck_load_popup_close();
@@ -543,7 +560,12 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                 // Unload the program in the current slot.
                 if (deck_slot && *deck_slot && (*deck_slot)->deck &&
                     cyberdeck_slot_cursor_ < max_slot) {
-                    (*deck_slot)->deck->loaded[cyberdeck_slot_cursor_].program_def_id = 0;
+                    auto& sl = (*deck_slot)->deck->loaded[cyberdeck_slot_cursor_];
+                    if (sl.program_def_id != 0) {
+                        sl.program_def_id = 0;
+                        set_context_message(
+                            "Unloaded slot " + std::to_string(cyberdeck_slot_cursor_ + 1) + ".", 3);
+                    }
                 }
                 break;
             default: break;
