@@ -100,70 +100,133 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
 
 // ── Compiler helpers ──────────────────────────────────────────────────────
 
-// Render a fragment chain recursively. Returns the next free y row.
-// `cursor_path` describes the insertion path from the OUTERMOST chain inward;
-// when it's empty, this chain is where the next append lands and we draw a
-// ▸ insertion marker at the end so the user can see the cursor.
-int render_chain(UIContext& ctx, int x, int y,
-                 const std::vector<ProgramNode>& chain,
-                 const std::vector<int>& cursor_path,
-                 int /*depth*/) {
-    bool is_active_chain = cursor_path.empty();
+// One edit position in the build tree — either a gap (blue insertion line) or
+// on a node (delete/edit target). Linear ordering matches depth-first walk.
+struct EditPos {
+    std::vector<int> path;   // path to the chain (body) this position lives in
+    int slot = 0;            // 0..2*chain.size(); even = gap, odd = on-node
+};
+
+bool pos_is_gap(int slot) { return (slot % 2) == 0; }
+int  pos_node_index(int slot) { return (slot - 1) / 2; }
+int  pos_gap_index(int slot) { return slot / 2; }
+
+// Flatten the tree into the depth-first ordered list of edit positions.
+void flatten_positions(const std::vector<ProgramNode>& chain,
+                       std::vector<int> path,
+                       std::vector<EditPos>& out) {
+    int n = static_cast<int>(chain.size());
+    // gap 0 (above first node)
+    out.push_back({path, 0});
+    for (int i = 0; i < n; ++i) {
+        // on node
+        out.push_back({path, 2 * i + 1});
+        // descend into container body
+        const FragmentDef* def = find_fragment(chain[i].fragment);
+        if (def && def->kind == FragmentKind::Container) {
+            auto child = path;
+            child.push_back(i);
+            flatten_positions(chain[i].body, child, out);
+        }
+        // gap after this node
+        out.push_back({path, 2 * (i + 1)});
+    }
+}
+
+// Walk the tree following `path` and return a mutable reference to the chain.
+std::vector<ProgramNode>* chain_at_path(std::vector<ProgramNode>& root,
+                                        const std::vector<int>& path) {
+    std::vector<ProgramNode>* chain = &root;
+    for (int idx : path) {
+        if (idx < 0 || idx >= static_cast<int>(chain->size())) return nullptr;
+        chain = &(*chain)[idx].body;
+    }
+    return chain;
+}
+
+const std::vector<ProgramNode>* chain_at_path(const std::vector<ProgramNode>& root,
+                                              const std::vector<int>& path) {
+    const std::vector<ProgramNode>* chain = &root;
+    for (int idx : path) {
+        if (idx < 0 || idx >= static_cast<int>(chain->size())) return nullptr;
+        chain = &(*chain)[idx].body;
+    }
+    return chain;
+}
+
+// Find current cursor index in the flattened list (0 if no match).
+int locate_cursor(const std::vector<EditPos>& flat,
+                  const std::vector<int>& path, int slot) {
+    for (int i = 0; i < static_cast<int>(flat.size()); ++i) {
+        if (flat[i].path == path && flat[i].slot == slot) return i;
+    }
+    return 0;
+}
+
+// Render a chain. When `cursor_path` matches this chain's path, draw gap-line
+// and on-node markers per the cursor's current slot; in other chains the gaps
+// are dim hints and nodes are uncoloured.
+int render_chain_edit(UIContext& ctx, int x, int y,
+                      const std::vector<ProgramNode>& chain,
+                      const std::vector<int>& self_path,
+                      const std::vector<int>& cursor_path,
+                      int cursor_slot,
+                      bool build_focus) {
+    bool active = (self_path == cursor_path);
+
+    auto draw_gap = [&](int gap_index) {
+        bool sel = active && build_focus && (cursor_slot == 2 * gap_index);
+        const char* line = sel
+            ? "\xe2\x96\xac\xe2\x96\xac\xe2\x96\xac\xe2\x96\xac\xe2\x96\xac"  // ▬▬▬▬▬
+            : "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"; // ─────
+        ctx.text(x, y, line, sel ? Color::Cyan : Color::DarkGray);
+        ++y;
+    };
 
     for (size_t i = 0; i < chain.size(); ++i) {
-        const auto& n   = chain[i];
-        const FragmentDef* def = find_fragment(n.fragment);
-        bool on_path = !cursor_path.empty() &&
-                       cursor_path.front() == static_cast<int>(i);
+        draw_gap(static_cast<int>(i));
 
-        // Inter-node flow arrow (between any two peer nodes — visualises pipeline)
-        if (i > 0) {
-            ctx.text(x + 1, y++, "\xe2\x86\x93", Color::DarkGray);  // ↓
-        }
+        const auto& node = chain[i];
+        const FragmentDef* def = find_fragment(node.fragment);
+        bool on_node = active && (cursor_slot == 2 * static_cast<int>(i) + 1);
+        std::string marker = on_node ? "\xe2\x96\xb8 " : "  ";  // ▸
+        Color nc = (on_node && build_focus) ? Color::Cyan : Color::Default;
 
         if (def && def->kind == FragmentKind::Container) {
-            std::string header = std::string(BoxDraw::TL) + "\xe2\x94\x80 "
-                               + def->display
-                               + "(" + std::to_string(n.param) + ") \xe2\x94\x80";
-            ctx.text(x, y, header, on_path ? Color::Cyan : Color::White);
+            // Header
+            std::string header = marker + std::string(BoxDraw::TL)
+                               + "\xe2\x94\x80 " + def->display
+                               + "(" + std::to_string(node.param) + ") "
+                               + "\xe2\x94\x80";
+            ctx.text(x, y, header, (on_node && build_focus) ? Color::Cyan : Color::White);
             ++y;
 
-            std::vector<int> sub_path;
-            if (on_path && cursor_path.size() > 1)
-                sub_path.assign(cursor_path.begin() + 1, cursor_path.end());
-            y = render_chain(ctx, x + 2, y, n.body,
-                             on_path ? sub_path : std::vector<int>{-1}, 1);
+            std::vector<int> child = self_path;
+            child.push_back(static_cast<int>(i));
+            y = render_chain_edit(ctx, x + 2, y, node.body,
+                                  child, cursor_path, cursor_slot, build_focus);
 
-            ctx.text(x, y, std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80",
-                     on_path ? Color::Cyan : Color::White);
+            std::string footer = "  " + std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80";
+            ctx.text(x, y, footer, Color::White);
             ++y;
         } else {
             std::string label;
             if (def) {
                 if (def->takes_param)
-                    label = "[" + std::string(def->display) + "(" + std::to_string(n.param) + ")]";
+                    label = marker + "[" + std::string(def->display)
+                          + "(" + std::to_string(node.param) + ")]";
                 else
-                    label = "[" + std::string(def->display) + "]";
+                    label = marker + "[" + std::string(def->display) + "]";
             } else {
-                label = "[???]";
+                label = marker + "[???]";
             }
-            ctx.text(x, y, label, on_path ? Color::Cyan : Color::Default);
+            ctx.text(x, y, label, nc);
             ++y;
         }
     }
 
-    if (chain.empty()) {
-        if (is_active_chain) {
-            ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);  // ▸ standalone insertion marker
-        } else {
-            ctx.text(x, y, "(empty)", Color::DarkGray);
-        }
-        ++y;
-    } else if (is_active_chain) {
-        ctx.text(x + 1, y++, "\xe2\x86\x93", Color::DarkGray);   // ↓ flow into next
-        ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);              // ▸ cursor
-        ++y;
-    }
+    // Final gap below the last node (or the only gap if chain is empty).
+    draw_gap(static_cast<int>(chain.size()));
     return y;
 }
 
@@ -234,14 +297,22 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
         ctx.text(col_p + 1, yp++, line, color);
     }
 
-    ctx.text(col_p + 1, ctx.height() - 4, " \xe2\x86\x91\xe2\x86\x93 navigate   Enter: append",  Color::DarkGray);
-    ctx.text(col_p + 1, ctx.height() - 3, " \xe2\x86\x90\xe2\x86\x92 +/- N    b/B enter/exit body", Color::DarkGray);
-    ctx.text(col_p + 1, ctx.height() - 2, " c compile",                                          Color::DarkGray);
-
     // ── Middle pane: build ────────────────────────────────────────────────
-    render_chain(ctx, col_b + 1, 5,
-                 self.compiler_build(),
-                 self.compiler_cursor_path(), 0);
+    bool build_focus = self.compiler_focus() == PdaScreen::CompilerFocus::Build;
+    render_chain_edit(ctx, col_b + 1, 5,
+                      self.compiler_build(),
+                      /*self_path=*/{},
+                      self.build_cursor_path(),
+                      self.build_cursor_slot(),
+                      build_focus);
+
+    // ── Footer hint: focus toggle ────────────────────────────────────────
+    const char* focus_label = build_focus ? "Editor"   : "Fragment";
+    const char* focus_next  = build_focus ? "Fragment" : "Editor";
+    std::string footer = " [s] focus: " + std::string(focus_label)
+                       + " (\xe2\x86\x92 " + std::string(focus_next) + ")"
+                       + "    [c] compile";
+    ctx.text(2, ctx.height() - 2, footer, Color::DarkGray);
 
     // ── Right pane: live preview ─────────────────────────────────────────
     auto cp = compile_program(self.compiler_build(), "");
@@ -268,61 +339,92 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
 
 // ── Compiler key-handling helpers ──────────────────────────────────────────
 
-// Return pointer to the node at the cursor (last node in the current chain).
-ProgramNode* node_at_cursor(PdaScreen& self) {
-    const auto& path = self.compiler_cursor_path();
-    if (path.empty()) {
-        auto& chain = self.compiler_build_mut();
-        if (chain.empty()) return nullptr;
-        return &chain.back();
-    }
-    auto* chain = &self.compiler_build_mut();
-    for (size_t i = 0; i + 1 < path.size(); ++i) {
-        if (path[i] < 0 || path[i] >= static_cast<int>(chain->size())) return nullptr;
-        chain = &(*chain)[path[i]].body;
-    }
-    int last = path.back();
-    if (last < 0 || last >= static_cast<int>(chain->size())) return nullptr;
-    return &(*chain)[last];
+// Return pointer to the node the cursor sits ON (or nullptr if cursor is on a gap).
+ProgramNode* cursor_on_node(PdaScreen& self) {
+    if (pos_is_gap(self.build_cursor_slot())) return nullptr;
+    auto* chain = chain_at_path(self.compiler_build_mut(), self.build_cursor_path());
+    if (!chain) return nullptr;
+    int idx = pos_node_index(self.build_cursor_slot());
+    if (idx < 0 || idx >= static_cast<int>(chain->size())) return nullptr;
+    return &(*chain)[idx];
 }
 
-void append_fragment(PdaScreen& self, FragmentId id) {
+// Insert a fragment at the cursor. Gap → insert at gap_index; on-node →
+// insert AFTER the current node. Cursor advances to the gap below the new
+// node so the user can keep "typing" forward.
+void insert_at_cursor(PdaScreen& self, FragmentId id) {
     int ceiling = max_program_fragments(self.player());
     if (ceiling == 0) return;
 
-    const auto& path = self.compiler_cursor_path();
-    auto* chain = &self.compiler_build_mut();
-    for (int idx : path) {
-        if (idx < 0 || idx >= static_cast<int>(chain->size())) return;
-        chain = &(*chain)[idx].body;
+    auto* chain = chain_at_path(self.compiler_build_mut(), self.build_cursor_path());
+    if (!chain) return;
+
+    // Top-level ceiling check (limits fragments per top-level program).
+    if (self.build_cursor_path().empty()
+        && static_cast<int>(chain->size()) >= ceiling) {
+        self.set_context_message("Program ceiling reached.", 3);
+        return;
     }
-    if (path.empty() && static_cast<int>(chain->size()) >= ceiling) return;
 
     const FragmentDef* def = find_fragment(id);
     if (!def) return;
     ProgramNode n;
     n.fragment = id;
     n.param    = def->takes_param ? def->default_n : 0;
-    chain->push_back(n);
-}
 
-void enter_body(PdaScreen& self) {
-    auto& path  = self.compiler_cursor_path_mut();
-    auto* chain = &self.compiler_build_mut();
-    for (int idx : path) {
-        if (idx < 0 || idx >= static_cast<int>(chain->size())) return;
-        chain = &(*chain)[idx].body;
+    int insert_at;
+    if (pos_is_gap(self.build_cursor_slot())) {
+        insert_at = pos_gap_index(self.build_cursor_slot());
+    } else {
+        insert_at = pos_node_index(self.build_cursor_slot()) + 1;
     }
-    if (chain->empty()) return;
-    int last = static_cast<int>(chain->size()) - 1;
-    const FragmentDef* def = find_fragment((*chain)[last].fragment);
-    if (!def || def->kind != FragmentKind::Container) return;
-    path.push_back(last);
+    chain->insert(chain->begin() + insert_at, std::move(n));
+    // Advance cursor to gap BELOW the new node.
+    self.build_cursor_slot_mut() = 2 * (insert_at + 1);
 }
 
-void exit_body(PdaScreen& self) {
-    auto& path = self.compiler_cursor_path_mut();
-    if (!path.empty()) path.pop_back();
+// Delete according to cursor position.
+//   Gap K > 0  → delete node at K-1 in the chain at path; cursor stays at gap K-1.
+//   Gap K == 0 → no-op (no node above).
+//   On-node K  → delete node at K; cursor moves to gap K.
+void delete_at_cursor(PdaScreen& self) {
+    auto* chain = chain_at_path(self.compiler_build_mut(), self.build_cursor_path());
+    if (!chain) return;
+
+    if (pos_is_gap(self.build_cursor_slot())) {
+        int g = pos_gap_index(self.build_cursor_slot());
+        if (g == 0) return;
+        chain->erase(chain->begin() + (g - 1));
+        self.build_cursor_slot_mut() = 2 * (g - 1);
+    } else {
+        int n = pos_node_index(self.build_cursor_slot());
+        if (n < 0 || n >= static_cast<int>(chain->size())) return;
+        chain->erase(chain->begin() + n);
+        self.build_cursor_slot_mut() = 2 * n;
+    }
+}
+
+// Clamp the cursor into the tree after structural mutation.
+void clamp_cursor(PdaScreen& self) {
+    auto& path = self.build_cursor_path_mut();
+    while (!path.empty()) {
+        auto* parent = chain_at_path(self.compiler_build_mut(),
+                                     std::vector<int>(path.begin(), path.end() - 1));
+        if (!parent || path.back() < 0
+            || path.back() >= static_cast<int>(parent->size())) {
+            path.pop_back();
+            continue;
+        }
+        break;
+    }
+    auto* chain = chain_at_path(self.compiler_build_mut(), path);
+    if (!chain) {
+        self.build_cursor_slot_mut() = 0;
+        return;
+    }
+    int max_slot = 2 * static_cast<int>(chain->size());
+    if (self.build_cursor_slot() < 0)         self.build_cursor_slot_mut() = 0;
+    if (self.build_cursor_slot() > max_slot)  self.build_cursor_slot_mut() = max_slot;
 }
 
 void compile_action(PdaScreen& self, Game& game) {
@@ -399,7 +501,8 @@ void compile_action(PdaScreen& self, Game& game) {
 
     // Reset workbench
     self.compiler_build_mut().clear();
-    self.compiler_cursor_path_mut().clear();
+    self.build_cursor_path_mut().clear();
+    self.build_cursor_slot_mut() = 0;
 }
 
 // Build a list of (inventory_index, item_pointer) pairs for compiled programs.
@@ -608,8 +711,8 @@ void PdaScreen::handle_cyberdeck_key(int key) {
 
     if (cyberdeck_show_patterns_overlay_) return;
 
+    // ── Compiler input ──────────────────────────────────────────────────
     const auto& palette = fragment_catalog();
-    // Helpers — palette cursor must always sit on a real fragment (skip None).
     auto palette_step = [&](int dir) {
         int n = static_cast<int>(palette.size());
         for (int steps = 0; steps < n; ++steps) {
@@ -619,42 +722,56 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             if (palette[compiler_palette_cursor_].id != FragmentId::None) return;
         }
     };
+
+    // Build a flattened position list for build-cursor navigation.
+    auto build_step = [&](int dir) {
+        std::vector<EditPos> flat;
+        flatten_positions(compiler_build_, {}, flat);
+        int idx = locate_cursor(flat, build_cursor_path_, build_cursor_slot_);
+        int next = idx + dir;
+        if (next < 0) next = 0;
+        if (next >= static_cast<int>(flat.size())) next = static_cast<int>(flat.size()) - 1;
+        build_cursor_path_ = flat[next].path;
+        build_cursor_slot_ = flat[next].slot;
+    };
+
+    // 's' toggles focus between Fragments palette and Build editor.
+    if (key == 's') {
+        compiler_focus_ = (compiler_focus_ == CompilerFocus::Palette)
+                        ? CompilerFocus::Build
+                        : CompilerFocus::Palette;
+        return;
+    }
+
     switch (key) {
         case KEY_UP:
-            palette_step(-1);
+            if (compiler_focus_ == CompilerFocus::Palette) palette_step(-1);
+            else                                            build_step(-1);
             break;
         case KEY_DOWN:
-            palette_step(+1);
+            if (compiler_focus_ == CompilerFocus::Palette) palette_step(+1);
+            else                                            build_step(+1);
             break;
         case '\n': case '\r': case ' ': {
+            // Insert palette-selected fragment at the build cursor.
             if (compiler_palette_cursor_ >= 0 &&
                 compiler_palette_cursor_ < static_cast<int>(palette.size())) {
                 FragmentId id = palette[compiler_palette_cursor_].id;
-                if (id != FragmentId::None)
-                    append_fragment(*this, id);
+                if (id != FragmentId::None) {
+                    insert_at_cursor(*this, id);
+                    clamp_cursor(*this);
+                }
             }
             break;
         }
-        case '\b': case 127: {
-            // Remove last node in current chain
-            auto* chain = &compiler_build_;
-            for (int idx : compiler_cursor_path_) chain = &(*chain)[idx].body;
-            if (!chain->empty()) chain->pop_back();
-            // If we just emptied a body we were inside, pop back out
-            if (chain->empty() && !compiler_cursor_path_.empty())
-                compiler_cursor_path_.pop_back();
-            break;
-        }
-        case 'b':
-            enter_body(*this);
-            break;
-        case 'B':
-            exit_body(*this);
+        case '\b': case 127:
+            delete_at_cursor(*this);
+            clamp_cursor(*this);
             break;
         case '+':
         case '=':
         case KEY_RIGHT: {
-            ProgramNode* n = node_at_cursor(*this);
+            ProgramNode* n = cursor_on_node(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
                 if (def && def->takes_param && n->param < def->max_n)
@@ -665,7 +782,7 @@ void PdaScreen::handle_cyberdeck_key(int key) {
         case '-':
         case '_':
         case KEY_LEFT: {
-            ProgramNode* n = node_at_cursor(*this);
+            ProgramNode* n = cursor_on_node(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
                 if (def && def->takes_param && n->param > def->min_n)

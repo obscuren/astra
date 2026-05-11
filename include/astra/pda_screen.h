@@ -253,13 +253,26 @@ private:
     CyberdeckSubscreen cyberdeck_subscreen_ = CyberdeckSubscreen::Deck;
     bool cyberdeck_show_patterns_overlay_ = false;
 
+public:
+    // Compiler focus — which pane receives Up/Down navigation.
+    enum class CompilerFocus : uint8_t { Palette, Build };
+private:
+
     // Compiler workbench state — owned by PdaScreen so the tab can be
     // closed/reopened without losing the work-in-progress build.
+    CompilerFocus compiler_focus_ = CompilerFocus::Palette;
+
     std::vector<ProgramNode> compiler_build_;
-    // Path into the build (chain of indices) showing where the cursor sits.
-    // Empty path = top level. Path [0] = inside compiler_build_[0].body.
-    std::vector<int>         compiler_cursor_path_;
-    int                      compiler_palette_cursor_ = 1;  // skip FragmentId::None at index 0
+
+    // Build-pane edit cursor. The cursor walks linear "edit positions" in
+    // depth-first order: above the first node, on first node, above second
+    // (or in first's body), on second, ..., below the last. Even slot = a
+    // gap (insertion line); odd slot = on a node (deletion target).
+    //   build_cursor_path_  identifies which body/chain the cursor sits in
+    //   build_cursor_slot_  is the 0..2N slot index within that chain
+    std::vector<int> build_cursor_path_;
+    int              build_cursor_slot_       = 0;
+    int              compiler_palette_cursor_ = 1;  // skip FragmentId::None at index 0
 
     // Deck sub-screen — slot cursor + popup-load state.
     int  cyberdeck_slot_cursor_   = 0;
@@ -269,10 +282,13 @@ private:
 public:
     int compiler_palette_cursor() const { return compiler_palette_cursor_; }
     const std::vector<ProgramNode>& compiler_build() const { return compiler_build_; }
-    const std::vector<int>& compiler_cursor_path() const { return compiler_cursor_path_; }
     std::vector<ProgramNode>& compiler_build_mut() { return compiler_build_; }
-    std::vector<int>& compiler_cursor_path_mut() { return compiler_cursor_path_; }
     int& compiler_palette_cursor_mut() { return compiler_palette_cursor_; }
+    CompilerFocus compiler_focus() const { return compiler_focus_; }
+    const std::vector<int>& build_cursor_path() const { return build_cursor_path_; }
+    int  build_cursor_slot() const { return build_cursor_slot_; }
+    std::vector<int>& build_cursor_path_mut() { return build_cursor_path_; }
+    int& build_cursor_slot_mut() { return build_cursor_slot_; }
     int  cyberdeck_slot_cursor() const { return cyberdeck_slot_cursor_; }
     int& cyberdeck_slot_cursor_mut() { return cyberdeck_slot_cursor_; }
     bool cyberdeck_load_popup() const { return cyberdeck_load_popup_; }
