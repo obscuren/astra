@@ -1306,17 +1306,23 @@ void Game::render_deck_indicator() {
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
     const auto& deck = *(*deck_slot)->deck;
 
-    // Shared rendering helper: ──┤ LABEL N/M ├── + a bar covering the rest
-    // of the row width.
+    // Shared rendering helper. Pads the label and value to fixed widths so
+    // the [bar] column aligns between rows ("RAM:" + "12/12" and "HEAT:"
+    // + "0/12" otherwise drift sideways).
+    constexpr int kLabelW = 5;   // widest label is "HEAT:" (5 chars)
+    constexpr int kValueW = 5;   // widest value is e.g. "12/12" (5 chars)
     auto draw_bar = [&](const Rect& rect, const char* label,
                         int value, int max, UITag tag) {
         if (rect.w <= 0) return;
         UIContext ctx(renderer_.get(), rect);
+        std::string padded_label = label;
+        while (static_cast<int>(padded_label.size()) < kLabelW) padded_label += ' ';
         std::string val = std::to_string(value) + "/" + std::to_string(max);
-        ctx.label_value({.x = 1, .y = 0, .label = label,
+        while (static_cast<int>(val.size()) < kValueW) val += ' ';
+        ctx.label_value({.x = 1, .y = 0, .label = padded_label.c_str(),
                          .label_tag = UITag::TextDim,
                          .value = val, .value_tag = tag});
-        int bar_start = 1 + 5 + static_cast<int>(val.size()) + 1;   // "RAM:" = 4 chars + space
+        int bar_start = 1 + kLabelW + 1 + kValueW + 1;
         int bar_w = ctx.width() - bar_start - 2;
         if (bar_w > 0) {
             ctx.progress_bar({.x = bar_start, .y = 0, .width = bar_w,
