@@ -117,6 +117,7 @@ static const ClassTemplate s_gridrunner = {
     {0, 5, 2, 0},                 // electrical +5, cold +2
     -2, 8,                        // -2 HP (glass cannon), +8 carry (room for deck + cells)
     {SkillId::Cat_Hacking,        // gate to jack in
+     SkillId::Programming1,       // unlocks the Cyberdeck Compiler (3-fragment ceiling)
      SkillId::Intrusion,          // White ICE Trace +1 not +2
      SkillId::GhostProtocol,      // first program each Grid run is heatless
      SkillId::Cat_ShortBlade},    // bare-bones meatspace defense
