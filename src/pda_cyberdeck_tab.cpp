@@ -527,7 +527,7 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                 ++cyberdeck_load_popup_cursor_;
             return;
         }
-        if (key == '\n' || key == '\r') {
+        if (key == '\n' || key == '\r' || key == ' ') {
             // Load the selected compiled program into the cursor's slot.
             auto* deck_slot = player_->equipment.equipped_cyberdeck();
             if (deck_slot && *deck_slot && (*deck_slot)->deck &&
@@ -626,7 +626,7 @@ void PdaScreen::handle_cyberdeck_key(int key) {
         case KEY_DOWN:
             palette_step(+1);
             break;
-        case '\n': case '\r': {
+        case '\n': case '\r': case ' ': {
             if (compiler_palette_cursor_ >= 0 &&
                 compiler_palette_cursor_ < static_cast<int>(palette.size())) {
                 FragmentId id = palette[compiler_palette_cursor_].id;
