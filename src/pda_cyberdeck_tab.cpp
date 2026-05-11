@@ -17,6 +17,159 @@ namespace astra {
 
 namespace {
 
+// Stylized "chipset" ornament. Verbatim template from /tmp/cyberdeck.
+// 17 wide × 9 tall. Cogs render in magenta with the centre cog in gold;
+// solid block tabs render in cyan; bullet dots in gold; frame in magenta.
+//
+//   ╔───────█───█───╗
+//   │ ┌─•─┘ │ ┌─│─┐ │
+//   ▉───⚙─┐ ⚙─┐ ⚙ • │
+//   │ └─┌─+─┘ +─┘ └─│
+//   ▉───⚙─┐ ⚙ └─⚙───▉
+//   │─┐ ┌─+ ┌─+─┘─┐ │
+//   │ • ⚙ └─⚙ └─⚙───▉
+//   │ └─│─┘ │ ┌─•─┘ │
+//   ╚───█───█───────╝
+void draw_chip_ornament(UIContext& ctx, int x0, int y0) {
+    static const std::vector<std::string> rows = {
+        "\xe2\x95\x94\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x88\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x88\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x95\x97",
+        "\xe2\x94\x82 \xe2\x94\x8c\xe2\x94\x80\xe2\x80\xa2\xe2\x94\x80\xe2\x94\x98 \xe2\x94\x82 \xe2\x94\x8c\xe2\x94\x80\xe2\x94\x82\xe2\x94\x80\xe2\x94\x90 \xe2\x94\x82",
+        "\xe2\x96\x89\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x9a\x99\xe2\x94\x80\xe2\x94\x90 \xe2\x9a\x99\xe2\x94\x80\xe2\x94\x90 \xe2\x9a\x99 \xe2\x80\xa2 \xe2\x94\x82",
+        "\xe2\x94\x82 \xe2\x94\x94\xe2\x94\x80\xe2\x94\x8c\xe2\x94\x80+\xe2\x94\x80\xe2\x94\x98 +\xe2\x94\x80\xe2\x94\x98 \xe2\x94\x94\xe2\x94\x80\xe2\x94\x82",
+        "\xe2\x96\x89\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x9a\x99\xe2\x94\x80\xe2\x94\x90 \xe2\x9a\x99 \xe2\x94\x94\xe2\x94\x80\xe2\x9a\x99\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x89",
+        "\xe2\x94\x82\xe2\x94\x80\xe2\x94\x90 \xe2\x94\x8c\xe2\x94\x80+ \xe2\x94\x8c\xe2\x94\x80+\xe2\x94\x80\xe2\x94\x98\xe2\x94\x80\xe2\x94\x90 \xe2\x94\x82",
+        "\xe2\x94\x82 \xe2\x80\xa2 \xe2\x9a\x99 \xe2\x94\x94\xe2\x94\x80\xe2\x9a\x99 \xe2\x94\x94\xe2\x94\x80\xe2\x9a\x99\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x89",
+        "\xe2\x94\x82 \xe2\x94\x94\xe2\x94\x80\xe2\x94\x82\xe2\x94\x80\xe2\x94\x98 \xe2\x94\x82 \xe2\x94\x8c\xe2\x94\x80\xe2\x80\xa2\xe2\x94\x80\xe2\x94\x98 \xe2\x94\x82",
+        "\xe2\x95\x9a\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x88\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x96\x88\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x95\x9d",
+    };
+
+    const Color frame  = Color::Magenta;
+    const Color cog    = Color::Magenta;
+    const Color center = Color::BrightYellow;
+    const Color block  = Color::Cyan;
+    const Color dot    = Color::BrightYellow;
+
+    int cog_count = 0;
+    for (int row = 0; row < static_cast<int>(rows.size()); ++row) {
+        const std::string& line = rows[row];
+        int col = 0;
+        for (size_t i = 0; i < line.size(); ) {
+            unsigned char c0 = static_cast<unsigned char>(line[i]);
+            int len = 1;
+            uint32_t cp = c0;
+            if      ((c0 & 0x80) == 0x00) { len = 1; cp = c0; }
+            else if ((c0 & 0xE0) == 0xC0) { len = 2; cp = c0 & 0x1F; }
+            else if ((c0 & 0xF0) == 0xE0) { len = 3; cp = c0 & 0x0F; }
+            else if ((c0 & 0xF8) == 0xF0) { len = 4; cp = c0 & 0x07; }
+            for (int k = 1; k < len; ++k) {
+                cp = (cp << 6) | (static_cast<unsigned char>(line[i + k]) & 0x3F);
+            }
+
+            // Spaces leave the background untouched.
+            if (cp == ' ') { ++col; i += len; continue; }
+
+            Color color = frame;
+            if (cp == 0x2699) {                          // ⚙
+                color = (cog_count == 4) ? center : cog;
+                ++cog_count;
+            } else if (cp == 0x2588 || cp == 0x2589) {   // █ ▉
+                color = block;
+            } else if (cp == 0x2022) {                   // •
+                color = dot;
+            }
+
+            ctx.text(x0 + col, y0 + row, line.substr(i, len), color);
+            i += len;
+            ++col;
+        }
+    }
+}
+
+// One cartridge "card" for a cyberdeck slot. 11 wide × 3 tall frame plus a
+// 1-row name label and 1-row cost subline below. Border colour signals state:
+// yellow when selected, cyan when loaded, dark-gray when empty.
+void draw_slot_card(UIContext& ctx, int x, int y, int idx,
+                    bool loaded, const std::string& name,
+                    int heat_cost, bool selected) {
+    constexpr int w = 11;
+    Color border = selected ? Color::Yellow
+                 : loaded   ? Color::Cyan
+                            : Color::DarkGray;
+
+    // Top border — ┌──┤ N ├──┐ with the slot number embedded.
+    ctx.text(x,     y, BoxDraw::TL,                     border);
+    ctx.text(x + 1, y, "\xe2\x94\x80\xe2\x94\x80",      border);   // ──
+    ctx.text(x + 3, y, "\xe2\x94\xa4",                  border);   // ┤
+    ctx.text(x + 4, y, " " + std::to_string(idx + 1) + " ",
+             selected ? Color::Yellow : Color::White);
+    ctx.text(x + 7, y, "\xe2\x94\x9c",                  border);   // ├
+    ctx.text(x + 8, y, "\xe2\x94\x80\xe2\x94\x80",      border);
+    ctx.text(x + w - 1, y, BoxDraw::TR,                 border);
+
+    // Content row — side rails + centered glyph.
+    ctx.text(x,         y + 1, BoxDraw::V, border);
+    int mid = x + w / 2;
+    if (loaded) {
+        ctx.text(mid, y + 1, "\xe2\x96\xa3", Color::Cyan);          // ▣
+    } else {
+        ctx.text(mid, y + 1, "\xc2\xb7", Color::DarkGray);          // ·
+    }
+    ctx.text(x + w - 1, y + 1, BoxDraw::V, border);
+
+    // Bottom border.
+    ctx.text(x, y + 2, BoxDraw::BL, border);
+    for (int i = 1; i < w - 1; ++i)
+        ctx.text(x + i, y + 2, BoxDraw::H, border);
+    ctx.text(x + w - 1, y + 2, BoxDraw::BR, border);
+
+    // Name label — truncate to fit the card width.
+    std::string label = loaded ? name : std::string("(empty)");
+    constexpr int max_label = w;
+    if (static_cast<int>(label.size()) > max_label) {
+        label = label.substr(0, max_label - 2) + "..";
+    }
+    int label_x = x + (w - static_cast<int>(label.size())) / 2;
+    ctx.text(label_x, y + 3, label, loaded ? Color::Default : Color::DarkGray);
+
+    // Heat-cost subline — only meaningful for loaded programs with a known cost.
+    if (loaded && heat_cost > 0) {
+        std::string cost = std::to_string(heat_cost) + " heat";
+        int cost_x = x + (w - static_cast<int>(cost.size())) / 2;
+        ctx.text(cost_x, y + 4, cost, Color::Yellow);
+    }
+}
+
+// Render a horizontal bar like ▮▮▮▮▯▯▯▯▯▯▯▯ <cur>/<max>.
+// Filled cells use `fill_color`, empty cells stay DarkGray; the numeric
+// "cur/max" tail right-pads `cur` so the slash always lines up.
+void draw_bar(UIContext& ctx, int x, int y, int cur, int max,
+              int width, Color fill_color) {
+    int filled = 0;
+    if (max > 0) {
+        filled = (cur * width + max / 2) / max;
+        if (filled < 0) filled = 0;
+        if (filled > width) filled = width;
+    }
+    int cx = x;
+    for (int i = 0; i < width; ++i) {
+        const char* glyph = (i < filled) ? "\xe2\x96\xae"   // ▮
+                                         : "\xe2\x96\xaf";  // ▯
+        ctx.text(cx, y, glyph, (i < filled) ? fill_color : Color::DarkGray);
+        cx += 1;
+    }
+    // Right-align cur within max's digit width so the slash aligns visually
+    // across consecutive rows of bars.
+    auto num_digits = [](int v) {
+        int d = 1;
+        for (int n = v / 10; n > 0; n /= 10) ++d;
+        return d;
+    };
+    int max_w = num_digits(std::max(1, max));
+    std::string cur_s = std::to_string(cur);
+    while (static_cast<int>(cur_s.size()) < max_w) cur_s.insert(0, " ");
+    ctx.text(cx + 1, y, cur_s + "/" + std::to_string(max), Color::Default);
+}
+
 void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     auto* deck_slot = self.player().equipment.equipped_cyberdeck();
 
@@ -31,68 +184,77 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     auto& deck      = *(*deck_slot)->deck;
     auto  deck_name = (*deck_slot)->name;
 
-    int half = ctx.width() / 2;
-
-    // Vertical divider between left/right panes
-    for (int r = 1; r < ctx.height() - 1; ++r) {
-        ctx.text(half - 1, r, "\xe2\x94\x82", Color::DarkGray);
-    }
-
-    // ── Left pane header: ──┤ DECK ├──
-    self.draw_section_header(ctx, 1, "DECK", 1, half - 1);
+    // ── Header: ──┤ DECK ├── (spans full width now)
+    self.draw_section_header(ctx, 1, "DECK", 1, ctx.width() - 1);
 
     ctx.text(2, 2, deck_name, Color::White);
 
+    // Stat rows — RAM/HEAT get bars, COOLING/STEALTH stay textual.
     int y = 4;
-    auto stat = [&](const std::string& label, const std::string& value) {
-        ctx.text(2, y, label, Color::DarkGray);
-        ctx.text(2 + static_cast<int>(label.size()), y, value, Color::Default);
-        ++y;
+    const int label_w = 8;          // "RAM     " / "HEAT    " / "COOLING " / "STEALTH "
+    const int bar_w   = 12;         // bar cells
+    const int bar_x   = 2 + label_w;
+
+    auto label = [&](const char* text) {
+        ctx.text(2, y, text, Color::DarkGray);
     };
-    stat("RAM      ", std::to_string(deck.ram_current) + "/" + std::to_string(deck.stats.ram_max));
-    stat("HEAT     ", std::to_string(deck.heat_current) + "/" + std::to_string(deck.stats.heat_cap));
-    stat("COOLING  ", std::to_string(deck.stats.cooling_rate) + "/turn");
-    stat("STEALTH  ", "+" + std::to_string(deck.stats.stealth));
+
+    label("RAM");
+    draw_bar(ctx, bar_x, y, deck.ram_current, deck.stats.ram_max,
+             bar_w, Color::Cyan);
+    ++y;
+
+    label("HEAT");
+    draw_bar(ctx, bar_x, y, deck.heat_current, deck.stats.heat_cap,
+             bar_w, Color::Red);
+    ++y;
+
+    label("COOLING");
+    ctx.text(bar_x, y, std::to_string(deck.stats.cooling_rate) + "/turn",
+             Color::Default);
+    ++y;
+
+    label("STEALTH");
+    ctx.text(bar_x, y, "+" + std::to_string(deck.stats.stealth),
+             Color::Default);
+    ++y;
 
     // ── Sub-header: SLOTS ──┤
-    ++y;
-    self.draw_section_header(ctx, y++, "SLOTS", 1, half - 1);
+    self.draw_section_header(ctx, y++, "SLOTS", 1, ctx.width() - 1);
+
+    // ── Decorative chipset ornament, centered just above the slot row ───
+    constexpr int ornament_w = 17;
+    constexpr int ornament_h = 9;
+    int ornament_x = (ctx.width() - ornament_w) / 2;
+    if (ornament_x < 0) ornament_x = 0;
+    draw_chip_ornament(ctx, ornament_x, y);
+    y += ornament_h;
+
+    // Horizontal cartridge row, centered on the panel.
+    constexpr int card_w = 11;
+    constexpr int card_gap = 2;
+    const int n_slots = deck.stats.slots;
+    const int total_w = n_slots * card_w + std::max(0, n_slots - 1) * card_gap;
+    const int row_x  = (ctx.width() - total_w) / 2;
+    const int row_y  = y + 1;
+
     int slot_cursor = self.cyberdeck_slot_cursor();
-    for (int i = 0; i < deck.stats.slots; ++i) {
+    for (int i = 0; i < n_slots; ++i) {
         const auto& sl = deck.loaded[i];
-        bool sel = (i == slot_cursor);
-        std::string marker = sel ? "\xe2\x96\xb8 " : "  ";  // ▸
         std::string name;
+        int heat_cost = 0;
         if (sl.compiled.has_value()) {
             name = sl.compiled->name;
+            heat_cost = sl.compiled->heat_cost;
         } else if (sl.program_def_id != 0) {
             Item probe = build_by_def_id(sl.program_def_id);
             name = probe.name;
         }
-        if (name.empty()) {
-            ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa2 (empty)",
-                     sel ? Color::Cyan : Color::DarkGray);
-        } else {
-            ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa3 " + name,
-                     sel ? Color::Cyan : Color::Default);
-        }
-    }
-
-    ctx.text(2, ctx.height() - 2,
-             " \xe2\x86\x91\xe2\x86\x93 slot   Space: load program",
-             Color::DarkGray);
-
-    // ── Right pane header: ──┤ COMPILED PROGRAMS ├──
-    self.draw_section_header(ctx, 1, "COMPILED PROGRAMS", half + 1, ctx.width() - 1);
-    int yr = 3;
-    int found = 0;
-    for (const auto& it : self.player().inventory.items) {
-        if (!it.compiled_program.has_value()) continue;
-        ctx.text(half + 2, yr++, "  " + it.name, Color::Default);
-        ++found;
-    }
-    if (found == 0) {
-        ctx.text(half + 2, yr, "  (none — compile some in the Compiler)", Color::DarkGray);
+        bool loaded = !name.empty();
+        int card_x = row_x + i * (card_w + card_gap);
+        draw_slot_card(ctx, card_x, row_y, i,
+                       loaded, name, heat_cost,
+                       i == slot_cursor);
     }
 }
 
@@ -193,7 +355,7 @@ int render_chain_edit(UIContext& ctx, int x, int y,
             }
             ++y;
         } else if (is_inter_node) {
-            ctx.text(x + 2, y, "\xe2\x86\x93", Color::DarkGray);   // ↓
+            ctx.text(x + 4, y, "\xe2\x86\x93", Color::DarkGray);   // ↓
             ++y;
         }
         // else: head/tail gap, not cursor → don't render anything (saves a row)
@@ -210,18 +372,44 @@ int render_chain_edit(UIContext& ctx, int x, int y,
         Color highlight = on_node ? Color::Cyan : Color::Default;
 
         if (def && def->kind == FragmentKind::Container) {
-            std::string header = marker + std::string(BoxDraw::TL)
-                               + "\xe2\x94\x80 " + def->display
-                               + "(" + std::to_string(node.param) + ") \xe2\x94\x80";
-            ctx.text(x, y++, header, on_node ? Color::Cyan : Color::White);
+            // Split-render the header so the box-draw pipes are purple while
+            // the body text uses the on/off highlight color.
+            //   marker + ┌─ + " TICK(N) " + ─
+            const Color pipe_color = Color::Magenta;
+            int cx = x;
+            ctx.text(cx, y, marker, highlight);
+            // Advance by the marker's CELL width, not its byte length —
+            // "▸ " is 4 bytes but still 2 cells. Using marker.size() shifted
+            // the ┌ (and the │ closer underneath) right by 2 cells whenever
+            // the cursor was on the container header.
+            cx += 2;
+            const int pipe_col = cx;   // column of ┌ / │ / └
+            std::string pipe_open = std::string(BoxDraw::TL) + "\xe2\x94\x80";  // ┌─
+            ctx.text(cx, y, pipe_open, pipe_color);
+            cx += 2;
+            std::string label = std::string(" ") + def->display
+                              + "(" + std::to_string(node.param) + ") ";
+            ctx.text(cx, y, label, on_node ? Color::Cyan : Color::White);
+            cx += static_cast<int>(label.size());
+            ctx.text(cx, y, "\xe2\x94\x80", pipe_color);   // ─
+            ++y;
 
+            // Recurse with +4 instead of +2 so the body's leftmost column
+            // stays free for the container's vertical │ closer.
+            int body_start_y = y;
             std::vector<int> child = self_path;
             child.push_back(i);
-            y = render_chain_edit(ctx, x + 2, y, node.body,
+            y = render_chain_edit(ctx, x + 4, y, node.body,
                                   child, cursor_path, cursor_slot, build_focus);
 
+            // Draw left-side │ between header and footer (extends the box
+            // drawing on the LEFT all the way from ┌ down to └).
+            for (int vy = body_start_y; vy < y; ++vy) {
+                ctx.text(pipe_col, vy, "\xe2\x94\x82", pipe_color);   // │
+            }
+
             std::string footer = "  " + std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80";
-            ctx.text(x, y++, footer, Color::White);
+            ctx.text(x, y++, footer, pipe_color);
         } else {
             std::string label;
             if (def) {
@@ -323,14 +511,29 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
             if (fid == def.id) { known = true; break; }
 
         bool sel = static_cast<int>(i) == self.compiler_palette_cursor();
-        std::string line = (sel ? "\xe2\x96\xb8 " : "  ")
-                         + std::string(def.display) + "  "
-                         + std::to_string(def.exec_cost) + "/"
-                         + std::to_string(def.heat_cost);
-        Color color = !known ? Color::DarkGray
-                    : sel    ? Color::Cyan
-                             : Color::Default;
-        ctx.text(col_p + 1, yp++, line, color);
+
+        // Split-render arrow / name / costs so each can highlight independently.
+        // Arrow + name pop in BrightYellow when selected; costs render in
+        // standard Yellow so the name remains the prominent element.
+        const char* marker = sel ? "\xe2\x96\xb8 " : "  ";   // ▸
+        ctx.text(col_p + 1, yp, marker,
+                 sel ? Color::BrightYellow : Color::Default);
+
+        std::string name  = std::string(def.display);
+        std::string costs = "  " + std::to_string(def.exec_cost) + "/"
+                          + std::to_string(def.heat_cost);
+
+        Color name_color  = !known ? Color::DarkGray
+                          : sel    ? Color::BrightYellow
+                                   : Color::Default;
+        Color costs_color = !known ? Color::DarkGray
+                          : sel    ? Color::Yellow
+                                   : Color::Default;
+
+        int name_x = col_p + 3;
+        ctx.text(name_x, yp, name, name_color);
+        ctx.text(name_x + static_cast<int>(name.size()), yp, costs, costs_color);
+        ++yp;
     }
 
     // ── Middle pane: build ────────────────────────────────────────────────
@@ -376,6 +579,33 @@ ProgramNode* cursor_on_node(PdaScreen& self) {
     int idx = pos_node_index(self.build_cursor_slot());
     if (idx < 0 || idx >= static_cast<int>(chain->size())) return nullptr;
     return &(*chain)[idx];
+}
+
+// Resolve which parameterized node the [+/-] keys should adjust:
+//   1) Cursor sits ON a parameterized node → that node.
+//   2) Otherwise → walk up the path to the innermost enclosing parameterized
+//      container (TICK / LOOP). This lets +/- adjust the container's N even
+//      when the cursor is currently inside the container body.
+ProgramNode* cursor_param_target(PdaScreen& self) {
+    if (ProgramNode* n = cursor_on_node(self)) {
+        const FragmentDef* def = find_fragment(n->fragment);
+        if (def && def->takes_param) return n;
+    }
+    auto path = self.build_cursor_path();
+    while (!path.empty()) {
+        std::vector<int> parent_path(path.begin(), path.end() - 1);
+        auto* parent = chain_at_path(self.compiler_build_mut(), parent_path);
+        if (parent) {
+            int idx = path.back();
+            if (idx >= 0 && idx < static_cast<int>(parent->size())) {
+                ProgramNode& candidate = (*parent)[idx];
+                const FragmentDef* def = find_fragment(candidate.fragment);
+                if (def && def->takes_param) return &candidate;
+            }
+        }
+        path.pop_back();
+    }
+    return nullptr;
 }
 
 // Insert a fragment at the cursor. Gap → insert at gap_index; on-node →
@@ -661,6 +891,115 @@ void draw_compile_prompt(PdaScreen& self, UIContext& ctx) {
     ctx.text(x + 2, y + h - 2, " Enter: compile   Backspace: erase   Esc: cancel", Color::DarkGray);
 }
 
+// Color a fragment's kind label / accent color, matching the palette legend.
+Color color_for_kind(FragmentKind k) {
+    switch (k) {
+        case FragmentKind::Producer:    return Color::Yellow;
+        case FragmentKind::Transformer: return Color::Cyan;
+        case FragmentKind::Container:   return Color::Magenta;
+    }
+    return Color::Default;
+}
+
+const char* kind_name(FragmentKind k) {
+    switch (k) {
+        case FragmentKind::Producer:    return "PRODUCER";
+        case FragmentKind::Transformer: return "OPERATOR";
+        case FragmentKind::Container:   return "CONTAINER";
+    }
+    return "";
+}
+
+void draw_fragment_help_popup(PdaScreen& self, UIContext& ctx) {
+    const FragmentDef* def = find_fragment(self.cyberdeck_help_fragment());
+    if (!def) return;
+
+    int w = 56;
+    int h = def->takes_param ? 13 : 11;
+    int x = ctx.width()  / 2 - w / 2;
+    int y = ctx.height() / 2 - h / 2;
+
+    // Clear background of the popup region.
+    for (int j = 0; j < h; ++j) {
+        for (int i = 0; i < w; ++i) {
+            ctx.text(x + i, y + j, " ", Color::Default);
+        }
+    }
+
+    // Bordered frame with a titled top edge.
+    self.draw_section_header(ctx, y, "FRAGMENT", x, x + w);
+    ctx.text(x,         y, BoxDraw::TL, Color::DarkGray);
+    ctx.text(x + w - 1, y, BoxDraw::TR, Color::DarkGray);
+    for (int j = 1; j < h - 1; ++j) {
+        ctx.text(x,         y + j, BoxDraw::V, Color::DarkGray);
+        ctx.text(x + w - 1, y + j, BoxDraw::V, Color::DarkGray);
+    }
+    ctx.text(x, y + h - 1, BoxDraw::BL, Color::DarkGray);
+    for (int i = 1; i < w - 1; ++i) {
+        ctx.text(x + i, y + h - 1, BoxDraw::H, Color::DarkGray);
+    }
+    ctx.text(x + w - 1, y + h - 1, BoxDraw::BR, Color::DarkGray);
+
+    int px = x + 2;
+    int py = y + 2;
+
+    // Title line: [DISPLAY]   PRODUCER/OPERATOR/CONTAINER
+    Color accent = color_for_kind(def->kind);
+    std::string title = std::string("[") + def->display + "]";
+    ctx.text(px, py, title, accent);
+    const char* kn = kind_name(def->kind);
+    int kw = 0;
+    for (const char* p = kn; *p; ++p) ++kw;
+    ctx.text(x + w - 2 - kw, py, kn, Color::DarkGray);
+    py += 2;
+
+    // Costs row — exec / heat in yellow against gray labels.
+    ctx.text(px, py, "Exec:", Color::DarkGray);
+    ctx.text(px + 6, py, std::to_string(def->exec_cost), Color::Yellow);
+    ctx.text(px + 14, py, "Heat:", Color::DarkGray);
+    ctx.text(px + 20, py, std::to_string(def->heat_cost), Color::Yellow);
+    if (def->kind == FragmentKind::Container && def->ram_per_n > 0) {
+        // LOOP: ram = ram_per_n * N + ram_base
+        std::string ram = std::to_string(def->ram_per_n) + "\xc2\xb7N"
+                        + (def->ram_base > 0
+                              ? std::string("+") + std::to_string(def->ram_base)
+                              : std::string());
+        ctx.text(px + 28, py, "RAM:", Color::DarkGray);
+        ctx.text(px + 33, py, ram, Color::Yellow);
+    }
+    py += 2;
+
+    // Param row — only for parameterized containers.
+    if (def->takes_param) {
+        ctx.text(px, py, "Param N:", Color::DarkGray);
+        std::string range = std::to_string(def->min_n) + ".."
+                          + std::to_string(def->max_n)
+                          + "  (default " + std::to_string(def->default_n) + ")";
+        ctx.text(px + 9, py, range, Color::Default);
+        py += 2;
+    }
+
+    // Description, wrapped to the popup width.
+    int wrap = w - 4;
+    std::string desc = def->description ? def->description : "";
+    while (!desc.empty()) {
+        if (static_cast<int>(desc.size()) <= wrap) {
+            ctx.text(px, py++, desc, Color::Default);
+            break;
+        }
+        int cut = wrap;
+        while (cut > 0 && desc[cut] != ' ') --cut;
+        if (cut == 0) cut = wrap;
+        ctx.text(px, py++, desc.substr(0, cut), Color::Default);
+        // skip the space at the break
+        if (cut < static_cast<int>(desc.size()) && desc[cut] == ' ') ++cut;
+        desc = desc.substr(cut);
+    }
+
+    // Footer hint.
+    ctx.text(x + 2, y + h - 2, " [?/Esc] Close", Color::DarkGray);
+}
+
 void draw_patterns_overlay(PdaScreen& self, UIContext& ctx) {
     int total = static_cast<int>(pattern_catalog().size());
     int discovered = static_cast<int>(self.player().discovered_patterns.size());
@@ -713,9 +1052,21 @@ void PdaScreen::draw_cyberdeck(UIContext& ctx) {
     if (cyberdeck_compile_prompt_ && cyberdeck_subscreen_ == CyberdeckSubscreen::Compiler) {
         draw_compile_prompt(*this, ctx);
     }
+    // Fragment-info popup renders ON TOP of everything else in the Compiler.
+    if (cyberdeck_fragment_help_ && cyberdeck_subscreen_ == CyberdeckSubscreen::Compiler) {
+        draw_fragment_help_popup(*this, ctx);
+    }
 }
 
 void PdaScreen::handle_cyberdeck_key(int key) {
+    // Fragment-info popup intercepts everything while open. '?' toggles closed.
+    if (cyberdeck_fragment_help_) {
+        if (key == 27 || key == '?') {
+            cyberdeck_fragment_help_close();
+        }
+        return;
+    }
+
     // Compile-name prompt intercepts everything while open.
     if (cyberdeck_compile_prompt_) {
         if (key == 27) {                            // Esc → cancel
@@ -810,10 +1161,10 @@ void PdaScreen::handle_cyberdeck_key(int key) {
         if (deck_slot && *deck_slot && (*deck_slot)->deck)
             max_slot = (*deck_slot)->deck->stats.slots;
         switch (key) {
-            case KEY_UP:
+            case KEY_LEFT:
                 if (cyberdeck_slot_cursor_ > 0) --cyberdeck_slot_cursor_;
                 break;
-            case KEY_DOWN:
+            case KEY_RIGHT:
                 if (cyberdeck_slot_cursor_ < max_slot - 1) ++cyberdeck_slot_cursor_;
                 break;
             case ' ':
@@ -906,27 +1257,41 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             break;
         case '+':
         case '=': {
-            ProgramNode* n = cursor_on_node(*this);
+            ProgramNode* n = cursor_param_target(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
-                if (def && def->takes_param && n->param < def->max_n)
-                    ++n->param;
+                if (def && n->param < def->max_n) ++n->param;
             }
             break;
         }
         case '-':
         case '_': {
-            ProgramNode* n = cursor_on_node(*this);
+            ProgramNode* n = cursor_param_target(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
-                if (def && def->takes_param && n->param > def->min_n)
-                    --n->param;
+                if (def && n->param > def->min_n) --n->param;
             }
             break;
         }
         case 'c':
             if (game_) begin_compile_prompt(*this, *game_);
             break;
+        case '?': {
+            // Resolve which fragment to describe:
+            //   - Build focus + cursor on a node → that node's fragment
+            //   - Otherwise → palette cursor's fragment
+            FragmentId id = FragmentId::None;
+            if (compiler_focus_ == CompilerFocus::Build) {
+                if (ProgramNode* n = cursor_on_node(*this)) id = n->fragment;
+            }
+            if (id == FragmentId::None
+                && compiler_palette_cursor_ >= 0
+                && compiler_palette_cursor_ < static_cast<int>(palette.size())) {
+                id = palette[compiler_palette_cursor_].id;
+            }
+            if (id != FragmentId::None) cyberdeck_fragment_help_open(id);
+            break;
+        }
         default: break;
     }
 }

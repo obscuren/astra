@@ -284,6 +284,11 @@ private:
     bool        cyberdeck_compile_prompt_ = false;
     std::string cyberdeck_compile_name_;
 
+    // Fragment-info popup (Compiler sub-screen). Opened with '?' on a
+    // fragment; shows definition + costs + description.
+    bool       cyberdeck_fragment_help_ = false;
+    FragmentId cyberdeck_help_fragment_ = FragmentId::None;
+
 public:
     int compiler_palette_cursor() const { return compiler_palette_cursor_; }
     const std::vector<ProgramNode>& compiler_build() const { return compiler_build_; }
@@ -309,6 +314,13 @@ public:
         cyberdeck_compile_name_   = default_name;
     }
     void cyberdeck_compile_prompt_close() { cyberdeck_compile_prompt_ = false; }
+    bool cyberdeck_fragment_help() const { return cyberdeck_fragment_help_; }
+    FragmentId cyberdeck_help_fragment() const { return cyberdeck_help_fragment_; }
+    void cyberdeck_fragment_help_open(FragmentId id) {
+        cyberdeck_fragment_help_ = true;
+        cyberdeck_help_fragment_ = id;
+    }
+    void cyberdeck_fragment_help_close() { cyberdeck_fragment_help_ = false; }
     // Generic transient status message — same surface every PDA tab uses.
     void set_context_message(const std::string& msg, int ticks = 3) {
         context_message_ = msg;

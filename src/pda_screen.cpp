@@ -105,6 +105,10 @@ bool PdaScreen::handle_input(int key) {
             cooking_picker_active_ = false;
             return true;
         }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_fragment_help_) {
+            cyberdeck_fragment_help_ = false;
+            return true;
+        }
         if (active_tab_ == PdaTab::Hacking && cyberdeck_load_popup_) {
             cyberdeck_load_popup_ = false;
             return true;
@@ -1409,9 +1413,9 @@ void PdaScreen::draw(int screen_w, int screen_h) {
     } else if (active_tab_ == PdaTab::Hacking) {
         // Cyberdeck tab. Different shortcuts per sub-screen.
         if (cyberdeck_subscreen_ == CyberdeckSubscreen::Compiler) {
-            footer_text = "[ESC] Close  [Tab] Sub-screen  [\xe2\x86\x90\xe2\x86\x92] Focus  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Insert  [Backspace] Delete  [+/-] N  [c] Compile  [p] Patterns";
+            footer_text = "[ESC] Close  [Tab] Cyberdeck/Compiler  [\xe2\x86\x90\xe2\x86\x92] Focus  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Insert  [Backspace] Delete  [+/-] N  [?] Help  [c] Compile  [p] Patterns";
         } else {
-            footer_text = "[ESC] Close  [Tab] Sub-screen  [\xe2\x86\x91\xe2\x86\x93] Slot  [Space] Load  [u] Unload  [p] Patterns";
+            footer_text = "[ESC] Close  [Tab] Cyberdeck/Compiler  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Load  [u] Unload  [p] Patterns";
         }
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
