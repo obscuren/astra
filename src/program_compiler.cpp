@@ -1,6 +1,7 @@
 #include "astra/program_compiler.h"
 
 #include "astra/cyberdeck.h"
+#include "astra/display_name.h"
 #include "astra/faction.h"
 #include "astra/fragment.h"
 #include "astra/game.h"
@@ -225,13 +226,18 @@ void apply_to_npc(Game& game, Npc& npc, const EffectSpec& s) {
         // Use existing damage-application API to keep AV / death routing consistent.
         npc.hp -= dmg;
         if (npc.hp < 0) npc.hp = 0;
-        if (npc.hp == 0) game.log(npc.label() + " is defeated.");
+        if (npc.hp == 0) {
+            game.log(display_name(npc) + " is defeated.");
+        }
     }
     if (s.returns_hp_pct > 0 && dmg > 0) {
         int heal = (dmg * s.returns_hp_pct) / 100;
         game.player().hp = std::min(game.player().effective_max_hp(),
                                     game.player().hp + heal);
-        if (heal > 0) game.log("You drain " + std::to_string(heal) + " HP.");
+        if (heal > 0) {
+            game.log("You drain " + colored(std::to_string(heal), Color::Green)
+                   + " HP from " + display_name(npc) + ".");
+        }
     }
 }
 
@@ -298,8 +304,9 @@ std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty
         game.hacking().register_sustain(prog, tx, ty);
     }
 
-    return prog.name + " fired (" + std::to_string(prog.exec_cost) + " exec, "
-         + std::to_string(prog.heat_cost) + " heat).";
+    return colored(prog.name, Color::Cyan) + " fired ("
+         + colored(std::to_string(prog.exec_cost), Color::Yellow) + " exec, "
+         + colored(std::to_string(prog.heat_cost), Color::Yellow) + " heat).";
 }
 
 }  // namespace astra

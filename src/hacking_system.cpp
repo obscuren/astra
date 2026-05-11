@@ -169,10 +169,13 @@ void HackingSystem::tick(Game& game) {
             // reservation (it's gone with the reboot) and are dropped.
             // Apply a 1-turn DeckRebooting effect so no programs can fire
             // while the deck cycles back up.
+            std::string deck_name = (*deck_slot)->name;
             cyberdeck_force_reboot(deck);
             sustains_.clear();
             add_effect(game.player().effects, make_deck_rebooting_ge());
-            game.log("Cyberdeck overheated — forced reboot. RAM lost.");
+            game.log(colored(deck_name, Color::Cyan)
+                   + " overheated \xe2\x80\x94 forced reboot. "
+                   + colored("RAM lost", Color::Red) + ".");
         } else {
             // Tick sustains: re-fire the body at scaled intensity, decrement
             // counter; release RAM + drop when expired.
@@ -190,8 +193,10 @@ void HackingSystem::tick(Game& game) {
                     deck.ram_current = std::min(deck.stats.ram_max,
                                                 deck.ram_current + it->ram_held);
                     if (it->ram_held > 0) {
-                        game.log("Loop ended: " + it->program.name
-                               + " (released " + std::to_string(it->ram_held)
+                        game.log("Loop ended: "
+                               + colored(it->program.name, Color::Cyan)
+                               + " (released "
+                               + colored(std::to_string(it->ram_held), Color::Green)
                                + " RAM).");
                     }
                     it = sustains_.erase(it);
