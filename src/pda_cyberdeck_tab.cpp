@@ -754,17 +754,12 @@ void PdaScreen::handle_cyberdeck_key(int key) {
     };
 
     // 's' toggles focus between Fragments palette and Build editor.
+    // The build cursor is STATEFUL across the toggle — palette-mode inserts
+    // land at the cursor's current position, not at the trailing position.
     if (key == 's') {
         compiler_focus_ = (compiler_focus_ == CompilerFocus::Palette)
                         ? CompilerFocus::Build
                         : CompilerFocus::Palette;
-        // When entering palette mode, snap the cursor to the trailing
-        // position of the top-level chain so the trailing ▸ marker
-        // reflects where palette-mode inserts will land.
-        if (compiler_focus_ == CompilerFocus::Palette) {
-            build_cursor_path_.clear();
-            build_cursor_slot_ = 2 * static_cast<int>(compiler_build_.size());
-        }
         return;
     }
 
