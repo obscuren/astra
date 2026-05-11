@@ -1402,6 +1402,13 @@ void PdaScreen::draw(int screen_w, int screen_h) {
         footer_text = "[ESC] Close  [Tab] Focus  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Add  [x] Clear  [c] Cook";
     } else if (active_tab_ == PdaTab::Equipment) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact";
+    } else if (active_tab_ == PdaTab::Hacking) {
+        // Cyberdeck tab. Different shortcuts per sub-screen.
+        if (cyberdeck_subscreen_ == CyberdeckSubscreen::Compiler) {
+            footer_text = "[ESC] Close  [Tab] Sub-screen  [\xe2\x86\x90\xe2\x86\x92] Focus  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Insert  [Backspace] Delete  [+/-] N  [c] Compile  [p] Patterns";
+        } else {
+            footer_text = "[ESC] Close  [Tab] Sub-screen  [\xe2\x86\x91\xe2\x86\x93] Slot  [Space] Load  [u] Unload  [p] Patterns";
+        }
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
     } else {

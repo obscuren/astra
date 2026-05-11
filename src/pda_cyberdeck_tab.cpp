@@ -324,12 +324,6 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
                       self.build_cursor_slot(),
                       build_focus);
 
-    // ── Footer hint: focus + compile ─────────────────────────────────────
-    const char* focus_label = build_focus ? "Editor" : "Fragment";
-    std::string footer = " [\xe2\x86\x90 Fragment] [Editor \xe2\x86\x92]   focus: "
-                       + std::string(focus_label)
-                       + "    [c] compile";
-    ctx.text(2, ctx.height() - 2, footer, Color::DarkGray);
 
     // ── Right pane: live preview ─────────────────────────────────────────
     auto cp = compile_program(self.compiler_build(), "");
