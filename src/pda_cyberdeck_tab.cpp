@@ -176,10 +176,12 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
                       + std::to_string(ceiling) + " fragments";
     ctx.text(2, 1, stats, Color::DarkGray);
 
-    int third  = ctx.width() / 3;
+    // Layout: narrow side panes (1/6 each = 1/3 combined), wide BUILD in
+    // the middle (2/3) so the program tree has room to breathe.
+    int sixth  = ctx.width() / 6;
     int col_p  = 0;
-    int col_b  = third;
-    int col_v  = 2 * third;
+    int col_b  = sixth;
+    int col_v  = ctx.width() - sixth;
 
     // Vertical dividers between the three panes
     for (int r = 3; r < ctx.height() - 1; ++r) {
