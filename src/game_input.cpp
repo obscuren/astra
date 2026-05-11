@@ -379,13 +379,19 @@ void Game::handle_play_input(int key) {
 
             // Compiled-program path: prefer the slot's own payload (player-
             // compiled programs have def_id 0 and live only in the slot).
+            // Recompile from the chain so any change to the derivation rules
+            // (telegraph range, scaling, costs) takes effect even for
+            // programs loaded into slots before the rule changed.
             std::optional<CompiledProgram> cp_opt;
             if (slot.compiled.has_value()) {
-                cp_opt = slot.compiled;
+                cp_opt = compile_program(slot.compiled->chain,
+                                         slot.compiled->name);
             } else if (slot.program_def_id != 0) {
                 Item probe = build_by_def_id(slot.program_def_id);
-                if (probe.compiled_program.has_value())
-                    cp_opt = std::move(probe.compiled_program);
+                if (probe.compiled_program.has_value()) {
+                    cp_opt = compile_program(probe.compiled_program->chain,
+                                             probe.compiled_program->name);
+                }
             }
             if (cp_opt.has_value()) {
                 const CompiledProgram cp = *cp_opt;

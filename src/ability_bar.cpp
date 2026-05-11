@@ -140,11 +140,16 @@ bool use_slot(Game& game, int visible_row, int col) {
         const auto& sl = deck.loaded[idx];
         std::optional<CompiledProgram> cp_opt;
         if (sl.compiled.has_value()) {
-            cp_opt = sl.compiled;
+            // Always recompile from the chain so any change to the derivation
+            // rules (telegraph range, scaling, costs) applies even for
+            // programs that were loaded before the rule changed.
+            cp_opt = compile_program(sl.compiled->chain, sl.compiled->name);
         } else if (sl.program_def_id != 0) {
             Item probe = build_by_def_id(sl.program_def_id);
-            if (probe.compiled_program.has_value())
-                cp_opt = std::move(probe.compiled_program);
+            if (probe.compiled_program.has_value()) {
+                cp_opt = compile_program(probe.compiled_program->chain,
+                                         probe.compiled_program->name);
+            }
         }
         if (!cp_opt.has_value()) {
             game.log("That deck slot is empty.");
