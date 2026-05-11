@@ -133,7 +133,7 @@ Effect make_hearty_ge();
 Effect make_emp_disabled_ge(int duration);
 Effect make_hijacked_ge(int duration);
 Effect make_grid_exposed_ge();
-Effect make_deck_rebooting_ge();    // 1-turn cyberdeck reboot block
+Effect make_deck_rebooting_ge();    // 5-turn cyberdeck reboot block
 Effect make_blackice_shock_short_ge();   // 20 ticks
 Effect make_blackice_shock_long_ge();    // 60 ticks; -1 av/quickness
 Effect make_ghost_cloak_ge(int duration);

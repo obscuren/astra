@@ -344,8 +344,8 @@ Effect make_deck_rebooting_ge() {
     e.id = EffectId::DeckRebooting;
     e.name = "Deck Rebooting";
     e.color = Color::Red;
-    e.duration = 1;
-    e.remaining = 1;
+    e.duration = 5;
+    e.remaining = 5;
     e.show_in_bar = true;
     return e;
 }
