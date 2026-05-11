@@ -448,6 +448,10 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_i32(d.heat_current);
         for (int i = 0; i < kCyberdeckMaxSlots; ++i) {
             w.write_u16(d.loaded[i].program_def_id);
+            // v72: optional compiled program payload (player-compiled programs).
+            bool has_cp = d.loaded[i].compiled.has_value();
+            w.write_u8(has_cp ? 1 : 0);
+            if (has_cp) write_compiled_program(w, *d.loaded[i].compiled);
         }
     }
     // v52: program payload
@@ -592,6 +596,9 @@ static Item read_item(BinaryReader& r) {
         d.heat_current       = r.read_i32();
         for (int i = 0; i < kCyberdeckMaxSlots; ++i) {
             d.loaded[i].program_def_id = r.read_u16();
+            // v72: optional compiled program payload
+            bool has_cp = r.read_u8() != 0;
+            if (has_cp) d.loaded[i].compiled = read_compiled_program(r);
         }
         item.deck = std::move(d);
     }

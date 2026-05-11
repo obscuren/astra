@@ -374,13 +374,21 @@ void Game::handle_play_input(int key) {
             auto* deck_slot_ptr = player_.equipment.equipped_cyberdeck();
             auto& deck = *(*deck_slot_ptr)->deck;
             const auto& slot = deck.loaded[slot_idx];
-            Item probe = build_by_def_id(slot.program_def_id);
 
             int tx = qh_picker_target_x_, ty = qh_picker_target_y_;
 
-            // Compiled-program path: route through Telegraph for targeting.
-            if (probe.compiled_program.has_value()) {
-                const CompiledProgram cp = *probe.compiled_program;
+            // Compiled-program path: prefer the slot's own payload (player-
+            // compiled programs have def_id 0 and live only in the slot).
+            std::optional<CompiledProgram> cp_opt;
+            if (slot.compiled.has_value()) {
+                cp_opt = slot.compiled;
+            } else if (slot.program_def_id != 0) {
+                Item probe = build_by_def_id(slot.program_def_id);
+                if (probe.compiled_program.has_value())
+                    cp_opt = std::move(probe.compiled_program);
+            }
+            if (cp_opt.has_value()) {
+                const CompiledProgram cp = *cp_opt;
                 TelegraphSpec spec = cp.resolved.telegraph;
                 // Close the picker before handing off to Telegraph so the UI
                 // doesn't show two overlays simultaneously.
@@ -393,6 +401,10 @@ void Game::handle_play_input(int key) {
                     });
                 return;
             }
+
+            // Legacy-shaped program fallback (in case some loot still ships
+            // a non-compiled .qh from an older save).
+            Item probe = build_by_def_id(slot.program_def_id);
 
             // Legacy path: direct execute_quickhack for pre-compiled items.
             Hackable* hack = nullptr;
@@ -770,11 +782,29 @@ void Game::open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots) {
     auto& deck = *(*qdeck_slot)->deck;
     for (size_t i = 0; i < menu_slots.size(); ++i) {
         const auto& slot = deck.loaded[menu_slots[i]];
-        Item probe = build_by_def_id(slot.program_def_id);
-        const ProgramDef* def = find_program(probe.program->id);
         char k = static_cast<char>('a' + i);
-        std::string label = std::string(def->filename) + "  (" +
-                            std::to_string(def->ram_cost) + " RAM)";
+        std::string label;
+        if (slot.compiled.has_value()) {
+            const auto& cp = *slot.compiled;
+            label = cp.name + "  ("
+                  + std::to_string(cp.heat_cost) + " heat";
+            if (cp.ram_held > 0) label += ", " + std::to_string(cp.ram_held) + " RAM";
+            label += ")";
+        } else if (slot.program_def_id != 0) {
+            Item probe = build_by_def_id(slot.program_def_id);
+            if (probe.compiled_program.has_value()) {
+                const auto& cp = *probe.compiled_program;
+                label = probe.name + "  ("
+                      + std::to_string(cp.heat_cost) + " heat";
+                if (cp.ram_held > 0) label += ", " + std::to_string(cp.ram_held) + " RAM";
+                label += ")";
+            } else if (probe.program) {
+                const ProgramDef* def = find_program(probe.program->id);
+                if (def) label = std::string(def->filename) + "  ("
+                              + std::to_string(def->ram_cost) + " RAM)";
+            }
+        }
+        if (label.empty()) label = "(unknown program)";
         qh_picker_.add_option(k, label);
     }
     qh_picker_.selection = 0;

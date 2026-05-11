@@ -64,12 +64,18 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
         const auto& sl = deck.loaded[i];
         bool sel = (i == slot_cursor);
         std::string marker = sel ? "\xe2\x96\xb8 " : "  ";  // ▸
-        if (sl.program_def_id == 0) {
+        std::string name;
+        if (sl.compiled.has_value()) {
+            name = sl.compiled->name;
+        } else if (sl.program_def_id != 0) {
+            Item probe = build_by_def_id(sl.program_def_id);
+            name = probe.name;
+        }
+        if (name.empty()) {
             ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa2 (empty)",
                      sel ? Color::Cyan : Color::DarkGray);
         } else {
-            Item probe = build_by_def_id(sl.program_def_id);
-            ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa3 " + probe.name,
+            ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa3 " + name,
                      sel ? Color::Cyan : Color::Default);
         }
     }
@@ -512,7 +518,16 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                 auto& deck = *(*deck_slot)->deck;
                 if (cyberdeck_slot_cursor_ < deck.stats.slots) {
                     const Item* prog_item = progs[cyberdeck_load_popup_cursor_].second;
-                    deck.loaded[cyberdeck_slot_cursor_].program_def_id = prog_item->item_def_id;
+                    auto& sl = deck.loaded[cyberdeck_slot_cursor_];
+                    // Carry both: def_id (for legacy items) and a copy of the
+                    // compiled payload (drives render + fire regardless of
+                    // whether the source item ever changes/leaves inventory).
+                    sl.program_def_id = prog_item->item_def_id;
+                    if (prog_item->compiled_program.has_value()) {
+                        sl.compiled = *prog_item->compiled_program;
+                    } else {
+                        sl.compiled.reset();
+                    }
                     std::string msg = "Loaded " + prog_item->name + " into slot "
                                     + std::to_string(cyberdeck_slot_cursor_ + 1) + ".";
                     if (game_) game_->log(msg);
@@ -561,8 +576,9 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                 if (deck_slot && *deck_slot && (*deck_slot)->deck &&
                     cyberdeck_slot_cursor_ < max_slot) {
                     auto& sl = (*deck_slot)->deck->loaded[cyberdeck_slot_cursor_];
-                    if (sl.program_def_id != 0) {
+                    if (!slot_is_empty(sl)) {
                         sl.program_def_id = 0;
+                        sl.compiled.reset();
                         set_context_message(
                             "Unloaded slot " + std::to_string(cyberdeck_slot_cursor_ + 1) + ".", 3);
                     }

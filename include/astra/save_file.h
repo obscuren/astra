@@ -30,7 +30,8 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 71;   // v71: program fragment system — replace ProgramRecipe with fragment+pattern
+inline constexpr uint32_t SAVE_FILE_VERSION = 72;   // v72: CyberdeckSlot carries CompiledProgram payload for player-compiled programs
+                                                    // v71: program fragment system — replace ProgramRecipe with fragment+pattern
                                                     // v70: learned_programs (Cyberdeck program recipes — split from schematics)
                                                     // v69: drop shell-driven Hackable fields
                                                     // v68: stable monotonic NPC UID for Anchor linkage

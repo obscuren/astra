@@ -253,8 +253,20 @@ void HackingSystem::handle_targeting_input(int key, Game& game) {
             std::vector<int> menu_slots;
             for (int i = 0; i < (*deck_slot)->deck->stats.slots; ++i) {
                 const auto& slot = (*deck_slot)->deck->loaded[i];
-                if (slot.program_def_id == 0) continue;
+                if (slot_is_empty(slot)) continue;
+                // Player-compiled programs: always offered (targeting filter
+                // is the Telegraph's job at fire time).
+                if (slot.compiled.has_value()) {
+                    menu_slots.push_back(i);
+                    continue;
+                }
+                // Legacy programs go through the ProgramDef tag filter.
                 Item probe = build_by_def_id(slot.program_def_id);
+                if (probe.compiled_program.has_value()) {
+                    // Migrated legacy program — same as player-compiled.
+                    menu_slots.push_back(i);
+                    continue;
+                }
                 if (!probe.program) continue;
                 const ProgramDef* def = find_program(probe.program->id);
                 if (!def || def->kind != ProgramKind::Qh) continue;
