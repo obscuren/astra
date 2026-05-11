@@ -1,6 +1,7 @@
 #include "astra/program_compiler.h"
 
 #include "astra/cyberdeck.h"
+#include "astra/faction.h"
 #include "astra/fragment.h"
 #include "astra/game.h"
 #include "astra/hackable.h"
@@ -255,10 +256,15 @@ void apply_effect_at(Game& game, const EffectSpec& spec, int tx, int ty) {
                 }
             }
             for (auto& npc : world.npcs()) {
-                if (npc.x == x && npc.y == y && npc.alive()) {
-                    apply_to_npc(game, npc, spec);
-                    if (npc.cyber) apply_to_hackable(*npc.cyber, spec);
-                }
+                if (npc.x != x || npc.y != y || !npc.alive()) continue;
+                // Programs only affect HOSTILE NPCs. Station keepers,
+                // merchants, civilians, and friendlies are immune by faction
+                // — no friendly fire from the cyberdeck, and the player
+                // can't accidentally torch the people they're trying to
+                // trade with.
+                if (!is_hostile_to_player(npc.faction, game.player())) continue;
+                apply_to_npc(game, npc, spec);
+                if (npc.cyber) apply_to_hackable(*npc.cyber, spec);
             }
         }
     }
