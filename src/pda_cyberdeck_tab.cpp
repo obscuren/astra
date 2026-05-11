@@ -448,11 +448,29 @@ void clamp_cursor(PdaScreen& self) {
     if (self.build_cursor_slot() > max_slot)  self.build_cursor_slot_mut() = max_slot;
 }
 
-void compile_action(PdaScreen& self, Game& game) {
+// Begin the compile flow: pre-flight checks, then open the name-prompt
+// popup with an auto-generated default. Actual disk consume + item
+// creation happens in confirm_compile() when the user hits Enter.
+void begin_compile_prompt(PdaScreen& self, Game& game) {
     if (self.compiler_build().empty()) {
         self.set_context_message("Compile: empty build.", 3);
         return;
     }
+    // Disk check up front — don't open the prompt if compile would fail.
+    int disks = 0;
+    for (const auto& it : self.player().inventory.items) {
+        if (it.item_def_id == ITEM_PROGRAM_DISK) disks += it.stack_count;
+    }
+    if (disks <= 0) {
+        self.set_context_message("Compile failed: no Program Disk.", 3);
+        game.log("No Program Disk in inventory.");
+        return;
+    }
+    self.cyberdeck_compile_prompt_open(auto_name(self.compiler_build()));
+}
+
+void confirm_compile(PdaScreen& self, Game& game, const std::string& name) {
+    if (self.compiler_build().empty()) return;
 
     // Find a program disk in inventory
     int disk_idx = -1;
@@ -476,8 +494,9 @@ void compile_action(PdaScreen& self, Game& game) {
     else
         inv.erase(inv.begin() + disk_idx);
 
-    // Compile
-    auto cp = compile_program(self.compiler_build(), "");
+    // Compile — use the player-supplied name (falls back to auto_name if blank).
+    std::string final_name = name.empty() ? auto_name(self.compiler_build()) : name;
+    auto cp = compile_program(self.compiler_build(), final_name);
 
     // Build an Item holding the compiled program
     Item out;
@@ -588,6 +607,42 @@ void draw_load_popup(PdaScreen& self, UIContext& ctx) {
     ctx.text(x + 2, y + h - 2, " \xe2\x86\x91\xe2\x86\x93 select   Enter load   Esc cancel", Color::DarkGray);
 }
 
+void draw_compile_prompt(PdaScreen& self, UIContext& ctx) {
+    int w = 60;
+    int h = 8;
+    int x = ctx.width() / 2 - w / 2;
+    int y = ctx.height() / 2 - h / 2;
+
+    // Background
+    for (int j = 0; j < h; ++j) {
+        for (int i = 0; i < w; ++i) {
+            ctx.text(x + i, y + j, " ", Color::Default);
+        }
+    }
+
+    // Full pipe-style border (same shape as the LOAD PROGRAM popup).
+    self.draw_section_header(ctx, y, "NAME PROGRAM", x, x + w);
+    ctx.text(x,         y, BoxDraw::TL, Color::DarkGray);
+    ctx.text(x + w - 1, y, BoxDraw::TR, Color::DarkGray);
+    for (int j = 1; j < h - 1; ++j) {
+        ctx.text(x,         y + j, BoxDraw::V, Color::DarkGray);
+        ctx.text(x + w - 1, y + j, BoxDraw::V, Color::DarkGray);
+    }
+    ctx.text(x, y + h - 1, BoxDraw::BL, Color::DarkGray);
+    for (int i = 1; i < w - 1; ++i) {
+        ctx.text(x + i, y + h - 1, BoxDraw::H, Color::DarkGray);
+    }
+    ctx.text(x + w - 1, y + h - 1, BoxDraw::BR, Color::DarkGray);
+
+    ctx.text(x + 2, y + 2, "Name your compiled program:", Color::DarkGray);
+
+    // Input field with a trailing █ caret so the user sees where typing goes.
+    std::string field = self.cyberdeck_compile_name() + "\xe2\x96\x88";
+    ctx.text(x + 2, y + 4, " " + field, Color::Cyan);
+
+    ctx.text(x + 2, y + h - 2, " Enter: compile   Backspace: erase   Esc: cancel", Color::DarkGray);
+}
+
 void draw_patterns_overlay(PdaScreen& self, UIContext& ctx) {
     int total = static_cast<int>(pattern_catalog().size());
     int discovered = static_cast<int>(self.player().discovered_patterns.size());
@@ -636,9 +691,39 @@ void PdaScreen::draw_cyberdeck(UIContext& ctx) {
     if (cyberdeck_load_popup_ && cyberdeck_subscreen_ == CyberdeckSubscreen::Deck) {
         draw_load_popup(*this, ctx);
     }
+    // Compile name-prompt renders ON TOP of the Compiler sub-screen.
+    if (cyberdeck_compile_prompt_ && cyberdeck_subscreen_ == CyberdeckSubscreen::Compiler) {
+        draw_compile_prompt(*this, ctx);
+    }
 }
 
 void PdaScreen::handle_cyberdeck_key(int key) {
+    // Compile-name prompt intercepts everything while open.
+    if (cyberdeck_compile_prompt_) {
+        if (key == 27) {                            // Esc → cancel
+            cyberdeck_compile_prompt_close();
+            return;
+        }
+        if (key == '\n' || key == '\r') {           // Enter → confirm
+            std::string name = cyberdeck_compile_name_;
+            cyberdeck_compile_prompt_close();
+            if (game_) confirm_compile(*this, *game_, name);
+            return;
+        }
+        if (key == '\b' || key == 127) {            // Backspace
+            if (!cyberdeck_compile_name_.empty())
+                cyberdeck_compile_name_.pop_back();
+            return;
+        }
+        // Printable ASCII → append. Cap length so the field doesn't overflow.
+        if (key >= ' ' && key < 127
+            && cyberdeck_compile_name_.size() < 40) {
+            cyberdeck_compile_name_.push_back(static_cast<char>(key));
+            return;
+        }
+        return;
+    }
+
     // Load-program popup intercepts everything while it's open.
     if (cyberdeck_load_popup_) {
         auto progs = compiled_programs_in_inventory(*this);
@@ -814,7 +899,7 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             break;
         }
         case 'c':
-            if (game_) compile_action(*this, *game_);
+            if (game_) begin_compile_prompt(*this, *game_);
             break;
         default: break;
     }

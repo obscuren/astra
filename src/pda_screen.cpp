@@ -109,6 +109,10 @@ bool PdaScreen::handle_input(int key) {
             cyberdeck_load_popup_ = false;
             return true;
         }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_compile_prompt_) {
+            cyberdeck_compile_prompt_ = false;
+            return true;
+        }
         if (active_tab_ == PdaTab::Hacking && cyberdeck_show_patterns_overlay_) {
             cyberdeck_show_patterns_overlay_ = false;
             return true;

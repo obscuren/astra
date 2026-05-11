@@ -279,6 +279,11 @@ private:
     bool cyberdeck_load_popup_    = false;
     int  cyberdeck_load_popup_cursor_ = 0;
 
+    // Compile-prompt popup (Compiler sub-screen). When open, all input
+    // is captured by the prompt's text editor.
+    bool        cyberdeck_compile_prompt_ = false;
+    std::string cyberdeck_compile_name_;
+
 public:
     int compiler_palette_cursor() const { return compiler_palette_cursor_; }
     const std::vector<ProgramNode>& compiler_build() const { return compiler_build_; }
@@ -296,6 +301,14 @@ public:
     int& cyberdeck_load_popup_cursor_mut() { return cyberdeck_load_popup_cursor_; }
     void cyberdeck_load_popup_open()  { cyberdeck_load_popup_ = true;  cyberdeck_load_popup_cursor_ = 0; }
     void cyberdeck_load_popup_close() { cyberdeck_load_popup_ = false; }
+    bool cyberdeck_compile_prompt() const { return cyberdeck_compile_prompt_; }
+    const std::string& cyberdeck_compile_name() const { return cyberdeck_compile_name_; }
+    std::string& cyberdeck_compile_name_mut() { return cyberdeck_compile_name_; }
+    void cyberdeck_compile_prompt_open(const std::string& default_name) {
+        cyberdeck_compile_prompt_ = true;
+        cyberdeck_compile_name_   = default_name;
+    }
+    void cyberdeck_compile_prompt_close() { cyberdeck_compile_prompt_ = false; }
     // Generic transient status message — same surface every PDA tab uses.
     void set_context_message(const std::string& msg, int ticks = 3) {
         context_message_ = msg;
