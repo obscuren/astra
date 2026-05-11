@@ -1090,7 +1090,7 @@ void Game::render_play() {
     render_stats_bar();
     render_bars();
     render_soul_mirror_strip();
-    render_detection_indicator();
+    render_deck_indicator();
 
     render_widget_bar();
 
@@ -1300,34 +1300,47 @@ void Game::render_soul_mirror_strip() {
     soul_mirror::render_hud_strip(*this, *renderer_);
 }
 
-void Game::render_detection_indicator() {
+void Game::render_deck_indicator() {
     if (!panel_visible_) return;
-    if (detection_indicator_rect_.w <= 0) return;
-
-    int dt = hacking_.detection();
     auto* deck_slot = player_.equipment.equipped_cyberdeck();
-    bool has_deck = deck_slot && *deck_slot;
-    if (dt == 0 && !has_deck) return;  // hide entirely until relevant
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+    const auto& deck = *(*deck_slot)->deck;
 
-    UITag tag;
-    if      (dt >= 100) tag = UITag::TextDanger;
-    else if (dt >= 75)  tag = UITag::TextDanger;
-    else if (dt >= 50)  tag = UITag::TextWarning;
-    else if (dt > 0)    tag = UITag::TextBright;
-    else                tag = UITag::TextDim;
+    // Shared rendering helper: ──┤ LABEL N/M ├── + a bar covering the rest
+    // of the row width.
+    auto draw_bar = [&](const Rect& rect, const char* label,
+                        int value, int max, UITag tag) {
+        if (rect.w <= 0) return;
+        UIContext ctx(renderer_.get(), rect);
+        std::string val = std::to_string(value) + "/" + std::to_string(max);
+        ctx.label_value({.x = 1, .y = 0, .label = label,
+                         .label_tag = UITag::TextDim,
+                         .value = val, .value_tag = tag});
+        int bar_start = 1 + 5 + static_cast<int>(val.size()) + 1;   // "RAM:" = 4 chars + space
+        int bar_w = ctx.width() - bar_start - 2;
+        if (bar_w > 0) {
+            ctx.progress_bar({.x = bar_start, .y = 0, .width = bar_w,
+                              .value = value, .max = max, .tag = tag});
+        }
+    };
 
-    UIContext ctx(renderer_.get(), detection_indicator_rect_);
-    std::string val = std::to_string(dt) + "/100";
-    // Mirror the bar layout on the left: label at col 1, value padded.
-    ctx.label_value({.x = 1, .y = 0, .label = "DT:",
-                     .label_tag = UITag::TextDim,
-                     .value = val, .value_tag = tag});
-    int bar_start = 1 + 4 + static_cast<int>(val.size()) + 1;
-    int bar_w = ctx.width() - bar_start - 2;
-    if (bar_w > 0) {
-        ctx.progress_bar({.x = bar_start, .y = 0, .width = bar_w,
-                          .value = dt, .max = 100, .tag = tag});
-    }
+    // RAM bar — bright when full, dim as it depletes.
+    int ram_pct = deck.stats.ram_max > 0
+                ? (deck.ram_current * 100 / deck.stats.ram_max) : 0;
+    UITag ram_tag = (ram_pct >= 50) ? UITag::TextBright
+                                    : (ram_pct >= 25 ? UITag::TextWarning
+                                                     : UITag::TextDanger);
+    draw_bar(deck_ram_rect_, "RAM:",
+             deck.ram_current, deck.stats.ram_max, ram_tag);
+
+    // HEAT bar — climbs toward heat_cap; warn at 50%, danger at 80%.
+    int heat_pct = deck.stats.heat_cap > 0
+                 ? (deck.heat_current * 100 / deck.stats.heat_cap) : 0;
+    UITag heat_tag = (heat_pct >= 80) ? UITag::TextDanger
+                                      : (heat_pct >= 50 ? UITag::TextWarning
+                                                        : UITag::TextDim);
+    draw_bar(deck_heat_rect_, "HEAT:",
+             deck.heat_current, deck.stats.heat_cap, heat_tag);
 }
 
 void Game::render_widget_bar() {
