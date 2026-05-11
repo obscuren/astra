@@ -324,11 +324,10 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
                       self.build_cursor_slot(),
                       build_focus);
 
-    // ── Footer hint: focus toggle ────────────────────────────────────────
-    const char* focus_label = build_focus ? "Editor"   : "Fragment";
-    const char* focus_next  = build_focus ? "Fragment" : "Editor";
-    std::string footer = " [s] focus: " + std::string(focus_label)
-                       + " (\xe2\x86\x92 " + std::string(focus_next) + ")"
+    // ── Footer hint: focus + compile ─────────────────────────────────────
+    const char* focus_label = build_focus ? "Editor" : "Fragment";
+    std::string footer = " [\xe2\x86\x90 Fragment] [Editor \xe2\x86\x92]   focus: "
+                       + std::string(focus_label)
                        + "    [c] compile";
     ctx.text(2, ctx.height() - 2, footer, Color::DarkGray);
 
@@ -763,13 +762,15 @@ void PdaScreen::handle_cyberdeck_key(int key) {
         build_cursor_slot_ = flat[next].slot;
     };
 
-    // 's' toggles focus between Fragments palette and Build editor.
-    // The build cursor is STATEFUL across the toggle — palette-mode inserts
-    // land at the cursor's current position, not at the trailing position.
-    if (key == 's') {
-        compiler_focus_ = (compiler_focus_ == CompilerFocus::Palette)
-                        ? CompilerFocus::Build
-                        : CompilerFocus::Palette;
+    // ← / → switch focus directionally: Left = Fragments (left pane),
+    // Right = Build (middle pane). Build cursor is STATEFUL across the
+    // toggle — palette-mode inserts land at the cursor's current position.
+    if (key == KEY_LEFT) {
+        compiler_focus_ = CompilerFocus::Palette;
+        return;
+    }
+    if (key == KEY_RIGHT) {
+        compiler_focus_ = CompilerFocus::Build;
         return;
     }
 
@@ -799,8 +800,7 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             clamp_cursor(*this);
             break;
         case '+':
-        case '=':
-        case KEY_RIGHT: {
+        case '=': {
             ProgramNode* n = cursor_on_node(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
@@ -810,8 +810,7 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             break;
         }
         case '-':
-        case '_':
-        case KEY_LEFT: {
+        case '_': {
             ProgramNode* n = cursor_on_node(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
