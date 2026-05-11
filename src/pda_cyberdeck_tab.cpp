@@ -369,7 +369,9 @@ ProgramNode* cursor_on_node(PdaScreen& self) {
 
 // Insert a fragment at the cursor. Gap → insert at gap_index; on-node →
 // insert AFTER the current node. Cursor advances to the gap below the new
-// node so the user can keep "typing" forward.
+// node so the user can keep "typing" forward — UNLESS the new node is a
+// container, in which case the cursor descends into its (empty) body so
+// the next append lands inside the loop/tick.
 void insert_at_cursor(PdaScreen& self, FragmentId id) {
     int ceiling = max_program_fragments(self.player());
     if (ceiling == 0) return;
@@ -397,8 +399,16 @@ void insert_at_cursor(PdaScreen& self, FragmentId id) {
         insert_at = pos_node_index(self.build_cursor_slot()) + 1;
     }
     chain->insert(chain->begin() + insert_at, std::move(n));
-    // Advance cursor to gap BELOW the new node.
-    self.build_cursor_slot_mut() = 2 * (insert_at + 1);
+
+    if (def->kind == FragmentKind::Container) {
+        // Descend into the new container's empty body so subsequent appends
+        // land INSIDE it (TICK / LOOP).
+        self.build_cursor_path_mut().push_back(insert_at);
+        self.build_cursor_slot_mut() = 0;
+    } else {
+        // Advance cursor to the gap BELOW the new node in this chain.
+        self.build_cursor_slot_mut() = 2 * (insert_at + 1);
+    }
 }
 
 // Delete according to cursor position.
