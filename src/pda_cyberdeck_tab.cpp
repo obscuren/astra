@@ -18,6 +18,10 @@ namespace {
 
 void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     auto* deck_slot = self.player().equipment.equipped_cyberdeck();
+
+    // ── Top header: ──┤ CYBERDECK ├────────────────── (full width)
+    self.draw_section_header(ctx, 0, "CYBERDECK", 1, ctx.width() - 1);
+
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         int cy = ctx.height() / 2 - 2;
         ctx.text(ctx.width() / 2 - 13, cy,
@@ -29,14 +33,19 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     auto& deck      = *(*deck_slot)->deck;
     auto  deck_name = (*deck_slot)->name;
 
-    // ── Left pane: deck stats + slot list ────────────────────────────────
-    ctx.text(2, 1, deck_name, Color::White);
-    ctx.text(2, 2, "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-                   "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-                   "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80",
-             Color::DarkGray);
+    int half = ctx.width() / 2;
 
-    int y = 3;
+    // Vertical divider between left/right panes
+    for (int r = 2; r < ctx.height() - 1; ++r) {
+        ctx.text(half - 1, r, "\xe2\x94\x82", Color::DarkGray);
+    }
+
+    // ── Left pane header: ──┤ DECK ├──
+    self.draw_section_header(ctx, 2, "DECK", 1, half - 1);
+
+    ctx.text(2, 3, deck_name, Color::White);
+
+    int y = 5;
     auto stat = [&](const std::string& label, const std::string& value) {
         ctx.text(2, y, label, Color::DarkGray);
         ctx.text(2 + static_cast<int>(label.size()), y, value, Color::Default);
@@ -47,36 +56,39 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     stat("COOLING  ", std::to_string(deck.stats.cooling_rate) + "/turn");
     stat("STEALTH  ", "+" + std::to_string(deck.stats.stealth));
 
+    // ── Sub-header: SLOTS ──┤
     ++y;
-    ctx.text(2, y++, "PROGRAM SLOTS", Color::White);
+    self.draw_section_header(ctx, y++, "SLOTS", 1, half - 1);
+    int slot_cursor = self.cyberdeck_slot_cursor();
     for (int i = 0; i < deck.stats.slots; ++i) {
         const auto& sl = deck.loaded[i];
+        bool sel = (i == slot_cursor);
+        std::string marker = sel ? "\xe2\x96\xb8 " : "  ";  // ▸
         if (sl.program_def_id == 0) {
-            ctx.text(2, y++, "  " + std::to_string(i + 1) + " \xe2\x96\xa2 (empty)",
-                     Color::DarkGray);
+            ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa2 (empty)",
+                     sel ? Color::Cyan : Color::DarkGray);
         } else {
             Item probe = build_by_def_id(sl.program_def_id);
-            ctx.text(2, y++, "  " + std::to_string(i + 1) + " \xe2\x96\xa3 " + probe.name,
-                     Color::Default);
+            ctx.text(2, y++, marker + std::to_string(i + 1) + " \xe2\x96\xa3 " + probe.name,
+                     sel ? Color::Cyan : Color::Default);
         }
     }
 
-    // ── Right pane: compiled-program inventory list ───────────────────────
-    int half = ctx.width() / 2;
-    ctx.text(half + 2, 1, "COMPILED PROGRAMS", Color::White);
-    ctx.text(half + 2, 2,
-             "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-             "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-             "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-             "\xe2\x94\x80\xe2\x94\x80",
+    ctx.text(2, ctx.height() - 2,
+             " \xe2\x86\x91\xe2\x86\x93 slot   Space: load program",
              Color::DarkGray);
-    int yr = 3;
+
+    // ── Right pane header: ──┤ COMPILED PROGRAMS ├──
+    self.draw_section_header(ctx, 2, "COMPILED PROGRAMS", half + 1, ctx.width() - 1);
+    int yr = 4;
+    int found = 0;
     for (const auto& it : self.player().inventory.items) {
         if (!it.compiled_program.has_value()) continue;
         ctx.text(half + 2, yr++, "  " + it.name, Color::Default);
+        ++found;
     }
-    if (yr == 3) {
-        ctx.text(half + 2, yr, "  (none)", Color::DarkGray);
+    if (found == 0) {
+        ctx.text(half + 2, yr, "  (none — compile some in the Compiler)", Color::DarkGray);
     }
 }
 
@@ -85,7 +97,7 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
 // Render a fragment chain recursively. Returns the next free y row.
 // `cursor_path` describes the insertion path from the OUTERMOST chain inward;
 // when it's empty, this chain is where the next append lands and we draw a
-// "▸ <next>" marker after the last node so the user can see the cursor.
+// ▸ insertion marker at the end so the user can see the cursor.
 int render_chain(UIContext& ctx, int x, int y,
                  const std::vector<ProgramNode>& chain,
                  const std::vector<int>& cursor_path,
@@ -98,22 +110,24 @@ int render_chain(UIContext& ctx, int x, int y,
         bool on_path = !cursor_path.empty() &&
                        cursor_path.front() == static_cast<int>(i);
 
+        // Inter-node flow arrow (between any two peer nodes — visualises pipeline)
+        if (i > 0) {
+            ctx.text(x + 1, y++, "\xe2\x86\x93", Color::DarkGray);  // ↓
+        }
+
         if (def && def->kind == FragmentKind::Container) {
-            // Header
             std::string header = std::string(BoxDraw::TL) + "\xe2\x94\x80 "
                                + def->display
                                + "(" + std::to_string(n.param) + ") \xe2\x94\x80";
             ctx.text(x, y, header, on_path ? Color::Cyan : Color::White);
             ++y;
 
-            // Body — build sub-path
             std::vector<int> sub_path;
             if (on_path && cursor_path.size() > 1)
                 sub_path.assign(cursor_path.begin() + 1, cursor_path.end());
             y = render_chain(ctx, x + 2, y, n.body,
                              on_path ? sub_path : std::vector<int>{-1}, 1);
 
-            // Footer
             ctx.text(x, y, std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80",
                      on_path ? Color::Cyan : Color::White);
             ++y;
@@ -133,48 +147,53 @@ int render_chain(UIContext& ctx, int x, int y,
     }
 
     if (chain.empty()) {
-        // Empty chain — show insertion marker if cursor is here, else greyed hint.
         if (is_active_chain) {
-            ctx.text(x, y, "\xe2\x96\xb8 (next append lands here)", Color::Cyan);
+            ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);  // ▸ standalone insertion marker
         } else {
             ctx.text(x, y, "(empty)", Color::DarkGray);
         }
         ++y;
     } else if (is_active_chain) {
-        // Cursor at end of this chain — show the insertion marker on its own line.
-        ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);
+        ctx.text(x + 1, y++, "\xe2\x86\x93", Color::DarkGray);   // ↓ flow into next
+        ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);              // ▸ cursor
         ++y;
     }
     return y;
 }
 
 void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
-    // ── Header ────────────────────────────────────────────────────────────
     int disks = 0;
     for (const auto& it : self.player().inventory.items) {
         if (it.item_def_id == ITEM_PROGRAM_DISK) disks += it.stack_count;
     }
     int ceiling = max_program_fragments(self.player());
-    std::string header = "Program Disks: " + std::to_string(disks)
-                       + "    |    Programming ceiling: "
-                       + std::to_string(ceiling) + " fragments";
-    ctx.text(2, 0, header, Color::White);
+
+    // ── Top header (full width) ──┤ COMPILER ├───────────────────────────
+    self.draw_section_header(ctx, 0, "COMPILER", 1, ctx.width() - 1);
+
+    std::string stats = "Program Disks: " + std::to_string(disks)
+                      + "    |    Programming ceiling: "
+                      + std::to_string(ceiling) + " fragments";
+    ctx.text(2, 1, stats, Color::DarkGray);
 
     int third  = ctx.width() / 3;
     int col_p  = 0;
     int col_b  = third;
     int col_v  = 2 * third;
 
-    // ── Vertical dividers between the three panes ─────────────────────────
-    for (int r = 2; r < ctx.height() - 1; ++r) {
-        ctx.text(col_b - 1, r, "\xe2\x94\x82", Color::DarkGray);   // │
+    // Vertical dividers between the three panes
+    for (int r = 3; r < ctx.height() - 1; ++r) {
+        ctx.text(col_b - 1, r, "\xe2\x94\x82", Color::DarkGray);
         ctx.text(col_v - 1, r, "\xe2\x94\x82", Color::DarkGray);
     }
 
-    // ── Left pane: fragment palette ───────────────────────────────────────
-    ctx.text(col_p + 2, 2, "FRAGMENTS", Color::White);
+    // ── Pane sub-headers: ──┤ FRAGMENTS ├── / ──┤ BUILD ├── / ──┤ PREVIEW ├──
+    self.draw_section_header(ctx, 3, "FRAGMENTS", col_p + 1, col_b - 1);
+    self.draw_section_header(ctx, 3, "BUILD",     col_b + 1, col_v - 1);
+    self.draw_section_header(ctx, 3, "PREVIEW",   col_v + 1, ctx.width() - 1);
 
-    int yp = 4;
+    // ── Left pane: fragment palette ───────────────────────────────────────
+    int yp = 5;
     FragmentKind last_kind = FragmentKind::Container;  // sentinel ≠ first real kind
     bool first = true;
     const auto& catalog = fragment_catalog();
@@ -182,13 +201,12 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
         const auto& def = catalog[i];
         if (def.id == FragmentId::None) continue;
 
-        // Print kind header when kind changes
         if (first || def.kind != last_kind) {
             const char* kind_label =
                 (def.kind == FragmentKind::Producer)    ? "PRODUCERS"   :
                 (def.kind == FragmentKind::Transformer) ? "OPERATORS"   :
                                                           "CONTAINERS";
-            ctx.text(col_p, yp++, kind_label, Color::Yellow);
+            ctx.text(col_p + 1, yp++, kind_label, Color::Yellow);
             last_kind = def.kind;
             first = false;
         }
@@ -198,8 +216,6 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
             if (fid == def.id) { known = true; break; }
 
         bool sel = static_cast<int>(i) == self.compiler_palette_cursor();
-        // ▸ marker on the cursor line — color alone is not enough on every
-        // terminal theme; the prefix is unambiguous.
         std::string line = (sel ? "\xe2\x96\xb8 " : "  ")
                          + std::string(def.display) + "  "
                          + std::to_string(def.exec_cost) + "/"
@@ -207,70 +223,38 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
         Color color = !known ? Color::DarkGray
                     : sel    ? Color::Cyan
                              : Color::Default;
-        ctx.text(col_p, yp++, line, color);
+        ctx.text(col_p + 1, yp++, line, color);
     }
 
-    // Hint
-    ctx.text(col_p, yp + 1, " \xe2\x86\x91\xe2\x86\x93 navigate  Enter append", Color::DarkGray);
-    ctx.text(col_p, yp + 2, " b/B enter/exit body  c compile", Color::DarkGray);
+    ctx.text(col_p + 1, ctx.height() - 4, " \xe2\x86\x91\xe2\x86\x93 navigate   Enter: append",  Color::DarkGray);
+    ctx.text(col_p + 1, ctx.height() - 3, " \xe2\x86\x90\xe2\x86\x92 +/- N    b/B enter/exit body", Color::DarkGray);
+    ctx.text(col_p + 1, ctx.height() - 2, " c compile",                                          Color::DarkGray);
 
     // ── Middle pane: build ────────────────────────────────────────────────
-    ctx.text(col_b + 2, 2,
-             "BUILD (max " + std::to_string(ceiling) + " fragments)",
-             Color::White);
-
-    // Cursor location subtitle — names the container body the cursor is
-    // inside so the player always knows where the next append lands.
-    {
-        const auto& path = self.compiler_cursor_path();
-        std::string desc = "Inserting at: ";
-        if (path.empty()) {
-            desc += "top level";
-        } else {
-            desc += "body of ";
-            const std::vector<ProgramNode>* chain = &self.compiler_build();
-            bool first = true;
-            for (int idx : path) {
-                if (idx < 0 || idx >= static_cast<int>(chain->size())) break;
-                const auto& node = (*chain)[idx];
-                const FragmentDef* def = find_fragment(node.fragment);
-                if (!first) desc += " \xe2\x86\x92 ";   // →
-                if (def) {
-                    desc += def->display;
-                    if (def->takes_param)
-                        desc += "(" + std::to_string(node.param) + ")";
-                }
-                chain = &node.body;
-                first = false;
-            }
-        }
-        ctx.text(col_b + 2, 3, desc, Color::Cyan);
-    }
-    render_chain(ctx, col_b + 2, 5,
+    render_chain(ctx, col_b + 1, 5,
                  self.compiler_build(),
                  self.compiler_cursor_path(), 0);
 
     // ── Right pane: live preview ─────────────────────────────────────────
     auto cp = compile_program(self.compiler_build(), "");
-    ctx.text(col_v + 2, 2, "PREVIEW", Color::White);
-    int yv = 4;
-    ctx.text(col_v, yv++, " Effect:", Color::Default);
+    int yv = 5;
+    ctx.text(col_v + 1, yv++, " Effect:", Color::Default);
     if (!cp.resolved.named_pattern.empty()) {
-        ctx.text(col_v, yv++, "  \xe2\x96\xba " + cp.resolved.named_pattern, Color::Green);
+        ctx.text(col_v + 1, yv++, "  \xe2\x96\xba " + cp.resolved.named_pattern, Color::Green);
     }
-    ctx.text(col_v, yv++, "  damage " + std::to_string(cp.resolved.damage), Color::DarkGray);
-    ctx.text(col_v, yv++, "  radius " + std::to_string(cp.resolved.radius), Color::DarkGray);
-    ctx.text(col_v, yv++, "  ticks  " + std::to_string(cp.resolved.tick_count), Color::DarkGray);
+    ctx.text(col_v + 1, yv++, "  damage " + std::to_string(cp.resolved.damage), Color::DarkGray);
+    ctx.text(col_v + 1, yv++, "  radius " + std::to_string(cp.resolved.radius), Color::DarkGray);
+    ctx.text(col_v + 1, yv++, "  ticks  " + std::to_string(cp.resolved.tick_count), Color::DarkGray);
     ++yv;
-    ctx.text(col_v, yv++, " Costs:", Color::Default);
-    ctx.text(col_v, yv++, "  exec " + std::to_string(cp.exec_cost), Color::DarkGray);
-    ctx.text(col_v, yv++, "  heat " + std::to_string(cp.heat_cost), Color::DarkGray);
-    ctx.text(col_v, yv++, "  ram  " + std::to_string(cp.ram_held), Color::DarkGray);
+    ctx.text(col_v + 1, yv++, " Costs:", Color::Default);
+    ctx.text(col_v + 1, yv++, "  exec " + std::to_string(cp.exec_cost), Color::DarkGray);
+    ctx.text(col_v + 1, yv++, "  heat " + std::to_string(cp.heat_cost), Color::DarkGray);
+    ctx.text(col_v + 1, yv++, "  ram  " + std::to_string(cp.ram_held), Color::DarkGray);
     if (!cp.patterns_lit.empty()) {
         ++yv;
-        ctx.text(col_v, yv++, " Patterns lit:", Color::Default);
+        ctx.text(col_v + 1, yv++, " Patterns lit:", Color::Default);
         for (const auto& pat : cp.patterns_lit)
-            ctx.text(col_v, yv++, "  \xe2\x96\xba " + pat, Color::Green);
+            ctx.text(col_v + 1, yv++, "  \xe2\x96\xba " + pat, Color::Green);
     }
 }
 
@@ -395,6 +379,51 @@ void compile_action(PdaScreen& self, Game& game) {
     self.compiler_cursor_path_mut().clear();
 }
 
+// Build a list of (inventory_index, item_pointer) pairs for compiled programs.
+std::vector<std::pair<int, const Item*>> compiled_programs_in_inventory(PdaScreen& self) {
+    std::vector<std::pair<int, const Item*>> out;
+    const auto& inv = self.player().inventory.items;
+    for (size_t i = 0; i < inv.size(); ++i) {
+        if (inv[i].compiled_program.has_value())
+            out.emplace_back(static_cast<int>(i), &inv[i]);
+    }
+    return out;
+}
+
+void draw_load_popup(PdaScreen& self, UIContext& ctx) {
+    auto progs = compiled_programs_in_inventory(self);
+    int w = 50;
+    int h = std::max(8, static_cast<int>(progs.size()) + 6);
+    int x = ctx.width() / 2 - w / 2;
+    int y = ctx.height() / 2 - h / 2;
+
+    // Clear background of the popup region with spaces
+    for (int j = 0; j < h; ++j) {
+        for (int i = 0; i < w; ++i) {
+            ctx.text(x + i, y + j, " ", Color::Default);
+        }
+    }
+
+    // Border (top/bottom only — keep it minimal)
+    self.draw_section_header(ctx, y, "LOAD PROGRAM", x + 1, x + w - 1);
+
+    int slot = self.cyberdeck_slot_cursor();
+    ctx.text(x + 2, y + 2, "Loading into slot " + std::to_string(slot + 1) + ".", Color::DarkGray);
+
+    int cur = self.cyberdeck_load_popup_cursor();
+    if (progs.empty()) {
+        ctx.text(x + 2, y + 4, "  (no compiled programs in inventory)", Color::DarkGray);
+    } else {
+        for (int i = 0; i < static_cast<int>(progs.size()); ++i) {
+            bool sel = (i == cur);
+            std::string line = (sel ? "\xe2\x96\xb8 " : "  ") + progs[i].second->name;
+            ctx.text(x + 2, y + 4 + i, line, sel ? Color::Cyan : Color::Default);
+        }
+    }
+
+    ctx.text(x + 2, y + h - 2, " \xe2\x86\x91\xe2\x86\x93 select   Enter load   Esc cancel", Color::DarkGray);
+}
+
 void draw_patterns_overlay(PdaScreen& self, UIContext& ctx) {
     int total = static_cast<int>(pattern_catalog().size());
     int discovered = static_cast<int>(self.player().discovered_patterns.size());
@@ -439,9 +468,48 @@ void PdaScreen::draw_cyberdeck(UIContext& ctx) {
         case CyberdeckSubscreen::Deck:     draw_deck_subscreen(*this, ctx);     break;
         case CyberdeckSubscreen::Compiler: draw_compiler_subscreen(*this, ctx); break;
     }
+    // Popup renders ON TOP of the Deck sub-screen.
+    if (cyberdeck_load_popup_ && cyberdeck_subscreen_ == CyberdeckSubscreen::Deck) {
+        draw_load_popup(*this, ctx);
+    }
 }
 
 void PdaScreen::handle_cyberdeck_key(int key) {
+    // Load-program popup intercepts everything while it's open.
+    if (cyberdeck_load_popup_) {
+        auto progs = compiled_programs_in_inventory(*this);
+        if (key == KEY_UP) {
+            if (cyberdeck_load_popup_cursor_ > 0) --cyberdeck_load_popup_cursor_;
+            return;
+        }
+        if (key == KEY_DOWN) {
+            if (cyberdeck_load_popup_cursor_ < static_cast<int>(progs.size()) - 1)
+                ++cyberdeck_load_popup_cursor_;
+            return;
+        }
+        if (key == '\n' || key == '\r') {
+            // Load the selected compiled program into the cursor's slot.
+            auto* deck_slot = player_->equipment.equipped_cyberdeck();
+            if (deck_slot && *deck_slot && (*deck_slot)->deck &&
+                cyberdeck_load_popup_cursor_ < static_cast<int>(progs.size())) {
+                auto& deck = *(*deck_slot)->deck;
+                if (cyberdeck_slot_cursor_ < deck.stats.slots) {
+                    const Item* prog_item = progs[cyberdeck_load_popup_cursor_].second;
+                    deck.loaded[cyberdeck_slot_cursor_].program_def_id = prog_item->item_def_id;
+                    if (game_) game_->log("Loaded " + prog_item->name + " into slot "
+                                         + std::to_string(cyberdeck_slot_cursor_ + 1) + ".");
+                }
+            }
+            cyberdeck_load_popup_close();
+            return;
+        }
+        if (key == 27) {  // Esc
+            cyberdeck_load_popup_close();
+            return;
+        }
+        return;
+    }
+
     if (key == '\t') {
         cyberdeck_subscreen_ = (cyberdeck_subscreen_ == CyberdeckSubscreen::Deck)
                              ? CyberdeckSubscreen::Compiler
@@ -452,7 +520,35 @@ void PdaScreen::handle_cyberdeck_key(int key) {
         cyberdeck_show_patterns_overlay_ = !cyberdeck_show_patterns_overlay_;
         return;
     }
-    if (cyberdeck_subscreen_ != CyberdeckSubscreen::Compiler) return;
+
+    // Deck sub-screen — slot navigation + Space to open load popup
+    if (cyberdeck_subscreen_ == CyberdeckSubscreen::Deck) {
+        auto* deck_slot = player_->equipment.equipped_cyberdeck();
+        int max_slot = 0;
+        if (deck_slot && *deck_slot && (*deck_slot)->deck)
+            max_slot = (*deck_slot)->deck->stats.slots;
+        switch (key) {
+            case KEY_UP:
+                if (cyberdeck_slot_cursor_ > 0) --cyberdeck_slot_cursor_;
+                break;
+            case KEY_DOWN:
+                if (cyberdeck_slot_cursor_ < max_slot - 1) ++cyberdeck_slot_cursor_;
+                break;
+            case ' ':
+                if (max_slot > 0) cyberdeck_load_popup_open();
+                break;
+            case 'u':
+                // Unload the program in the current slot.
+                if (deck_slot && *deck_slot && (*deck_slot)->deck &&
+                    cyberdeck_slot_cursor_ < max_slot) {
+                    (*deck_slot)->deck->loaded[cyberdeck_slot_cursor_].program_def_id = 0;
+                }
+                break;
+            default: break;
+        }
+        return;
+    }
+
     if (cyberdeck_show_patterns_overlay_) return;
 
     const auto& palette = fragment_catalog();
@@ -499,7 +595,8 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             exit_body(*this);
             break;
         case '+':
-        case '=': {
+        case '=':
+        case KEY_RIGHT: {
             ProgramNode* n = node_at_cursor(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);
@@ -509,7 +606,8 @@ void PdaScreen::handle_cyberdeck_key(int key) {
             break;
         }
         case '-':
-        case '_': {
+        case '_':
+        case KEY_LEFT: {
             ProgramNode* n = node_at_cursor(*this);
             if (n) {
                 const FragmentDef* def = find_fragment(n->fragment);

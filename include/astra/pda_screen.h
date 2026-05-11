@@ -261,6 +261,11 @@ private:
     std::vector<int>         compiler_cursor_path_;
     int                      compiler_palette_cursor_ = 1;  // skip FragmentId::None at index 0
 
+    // Deck sub-screen — slot cursor + popup-load state.
+    int  cyberdeck_slot_cursor_   = 0;
+    bool cyberdeck_load_popup_    = false;
+    int  cyberdeck_load_popup_cursor_ = 0;
+
 public:
     int compiler_palette_cursor() const { return compiler_palette_cursor_; }
     const std::vector<ProgramNode>& compiler_build() const { return compiler_build_; }
@@ -268,6 +273,13 @@ public:
     std::vector<ProgramNode>& compiler_build_mut() { return compiler_build_; }
     std::vector<int>& compiler_cursor_path_mut() { return compiler_cursor_path_; }
     int& compiler_palette_cursor_mut() { return compiler_palette_cursor_; }
+    int  cyberdeck_slot_cursor() const { return cyberdeck_slot_cursor_; }
+    int& cyberdeck_slot_cursor_mut() { return cyberdeck_slot_cursor_; }
+    bool cyberdeck_load_popup() const { return cyberdeck_load_popup_; }
+    int  cyberdeck_load_popup_cursor() const { return cyberdeck_load_popup_cursor_; }
+    int& cyberdeck_load_popup_cursor_mut() { return cyberdeck_load_popup_cursor_; }
+    void cyberdeck_load_popup_open()  { cyberdeck_load_popup_ = true;  cyberdeck_load_popup_cursor_ = 0; }
+    void cyberdeck_load_popup_close() { cyberdeck_load_popup_ = false; }
 
 private:
     void draw_cyberdeck(UIContext& ctx);
@@ -283,7 +295,9 @@ private:
                        const char* label, int value,
                        bool selected, int modifier = -999,
                        int pending = 0, bool can_allocate = false);
+public:
     // right_edge = -1 falls back to ctx.width()/2 (left panel default).
+    // Public so per-tab modules (cyberdeck, ...) can reuse the same chrome.
     void draw_section_header(UIContext& ctx, int y,
                              const char* title, int left_margin = 1,
                              int right_edge = -1);
