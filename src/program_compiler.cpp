@@ -136,14 +136,14 @@ void walk(const std::vector<ProgramNode>& chain, EffectSpec& spec) {
 }
 
 void derive_telegraph(EffectSpec& s) {
-    if (s.radius >= 1) {
-        s.telegraph.shape = TelegraphShape::Burst;
-        s.telegraph.range = 1 + s.radius;     // pick range — Burst uses range as radius
-    } else {
-        // Single-target: Burst radius 0 (smart-pick handles single-cell)
-        s.telegraph.shape = TelegraphShape::Burst;
-        s.telegraph.range = 1;                // 0 may not render; minimal range
-    }
+    // Burst handles everything: the cursor is the target tile, `width` is
+    // the burst radius (0 = single tile, 1 = 3x3, 2 = 5x5), and `range` is
+    // how far the cursor can move from the player. For chain (RELAY)
+    // programs the chain happens automatically at fire time once the
+    // primary target is picked.
+    s.telegraph.shape         = TelegraphShape::Burst;
+    s.telegraph.width         = s.radius;        // 0 for single-target
+    s.telegraph.range         = 8;               // reasonable targeting reach
     s.telegraph.diagonals     = true;
     s.telegraph.stop_at_wall  = true;
 }
