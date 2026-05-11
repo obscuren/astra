@@ -1678,8 +1678,39 @@ static const char* tab_help_body(PdaTab tab) {
                    "[c] cook the slotted ingredients\n\n"
                    "You must be near a cooking fire to cook.";
         case PdaTab::Hacking:
-            return "Cyberdeck management.\n\n"
-                   "This tab is under construction.";
+            return "Build and run cyberdeck programs.\n\n"
+                   "Two sub-screens (toggle with [Tab]):\n\n"
+                   "DECK — your equipped cyberdeck. The slot list shows what's "
+                   "loaded; pick a slot with the arrows and press [Space] to "
+                   "open the LOAD popup with every compiled program in your "
+                   "inventory. [u] unloads the current slot. Loaded slots auto-"
+                   "bind to the abilities bar so you can fire them with the "
+                   "hotbar key (1-4 by default).\n\n"
+                   "COMPILER — assemble programs from fragments. The build "
+                   "is a tree: producers seed an effect (VOLT, PYRE, DRAIN, "
+                   "WARP, DECAY, JITTER, SLAG), transformers wrap it "
+                   "(RELAY, BROADCAST, AMPLIFY), and containers run a body "
+                   "(TICK, LOOP). Order matters — [VOLT, BROADCAST] is a "
+                   "3x3 zap, [VOLT, AMPLIFY, BROADCAST] is a harder 3x3, "
+                   "[VOLT, BROADCAST, AMPLIFY] is an enlarged 5x5.\n\n"
+                   "Focus: [<-] Fragments, [->] Editor. In Fragments focus "
+                   "the arrows walk the palette. In Editor focus they walk "
+                   "the build's edit positions — gaps (insertion lines) "
+                   "and on-node. Inserting a container drops the cursor "
+                   "into its body so the next append lands inside.\n\n"
+                   "[Space] inserts the palette-selected fragment at the "
+                   "build cursor. [Backspace] deletes. [+/-] adjusts N on "
+                   "TICK / LOOP. [c] opens the NAME prompt; on Enter the "
+                   "program is compiled — consumes one Program Disk, "
+                   "appears in inventory.\n\n"
+                   "Patterns: certain ordered fragment sequences produce "
+                   "named composite effects. [p] toggles the Patterns "
+                   "overlay; sequences you've discovered show their "
+                   "fragments and effect.\n\n"
+                   "Resources: programs cost Heat on fire (deck overheats "
+                   "and reboots for one turn if Heat exceeds cap). LOOP "
+                   "programs reserve RAM for their sustain duration and "
+                   "release it when the loop ends.";
     }
     return "";
 }
