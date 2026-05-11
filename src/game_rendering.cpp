@@ -13,6 +13,7 @@
 #include "astra/grid_renderer.h"
 #include "astra/map_renderer.h"
 #include "astra/recipe.h"
+#include "astra/item_defs.h"
 #include "astra/skill_defs.h"
 #include "astra/telegraph.h"
 #include "astra/trap.h"
@@ -1854,6 +1855,28 @@ void Game::render_abilities_bar() {
                     mid.push_back({key_tag + "---  ", UITag::TextDim});
                     continue;
                 }
+                // Cyberdeck-slot binding: render the program's name from the
+                // equipped deck. No cooldown tracking — heat overflow handles
+                // spam-rate gating, not a per-program cooldown.
+                if (is_cyberdeck_slot_skill(*slot)) {
+                    std::string name = "?";
+                    auto* deck_slot_ptr = player_.equipment.equipped_cyberdeck();
+                    if (deck_slot_ptr && *deck_slot_ptr && (*deck_slot_ptr)->deck) {
+                        int idx = cyberdeck_slot_index_from_skill(*slot);
+                        const auto& deck = *(*deck_slot_ptr)->deck;
+                        if (idx >= 0 && idx < deck.stats.slots) {
+                            const auto& sl = deck.loaded[idx];
+                            if (sl.compiled.has_value()) {
+                                name = sl.compiled->name;
+                            } else if (sl.program_def_id != 0) {
+                                name = build_by_def_id(sl.program_def_id).name;
+                            }
+                        }
+                    }
+                    mid.push_back({key_tag + name + "  ", UITag::TextWarning});
+                    continue;
+                }
+
                 const auto* ab = find_ability(*slot);
                 if (!ab) {
                     // Defensive — orphaned SkillId in the bar

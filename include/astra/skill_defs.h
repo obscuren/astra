@@ -92,7 +92,31 @@ enum class SkillId : uint32_t {
     Programming1        = 1214,  // 3-fragment ceiling, starter pick
     Programming2        = 1215,  // 4-fragment ceiling, +2 random fragments
     Programming3        = 1216,  // 5-fragment ceiling, +2 random fragments
+
+    // Synthetic IDs used by ability_bar to represent a binding to a
+    // cyberdeck program slot. NOT real skills — never appear in
+    // player.learned_skills, never have an Ability catalog entry.
+    // Render and use_slot dispatch handles them specially.
+    CyberdeckSlot1      = 2001,
+    CyberdeckSlot2      = 2002,
+    CyberdeckSlot3      = 2003,
+    CyberdeckSlot4      = 2004,
+    CyberdeckSlot5      = 2005,
+    CyberdeckSlot6      = 2006,
 };
+
+inline bool is_cyberdeck_slot_skill(SkillId id) {
+    auto v = static_cast<uint32_t>(id);
+    return v >= 2001 && v <= 2006;
+}
+
+inline int cyberdeck_slot_index_from_skill(SkillId id) {
+    return static_cast<int>(id) - static_cast<int>(SkillId::CyberdeckSlot1);
+}
+
+inline SkillId cyberdeck_slot_skill_id(int slot_index) {
+    return static_cast<SkillId>(static_cast<int>(SkillId::CyberdeckSlot1) + slot_index);
+}
 
 struct SkillDef {
     SkillId id;

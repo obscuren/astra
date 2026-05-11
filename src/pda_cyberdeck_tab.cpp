@@ -1,5 +1,6 @@
 #include "astra/pda_screen.h"
 
+#include "astra/ability_bar.h"
 #include "astra/cyberdeck.h"
 #include "astra/fragment.h"
 #include "astra/game.h"
@@ -754,6 +755,10 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                     } else {
                         sl.compiled.reset();
                     }
+                    // Auto-bind to the abilities bar (append to first free slot).
+                    ability_bar::assign_on_learn(
+                        *player_,
+                        cyberdeck_slot_skill_id(cyberdeck_slot_cursor_));
                     std::string msg = "Loaded " + prog_item->name + " into slot "
                                     + std::to_string(cyberdeck_slot_cursor_ + 1) + ".";
                     if (game_) game_->log(msg);
@@ -805,6 +810,10 @@ void PdaScreen::handle_cyberdeck_key(int key) {
                     if (!slot_is_empty(sl)) {
                         sl.program_def_id = 0;
                         sl.compiled.reset();
+                        // Drop the ability-bar binding too.
+                        ability_bar::remove_and_compact(
+                            *player_,
+                            cyberdeck_slot_skill_id(cyberdeck_slot_cursor_));
                         set_context_message(
                             "Unloaded slot " + std::to_string(cyberdeck_slot_cursor_ + 1) + ".", 3);
                     }
