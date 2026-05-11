@@ -107,6 +107,12 @@ underworld.
 The UI will also have several different "windows" that may display information or windows that cover the entire screen.
 The inventory for example displays the players items in their "bag" and what they have equipped.
 
+### Input conventions
+
+- **`Space` is the universal "confirm / select" key.** Whenever a UI prompts the player to pick or commit something — pick a fragment, load a program, equip an item, accept a dialog option — Space MUST be a working binding. Enter may be accepted as an alias but Space is the canonical choice. Don't ship UI surfaces that require Enter alone.
+- Arrow keys for navigation (not hjkl) in PDA / dev tools.
+- `Esc` closes the innermost overlay first, the screen second; never let it dismiss something the player didn't intend.
+
 ## World persistence
 
 The entire world state need to be able to be persisted. 
