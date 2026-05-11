@@ -19,9 +19,6 @@ namespace {
 void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     auto* deck_slot = self.player().equipment.equipped_cyberdeck();
 
-    // ── Top header: ──┤ CYBERDECK ├────────────────── (full width)
-    self.draw_section_header(ctx, 0, "CYBERDECK", 1, ctx.width() - 1);
-
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         int cy = ctx.height() / 2 - 2;
         ctx.text(ctx.width() / 2 - 13, cy,
@@ -36,16 +33,16 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
     int half = ctx.width() / 2;
 
     // Vertical divider between left/right panes
-    for (int r = 2; r < ctx.height() - 1; ++r) {
+    for (int r = 1; r < ctx.height() - 1; ++r) {
         ctx.text(half - 1, r, "\xe2\x94\x82", Color::DarkGray);
     }
 
     // ── Left pane header: ──┤ DECK ├──
-    self.draw_section_header(ctx, 2, "DECK", 1, half - 1);
+    self.draw_section_header(ctx, 1, "DECK", 1, half - 1);
 
-    ctx.text(2, 3, deck_name, Color::White);
+    ctx.text(2, 2, deck_name, Color::White);
 
-    int y = 5;
+    int y = 4;
     auto stat = [&](const std::string& label, const std::string& value) {
         ctx.text(2, y, label, Color::DarkGray);
         ctx.text(2 + static_cast<int>(label.size()), y, value, Color::Default);
@@ -85,8 +82,8 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
              Color::DarkGray);
 
     // ── Right pane header: ──┤ COMPILED PROGRAMS ├──
-    self.draw_section_header(ctx, 2, "COMPILED PROGRAMS", half + 1, ctx.width() - 1);
-    int yr = 4;
+    self.draw_section_header(ctx, 1, "COMPILED PROGRAMS", half + 1, ctx.width() - 1);
+    int yr = 3;
     int found = 0;
     for (const auto& it : self.player().inventory.items) {
         if (!it.compiled_program.has_value()) continue;
@@ -231,19 +228,7 @@ int render_chain_edit(UIContext& ctx, int x, int y,
 }
 
 void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
-    int disks = 0;
-    for (const auto& it : self.player().inventory.items) {
-        if (it.item_def_id == ITEM_PROGRAM_DISK) disks += it.stack_count;
-    }
     int ceiling = max_program_fragments(self.player());
-
-    // ── Top header (full width) ──┤ COMPILER ├───────────────────────────
-    self.draw_section_header(ctx, 0, "COMPILER", 1, ctx.width() - 1);
-
-    std::string stats = "Program Disks: " + std::to_string(disks)
-                      + "    |    Programming ceiling: "
-                      + std::to_string(ceiling) + " fragments";
-    ctx.text(2, 1, stats, Color::DarkGray);
 
     // Layout: narrow side panes (1/6 each = 1/3 combined), wide BUILD in
     // the middle (2/3) so the program tree has room to breathe.
@@ -253,18 +238,36 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
     int col_v  = ctx.width() - sixth;
 
     // Vertical dividers between the three panes
-    for (int r = 3; r < ctx.height() - 1; ++r) {
+    for (int r = 1; r < ctx.height() - 1; ++r) {
         ctx.text(col_b - 1, r, "\xe2\x94\x82", Color::DarkGray);
         ctx.text(col_v - 1, r, "\xe2\x94\x82", Color::DarkGray);
     }
 
     // ── Pane sub-headers: ──┤ FRAGMENTS ├── / ──┤ BUILD ├── / ──┤ PREVIEW ├──
-    self.draw_section_header(ctx, 3, "FRAGMENTS", col_p + 1, col_b - 1);
-    self.draw_section_header(ctx, 3, "BUILD",     col_b + 1, col_v - 1);
-    self.draw_section_header(ctx, 3, "PREVIEW",   col_v + 1, ctx.width() - 1);
+    const int header_y = 1;
+    self.draw_section_header(ctx, header_y, "FRAGMENTS", col_p + 1, col_b - 1);
+    self.draw_section_header(ctx, header_y, "BUILD",     col_b + 1, col_v - 1);
+    self.draw_section_header(ctx, header_y, "PREVIEW",   col_v + 1, ctx.width() - 1);
+
+    // Right-aligned ┤ Max Fragments: N ├ overlay on the BUILD header.
+    {
+        std::string lbl  = " Max Fragments: ";
+        std::string val  = std::to_string(ceiling);
+        std::string tail = " ";
+        int content_cells = static_cast<int>(lbl.size() + val.size() + tail.size());
+        // ┤ + content + ├ takes (content_cells + 2) cells. Place flush with
+        // the pane's right edge (col_v - 1).
+        int label_x = (col_v - 1) - 1 - content_cells;
+        ctx.text(label_x, header_y, BoxDraw::RT, Color::DarkGray);
+        ctx.text(label_x + 1, header_y, lbl, Color::White);
+        ctx.text(label_x + 1 + static_cast<int>(lbl.size()), header_y, val, Color::Green);
+        ctx.text(label_x + 1 + static_cast<int>(lbl.size() + val.size()),
+                 header_y, tail, Color::Default);
+        ctx.text(label_x + 1 + content_cells, header_y, BoxDraw::LT, Color::DarkGray);
+    }
 
     // ── Left pane: fragment palette ───────────────────────────────────────
-    int yp = 5;
+    int yp = 3;
     FragmentKind last_kind = FragmentKind::Container;  // sentinel ≠ first real kind
     bool first = true;
     const auto& catalog = fragment_catalog();
@@ -299,7 +302,7 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
 
     // ── Middle pane: build ────────────────────────────────────────────────
     bool build_focus = self.compiler_focus() == PdaScreen::CompilerFocus::Build;
-    render_chain_edit(ctx, col_b + 1, 5,
+    render_chain_edit(ctx, col_b + 1, 3,
                       self.compiler_build(),
                       /*self_path=*/{},
                       self.build_cursor_path(),
@@ -316,7 +319,7 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
 
     // ── Right pane: live preview ─────────────────────────────────────────
     auto cp = compile_program(self.compiler_build(), "");
-    int yv = 5;
+    int yv = 3;
     ctx.text(col_v + 1, yv++, " Effect:", Color::Default);
     if (!cp.resolved.named_pattern.empty()) {
         ctx.text(col_v + 1, yv++, "  \xe2\x96\xba " + cp.resolved.named_pattern, Color::Green);
