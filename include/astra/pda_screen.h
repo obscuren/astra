@@ -259,7 +259,7 @@ private:
     // Path into the build (chain of indices) showing where the cursor sits.
     // Empty path = top level. Path [0] = inside compiler_build_[0].body.
     std::vector<int>         compiler_cursor_path_;
-    int                      compiler_palette_cursor_ = 0;
+    int                      compiler_palette_cursor_ = 1;  // skip FragmentId::None at index 0
 
 public:
     int compiler_palette_cursor() const { return compiler_palette_cursor_; }

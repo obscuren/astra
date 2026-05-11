@@ -83,32 +83,39 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
 // ── Compiler helpers ──────────────────────────────────────────────────────
 
 // Render a fragment chain recursively. Returns the next free y row.
+// `cursor_path` describes the insertion path from the OUTERMOST chain inward;
+// when it's empty, this chain is where the next append lands and we draw a
+// "▸ <next>" marker after the last node so the user can see the cursor.
 int render_chain(UIContext& ctx, int x, int y,
                  const std::vector<ProgramNode>& chain,
                  const std::vector<int>& cursor_path,
                  int /*depth*/) {
+    bool is_active_chain = cursor_path.empty();
+
     for (size_t i = 0; i < chain.size(); ++i) {
         const auto& n   = chain[i];
         const FragmentDef* def = find_fragment(n.fragment);
-        bool sel = !cursor_path.empty() &&
-                   cursor_path.front() == static_cast<int>(i);
+        bool on_path = !cursor_path.empty() &&
+                       cursor_path.front() == static_cast<int>(i);
 
         if (def && def->kind == FragmentKind::Container) {
             // Header
             std::string header = std::string(BoxDraw::TL) + "\xe2\x94\x80 "
                                + def->display
                                + "(" + std::to_string(n.param) + ") \xe2\x94\x80";
-            ctx.text(x, y, header, sel ? Color::Cyan : Color::White);
+            ctx.text(x, y, header, on_path ? Color::Cyan : Color::White);
             ++y;
 
             // Body — build sub-path
             std::vector<int> sub_path;
-            if (sel && cursor_path.size() > 1)
+            if (on_path && cursor_path.size() > 1)
                 sub_path.assign(cursor_path.begin() + 1, cursor_path.end());
-            y = render_chain(ctx, x + 2, y, n.body, sub_path, 1);
+            y = render_chain(ctx, x + 2, y, n.body,
+                             on_path ? sub_path : std::vector<int>{-1}, 1);
 
             // Footer
-            ctx.text(x, y, std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80", Color::White);
+            ctx.text(x, y, std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80",
+                     on_path ? Color::Cyan : Color::White);
             ++y;
         } else {
             std::string label;
@@ -120,12 +127,22 @@ int render_chain(UIContext& ctx, int x, int y,
             } else {
                 label = "[???]";
             }
-            ctx.text(x, y, label, sel ? Color::Cyan : Color::Default);
+            ctx.text(x, y, label, on_path ? Color::Cyan : Color::Default);
             ++y;
         }
     }
+
     if (chain.empty()) {
-        ctx.text(x, y, "(empty \xe2\x80\x94 pick a fragment from the palette)", Color::DarkGray);
+        // Empty chain — show insertion marker if cursor is here, else greyed hint.
+        if (is_active_chain) {
+            ctx.text(x, y, "\xe2\x96\xb8 (next append lands here)", Color::Cyan);
+        } else {
+            ctx.text(x, y, "(empty)", Color::DarkGray);
+        }
+        ++y;
+    } else if (is_active_chain) {
+        // Cursor at end of this chain — show the insertion marker on its own line.
+        ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);
         ++y;
     }
     return y;
@@ -147,6 +164,12 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
     int col_p  = 0;
     int col_b  = third;
     int col_v  = 2 * third;
+
+    // ── Vertical dividers between the three panes ─────────────────────────
+    for (int r = 2; r < ctx.height() - 1; ++r) {
+        ctx.text(col_b - 1, r, "\xe2\x94\x82", Color::DarkGray);   // │
+        ctx.text(col_v - 1, r, "\xe2\x94\x82", Color::DarkGray);
+    }
 
     // ── Left pane: fragment palette ───────────────────────────────────────
     ctx.text(col_p + 2, 2, "FRAGMENTS", Color::White);
@@ -175,7 +198,10 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
             if (fid == def.id) { known = true; break; }
 
         bool sel = static_cast<int>(i) == self.compiler_palette_cursor();
-        std::string line = " " + std::string(def.display) + "  "
+        // ▸ marker on the cursor line — color alone is not enough on every
+        // terminal theme; the prefix is unambiguous.
+        std::string line = (sel ? "\xe2\x96\xb8 " : "  ")
+                         + std::string(def.display) + "  "
                          + std::to_string(def.exec_cost) + "/"
                          + std::to_string(def.heat_cost);
         Color color = !known ? Color::DarkGray
@@ -192,7 +218,35 @@ void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
     ctx.text(col_b + 2, 2,
              "BUILD (max " + std::to_string(ceiling) + " fragments)",
              Color::White);
-    render_chain(ctx, col_b, 4,
+
+    // Cursor location subtitle — names the container body the cursor is
+    // inside so the player always knows where the next append lands.
+    {
+        const auto& path = self.compiler_cursor_path();
+        std::string desc = "Inserting at: ";
+        if (path.empty()) {
+            desc += "top level";
+        } else {
+            desc += "body of ";
+            const std::vector<ProgramNode>* chain = &self.compiler_build();
+            bool first = true;
+            for (int idx : path) {
+                if (idx < 0 || idx >= static_cast<int>(chain->size())) break;
+                const auto& node = (*chain)[idx];
+                const FragmentDef* def = find_fragment(node.fragment);
+                if (!first) desc += " \xe2\x86\x92 ";   // →
+                if (def) {
+                    desc += def->display;
+                    if (def->takes_param)
+                        desc += "(" + std::to_string(node.param) + ")";
+                }
+                chain = &node.body;
+                first = false;
+            }
+        }
+        ctx.text(col_b + 2, 3, desc, Color::Cyan);
+    }
+    render_chain(ctx, col_b + 2, 5,
                  self.compiler_build(),
                  self.compiler_cursor_path(), 0);
 
@@ -402,13 +456,22 @@ void PdaScreen::handle_cyberdeck_key(int key) {
     if (cyberdeck_show_patterns_overlay_) return;
 
     const auto& palette = fragment_catalog();
+    // Helpers — palette cursor must always sit on a real fragment (skip None).
+    auto palette_step = [&](int dir) {
+        int n = static_cast<int>(palette.size());
+        for (int steps = 0; steps < n; ++steps) {
+            int next = compiler_palette_cursor_ + dir;
+            if (next < 0 || next >= n) return;
+            compiler_palette_cursor_ = next;
+            if (palette[compiler_palette_cursor_].id != FragmentId::None) return;
+        }
+    };
     switch (key) {
         case KEY_UP:
-            if (compiler_palette_cursor_ > 0) --compiler_palette_cursor_;
+            palette_step(-1);
             break;
         case KEY_DOWN:
-            if (compiler_palette_cursor_ < static_cast<int>(palette.size()) - 1)
-                ++compiler_palette_cursor_;
+            palette_step(+1);
             break;
         case '\n': case '\r': {
             if (compiler_palette_cursor_ >= 0 &&
