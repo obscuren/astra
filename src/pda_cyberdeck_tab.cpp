@@ -160,9 +160,14 @@ int locate_cursor(const std::vector<EditPos>& flat,
     return 0;
 }
 
-// Render a chain. When `cursor_path` matches this chain's path, draw gap-line
-// and on-node markers per the cursor's current slot; in other chains the gaps
-// are dim hints and nodes are uncoloured.
+// Render a chain. Rendering rules (per UX spec):
+//   - Non-cursor inter-node gaps (between two nodes): ↓ arrow.
+//   - Non-cursor head/tail gaps (above first / below last): nothing.
+//   - Cursor at a gap, editor focus: "▸ ───────" in cyan.
+//   - Cursor at a gap, palette focus: "▸" alone in cyan (no line).
+//   - Cursor on a node: "▸ [NAME]" in cyan (editor focus). Outside editor
+//     focus the cursor is normally snapped to the trailing gap by the
+//     mode toggle, so on-node-in-palette-mode is rare; render same way.
 int render_chain_edit(UIContext& ctx, int x, int y,
                       const std::vector<ProgramNode>& chain,
                       const std::vector<int>& self_path,
@@ -170,42 +175,52 @@ int render_chain_edit(UIContext& ctx, int x, int y,
                       int cursor_slot,
                       bool build_focus) {
     bool active = (self_path == cursor_path);
+    int n = static_cast<int>(chain.size());
 
     auto draw_gap = [&](int gap_index) {
-        bool sel = active && build_focus && (cursor_slot == 2 * gap_index);
-        const char* line = sel
-            ? "\xe2\x96\xac\xe2\x96\xac\xe2\x96\xac\xe2\x96\xac\xe2\x96\xac"  // ▬▬▬▬▬
-            : "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"; // ─────
-        ctx.text(x, y, line, sel ? Color::Cyan : Color::DarkGray);
-        ++y;
+        bool is_cursor = active && (cursor_slot == 2 * gap_index);
+        bool is_inter_node = gap_index > 0 && gap_index < n;
+        if (is_cursor) {
+            if (build_focus) {
+                // ▸ ──────── (cyan)
+                ctx.text(x, y,
+                         "\xe2\x96\xb8 \xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                         "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80",
+                         Color::Cyan);
+            } else {
+                ctx.text(x, y, "\xe2\x96\xb8", Color::Cyan);
+            }
+            ++y;
+        } else if (is_inter_node) {
+            ctx.text(x + 2, y, "\xe2\x86\x93", Color::DarkGray);   // ↓
+            ++y;
+        }
+        // else: head/tail gap, not cursor → don't render anything (saves a row)
     };
 
-    for (size_t i = 0; i < chain.size(); ++i) {
-        draw_gap(static_cast<int>(i));
+    // Head gap (above first node)
+    draw_gap(0);
 
+    for (int i = 0; i < n; ++i) {
         const auto& node = chain[i];
         const FragmentDef* def = find_fragment(node.fragment);
-        bool on_node = active && (cursor_slot == 2 * static_cast<int>(i) + 1);
+        bool on_node = active && (cursor_slot == 2 * i + 1);
         std::string marker = on_node ? "\xe2\x96\xb8 " : "  ";  // ▸
-        Color nc = (on_node && build_focus) ? Color::Cyan : Color::Default;
+        Color highlight = on_node ? Color::Cyan : Color::Default;
 
         if (def && def->kind == FragmentKind::Container) {
-            // Header
             std::string header = marker + std::string(BoxDraw::TL)
                                + "\xe2\x94\x80 " + def->display
-                               + "(" + std::to_string(node.param) + ") "
-                               + "\xe2\x94\x80";
-            ctx.text(x, y, header, (on_node && build_focus) ? Color::Cyan : Color::White);
-            ++y;
+                               + "(" + std::to_string(node.param) + ") \xe2\x94\x80";
+            ctx.text(x, y++, header, on_node ? Color::Cyan : Color::White);
 
             std::vector<int> child = self_path;
-            child.push_back(static_cast<int>(i));
+            child.push_back(i);
             y = render_chain_edit(ctx, x + 2, y, node.body,
                                   child, cursor_path, cursor_slot, build_focus);
 
             std::string footer = "  " + std::string(BoxDraw::BL) + "\xe2\x94\x80\xe2\x94\x80";
-            ctx.text(x, y, footer, Color::White);
-            ++y;
+            ctx.text(x, y++, footer, Color::White);
         } else {
             std::string label;
             if (def) {
@@ -217,13 +232,13 @@ int render_chain_edit(UIContext& ctx, int x, int y,
             } else {
                 label = marker + "[???]";
             }
-            ctx.text(x, y, label, nc);
-            ++y;
+            ctx.text(x, y++, label, highlight);
         }
+
+        // Gap below this node — either inter-node ↓ or tail gap
+        draw_gap(i + 1);
     }
 
-    // Final gap below the last node (or the only gap if chain is empty).
-    draw_gap(static_cast<int>(chain.size()));
     return y;
 }
 
@@ -743,6 +758,13 @@ void PdaScreen::handle_cyberdeck_key(int key) {
         compiler_focus_ = (compiler_focus_ == CompilerFocus::Palette)
                         ? CompilerFocus::Build
                         : CompilerFocus::Palette;
+        // When entering palette mode, snap the cursor to the trailing
+        // position of the top-level chain so the trailing ▸ marker
+        // reflects where palette-mode inserts will land.
+        if (compiler_focus_ == CompilerFocus::Palette) {
+            build_cursor_path_.clear();
+            build_cursor_slot_ = 2 * static_cast<int>(compiler_build_.size());
+        }
         return;
     }
 
