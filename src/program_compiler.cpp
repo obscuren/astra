@@ -236,6 +236,34 @@ void apply_to_npc(Game& game, Npc& npc, const EffectSpec& s) {
 
 }  // namespace (fire helpers)
 
+void apply_effect_at(Game& game, const EffectSpec& spec, int tx, int ty) {
+    auto& world = game.world();
+    auto& map = world.map();
+    int radius = spec.radius;
+    int min_x = tx - radius, max_x = tx + radius;
+    int min_y = ty - radius, max_y = ty + radius;
+
+    for (int y = min_y; y <= max_y; ++y) {
+        for (int x = min_x; x <= max_x; ++x) {
+            if (x < 0 || x >= map.width() || y < 0 || y >= map.height()) continue;
+
+            Tile t = map.get(x, y);
+            if (t == Tile::Fixture) {
+                int fid = map.fixture_id(x, y);
+                if (fid >= 0 && map.fixture(fid).cyber) {
+                    apply_to_hackable(*map.fixture_mut(fid).cyber, spec);
+                }
+            }
+            for (auto& npc : world.npcs()) {
+                if (npc.x == x && npc.y == y && npc.alive()) {
+                    apply_to_npc(game, npc, spec);
+                    if (npc.cyber) apply_to_hackable(*npc.cyber, spec);
+                }
+            }
+        }
+    }
+}
+
 std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty) {
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
@@ -250,39 +278,12 @@ std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty
         deck.ram_current = std::max(0, deck.ram_current - prog.ram_held);
     }
 
-    // Apply effects at the target tile and any splash radius around it.
-    auto& world = game.world();
-    auto& map = world.map();
-    int radius = prog.resolved.radius;
-    int min_x = tx - radius, max_x = tx + radius;
-    int min_y = ty - radius, max_y = ty + radius;
+    apply_effect_at(game, prog.resolved, tx, ty);
 
-    int targets_hit = 0;
-
-    for (int y = min_y; y <= max_y; ++y) {
-        for (int x = min_x; x <= max_x; ++x) {
-            if (x < 0 || x >= map.width() || y < 0 || y >= map.height()) continue;
-
-            Tile t = map.get(x, y);
-            if (t == Tile::Fixture) {
-                int fid = map.fixture_id(x, y);
-                if (fid >= 0 && map.fixture(fid).cyber) {
-                    apply_to_hackable(*map.fixture_mut(fid).cyber, prog.resolved);
-                    ++targets_hit;
-                }
-            }
-            for (auto& npc : world.npcs()) {
-                if (npc.x == x && npc.y == y && npc.alive()) {
-                    apply_to_npc(game, npc, prog.resolved);
-                    if (npc.cyber) apply_to_hackable(*npc.cyber, prog.resolved);
-                    ++targets_hit;
-                }
-            }
-        }
-    }
-
-    if (targets_hit == 0) {
-        return prog.name + ": no targets affected.";
+    // If this is a sustained (LOOP) program, register an active sustain so
+    // the body re-fires each turn until the loop count expires.
+    if (prog.resolved.loop_count > 0) {
+        game.hacking().register_sustain(prog, tx, ty);
     }
 
     return prog.name + " fired (" + std::to_string(prog.exec_cost) + " exec, "

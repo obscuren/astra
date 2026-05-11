@@ -1,10 +1,12 @@
 #pragma once
 
 #include "astra/grid_session.h"
+#include "astra/program_compiler.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -13,6 +15,16 @@ struct GridNodeId;
 struct Hackable;
 struct Item;
 class TileMap;
+
+// An in-flight LOOP sustain — a program that re-fires its body each turn
+// until its loop count expires. Runtime-only state; not persisted.
+struct ActiveSustain {
+    CompiledProgram program;
+    int             turns_remaining = 0;
+    int             target_x = 0;
+    int             target_y = 0;
+    int             ram_held = 0;
+};
 
 // Detection counter [0, 100]. One active counter for the player's current
 // zone. Reset on zone change. Decays linearly while the player is in
@@ -79,6 +91,12 @@ public:
     // Per-turn Grid update. Called from Game::advance_world when state == Grid.
     void tick_grid(Game& game);
 
+    // Register an in-flight LOOP sustain. Called by fire_program when a
+    // program with loop_count > 0 fires. The body will re-fire each
+    // subsequent world tick at loop_intensity_mult intensity until the
+    // turn counter expires; the reserved RAM is returned on expiration.
+    void register_sustain(const CompiledProgram& prog, int tx, int ty);
+
 private:
     bool targeting_ = false;
     int  target_x_ = 0;
@@ -88,6 +106,10 @@ private:
     DetectionState detection_;
 
     std::optional<GridSession> session_;
+
+    // Active LOOP sustains. Runtime-only; not persisted (the design accepts
+    // that a save-load mid-sustain drops the in-flight effect).
+    std::vector<ActiveSustain> sustains_;
 
     Game* game_ = nullptr;
 

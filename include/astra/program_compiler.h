@@ -102,4 +102,8 @@ class Game;
 struct Hackable;
 std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty);
 
+// Apply an already-resolved effect spec at a target tile + radius. Used by
+// the LOOP sustain ticker — no heat/RAM charge, just effect application.
+void apply_effect_at(Game& game, const EffectSpec& spec, int tx, int ty);
+
 } // namespace astra

@@ -147,7 +147,59 @@ uint64_t HackingSystem::compute_zone_signature(const Game& game) {
     return s;
 }
 
+void HackingSystem::register_sustain(const CompiledProgram& prog, int tx, int ty) {
+    ActiveSustain s;
+    s.program          = prog;
+    s.turns_remaining  = prog.resolved.loop_count;
+    s.target_x         = tx;
+    s.target_y         = ty;
+    s.ram_held         = prog.ram_held;
+    sustains_.push_back(std::move(s));
+}
+
 void HackingSystem::tick(Game& game) {
+    // ── Cyberdeck per-turn: heat decay + LOOP sustain ticker ─────────────
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+        auto& deck = *(*deck_slot)->deck;
+        cyberdeck_decay_heat(deck);
+
+        if (cyberdeck_overheated(deck)) {
+            // Force reboot — RAM is wiped, all sustains lose their RAM
+            // reservation (it's gone with the reboot) and are dropped.
+            cyberdeck_force_reboot(deck);
+            sustains_.clear();
+            game.log("Cyberdeck overheated — forced reboot. RAM lost.");
+        } else {
+            // Tick sustains: re-fire the body at scaled intensity, decrement
+            // counter; release RAM + drop when expired.
+            for (auto it = sustains_.begin(); it != sustains_.end(); ) {
+                if (it->turns_remaining > 0) {
+                    EffectSpec scaled = it->program.resolved;
+                    float k = scaled.loop_intensity_mult;
+                    scaled.damage          = static_cast<int>(scaled.damage * k + 0.5f);
+                    scaled.status_duration = static_cast<int>(scaled.status_duration * k + 0.5f);
+                    apply_effect_at(game, scaled, it->target_x, it->target_y);
+                    --it->turns_remaining;
+                    ++it;
+                } else {
+                    // Release reserved RAM.
+                    deck.ram_current = std::min(deck.stats.ram_max,
+                                                deck.ram_current + it->ram_held);
+                    if (it->ram_held > 0) {
+                        game.log("Loop ended: " + it->program.name
+                               + " (released " + std::to_string(it->ram_held)
+                               + " RAM).");
+                    }
+                    it = sustains_.erase(it);
+                }
+            }
+        }
+    } else {
+        // No deck (e.g., unequipped mid-run) — drop any orphan sustains.
+        sustains_.clear();
+    }
+
     // Plan 8 B4: mirror Anchor positions to follow NPC RW movement.
     // Runs every in-Grid world tick (tick_real_world calls hacking_.tick).
     if (session_) {
