@@ -246,6 +246,23 @@ int render_chain_edit(UIContext& ctx, int x, int y,
 void draw_compiler_subscreen(PdaScreen& self, UIContext& ctx) {
     int ceiling = max_program_fragments(self.player());
 
+    // Locked-out splash: the Compiler is gated behind Programming I. Until
+    // the player learns that skill the workspace is empty by design.
+    if (ceiling == 0) {
+        int cy = ctx.height() / 2 - 2;
+        const char* title = "-- COMPILER LOCKED --";
+        int title_cols = 0;
+        for (const char* p = title; *p; ++p) ++title_cols;
+        ctx.text(ctx.width() / 2 - title_cols / 2, cy, title, Color::DarkGray);
+        ctx.text(4, cy + 2,
+                 "Learn the Programming I skill in the Skills tab to unlock the Cyberdeck Compiler.",
+                 Color::DarkGray);
+        ctx.text(4, cy + 4,
+                 "Programming I costs 0 SP and is available the moment you learn Cat_Hacking.",
+                 Color::DarkGray);
+        return;
+    }
+
     // Layout: narrow side panes (1/6 each = 1/3 combined), wide BUILD in
     // the middle (2/3) so the program tree has room to breathe.
     int sixth  = ctx.width() / 6;
