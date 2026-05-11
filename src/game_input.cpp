@@ -1,13 +1,116 @@
 #include "astra/ability_bar.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
+#include "astra/grid_combat.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/program.h"
+#include "astra/program_compiler.h"
 #include "astra/skill_defs.h"
 #include "astra/skill_grant.h"
 
+#include <algorithm>
+
 namespace astra {
+
+// ── Tether action (D2) ───────────────────────────────────────────────────
+// Real-world Tether: marks a non-Crystal-bearing NPC for Imprint projection on
+// the next jack-in. Costs only Heat (Drift) — RAM (Channel) is a session-
+// only resource; v2 in-Grid Tether can pay RAM at that time.
+//
+// Range: L3 → 8 tiles (AoE TODO), L2 → 8 tiles, L1 → 1 tile (adjacent only).
+void Game::begin_tether_targeting() {
+    // 1. Skill gate
+    if (!player_.skill_tether_l1) {
+        log("You don't know how to Tether a target.");
+        return;
+    }
+
+    // 2. Cyberdeck gate
+    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        log("No cyberdeck equipped \xe2\x80\x94 Tether requires a neural link.");
+        return;
+    }
+    auto& cd = *(*deck_slot)->deck;
+
+    // 3. Heat budget gate
+    // v1 simplification: real-world Tether charges only Heat because RAM
+    // is a session-only resource that doesn't exist outside an active Grid
+    // session. v2 in-Grid Tether will pay RAM instead.
+    if (cd.heat_current + kTetherHeatCost > cd.stats.heat_cap) {
+        log("Heat over cap \xe2\x80\x94 Tether would overheat the deck.");
+        return;
+    }
+
+    // 4. Enter look-cursor targeting mode so the player can pick a target.
+    //    tether_targeting_ is cleared on confirm or cancel.
+    tether_targeting_ = true;
+    input_.begin_look(player_.x, player_.y);
+    log("Tether target. Move cursor, [Enter] confirm, [Esc] cancel.");
+}
+
+void Game::confirm_tether_targeting() {
+    tether_targeting_ = false;
+    input_.cancel_look();
+
+    int tx = input_.look_x();
+    int ty = input_.look_y();
+
+    // Determine range from highest learned tier.
+    int tether_range = 1;  // L1 default: adjacent only
+    if (player_.skill_tether_l3 || player_.skill_tether_l2) {
+        tether_range = 8;
+    }
+    // TODO L3 AoE: future v2 should burst all visible targets within 3 tiles.
+
+    // Find NPC at cursor
+    Npc* target_npc = nullptr;
+    for (auto& npc : world_.npcs()) {
+        if (npc.x == tx && npc.y == ty && npc.alive()) {
+            target_npc = &npc;
+            break;
+        }
+    }
+
+    if (!target_npc) {
+        log("No target there.");
+        return;
+    }
+
+    // Chebyshev range check
+    int dist = std::max(std::abs(tx - player_.x),
+                        std::abs(ty - player_.y));
+    if (dist > tether_range) {
+        log("Target out of range.");
+        return;
+    }
+
+    // LoS check: the tile must be currently visible (FOV implies LoS from player).
+    if (world_.visibility().get(tx, ty) != Visibility::Visible) {
+        log("No line of sight to target.");
+        return;
+    }
+
+    // Don't double-tether
+    if (target_npc->force_tether && target_npc->imprint_id >= 0) {
+        log(target_npc->name + " is already Tethered.");
+        return;
+    }
+
+    // Commit: mark + pay Heat
+    auto* deck_slot = player_.equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        log("Deck disappeared.");
+        return;
+    }
+    auto& cd = *(*deck_slot)->deck;
+    target_npc->force_tether = true;
+    cyberdeck_add_heat(cd, kTetherHeatCost);
+    log("Tethered " + target_npc->name +
+        " \xe2\x80\x94 projection ready next jack-in.  [Heat +"
+        + std::to_string(kTetherHeatCost) + "]");
+}
 
 void Game::handle_play_input(int key) {
     // Welcome screen — space dismisses
@@ -128,25 +231,9 @@ void Game::handle_play_input(int key) {
         return;
     }
 
-    // Plan 7 §3a: real-world DeviceShell now renders inside the PDA's
-    // Hacking tab and routes input through PdaScreen. The fullscreen
-    // shell overlay/input intercept have been removed. The in-Grid shell
-    // is handled in grid_input. The only post-shell side-effect we still
-    // need at this layer is advancing the world by interact-cost when the
-    // shell auto-closes (cmd_exit) — see below, after pda_screen_.handle_input.
-
     // PDA screen intercepts input when open
     if (pda_screen_.is_open()) {
-        auto* dev_before = hacking_.device_shell();
-        bool shell_open_before = dev_before &&
-                                 dev_before->via() == ShellVia::RealWorld;
         pda_screen_.handle_input(key);
-        // If the device shell auto-closed during this input (cmd_exit) advance
-        // the world by interact-cost so shell time at the device costs the
-        // same as a typical interact. Also fires when ESC yanks the cable.
-        if (shell_open_before && !hacking_.device_shell_open()) {
-            advance_world(ActionCost::interact);
-        }
         if (pda_screen_.consume_board_ship_request()) {
             board_ship_from_overworld();
             return;
@@ -166,52 +253,6 @@ void Game::handle_play_input(int key) {
         if (auto req = pda_screen_.recharge_equipped_request(); req >= 0) {
             open_cell_picker(/*target_is_shield=*/req == 1);
             pda_screen_.clear_recharge_equipped_request();
-        }
-        if (uint32_t nid_v = pda_screen_.consume_jack_in_request(); nid_v != 0) {
-            pda_screen_.close();
-            GridNodeId nid;
-            nid.value = nid_v;
-            hacking_.jack_in(*this, nid);
-            return;
-        }
-        // Plan 7: `pda> ssh ...` — open per-device shell.
-        {
-            bool as_root = true;
-            if (uint32_t ip_v = pda_screen_.consume_ssh_request(as_root); ip_v != 0) {
-                Hackable* h = world_.find_hackable_by_ip(ip_v);
-                if (!h) {
-                    log("ssh: host unreachable.");
-                    return;
-                }
-                ShellTier tier = as_root ? ShellTier::Root : ShellTier::Guest;
-                hacking_.open_device_shell(*this, *h, tier,
-                                           ShellVia::RealWorld,
-                                           /*manual_ssh=*/true,
-                                           as_root ? "root" : "guest");
-                return;
-            }
-        }
-        if (auto br = pda_screen_.consume_breach_request(); br.valid()) {
-            // Plan 5 Task 39: netmap-side breach. Find the matching edge
-            // in the (mutable) world and flip cracked=true. No sector entry.
-            //
-            // TODO(Plan 6): charge breach.exe RAM/Heat from the equipped
-            // deck. The widget can't reach the deck and Plan 6's HUD
-            // redesign threads costing through HackingSystem; until then
-            // the netmap-side breach is free.
-            auto& net = world_.grid_network();
-            bool ok = false;
-            for (auto& e : net.edges_mut()) {
-                if (e.from.value == br.from_id && e.to.value == br.to_id) {
-                    if (e.gateway_tier > 0 && !e.cracked) {
-                        e.cracked = true;
-                        ok = true;
-                    }
-                    break;
-                }
-            }
-            log(ok ? "breach: gateway cracked from netmap."
-                   : "breach: gateway already open.");
         }
         if (uint32_t sid_v = pda_screen_.consume_skill_side_effect_request(); sid_v != 0) {
             apply_skill_side_effects(*this, static_cast<SkillId>(sid_v));
@@ -290,29 +331,28 @@ void Game::handle_play_input(int key) {
                                    PdaTab::Skills, can_board_ship(), &world_,
                                    this, &hacking_);
         }
-        // Plan 7: (hack) Shell Access doorway autotypes `ssh <user>@<ip>`
-        // into the PDA's pda> input buffer, which leaves an ssh request on
-        // the PDA queue. Drain it now so the device shell opens immediately
-        // without requiring a follow-up keypress.
-        if (pda_screen_.is_open()) {
-            bool as_root = true;
-            if (uint32_t ip_v = pda_screen_.consume_ssh_request(as_root); ip_v != 0) {
-                Hackable* h = world_.find_hackable_by_ip(ip_v);
-                if (h) {
-                    ShellTier tier = as_root ? ShellTier::Root : ShellTier::Guest;
-                    hacking_.open_device_shell(*this, *h, tier,
-                                               ShellVia::RealWorld,
-                                               /*manual_ssh=*/true,
-                                               as_root ? "root" : "guest");
-                }
-            }
-        }
         return;
     }
 
 
     // Look mode intercept
+    // When tether_targeting_ is active the look cursor is used for target pick.
+    // Enter confirms the Tether; Esc cancels both tether mode and look mode.
     if (input_.looking()) {
+        if (tether_targeting_) {
+            if (key == '\n' || key == '\r') {
+                confirm_tether_targeting();
+                compute_camera();
+                return;
+            }
+            if (key == '\033') {
+                tether_targeting_ = false;
+                input_.cancel_look();
+                log("Tether cancelled.");
+                compute_camera();
+                return;
+            }
+        }
         input_.handle_look_input(key, world_.map().width(), world_.map().height());
         compute_camera(); // follow look cursor, or snap back to player on exit
         return;
@@ -334,9 +374,45 @@ void Game::handle_play_input(int key) {
             auto* deck_slot_ptr = player_.equipment.equipped_cyberdeck();
             auto& deck = *(*deck_slot_ptr)->deck;
             const auto& slot = deck.loaded[slot_idx];
-            Item probe = build_by_def_id(slot.program_def_id);
 
             int tx = qh_picker_target_x_, ty = qh_picker_target_y_;
+
+            // Compiled-program path: prefer the slot's own payload (player-
+            // compiled programs have def_id 0 and live only in the slot).
+            // Recompile from the chain so any change to the derivation rules
+            // (telegraph range, scaling, costs) takes effect even for
+            // programs loaded into slots before the rule changed.
+            std::optional<CompiledProgram> cp_opt;
+            if (slot.compiled.has_value()) {
+                cp_opt = compile_program(slot.compiled->chain,
+                                         slot.compiled->name);
+            } else if (slot.program_def_id != 0) {
+                Item probe = build_by_def_id(slot.program_def_id);
+                if (probe.compiled_program.has_value()) {
+                    cp_opt = compile_program(probe.compiled_program->chain,
+                                             probe.compiled_program->name);
+                }
+            }
+            if (cp_opt.has_value()) {
+                const CompiledProgram cp = *cp_opt;
+                TelegraphSpec spec = cp.resolved.telegraph;
+                // Close the picker before handing off to Telegraph so the UI
+                // doesn't show two overlays simultaneously.
+                qh_picker_.open = false;
+                telegraph_.begin(spec, player_.x, player_.y,
+                    [this, cp](const TelegraphResult& res) {
+                        std::string msg = fire_program(*this, cp, res.dest_x, res.dest_y);
+                        log(msg);
+                        advance_world(ActionCost::interact);
+                    });
+                return;
+            }
+
+            // Legacy-shaped program fallback (in case some loot still ships
+            // a non-compiled .qh from an older save).
+            Item probe = build_by_def_id(slot.program_def_id);
+
+            // Legacy path: direct execute_quickhack for pre-compiled items.
             Hackable* hack = nullptr;
             if (world_.map().get(tx, ty) == Tile::Fixture) {
                 int fid = world_.map().fixture_id(tx, ty);
@@ -711,11 +787,29 @@ void Game::open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots) {
     auto& deck = *(*qdeck_slot)->deck;
     for (size_t i = 0; i < menu_slots.size(); ++i) {
         const auto& slot = deck.loaded[menu_slots[i]];
-        Item probe = build_by_def_id(slot.program_def_id);
-        const ProgramDef* def = find_program(probe.program->id);
         char k = static_cast<char>('a' + i);
-        std::string label = std::string(def->filename) + "  (" +
-                            std::to_string(def->ram_cost) + " RAM)";
+        std::string label;
+        if (slot.compiled.has_value()) {
+            const auto& cp = *slot.compiled;
+            label = cp.name + "  ("
+                  + std::to_string(cp.heat_cost) + " heat";
+            if (cp.ram_held > 0) label += ", " + std::to_string(cp.ram_held) + " RAM";
+            label += ")";
+        } else if (slot.program_def_id != 0) {
+            Item probe = build_by_def_id(slot.program_def_id);
+            if (probe.compiled_program.has_value()) {
+                const auto& cp = *probe.compiled_program;
+                label = probe.name + "  ("
+                      + std::to_string(cp.heat_cost) + " heat";
+                if (cp.ram_held > 0) label += ", " + std::to_string(cp.ram_held) + " RAM";
+                label += ")";
+            } else if (probe.program) {
+                const ProgramDef* def = find_program(probe.program->id);
+                if (def) label = std::string(def->filename) + "  ("
+                              + std::to_string(def->ram_cost) + " RAM)";
+            }
+        }
+        if (label.empty()) label = "(unknown program)";
         qh_picker_.add_option(k, label);
     }
     qh_picker_.selection = 0;

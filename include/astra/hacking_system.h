@@ -1,13 +1,12 @@
 #pragma once
 
-#include "astra/device_shell.h"
 #include "astra/grid_session.h"
-#include "astra/shell_stack.h"
+#include "astra/program_compiler.h"
 
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -16,6 +15,16 @@ struct GridNodeId;
 struct Hackable;
 struct Item;
 class TileMap;
+
+// An in-flight LOOP sustain — a program that re-fires its body each turn
+// until its loop count expires. Runtime-only state; not persisted.
+struct ActiveSustain {
+    CompiledProgram program;
+    int             turns_remaining = 0;
+    int             target_x = 0;
+    int             target_y = 0;
+    int             ram_held = 0;
+};
 
 // Detection counter [0, 100]. One active counter for the player's current
 // zone. Reset on zone change. Decays linearly while the player is in
@@ -65,6 +74,12 @@ public:
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
     bool jack_in(Game& game, GridNodeId entry_node);
 
+    // Spec 1: inject a pre-built GridSession (dead-implant sector). Transitions
+    // the game state to Grid and activates ICE from seeds if present.
+    // Preconditions (skill, deck, no active session) must have been checked
+    // by the caller (jack_into_corpse in dialog_manager.cpp).
+    void inject_dead_implant_session(Game& game, GridSession s);
+
     // Mid-jack-in sector swap. Used when the player steps onto a ⌬ Gateway
     // or ⊕ DeepGridGateway. Returns false if there is no active session, the
     // target node is unknown, or the target's edge is locked.
@@ -76,42 +91,11 @@ public:
     // Per-turn Grid update. Called from Game::advance_world when state == Grid.
     void tick_grid(Game& game);
 
-    // Plan 7: Shell stack (cyberdeck below, optional device on top).
-    // At most one device shell at a time per spec.
-    ShellStack& shell_stack() { return shell_stack_; }
-    const ShellStack& shell_stack() const { return shell_stack_; }
-
-    // Convenience accessor — returns the active device shell, or nullptr if
-    // no device shell is on top of the stack. Most call sites used to
-    // reference `device_shell()` directly; they should now null-check.
-    DeviceShell* device_shell() {
-        if (auto* top = shell_stack_.active()) return top->as_device();
-        return nullptr;
-    }
-    const DeviceShell* device_shell() const {
-        if (auto* top = shell_stack_.active()) {
-            return const_cast<ShellContext*>(top)->as_device();
-        }
-        return nullptr;
-    }
-    bool device_shell_open() const { return device_shell() != nullptr; }
-
-    // Open a shell on the given target. Returns true if the shell opened
-    // (Phase A: always true, except when the manual_ssh strict reject path
-    // applies — in which case the caller prints the error and the shell
-    // does not open). For autorun shells, the caller picks the tier.
-    // `manual_ssh` enables the strict reject for root@locked-unescalated.
-    bool open_device_shell(Game& game, Hackable& target,
-                           ShellTier requested_tier, ShellVia via,
-                           bool manual_ssh,
-                           const std::string& requested_user);
-
-    void close_device_shell(Game& game);
-
-    // Bind a shared output sink (PdaScreen). Plumbed into every shell
-    // context pushed onto the stack. Called once at Game construction.
-    void bind_shell_sink(ShellOutputSink* sink) { shell_sink_ = sink; }
-    ShellOutputSink* shell_sink() { return shell_sink_; }
+    // Register an in-flight LOOP sustain. Called by fire_program when a
+    // program with loop_count > 0 fires. The body will re-fire each
+    // subsequent world tick at loop_intensity_mult intensity until the
+    // turn counter expires; the reserved RAM is returned on expiration.
+    void register_sustain(const CompiledProgram& prog, int tx, int ty);
 
 private:
     bool targeting_ = false;
@@ -123,14 +107,11 @@ private:
 
     std::optional<GridSession> session_;
 
-    Game* game_ = nullptr;
+    // Active LOOP sustains. Runtime-only; not persisted (the design accepts
+    // that a save-load mid-sustain drops the in-flight effect).
+    std::vector<ActiveSustain> sustains_;
 
-    // Plan 7 — ShellStack. Lives inside HackingSystem so the per-tick updater
-    // for the active channel rides the existing tick() / tick_grid() surfaces.
-    // Bottom: optional CyberdeckShellContext (pushed at first PDA open with
-    // a deck). Top: optional DeviceShell (pushed on ssh, popped on exit).
-    ShellStack       shell_stack_;
-    ShellOutputSink* shell_sink_ = nullptr;
+    Game* game_ = nullptr;
 
     // Cached zone-change detector. Composes navigation + zone_x/zone_y.
     // When the signature changes, detection_ resets to zero.

@@ -30,9 +30,11 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 65;   // v65: Plan 8 Cut 7 — LanZone rename,
-                                                    //   GridTile::Gateway removed, gen_subnet_sector
-                                                    //   retired, SectorRuntimeState::cracked_doors added
+inline constexpr uint32_t SAVE_FILE_VERSION = 72;   // v72: CyberdeckSlot carries CompiledProgram payload for player-compiled programs
+                                                    // v71: program fragment system — replace ProgramRecipe with fragment+pattern
+                                                    // v70: learned_programs (Cyberdeck program recipes — split from schematics)
+                                                    // v69: drop shell-driven Hackable fields
+                                                    // v68: stable monotonic NPC UID for Anchor linkage
 
 struct SaveSlot {
     std::string filename;    // stem, e.g. "save_12345"

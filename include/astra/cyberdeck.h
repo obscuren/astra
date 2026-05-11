@@ -1,7 +1,10 @@
 #pragma once
 
+#include "astra/program_compiler.h"   // CompiledProgram
+
 #include <array>
 #include <cstdint>
+#include <optional>
 
 namespace astra {
 
@@ -21,11 +24,20 @@ struct CyberdeckStats {
 // Slot count from CyberdeckStats::slots gates how many of these are live.
 inline constexpr int kCyberdeckMaxSlots = 6;
 
-// Loaded program slot. Holds item_def_id of the loaded program (0 = empty).
-// Full Item objects are reconstructed on demand via build_by_def_id.
+// A loaded program slot. Either:
+//   - holds a legacy program reference (program_def_id != 0, compiled empty) —
+//     used by hardcoded loot drops which can be rebuilt via build_by_def_id, or
+//   - holds a compiled program payload directly (compiled.has_value()) — used
+//     for player-compiled programs (def_id = 0) since those have no def_id.
+// `slot_is_empty(s)` is the canonical "is this slot free?" check.
 struct CyberdeckSlot {
-    uint16_t program_def_id = 0;   // 0 = empty
+    uint16_t program_def_id = 0;
+    std::optional<CompiledProgram> compiled;
 };
+
+inline bool slot_is_empty(const CyberdeckSlot& s) {
+    return s.program_def_id == 0 && !s.compiled.has_value();
+}
 
 struct CyberdeckData {
     CyberdeckStats stats;

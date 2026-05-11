@@ -168,6 +168,9 @@ public:
     void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
     bool handle_cell_picker_input(int key);  // returns true if input was consumed
     void open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots);
+    // Tether targeting mode (D2)
+    void begin_tether_targeting();
+    void confirm_tether_targeting();
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
 
@@ -289,7 +292,7 @@ private:
     void render_hall_of_fame();
     void render_stats_bar();
     void render_bars();
-    void render_detection_indicator();
+    void render_deck_indicator();
     void render_widget_bar();
     // render_map extracted to map_renderer.h
     void render_side_panel();
@@ -391,7 +394,6 @@ private:
     // Input modes
     bool awaiting_interact_ = false;
     bool awaiting_autowalk_ = false;
-    int channel_tick_frames_ = 0;  // Plan 7: real-time channel tick accumulator
     bool auto_walking_ = false;
     int auto_walk_dx_ = 0, auto_walk_dy_ = 0;
     bool auto_exploring_ = false;
@@ -435,6 +437,10 @@ private:
     int qh_picker_target_x_ = 0;
     int qh_picker_target_y_ = 0;
 
+    // Tether targeting mode (D2): set while the player is picking a Tether target
+    // using the look cursor. Confirmed by Enter; cancelled by Esc.
+    bool tether_targeting_ = false;
+
     // UI layout (computed from screen size)
     int screen_w_ = 0;
     int screen_h_ = 0;
@@ -443,7 +449,8 @@ private:
     Rect hp_bar_rect_;
     Rect shield_bar_rect_;
     Rect xp_bar_rect_;
-    Rect detection_indicator_rect_;
+    Rect deck_ram_rect_;
+    Rect deck_heat_rect_;
     Rect tabs_rect_;
     Rect map_rect_;
     Rect separator_rect_;

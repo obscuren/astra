@@ -83,10 +83,40 @@ enum class SkillId : uint32_t {
     NeuralFortitude     = 1205,  // halve Black ICE adjacent dmg + half bleed-through
     CodeCraft           = 1206,  // unlock T3 program tinker recipes
     ConsciousnessAnchor = 1207,  // (capstone) Your.Anchor + lore-archive DataNode
-    // Plan 7 — device-shell skill nodes.
-    ColdHands           = 1208,  // -10% Detection on privileged shell commands
-    RootKit             = 1209,  // -10% hashcat duration
+    // Plan 8 — ImplantReader
+    ImplantReader       = 1210,  // reveals NPC implant status in look widget
+    // Plan 8 — Tether perks: project Imprint on no-Crystal targets
+    TetherL1            = 1211,  // Cat_Hacking — Tether L1: project Imprint (LoS, short range 1 tile)
+    TetherL2            = 1212,  // Cat_Hacking — Tether L2: long range (8 tiles)
+    TetherL3            = 1213,  // Cat_Hacking — Tether L3: AoE 3 tiles
+    Programming1        = 1214,  // 3-fragment ceiling, starter pick
+    Programming2        = 1215,  // 4-fragment ceiling, +2 random fragments
+    Programming3        = 1216,  // 5-fragment ceiling, +2 random fragments
+
+    // Synthetic IDs used by ability_bar to represent a binding to a
+    // cyberdeck program slot. NOT real skills — never appear in
+    // player.learned_skills, never have an Ability catalog entry.
+    // Render and use_slot dispatch handles them specially.
+    CyberdeckSlot1      = 2001,
+    CyberdeckSlot2      = 2002,
+    CyberdeckSlot3      = 2003,
+    CyberdeckSlot4      = 2004,
+    CyberdeckSlot5      = 2005,
+    CyberdeckSlot6      = 2006,
 };
+
+inline bool is_cyberdeck_slot_skill(SkillId id) {
+    auto v = static_cast<uint32_t>(id);
+    return v >= 2001 && v <= 2006;
+}
+
+inline int cyberdeck_slot_index_from_skill(SkillId id) {
+    return static_cast<int>(id) - static_cast<int>(SkillId::CyberdeckSlot1);
+}
+
+inline SkillId cyberdeck_slot_skill_id(int slot_index) {
+    return static_cast<SkillId>(static_cast<int>(SkillId::CyberdeckSlot1) + slot_index);
+}
 
 struct SkillDef {
     SkillId id;
@@ -126,5 +156,9 @@ bool player_has_skill(const Player& player, SkillId id);
 
 // Check if the player has the terrain lore skill matching the given overworld tile.
 SkillId terrain_lore_for(Tile terrain);
+
+// Returns the max program-fragment chain length for this player.
+// 0 if no Programming skill; 3/4/5 by tier.
+int max_program_fragments(const Player& player);
 
 } // namespace astra

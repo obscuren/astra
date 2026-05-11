@@ -61,4 +61,21 @@ void apply_cell_proc(Item& cell, int drained,
                      CombatSystem::RechargeTargetKind kind,
                      EnergyStore* target, Game& game);
 
+// Centralized post-death book-keeping. Replaces 4 ad-hoc inlined blocks
+// across attack_npc / shoot_target / process_npc_turn (DoT) /
+// apply_to_anchor (Spike/Sigil). Always runs:
+//  - kills counter
+//  - faction reputation decay
+//  - quest on_npc_killed hook
+//  - XP grant + level-up check
+//  - credits drop
+//  - loot drop (offset from corpse tile via find_loot_drop_tile)
+//  - salvage (mechanical NPC path)
+//  - NpcCorpse fixture stamped at npc.x/npc.y if the NPC carried a Crystal
+//
+// The NPC's hp/alive flag must already be cleared by the caller.
+// Erasure from the npcs vector is NOT done here — the remove_dead_npcs path
+// handles that in the next game tick.
+void award_npc_kill(Game& game, Npc& npc);
+
 } // namespace astra

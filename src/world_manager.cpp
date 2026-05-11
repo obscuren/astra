@@ -172,4 +172,31 @@ Hackable* WorldManager::find_hackable_by_ip(uint32_t ip) {
     return nullptr;
 }
 
+Npc& WorldManager::add_npc(Npc&& npc) {
+    if (npc.uid <= 0) {
+        npc.uid = allocate_npc_uid();
+    } else if (npc.uid >= next_npc_uid_) {
+        // UID was loaded from save — keep it but advance the counter past it
+        next_npc_uid_ = npc.uid + 1;
+    }
+    npcs_.push_back(std::move(npc));
+    return npcs_.back();
+}
+
+Npc* WorldManager::npc_by_uid(int32_t uid) {
+    if (uid <= 0) return nullptr;
+    for (auto& n : npcs_) {
+        if (n.uid == uid) return &n;
+    }
+    return nullptr;
+}
+
+const Npc* WorldManager::npc_by_uid(int32_t uid) const {
+    if (uid <= 0) return nullptr;
+    for (const auto& n : npcs_) {
+        if (n.uid == uid) return &n;
+    }
+    return nullptr;
+}
+
 } // namespace astra

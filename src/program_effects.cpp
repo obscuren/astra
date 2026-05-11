@@ -1,8 +1,12 @@
 #include "astra/program_effects.h"
 
+#include "astra/anchor.h"
+#include "astra/combat_system.h"
 #include "astra/cyberdeck.h"
+#include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/game.h"
+#include "astra/grid_combat.h"
 #include "astra/grid_constants.h"
 #include "astra/grid_display.h"
 #include "astra/grid_ice.h"
@@ -12,6 +16,7 @@
 #include "astra/hackable.h"
 #include "astra/lan.h"
 #include "astra/npc.h"
+#include "astra/vulnerability.h"
 #include "astra/world_manager.h"
 
 #include <algorithm>
@@ -74,9 +79,14 @@ bool kill_and_persist(Game& game, GridSession& s, GridIce& ice) {
     if (ice.hp > 0) return false;
     int kx = ice.x;
     int ky = ice.y;
+    IceColor col = ice.color;
     bool killed = grid_ice::kill_if_dead(s, ice);
     if (killed) {
         record_killed_ice(game, kx, ky);
+        int xp = (col == IceColor::White) ? kXpIceWhite
+               : (col == IceColor::Gray)  ? kXpIceGray
+               :                            kXpIceBlack;
+        grant_grid_xp(game, xp);
     }
     return killed;
 }
@@ -252,6 +262,67 @@ std::string apply_daemon_hijack_grid(GridProgramContext c) {
            " turns. Movement keys drive it. Avatar holds.";
 }
 
+// ── Sigil helpers ────────────────────────────────────────────────────
+
+// Apply a Sigil effect to the Anchor at (tx, ty): reduce anchor HP, then
+// apply a real-world status effect on the linked NPC's vulnerability stack.
+// For master Sigils (Spike), also apply a chunk of RW HP damage.
+//
+// Returns a short message string for the caller to log.
+std::string apply_to_anchor(Game& game, GridSession& s, int tx, int ty,
+                            int anchor_dmg,
+                            VulnerabilityKind kind, ProgramId source,
+                            int turns, int magnitude = 0,
+                            int rw_hp_dmg = 0) {
+    Imprint* a = s.imprint_at(tx, ty);
+    if (!a) {
+        return "no Imprint at target.";
+    }
+    a->hp = std::max(0, a->hp - anchor_dmg);
+
+    if (a->npc_id < 0) return "Imprint hit, target unlinked.";
+    Npc* npc_ptr = game.world().npc_by_uid(a->npc_id);
+    if (!npc_ptr) return "Imprint hit, target gone.";
+    Npc& npc = *npc_ptr;
+    if (!npc.alive()) return "Imprint hit, target dead.";
+
+    // If the anchor severed, apply persistent Severed (overriding the
+    // requested status — Severed always wins).
+    if (a->severed()) {
+        npc.vuln.apply(VulnerabilityKind::Severed, source, /*turns=*/-1);
+        // Grant sever XP once per Anchor (xp_granted guards double-pay).
+        if (!a->xp_granted) {
+            a->xp_granted = true;
+            int tier = std::max(1, npc.level);
+            grant_grid_xp(game, kXpImprintSeverPerTier * tier);
+        }
+    } else {
+        npc.vuln.apply(kind, source, turns, magnitude);
+    }
+
+    // Optional RW HP damage (master Sigils — Spike).
+    // Mirrors the DoT death-credit idiom from CombatSystem::process_npc_turn.
+    if (rw_hp_dmg > 0) {
+        int dmg = apply_damage_effects(npc.effects, rw_hp_dmg);
+        if (dmg > 0) {
+            npc.hp -= dmg;
+            if (npc.hp < 0) npc.hp = 0;
+            game.log(display_name(npc) + " takes " + std::to_string(dmg) +
+                     " Spike damage.");
+            if (!npc.alive()) {
+                game.log(display_name(npc) + " is destroyed!");
+                award_npc_kill(game, npc);
+            }
+        }
+    }
+
+    char buf[80];
+    std::snprintf(buf, sizeof buf,
+                  "Imprint %d hit (%d/%d).",
+                  a->id + 1, a->hp, a->max_hp);
+    return buf;
+}
+
 } // namespace
 
 void apply_program_effect(ProgramId id, Game& game, Hackable& target, int tx, int ty) {
@@ -272,6 +343,58 @@ std::string apply_program_in_grid(ProgramId id, GridProgramContext ctx) {
         case ProgramId::Decrypt:        return apply_decrypt_grid(ctx);
         case ProgramId::PulseHammer:    return apply_pulse_hammer_grid(ctx);
         case ProgramId::DaemonHijack:   return apply_daemon_hijack_grid(ctx);
+
+        // ── Sigils ────────────────────────────────────────────────────────
+        case ProgramId::Echo:
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   /*anchor_dmg=*/5,
+                                   VulnerabilityKind::Marked, ProgramId::Echo,
+                                   /*turns=*/30);
+        case ProgramId::Lag:
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   10,
+                                   VulnerabilityKind::Slowed, ProgramId::Lag, 10);
+        case ProgramId::Veil:
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   10,
+                                   VulnerabilityKind::Blinded, ProgramId::Veil, 10);
+        case ProgramId::Jitter:
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   25,
+                                   VulnerabilityKind::Impaired, ProgramId::Jitter, 15);
+        case ProgramId::Shroud:
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   40,
+                                   VulnerabilityKind::Exposed, ProgramId::Shroud, 10);
+        case ProgramId::Worm:
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   15,
+                                   VulnerabilityKind::DotSource, ProgramId::Worm,
+                                   /*turns=*/20, /*magnitude=*/1);
+        case ProgramId::Brick:
+            // Full takedown: huge anchor damage; helper auto-promotes to Severed when hp hits 0.
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   /*anchor_dmg=*/9999,
+                                   VulnerabilityKind::Severed, ProgramId::Brick,
+                                   /*turns=*/-1);
+        case ProgramId::Rot:
+            // Master tier: small anchor dmg + recurring RW DoT via DotSource.
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   5,
+                                   VulnerabilityKind::DotSource, ProgramId::Rot,
+                                   /*turns=*/15, /*magnitude=*/2,
+                                   /*rw_hp_dmg=*/0);
+        case ProgramId::Spike: {
+            // Master tier: small anchor dmg + chunk RW HP (5..10).
+            std::uniform_int_distribution<int> roll(5, 10);
+            int dmg = roll(ctx.game.world().rng());
+            return apply_to_anchor(ctx.game, ctx.session, ctx.target_x, ctx.target_y,
+                                   10,
+                                   VulnerabilityKind::Severed, ProgramId::Spike,
+                                   /*turns=*/-1, /*magnitude=*/0,
+                                   /*rw_hp_dmg=*/dmg);
+        }
+
         default:                        return "Program is not Grid-side.";
     }
 }

@@ -1,5 +1,7 @@
 #include "astra/hacking_system.h"
 
+#include "astra/anchor.h"
+#include "astra/tilemap.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/deep_grid_sector.h"
@@ -79,21 +81,6 @@ HackTarget hackable_at(Game& game, int x, int y) {
 
 } // namespace
 
-// Plan 7: forward-declared anchors for the per-cmd TU registrations. Each
-// `cmd_*.cpp` defines a static initializer that registers HackCommands into
-// the global registry; calling these anchors from a TU we know is always
-// linked guarantees the registrations survive whole-program-optimization.
-void register_universal_hack_commands();
-
-namespace {
-struct HackCommandAnchor {
-    HackCommandAnchor() {
-        register_universal_hack_commands();
-    }
-};
-const HackCommandAnchor k_hack_command_anchor;
-}
-
 void HackingSystem::add_detection(int delta) {
     int prev = detection_.value;
     detection_.value = std::clamp(detection_.value + delta, kDetectionMin, kDetectionMax);
@@ -160,25 +147,87 @@ uint64_t HackingSystem::compute_zone_signature(const Game& game) {
     return s;
 }
 
+void HackingSystem::register_sustain(const CompiledProgram& prog, int tx, int ty) {
+    ActiveSustain s;
+    s.program          = prog;
+    s.turns_remaining  = prog.resolved.loop_count;
+    s.target_x         = tx;
+    s.target_y         = ty;
+    s.ram_held         = prog.ram_held;
+    sustains_.push_back(std::move(s));
+}
+
 void HackingSystem::tick(Game& game) {
-    // Plan 7: device shell rides world ticks for its long-channel progress.
-    // Ritual char-streaming uses the frame-tick, driven from Game's idle path.
-    if (auto* dev = device_shell()) {
-        dev->tick_world(game);
+    // ── Cyberdeck per-turn: heat decay + LOOP sustain ticker ─────────────
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+        auto& deck = *(*deck_slot)->deck;
+        cyberdeck_decay_heat(deck);
+
+        if (cyberdeck_overheated(deck)) {
+            // Force reboot — RAM is wiped, all sustains lose their RAM
+            // reservation (it's gone with the reboot) and are dropped.
+            // Apply a 1-turn DeckRebooting effect so no programs can fire
+            // while the deck cycles back up.
+            std::string deck_name = (*deck_slot)->name;
+            cyberdeck_force_reboot(deck);
+            sustains_.clear();
+            add_effect(game.player().effects, make_deck_rebooting_ge());
+            game.log(colored(deck_name, Color::Cyan)
+                   + " overheated \xe2\x80\x94 forced reboot. "
+                   + colored("RAM lost", Color::Red) + ".");
+        } else {
+            // Tick sustains: re-fire the body at scaled intensity, decrement
+            // counter; release RAM + drop when expired.
+            for (auto it = sustains_.begin(); it != sustains_.end(); ) {
+                if (it->turns_remaining > 0) {
+                    EffectSpec scaled = it->program.resolved;
+                    float k = scaled.loop_intensity_mult;
+                    scaled.damage          = static_cast<int>(scaled.damage * k + 0.5f);
+                    scaled.status_duration = static_cast<int>(scaled.status_duration * k + 0.5f);
+                    apply_effect_at(game, scaled, it->target_x, it->target_y);
+                    --it->turns_remaining;
+                    ++it;
+                } else {
+                    // Release reserved RAM.
+                    deck.ram_current = std::min(deck.stats.ram_max,
+                                                deck.ram_current + it->ram_held);
+                    if (it->ram_held > 0) {
+                        game.log("Loop ended: "
+                               + colored(it->program.name, Color::Cyan)
+                               + " (released "
+                               + colored(std::to_string(it->ram_held), Color::Green)
+                               + " RAM).");
+                    }
+                    it = sustains_.erase(it);
+                }
+            }
+        }
+    } else {
+        // No deck (e.g., unequipped mid-run) — drop any orphan sustains.
+        sustains_.clear();
     }
 
-    // Plan 7 Phase B — decrement Hackable runtime countdowns (optics_blind,
-    // disarmed, surge/kill/dim/halt, etc.). Per spec §13 these fields are
-    // ephemeral and reset on save/load; per-world-tick decrement keeps them
-    // tracking the world clock.
-    {
-        auto& m = game.world().map();
-        for (int i = 0; i < m.fixture_count(); ++i) {
-            auto& fd = m.fixture_mut(i);
-            if (fd.cyber) tick_runtime_state(*fd.cyber, 1);
-        }
-        for (auto& npc : game.world().npcs()) {
-            if (npc.cyber) tick_runtime_state(*npc.cyber, 1);
+    // Plan 8 B4: mirror Anchor positions to follow NPC RW movement.
+    // Runs every in-Grid world tick (tick_real_world calls hacking_.tick).
+    if (session_) {
+        ImprintProjection proj = make_imprint_projection(session_->sector, game.world());
+        auto& npcs = game.world().npcs();
+        for (size_t i = 0; i < npcs.size(); ++i) {
+            Npc& npc = npcs[i];
+            if (!npc.alive()) continue;
+            if (npc.imprint_id < 0) continue;
+
+            Imprint* a = session_->imprint_for_npc(npc.uid);
+            if (!a) continue;
+            if (a->severed()) continue;  // dead anchors don't move
+
+            int nx, ny;
+            project_rw_to_site(proj, npc.x, npc.y, nx, ny);
+            if (!nudge_to_passable(session_->sector, nx, ny)) continue;
+
+            a->x = nx;
+            a->y = ny;
         }
     }
 
@@ -195,97 +244,11 @@ void HackingSystem::tick(Game& game) {
     }
 }
 
-bool HackingSystem::open_device_shell(Game& game, Hackable& target,
-                                      ShellTier requested_tier, ShellVia via,
-                                      bool manual_ssh,
-                                      const std::string& requested_user) {
-    // Manual ssh strict-reject: root@locked-unescalated → no shell, just the
-    // permission-denied beat. Plan 7 §4.
-    bool locked = has_tag(target.tags, HackTag::Locked);
-    bool wants_root = (requested_tier == ShellTier::Root);
-    if (manual_ssh && wants_root && locked && !target.escalated) {
-        // Caller is responsible for printing the message into pda> shell.
-        return false;
-    }
-
-    // Floor the actual tier against device state. Locked-unescalated capped
-    // to Guest, regardless of what user the player typed.
-    ShellTier actual_tier = requested_tier;
-    if (locked && !target.escalated) actual_tier = ShellTier::Guest;
-
-    // Resolve faction for flavor pack: use the current star system's
-    // controlling_faction. Empty / unknown -> Civilian fallback (handled
-    // inside flavor_for).
-    std::string faction;
-    {
-        const auto& nav = game.world().navigation();
-        for (const auto& sys : nav.systems) {
-            if (sys.id == nav.current_system_id) {
-                faction = sys.controlling_faction;
-                break;
-            }
-        }
-    }
-
-    // If a device shell is already on top, close it first (one shell at a
-    // time per spec). This shouldn't happen in normal flow.
-    if (device_shell()) {
-        if (shell_sink_) shell_stack_.pop(*shell_sink_, game);
-    }
-
-    auto dev = std::make_unique<DeviceShell>();
-    dev->bind_sink(shell_sink_);
-    dev->set_faction(std::move(faction));
-    dev->open(game, &target, actual_tier, via, requested_user);
-    // shell_sink_ should always be bound by Game construction. If it isn't
-    // (defensive — e.g. tests construct HackingSystem standalone), we drop
-    // the lifecycle-hook benefits but still push so the stack tracks the
-    // session. on_push for DeviceShell is empty (open() did the banner).
-    if (shell_sink_) {
-        shell_stack_.push(std::move(dev), *shell_sink_, game);
-    } else {
-        // Push without firing on_push — direct stack mutation.
-        // (No public setter; this branch is unreachable in normal builds.)
-        // Fall back to constructing a no-op sink locally.
-        struct NullSink : ShellOutputSink {
-            void shell_emit_line(const std::string&, UITag) override {}
-            void shell_clear_scroll() override {}
-            void shell_set_progress_line(const std::string&, UITag) override {}
-            void shell_commit_progress_line() override {}
-        };
-        static NullSink null_sink;
-        shell_stack_.push(std::move(dev), null_sink, game);
-    }
-    return true;
-}
-
-void HackingSystem::close_device_shell(Game& game) {
-    if (!device_shell()) return;
-    // pop() invokes on_pop, which calls DeviceShell::close — emits the
-    // logout pair and yanks the cable. Then the unique_ptr is destroyed.
-    if (shell_sink_) {
-        shell_stack_.pop(*shell_sink_, game);
-    } else {
-        struct NullSink : ShellOutputSink {
-            void shell_emit_line(const std::string&, UITag) override {}
-            void shell_clear_scroll() override {}
-            void shell_set_progress_line(const std::string&, UITag) override {}
-            void shell_commit_progress_line() override {}
-        };
-        static NullSink null_sink;
-        shell_stack_.pop(null_sink, game);
-    }
-}
-
 void HackingSystem::reset() {
     targeting_ = false;
     target_x_ = 0;
     target_y_ = 0;
     blink_phase_ = 0;
-    // Plan 7: device contexts do NOT survive new_game / load_save.
-    // CyberdeckShellContext (when added) will be re-pushed on first PDA open
-    // with a deck equipped.
-    shell_stack_.force_clear();
 }
 
 void HackingSystem::begin_quickhack_targeting(Game& game) {
@@ -350,8 +313,20 @@ void HackingSystem::handle_targeting_input(int key, Game& game) {
             std::vector<int> menu_slots;
             for (int i = 0; i < (*deck_slot)->deck->stats.slots; ++i) {
                 const auto& slot = (*deck_slot)->deck->loaded[i];
-                if (slot.program_def_id == 0) continue;
+                if (slot_is_empty(slot)) continue;
+                // Player-compiled programs: always offered (targeting filter
+                // is the Telegraph's job at fire time).
+                if (slot.compiled.has_value()) {
+                    menu_slots.push_back(i);
+                    continue;
+                }
+                // Legacy programs go through the ProgramDef tag filter.
                 Item probe = build_by_def_id(slot.program_def_id);
+                if (probe.compiled_program.has_value()) {
+                    // Migrated legacy program — same as player-compiled.
+                    menu_slots.push_back(i);
+                    continue;
+                }
                 if (!probe.program) continue;
                 const ProgramDef* def = find_program(probe.program->id);
                 if (!def || def->kind != ProgramKind::Qh) continue;
@@ -576,6 +551,41 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         }
     }
 
+    // Spec 1: spawn an Imprint per hostile, Crystal-bearing NPC on the
+    // current map. Each NPC's anchor_id is set; the Imprint's Site
+    // coordinates mirror the NPC's RW position via linear projection,
+    // nudged to the nearest walkable cell if the projected tile is a wall.
+    // D2: also spawn Imprints for Tether-marked NPCs (force_tether == true)
+    // even if they carry no native Electronic Crystal.
+    {
+        ImprintProjection proj = make_imprint_projection(s.sector, game.world());
+        auto& npcs = game.world().npcs();
+        for (size_t i = 0; i < npcs.size(); ++i) {
+            Npc& npc = npcs[i];
+            if (!npc.alive()) continue;
+
+            bool has_native_crystal = npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic);
+            bool tethered_target    = npc.force_tether;
+            if (!has_native_crystal && !tethered_target) continue;
+
+            // Hostility gate applies to native-Crystal NPCs only. Tethered
+            // targets are an explicit player action — faction rep is
+            // irrelevant; the player has chosen to project an Imprint.
+            if (!tethered_target && !is_hostile_to_player(npc.faction, game.player())) continue;
+
+            int sx, sy;
+            project_rw_to_site(proj, npc.x, npc.y, sx, sy);
+            if (!nudge_to_passable(s.sector, sx, sy)) continue;
+
+            Imprint* a = s.add_imprint_for_npc(
+                npc.uid,
+                sx, sy,
+                npc.level,   // npc.level used as threat-tier proxy (B3)
+                /*bound=*/tethered_target);
+            npc.imprint_id = a->id;
+        }
+    }
+
     // Body phase-out
     add_effect(game.player().effects, make_grid_exposed_ge());
 
@@ -583,6 +593,19 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     game.set_state(GameState::Grid);
     game.log("Uploading consciousness... You jack in.");
     return true;
+}
+
+// Spec 1: inject a pre-built GridSession (dead-implant sector). Bypasses the
+// network-node lookup; preconditions checked by caller (jack_into_corpse).
+void HackingSystem::inject_dead_implant_session(Game& game, GridSession s) {
+    // Spawn ICE from seeds if the generator populated them.
+    if (!s.sector.ice_seeds.empty()) {
+        grid_ice::spawn_from_seeds(s);
+    }
+    // Body phase-out effect (same as normal jack-in).
+    add_effect(game.player().effects, make_grid_exposed_ge());
+    session_ = std::move(s);
+    game.set_state(GameState::Grid);
 }
 
 void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
@@ -763,6 +786,16 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
         case JackOutKind::SoftDisconnect:
             // Load-time recovery — no penalty, no loot.
             break;
+    }
+
+    // Spec 1: mark the source corpse exhausted when leaving a transient
+    // dead-implant sector, regardless of jack-out kind (voluntary, death, etc.).
+    if (s.is_dead_implant_transient && s.corpse_fid >= 0) {
+        auto& map = game.world().map();
+        if (s.corpse_fid < static_cast<int>(map.fixtures_vec().size())) {
+            FixtureData& corpse_fd = map.fixture_mut(s.corpse_fid);
+            if (corpse_fd.cyber) corpse_fd.cyber->corpse_dead_implant_exhausted = true;
+        }
     }
 
     remove_effect(game.player().effects, EffectId::GridExposed);

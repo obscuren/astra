@@ -10,6 +10,7 @@
 #include "astra/race.h"
 #include "astra/recipe.h"
 #include "astra/ship.h"
+#include "astra/fragment.h"
 #include "astra/skill_defs.h"
 #include "astra/tinkering.h"
 
@@ -127,6 +128,13 @@ struct Player {
     std::vector<BlueprintSignature> learned_blueprints;
     std::vector<LearnedSchematic> learned_schematics;
 
+    // Cyberdeck — fragment-based program system (see .claude/specs/program-fragment-system.md).
+    // learned_fragments: which fragments the player can use in the Compiler.
+    // discovered_patterns: pattern names the player has compiled at least once
+    // (drives the Patterns overlay; undiscovered patterns show as "??????").
+    std::vector<FragmentId>   learned_fragments;
+    std::vector<std::string>  discovered_patterns;
+
     // Cooking
     std::vector<uint16_t> known_recipes;
     std::array<PotSlot, 3> cooking_slots;
@@ -142,6 +150,14 @@ struct Player {
     // Body movement/attack/item-use are blocked while >= 0. Transient: not
     // serialized; closing the shell or saving wipes it. -1 = not wired.
     int is_jacked_into = -1;
+
+    // Cached skill flags (non-serialized; rebuilt after load and on skill grant).
+    // Plan 8 — ImplantReader: gates NPC implant info in the look widget.
+    bool skill_implant_reader = false;
+    // Plan 8 — Tether L1/L2/L3: project Imprint on targets without active Crystal.
+    bool skill_tether_l1 = false;
+    bool skill_tether_l2 = false;
+    bool skill_tether_l3 = false;
 
     // Aggregate modifiers from all equipped implants.
     StatModifiers implant_modifiers() const {

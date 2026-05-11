@@ -70,7 +70,7 @@ int building_count(int size_category, std::mt19937& rng) {
 
 // --- Find anchor by type ---
 
-const Anchor* find_anchor(const PlacementResult& placement, AnchorType type) {
+const PlacementAnchor* find_anchor(const PlacementResult& placement, AnchorType type) {
     for (auto& a : placement.anchors) {
         if (a.type == type) return &a;
     }
@@ -349,9 +349,9 @@ SettlementPlan SettlementPlanner::plan(const PlacementResult& placement,
     int target_count = building_count(size_cat, rng);
 
     // --- 2. Plan terrain modifications ---
-    const Anchor* center = find_anchor(placement, AnchorType::Center);
-    const Anchor* waterfront = find_anchor(placement, AnchorType::Waterfront);
-    const Anchor* elevated = find_anchor(placement, AnchorType::Elevated);
+    const PlacementAnchor* center = find_anchor(placement, AnchorType::Center);
+    const PlacementAnchor* waterfront = find_anchor(placement, AnchorType::Waterfront);
+    const PlacementAnchor* elevated = find_anchor(placement, AnchorType::Elevated);
 
     // Level center area for plaza
     if (center) {

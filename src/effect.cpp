@@ -339,6 +339,17 @@ Effect make_hijacked_ge(int duration) {
     return e;
 }
 
+Effect make_deck_rebooting_ge() {
+    Effect e;
+    e.id = EffectId::DeckRebooting;
+    e.name = "Deck Rebooting";
+    e.color = Color::Red;
+    e.duration = 5;
+    e.remaining = 5;
+    e.show_in_bar = true;
+    return e;
+}
+
 Effect make_grid_exposed_ge() {
     Effect e;
     e.id = EffectId::GridExposed;

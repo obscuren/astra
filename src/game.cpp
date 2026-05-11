@@ -60,12 +60,6 @@ void apply_starting_items(Player& player, const ClassTemplate& tmpl) {
 Game::Game(std::unique_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
     hacking_.bind_game(this);
-    // Plan 7 unified terminal: the PDA's Hacking tab is the device shell's
-    // output sink. Bind the shared sink on the HackingSystem so every shell
-    // context pushed onto the stack inherits it. Holds whether or not the
-    // PDA is open (in-Grid Tron-window doorway can render the shell without
-    // the PDA being open).
-    hacking_.bind_shell_sink(&pda_screen_);
 }
 
 std::string Game::dominant_faction_in_current_map() const {
@@ -90,21 +84,15 @@ void Game::run() {
 
     while (running_) {
         bool revealing = playback_viewer_.is_revealing();
-        // Plan 7: while the device shell is open, give the loop a short
-        // timeout so the connection ritual streams char-by-char and the
-        // optional inline progress bar redraws without keystrokes.
-        bool shell_open = hacking_.device_shell_open();
         bool needs_timeout = combat_.targeting() || input_.looking()
                            || quit_confirm_.open
                            || auto_walking_ || auto_exploring_
                            || animations_.has_any()
-                           || revealing
-                           || shell_open;
+                           || revealing;
         int timeout_ms = revealing                                 ? 33
                        : (auto_walking_ || auto_exploring_)         ? 50
                        : animations_.has_active_effects()           ? 80
                        : animations_.has_any()                      ? 200
-                       : shell_open                                 ? 50
                                                                     : 300;
         int key = needs_timeout ? renderer_->wait_input_timeout(timeout_ms)
                                 : renderer_->wait_input();
@@ -128,22 +116,6 @@ void Game::run() {
             // Auto-walk/explore step
             if (auto_walking_ || auto_exploring_) {
                 auto_step();
-            }
-            // Plan 7: real-time channel ticks. While a device shell is
-            // running a long-channel, the world (and the channel) advance
-            // automatically — the player can't take actions to drive the
-            // tick because the terminal locks input. One world tick per
-            // ~300ms (6 idle frames at 50ms each); a 10-turn hashcat lands
-            // at ~3s wall-clock.
-            if (auto* dev = hacking_.device_shell();
-                dev && dev->channel_active()) {
-                ++channel_tick_frames_;
-                if (channel_tick_frames_ >= 6) {
-                    channel_tick_frames_ = 0;
-                    advance_world(ActionCost::interact);
-                }
-            } else {
-                channel_tick_frames_ = 0;
             }
         } else {
             // Any keypress stops auto-walk/explore
@@ -214,9 +186,11 @@ void Game::compute_layout() {
     shield_bar_rect_ = {0, vrows[2].bounds().y, left_w, 1};
     xp_bar_rect_ = {0, vrows[3].bounds().y, left_w, 1};
 
-    // Detection indicator — right column, HP-bar row (two rows above the
-    // widget bar). Mirrors the visual weight of HP/SH/XP on the left.
-    detection_indicator_rect_ = {sep_x + 1, vrows[1].bounds().y, panel_w, 1};
+    // Cyberdeck indicators — right column, mirrors the HP/SH stack on the
+    // left. RAM on the HP row, HEAT on the SH row. Only rendered when a
+    // deck is equipped (see render_deck_indicator).
+    deck_ram_rect_  = {sep_x + 1, vrows[1].bounds().y, panel_w, 1};
+    deck_heat_rect_ = {sep_x + 1, vrows[2].bounds().y, panel_w, 1};
 
     if (panel_visible_) {
         auto main_cols = vrows[4].columns({fill(), fixed(1), fixed(panel_w)});
@@ -422,7 +396,10 @@ void Game::dev_warp_random() {
     if (m.type != MapType::SpaceStation && m.type != MapType::Starship) {
         std::mt19937 npc_rng(warp_seed ^ 0xD3ADu);
         std::vector<std::pair<int,int>> occupied = {{player_.x, player_.y}};
+        size_t before = world_.npcs().size();
         debug_spawn(world_.map(), world_.npcs(), player_.x, player_.y, occupied, npc_rng);
+        for (size_t i = before; i < world_.npcs().size(); ++i)
+            if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
     }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -457,10 +434,15 @@ void Game::dev_warp_stamp_test() {
 
     // Spawn NPCs for settlement/outpost stamp tests
     std::mt19937 npc_rng(warp_seed ^ 0xC1A5u);
-    if (dev_warp_stamp_test_poi_ == Tile::OW_Settlement) {
-        spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
-    } else if (dev_warp_stamp_test_poi_ == Tile::OW_Outpost) {
-        spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+    {
+        size_t before = world_.npcs().size();
+        if (dev_warp_stamp_test_poi_ == Tile::OW_Settlement) {
+            spawn_settlement_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+        } else if (dev_warp_stamp_test_poi_ == Tile::OW_Outpost) {
+            spawn_outpost_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_);
+        }
+        for (size_t i = before; i < world_.npcs().size(); ++i)
+            if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
     }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
@@ -648,18 +630,33 @@ void Game::dev_command_biome_test(Biome biome, int layer,
         if (props.lore_plague_origin) sname = "Ruined";
         else if (props.lore_tier >= 2) sname = "Advanced";
 
-        spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
-                                  player_.x, player_.y, npc_rng, &player_,
-                                  size_cat, sname, biome);
+        {
+            size_t before = world_.npcs().size();
+            spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
+                                      player_.x, player_.y, npc_rng, &player_,
+                                      size_cat, sname, biome);
+            for (size_t i = before; i < world_.npcs().size(); ++i)
+                if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+        }
     } else if (poi_type == "ruins") {
         std::mt19937 npc_rng(seed ^ 0x4E5C5u);
-        spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
-                                  player_.x, player_.y, npc_rng, &player_,
-                                  0, "Ruined", biome);
+        {
+            size_t before = world_.npcs().size();
+            spawn_settlement_npcs_v2(world_.map(), world_.npcs(),
+                                      player_.x, player_.y, npc_rng, &player_,
+                                      0, "Ruined", biome);
+            for (size_t i = before; i < world_.npcs().size(); ++i)
+                if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+        }
     } else if (poi_type == "outpost") {
         std::mt19937 npc_rng(seed ^ 0x4E5C5u);
-        spawn_outpost_npcs(world_.map(), world_.npcs(),
-                           player_.x, player_.y, npc_rng, &player_);
+        {
+            size_t before = world_.npcs().size();
+            spawn_outpost_npcs(world_.map(), world_.npcs(),
+                               player_.x, player_.y, npc_rng, &player_);
+            for (size_t i = before; i < world_.npcs().size(); ++i)
+                if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+        }
     }
 
     world_.visibility() = VisibilityMap(props.width, props.height);
@@ -747,7 +744,7 @@ void Game::dev_command_dungen(dungeon::StyleId style_id,
             n.x = nx;
             n.y = ny;
             occupied.push_back({nx, ny});
-            world_.npcs().push_back(std::move(n));
+            world_.add_npc(std::move(n));
         }
     }
 
@@ -965,7 +962,12 @@ void Game::new_game() {
     world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     StationContext tha_ctx{ .is_tha = true };
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_, tha_ctx);
+    {
+        size_t before = world_.npcs().size();
+        spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_, tha_ctx);
+        for (size_t i = before; i < world_.npcs().size(); ++i)
+            if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+    }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -1340,7 +1342,12 @@ void Game::new_game(const CreationResult& cr) {
     world_.ground_items().clear();
     std::mt19937 npc_rng(static_cast<unsigned>(std::time(nullptr)) ^ 0xA7C3u);
     StationContext tha_ctx{ .is_tha = true };
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_, tha_ctx);
+    {
+        size_t before = world_.npcs().size();
+        spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y, npc_rng, &player_, tha_ctx);
+        for (size_t i = before; i < world_.npcs().size(); ++i)
+            if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+    }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();
@@ -1570,8 +1577,13 @@ void Game::start_new_galaxy(unsigned fresh_seed) {
     world_.ground_items().clear();
     std::mt19937 npc_rng(fresh_seed ^ 0xA7C3u);
     StationContext tha_ctx{ .is_tha = true };
-    spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y,
-                   npc_rng, &player_, tha_ctx);
+    {
+        size_t before = world_.npcs().size();
+        spawn_hub_npcs(world_.map(), world_.npcs(), player_.x, player_.y,
+                       npc_rng, &player_, tha_ctx);
+        for (size_t i = before; i < world_.npcs().size(); ++i)
+            if (world_.npcs()[i].uid <= 0) world_.npcs()[i].uid = world_.allocate_npc_uid();
+    }
 
     world_.visibility() = VisibilityMap(world_.map().width(), world_.map().height());
     recompute_fov();

@@ -104,21 +104,27 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_PROG_DATA_LEECH,      "data_leech",       R::Common,    R::Uncommon,   8, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
         LootEntry{ ITEM_PROG_PULSE_HAMMER,    "pulse_hammer",     R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
         LootEntry{ ITEM_PROG_DAEMON_HIJACK,   "daemon_hijack",    R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        // Sigils (Spec 1 §5.2) — T1 commons, T2 uncommons, T3 rares
+        LootEntry{ ITEM_PROG_ECHO,            "echo",             R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_LAG,             "lag",              R::Common,    R::Uncommon,  10, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_VEIL,            "veil",             R::Common,    R::Uncommon,   9, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Program },
+        LootEntry{ ITEM_PROG_JITTER,          "jitter",           R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_SHROUD,          "shroud",           R::Uncommon,  R::Rare,       5, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_WORM,            "worm",             R::Uncommon,  R::Rare,       6, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Program },
+        LootEntry{ ITEM_PROG_BRICK,           "brick",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        LootEntry{ ITEM_PROG_ROT,             "rot",              R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
+        LootEntry{ ITEM_PROG_SPIKE,           "spike",            R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::Program },
 
         // ----- Implants (Plan 4) ---------------------------------------
         LootEntry{ ITEM_NEURAL_BACKUP,        "neural_backup",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
-
-        // ----- Cyberdeck mods (Plan 7 §15) -----------------------------
-        // v1: presence in inventory enables `pda> jack <ip>`. Plan 11+
-        // gates them on a per-cyberdeck install slot. Two brand variants
-        // ship so playtest can spawn either.
-        LootEntry{ ITEM_AEROJACK,             "aerojack",         R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                            T::Tech,     1, C::Implant },
-        LootEntry{ ITEM_UNTETHER,             "untether",         R::Uncommon,  R::Uncommon,   4, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,                            T::Tech,     1, C::Implant },
 
         // ----- Code fragments (crafting material) ----------------------
         LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },
         LootEntry{ ITEM_CODE_FRAGMENT_T2,     "code_fragment_t2", R::Uncommon,  R::Uncommon,  10, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket,      T::Tech,     2, C::CodeFragment },
         LootEntry{ ITEM_CODE_FRAGMENT_T3,     "code_fragment_t3", R::Rare,      R::Rare,       3, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     3, C::CodeFragment },
+
+        // ----- Hacker mats (compile materials) -------------------------
+        LootEntry{ ITEM_PROGRAM_DISK,         "program_disk",     R::Common,    R::Common,    18, {}, LootSource::Chest | LootSource::MerchantArms | LootSource::BlackMarket | LootSource::ScavMerchant, T::Tech,     1, C::CraftingMaterial },
 
         // ----- Batteries (own category, distinct from Consumable) -------
         LootEntry{ ITEM_SMALL_ENERGY_CELL,      "cell_small",      R::Common,    R::Common,    50, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantGeneral | LootSource::MerchantArms | LootSource::ScavMerchant, T::Tech, 1, C::Battery },

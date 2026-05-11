@@ -1,8 +1,6 @@
 #include "astra/pda_screen.h"
 #include "astra/aura.h"
 #include "astra/character.h"
-#include "astra/cyberdeck_shell_context.h"
-#include "astra/device_shell.h"
 #include "astra/hacking_system.h"
 #include "astra/recipe.h"
 #include "astra/display_name.h"
@@ -21,7 +19,7 @@
 namespace astra {
 
 static const char* tab_names[] = {
-    "Skills", "Attributes", "Inventory & Equipment", "Tinkering", "Hacking",
+    "Skills", "Attributes", "Inventory & Equipment", "Tinkering", "Cyberdeck",
     "Cooking", "Journal", "Quests", "Reputation", "Ship",
 };
 
@@ -43,40 +41,6 @@ void PdaScreen::open(Player* player, Renderer* renderer, QuestManager* quests,
     hacking_system_ = hacking_system;
     open_ = true;
 
-    // Plan 7 unified terminal: bind the shared shell output sink to us so
-    // ritual, command output, and channel ticks all flow into the PDA's
-    // single Hacking-tab scroll. Safe to bind even when no shell is open;
-    // the sink is consulted only while a session is active.
-    if (hacking_system_) {
-        hacking_system_->bind_shell_sink(this);
-
-        // Plan 7 ShellStack — push the cyberdeck context if the player has
-        // a deck equipped and there is no cyberdeck on the stack already.
-        // Persists across PDA close/reopen; cleared by HackingSystem::reset
-        // (new_game / load_save).
-        auto* deck_slot = player_ ? player_->equipment.equipped_cyberdeck() : nullptr;
-        if (deck_slot && *deck_slot && (*deck_slot)->deck && game_) {
-            auto& stack = hacking_system_->shell_stack();
-            // Walk to find an existing cyberdeck context (under any device
-            // shell that may currently be on top — defensive: device shells
-            // shouldn't survive PDA close, but we handle it.)
-            bool has_cyberdeck = false;
-            for (std::size_t i = 0; i < stack.size(); ++i) {
-                if (stack.at(i) && stack.at(i)->as_cyberdeck()) {
-                    has_cyberdeck = true;
-                    // Update its deck id in case the player switched decks.
-                    stack.at(i)->as_cyberdeck()->set_deck_def_id(
-                        (*deck_slot)->item_def_id);
-                    break;
-                }
-            }
-            if (!has_cyberdeck) {
-                auto ctx = std::make_unique<CyberdeckShellContext>(
-                    (*deck_slot)->item_def_id);
-                stack.push(std::move(ctx), *this, *game_);
-            }
-        }
-    }
     if (initial_tab) active_tab_ = *initial_tab;
     // else: keep active_tab_ from last close
     cursor_ = 0;
@@ -141,20 +105,21 @@ bool PdaScreen::handle_input(int key) {
             cooking_picker_active_ = false;
             return true;
         }
-        if (active_tab_ == PdaTab::Hacking && nmap_widget_.is_open()) {
-            nmap_widget_.close();
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_fragment_help_) {
+            cyberdeck_fragment_help_ = false;
             return true;
         }
-        // Plan 7 unified terminal: if a real-world DeviceShell session is
-        // active, ESC routes to the Hacking tab key handler which closes the
-        // session (yanks the cable). The PDA itself stays open so the user
-        // can keep using it.
-        if (active_tab_ == PdaTab::Hacking && hacking_system_) {
-            if (auto* dev = hacking_system_->device_shell();
-                dev && dev->via() == ShellVia::RealWorld) {
-                handle_hacking_key(key);
-                return true;
-            }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_load_popup_) {
+            cyberdeck_load_popup_ = false;
+            return true;
+        }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_compile_prompt_) {
+            cyberdeck_compile_prompt_ = false;
+            return true;
+        }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_show_patterns_overlay_) {
+            cyberdeck_show_patterns_overlay_ = false;
+            return true;
         }
         close();
         return true;
@@ -166,14 +131,6 @@ bool PdaScreen::handle_input(int key) {
     if (active_tab_ == PdaTab::Cooking &&
         (cooking_picker_active_ || cooking_qty_prompt_active_)) {
         tab_switch_blocked = true;
-    }
-    // Plan 7 §3a: brackets are valid characters in shell commands; while the
-    // device shell is active, route everything (including [ and ]) to it.
-    if (active_tab_ == PdaTab::Hacking && hacking_system_) {
-        if (auto* dev = hacking_system_->device_shell();
-            dev && dev->via() == ShellVia::RealWorld) {
-            tab_switch_blocked = true;
-        }
     }
     if (key == '[' && !tab_switch_blocked) {
         int t = static_cast<int>(active_tab_);
@@ -902,7 +859,7 @@ bool PdaScreen::handle_input(int key) {
             }
         }
     } else if (active_tab_ == PdaTab::Hacking) {
-        handle_hacking_key(key);
+        handle_cyberdeck_key(key);
         return true;
     }
 
@@ -1453,6 +1410,13 @@ void PdaScreen::draw(int screen_w, int screen_h) {
         footer_text = "[ESC] Close  [Tab] Focus  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Add  [x] Clear  [c] Cook";
     } else if (active_tab_ == PdaTab::Equipment) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Interact";
+    } else if (active_tab_ == PdaTab::Hacking) {
+        // Cyberdeck tab. Different shortcuts per sub-screen.
+        if (cyberdeck_subscreen_ == CyberdeckSubscreen::Compiler) {
+            footer_text = "[ESC] Close  [Tab] Cyberdeck/Compiler  [\xe2\x86\x90\xe2\x86\x92] Focus  [\xe2\x86\x91\xe2\x86\x93] Navigate  [Space] Insert  [Backspace] Delete  [+/-] N  [?] Help  [c] Compile  [p] Patterns";
+        } else {
+            footer_text = "[ESC] Close  [Tab] Cyberdeck/Compiler  [\xe2\x86\x90\xe2\x86\x92] Slot  [Space] Load  [u] Unload  [p] Patterns";
+        }
     } else if (has_pending()) {
         footer_text = "[ESC] Close  [\xe2\x86\x91\xe2\x86\x93] Navigate  [-/+] Adjust  [Space] Commit";
     } else {
@@ -1495,7 +1459,7 @@ void PdaScreen::draw(int screen_w, int screen_h) {
         case PdaTab::Quests:    draw_quests(content); break;
         case PdaTab::Ship:       draw_ship(content); break;
         case PdaTab::Cooking:    draw_cooking(full); break;
-        case PdaTab::Hacking:    draw_hacking(content); break;
+        case PdaTab::Hacking:    draw_cyberdeck(content); break;
     }
 
     // Draw vertical divider only for tabs that use a split layout
@@ -1718,14 +1682,39 @@ static const char* tab_help_body(PdaTab tab) {
                    "[c] cook the slotted ingredients\n\n"
                    "You must be near a cooking fire to cook.";
         case PdaTab::Hacking:
-            return "Cyberdeck terminal.\n\n"
-                   "Type commands at the prompt. 'help' lists all commands. "
-                   "Tab to autocomplete. Up/Down walk history. Left/Right "
-                   "edit in place. PgUp/PgDn scroll the buffer.\n\n"
-                   "nmap [-l|-m]      list or map LAN nodes\n"
-                   "jack -t <node>    jack into a network node (Cat_Hacking)\n\n"
-                   "[H in world] Quickhack a hackable target\n"
-                   "[?] help / [P] ps / [I] ls / [N] nmap / [L] lore";
+            return "Build and run cyberdeck programs.\n\n"
+                   "Two sub-screens (toggle with [Tab]):\n\n"
+                   "DECK — your equipped cyberdeck. The slot list shows what's "
+                   "loaded; pick a slot with the arrows and press [Space] to "
+                   "open the LOAD popup with every compiled program in your "
+                   "inventory. [u] unloads the current slot. Loaded slots auto-"
+                   "bind to the abilities bar so you can fire them with the "
+                   "hotbar key (1-4 by default).\n\n"
+                   "COMPILER — assemble programs from fragments. The build "
+                   "is a tree: producers seed an effect (VOLT, PYRE, DRAIN, "
+                   "WARP, DECAY, JITTER, SLAG), transformers wrap it "
+                   "(RELAY, BROADCAST, AMPLIFY), and containers run a body "
+                   "(TICK, LOOP). Order matters — [VOLT, BROADCAST] is a "
+                   "3x3 zap, [VOLT, AMPLIFY, BROADCAST] is a harder 3x3, "
+                   "[VOLT, BROADCAST, AMPLIFY] is an enlarged 5x5.\n\n"
+                   "Focus: [<-] Fragments, [->] Editor. In Fragments focus "
+                   "the arrows walk the palette. In Editor focus they walk "
+                   "the build's edit positions — gaps (insertion lines) "
+                   "and on-node. Inserting a container drops the cursor "
+                   "into its body so the next append lands inside.\n\n"
+                   "[Space] inserts the palette-selected fragment at the "
+                   "build cursor. [Backspace] deletes. [+/-] adjusts N on "
+                   "TICK / LOOP. [c] opens the NAME prompt; on Enter the "
+                   "program is compiled — consumes one Cipher Disk, "
+                   "appears in inventory.\n\n"
+                   "Patterns: certain ordered fragment sequences produce "
+                   "named composite effects. [p] toggles the Patterns "
+                   "overlay; sequences you've discovered show their "
+                   "fragments and effect.\n\n"
+                   "Resources: programs cost Heat on fire (deck overheats "
+                   "and reboots for one turn if Heat exceeds cap). LOOP "
+                   "programs reserve RAM for their sustain duration and "
+                   "release it when the loop ends.";
     }
     return "";
 }
@@ -1741,7 +1730,7 @@ static const char* tab_help_title(PdaTab tab) {
         case PdaTab::Reputation: return "Reputation";
         case PdaTab::Ship:       return "Ship";
         case PdaTab::Cooking:    return "Cooking";
-        case PdaTab::Hacking:    return "Hacking";
+        case PdaTab::Hacking:    return "Cyberdeck";
     }
     return "";
 }

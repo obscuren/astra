@@ -8,11 +8,15 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/item_ids.h"
 #include "astra/loot_table.h"
 #include "astra/noise_event.h"
 #include "astra/skill_defs.h"
+#include "astra/tilemap.h"
+#include "astra/grid_combat.h"
+#include "astra/vulnerability.h"
 
 #include <algorithm>
 #include <array>
@@ -60,6 +64,40 @@ static int roll_d10(std::mt19937& rng) {
     return std::uniform_int_distribution<int>(1, 10)(rng);
 }
 
+// Pick a destination tile for a corpse-drop item:
+//   1. orthogonal-walkable tiles first (N, E, S, W)
+//   2. diagonal-walkable tiles (NE, SE, SW, NW)
+//   3. fall back to the death tile (corpse glyph wins on render; the
+//      item still picks up via stand-on)
+//
+// "Walkable" means passable AND no fixture AND no existing ground item.
+static std::pair<int,int> find_loot_drop_tile(
+    const TileMap& map,
+    const std::vector<GroundItem>& ground_items,
+    int cx, int cy)
+{
+    auto free = [&](int x, int y) -> bool {
+        if (!map.passable(x, y)) return false;
+        if (map.fixture_id(x, y) >= 0) return false;
+        for (const auto& gi : ground_items) {
+            if (gi.x == x && gi.y == y) return false;
+        }
+        return true;
+    };
+
+    constexpr int orth[4][2] = { {0,-1}, {1,0}, {0,1}, {-1,0} };
+    for (auto& d : orth) {
+        int x = cx + d[0], y = cy + d[1];
+        if (free(x, y)) return {x, y};
+    }
+    constexpr int diag[4][2] = { {-1,-1}, {1,-1}, {1,1}, {-1,1} };
+    for (auto& d : diag) {
+        int x = cx + d[0], y = cy + d[1];
+        if (free(x, y)) return {x, y};
+    }
+    return {cx, cy};
+}
+
 static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
     if (is_mechanical(npc)) {
         // Gated: requires Cat_Tinkering. Mechanical kills do NOT roll the
@@ -95,7 +133,68 @@ static void apply_salvage_on_kill(Game& game, Npc& npc, std::mt19937& rng) {
     // Ungated universal path: 5% chance to drop Spare Parts to the ground.
     if (std::uniform_int_distribution<int>(0, 99)(rng) < 5) {
         Item spare = build_by_def_id(ITEM_SPARE_PARTS);
-        game.world().ground_items().push_back({npc.x, npc.y, std::move(spare)});
+        auto [dx, dy] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), npc.x, npc.y);
+        game.world().ground_items().push_back({dx, dy, std::move(spare)});
+    }
+}
+
+void award_npc_kill(Game& game, Npc& npc) {
+    auto& rng = game.world().rng();
+
+    game.player().kills++;
+
+    // Faction reputation penalty
+    if (!npc.faction.empty()) {
+        for (auto& fs : game.player().reputation) {
+            if (fs.faction_name == npc.faction) {
+                fs.reputation = std::max(fs.reputation - 30, -600);
+                game.log("Your reputation with " + npc.faction + " decreased.");
+                break;
+            }
+        }
+    }
+
+    // Quest hook
+    game.quests().on_npc_killed(npc.role);
+
+    // XP grant + level-up check
+    int xp = npc.xp_reward();
+    if (xp > 0) {
+        game.player().xp += xp;
+        game.log("You gain " + std::to_string(xp) + " XP.");
+        game.combat().check_level_up(game);
+    }
+
+    // Credits drop
+    int credits = npc.level * 2 + (npc.elite ? 5 : 0);
+    if (credits > 0) {
+        game.player().money += credits;
+        game.log("You salvage " + std::to_string(credits) + "$.");
+    }
+
+    // Loot drop (50% chance)
+    if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
+        if (auto loot = roll_loot(LootSource::NpcDrop, npc.level, rng)) {
+            game.log("Dropped: " + display_name(*loot));
+            auto [lx, ly] = find_loot_drop_tile(game.world().map(), game.world().ground_items(), npc.x, npc.y);
+            game.world().ground_items().push_back({lx, ly, std::move(*loot)});
+        }
+    }
+
+    // Salvage (mechanical NPC path)
+    apply_salvage_on_kill(game, npc, rng);
+
+    // Spec 1: place a corpse fixture carrying the NPC's Hackable so
+    // Jack In (dead-implant) can be offered after death. Only for Electronic
+    // hackable NPCs (Crystal); silently skip if the tile already holds
+    // a fixture (rare collision) or if not in a dungeon/detail map.
+    if (npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic)) {
+        auto& map = game.world().map();
+        if (map.get(npc.x, npc.y) != Tile::Fixture) {
+            FixtureData corpse_fd = make_fixture(FixtureType::NpcCorpse);
+            corpse_fd.cyber = *npc.cyber;
+            map.add_fixture(npc.x, npc.y, std::move(corpse_fd));
+        }
     }
 }
 
@@ -359,6 +458,27 @@ void CombatSystem::attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game) {
 
 void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     if (!npc.alive()) return;
+
+    // Apply vulnerability DoT before the NPC acts, then decay the stack.
+    {
+        int dot = npc.vuln.dot_per_turn();
+        if (dot > 0) {
+            dot = apply_damage_effects(npc.effects, dot);
+            if (dot > 0) {
+                npc.hp -= dot;
+                if (npc.hp < 0) npc.hp = 0;
+                game.log(display_name(npc) + " takes " + std::to_string(dot) +
+                         " vulnerability damage.");
+                if (!npc.alive()) {
+                    game.log(display_name(npc) + " is destroyed!");
+                    award_npc_kill(game, npc);
+                    npc.vuln.tick();
+                    return; // NPC is dead; skip action
+                }
+            }
+        }
+        npc.vuln.tick();
+    }
 
     if (npc.return_x >= 0 && npc.return_y >= 0) {
         int rx = npc.return_x, ry = npc.return_y;
@@ -670,37 +790,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
     }
     if (!npc.alive()) {
         game.log(display_name(npc) + " is destroyed!");
-        game.player().kills++;
-        // Reputation penalty for killing a faction NPC
-        if (!npc.faction.empty()) {
-            for (auto& fs : game.player().reputation) {
-                if (fs.faction_name == npc.faction) {
-                    fs.reputation = std::max(fs.reputation - 30, -600);
-                    game.log("Your reputation with " + npc.faction + " decreased.");
-                    break;
-                }
-            }
-        }
-        game.quests().on_npc_killed(npc.role);
-        int xp = npc.xp_reward();
-        if (xp > 0) {
-            game.player().xp += xp;
-            game.log("You gain " + std::to_string(xp) + " XP.");
-            check_level_up(game);
-        }
-        int credits = npc.level * 2 + (npc.elite ? 5 : 0);
-        if (credits > 0) {
-            game.player().money += credits;
-            game.log("You salvage " + std::to_string(credits) + "$.");
-        }
-        // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
-            if (auto loot = roll_loot(LootSource::NpcDrop, npc.level, rng)) {
-                game.log("Dropped: " + display_name(*loot));
-                game.world().ground_items().push_back({npc.x, npc.y, std::move(*loot)});
-            }
-        }
-        apply_salvage_on_kill(game, npc, rng);
+        award_npc_kill(game, npc);
     }
 }
 
@@ -903,32 +993,7 @@ void CombatSystem::shoot_target(Game& game) {
 
     if (!target_npc_->alive()) {
         game.log(display_name(*target_npc_) + " is destroyed!");
-        game.player().kills++;
-        // Reputation penalty for killing a faction NPC
-        if (!target_npc_->faction.empty()) {
-            for (auto& fs : game.player().reputation) {
-                if (fs.faction_name == target_npc_->faction) {
-                    fs.reputation = std::max(fs.reputation - 30, -600);
-                    game.log("Your reputation with " + target_npc_->faction + " decreased.");
-                    break;
-                }
-            }
-        }
-        game.quests().on_npc_killed(target_npc_->role);
-        int xp = target_npc_->xp_reward();
-        if (xp > 0) {
-            game.player().xp += xp;
-            game.log("You gain " + std::to_string(xp) + " XP.");
-            check_level_up(game);
-        }
-        // Loot drop (50% chance)
-        if (std::uniform_int_distribution<int>(0, 1)(rng) == 0) {
-            if (auto loot = roll_loot(LootSource::NpcDrop, target_npc_->level, rng)) {
-                game.log("Dropped: " + display_name(*loot));
-                game.world().ground_items().push_back({target_npc_->x, target_npc_->y, std::move(*loot)});
-            }
-        }
-        apply_salvage_on_kill(game, *target_npc_, rng);
+        award_npc_kill(game, *target_npc_);
         target_npc_ = nullptr;
     }
 
@@ -1100,6 +1165,13 @@ void CombatSystem::check_level_up(Game& game) {
     }
 }
 
+
+void grant_grid_xp(Game& game, int amount) {
+    if (amount <= 0) return;
+    game.player().xp += amount;
+    game.log("+" + std::to_string(amount) + " XP");
+    game.combat().check_level_up(game);
+}
 
 void CombatSystem::reset() {
     targeting_ = false;

@@ -227,6 +227,17 @@ constexpr uint16_t ITEM_PROG_DATA_LEECH      = 317;
 constexpr uint16_t ITEM_PROG_PULSE_HAMMER    = 318;  // Plan 4 — T3 ATK AoE
 constexpr uint16_t ITEM_PROG_DAEMON_HIJACK   = 319;  // Plan 4 — T3 UTL charm
 
+// Sigils (323-331) — Spec 1 §5.2 imprint-interaction programs
+constexpr uint16_t ITEM_PROG_ECHO            = 323;  // T1 UTL — propagate Imprint
+constexpr uint16_t ITEM_PROG_LAG             = 324;  // T1 UTL — delay ICE activation
+constexpr uint16_t ITEM_PROG_VEIL            = 325;  // T1 UTL — cloak Imprinted tile
+constexpr uint16_t ITEM_PROG_JITTER          = 326;  // T2 UTL — skip target action
+constexpr uint16_t ITEM_PROG_SHROUD          = 327;  // T2 UTL — reduce trace accumulation
+constexpr uint16_t ITEM_PROG_WORM            = 328;  // T2 ATK — degrade defences over turns
+constexpr uint16_t ITEM_PROG_BRICK           = 329;  // T3 ATK — instant kill adjacent Imprinted
+constexpr uint16_t ITEM_PROG_ROT             = 330;  // T3 ATK — DoT on adjacent Imprinted
+constexpr uint16_t ITEM_PROG_SPIKE           = 331;  // T3 ATK — data spike adjacent Imprinted
+
 // Code fragments (320-322)
 constexpr uint16_t ITEM_CODE_FRAGMENT_T1     = 320;
 constexpr uint16_t ITEM_CODE_FRAGMENT_T2     = 321;
@@ -235,11 +246,7 @@ constexpr uint16_t ITEM_CODE_FRAGMENT_T3     = 322;
 // Implants (400+)
 constexpr uint16_t ITEM_NEURAL_BACKUP        = 400;
 
-// Cyberdeck mods (410+) — Plan 7 §15. v1 ships only the WirelessJackIn
-// category as two brand variants. No install slot in v1; presence in
-// inventory is enough to gate `pda> jack <ip>` (Plan 11+ adds a proper
-// per-deck slot + install ritual).
-constexpr uint16_t ITEM_AEROJACK             = 410;
-constexpr uint16_t ITEM_UNTETHER             = 411;
+// Hacker mats (430+) — fragment-system compile material.
+constexpr uint16_t ITEM_PROGRAM_DISK         = 430;
 
 } // namespace astra

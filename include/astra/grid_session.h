@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/anchor.h"
 #include "astra/game_state.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_network.h"
@@ -73,6 +74,15 @@ struct GridSession {
     std::vector<GridIce> ice;
     std::vector<bool> ice_seed_spawned;  // Plan 8: true once seed_idx has materialized
 
+    // Anchors (player-facing: Anchors)
+    std::vector<Imprint>&       imprints()       { return imprints_; }
+    const std::vector<Imprint>& imprints() const { return imprints_; }
+    Imprint* imprint_for_npc(int npc_id);
+    Imprint* imprint_at(int x, int y);
+    void  clear_imprints() { imprints_.clear(); next_imprint_id_ = 0; }
+    Imprint* add_imprint_for_npc(int npc_id, int sx, int sy,
+                               int npc_threat_tier, bool bound = false);
+
     // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
     // instead of the avatar. -1 = no active hijack. The countdown decrements
     // once per turn and clears the index when it hits 0. The ICE's own
@@ -99,6 +109,16 @@ struct GridSession {
     // Plan 6: index of the slot whose Telegraph is currently open. -1 when
     // none. The Grid HUD uses this to inverse-video the active program slot.
     int active_slot = -1;
+
+    // Spec 1: Dead-implant sector flag. When true this session was generated from
+    // a corpse fixture rather than a live network node. jack_out checks this
+    // to mark the corpse exhausted. corpse_fid is the fixture id (-1 = unset).
+    bool is_dead_implant_transient = false;
+    int  corpse_fid                = -1;
+
+private:
+    std::vector<Imprint> imprints_;
+    int32_t             next_imprint_id_ = 0;
 };
 
 } // namespace astra

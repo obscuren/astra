@@ -13,6 +13,7 @@
 #include "astra/grid_renderer.h"
 #include "astra/map_renderer.h"
 #include "astra/recipe.h"
+#include "astra/item_defs.h"
 #include "astra/skill_defs.h"
 #include "astra/telegraph.h"
 #include "astra/trap.h"
@@ -151,6 +152,7 @@ const char* fixture_type_name(FixtureType type) {
         case FixtureType::ScrapComponent:  return "Salvage";
         case FixtureType::PrecursorButton: return "Precursor stud";
         case FixtureType::QuestFixture:    return "Quest Fixture";
+        case FixtureType::NpcCorpse:       return "Corpse";
         case FixtureType::ResonancePillar: return "Resonance Pillar";
         case FixtureType::ResonancePillarTop: return "Resonance Pillar";
         case FixtureType::ResonancePillarBot: return "Resonance Pillar";
@@ -228,6 +230,7 @@ static const char* fixture_type_desc(FixtureType type) {
         case FixtureType::ScrapComponent:  return "Salvageable scrap metal and circuitry.";
         case FixtureType::PrecursorButton: return "A recessed Precursor stud, dimly lit.";
         case FixtureType::QuestFixture:    return "A quest-related object.";
+        case FixtureType::NpcCorpse:       return "A fallen body, still warm. The neural lattice may yet hold an echo.";
         case FixtureType::ResonancePillar: return "A Precursor resonance pillar humming with stored energy.";
         case FixtureType::ResonancePillarTop: return "A capped Precursor pillar, inscribed along its upper ring.";
         case FixtureType::ResonancePillarBot: return "A capped Precursor pillar, inscribed along its lower ring.";
@@ -399,8 +402,52 @@ void Game::render_look_popup() {
         if (!line.empty()) desc_lines.push_back(line);
     }
 
+    // Crystal status lines — NPC only, Drifter Crystal-Decoder perk.
+    struct CrystalLine { std::string text; Color color; };
+    std::vector<CrystalLine> crystal_lines;
+    const Npc* look_npc = nullptr;
+    {
+        const auto& npcs = world_.npcs();
+        for (int i = 0; i < static_cast<int>(npcs.size()); ++i) {
+            if (npcs[i].x == input_.look_x() && npcs[i].y == input_.look_y()) {
+                look_npc = &npcs[i];
+                break;
+            }
+        }
+    }
+    if (look_npc) {
+        if (player_.skill_implant_reader) {
+            bool has_electronic = look_npc->cyber
+                && has_tag(look_npc->cyber->tags, HackTag::Electronic);
+            if (has_electronic) {
+                crystal_lines.push_back({"Implant: HAS", Color::Cyan});
+                if (auto* sess = hacking_.session()) {
+                    if (auto* a = sess->imprint_for_npc(look_npc->uid)) {
+                        if (!a->severed()) {
+                            char buf[80];
+                            std::snprintf(buf, sizeof buf,
+                                          "  Imprint @ (%d, %d)  HP %d/%d",
+                                          a->x, a->y, a->hp, a->max_hp);
+                            crystal_lines.push_back({buf, Color::Cyan});
+                        }
+                        // Mark anchor as identified so renderer shows NPC name
+                        a->identified = true;
+                    }
+                }
+            } else {
+                crystal_lines.push_back({"Implant: NONE — tether required", Color::DarkGray});
+            }
+        } else {
+            crystal_lines.push_back({"Implant: unrecognized hardware", Color::DarkGray});
+        }
+    }
+
+    bool has_crystal_section = !crystal_lines.empty();
+
     // Popup height: top(1) + glyph_row(1) + name_row(1) + sep(1) + desc_lines + bottom(1)
-    int popup_h = 4 + static_cast<int>(desc_lines.size()) + (desc_lines.empty() ? 0 : 1);
+    // Plus crystal separator(1) + crystal_lines when present.
+    int popup_h = 4 + static_cast<int>(desc_lines.size()) + (desc_lines.empty() ? 0 : 1)
+                + (has_crystal_section ? 1 + static_cast<int>(crystal_lines.size()) : 0);
 
     // Center popup on screen
     int px = (screen_w_ - popup_w) / 2;
@@ -447,6 +494,17 @@ void Game::render_look_popup() {
         // Description lines
         for (const auto& dl : desc_lines) {
             ctx.text(2, row, dl, Color::DarkGray);
+            row++;
+        }
+    }
+
+    // Crystal status section
+    if (has_crystal_section) {
+        for (int x = 1; x < popup_w - 1; ++x)
+            ctx.put(x, row, BoxDraw::H, Color::DarkGray);
+        row++;
+        for (const auto& cl : crystal_lines) {
+            ctx.text(2, row, cl.text, cl.color);
             row++;
         }
     }
@@ -1032,7 +1090,7 @@ void Game::render_play() {
     render_stats_bar();
     render_bars();
     render_soul_mirror_strip();
-    render_detection_indicator();
+    render_deck_indicator();
 
     render_widget_bar();
 
@@ -1073,10 +1131,6 @@ void Game::render_play() {
     repair_bench_.draw(screen_w_, screen_h_);
     trade_window_.draw(screen_w_, screen_h_);
     pda_screen_.draw(screen_w_, screen_h_);
-    // Plan 7 §3a: real-world DeviceShell renders inside the PDA's Hacking
-    // tab content area (see PdaScreen::draw_hacking). The in-Grid doorway
-    // renders inside the Tron window playfield (see grid_renderer). There
-    // is no fullscreen DeviceShell overlay anymore.
     star_chart_viewer_.draw(screen_w_, screen_h_);
     render_lost_popup();
     render_cell_picker();
@@ -1246,34 +1300,53 @@ void Game::render_soul_mirror_strip() {
     soul_mirror::render_hud_strip(*this, *renderer_);
 }
 
-void Game::render_detection_indicator() {
+void Game::render_deck_indicator() {
     if (!panel_visible_) return;
-    if (detection_indicator_rect_.w <= 0) return;
-
-    int dt = hacking_.detection();
     auto* deck_slot = player_.equipment.equipped_cyberdeck();
-    bool has_deck = deck_slot && *deck_slot;
-    if (dt == 0 && !has_deck) return;  // hide entirely until relevant
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
+    const auto& deck = *(*deck_slot)->deck;
 
-    UITag tag;
-    if      (dt >= 100) tag = UITag::TextDanger;
-    else if (dt >= 75)  tag = UITag::TextDanger;
-    else if (dt >= 50)  tag = UITag::TextWarning;
-    else if (dt > 0)    tag = UITag::TextBright;
-    else                tag = UITag::TextDim;
+    // Shared rendering helper. Pads the label and value to fixed widths so
+    // the [bar] column aligns between rows ("RAM:" + "12/12" and "HEAT:"
+    // + "0/12" otherwise drift sideways).
+    constexpr int kLabelW = 5;   // widest label is "HEAT:" (5 chars)
+    constexpr int kValueW = 5;   // widest value is e.g. "12/12" (5 chars)
+    auto draw_bar = [&](const Rect& rect, const char* label,
+                        int value, int max, UITag tag) {
+        if (rect.w <= 0) return;
+        UIContext ctx(renderer_.get(), rect);
+        std::string padded_label = label;
+        while (static_cast<int>(padded_label.size()) < kLabelW) padded_label += ' ';
+        std::string val = std::to_string(value) + "/" + std::to_string(max);
+        while (static_cast<int>(val.size()) < kValueW) val += ' ';
+        ctx.label_value({.x = 1, .y = 0, .label = padded_label.c_str(),
+                         .label_tag = UITag::TextDim,
+                         .value = val, .value_tag = tag});
+        int bar_start = 1 + kLabelW + 1 + kValueW + 1;
+        int bar_w = ctx.width() - bar_start - 2;
+        if (bar_w > 0) {
+            ctx.progress_bar({.x = bar_start, .y = 0, .width = bar_w,
+                              .value = value, .max = max, .tag = tag});
+        }
+    };
 
-    UIContext ctx(renderer_.get(), detection_indicator_rect_);
-    std::string val = std::to_string(dt) + "/100";
-    // Mirror the bar layout on the left: label at col 1, value padded.
-    ctx.label_value({.x = 1, .y = 0, .label = "DT:",
-                     .label_tag = UITag::TextDim,
-                     .value = val, .value_tag = tag});
-    int bar_start = 1 + 4 + static_cast<int>(val.size()) + 1;
-    int bar_w = ctx.width() - bar_start - 2;
-    if (bar_w > 0) {
-        ctx.progress_bar({.x = bar_start, .y = 0, .width = bar_w,
-                          .value = dt, .max = 100, .tag = tag});
-    }
+    // RAM bar — bright when full, dim as it depletes.
+    int ram_pct = deck.stats.ram_max > 0
+                ? (deck.ram_current * 100 / deck.stats.ram_max) : 0;
+    UITag ram_tag = (ram_pct >= 50) ? UITag::TextBright
+                                    : (ram_pct >= 25 ? UITag::TextWarning
+                                                     : UITag::TextDanger);
+    draw_bar(deck_ram_rect_, "RAM:",
+             deck.ram_current, deck.stats.ram_max, ram_tag);
+
+    // HEAT bar — climbs toward heat_cap; warn at 50%, danger at 80%.
+    int heat_pct = deck.stats.heat_cap > 0
+                 ? (deck.heat_current * 100 / deck.stats.heat_cap) : 0;
+    UITag heat_tag = (heat_pct >= 80) ? UITag::TextDanger
+                                      : (heat_pct >= 50 ? UITag::TextWarning
+                                                        : UITag::TextDim);
+    draw_bar(deck_heat_rect_, "HEAT:",
+             deck.heat_current, deck.stats.heat_cap, heat_tag);
 }
 
 void Game::render_widget_bar() {
@@ -1801,6 +1874,28 @@ void Game::render_abilities_bar() {
                     mid.push_back({key_tag + "---  ", UITag::TextDim});
                     continue;
                 }
+                // Cyberdeck-slot binding: render the program's name from the
+                // equipped deck. No cooldown tracking — heat overflow handles
+                // spam-rate gating, not a per-program cooldown.
+                if (is_cyberdeck_slot_skill(*slot)) {
+                    std::string name = "?";
+                    auto* deck_slot_ptr = player_.equipment.equipped_cyberdeck();
+                    if (deck_slot_ptr && *deck_slot_ptr && (*deck_slot_ptr)->deck) {
+                        int idx = cyberdeck_slot_index_from_skill(*slot);
+                        const auto& deck = *(*deck_slot_ptr)->deck;
+                        if (idx >= 0 && idx < deck.stats.slots) {
+                            const auto& sl = deck.loaded[idx];
+                            if (sl.compiled.has_value()) {
+                                name = sl.compiled->name;
+                            } else if (sl.program_def_id != 0) {
+                                name = build_by_def_id(sl.program_def_id).name;
+                            }
+                        }
+                    }
+                    mid.push_back({key_tag + name + "  ", UITag::TextWarning});
+                    continue;
+                }
+
                 const auto* ab = find_ability(*slot);
                 if (!ab) {
                     // Defensive — orphaned SkillId in the bar

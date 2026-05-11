@@ -310,6 +310,7 @@ static const char* fixture_name(FixtureType t) {
         case FixtureType::StarChartL:
         case FixtureType::StarChartR:      return "Star Chart";
         case FixtureType::Kitchen:         return "Kitchen";
+        case FixtureType::NpcCorpse:       return "NPC Corpse";
     }
     return "?";
 }
@@ -352,7 +353,7 @@ void MapEditor::place_npc(int x, int y, Game& game) {
     npc.hp = 10;
     npc.max_hp = 10;
     npc.level = 1;
-    world_->npcs().push_back(std::move(npc));
+    world_->add_npc(std::move(npc));
 }
 
 void MapEditor::remove_at(int x, int y, Game& game) {

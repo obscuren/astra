@@ -39,7 +39,7 @@ enum class AnchorType : uint8_t {
     Elevated,
 };
 
-struct Anchor {
+struct PlacementAnchor {
     int x = 0;
     int y = 0;
     AnchorType type = AnchorType::Center;
@@ -119,7 +119,7 @@ struct BuildingShape {
 struct BuildingSpec {
     BuildingType type = BuildingType::Dwelling;
     BuildingShape shape;
-    Anchor anchor;
+    PlacementAnchor anchor;
 };
 
 struct BridgeSpec {
@@ -162,7 +162,7 @@ struct TerrainMod {
 
 struct PlacementResult {
     Rect footprint;
-    std::vector<Anchor> anchors;
+    std::vector<PlacementAnchor> anchors;
     bool valid = false;
 };
 

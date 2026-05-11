@@ -1,10 +1,13 @@
 #include "astra/ability_bar.h"
 
 #include "astra/ability.h"
+#include "astra/cyberdeck.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/item_defs.h"
 #include "astra/player.h"
+#include "astra/program_compiler.h"
 #include "astra/telegraph.h"
 
 #include <algorithm>
@@ -36,9 +39,9 @@ std::optional<SkillId> slot_at(const Player& player, int row, int col) {
 }
 
 bool assign_on_learn(Player& player, SkillId id) {
-    // Only active abilities land on the bar. Category unlocks, passives,
-    // and other non-ability SkillIds are silently ignored.
-    if (find_ability(id) == nullptr) {
+    // Synthetic cyberdeck-slot bindings skip the ability-catalog check —
+    // they're not real abilities, they fire programs from the equipped deck.
+    if (!is_cyberdeck_slot_skill(id) && find_ability(id) == nullptr) {
         return false;
     }
     auto& slots = player.ability_slots;
@@ -81,10 +84,18 @@ void clamp_visible_row(int& visible_row, const Player& player) {
 void validate_and_dedupe(Player& player) {
     auto& slots = player.ability_slots;
 
-    // Drop entries the player no longer has, or that aren't active
-    // abilities (category unlocks, passives, weapon-expertise tags, etc.
-    // can land here from saves written before assign_on_learn filtered).
+    // Drop entries that aren't valid. For real skills: must be learned AND
+    // be an active ability. For cyberdeck-slot bindings: must correspond to
+    // a currently-loaded slot on the equipped deck.
     std::erase_if(slots, [&](SkillId id) {
+        if (is_cyberdeck_slot_skill(id)) {
+            auto* deck_slot = player.equipment.equipped_cyberdeck();
+            if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return true;
+            int idx = cyberdeck_slot_index_from_skill(id);
+            const auto& deck = *(*deck_slot)->deck;
+            if (idx < 0 || idx >= deck.stats.slots) return true;
+            return slot_is_empty(deck.loaded[idx]);
+        }
         return !player_has_skill(player, id) || find_ability(id) == nullptr;
     });
 
@@ -110,6 +121,49 @@ bool use_slot(Game& game, int visible_row, int col) {
     if (!slot.has_value()) {
         game.log("No ability in that slot.");
         return false;
+    }
+
+    // Cyberdeck-slot binding → fire the loaded program through Telegraph,
+    // same path as the qh-picker selection in game_input.
+    if (is_cyberdeck_slot_skill(*slot)) {
+        auto* deck_slot_ptr = game.player().equipment.equipped_cyberdeck();
+        if (!deck_slot_ptr || !*deck_slot_ptr || !(*deck_slot_ptr)->deck) {
+            game.log("No cyberdeck equipped.");
+            return false;
+        }
+        auto& deck = *(*deck_slot_ptr)->deck;
+        int idx = cyberdeck_slot_index_from_skill(*slot);
+        if (idx < 0 || idx >= deck.stats.slots) {
+            game.log("Slot out of range.");
+            return false;
+        }
+        const auto& sl = deck.loaded[idx];
+        std::optional<CompiledProgram> cp_opt;
+        if (sl.compiled.has_value()) {
+            // Always recompile from the chain so any change to the derivation
+            // rules (telegraph range, scaling, costs) applies even for
+            // programs that were loaded before the rule changed.
+            cp_opt = compile_program(sl.compiled->chain, sl.compiled->name);
+        } else if (sl.program_def_id != 0) {
+            Item probe = build_by_def_id(sl.program_def_id);
+            if (probe.compiled_program.has_value()) {
+                cp_opt = compile_program(probe.compiled_program->chain,
+                                         probe.compiled_program->name);
+            }
+        }
+        if (!cp_opt.has_value()) {
+            game.log("That deck slot is empty.");
+            return false;
+        }
+        const CompiledProgram cp = *cp_opt;
+        TelegraphSpec spec = cp.resolved.telegraph;
+        game.telegraph().begin(spec, game.player().x, game.player().y,
+            [&game, cp](const TelegraphResult& res) {
+                std::string msg = fire_program(game, cp, res.dest_x, res.dest_y);
+                game.log(msg);
+                game.advance_world(ActionCost::interact);
+            });
+        return true;
     }
 
     auto* ability = find_ability(*slot);

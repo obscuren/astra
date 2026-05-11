@@ -5,6 +5,7 @@
 #include "astra/faction.h"
 #include "astra/item_ids.h"
 #include "astra/lan.h"
+#include "astra/program_compiler.h"
 #include "astra/sector_runtime_state.h"
 #include "astra/world_manager.h"
 
@@ -286,6 +287,48 @@ static uint16_t item_def_id_from_name(const std::string& name) {
     return 0; // unknown — renders as '?' Magenta
 }
 
+static void write_program_node(BinaryWriter& w, const ProgramNode& node) {
+    w.write_u16(static_cast<uint16_t>(node.fragment));
+    w.write_i32(node.param);
+    w.write_u32(static_cast<uint32_t>(node.body.size()));
+    for (const auto& child : node.body) {
+        write_program_node(w, child);
+    }
+}
+
+static ProgramNode read_program_node(BinaryReader& r) {
+    ProgramNode n;
+    n.fragment = static_cast<FragmentId>(r.read_u16());
+    n.param    = r.read_i32();
+    uint32_t bn = r.read_u32();
+    n.body.resize(bn);
+    for (uint32_t i = 0; i < bn; ++i) n.body[i] = read_program_node(r);
+    return n;
+}
+
+static void write_compiled_program(BinaryWriter& w, const CompiledProgram& cp) {
+    w.write_string(cp.name);
+    w.write_u32(static_cast<uint32_t>(cp.chain.size()));
+    for (const auto& n : cp.chain) write_program_node(w, n);
+    // Costs + resolved spec are recomputed on load; only the chain + name persist.
+}
+
+static CompiledProgram read_compiled_program(BinaryReader& r) {
+    CompiledProgram cp;
+    cp.name = r.read_string();
+    uint32_t n = r.read_u32();
+    cp.chain.resize(n);
+    for (uint32_t i = 0; i < n; ++i) cp.chain[i] = read_program_node(r);
+    // Recompute derived state.
+    auto recomputed = compile_program(cp.chain, cp.name);
+    cp.resolved      = recomputed.resolved;
+    cp.exec_cost     = recomputed.exec_cost;
+    cp.heat_cost     = recomputed.heat_cost;
+    cp.ram_held      = recomputed.ram_held;
+    cp.patterns_lit  = recomputed.patterns_lit;
+    return cp;
+}
+
 static void write_item(BinaryWriter& w, const Item& item) {
     w.write_u32(item.id);
     w.write_string(item.name);
@@ -405,6 +448,10 @@ static void write_item(BinaryWriter& w, const Item& item) {
         w.write_i32(d.heat_current);
         for (int i = 0; i < kCyberdeckMaxSlots; ++i) {
             w.write_u16(d.loaded[i].program_def_id);
+            // v72: optional compiled program payload (player-compiled programs).
+            bool has_cp = d.loaded[i].compiled.has_value();
+            w.write_u8(has_cp ? 1 : 0);
+            if (has_cp) write_compiled_program(w, *d.loaded[i].compiled);
         }
     }
     // v52: program payload
@@ -412,6 +459,10 @@ static void write_item(BinaryWriter& w, const Item& item) {
     if (item.program) {
         w.write_u16(static_cast<uint16_t>(item.program->id));
     }
+    // v71: compiled_program payload
+    bool has_compiled = item.compiled_program.has_value();
+    w.write_u8(has_compiled ? 1 : 0);
+    if (has_compiled) write_compiled_program(w, *item.compiled_program);
 }
 
 static Item read_item(BinaryReader& r) {
@@ -545,6 +596,9 @@ static Item read_item(BinaryReader& r) {
         d.heat_current       = r.read_i32();
         for (int i = 0; i < kCyberdeckMaxSlots; ++i) {
             d.loaded[i].program_def_id = r.read_u16();
+            // v72: optional compiled program payload
+            bool has_cp = r.read_u8() != 0;
+            if (has_cp) d.loaded[i].compiled = read_compiled_program(r);
         }
         item.deck = std::move(d);
     }
@@ -555,6 +609,9 @@ static Item read_item(BinaryReader& r) {
         p.id = static_cast<ProgramId>(r.read_u16());
         item.program = p;
     }
+    // v71: compiled_program payload
+    bool has_compiled = r.read_u8() != 0;
+    if (has_compiled) item.compiled_program = read_compiled_program(r);
     return item;
 }
 
@@ -707,15 +764,9 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     w.write_i32(h.soul_mirror_progress);
     // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
     w.write_u8(static_cast<uint8_t>(h.source_type));
-    // v63 — Plan 7: device-shell persistent state.
-    w.write_u8(static_cast<uint8_t>(h.firmware_state));
-    w.write_u8(h.cracked_digits);
-    w.write_u8(h.escalated ? 1 : 0);
-    w.write_u32(h.dumped_bytes);
-    // v64 — Plan 7 Phase B: persisted shell mutations.
-    w.write_u32(static_cast<uint32_t>(h.wiped_paths.size()));
-    for (const auto& p : h.wiped_paths) w.write_string(p);
-    w.write_string(h.friendly_fire_target_faction);
+    // v67 — Spec 1: per-corpse dead-implant state.
+    w.write_u8(h.corpse_dead_implant_exhausted ? 1 : 0);
+    w.write_u32(h.corpse_dead_implant_seed);
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -740,22 +791,9 @@ static Hackable read_hackable(BinaryReader& r) {
     h.soul_mirror_progress = r.read_i32();
     // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
     h.source_type = static_cast<FixtureType>(r.read_u8());
-    // v63 — Plan 7: device-shell persistent state.
-    h.firmware_state = static_cast<FirmwareState>(r.read_u8());
-    h.cracked_digits = r.read_u8();
-    h.escalated      = (r.read_u8() != 0);
-    h.dumped_bytes   = r.read_u32();
-    // v64 — Plan 7 Phase B: persisted shell mutations.
-    {
-        uint32_t n = r.read_u32();
-        h.wiped_paths.clear();
-        h.wiped_paths.reserve(n);
-        for (uint32_t i = 0; i < n; ++i) h.wiped_paths.push_back(r.read_string());
-    }
-    h.friendly_fire_target_faction = r.read_string();
-    // Tick-based runtime fields (optics_blind_ticks, disarmed_ticks, etc.)
-    // are deliberately NOT persisted (per spec §13). They reset to 0 on
-    // reload — i.e. cmd-blind/disarm/etc. effects expire on save/load.
+    // v67 — Spec 1: per-corpse dead-implant state.
+    h.corpse_dead_implant_exhausted = (r.read_u8() != 0);
+    h.corpse_dead_implant_seed      = r.read_u32();
     return h;
 }
 
@@ -964,6 +1002,15 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
         w.write_string(ls.name);
         w.write_string(ls.description);
     }
+    // v71: fragment + pattern system (replaces learned_programs)
+    w.write_u32(static_cast<uint32_t>(p.learned_fragments.size()));
+    for (auto fid : p.learned_fragments) {
+        w.write_u16(static_cast<uint16_t>(fid));
+    }
+    w.write_u32(static_cast<uint32_t>(p.discovered_patterns.size()));
+    for (const auto& name : p.discovered_patterns) {
+        w.write_string(name);
+    }
     // Journal
     w.write_u32(static_cast<uint32_t>(p.journal.size()));
     for (const auto& je : p.journal) {
@@ -1120,6 +1167,22 @@ static void write_npc(BinaryWriter& w, const Npc& npc) {
     w.write_u8(npc.cyber.has_value() ? 1 : 0);
     if (npc.cyber) write_hackable(w, *npc.cyber);
     w.write_string(npc.pre_hijack_faction);
+    // v66: vulnerability stack + anchor_id (Sigil system)
+    {
+        const auto& entries = npc.vuln.entries();
+        w.write_u16(static_cast<uint16_t>(entries.size()));
+        for (const auto& e : entries) {
+            w.write_u8(static_cast<uint8_t>(e.kind));
+            w.write_u16(static_cast<uint16_t>(e.source));
+            w.write_i32(e.remaining_turns);
+            w.write_i32(e.magnitude);
+        }
+    }
+    w.write_i32(npc.imprint_id);
+    // v67: force_tether flag (Tether action — D2)
+    w.write_u8(npc.force_tether ? 1 : 0);
+    // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
+    w.write_i32(npc.uid);
 }
 
 static void write_map_section(BinaryWriter& w, const MapState& ms) {
@@ -1869,6 +1932,11 @@ static void read_player_section(BinaryReader& r, Player& p) {
     // SkillIds removed by data revisions or duplicated by a bug in older
     // builds.
     ability_bar::validate_and_dedupe(p);
+    // Rebuild cached skill flags from learned_skills (non-serialized).
+    p.skill_implant_reader = player_has_skill(p, SkillId::ImplantReader);
+    p.skill_tether_l1 = player_has_skill(p, SkillId::TetherL1);
+    p.skill_tether_l2 = player_has_skill(p, SkillId::TetherL2);
+    p.skill_tether_l3 = player_has_skill(p, SkillId::TetherL3);
     uint32_t rep_count = r.read_u32();
     p.reputation.resize(rep_count);
     for (uint32_t i = 0; i < rep_count; ++i) {
@@ -1890,6 +1958,17 @@ static void read_player_section(BinaryReader& r, Player& p) {
         p.learned_schematics[i].schematic_id = r.read_u16();
         p.learned_schematics[i].name = r.read_string();
         p.learned_schematics[i].description = r.read_string();
+    }
+    // v71: fragment + pattern system
+    uint32_t lf_count = r.read_u32();
+    p.learned_fragments.resize(lf_count);
+    for (uint32_t i = 0; i < lf_count; ++i) {
+        p.learned_fragments[i] = static_cast<FragmentId>(r.read_u16());
+    }
+    uint32_t dp_count = r.read_u32();
+    p.discovered_patterns.resize(dp_count);
+    for (uint32_t i = 0; i < dp_count; ++i) {
+        p.discovered_patterns[i] = r.read_string();
     }
     // Journal
     uint32_t journal_count = r.read_u32();
@@ -2023,6 +2102,22 @@ static Npc read_npc(BinaryReader& r) {
     // v52: cyber + pre_hijack_faction (hacking)
     if (r.read_u8() != 0) npc.cyber = read_hackable(r);
     npc.pre_hijack_faction = r.read_string();
+    // v66: vulnerability stack + anchor_id (Sigil system)
+    {
+        uint16_t vuln_count = r.read_u16();
+        for (uint16_t i = 0; i < vuln_count; ++i) {
+            VulnerabilityKind kind   = static_cast<VulnerabilityKind>(r.read_u8());
+            ProgramId         source = static_cast<ProgramId>(r.read_u16());
+            int remaining_turns      = r.read_i32();
+            int magnitude            = r.read_i32();
+            npc.vuln.apply(kind, source, remaining_turns, magnitude);
+        }
+    }
+    npc.imprint_id = r.read_i32();
+    // v67: force_tether flag (Tether action — D2)
+    npc.force_tether = r.read_u8() != 0;
+    // v68: stable monotonic UID for cross-system linkage (Anchors, saves)
+    npc.uid = r.read_i32();
 
     return npc;
 }

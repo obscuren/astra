@@ -6,6 +6,7 @@
 #include "astra/hackable.h"
 #include "astra/interaction.h"
 #include "astra/race.h"
+#include "astra/vulnerability.h"
 
 #include <cstdint>
 #include <optional>
@@ -50,6 +51,9 @@ enum class NpcRole : uint8_t {
 };
 
 struct Npc {
+    int32_t uid = -1;             // stable monotonic ID assigned on spawn (NEVER reused).
+                                  // Use this for cross-system linkage (Anchors,
+                                  // saved references) instead of the vector index.
     int x = 0;
     int y = 0;
     std::string name;           // personal name, e.g. "Krath"
@@ -81,6 +85,13 @@ struct Npc {
     InteractionData interactions;
     std::optional<Hackable> cyber;       // present iff this NPC is hackable
     std::string pre_hijack_faction;      // restored when Hijacked effect expires
+
+    // Runtime vulnerability/DoT tracking (Plan 8 — Sigil system)
+    VulnerabilityStack vuln;
+    int32_t imprint_id = -1;             // index into GridSession::anchors_ (-1 = none)
+    bool force_tether = false;          // Spec 1: Drifter has Tether-marked this target;
+                                        // next jack-in will project an Imprint even though
+                                        // the NPC has no native Electronic Crystal.
 
     // When displaced by player swap, NPC tries to return here next tick
     int return_x = -1;

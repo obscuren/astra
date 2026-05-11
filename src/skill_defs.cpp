@@ -10,6 +10,13 @@ bool player_has_skill(const Player& player, SkillId id) {
     return false;
 }
 
+int max_program_fragments(const Player& player) {
+    if (player_has_skill(player, SkillId::Programming3)) return 5;
+    if (player_has_skill(player, SkillId::Programming2)) return 4;
+    if (player_has_skill(player, SkillId::Programming1)) return 3;
+    return 0;
+}
+
 static std::string acrobatics_category_description() {
     std::string s = "Mastery of agile movement and evasion in any environment.\n\n";
     s += colored("Passive:", Color::White);
@@ -423,16 +430,16 @@ static std::string ice_breaking_description() {
 }
 
 static std::string daemon_mastery_description() {
-    std::string s = "Compiled program slot expansion via long-running background processes.\n\n";
+    std::string s = "Compiled program slot via long-running processes.\n\n";
     s += colored("Passive:", Color::White);
     s += " +1 cyberdeck program slot.";
     return s;
 }
 
 static std::string ghost_protocol_description() {
-    std::string s = "Pre-launch heat-sink protocol that absorbs the first program of each session.\n\n";
+    std::string s = "Pre-launch heat-sink protocol that absorbs the first program fired.\n\n";
     s += colored("Passive:", Color::White);
-    s += " The first program you fire each Grid run generates no Heat.";
+    s += " The first program you fire when this is not on cooldown generates no Heat.";
     return s;
 }
 
@@ -453,36 +460,39 @@ static std::string neural_fortitude_description() {
 
 static std::string code_craft_description() {
     std::string s = "Personal toolchain for compiling exotic programs from raw fragments.\n\n";
-    s += "Unlocks T3 program tinker recipes:\n\n"
-         "* " + colored("pulse_hammer.exe", Color::White) + " (AoE ICE damage)\n"
-         "* " + colored("daemon_hijack.exe", Color::White) +  " (take control of target ICE for 3 turns).";
+    s += "Unlocks 2 exotic T2 Code Fragments:\n\n"
+         "* " + colored("One", Color::White) + "\n"
+         "* " + colored("Two", Color::White);
     return s;
 }
 
-// Plan 7 — ColdHands: shaves Detection cost on privileged shell commands.
-// Per-rank reduction (v1 ships rank 1) of 10% per rank, applied to
-// `base_detection` only (Heat / turns are unaffected).
-static std::string cold_hands_description() {
-    std::string s = "Patient hands and a clean keystroke trail. Privileged "
-                    "shell commands leave less of a fingerprint.\n\n";
+// ImplantReader: identifies whether an NPC carries an active implant.
+// Gated by this skill; the look widget reveals the Imprint's Site coordinates and HP.
+static std::string implant_reader_description() {
+    std::string s = "You can read the faint electromagnetic signature of an active neural implant.\n\n";
     s += colored("Passive:", Color::White);
-    s += " -";
-    s += colored("10%", Color::Cyan);
-    s += " Detection on every privileged shell command (real-world only).";
+    s += " the ";
+    s += colored("look", Color::Yellow);
+    s += " widget reveals whether an NPC carries an active implant and, if so, its "
+         "Imprint's Site coordinates and current HP.";
     return s;
 }
 
-// Plan 7 — RootKit: shaves hashcat duration. Applied as a multiplicative
-// reduction on hashcat's `base_turns`.
-static std::string rootkit_description() {
-    std::string s = "Pre-cooked rootkit fragments speed the cracking ritual.\n\n";
-    s += colored("Passive:", Color::White);
-    s += " -";
-    s += colored("10%", Color::Cyan);
-    s += " on ";
-    s += colored("hashcat", Color::Yellow);
-    s += " channel duration.";
-    return s;
+// Programming I / II / III: unlocks the Cyberdeck Compiler and raises the
+// fragment-chain ceiling.
+static std::string programming1_description() {
+    return "Unlocks the Cyberdeck's Compiler and allows the hacker to craft "
+           "custom programs. Max 3 Code Fragments.";
+}
+
+static std::string programming2_description() {
+    return "Advanced programming topics unlock the Cyberdeck's Compiler "
+           "allowing 4 Code Fragments to be used while creating programs.";
+}
+
+static std::string programming3_description() {
+    return "Advanced programming topics unlock the Cyberdeck's Compiler "
+           "allowing 5 Code Fragments to be used while creating programs.";
 }
 
 static std::string consciousness_anchor_description() {
@@ -643,36 +653,44 @@ const std::vector<SkillCategory>& skill_catalog() {
         }},
         {SkillId::Cat_Hacking, "Hacking",
          hacking_category_description(), 100, {
+            // Order + tuning per /tmp/skill_order.
+            {SkillId::Programming1, "Programming I",
+             programming1_description(),
+             true, 0, 13, "Intelligence"},
+            {SkillId::GhostProtocol, "Ghost Protocol",
+             ghost_protocol_description(),
+             true, 100, 15, "Willpower"},
             {SkillId::Intrusion, "Intrusion",
              intrusion_description(),
              true, 100, 14, "Intelligence"},
+            {SkillId::CodeCraft, "Code Craft",
+             code_craft_description(),
+             true, 200, 16, "Intelligence"},
+            {SkillId::ImplantReader, "Implant Reader",
+             implant_reader_description(),
+             true, 50, 13, "Intelligence"},
+            {SkillId::Programming2, "Programming II",
+             programming2_description(),
+             true, 100, 14, "Intelligence"},
+            {SkillId::Programming3, "Programming III",
+             programming3_description(),
+             true, 200, 15, "Intelligence"},
             {SkillId::IceBreaking, "Ice Breaking",
              ice_breaking_description(),
              true, 100, 13, "Intelligence"},
             {SkillId::DaemonMastery, "Daemon Mastery",
              daemon_mastery_description(),
-             true, 100, 14, "Intelligence"},
-            {SkillId::GhostProtocol, "Ghost Protocol",
-             ghost_protocol_description(),
-             true, 150, 15, "Willpower"},
-            {SkillId::DeepGridNavigator, "Deep-Grid Navigator",
-             deep_grid_navigator_description(),
-             true, 150, 15, "Intelligence"},
+             true, 300, 16, "Intelligence"},
             {SkillId::NeuralFortitude, "Neural Fortitude",
              neural_fortitude_description(),
              true, 200, 16, "Willpower"},
-            {SkillId::CodeCraft, "Code Craft",
-             code_craft_description(),
-             true, 200, 16, "Intelligence"},
+            // Remaining hacking skills (not in the curated order — show last).
+            {SkillId::DeepGridNavigator, "Deep-Grid Navigator",
+             deep_grid_navigator_description(),
+             true, 150, 15, "Intelligence"},
             {SkillId::ConsciousnessAnchor, "Consciousness Anchor",
              consciousness_anchor_description(),
              true, 300, 18, "Willpower"},
-            {SkillId::ColdHands, "Cold Hands",
-             cold_hands_description(),
-             true, 150, 14, "Intelligence"},
-            {SkillId::RootKit, "Root Kit",
-             rootkit_description(),
-             true, 150, 13, "Intelligence"},
          }},
     };
     return catalog;

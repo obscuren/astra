@@ -1525,6 +1525,16 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         case ITEM_PROG_DATA_LEECH:         return build_program_data_leech();
         case ITEM_PROG_PULSE_HAMMER:       return build_program_pulse_hammer();
         case ITEM_PROG_DAEMON_HIJACK:      return build_program_daemon_hijack();
+        // Sigils (Spec 1 §5.2)
+        case ITEM_PROG_ECHO:               return build_program_echo();
+        case ITEM_PROG_LAG:                return build_program_lag();
+        case ITEM_PROG_VEIL:               return build_program_veil();
+        case ITEM_PROG_JITTER:             return build_program_jitter();
+        case ITEM_PROG_SHROUD:             return build_program_shroud();
+        case ITEM_PROG_WORM:               return build_program_worm();
+        case ITEM_PROG_BRICK:              return build_program_brick();
+        case ITEM_PROG_ROT:                return build_program_rot();
+        case ITEM_PROG_SPIKE:              return build_program_spike();
 
         // Code fragments
         case ITEM_CODE_FRAGMENT_T1:        return build_code_fragment_t1();
@@ -1534,9 +1544,8 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         // Implants
         case ITEM_NEURAL_BACKUP:           return build_neural_backup();
 
-        // Cyberdeck mods (Plan 7 §15)
-        case ITEM_AEROJACK:                return build_aerojack();
-        case ITEM_UNTETHER:                return build_untether();
+        // Hacker mats
+        case ITEM_PROGRAM_DISK:            return build_program_disk();
 
         // Ship components
         case ITEM_ENGINE_COIL_MK1:         return build_engine_coil_mk1();
@@ -1636,13 +1645,40 @@ Item make_program_(uint16_t def_id, uint32_t inv_id, ProgramId pid,
     it.program = pd;
     return it;
 }
+
+// Helper: build a single ProgramNode (leaf or container).
+ProgramNode mk(FragmentId id, int param = 0, std::vector<ProgramNode> body = {}) {
+    return ProgramNode{ id, param, std::move(body) };
+}
+
+// Helper: build an Item carrying a CompiledProgram payload (fragment-based programs).
+Item build_compiled_program_(uint16_t def_id, uint32_t inv_id, const char* name,
+                             const char* description,
+                             std::vector<ProgramNode> chain,
+                             Rarity rarity, int buy, int sell) {
+    Item it;
+    it.item_def_id = def_id;
+    it.id          = inv_id;
+    it.name        = name;
+    it.description = description;
+    it.type        = ItemType::Program;
+    it.rarity      = rarity;
+    it.weight      = 0;
+    it.stackable   = false;
+    it.buy_value   = buy;
+    it.sell_value  = sell;
+    it.compiled_program = compile_program(chain, name);
+    return it;
+}
 } // namespace
 
 Item build_program_icebreaker_lite() {
-    return make_program_(ITEM_PROG_ICEBREAKER_LITE, 9100, ProgramId::IcebreakerLite,
+    return build_compiled_program_(
+        ITEM_PROG_ICEBREAKER_LITE, 9100,
         "icebreaker_lite.exe",
-        "ATK | tier 1 | 2 RAM, 2 Heat. Light cracker for white ICE. (Used in the Grid.)",
-        Rarity::Common, 80, 25);
+        "ATK program. Single-target electric zap.",
+        { mk(FragmentId::Volt) },
+        Rarity::Common, 80, 30);
 }
 
 Item build_program_ghost_trace() {
@@ -1667,17 +1703,22 @@ Item build_program_breach() {
 }
 
 Item build_program_decrypt() {
-    return make_program_(ITEM_PROG_DECRYPT, 9104, ProgramId::Decrypt,
+    return build_compiled_program_(
+        ITEM_PROG_DECRYPT, 9104,
         "decrypt.exe",
-        "UTL | tier 1 | 2 RAM, 1 Heat. Reads one encrypted file. (Used in the Grid.)",
-        Rarity::Common, 70, 22);
+        "UTL program. Reveals targets in a 3x3 area.",
+        { mk(FragmentId::Broadcast) },
+        Rarity::Common, 80, 30);
 }
 
 Item build_program_reboot_optics() {
-    return make_program_(ITEM_PROG_REBOOT_OPTICS, 9105, ProgramId::RebootOptics,
+    return build_compiled_program_(
+        ITEM_PROG_REBOOT_OPTICS, 9105,
         "reboot_optics.qh",
-        "QH | tier 1 | 1 RAM, +1 Detection. Blinds a camera or turret for 4 turns.",
-        Rarity::Common, 50, 18);
+        "QH program. Blinds a target for 4 turns (BLIND pattern, sustained).",
+        // TICK(4) { WARP -> AMPLIFY }
+        { mk(FragmentId::Tick, 4, { mk(FragmentId::Warp), mk(FragmentId::Amplify) }) },
+        Rarity::Uncommon, 130, 45);
 }
 
 Item build_program_friendly_fire() {
@@ -1695,17 +1736,89 @@ Item build_program_data_leech() {
 }
 
 Item build_program_pulse_hammer() {
-    return make_program_(ITEM_PROG_PULSE_HAMMER, 9108, ProgramId::PulseHammer,
+    return build_compiled_program_(
+        ITEM_PROG_PULSE_HAMMER, 9108,
         "pulse_hammer.exe",
-        "ATK | tier 3 | 4 RAM, 5 Heat. AoE 1d6 dmg to all ICE adjacent to target tile.",
-        Rarity::Rare, 600, 200);
+        "T3 ATK program. Enlarged 5x5 electric burst.",
+        { mk(FragmentId::Volt), mk(FragmentId::Broadcast), mk(FragmentId::Amplify) },
+        Rarity::Rare, 320, 110);
 }
 
 Item build_program_daemon_hijack() {
-    return make_program_(ITEM_PROG_DAEMON_HIJACK, 9109, ProgramId::DaemonHijack,
+    return build_compiled_program_(
+        ITEM_PROG_DAEMON_HIJACK, 9109,
         "daemon_hijack.exe",
-        "UTL | tier 3 | 5 RAM, 4 Heat. Take control of one ICE for 3 turns.",
-        Rarity::Rare, 650, 220);
+        "T3 UTL program. Mind-controls a target for 3 turns (MIND CONTROL pattern, sustained).",
+        // TICK(3) { WARP -> JITTER }
+        { mk(FragmentId::Tick, 3, { mk(FragmentId::Warp), mk(FragmentId::Jitter) }) },
+        Rarity::Rare, 320, 110);
+}
+
+// ---------------------------------------------------------------------------
+// Sigils — Spec 1 §5.2 mark-interaction programs
+// ---------------------------------------------------------------------------
+
+Item build_program_echo() {
+    return make_program_(ITEM_PROG_ECHO, 9110, ProgramId::Echo,
+        "echo.exe",
+        "UTL | tier 1 | 1 RAM, 1 Heat. Refreshes or propagates an Imprint on the target tile.",
+        Rarity::Common, 50, 16);
+}
+
+Item build_program_lag() {
+    return make_program_(ITEM_PROG_LAG, 9111, ProgramId::Lag,
+        "lag.exe",
+        "UTL | tier 1 | 2 RAM, 2 Heat. Floods a target's packet queue — delays ICE activation.",
+        Rarity::Common, 50, 16);
+}
+
+Item build_program_veil() {
+    return make_program_(ITEM_PROG_VEIL, 9112, ProgramId::Veil,
+        "veil.exe",
+        "UTL | tier 1 | 2 RAM, 3 Heat. Cloaks a Marked tile, hiding it from ICE detection routines.",
+        Rarity::Common, 60, 20);
+}
+
+Item build_program_jitter() {
+    return make_program_(ITEM_PROG_JITTER, 9113, ProgramId::Jitter,
+        "jitter.exe",
+        "UTL | tier 2 | 4 RAM, 5 Heat. Injects timing noise into a target's logic loop, causing it to skip its next action.",
+        Rarity::Uncommon, 150, 50);
+}
+
+Item build_program_shroud() {
+    return make_program_(ITEM_PROG_SHROUD, 9114, ProgramId::Shroud,
+        "shroud.exe",
+        "UTL | tier 2 | 5 RAM, 6 Heat. Wraps a Marked zone in noise, reducing trace accumulation.",
+        Rarity::Uncommon, 150, 50);
+}
+
+Item build_program_worm() {
+    return make_program_(ITEM_PROG_WORM, 9115, ProgramId::Worm,
+        "worm.exe",
+        "ATK | tier 2 | 3 RAM, 4 Heat. Plants a self-replicating payload that degrades an Imprinted target's defences.",
+        Rarity::Uncommon, 160, 55);
+}
+
+Item build_program_brick() {
+    return make_program_(ITEM_PROG_BRICK, 9116, ProgramId::Brick,
+        "brick.exe",
+        "ATK | tier 3 | 8 RAM, 10 Heat. Overwrites an Imprinted target's firmware — bricks it at close range.",
+        Rarity::Rare, 500, 165);
+}
+
+Item build_program_rot() {
+    return make_program_(ITEM_PROG_ROT, 9117, ProgramId::Rot,
+        "rot.exe",
+        "ATK | tier 3 | 5 RAM, 6 Heat. Corrupts an adjacent Imprinted target's core with a damage-over-time payload.",
+        Rarity::Rare, 400, 135);
+}
+
+Item build_program_spike() {
+    return make_program_(ITEM_PROG_SPIKE, 9118, ProgramId::Spike,
+        "spike.exe",
+        "ATK | tier 3 | 7 RAM, 8 Heat. Drives a focused data spike through an adjacent Imprinted target.",
+        Rarity::Rare, 450, 150);
 }
 
 // ---------------------------------------------------------------------------
@@ -1769,51 +1882,24 @@ Item build_neural_backup() {
 }
 
 // ---------------------------------------------------------------------------
-// Cyberdeck mods (Plan 7 §15)
+// Hacker mats — fragment-system compile materials
 // ---------------------------------------------------------------------------
-//
-// v1 ships two brand variants of the `WirelessJackIn` category. Both are
-// functionally identical at install time (since the install UI doesn't
-// exist yet) — presence in inventory is enough to gate `pda> jack <ip>`.
-// Plan 11+ replaces the inventory-check with a per-cyberdeck slot + install
-// ritual; the items themselves stay.
-//
-// Stats stub: Tier 1, no slot (held in inventory in v1), placeholder
-// buy/sell. Differentiated values land alongside the proper mod system.
 
-Item build_aerojack() {
+Item build_program_disk() {
     Item it;
-    it.item_def_id = ITEM_AEROJACK;
-    it.id = 9300;
-    it.name = "Aerojack";
-    it.type = ItemType::Special;
+    it.item_def_id = ITEM_PROGRAM_DISK;
+    it.id = 9400;
+    it.name = "Cipher Disk";
+    it.type = ItemType::CraftingMaterial;
     it.description =
-        "A pop-out cyberdeck mod. Snap it into the deck and the deck can "
-        "jack into a LAN over open air. v1 placeholder; install ritual "
-        "lands in Plan 11+.";
-    it.rarity = Rarity::Uncommon;
+        "A blank cipher-grade optical disk. Required by the Cyberdeck "
+        "Compiler to compile a program from fragments. One disk per compile.";
+    it.rarity = Rarity::Common;
     it.weight = 1;
-    it.stackable = false;
-    it.buy_value = 600;
-    it.sell_value = 200;
-    return it;
-}
-
-Item build_untether() {
-    Item it;
-    it.item_def_id = ITEM_UNTETHER;
-    it.id = 9301;
-    it.name = "Untether (Mod)";
-    it.type = ItemType::Special;
-    it.description =
-        "A rival-brand wireless jack-in module. Snap into the cyberdeck "
-        "for over-the-air LAN entry. v1 placeholder; install ritual "
-        "lands in Plan 11+.";
-    it.rarity = Rarity::Uncommon;
-    it.weight = 1;
-    it.stackable = false;
-    it.buy_value = 580;
-    it.sell_value = 195;
+    it.stackable = true;
+    it.stack_count = 1;
+    it.buy_value = 75;
+    it.sell_value = 25;
     return it;
 }
 
