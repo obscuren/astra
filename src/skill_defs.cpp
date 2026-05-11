@@ -478,22 +478,6 @@ static std::string implant_reader_description() {
     return s;
 }
 
-// Tether L1/L2/L3: project an Imprint for targets without a native implant.
-// Used by Drifter to hook animals, drones, and Feral into the Relay for hacking / control.
-static std::string tether_l1_description() {
-    return "Tether: forcefully upload a target with no native implant (animals, drones, Feral) "
-           "into the Relay, projecting an Imprint that can be hacked. "
-           "Line-of-sight, range 1 tile.";
-}
-
-static std::string tether_l2_description() {
-    return "Tether II: long-range Tether (range 8 tiles).";
-}
-
-static std::string tether_l3_description() {
-    return "Tether III: AoE Tether (3 adjacent targets at once).";
-}
-
 // Programming I / II / III: unlocks the Cyberdeck Compiler and raises the
 // fragment-chain ceiling.
 static std::string programming1_description() {
@@ -696,12 +680,6 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::ImplantReader, "Implant Reader",
              implant_reader_description(),
              true, 50, 13, "Intelligence"},
-            {SkillId::TetherL1, "Tether",
-             tether_l1_description(),
-             false, 75, 14, "Intelligence"},
-            {SkillId::TetherL2, "Tether II",
-             tether_l2_description(),
-             false, 100, 15, "Intelligence"},
             {SkillId::Programming1, "Programming I",
              programming1_description(),
              true, 0, 13, "Intelligence"},
@@ -711,13 +689,6 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::Programming3, "Programming III",
              programming3_description(),
              true, 200, 15, "Intelligence"},
-            // Spec 1: TetherL3 (AoE 3-tile) is intentionally NOT in the catalog yet —
-            // the AoE implementation is incomplete (see confirm_tether_targeting TODO).
-            // The SkillId::TetherL3 enum value remains so existing saves with the
-            // perk learned still load. Re-enable when AoE is wired.
-            // {SkillId::TetherL3, "Tether III",
-            //  tether_l3_description(),
-            //  false, 125, 16, "Intelligence"},
          }},
     };
     return catalog;

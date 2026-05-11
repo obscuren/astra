@@ -600,7 +600,6 @@ void Game::handle_play_input(int key) {
         case 'T': use_thrown(); break;
         case 's': combat_.shoot_target(*this); break;
         case 'H': hacking_.begin_quickhack_targeting(*this); break;
-        case 'N': begin_tether_targeting(); break;   // D2: Tether action
         case 'r': combat_.recharge_weapon(*this); break;
         case 'b': combat_.recharge_shield(*this); break;
         case 'R': open_cell_picker(/*target_is_shield=*/false); break;
