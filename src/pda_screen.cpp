@@ -105,6 +105,14 @@ bool PdaScreen::handle_input(int key) {
             cooking_picker_active_ = false;
             return true;
         }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_load_popup_) {
+            cyberdeck_load_popup_ = false;
+            return true;
+        }
+        if (active_tab_ == PdaTab::Hacking && cyberdeck_show_patterns_overlay_) {
+            cyberdeck_show_patterns_overlay_ = false;
+            return true;
+        }
         close();
         return true;
     }

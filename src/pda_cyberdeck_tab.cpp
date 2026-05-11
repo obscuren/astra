@@ -427,8 +427,25 @@ void draw_load_popup(PdaScreen& self, UIContext& ctx) {
         }
     }
 
-    // Border (top/bottom only — keep it minimal)
-    self.draw_section_header(ctx, y, "LOAD PROGRAM", x + 1, x + w - 1);
+    // Full pipe-style border using the same box-draw glyphs as the section
+    // headers. Top row uses the section-header glyphs so the title reads
+    // ──┤ LOAD PROGRAM ├──; the rest of the frame uses BoxDraw chars.
+    self.draw_section_header(ctx, y, "LOAD PROGRAM", x, x + w);
+    // Replace the section-header's leading "── " with a real top-left corner
+    // and the trailing tail with a real top-right corner.
+    ctx.text(x,         y, BoxDraw::TL, Color::DarkGray);   // ┌
+    ctx.text(x + w - 1, y, BoxDraw::TR, Color::DarkGray);   // ┐
+    // Side rails
+    for (int j = 1; j < h - 1; ++j) {
+        ctx.text(x,         y + j, BoxDraw::V, Color::DarkGray);   // │
+        ctx.text(x + w - 1, y + j, BoxDraw::V, Color::DarkGray);
+    }
+    // Bottom
+    ctx.text(x, y + h - 1, BoxDraw::BL, Color::DarkGray);   // └
+    for (int i = 1; i < w - 1; ++i) {
+        ctx.text(x + i, y + h - 1, BoxDraw::H, Color::DarkGray);   // ─
+    }
+    ctx.text(x + w - 1, y + h - 1, BoxDraw::BR, Color::DarkGray);  // ┘
 
     int slot = self.cyberdeck_slot_cursor();
     ctx.text(x + 2, y + 2, "Loading into slot " + std::to_string(slot + 1) + ".", Color::DarkGray);
