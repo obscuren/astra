@@ -1023,8 +1023,29 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     game.log("You have no neural interface. Install a " + colored("Relay Cortex", Color::Cyan) + ".");
                     return;
                 }
-                (void)hack;
-                game.hacking().jack_in(game);
+                // Build a TargetDescriptor from the fixture's
+                // FixtureType. The seed mixes fixture id + world tick
+                // so each visit produces a stable layout.
+                TargetDescriptor desc;
+                desc.tier = std::max(1, hack.security_tier);
+                desc.seed = static_cast<uint32_t>(fid * 2654435761u
+                              ^ game.world().world_tick());
+                switch (fd.type) {
+                    case FixtureType::Door:
+                    case FixtureType::Gate:
+                        desc.kind = NetspaceTargetKind::Door;
+                        break;
+                    case FixtureType::FoodTerminal:
+                        desc.kind = NetspaceTargetKind::VendingMachine;
+                        break;
+                    // Camera fixture type doesn't exist yet in tilemap.h
+                    // — Step 8's camera grammar is dev-verb only until a
+                    // real fixture lands.
+                    default:
+                        desc.kind = NetspaceTargetKind::Empty;
+                        break;
+                }
+                game.hacking().jack_in(game, desc);
                 return;
             }
             if (kind == OptionKind::HackingSyncSoul) {

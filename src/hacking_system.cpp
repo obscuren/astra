@@ -403,7 +403,7 @@ void HackingSystem::spawn_gray_ice_reinforcement_(NetSession& s) {
     place_ice_far(s, IceColor::Gray, /*hp*/2, /*seed*/0xC9A41CEu, /*min_distance*/3);
 }
 
-bool HackingSystem::jack_in(Game& game) {
+bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
     if (session_) {
         game.log("Already jacked in.");
         return false;
@@ -450,11 +450,10 @@ bool HackingSystem::jack_in(Game& game) {
     s.skill_deepgrid_navigator = player_has_skill(game.player(), SkillId::DeepGridNavigator);
     s.skill_neural_fortitude   = nf;
 
-    // Phase 0: jack-in opens a blank Netspace stub. Per-target grammars
-    // arrive in Phase 1.
-    s.netspace = gen_empty_netspace(TargetDescriptor{
-        NetspaceTargetKind::Empty, /*tier=*/1, /*seed=*/0,
-    });
+    // Dispatch to the per-target grammar. Phase 1 lights up Door
+    // (and vending / camera in Steps 7 + 8); unimplemented kinds fall
+    // back to the empty stub.
+    s.netspace = gen_for_target(desc);
     s.avatar_x = s.netspace.jack_in_x;
     s.avatar_y = s.netspace.jack_in_y;
 

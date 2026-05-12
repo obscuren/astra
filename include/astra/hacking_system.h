@@ -71,10 +71,10 @@ public:
     const NetSession* session() const { return session_ ? &*session_ : nullptr; }
 
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
-    // Phase 0: jack-in always opens an empty Netspace stub regardless of
-    // what the player jacked into. Phase 1+ adds a TargetDescriptor
-    // parameter sourced from the Hackable's tags / fixture type.
-    bool jack_in(Game& game);
+    // The TargetDescriptor selects the per-target grammar; callers build
+    // it from the meatworld fixture (FixtureType + HackTagMask + seed)
+    // or pass an explicit kind for dev / scripted jack-ins.
+    bool jack_in(Game& game, TargetDescriptor desc);
 
     // Drains/persists loot per kind, restores body, returns to previous game state.
     void jack_out(Game& game, JackOutKind kind);

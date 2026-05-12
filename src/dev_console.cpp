@@ -1551,8 +1551,41 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("Jacked out.");
     }
     else if (verb == "jack") {
-        // Phase 0: jack_in opens an empty Netspace stub regardless of args.
-        game.hacking().jack_in(game);
+        // Usage: jack [kind] [tier] [seed]
+        //   kind: empty | door | vending | camera | atm | turret |
+        //         elevator | traffic | corpse | npc | mainframe | blackwall
+        //   tier: 1..5 (default 1)
+        //   seed: uint32 (default world_tick)
+        TargetDescriptor d;
+        d.kind = NetspaceTargetKind::Empty;
+        d.tier = 1;
+        d.seed = static_cast<uint32_t>(game.world().world_tick());
+
+        if (args.size() >= 2) {
+            const std::string& k = args[1];
+            if      (k == "empty")     d.kind = NetspaceTargetKind::Empty;
+            else if (k == "door")      d.kind = NetspaceTargetKind::Door;
+            else if (k == "vending")   d.kind = NetspaceTargetKind::VendingMachine;
+            else if (k == "camera")    d.kind = NetspaceTargetKind::Camera;
+            else if (k == "atm")       d.kind = NetspaceTargetKind::Atm;
+            else if (k == "turret")    d.kind = NetspaceTargetKind::Turret;
+            else if (k == "elevator")  d.kind = NetspaceTargetKind::Elevator;
+            else if (k == "traffic")   d.kind = NetspaceTargetKind::TrafficLight;
+            else if (k == "corpse")    d.kind = NetspaceTargetKind::Corpse;
+            else if (k == "npc")       d.kind = NetspaceTargetKind::NpcHead;
+            else if (k == "mainframe") d.kind = NetspaceTargetKind::Mainframe;
+            else if (k == "blackwall") d.kind = NetspaceTargetKind::BlackwallTear;
+            else { log("unknown netspace kind: " + k); return; }
+        }
+        if (args.size() >= 3) {
+            try { d.tier = std::clamp(std::stoi(args[2]), 1, 5); }
+            catch (...) {}
+        }
+        if (args.size() >= 4) {
+            try { d.seed = static_cast<uint32_t>(std::stoul(args[3])); }
+            catch (...) {}
+        }
+        game.hacking().jack_in(game, d);
     }
     else if (verb == "trace") {
         if (args.size() < 2) {

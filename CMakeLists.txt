@@ -180,6 +180,7 @@ set(ASTRA_SOURCES
     src/net_session.cpp
     src/netspace_generator.cpp
     src/netspace_layout.cpp
+    src/grammars/gen_door_netspace.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp

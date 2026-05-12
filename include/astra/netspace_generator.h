@@ -5,9 +5,14 @@
 namespace astra {
 
 // Phase 0 stub. Produces a deterministic 14x8 walkable room with a
-// jack-in tile at (1, 4) and an exit tile at (12, 4). No ICE, no
-// payloads, no entities. Phase 1+ replaces this with per-target
-// grammars (gen_door_netspace, gen_vending_netspace, ...).
+// jack-in tile at (1, 4) and an exit tile at (12, 4). Used as the
+// fallback for NetspaceTargetKind values that don't yet have a real
+// grammar.
 Netspace gen_empty_netspace(const TargetDescriptor& desc);
+
+// Dispatch: pick the right per-target grammar for `desc.kind` and
+// return its Netspace. Kinds without a Phase 1 implementation fall
+// back to gen_empty_netspace.
+Netspace gen_for_target(const TargetDescriptor& desc);
 
 }  // namespace astra

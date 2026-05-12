@@ -1,5 +1,7 @@
 #include "astra/netspace_generator.h"
 
+#include "astra/grammars/gen_door_netspace.h"
+
 namespace astra {
 
 namespace {
@@ -40,6 +42,27 @@ Netspace gen_empty_netspace(const TargetDescriptor& desc) {
 
     n.window_state = WindowState::Stable;
     return n;
+}
+
+Netspace gen_for_target(const TargetDescriptor& desc) {
+    switch (desc.kind) {
+        case NetspaceTargetKind::Door:
+            return gen_door_netspace(desc);
+        // Phase 1 Steps 7 + 8 light up the remaining kinds.
+        case NetspaceTargetKind::VendingMachine:
+        case NetspaceTargetKind::Camera:
+        case NetspaceTargetKind::Atm:
+        case NetspaceTargetKind::Turret:
+        case NetspaceTargetKind::Elevator:
+        case NetspaceTargetKind::TrafficLight:
+        case NetspaceTargetKind::Corpse:
+        case NetspaceTargetKind::NpcHead:
+        case NetspaceTargetKind::Mainframe:
+        case NetspaceTargetKind::BlackwallTear:
+        case NetspaceTargetKind::Empty:
+        default:
+            return gen_empty_netspace(desc);
+    }
 }
 
 }  // namespace astra
