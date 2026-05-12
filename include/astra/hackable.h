@@ -91,10 +91,6 @@ struct Hackable {
     // v61 — Plan 5 Cut 2.6: source FixtureType, used to pick a wall-mounted
     // device-avatar glyph inside the per-Hackable subnet sector.
     FixtureType source_type = static_cast<FixtureType>(0);
-
-    // Spec 1: per-corpse dead-implant deep-dive state (only meaningful on corpse fixtures).
-    bool     corpse_dead_implant_exhausted = false;
-    uint32_t corpse_dead_implant_seed      = 0;
 };
 
 // Returns a Hackable populated from the fixture type's tag mask. Returns

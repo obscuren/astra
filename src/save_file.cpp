@@ -780,9 +780,6 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     w.write_i32(h.soul_mirror_progress);
     // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
     w.write_u8(static_cast<uint8_t>(h.source_type));
-    // v67 — Spec 1: per-corpse dead-implant state.
-    w.write_u8(h.corpse_dead_implant_exhausted ? 1 : 0);
-    w.write_u32(h.corpse_dead_implant_seed);
 }
 
 static Hackable read_hackable(BinaryReader& r) {
@@ -807,9 +804,6 @@ static Hackable read_hackable(BinaryReader& r) {
     h.soul_mirror_progress = r.read_i32();
     // v61 — Plan 5 Cut 2.6: source FixtureType for subnet device-avatar.
     h.source_type = static_cast<FixtureType>(r.read_u8());
-    // v67 — Spec 1: per-corpse dead-implant state.
-    h.corpse_dead_implant_exhausted = (r.read_u8() != 0);
-    h.corpse_dead_implant_seed      = r.read_u32();
     return h;
 }
 

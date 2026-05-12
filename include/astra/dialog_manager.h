@@ -87,7 +87,6 @@ private:
         HackingJackIn,
         HackingSyncSoul,
         HackingRunQh,
-        JackIntoCorpse,       // Spec 1: couple into per-corpse dead-implant sector
     };
     std::vector<OptionKind> option_kinds_;
 
@@ -109,14 +108,6 @@ private:
     void append_qh_options(int fid, Game& game);
     void append_jack_in_option(int fid, Game& game);
     void append_sync_soul_option(int fid, Game& game);
-
-    // Spec 1: append `(hack) Jack In` on an NpcCorpse fixture that
-    // carries an Electronic Hackable whose dead implant is not yet exhausted,
-    // gated on the player having a Relay Cortex implant.
-    void append_jack_into_corpse_option(int fid, Game& game);
-
-    // Spec 1: activate a transient GridSession seeded from the corpse fixture.
-    void jack_into_corpse(Game& game, int fid);
 
     // Word-wrap body text respecting COLOR_BEGIN/COLOR_END markers
     static std::vector<std::string> word_wrap(const std::string& text, int width);

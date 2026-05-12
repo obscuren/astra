@@ -424,9 +424,10 @@ enum class FixtureType : uint8_t {
     PrecursorButton,   // '◘' — gold Precursor stud, unlocks a linked puzzle
     QuestFixture,   // generic quest-driven interactable; visuals/prompt via quest_fixture.h registry
 
-    // Spec 1: NPC corpse — placed at death site of Electronic-Hackable NPCs.
-    // Passable, interactable. Carries the NPC's Hackable (with corpse_dead_implant_*
-    // fields) so Jack In can be offered when the player has a Relay Cortex implant.
+    // NPC corpse — placed at death site of slain NPCs. Passable,
+    // interactable. Carries the NPC's Hackable when the underlying NPC
+    // was a hackable target; jack-in via the corpse netspace grammar
+    // returns in Phase 4 of the netspace redesign.
     NpcCorpse,      // '%'  — biological/cybernetic remains
 };
 
