@@ -875,6 +875,33 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         }
     }
 
+    // Ambient animation overlay (Phase 1 Step 8). Painted after the
+    // room/tile pass but before ICE/avatar so the avatar still sits
+    // on top of the drifting scan-line.
+    if (s.netspace.ambient == NetspaceAmbient::ScanLines) {
+        const int h_for_mod = std::max(1, s.netspace.h);
+        const int tick      = game.world().world_tick();
+        // Positive modulo — world_tick is non-negative in practice but
+        // guard anyway.
+        int scan_y = tick % h_for_mod;
+        if (scan_y < 0) scan_y += h_for_mod;
+        int sx_unused, sy;
+        if (cull(0, scan_y, sx_unused, sy)) {
+            for (int x = 0; x < pr.w; ++x) {
+                const int wx = x + s_camera.cam_x;
+                if (wx < 0 || wx >= s.netspace.w) continue;
+                // Only overdraw open ground — leave room borders, pipes
+                // and box chrome intact.
+                const NetTile under = s.netspace.at(wx, scan_y);
+                if (under == NetTile::Floor || under == NetTile::Void) {
+                    r.draw_glyph(pr.x + x, pr.y + sy,
+                                 "\xe2\x94\x80",  // ─
+                                 Color::DarkGray);
+                }
+            }
+        }
+    }
+
     for (const auto& ice : s.ice) {
         int sx, sy;
         if (!cull(ice.x, ice.y, sx, sy)) continue;
