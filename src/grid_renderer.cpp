@@ -350,48 +350,17 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
     draw_colored_string(r, x, y, region, Color::White);
     x += visual_width(region);
 
-    // Sub-segment:
-    //   - Plan 8 LAN sector: device hostname for the room the player is
-    //     currently standing in. On a bridge / corridor / void cell, no
-    //     sub-label is shown (LAN only). Lobby reads "LOBBY".
-    //   - Deep-grid anchor: ATLAS / YOUR.ANCHOR.
-    const auto& net = game.world().grid_network();
-    const GridNode* node = net.find(s.current_node);
+    // Sub-segment retired with multi-region geography. Per-target netspace
+    // chrome titles (e.g. "MAGLOCK :: DOOR_47B :: TIER 1") will populate
+    // from Netspace::title once Phase 1 grammars start setting it.
     std::string ip_str;
-
-    const auto* room = s.sector.room_at(s.avatar_x, s.avatar_y);
-    if (room) {
-        std::string sub_label;
-        if (room->is_lobby) {
-            sub_label = "LOBBY";
-        } else if (room->subnet.valid()) {
-            if (const GridNode* sn = net.find(room->subnet)) {
-                if (auto parsed = parse_ip(sn->label)) {
-                    ip_str = sn->label;
-                    if (auto* h = game.world().find_hackable_by_ip(*parsed)) {
-                        sub_label = upper(short_host_label(lan_hostname(*h, meta)));
-                    }
-                }
-            }
-        }
-        if (!sub_label.empty()) {
-            std::string sep = " \xe2\x80\xba "; // ›
-            draw_colored_string(r, x, y, sep, Color::Cyan);
-            x += visual_width(sep);
-            draw_colored_string(r, x, y, sub_label, Color::White);
-            x += visual_width(sub_label);
-        }
-    } else if (node && node->kind == GridNodeKind::DeepGridAnchor) {
+    if (!s.netspace.title.empty()) {
         std::string sep = " \xe2\x80\xba "; // ›
-        std::string label = (node->owned_by_consciousness_id != 0)
-                            ? "YOUR.ANCHOR" : "ATLAS";
         draw_colored_string(r, x, y, sep, Color::Cyan);
         x += visual_width(sep);
-        draw_colored_string(r, x, y, label, Color::White);
-        x += visual_width(label);
+        draw_colored_string(r, x, y, s.netspace.title, Color::White);
+        x += visual_width(s.netspace.title);
     }
-    // On a bridge / corridor / void cell in a LAN sector: no sub-label,
-    // only the LAN region above. IP fallback below shows the LAN's base.
 
     if (ip_str.empty()) ip_str = format_ip(meta.subnet_base);
 

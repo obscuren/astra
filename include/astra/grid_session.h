@@ -2,7 +2,6 @@
 
 #include "astra/game_state.h"
 #include "astra/grid_ice.h"
-#include "astra/grid_network.h"
 #include "astra/grid_sector.h"
 #include "astra/netspace.h"
 
@@ -31,13 +30,6 @@ struct GridLootBuffer {
 };
 
 struct GridSession {
-    // Identity
-    GridNodeId entry_node;
-    GridNodeId current_node;
-    GridNodeId return_node;        // mid-jack-in: previous sector's node, used
-                                   // by ⊙ inside a subnet to bounce back to LAN
-                                   // instead of jacking out.
-
     // Body
     int body_x = 0;             // saved overworld/dungeon position
     int body_y = 0;

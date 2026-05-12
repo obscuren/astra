@@ -154,25 +154,8 @@ std::string apply_breach_grid(GridProgramContext c) {
         s.gain_trace(5);
         return prefix + display_name(GridTile::Firewall) + " down. Trace +5.";
     }
-    if (t == GridTile::DeepGridGateway) {
-        const std::string gw = display_name(t);
-        GridNodeId tgt = s.sector.deep_grid_destination;
-        if (!tgt.valid()) {
-            return prefix + gw + " has no target node.";
-        }
-        auto& net = c.game.world().grid_network();
-        const auto& meta = c.game.world().lan_metadata();
-        if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
-            return prefix + "edge not found for " + gw + " target.";
-        }
-        s.gain_trace(5);
-
-        // First-time crack of a connected LAN's ⊕ registers an Atlas
-        // WarpAnchor in the consciousness save and stamps a ◉ tile in the
-        // deep-Grid Atlas region.
-        register_deep_grid_warp_anchor(c.game.world(), s.current_node);
-        return prefix + gw + " cracked. Trace +5.";
-    }
+    // DeepGridGateway path retired with multi-region geography; the tile
+    // is no longer placed in any netspace.
     // Plan 8 (Cut 3): Door branch for v2 generator locked bridges. Valid_target
     // predicate already ensured this is a locked Door. Unlock in-memory; no tile
     // change needed — renderer reads locked_doors set. v1 Firewall/Gateway
@@ -199,8 +182,7 @@ std::string apply_decrypt_grid(GridProgramContext c) {
     }
     c.session.sector.set(x, y, GridTile::Floor);
     c.session.loot.lore_unlocked.push_back(
-        "ARCH-" + std::to_string(c.session.entry_node.value) +
-        "-" + std::to_string(x * 1000 + y));
+        "ARCH-" + std::to_string(x * 1000 + y));
     return prefix + "archive read.";
 }
 

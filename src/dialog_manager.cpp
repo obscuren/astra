@@ -1023,13 +1023,8 @@ void DialogManager::advance_dialog(int selected, Game& game) {
                     game.log("You have no neural interface. Install a " + colored("Relay Cortex", Color::Cyan) + ".");
                     return;
                 }
-                if (hack.jack_in_node_id <= 0) {
-                    game.log("This device isn't on any network.");
-                    return;
-                }
-                GridNodeId nid;
-                nid.value = static_cast<uint32_t>(hack.jack_in_node_id);
-                game.hacking().jack_in(game, nid);
+                (void)hack;
+                game.hacking().jack_in(game);
                 return;
             }
             if (kind == OptionKind::HackingSyncSoul) {

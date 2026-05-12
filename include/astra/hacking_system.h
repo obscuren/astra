@@ -72,12 +72,10 @@ public:
     const GridSession* session() const { return session_ ? &*session_ : nullptr; }
 
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
-    bool jack_in(Game& game, GridNodeId entry_node);
-
-    // Mid-jack-in sector swap. Used when the player steps onto a ⌬ Gateway
-    // or ⊕ DeepGridGateway. Returns false if there is no active session, the
-    // target node is unknown, or the target's edge is locked.
-    bool traverse_to(Game& game, GridNodeId target_id);
+    // Phase 0: jack-in always opens an empty Netspace stub regardless of
+    // what the player jacked into. Phase 1+ adds a TargetDescriptor
+    // parameter sourced from the Hackable's tags / fixture type.
+    bool jack_in(Game& game);
 
     // Drains/persists loot per kind, restores body, returns to previous game state.
     void jack_out(Game& game, JackOutKind kind);

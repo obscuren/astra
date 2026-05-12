@@ -1596,17 +1596,8 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("Jacked out.");
     }
     else if (verb == "jack") {
-        if (args.size() < 2) {
-            log("usage: jack <node-label>");
-            return;
-        }
-        const auto& net = game.world().grid_network();
-        const GridNode* match = nullptr;
-        for (const auto& n : net.nodes()) {
-            if (n.label == args[1]) { match = &n; break; }
-        }
-        if (!match) { log("Unknown node: " + args[1]); return; }
-        game.hacking().jack_in(game, match->id);
+        // Phase 0: jack_in opens an empty Netspace stub regardless of args.
+        game.hacking().jack_in(game);
     }
     else if (verb == "trace") {
         if (args.size() < 2) {

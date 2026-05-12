@@ -70,141 +70,15 @@ bool try_move_hijacked_ice(GridSession& s, int dx, int dy) {
 }
 
 // Look up the edge from `from` to `to` (LAN root edges fan out from the
-// LAN root, so we also accept that). Returns nullptr if no such edge.
-const GridEdge* find_outbound_edge(const GridNetwork& net,
-                                   GridNodeId from,
-                                   GridNodeId to) {
-    for (const auto& e : net.edges()) {
-        if (e.to == to && (e.from == from)) return &e;
-    }
-    return nullptr;
-}
-
-// Step onto a ⊕ DeepGridGateway. Resolves the target node from
-// sector.deep_grid_destination, checks the corresponding edge's cracked
-// state (tier 0 always open), and traverses if open.
-void traverse_via_gateway(Game& game, GridSession& s) {
-    GridNodeId tgt = s.sector.deep_grid_destination;
-    if (!tgt.valid()) {
-        s.push_log("[ERR] " + display_name(GridTile::DeepGridGateway) + " has no destination wired.");
-        return;
-    }
-
-    auto& net = game.world().grid_network();
-    const auto& meta = game.world().lan_metadata();
-
-    // Primary lookup: edge from the player's current node.
-    // Fallback: Plan 8 flat-model — subnet rooms live inside the LAN sector;
-    // the LAN→DeepGridAnchor edge is registered on the LAN root, not on
-    // whichever subnet room the player most recently walked through.
-    const GridEdge* e = find_outbound_edge(net, s.current_node, tgt);
-    if (!e && meta.lan_root.valid() && s.current_node != meta.lan_root) {
-        e = find_outbound_edge(net, meta.lan_root, tgt);
-    }
-    if (!e) {
-        s.push_log("[ERR] " + display_name(GridTile::DeepGridGateway) + " has no edge to that target.");
-        return;
-    }
-    bool open = (e->gateway_tier == 0) || e->cracked;
-    if (!open && s.skill_deepgrid_navigator) {
-        // 50/50 passive crack — preserves prior DeepGridNavigator behaviour.
-        std::uniform_int_distribution<int> coin(0, 1);
-        if (coin(game.world().rng()) == 0) {
-            for (auto& em : net.edges_mut()) {
-                if (em.to == tgt && em.from == e->from) {
-                    em.cracked = true;
-                    open = true;
-                    s.gain_trace(5);
-                    s.push_log(">> " + colored("DeepGridNavigator", Color::Yellow)
-                               + ": " + display_name(GridTile::DeepGridGateway)
-                               + " cracked. Trace +5.");
-                    break;
-                }
-            }
-        }
-    }
-    if (!open) {
-        s.push_log("[BLOCK] " + display_name(GridTile::DeepGridGateway)
-                   + " locked. Run " + display_name(ProgramId::Breach) + ".");
-        return;
-    }
-    if (!game.hacking().traverse_to(game, tgt)) {
-        s.push_log("[ERR] " + display_name(GridTile::DeepGridGateway) + " traversal failed.");
-        return;
-    }
-    s.push_log("> You slip through the " + display_name(GridTile::DeepGridGateway) + ".");
-}
-
+// Phase 0: the Netspace stub only carries Exit tiles for interactable
+// behavior. DataNode / EncryptedFile / DeepGridGateway / WarpAnchor were
+// part of the multi-region geography and are retired with the netspace
+// redesign. Per-target tile interactions return in Phase 1+ grammars.
 void on_step(Game& game, GridSession& s) {
     GridTile here = s.sector.at(s.avatar_x, s.avatar_y);
-    switch (here) {
-        case GridTile::ExitNode: {
-            // Plan 8 flat model: ⊙ lives only in the lobby, and there is no
-            // separate per-Subnet sector to bounce back to. Stepping on ⊙
-            // always jacks out to the real world.
-            s.push_log(">> Disconnect channel...");
-            game.hacking().jack_out(game, JackOutKind::Voluntary);
-            return;
-        }
-        case GridTile::DataNode: {
-            int credits = 5 + 5 * s.trace_tick_per_turn;
-            s.loot.credits += credits;
-            s.sector.set(s.avatar_x, s.avatar_y, GridTile::Floor);
-            s.push_log("> " + display_name(GridTile::DataNode) + " ripped: +"
-                       + colored(std::to_string(credits), Color::Yellow) + " credits.");
-            return;
-        }
-        case GridTile::EncryptedFile:
-            s.push_log("[INFO] " + display_name(GridTile::EncryptedFile)
-                       + ". Run " + display_name(ProgramId::Decrypt) + " to read.");
-            return;
-        case GridTile::DeepGridGateway:
-            traverse_via_gateway(game, s);
-            return;
-        case GridTile::WarpAnchor: {
-            // Look up which WarpAnchorRecord this tile corresponds to.
-            // Anchors are stamped in Atlas-region scan order (cols 14-44,
-            // rows 1-30) so the Nth WarpAnchor tile in scan order =
-            // cs.warp_anchors[N-1].
-            ConsciousnessSave cs;
-            read_consciousness(cs);
-            const int px = s.avatar_x;
-            const int py = s.avatar_y;
-            size_t idx = 0;
-            bool found = false;
-            for (int y = 1; y <= 30 && !found; ++y) {
-                for (int x = 14; x <= 44 && !found; ++x) {
-                    if (s.sector.at(x, y) != GridTile::WarpAnchor) continue;
-                    if (x == px && y == py) {
-                        found = true;
-                        break;
-                    }
-                    ++idx;
-                }
-            }
-            if (!found || idx >= cs.warp_anchors.size()) {
-                s.push_log("[ERR] " + display_name(GridTile::WarpAnchor)
-                           + ": connection target unknown.");
-                return;
-            }
-            const auto& rec = cs.warp_anchors[idx];
-            if (!rec.warpable) {
-                s.push_log("[WARN] " + display_name(GridTile::WarpAnchor) + ": "
-                           + colored(rec.lan_display_name, Color::Cyan)
-                           + " — connection lost (galaxy purged on rebirth).");
-                return;
-            }
-            char buf[64];
-            std::snprintf(buf, sizeof buf, " — %d/%d cracked.",
-                          rec.nodes_cracked, rec.nodes_total);
-            s.push_log(">> " + display_name(GridTile::WarpAnchor) + ": "
-                       + colored(rec.lan_display_name, Color::Cyan)
-                       + buf
-                       + " (Warp traversal arrives in a future cut.)");
-            return;
-        }
-        default:
-            return;
+    if (here == GridTile::ExitNode) {
+        s.push_log(">> Disconnect channel...");
+        game.hacking().jack_out(game, JackOutKind::Voluntary);
     }
 }
 

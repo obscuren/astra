@@ -373,7 +373,7 @@ namespace {
 // Place an ICE actor in the sector, far from the avatar if possible.
 bool place_ice_far(GridSession& s, IceColor color, int hp,
                    uint32_t seed_xor, int min_distance) {
-    std::mt19937 rng(static_cast<uint32_t>(s.entry_node.value) ^ seed_xor);
+    std::mt19937 rng(seed_xor);
     std::uniform_int_distribution<int> xd(0, s.sector.w - 1);
     std::uniform_int_distribution<int> yd(0, s.sector.h - 1);
     for (int tries = 0; tries < 96; ++tries) {
@@ -404,7 +404,7 @@ void HackingSystem::spawn_gray_ice_reinforcement_(GridSession& s) {
     place_ice_far(s, IceColor::Gray, /*hp*/2, /*seed*/0xC9A41CEu, /*min_distance*/3);
 }
 
-bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
+bool HackingSystem::jack_in(Game& game) {
     if (session_) {
         game.log("Already jacked in.");
         return false;
@@ -413,9 +413,6 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         game.log("You have no neural interface. Install a " + colored("Relay Cortex", Color::Cyan) + ".");
         return false;
     }
-    // Post-Grid-death shock locks the player out until the GE expires.
-    // Both the short Disoriented (NonBlackDeath) and long Convulsing
-    // (BlackIceDeath) shocks share EffectId::BlackIceShock.
     if (has_effect(game.player().effects, EffectId::BlackIceShock)) {
         game.log("Your body is still convulsing — neural link refuses to bind.");
         return false;
@@ -424,44 +421,12 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     const CyberdeckData* cd_ptr = (deck_slot && *deck_slot && (*deck_slot)->deck)
                                     ? &(*(*deck_slot)->deck)
                                     : nullptr;
-    auto& net = game.world().grid_network();
-    auto* node = net.find(entry_node);
-    if (!node) {
-        game.log("Unknown network node.");
-        return false;
-    }
-
-    // Follow a single redirect hop (per-Precursor Subnets point at their
-    // regional darknet so the netmap and fixture-menu routes land you in
-    // the same sector). One hop only — we don't chase chains.
-    if (node->entry_redirect.valid()) {
-        if (auto* redirect = net.find(node->entry_redirect)) {
-            node = redirect;
-            entry_node = redirect->id;
-        }
-    }
 
     GridSession s;
-    s.entry_node   = entry_node;
-    s.current_node = entry_node;
     s.body_x       = game.player().x;
     s.body_y       = game.player().y;
     s.body_state   = GameState::Playing;
 
-    // Diegetic flow for fixture-menu Jack In: the player plugs their cable
-    // into a specific device (Console, ShipTerminal, etc.), so they land in
-    // THAT device's Subnet sector. To preserve the "back to the LAN" path,
-    // pre-set return_node to the Subnet's owning LAN root — so when the
-    // player walks onto the subnet's ⊙ ExitNode, on_step's bounce-back
-    // logic traverses to the LAN sector instead of jacking out to the world.
-    const auto& meta = game.world().lan_metadata();
-    if (node->kind == GridNodeKind::Subnet) {
-        if (meta.lan_root.valid()) {
-            s.return_node = meta.lan_root;
-        }
-    }
-
-    // Avatar HP from skill+deck. NeuralFortitude raises max by 1.
     bool nf = player_has_skill(game.player(), SkillId::NeuralFortitude);
     s.avatar_hp_max = 3 + (nf ? 1 : 0);
     s.avatar_hp     = s.avatar_hp_max;
@@ -473,23 +438,12 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         s.ram_max = deck_ram + im.ram_cap_bonus;
         s.ram     = deck_cur + im.ram_cap_bonus;
         if (s.ram > s.ram_max) s.ram = s.ram_max;
-        // Cortex implants extend cyberdeck heat capacity and cooling rate
-        // for the duration of the run. Cached on the session so consumers
-        // can pull effective values without re-touching the player object.
-        s.heat_cap_bonus     = im.heat_cap_bonus;
-        s.cooling_rate_bonus = im.cooling_rate_bonus;
+        s.heat_cap_bonus       = im.heat_cap_bonus;
+        s.cooling_rate_bonus   = im.cooling_rate_bonus;
         s.trace_resistance_pct = im.trace_resistance_pct;
     }
+    s.trace_tick_per_turn = 1;  // Phase 0 default; per-target grammars tune later.
 
-    // Tier-driven Trace tick
-    switch (node->kind) {
-        case GridNodeKind::Subnet:           s.trace_tick_per_turn = 1; break;
-        case GridNodeKind::LanRoot:          s.trace_tick_per_turn = 2; break;
-        case GridNodeKind::RegionalDarknet:  s.trace_tick_per_turn = 2; break;
-        case GridNodeKind::DeepGridAnchor:   s.trace_tick_per_turn = 3; break;
-    }
-
-    // Cache skill flags
     s.skill_intrusion          = player_has_skill(game.player(), SkillId::Intrusion);
     s.skill_icebreaking        = player_has_skill(game.player(), SkillId::IceBreaking);
     s.skill_daemon_mastery     = player_has_skill(game.player(), SkillId::DaemonMastery);
@@ -497,14 +451,11 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     s.skill_deepgrid_navigator = player_has_skill(game.player(), SkillId::DeepGridNavigator);
     s.skill_neural_fortitude   = nf;
 
-    // Phase 0: jack-in opens a blank Netspace stub. Legacy sector
-    // generation, ICE seeding, and Imprint spawn are bypassed end-to-end.
-    // The legacy GridSector is populated as a transient mirror so the
-    // existing renderer/input keep working; both go away in Phase 0
-    // Step 7 (sector delete) when the renderer pivots to read Netspace
-    // directly.
+    // Phase 0: jack-in opens a blank Netspace stub. Per-target grammars
+    // arrive in Phase 1. The legacy GridSector is populated as a
+    // transient mirror so the existing renderer/input keep working.
     s.netspace = gen_empty_netspace(TargetDescriptor{
-        NetspaceTargetKind::Empty, /*tier=*/1, /*seed=*/node->source_seed,
+        NetspaceTargetKind::Empty, /*tier=*/1, /*seed=*/0,
     });
 
     s.sector = GridSector{};
@@ -528,8 +479,6 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     }
     s.sector.spawn_x = s.netspace.jack_in_x;
     s.sector.spawn_y = s.netspace.jack_in_y;
-    s.sector.source_node =
-        (node->kind == GridNodeKind::Subnet) ? meta.lan_root : node->id;
     s.avatar_x = s.netspace.jack_in_x;
     s.avatar_y = s.netspace.jack_in_y;
 
@@ -539,17 +488,6 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     session_ = std::move(s);
     game.set_state(GameState::Grid);
     game.log("Uploading consciousness... You jack in.");
-    return true;
-}
-
-bool HackingSystem::traverse_to(Game& game, GridNodeId /*target_id*/) {
-    // Multi-region sector traversal retired with the netspace redesign.
-    // Mid-jack-in node hops do not exist in the per-target netspace model;
-    // each jack-in spawns its own Netspace. The deep-grid-gateway tile that
-    // used to call this is also gone (Phase 0 stub has no such tile).
-    if (!session_) return false;
-    (void)game;
-    return false;
     return true;
 }
 
