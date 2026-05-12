@@ -14,105 +14,6 @@
 
 namespace astra {
 
-// ── Tether action (D2) ───────────────────────────────────────────────────
-// Real-world Tether: marks a non-Crystal-bearing NPC for Imprint projection on
-// the next jack-in. Costs only Heat (Drift) — RAM (Channel) is a session-
-// only resource; v2 in-Grid Tether can pay RAM at that time.
-//
-// Range: L3 → 8 tiles (AoE TODO), L2 → 8 tiles, L1 → 1 tile (adjacent only).
-void Game::begin_tether_targeting() {
-    // 1. Skill gate
-    if (!player_.skill_tether_l1) {
-        log("You don't know how to Tether a target.");
-        return;
-    }
-
-    // 2. Cyberdeck gate
-    auto* deck_slot = player_.equipment.equipped_cyberdeck();
-    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        log("No cyberdeck equipped \xe2\x80\x94 Tether requires a neural link.");
-        return;
-    }
-    auto& cd = *(*deck_slot)->deck;
-
-    // 3. Heat budget gate
-    // v1 simplification: real-world Tether charges only Heat because RAM
-    // is a session-only resource that doesn't exist outside an active Grid
-    // session. v2 in-Grid Tether will pay RAM instead.
-    if (cd.heat_current + kTetherHeatCost > cd.stats.heat_cap) {
-        log("Heat over cap \xe2\x80\x94 Tether would overheat the deck.");
-        return;
-    }
-
-    // 4. Enter look-cursor targeting mode so the player can pick a target.
-    //    tether_targeting_ is cleared on confirm or cancel.
-    tether_targeting_ = true;
-    input_.begin_look(player_.x, player_.y);
-    log("Tether target. Move cursor, [Enter] confirm, [Esc] cancel.");
-}
-
-void Game::confirm_tether_targeting() {
-    tether_targeting_ = false;
-    input_.cancel_look();
-
-    int tx = input_.look_x();
-    int ty = input_.look_y();
-
-    // Determine range from highest learned tier.
-    int tether_range = 1;  // L1 default: adjacent only
-    if (player_.skill_tether_l3 || player_.skill_tether_l2) {
-        tether_range = 8;
-    }
-    // TODO L3 AoE: future v2 should burst all visible targets within 3 tiles.
-
-    // Find NPC at cursor
-    Npc* target_npc = nullptr;
-    for (auto& npc : world_.npcs()) {
-        if (npc.x == tx && npc.y == ty && npc.alive()) {
-            target_npc = &npc;
-            break;
-        }
-    }
-
-    if (!target_npc) {
-        log("No target there.");
-        return;
-    }
-
-    // Chebyshev range check
-    int dist = std::max(std::abs(tx - player_.x),
-                        std::abs(ty - player_.y));
-    if (dist > tether_range) {
-        log("Target out of range.");
-        return;
-    }
-
-    // LoS check: the tile must be currently visible (FOV implies LoS from player).
-    if (world_.visibility().get(tx, ty) != Visibility::Visible) {
-        log("No line of sight to target.");
-        return;
-    }
-
-    // Don't double-tether
-    if (target_npc->force_tether && target_npc->imprint_id >= 0) {
-        log(target_npc->name + " is already Tethered.");
-        return;
-    }
-
-    // Commit: mark + pay Heat
-    auto* deck_slot = player_.equipment.equipped_cyberdeck();
-    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        log("Deck disappeared.");
-        return;
-    }
-    auto& cd = *(*deck_slot)->deck;
-    target_npc->force_tether = true;
-    cyberdeck_add_heat(cd, kTetherHeatCost);
-    log("Tethered " + target_npc->name +
-        " \xe2\x80\x94 projection ready next jack-in.  [Heat +"
-        + std::to_string(kTetherHeatCost) + "]");
-}
-
 void Game::handle_play_input(int key) {
     // Welcome screen — space dismisses
     if (show_welcome_) {
@@ -336,24 +237,8 @@ void Game::handle_play_input(int key) {
     }
 
 
-    // Look mode intercept
-    // When tether_targeting_ is active the look cursor is used for target pick.
-    // Enter confirms the Tether; Esc cancels both tether mode and look mode.
+    // Look mode intercept.
     if (input_.looking()) {
-        if (tether_targeting_) {
-            if (key == '\n' || key == '\r') {
-                confirm_tether_targeting();
-                compute_camera();
-                return;
-            }
-            if (key == '\033') {
-                tether_targeting_ = false;
-                input_.cancel_look();
-                log("Tether cancelled.");
-                compute_camera();
-                return;
-            }
-        }
         input_.handle_look_input(key, world_.map().width(), world_.map().height());
         compute_camera(); // follow look cursor, or snap back to player on exit
         return;

@@ -184,14 +184,6 @@ public:
     bool emp_buffer_used_this_level         = false;   // Cleared on floor change (see Phase C T3)
     int  burst_pistons_cooldown             = 0;       // Ticks down each player turn; 0 = ready (see Phase C T4)
 
-    // Cached skill flags (non-serialized; rebuilt after load and on skill grant).
-    // Plan 8 — ImplantReader: gates NPC implant info in the look widget.
-    bool skill_implant_reader = false;
-    // Plan 8 — Tether L1/L2/L3: project Imprint on targets without active Crystal.
-    bool skill_tether_l1 = false;
-    bool skill_tether_l2 = false;
-    bool skill_tether_l3 = false;
-
     // Aggregate modifiers from all equipped implants.
     StatModifiers implant_modifiers() const {
         StatModifiers total;

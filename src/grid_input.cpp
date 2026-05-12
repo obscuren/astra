@@ -1,6 +1,5 @@
 #include "astra/grid_input.h"
 
-#include "astra/anchor.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
@@ -324,44 +323,6 @@ bool handle(Game& game, int key) {
         // logic for the avatar.
         if (s.hijacked_ice_idx >= 0) {
             return try_move_hijacked_ice(s, dx, dy);
-        }
-
-        // Bump-attack on Anchor.
-        if (Imprint* a = s.imprint_at(nx, ny)) {
-            if (!a->severed()) {
-                a->hp = std::max(0, a->hp - kGridMeleeDamage);
-                // Auto-sever: anchor just dropped to 0 — apply persistent
-                // Severed status to the linked NPC.
-                if (a->severed() && a->npc_id >= 0) {
-                    if (Npc* npc_ptr = game.world().npc_by_uid(a->npc_id)) {
-                        npc_ptr->vuln.apply(
-                            VulnerabilityKind::Severed,
-                            ProgramId::Echo,   // melee source — no named sentinel; Echo is a harmless stand-in
-                            /*turns=*/-1);
-                        // Grant sever XP once per Anchor (xp_granted guards double-pay).
-                        if (!a->xp_granted) {
-                            a->xp_granted = true;
-                            int tier = std::max(1, npc_ptr->level);
-                            grant_grid_xp(game, kXpImprintSeverPerTier * tier);
-                        }
-                    }
-                }
-                // Pay melee costs (both 0 by default; kept for future tuning).
-                s.ram = std::max(0, s.ram - kGridMeleeRamCost);
-                if (kGridMeleeHeatCost > 0) {
-                    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-                    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
-                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeHeatCost);
-                    }
-                }
-                char buf[80];
-                std::snprintf(buf, sizeof buf,
-                              "> Strike: Imprint %d HP %d/%d.",
-                              a->id + 1, a->hp, a->max_hp);
-                s.push_log(buf);
-                return true;   // turn consumed; avatar does not move
-            }
-            // Severed Anchor is walkable — fall through to normal movement.
         }
 
         // Bump-attack on Ice (Warden).

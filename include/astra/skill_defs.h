@@ -83,12 +83,6 @@ enum class SkillId : uint32_t {
     NeuralFortitude     = 1205,  // halve Black ICE adjacent dmg + half bleed-through
     CodeCraft           = 1206,  // unlock T3 program tinker recipes
     ConsciousnessAnchor = 1207,  // (capstone) Your.Anchor + lore-archive DataNode
-    // Plan 8 — ImplantReader
-    ImplantReader       = 1210,  // reveals NPC implant status in look widget
-    // Plan 8 — Tether perks: project Imprint on no-Crystal targets
-    TetherL1            = 1211,  // Cat_Hacking — Tether L1: project Imprint (LoS, short range 1 tile)
-    TetherL2            = 1212,  // Cat_Hacking — Tether L2: long range (8 tiles)
-    TetherL3            = 1213,  // Cat_Hacking — Tether L3: AoE 3 tiles
     Programming1        = 1214,  // 3-fragment ceiling, starter pick
     Programming2        = 1215,  // 4-fragment ceiling, +2 random fragments
     Programming3        = 1216,  // 5-fragment ceiling, +2 random fragments

@@ -39,17 +39,6 @@ enum class ProgramId : uint16_t {
     RebootOptics   = 100,
     FriendlyFire   = 101,
     DataLeech      = 102,
-
-    // Spec 1 §5.2 — Imprint-interaction Sigils (E2)
-    Echo           = 300,
-    Lag            = 301,
-    Veil           = 302,
-    Jitter         = 303,
-    Shroud         = 304,
-    Worm           = 305,
-    Brick          = 306,
-    Rot            = 307,
-    Spike          = 308,
 };
 
 struct ProgramDef {

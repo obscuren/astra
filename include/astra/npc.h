@@ -86,12 +86,8 @@ struct Npc {
     std::optional<Hackable> cyber;       // present iff this NPC is hackable
     std::string pre_hijack_faction;      // restored when Hijacked effect expires
 
-    // Runtime vulnerability/DoT tracking (Plan 8 — Sigil system)
+    // Runtime vulnerability/DoT tracking
     VulnerabilityStack vuln;
-    int32_t imprint_id = -1;             // index into GridSession::anchors_ (-1 = none)
-    bool force_tether = false;          // Spec 1: Drifter has Tether-marked this target;
-                                        // next jack-in will project an Imprint even though
-                                        // the NPC has no native Electronic Crystal.
 
     // When displaced by player swap, NPC tries to return here next tick
     int return_x = -1;

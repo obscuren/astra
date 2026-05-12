@@ -29,34 +29,4 @@ bool GridLootBuffer::empty() const {
         && lore_unlocked.empty();
 }
 
-Imprint* GridSession::imprint_for_npc(int npc_id) {
-    for (auto& a : imprints_) {
-        if (a.npc_id == npc_id) return &a;
-    }
-    return nullptr;
-}
-
-Imprint* GridSession::imprint_at(int x, int y) {
-    for (auto& a : imprints_) {
-        if (a.x == x && a.y == y && !a.severed()) return &a;
-    }
-    return nullptr;
-}
-
-Imprint* GridSession::add_imprint_for_npc(int npc_id, int sx, int sy,
-                                        int npc_threat_tier, bool bound) {
-    Imprint a;
-    a.id = next_imprint_id_++;
-    a.x = sx;
-    a.y = sy;
-    a.max_hp = anchor_max_hp(npc_threat_tier);
-    a.hp = a.max_hp;
-    a.npc_id = npc_id;
-    a.bound = bound;
-    a.identified = false;
-    a.xp_granted = false;
-    imprints_.push_back(a);
-    return &imprints_.back();
-}
-
 } // namespace astra

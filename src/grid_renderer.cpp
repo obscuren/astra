@@ -831,42 +831,6 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     // Plan 8 Cut 8: dashed zone perimeters + banners, between floor and content.
     grid_zone_overlay::draw(r, s.sector, s_camera, pr.x, pr.y, pr.w, pr.h);
 
-    // Spec B5: Anchor (Imprint) render layer — between content and ICE.
-    // Each non-severed Anchor renders as ※ (U+203B) in Color::Magenta.
-    // Label above: numeric "※N" by default; NPC name once identified==true.
-    // HP overlay below: "hp/max_hp".
-    {
-        for (const auto& a : s.imprints()) {
-            if (a.severed()) continue;
-            int sx, sy;
-            if (!cull(a.x, a.y, sx, sy)) continue;
-
-            constexpr Color kAnchorColor = Color::Magenta;
-
-            // Glyph: ※ (U+203B = \xe2\x80\xbb)
-            r.draw_glyph(pr.x + sx, pr.y + sy, "\xe2\x80\xbb", kAnchorColor);
-
-            // Label above the anchor (row sy-1).
-            if (sy - 1 >= 0) {
-                std::string label;
-                if (a.identified && a.npc_id >= 0) {
-                    const Npc* npc_ptr = game.world().npc_by_uid(a.npc_id);
-                    if (npc_ptr) label = npc_ptr->name;
-                } else {
-                    label = "\xe2\x80\xbb" + std::to_string(a.id + 1);
-                }
-                draw_colored_string(r, pr.x + sx, pr.y + sy - 1, label, kAnchorColor);
-            }
-
-            // HP overlay below the anchor (row sy+1).
-            if (sy + 1 < pr.h) {
-                char buf[16];
-                std::snprintf(buf, sizeof buf, "%d/%d", a.hp, a.max_hp);
-                draw_colored_string(r, pr.x + sx, pr.y + sy + 1, buf, kAnchorColor);
-            }
-        }
-    }
-
     for (const auto& ice : s.ice) {
         int sx, sy;
         if (!cull(ice.x, ice.y, sx, sy)) continue;

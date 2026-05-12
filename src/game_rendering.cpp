@@ -416,30 +416,10 @@ void Game::render_look_popup() {
         }
     }
     if (look_npc) {
-        if (player_.skill_implant_reader) {
-            bool has_electronic = look_npc->cyber
-                && has_tag(look_npc->cyber->tags, HackTag::Electronic);
-            if (has_electronic) {
-                crystal_lines.push_back({"Implant: HAS", Color::Cyan});
-                if (auto* sess = hacking_.session()) {
-                    if (auto* a = sess->imprint_for_npc(look_npc->uid)) {
-                        if (!a->severed()) {
-                            char buf[80];
-                            std::snprintf(buf, sizeof buf,
-                                          "  Imprint @ (%d, %d)  HP %d/%d",
-                                          a->x, a->y, a->hp, a->max_hp);
-                            crystal_lines.push_back({buf, Color::Cyan});
-                        }
-                        // Mark anchor as identified so renderer shows NPC name
-                        a->identified = true;
-                    }
-                }
-            } else {
-                crystal_lines.push_back({"Implant: NONE — tether required", Color::DarkGray});
-            }
-        } else {
-            crystal_lines.push_back({"Implant: unrecognized hardware", Color::DarkGray});
-        }
+        // Implant-reader / Imprint preview retired with the netspace redesign.
+        // A future widget pass will expose target-descriptor info (what kind
+        // of netspace this NPC would open if jacked) once per-target grammars
+        // land in Phase 1+.
     }
 
     bool has_crystal_section = !crystal_lines.empty();

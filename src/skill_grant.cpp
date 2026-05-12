@@ -62,13 +62,6 @@ bool revoke_skill(Player& player, SkillId id) {
 }
 
 void apply_skill_side_effects(Game& game, SkillId id) {
-    // Rebuild cached player skill flags whenever a skill is applied.
-    game.player().skill_implant_reader =
-        player_has_skill(game.player(), SkillId::ImplantReader);
-    game.player().skill_tether_l1 = player_has_skill(game.player(), SkillId::TetherL1);
-    game.player().skill_tether_l2 = player_has_skill(game.player(), SkillId::TetherL2);
-    game.player().skill_tether_l3 = player_has_skill(game.player(), SkillId::TetherL3);
-
     switch (id) {
         case SkillId::ConsciousnessAnchor: {
             // 1. Load (or initialise) consciousness.dat and stamp the node.

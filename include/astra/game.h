@@ -168,9 +168,6 @@ public:
     void open_cell_picker_for_item(int inventory_index);  // inventory item recharge
     bool handle_cell_picker_input(int key);  // returns true if input was consumed
     void open_qh_picker(int tx, int ty, const std::vector<int>& menu_slots);
-    // Tether targeting mode (D2)
-    void begin_tether_targeting();
-    void confirm_tether_targeting();
     PlaybackViewer& playback_viewer() { return playback_viewer_; }
     const PlaybackViewer& playback_viewer() const { return playback_viewer_; }
 
@@ -443,8 +440,6 @@ private:
 
     // Tether targeting mode (D2): set while the player is picking a Tether target
     // using the look cursor. Confirmed by Enter; cancelled by Esc.
-    bool tether_targeting_ = false;
-
     // Burst Pistons (Phase C T4): awaiting a cardinal direction key for the dash.
     bool awaiting_burst_pistons_ = false;
 

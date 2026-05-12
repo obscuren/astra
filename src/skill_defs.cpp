@@ -466,18 +466,6 @@ static std::string code_craft_description() {
     return s;
 }
 
-// ImplantReader: identifies whether an NPC carries an active implant.
-// Gated by this skill; the look widget reveals the Imprint's Site coordinates and HP.
-static std::string implant_reader_description() {
-    std::string s = "You can read the faint electromagnetic signature of an active neural implant.\n\n";
-    s += colored("Passive:", Color::White);
-    s += " the ";
-    s += colored("look", Color::Yellow);
-    s += " widget reveals whether an NPC carries an active implant and, if so, its "
-         "Imprint's Site coordinates and current HP.";
-    return s;
-}
-
 // Programming I / II / III: unlocks the Cyberdeck Compiler and raises the
 // fragment-chain ceiling.
 static std::string programming1_description() {
@@ -666,9 +654,6 @@ const std::vector<SkillCategory>& skill_catalog() {
             {SkillId::CodeCraft, "Code Craft",
              code_craft_description(),
              true, 200, 16, "Intelligence"},
-            {SkillId::ImplantReader, "Implant Reader",
-             implant_reader_description(),
-             true, 50, 13, "Intelligence"},
             {SkillId::Programming2, "Programming II",
              programming2_description(),
              true, 100, 14, "Intelligence"},

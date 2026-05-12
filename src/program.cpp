@@ -124,36 +124,6 @@ const std::vector<ProgramDef>& program_registry() {
           2, { static_cast<TagSet>(H::DataStore) },
           TM::Self, {}, nullptr },
 
-        // --- Spec 1 §5.2 — Anchor-interaction Sigils (E2) ---
-        { ProgramId::Echo,   ProgramKind::Utl, 1, 1, 1,  "Echo",   "echo.exe",
-          "Refreshes or propagates an Imprint on the target tile.", 0, {},
-          TM::Tile, burst_at(4), nullptr },
-        { ProgramId::Lag,    ProgramKind::Utl, 1, 2, 2,  "Lag",    "lag.exe",
-          "Floods a target's packet queue — delays ICE activation.", 0, {},
-          TM::Tile, burst_at(4), nullptr },
-        { ProgramId::Veil,   ProgramKind::Utl, 1, 2, 3,  "Veil",   "veil.exe",
-          "Cloaks a Marked tile, hiding it from ICE detection routines.", 0, {},
-          TM::Tile, burst_at(4), nullptr },
-        { ProgramId::Jitter, ProgramKind::Utl, 2, 4, 5,  "Jitter", "jitter.exe",
-          "Injects timing noise into a target's logic loop, causing it to skip its next action.", 0, {},
-          TM::Tile, burst_at(4), nullptr },
-        { ProgramId::Shroud, ProgramKind::Utl, 2, 5, 6,  "Shroud", "shroud.exe",
-          "Wraps a Marked zone in noise, reducing trace accumulation.", 0, {},
-          TM::Tile, burst_at(4), nullptr },
-        { ProgramId::Worm,   ProgramKind::Atk, 2, 3, 4,  "Worm",   "worm.exe",
-          "Plants a self-replicating payload that degrades an Imprinted target's defences.", 0, {},
-          TM::Tile, burst_at(4), nullptr },
-        // Adjacency restriction is enforced via TelegraphSpec range
-        // (burst_at(1) restricts the picker to a 1-tile reach).
-        { ProgramId::Brick,  ProgramKind::Atk, 3, 8, 10, "Brick",  "brick.exe",
-          "Overwrites an Imprinted target's firmware — bricks it at close range.", 0, {},
-          TM::Tile, burst_at(1), nullptr },
-        { ProgramId::Rot,    ProgramKind::Atk, 3, 5, 6,  "Rot",    "rot.exe",
-          "Corrupts an adjacent Imprinted target's core with a damage-over-time payload.", 0, {},
-          TM::Tile, burst_at(1), nullptr },
-        { ProgramId::Spike,  ProgramKind::Atk, 3, 7, 8,  "Spike",  "spike.exe",
-          "Drives a focused data spike through an adjacent Imprinted target.", 0, {},
-          TM::Tile, burst_at(1), nullptr },
     };
     return regs;
 }

@@ -163,7 +163,6 @@ set(ASTRA_SOURCES
     src/effect.cpp
     src/energy.cpp
     src/energy_system.cpp
-    src/anchor.cpp
     src/aura.cpp
     src/aura_system.cpp
     src/event_bus.cpp

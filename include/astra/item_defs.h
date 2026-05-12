@@ -182,16 +182,6 @@ Item build_program_friendly_fire();
 Item build_program_data_leech();
 Item build_program_pulse_hammer();    // Plan 4 — T3 ATK AoE
 Item build_program_daemon_hijack();   // Plan 4 — T3 UTL charm
-// Sigils — Spec 1 §5.2
-Item build_program_echo();
-Item build_program_lag();
-Item build_program_veil();
-Item build_program_jitter();
-Item build_program_shroud();
-Item build_program_worm();
-Item build_program_brick();
-Item build_program_rot();
-Item build_program_spike();
 
 // Universal item constructor: rebuild an Item from its item_def_id by
 // dispatching to the appropriate build_*() function. Covers every item

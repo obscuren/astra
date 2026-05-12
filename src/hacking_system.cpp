@@ -1,6 +1,5 @@
 #include "astra/hacking_system.h"
 
-#include "astra/anchor.h"
 #include "astra/tilemap.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
@@ -209,29 +208,6 @@ void HackingSystem::tick(Game& game) {
     } else {
         // No deck (e.g., unequipped mid-run) — drop any orphan sustains.
         sustains_.clear();
-    }
-
-    // Plan 8 B4: mirror Anchor positions to follow NPC RW movement.
-    // Runs every in-Grid world tick (tick_real_world calls hacking_.tick).
-    if (session_) {
-        ImprintProjection proj = make_imprint_projection(session_->sector, game.world());
-        auto& npcs = game.world().npcs();
-        for (size_t i = 0; i < npcs.size(); ++i) {
-            Npc& npc = npcs[i];
-            if (!npc.alive()) continue;
-            if (npc.imprint_id < 0) continue;
-
-            Imprint* a = session_->imprint_for_npc(npc.uid);
-            if (!a) continue;
-            if (a->severed()) continue;  // dead anchors don't move
-
-            int nx, ny;
-            project_rw_to_site(proj, npc.x, npc.y, nx, ny);
-            if (!nudge_to_passable(session_->sector, nx, ny)) continue;
-
-            a->x = nx;
-            a->y = ny;
-        }
     }
 
     uint64_t sig = compute_zone_signature(game);
