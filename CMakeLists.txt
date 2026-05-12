@@ -181,6 +181,8 @@ set(ASTRA_SOURCES
     src/netspace_generator.cpp
     src/netspace_layout.cpp
     src/grammars/gen_door_netspace.cpp
+    src/grammars/gen_vending_netspace.cpp
+    src/grammars/gen_camera_netspace.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp

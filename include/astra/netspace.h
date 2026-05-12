@@ -81,6 +81,14 @@ enum class NetTile : uint8_t {
                 // Netspace::glyph_overrides keyed by (x, y).
 };
 
+// Ambient animation overlay the renderer paints each turn, independent
+// of the tile grid. Each grammar opts in by setting the field; the
+// default is None.
+enum class NetspaceAmbient : uint8_t {
+    None,
+    ScanLines,    // camera grammar — a row of ─ drifts down one row per turn
+};
+
 // Render mode of the in-net overlay. The overlay mutates its own rules
 // based on this state — borders crawl, vitals lie, glyphs glitch. The
 // underlying simulation stays honest; the *window rendering it* becomes
@@ -107,6 +115,9 @@ struct Netspace {
     int                  h = 0;
     std::vector<NetTile> tiles;        // size = w * h, row-major
     std::string          title;        // chrome line (e.g. "MAGLOCK :: DOOR_47B :: TIER 1")
+    std::string          title_subtitle;  // optional second line (e.g. vending's quote)
+    int                  time_dilation = 1;  // meatworld ticks per net tick; 1 = no dilation
+    NetspaceAmbient      ambient = NetspaceAmbient::None;
     int                  jack_in_x = 0;
     int                  jack_in_y = 0;
     int                  exit_x = 0;

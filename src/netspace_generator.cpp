@@ -1,6 +1,8 @@
 #include "astra/netspace_generator.h"
 
 #include "astra/grammars/gen_door_netspace.h"
+#include "astra/grammars/gen_vending_netspace.h"
+#include "astra/grammars/gen_camera_netspace.h"
 
 namespace astra {
 
@@ -48,9 +50,11 @@ Netspace gen_for_target(const TargetDescriptor& desc) {
     switch (desc.kind) {
         case NetspaceTargetKind::Door:
             return gen_door_netspace(desc);
-        // Phase 1 Steps 7 + 8 light up the remaining kinds.
         case NetspaceTargetKind::VendingMachine:
+            return gen_vending_netspace(desc);
         case NetspaceTargetKind::Camera:
+            return gen_camera_netspace(desc);
+        // Phase 4+ lights up the remaining kinds.
         case NetspaceTargetKind::Atm:
         case NetspaceTargetKind::Turret:
         case NetspaceTargetKind::Elevator:
