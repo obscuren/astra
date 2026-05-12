@@ -822,6 +822,50 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         }
     }
 
+    // Room overlay layer — labels + subtitles + content drawn on top of
+    // the tile grid. The border tiles themselves were stamped at gen
+    // time and rendered by the switch above, so we only need to add the
+    // text inside each room.
+    auto draw_centered = [&](int rx, int ry, int rw,
+                             const std::string& text, Color col) {
+        if (text.empty()) return;
+        int sx, sy;
+        if (!cull(rx, ry, sx, sy)) return;
+        // visual_width-light: count UTF-8 lead bytes only.
+        int vw = 0;
+        for (unsigned char ch : text) if ((ch & 0xC0) != 0x80) ++vw;
+        int start_screen_x = sx + (rw - vw) / 2;
+        if (start_screen_x < 0) start_screen_x = 0;
+        draw_colored_string(r, pr.x + start_screen_x, pr.y + sy, text, col);
+    };
+    for (const auto& room : s.netspace.rooms) {
+        if (room.w < 3 || room.h < 3) continue;
+        const int inner_w = room.w - 2;
+        // Top label sits ON the top border row, between the corners.
+        if (!room.label.empty()) {
+            draw_centered(room.x + 1, room.y + 1, inner_w,
+                          room.label, room.label_color);
+        }
+        // Subtitle in the second interior row.
+        if (!room.subtitle.empty() && room.h >= 4) {
+            draw_centered(room.x + 1, room.y + 2, inner_w,
+                          room.subtitle, room.subtitle_color);
+        }
+        // Content centered vertically + horizontally in the interior.
+        if (!room.content.empty()) {
+            int content_y = room.y + room.h / 2;
+            // If we already used row+1 for subtitle, push content one down.
+            if (!room.subtitle.empty() && content_y <= room.y + 2) {
+                content_y = room.y + 3;
+            }
+            if (content_y >= room.y + room.h - 1) {
+                content_y = room.y + room.h - 2;
+            }
+            draw_centered(room.x + 1, content_y, inner_w,
+                          room.content, room.content_color);
+        }
+    }
+
     for (const auto& ice : s.ice) {
         int sx, sy;
         if (!cull(ice.x, ice.y, sx, sy)) continue;

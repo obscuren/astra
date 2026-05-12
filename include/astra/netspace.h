@@ -9,6 +9,8 @@
 // abstraction and a blank-room stub generator; per-target grammars land
 // in Phase 1+.
 
+#include "astra/net_room.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -111,6 +113,13 @@ struct Netspace {
     int                  exit_y = 0;
     WindowState          window_state = WindowState::Stable;
 
+    // Composition primitives. The grammars stamp these into the tile
+    // grid at gen time so passable()/Telegraph work without special
+    // cases; the renderer overlays the room labels/content and animates
+    // the pipes on top of the tile layer.
+    std::vector<NetRoom> rooms;
+    std::vector<NetPipe> pipes;
+
     NetTile at(int x, int y) const {
         if (x < 0 || y < 0 || x >= w || y >= h) return NetTile::Void;
         return tiles[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)];
@@ -142,5 +151,15 @@ struct Netspace {
             || t == NetTile::WallSolid;
     }
 };
+
+// Map a room border style to the corresponding tile kind.
+inline NetTile box_tile_for(NetRoom::Border b) {
+    switch (b) {
+        case NetRoom::Border::Thin:   return NetTile::BoxThin;
+        case NetRoom::Border::Double: return NetTile::BoxDouble;
+        case NetRoom::Border::Block:  return NetTile::BoxBlock;
+    }
+    return NetTile::BoxThin;
+}
 
 }  // namespace astra
