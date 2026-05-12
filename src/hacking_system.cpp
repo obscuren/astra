@@ -17,6 +17,7 @@
 #include "astra/item_defs.h"
 #include "astra/lan.h"
 #include "astra/lan_sector_generator.h"
+#include "astra/netspace_generator.h"
 #include "astra/npc.h"
 #include "astra/program.h"
 #include "astra/program_effects.h"   // Task 9 will populate; Task 7 ships a stub
@@ -525,78 +526,41 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     s.skill_deepgrid_navigator = player_has_skill(game.player(), SkillId::DeepGridNavigator);
     s.skill_neural_fortitude   = nf;
 
-    // Resolve sector
-    resolve_sector_for_(game, s, *node);
-    // Plan 8: for Subnet jack-ins, source_node is the LAN root (the sector's
-    // identity), not the target Subnet. The Subnet target lives in s.current_node.
+    // Phase 0: jack-in opens a blank Netspace stub. Legacy sector
+    // generation, ICE seeding, and Imprint spawn are bypassed end-to-end.
+    // The legacy GridSector is populated as a transient mirror so the
+    // existing renderer/input keep working; both go away in Phase 0
+    // Step 7 (sector delete) when the renderer pivots to read Netspace
+    // directly.
+    s.netspace = gen_empty_netspace(TargetDescriptor{
+        NetspaceTargetKind::Empty, /*tier=*/1, /*seed=*/node->source_seed,
+    });
+
+    s.sector = GridSector{};
+    s.sector.w = s.netspace.w;
+    s.sector.h = s.netspace.h;
+    s.sector.tiles.assign(
+        static_cast<size_t>(s.netspace.w) * static_cast<size_t>(s.netspace.h),
+        GridTile::Floor);
+    for (int y = 0; y < s.netspace.h; ++y) {
+        for (int x = 0; x < s.netspace.w; ++x) {
+            GridTile gt = GridTile::Floor;
+            switch (s.netspace.at(x, y)) {
+                case NetTile::Void:   gt = GridTile::Void;     break;
+                case NetTile::Floor:  gt = GridTile::Floor;    break;
+                case NetTile::Wall:   gt = GridTile::Wall;     break;
+                case NetTile::JackIn: gt = GridTile::Floor;    break;
+                case NetTile::Exit:   gt = GridTile::ExitNode; break;
+            }
+            s.sector.set(x, y, gt);
+        }
+    }
+    s.sector.spawn_x = s.netspace.jack_in_x;
+    s.sector.spawn_y = s.netspace.jack_in_y;
     s.sector.source_node =
         (node->kind == GridNodeKind::Subnet) ? meta.lan_root : node->id;
-    s.avatar_x = s.sector.spawn_x;
-    s.avatar_y = s.sector.spawn_y;
-
-    // Spawn ICE per tier (anchor stays empty; all other node kinds — including
-    // LanRoot v2 sectors — consume ice_seeds seeded at generation time).
-    // Persisted killed-ICE coordinates suppress respawn on re-entry.
-    if (node->kind != GridNodeKind::DeepGridAnchor) {
-        // Plan 8 Cut 5: v2 sectors populate ice_seeds at generation time;
-        // use them when present. Fall back to v1 scatter spawn.
-        if (!s.sector.ice_seeds.empty()) {
-            grid_ice::spawn_from_seeds(s);
-        } else {
-            grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
-        }
-        // Drop any ICE that the player previously killed in this sector.
-        // Plan 8: Subnet jacks now load the LAN sector, so both LanRoot and
-        // Subnet kinds share the same mutation bucket (lan_sector_state).
-        const SectorRuntimeState* state = nullptr;
-        if (node->kind == GridNodeKind::Subnet || node->kind == GridNodeKind::LanRoot) {
-            state = &meta.lan_sector_state;
-        }
-        if (state && !state->killed_ice.empty()) {
-            s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
-                [&](const GridIce& ice) {
-                    for (const auto& k : state->killed_ice) {
-                        if (k.first == ice.x && k.second == ice.y) return true;
-                    }
-                    return false;
-                }), s.ice.end());
-        }
-    }
-
-    // Spec 1: spawn an Imprint per hostile, Crystal-bearing NPC on the
-    // current map. Each NPC's anchor_id is set; the Imprint's Site
-    // coordinates mirror the NPC's RW position via linear projection,
-    // nudged to the nearest walkable cell if the projected tile is a wall.
-    // D2: also spawn Imprints for Tether-marked NPCs (force_tether == true)
-    // even if they carry no native Electronic Crystal.
-    {
-        ImprintProjection proj = make_imprint_projection(s.sector, game.world());
-        auto& npcs = game.world().npcs();
-        for (size_t i = 0; i < npcs.size(); ++i) {
-            Npc& npc = npcs[i];
-            if (!npc.alive()) continue;
-
-            bool has_native_crystal = npc.cyber && has_tag(npc.cyber->tags, HackTag::Electronic);
-            bool tethered_target    = npc.force_tether;
-            if (!has_native_crystal && !tethered_target) continue;
-
-            // Hostility gate applies to native-Crystal NPCs only. Tethered
-            // targets are an explicit player action — faction rep is
-            // irrelevant; the player has chosen to project an Imprint.
-            if (!tethered_target && !is_hostile_to_player(npc.faction, game.player())) continue;
-
-            int sx, sy;
-            project_rw_to_site(proj, npc.x, npc.y, sx, sy);
-            if (!nudge_to_passable(s.sector, sx, sy)) continue;
-
-            Imprint* a = s.add_imprint_for_npc(
-                npc.uid,
-                sx, sy,
-                npc.level,   // npc.level used as threat-tier proxy (B3)
-                /*bound=*/tethered_target);
-            npc.imprint_id = a->id;
-        }
-    }
+    s.avatar_x = s.netspace.jack_in_x;
+    s.avatar_y = s.netspace.jack_in_y;
 
     // Body phase-out
     add_effect(game.player().effects, make_grid_exposed_ge());

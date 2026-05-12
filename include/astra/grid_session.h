@@ -5,6 +5,7 @@
 #include "astra/grid_ice.h"
 #include "astra/grid_network.h"
 #include "astra/grid_sector.h"
+#include "astra/netspace.h"
 
 #include <cstdint>
 #include <deque>
@@ -76,10 +77,16 @@ struct GridSession {
     bool skill_neural_fortitude   = false;
     bool ghost_protocol_used      = false;  // set true after first program of session
 
-    // Sector
+    // Netspace (Phase 0+): the source-of-truth per-jack-in micro-dungeon.
+    // The legacy `sector` below mirrors this during Phase 0 so the existing
+    // renderer/input keep working; the mirror is removed in Phase 0 Step 7
+    // when those layers pivot to read Netspace directly.
+    Netspace netspace;
+
+    // Sector (legacy, removed in Phase 0 Step 7)
     GridSector sector;
     std::vector<GridIce> ice;
-    std::vector<bool> ice_seed_spawned;  // Plan 8: true once seed_idx has materialized
+    std::vector<bool> ice_seed_spawned;  // legacy, removed in Phase 0 Step 7
 
     // Anchors (player-facing: Anchors)
     std::vector<Imprint>&       imprints()       { return imprints_; }
