@@ -49,6 +49,7 @@ enum class ItemType : uint8_t {
     Cyberdeck,    // hacking deck — held in a Utility slot
     Program,      // .exe / .qh loadable into a cyberdeck slot
     Implant,      // cybernetic implant — held in an Implant slot (Plan 4)
+    RelayCortex,  // head implant that gates jack-in to the Grid
 };
 
 const char* item_type_name(ItemType t);
@@ -81,6 +82,38 @@ enum class EquipSlot : uint8_t {
 static constexpr int equip_slot_count = 14;
 
 const char* equip_slot_name(EquipSlot slot);
+
+
+enum class ImplantSlot : uint8_t {
+    None = 0,
+    Eyes,
+    Head,
+    Spine,
+    Chest,
+    LeftHand,
+    RightHand,
+    LeftArm,
+    RightArm,
+    LeftLeg,
+    RightLeg,
+};
+
+// Side-agnostic categories let one item def install into either L or R of a paired slot.
+enum class ImplantSlotRequirement : uint8_t {
+    None = 0,
+    Eyes,
+    Head,
+    Spine,
+    Chest,
+    AnyHand,
+    AnyArm,
+    AnyLeg,
+};
+
+inline constexpr size_t implant_slot_count = 10;   // ImplantSlot values excluding None
+
+const char* implant_slot_name(ImplantSlot slot);
+const char* implant_slot_requirement_name(ImplantSlotRequirement req);
 
 enum class ShipSlot : uint8_t {
     Engine,
@@ -189,6 +222,7 @@ struct Item {
     ItemType type = ItemType::Trash;
     WeaponClass weapon_class = WeaponClass::None;
     std::optional<EquipSlot> slot;
+    ImplantSlotRequirement required_implant_slot = ImplantSlotRequirement::None;
     Rarity rarity = Rarity::Common;
     int weight = 1;
     bool stackable = false;

@@ -77,7 +77,7 @@ This is the deep mechanism behind the player's macro-arc. The Substrate has been
 
 ### 5.2. Drifters and the shallow end
 
-Drifters operate at the *shallow* end of the Substrate. They jack in through their cyberdeck, do their work, jack out. They do not get fully assimilated.
+Drifters operate at the *shallow* end of the Substrate. They jack in through their Relay Cortex implant — using a Cyberdeck to run programs once inside — do their work, and jack out. They do not get fully assimilated.
 
 But the Substrate still *touches* them. A long-time Drifter starts to notice things:
 - Words in tongues they don't speak.
@@ -128,7 +128,7 @@ The professions, in broad strokes (each has its own deeper lore in future docs):
 - **Tinker.** Builds, modifies, deploys. Turrets, mines, drones, gear-crafting from schematics. The shop-floor mind. Reaches into ancient tech with a wrench.
 - **Marksman.** Pistols, rifles, energy weapons. Range and precision. Stays out of the worst of it.
 - **Brawler / Melee.** Close work. Blades, fists, augmented limbs. The shortest distance between you and a problem.
-- **Drifter.** The one path this lore doc treats in depth, because it is the path that touches the Substrate. **Drifters jack into the Relay Network through a cyberdeck and run exploits** — small operators who exploit the inheritance of the pre-civilizations without quite understanding what they're exploiting. Scavengers. Wildcatters. Not scientists, not priests. The path that goes *deepest.*
+- **Drifter.** The one path this lore doc treats in depth, because it is the path that touches the Substrate. **Drifters jack into the Relay Network through a Relay Cortex implant and run programs on a Cyberdeck** — small operators who exploit the inheritance of the pre-civilizations without quite understanding what they're exploiting. Scavengers. Wildcatters. Not scientists, not priests. The path that goes *deepest.*
 - **Other paths exist** and will be detailed in their own lore expansions — pilots, traders, settlers, scrapped-together hybrids. The roster grows.
 
 ### 8.1. The Drifter profession

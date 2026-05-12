@@ -246,6 +246,14 @@ constexpr uint16_t ITEM_CODE_FRAGMENT_T3     = 322;
 // Implants (400+)
 constexpr uint16_t ITEM_NEURAL_BACKUP        = 400;
 
+// Relay Cortex variants (401-406)
+constexpr uint16_t ITEM_RELAY_CORTEX_MK1     = 401;
+constexpr uint16_t ITEM_SPIKE_CORTEX         = 402;
+constexpr uint16_t ITEM_GLACIER_CORTEX       = 403;
+constexpr uint16_t ITEM_SENTINEL_CORTEX      = 404;
+constexpr uint16_t ITEM_ACUITY_CORTEX        = 405;
+constexpr uint16_t ITEM_STOIC_CORTEX         = 406;
+
 // Hacker mats (430+) — fragment-system compile material.
 constexpr uint16_t ITEM_PROGRAM_DISK         = 430;
 

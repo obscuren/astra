@@ -117,6 +117,13 @@ const std::vector<LootEntry>& s_loot_table_data() {
 
         // ----- Implants (Plan 4) ---------------------------------------
         LootEntry{ ITEM_NEURAL_BACKUP,        "neural_backup",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
+        // Relay Cortex implants (Task 10)
+        LootEntry{ ITEM_RELAY_CORTEX_MK1,    "relay_cortex_mk1", R::Common,    R::Common,     8, {}, LootSource::Chest | LootSource::MerchantArms,                                                      T::Tech,     1, C::Implant },
+        LootEntry{ ITEM_SPIKE_CORTEX,         "spike_cortex",     R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
+        LootEntry{ ITEM_GLACIER_CORTEX,       "glacier_cortex",   R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
+        LootEntry{ ITEM_SENTINEL_CORTEX,      "sentinel_cortex",  R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
+        LootEntry{ ITEM_ACUITY_CORTEX,        "acuity_cortex",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
+        LootEntry{ ITEM_STOIC_CORTEX,         "stoic_cortex",     R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
 
         // ----- Code fragments (crafting material) ----------------------
         LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },

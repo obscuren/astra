@@ -112,7 +112,7 @@ private:
 
     // Spec 1: append `(hack) Jack In` on an NpcCorpse fixture that
     // carries an Electronic Hackable whose dead implant is not yet exhausted,
-    // gated on Cat_Hacking.
+    // gated on the player having a Relay Cortex implant.
     void append_jack_into_corpse_option(int fid, Game& game);
 
     // Spec 1: activate a transient GridSession seeded from the corpse fixture.

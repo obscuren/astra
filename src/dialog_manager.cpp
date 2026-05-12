@@ -450,14 +450,8 @@ void DialogManager::append_jack_in_option(int fid, Game& game) {
     if (!has_tag(fd.cyber->tags, HackTag::JackInPort)) return;
 
     std::string label = build_hacking_label("Jack In");
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        label += "  (requires Cat_Hacking)";
-    } else {
-        // Even with the skill, you need an equipped deck to actually jack in.
-        auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-        if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-            label += "  (no cyberdeck)";
-        }
+    if (!game.player().has_implant_of_type(ItemType::RelayCortex)) {
+        label += "  (no Relay Cortex)";
     }
     // Base tag is OptionNormal so the trailing capability-hint suffix renders
     // in the default option color; inline markers paint the (hack) prefix and
@@ -482,7 +476,7 @@ void DialogManager::append_sync_soul_option(int fid, Game& game) {
 }
 
 // Spec 1: append `(hack) Jack In` on an NpcCorpse fixture whose
-// Electronic Hackable dead implant has not yet been consumed. Gated on Cat_Hacking.
+// Electronic Hackable dead implant has not yet been consumed. Gated on Relay Cortex.
 void DialogManager::append_jack_into_corpse_option(int fid, Game& game) {
     auto& fd = game.world().map().fixture_mut(fid);
     if (fd.type != FixtureType::NpcCorpse) return;
@@ -497,7 +491,7 @@ void DialogManager::append_jack_into_corpse_option(int fid, Game& game) {
         return;
     }
 
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) return;
+    if (!game.player().has_implant_of_type(ItemType::RelayCortex)) return;
 
     std::string label = build_hacking_label("Jack In", /*plain_action=*/true);
     char hotkey = 'r';
@@ -515,13 +509,8 @@ void DialogManager::jack_into_corpse(Game& game, int fid) {
         game.log("You are already jacked into a network.");
         return;
     }
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        game.log("You need the Cat_Hacking skill to jack into a dead implant.");
-        return;
-    }
-    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        game.log("You need an equipped cyberdeck to jack into a dead implant.");
+    if (!game.player().has_implant_of_type(ItemType::RelayCortex)) {
+        game.log("You have no neural interface. Install a " + colored("Relay Cortex", Color::Cyan) + ".");
         return;
     }
 
@@ -549,7 +538,9 @@ void DialogManager::jack_into_corpse(Game& game, int fid) {
     in.npc_threat_tier = hack.security_tier;
     GridSector sec     = gen_dead_implant_sector(in);
 
-    const auto& cd = *(*deck_slot)->deck;
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    const CyberdeckData* cd_ptr = (deck_slot && *deck_slot && (*deck_slot)->deck)
+                                    ? &(*(*deck_slot)->deck) : nullptr;
 
     GridSession s;
     // No network node — use a zeroed sentinel node id.
@@ -562,8 +553,8 @@ void DialogManager::jack_into_corpse(Game& game, int fid) {
     bool nf = player_has_skill(game.player(), SkillId::NeuralFortitude);
     s.avatar_hp_max = 3 + (nf ? 1 : 0);
     s.avatar_hp     = s.avatar_hp_max;
-    s.ram_max       = cd.stats.ram_max;
-    s.ram           = cd.ram_current;
+    s.ram_max       = cd_ptr ? cd_ptr->stats.ram_max : 0;
+    s.ram           = cd_ptr ? cd_ptr->ram_current   : 0;
     s.trace_tick_per_turn = 1;  // dead-implant sector is a small isolated pocket
 
     s.skill_intrusion          = player_has_skill(game.player(), SkillId::Intrusion);
@@ -1128,13 +1119,8 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             Hackable& hack = *fd.cyber;
 
             if (kind == OptionKind::HackingJackIn) {
-                if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-                    game.log("You need the Cat_Hacking skill to jack in.");
-                    return;
-                }
-                auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-                if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-                    game.log("You need an equipped cyberdeck to jack in.");
+                if (!game.player().has_implant_of_type(ItemType::RelayCortex)) {
+                    game.log("You have no neural interface. Install a " + colored("Relay Cortex", Color::Cyan) + ".");
                     return;
                 }
                 if (hack.jack_in_node_id <= 0) {

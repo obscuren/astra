@@ -30,6 +30,7 @@ const char* item_type_name(ItemType t) {
         case ItemType::Cyberdeck:        return "Cyberdeck";
         case ItemType::Program:          return "Program";
         case ItemType::Implant:          return "Implant";
+        case ItemType::RelayCortex:      return "Relay Cortex";
     }
     return "Unknown";
 }
@@ -50,6 +51,37 @@ const char* equip_slot_name(EquipSlot slot) {
         case EquipSlot::Shield:    return "Shield";
         case EquipSlot::Utility1:  return "Utility 1";
         case EquipSlot::Utility2:  return "Utility 2";
+    }
+    return "?";
+}
+
+const char* implant_slot_name(ImplantSlot slot) {
+    switch (slot) {
+        case ImplantSlot::None:      return "(none)";
+        case ImplantSlot::Eyes:      return "Eyes";
+        case ImplantSlot::Head:      return "Head";
+        case ImplantSlot::Spine:     return "Spine";
+        case ImplantSlot::Chest:     return "Chest";
+        case ImplantSlot::LeftHand:  return "L.Hand";
+        case ImplantSlot::RightHand: return "R.Hand";
+        case ImplantSlot::LeftArm:   return "L.Arm";
+        case ImplantSlot::RightArm:  return "R.Arm";
+        case ImplantSlot::LeftLeg:   return "L.Leg";
+        case ImplantSlot::RightLeg:  return "R.Leg";
+    }
+    return "?";
+}
+
+const char* implant_slot_requirement_name(ImplantSlotRequirement req) {
+    switch (req) {
+        case ImplantSlotRequirement::None:    return "(none)";
+        case ImplantSlotRequirement::Eyes:    return "Eyes";
+        case ImplantSlotRequirement::Head:    return "Head";
+        case ImplantSlotRequirement::Spine:   return "Spine";
+        case ImplantSlotRequirement::Chest:   return "Chest";
+        case ImplantSlotRequirement::AnyHand: return "Hand";
+        case ImplantSlotRequirement::AnyArm:  return "Arm";
+        case ImplantSlotRequirement::AnyLeg:  return "Leg";
     }
     return "?";
 }

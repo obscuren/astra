@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -107,8 +108,30 @@ struct Player {
 
     // Equipment & inventory
     Equipment equipment;
-    static constexpr int IMPLANT_SLOTS = 2;   // Plan 4 v1; future plans expand.
+    // Indexed by ImplantSlot ordinal minus 1 (ImplantSlot::None is not stored).
+    static constexpr int IMPLANT_SLOTS = implant_slot_count;   // 10, from item.h
     std::array<std::optional<Item>, IMPLANT_SLOTS> implants{};
+
+    std::optional<Item>& implant_at(ImplantSlot s)             { return implants[implant_index(s)]; }
+    const std::optional<Item>& implant_at(ImplantSlot s) const { return implants[implant_index(s)]; }
+
+    bool has_implant(ImplantSlot s) const { return implants[implant_index(s)].has_value(); }
+
+    bool has_implant_of_type(ItemType t) const {
+        for (const auto& slot : implants) {
+            if (slot && slot->type == t) return true;
+        }
+        return false;
+    }
+
+private:
+    static constexpr size_t implant_index(ImplantSlot s) {
+        assert(s != ImplantSlot::None && "implant_index called with ImplantSlot::None");
+        return static_cast<size_t>(s) - 1;
+    }
+
+public:
+
     Inventory inventory;
 
     // Skills

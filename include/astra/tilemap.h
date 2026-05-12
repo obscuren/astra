@@ -426,7 +426,7 @@ enum class FixtureType : uint8_t {
 
     // Spec 1: NPC corpse — placed at death site of Electronic-Hackable NPCs.
     // Passable, interactable. Carries the NPC's Hackable (with corpse_dead_implant_*
-    // fields) so Jack In can be offered when Cat_Hacking is known.
+    // fields) so Jack In can be offered when the player has a Relay Cortex implant.
     NpcCorpse,      // '%'  — biological/cybernetic remains
 };
 

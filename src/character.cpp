@@ -116,20 +116,21 @@ static const ClassTemplate s_gridrunner = {
     {7, 12, 8, 16, 14, 9},        // INT-heavy, low STR/TOU
     {0, 5, 2, 0},                 // electrical +5, cold +2
     -2, 8,                        // -2 HP (glass cannon), +8 carry (room for deck + cells)
-    {SkillId::Cat_Hacking,        // gate to jack in
+    {SkillId::Cat_Hacking,        // parent category for hacking sub-skills
      SkillId::Programming1,       // unlocks the Cyberdeck Compiler (3-fragment ceiling)
      SkillId::Intrusion,          // White ICE Trace +1 not +2
      SkillId::GhostProtocol,      // first program each Grid run is heatless
      SkillId::Cat_ShortBlade},    // bare-bones meatspace defense
     100, 60,                      // 100 SP, 60 credits
     {
-        {ITEM_PIDGIN_MK1,           1, EquipSlot::Utility1},   // T1 cyberdeck
-        {ITEM_PROG_BREACH,          1},                         // load into deck slot 1 manually
+        {ITEM_RELAY_CORTEX_MK1,     1, std::nullopt, ImplantSlot::Head},  // jack-in gate
+        {ITEM_PIDGIN_MK1,           1, EquipSlot::Utility1},              // T1 cyberdeck
+        {ITEM_PROG_BREACH,          1},                                    // load into deck slot 1 manually
         {ITEM_PROG_ICEBREAKER_LITE, 1},
         {ITEM_PROG_GHOST_TRACE,     1},
-        {ITEM_SMALL_ENERGY_CELL,    2},                         // recharge the deck
-        {ITEM_COMBAT_KNIFE,         1, EquipSlot::RightHand},  // last-ditch melee
-        {ITEM_PADDED_VEST,          1, EquipSlot::Body},        // basic body armor
+        {ITEM_SMALL_ENERGY_CELL,    2},                                    // recharge the deck
+        {ITEM_COMBAT_KNIFE,         1, EquipSlot::RightHand},             // last-ditch melee
+        {ITEM_PADDED_VEST,          1, EquipSlot::Body},                   // basic body armor
     },
 };
 

@@ -380,12 +380,41 @@ Programs are loadable items. Their `kind` determines where they fire:
 
 ## Implants
 
-Implants slot into the dedicated **Implant** equipment slot exposed via the
-PDA Equipment-tab paper-doll toggle (`Tab` while on the Equipment tab).
+Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab paper-doll toggle (`Tab` while on the Equipment tab). There are **10 anatomical slots**; each slot accepts one implant.
 
-| Name | Dev | Effects | Source |
-|------|-----|---------|--------|
-| Neural Backup | `neural_backup` | -1 Willpower; auto-syncs lore at Precursor consoles via the Soul Mirror channel. | T2+ deep-Grid drops, BlackMarket. |
+### Implant Slots
+
+| Slot | Notes |
+|------|-------|
+| Eyes | Single-occupancy. Future content. |
+| Head | Houses the Relay Cortex family (jack-in gate). |
+| Spine | Houses neural support implants (Neural Backup). |
+| Chest | Single-occupancy. Future content. |
+| Left Hand | Side-agnostic — item requires AnyHand; player picks L or R at install. |
+| Right Hand | (see Left Hand) |
+| Left Arm | Side-agnostic — item requires AnyArm; player picks L or R at install. |
+| Right Arm | (see Left Arm) |
+| Left Leg | Side-agnostic — item requires AnyLeg; player picks L or R at install. |
+| Right Leg | (see Left Leg) |
+
+### Non-cortex Implants
+
+| Name | Dev | Slot | Effects | Source |
+|------|-----|------|---------|--------|
+| Neural Backup | `neural_backup` | Spine | -1 Willpower; auto-syncs lore at Precursor consoles via the Soul Mirror channel. | T2+ deep-Grid drops, BlackMarket. |
+
+### Relay Cortex (Head slot)
+
+The Relay Cortex family gates jack-in to the Grid. Installing **any** Relay Cortex variant in the Head slot enables `pda> jack <ip>`. All variants share `ItemType::RelayCortex` for gate-check purposes. See [mechanics.md](mechanics.md) § Hacking for the full jack-in contract.
+
+| Name | Dev | Rarity | Role | Stat wiring |
+|------|-----|--------|------|-------------|
+| Mk I Relay Cortex | `relay_cortex_mk1` | Common | Entry-level. Vendor-stocked at Heavens Above (~1000 cr). | Jack-in enabled. No other bonuses. |
+| Spike Cortex | `relay_cortex_spike` | Rare | Offensive hacker. | Jack-in + 2 bonus RAM cap, +1 heat capacity. (RAM/heat wiring TODO — modifier struct expands in a later plan.) |
+| Glacier Cortex | `relay_cortex_glacier` | Rare | Sustained-run hacker. | Jack-in + 2 heat capacity, +1 heat dissipation per tick. (Heat dissipation TODO.) |
+| Sentinel Cortex | `relay_cortex_sentinel` | Rare | Defensive non-hacker. | Jack-in + −25% trace gain per tick, −50% Black ICE Shock duration. (Trace/shock modifiers TODO.) |
+| Acuity Cortex | `relay_cortex_acuity` | Rare | Smart non-hacker. | Jack-in + 2 INT, −10% trace gain per tick. (INT TODO — StatModifiers gains intelligence field in a follow-up; trace TODO.) |
+| Stoic Cortex | `relay_cortex_stoic` | Rare | Mental-resilience non-hacker. | Jack-in + 2 WIL, full Black ICE Shock immunity (Shock effect blocked entirely). (WIL modifier wired; shock immunity TODO.) |
 
 ## Cyberdeck Mods
 

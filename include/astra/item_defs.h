@@ -130,6 +130,14 @@ Item build_code_fragment_t3();
 // --- Implants ---
 Item build_neural_backup();
 
+// --- Relay Cortex variants ---
+Item build_relay_cortex_mk1();
+Item build_spike_cortex();
+Item build_glacier_cortex();
+Item build_sentinel_cortex();
+Item build_acuity_cortex();
+Item build_stoic_cortex();
+
 // --- Hacker mats ---
 Item build_program_disk();
 

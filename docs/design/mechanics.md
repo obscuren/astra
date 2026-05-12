@@ -845,7 +845,7 @@ Set on `JackOutKind`; chosen by `tick_grid`'s avatar-HP-zero check (Gray/White �
 
 | Skill | Effect |
 |---|---|
-| `Cat_Hacking` | Required to jack in. |
+| `Cat_Hacking` | Parent category for hacking sub-skills (Programming I/II, Gridrunner, ICE-breaking, etc.). **Not** required to jack in — that is gated by an installed Relay Cortex implant. See [Implants in items.md](items.md#implants). |
 | `Intrusion` | White-ICE Trace bonus halved (2 → 1). |
 | `IceBreaking` | `icebreaker_lite.exe` deals +1 damage. |
 | `DaemonMastery` | +1 effective deck slot when picking programs to fire. |
@@ -919,7 +919,7 @@ Crossing Sgr A* via `:rebirth` runs:
 
 - **`ping <ip>`** — probe a node. Output: latency, security tier (clean/compromised/alarmed), tags.
 - **`nmap [-l|-m]`** — list LAN subnets (`-l`) or open visual map widget (`-m`). Widget shows connected nodes, gateway lock status, and allows cursor-stepping to select and jack into a node.
-- **`jack <ip>`** — jack into a node. Requires `Cat_Hacking` skill + cyberdeck equipped. Opens the sector for that node's subnet.
+- **`jack <ip>`** — jack into a node. Requires a **Relay Cortex** implant installed in the Head slot. The Cyberdeck is **not** required for the jack itself, but without one the player has no programs, no RAM, and no heat budget inside the Grid (still useful for observation, escape, or save-zone routes). Opens the sector for that node's subnet.
 - **`lore`** — list decrypted lore archives. Output: archive ID + origin tick. Use `cat <archive-id>` to read body text (Plan 7).
 - **`cat <archive-id>`** — read a decrypted archive's text.
 
@@ -1007,16 +1007,15 @@ SSH succeeds against a target IP only if:
 
 Anything else: `ssh: <ip>: host unreachable (out of range)`. There is no remote ssh and no device-to-device pivot — every interaction is an atomic walk-and-shell.
 
-### Cyberdeck mod gate
+### Relay Cortex gate (replaces the old cyberdeck mod gate)
 
-`pda> jack <ip>` is mod-gated: requires a Wireless Jack-In Module in the player's inventory (v1 placeholder for the Plan 11+ install slot). Without one:
+`pda> jack <ip>` is gated by a **Relay Cortex** implant installed in the Head slot. Without one:
 
 ```
-jack: no wireless jack-in device installed.
-       (requires Wireless Jack-In Module.)
+jack: You have no neural interface. Install a Relay Cortex.
 ```
 
-Two brand variants ship as items: `Aerojack` and `Untether`. Both trigger the gate identically in v1 — placeholder stats until the proper mod system lands. The legacy `jack: locked — try breach.exe` path is removed; the only spatial way into a LAN in v1 is via a `(hack) Jack In` interactable.
+The old Wireless Jack-In Module items (`Aerojack`, `Untether`) are superseded by the Relay Cortex — the implant is both the hardware and the credential. The legacy `jack: locked — try breach.exe` path is removed; the only spatial way into a LAN in v1 is via a `(hack) Jack In` interactable.
 
 ### Hacking skills (Plan 7 nodes)
 

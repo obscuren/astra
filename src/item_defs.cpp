@@ -1544,6 +1544,14 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         // Implants
         case ITEM_NEURAL_BACKUP:           return build_neural_backup();
 
+        // Relay Cortex variants
+        case ITEM_RELAY_CORTEX_MK1:        return build_relay_cortex_mk1();
+        case ITEM_SPIKE_CORTEX:            return build_spike_cortex();
+        case ITEM_GLACIER_CORTEX:          return build_glacier_cortex();
+        case ITEM_SENTINEL_CORTEX:         return build_sentinel_cortex();
+        case ITEM_ACUITY_CORTEX:           return build_acuity_cortex();
+        case ITEM_STOIC_CORTEX:            return build_stoic_cortex();
+
         // Hacker mats
         case ITEM_PROGRAM_DISK:            return build_program_disk();
 
@@ -1871,13 +1879,137 @@ Item build_neural_backup() {
     it.description =
         "A spinal-mounted memory crystal that mirrors your decrypted "
         "lore archive into the deep-Grid each time you stand at a "
-        "Precursor console. Costs you a sliver of will.";
+        "Precursor console. Costs you a sliver of will. "
+        "Stats: -1 WIL.";
     it.rarity = Rarity::Rare;
     it.weight = 0;
     it.stackable = false;
     it.buy_value = 1200;
     it.sell_value = 400;
     it.modifiers.willpower = -1;  // -1 WIL while equipped
+    it.required_implant_slot = ImplantSlotRequirement::Spine;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Relay Cortex variants — head implants that gate jack-in to the Grid
+// ---------------------------------------------------------------------------
+
+Item build_relay_cortex_mk1() {
+    Item it;
+    it.item_def_id           = ITEM_RELAY_CORTEX_MK1;
+    it.id                    = 9201;
+    it.name                  = "Relay Cortex Mk I";
+    it.type                  = ItemType::RelayCortex;
+    it.required_implant_slot = ImplantSlotRequirement::Head;
+    it.rarity                = Rarity::Common;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 1000;
+    it.sell_value            = 300;
+    it.description =
+        "Entry-level neural interface. Lets you jack into the Relay Network. "
+        "Stats: none — pure gate.";
+    return it;
+}
+
+Item build_spike_cortex() {
+    Item it;
+    it.item_def_id           = ITEM_SPIKE_CORTEX;
+    it.id                    = 9202;
+    it.name                  = "Spike Cortex";
+    it.type                  = ItemType::RelayCortex;
+    it.required_implant_slot = ImplantSlotRequirement::Head;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 3500;
+    it.sell_value            = 1000;
+    it.description =
+        "Tuned for offensive net-running. Channels more deck RAM and absorbs more heat. "
+        "Stats: +2 RAM cap, +1 Heat cap (planned).";
+    // TODO(implants): wire ram_cap_bonus +2 when StatModifiers is extended
+    // TODO(implants): wire heat_capacity_bonus +1 when StatModifiers is extended
+    return it;
+}
+
+Item build_glacier_cortex() {
+    Item it;
+    it.item_def_id           = ITEM_GLACIER_CORTEX;
+    it.id                    = 9203;
+    it.name                  = "Glacier Cortex";
+    it.type                  = ItemType::RelayCortex;
+    it.required_implant_slot = ImplantSlotRequirement::Head;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 3500;
+    it.sell_value            = 1000;
+    it.description =
+        "Sustained-run tuning. Higher heat capacity and faster passive dissipation. "
+        "Stats: +2 Heat cap, +1 Heat dissipation/tick (planned).";
+    // TODO(implants): wire heat_capacity_bonus +2 when StatModifiers is extended
+    // TODO(implants): wire heat_dissipation_per_tick +1 when StatModifiers is extended
+    return it;
+}
+
+Item build_sentinel_cortex() {
+    Item it;
+    it.item_def_id           = ITEM_SENTINEL_CORTEX;
+    it.id                    = 9204;
+    it.name                  = "Sentinel Cortex";
+    it.type                  = ItemType::RelayCortex;
+    it.required_implant_slot = ImplantSlotRequirement::Head;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 3500;
+    it.sell_value            = 1000;
+    it.description =
+        "Defensive interface. Hardened against trace and Black ICE shock. "
+        "Stats: +25% Trace resistance, -50% Black ICE Shock duration (planned).";
+    // TODO(implants): wire trace_resistance +25% when StatModifiers is extended
+    // TODO(implants): wire blackice_shock_duration_modifier -50% when StatModifiers is extended
+    return it;
+}
+
+Item build_acuity_cortex() {
+    Item it;
+    it.item_def_id           = ITEM_ACUITY_CORTEX;
+    it.id                    = 9205;
+    it.name                  = "Acuity Cortex";
+    it.type                  = ItemType::RelayCortex;
+    it.required_implant_slot = ImplantSlotRequirement::Head;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 3500;
+    it.sell_value            = 1000;
+    it.description =
+        "Cognitive amplifier with light Relay tooling. For specialists who jack in only when safe. "
+        "Stats: +2 INT, +10% Trace resistance (planned).";
+    // TODO(implants): wire intelligence +2 when StatModifiers gains intelligence field
+    // TODO(implants): wire trace_resistance +10% when StatModifiers is extended
+    return it;
+}
+
+Item build_stoic_cortex() {
+    Item it;
+    it.item_def_id           = ITEM_STOIC_CORTEX;
+    it.id                    = 9206;
+    it.name                  = "Stoic Cortex";
+    it.type                  = ItemType::RelayCortex;
+    it.required_implant_slot = ImplantSlotRequirement::Head;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 3500;
+    it.sell_value            = 1000;
+    it.description =
+        "Mental hardener that bolsters resilience against intrusion. "
+        "Stats: +2 WIL; Black ICE Shock immunity (planned).";
+    it.modifiers.willpower   = 2;  // +2 WIL while equipped
+    // TODO(implants): wire blackice_shock_immunity when StatModifiers is extended
     return it;
 }
 

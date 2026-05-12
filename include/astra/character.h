@@ -11,7 +11,8 @@ namespace astra {
 
 // Forward-declared so ClassTemplate can carry starting equipment without
 // dragging the full item.h dependency stack into character.h.
-enum class EquipSlot : uint8_t;
+enum class EquipSlot   : uint8_t;
+enum class ImplantSlot : uint8_t;
 
 enum class PlayerClass : uint8_t {
     DevCommander, // developer mode only — all-rounder for testing
@@ -60,14 +61,16 @@ const char* reputation_tier_name(ReputationTier tier);
 int reputation_price_pct(int reputation);  // buy modifier: +30/+15/0/-10/-20
 
 // One pre-rolled starting item. If `equip_to` is set, the item is built and
-// placed into that equipment slot directly; otherwise it is pushed into the
-// player's inventory. `count` >1 stacks the item (caller must ensure the
+// placed into that equipment slot directly. If `install_to` is set, the item
+// is installed into that implant slot directly. Otherwise it is pushed into
+// the player's inventory. `count` >1 stacks the item (caller must ensure the
 // item def is stackable — non-stackable items at count >1 will be silently
-// clamped to 1).
+// clamped to 1). Only one of `equip_to` / `install_to` should be set.
 struct StartingItem {
-    int                       def_id;
-    int                       count = 1;
-    std::optional<EquipSlot>  equip_to;  // unset → goes into inventory
+    int                         def_id;
+    int                         count = 1;
+    std::optional<EquipSlot>    equip_to;   // unset → inventory (or install_to)
+    std::optional<ImplantSlot>  install_to; // set → implant slot; takes priority over equip_to
 };
 
 // Class template — defines starting stats and gear for each PlayerClass

@@ -1341,6 +1341,28 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_SYNTH_COMBAT_GAUNTLET:   return {'}', nullptr, Color::Red, Color::Default};
         case ITEM_SYNTH_ARMORED_BLADE:     return {'/', nullptr, Color::Red, Color::Default};
 
+        // Cyberdecks (300-301) — bisected square reads as a deck/slot module.
+        case ITEM_PIDGIN_MK1:              return {'#', "\xe2\x97\xab", Color::Cyan, Color::Default}; // ◫ T1
+        case ITEM_POLYGLOT_DCK2:           return {'#', "\xe2\x97\xab", Color::Green, Color::Default}; // ◫ T2
+
+        // Implants (400-406) — body-slot-distinct glyphs, all Cyan to mark
+        // them as Relay-Network bio-tech kin to the Cyberdeck family.
+        // Slot→glyph table for future implants (copy the encoded sequence):
+        //   Head:  ⅏  "\xe2\x85\x8f"
+        //   Eyes:  ⚯  "\xe2\x9a\xaf"
+        //   Spine: ┋  "\xe2\x94\x8b"
+        //   Chest: ♧  "\xe2\x99\xa7"
+        //   Hand:  ╬  "\xe2\x95\xac"
+        //   Arm:   ╼  "\xe2\x95\xbc"
+        //   Leg:   ╿  "\xe2\x95\xbf"
+        case ITEM_NEURAL_BACKUP:           return {'|', "\xe2\x94\x8b", Color::Cyan, Color::Default}; // ┋ spine
+        case ITEM_RELAY_CORTEX_MK1:        return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
+        case ITEM_SPIKE_CORTEX:            return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
+        case ITEM_GLACIER_CORTEX:          return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
+        case ITEM_SENTINEL_CORTEX:         return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
+        case ITEM_ACUITY_CORTEX:           return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
+        case ITEM_STOIC_CORTEX:            return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
+
         default: return {'?', nullptr, Color::Magenta, Color::Default};
     }
 }

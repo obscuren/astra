@@ -74,7 +74,7 @@ enum class SkillId : uint32_t {
     AdvancedFireMaking  = 1100,
 
     // Hacking
-    Cat_Hacking         = 12,    // gate for jacking into the Grid
+    Cat_Hacking         = 12,    // parent category for hacking sub-skills
     Intrusion           = 1200,  // White ICE LoS ticks Trace +1 not +2
     IceBreaking         = 1201,  // icebreaker_lite +1 dmg
     DaemonMastery       = 1202,  // +1 cyberdeck program slot

@@ -37,14 +37,16 @@ namespace astra {
 namespace {
 
 // Apply a class template's starting_items to a player. Items with
-// `equip_to` set go into that equipment slot (clobbering anything already
-// there); the rest go into the inventory. Stack counts apply to stackable
-// item defs.
+// `install_to` set go into that implant slot; items with `equip_to` set go
+// into that equipment slot (clobbering anything already there); the rest go
+// into the inventory. Stack counts apply to stackable item defs.
 void apply_starting_items(Player& player, const ClassTemplate& tmpl) {
     for (const auto& si : tmpl.starting_items) {
         Item it = build_by_def_id(static_cast<uint16_t>(si.def_id));
         if (si.count > 1 && it.stackable) it.stack_count = si.count;
-        if (si.equip_to) {
+        if (si.install_to) {
+            player.implant_at(*si.install_to) = std::move(it);
+        } else if (si.equip_to) {
             player.equipment.slot_ref(*si.equip_to) = std::move(it);
         } else {
             player.inventory.items.push_back(std::move(it));
@@ -1063,7 +1065,8 @@ void Game::new_game() {
         apply_skill_side_effects(*this, SkillId::ConsciousnessAnchor);
 
         player_.equipment.utility1 = build_by_def_id(ITEM_POLYGLOT_DCK2);
-        player_.implants[0]        = build_by_def_id(ITEM_NEURAL_BACKUP);
+        player_.implant_at(ImplantSlot::Head)  = build_by_def_id(ITEM_RELAY_CORTEX_MK1);
+        player_.implant_at(ImplantSlot::Spine) = build_by_def_id(ITEM_NEURAL_BACKUP);
 
         const uint16_t hack_programs[] = {
             ITEM_PROG_ICEBREAKER_LITE,

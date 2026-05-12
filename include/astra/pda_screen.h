@@ -23,8 +23,12 @@ class Game;
 // EquipSlot it represents. Defined in pda_equipment_tab.cpp; the layout
 // order does not match the EquipSlot enum's declaration order, so this
 // lookup is the only safe way to translate.
-EquipSlot paperdoll_slot_at_cursor(int cursor);
-int       paperdoll_slot_count();
+EquipSlot    paperdoll_slot_at_cursor(int cursor);
+int          paperdoll_slot_count();
+
+// Implant paper-doll: map cursor index to ImplantSlot (anatomical layout).
+ImplantSlot  implant_paperdoll_slot_at_cursor(int cursor);
+int          implant_paperdoll_slot_count();
 
 enum class PdaTab : uint8_t {
     Skills,

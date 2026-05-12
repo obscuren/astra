@@ -435,8 +435,8 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         game.log("Already jacked in.");
         return false;
     }
-    if (!player_has_skill(game.player(), SkillId::Cat_Hacking)) {
-        game.log("You lack the Hacking skill category.");
+    if (!game.player().has_implant_of_type(ItemType::RelayCortex)) {
+        game.log("You have no neural interface. Install a " + colored("Relay Cortex", Color::Cyan) + ".");
         return false;
     }
     // Post-Grid-death shock locks the player out until the GE expires.
@@ -447,11 +447,9 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
         return false;
     }
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        game.log("No cyberdeck equipped.");
-        return false;
-    }
-    const auto& cd = *(*deck_slot)->deck;
+    const CyberdeckData* cd_ptr = (deck_slot && *deck_slot && (*deck_slot)->deck)
+                                    ? &(*(*deck_slot)->deck)
+                                    : nullptr;
     auto& net = game.world().grid_network();
     auto* node = net.find(entry_node);
     if (!node) {
@@ -494,8 +492,8 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     s.avatar_hp_max = 3 + (nf ? 1 : 0);
     s.avatar_hp     = s.avatar_hp_max;
 
-    s.ram_max = cd.stats.ram_max;
-    s.ram     = cd.ram_current;
+    s.ram_max = cd_ptr ? cd_ptr->stats.ram_max : 0;
+    s.ram     = cd_ptr ? cd_ptr->ram_current   : 0;
 
     // Tier-driven Trace tick
     switch (node->kind) {

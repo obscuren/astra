@@ -295,16 +295,45 @@ bool PdaScreen::handle_input(int key) {
             return true;
         }
         if (equipment_tab_view_ == EquipmentTabView::Implants) {
-            // Implant view: same shape as Equipment view, just a smaller
-            // paper-doll. Up/Down between implant slots, Right crosses to
-            // the inventory pane, Left crosses back, Space opens context.
+            // Implant view: 10-slot anatomical paperdoll.
+            // Up/Down steps through slots in reading order; Right crosses
+            // to the inventory pane; Left crosses back; Space opens context.
             if (equip_focus_ == EquipFocus::PaperDoll) {
-                if (key == KEY_UP && equip_cursor_ > 0) --equip_cursor_;
-                if (key == KEY_DOWN && equip_cursor_ < Player::IMPLANT_SLOTS - 1)
-                    ++equip_cursor_;
-                if (key == KEY_RIGHT) {
-                    equip_focus_ = EquipFocus::Inventory;
-                    inv_cursor_  = 0;
+                // Full 2D navigation for the 10-slot implant paperdoll.
+                // Layout:  0=L.Hnd  1=Eyes  2=Head  3=R.Hnd
+                //          4=L.Arm          5=Spine         6=R.Arm
+                //                           7=Chest
+                //                    8=L.Leg      9=R.Leg
+                // Directions: 0=Up, 1=Down, 2=Left, 3=Right  (-1 = no move)
+                static constexpr int kImplantNav[10][4] = {
+                    // Up   Down  Left  Right
+                    {  -1,    4,   -1,    1 },  // 0 L.Hnd
+                    {  -1,    5,    0,    2 },  // 1 Eyes
+                    {  -1,    5,    1,    3 },  // 2 Head
+                    {  -1,    6,    2,   -1 },  // 3 R.Hnd
+                    {   0,    7,   -1,    5 },  // 4 L.Arm
+                    {   2,    7,    4,    6 },  // 5 Spine
+                    {   3,    7,    5,   -1 },  // 6 R.Arm
+                    {   5,    8,   -1,   -1 },  // 7 Chest
+                    {   7,   -1,   -1,    9 },  // 8 L.Leg
+                    {   7,   -1,    8,   -1 },  // 9 R.Leg
+                };
+                int dir = -1;
+                if (key == KEY_UP)    dir = 0;
+                else if (key == KEY_DOWN)  dir = 1;
+                else if (key == KEY_LEFT)  dir = 2;
+                else if (key == KEY_RIGHT) dir = 3;
+                if (dir >= 0 && equip_cursor_ >= 0 && equip_cursor_ < 10) {
+                    int next = kImplantNav[equip_cursor_][dir];
+                    if (next >= 0) {
+                        equip_cursor_ = next;
+                    } else if (key == KEY_RIGHT) {
+                        // Right edge slots (3=R.Hnd, 6=R.Arm, 9=R.Leg) cross to inventory.
+                        if (equip_cursor_ == 3 || equip_cursor_ == 6 || equip_cursor_ == 9) {
+                            equip_focus_ = EquipFocus::Inventory;
+                            inv_cursor_  = 0;
+                        }
+                    }
                 }
             } else {
                 int count = static_cast<int>(player_->inventory.items.size());
@@ -898,8 +927,9 @@ void PdaScreen::open_context_menu() {
         if (active_tab_ == PdaTab::Equipment &&
             equipment_tab_view_ == EquipmentTabView::Implants) {
             if (equip_cursor_ < 0 ||
-                equip_cursor_ >= static_cast<int>(player_->implants.size())) return;
-            const auto& implant = player_->implants[equip_cursor_];
+                equip_cursor_ >= implant_paperdoll_slot_count()) return;
+            const auto& implant = player_->implant_at(
+                implant_paperdoll_slot_at_cursor(equip_cursor_));
             if (!implant) return;
             context_menu_.add_option('l', "look");
             context_menu_.add_option('r', "remove");
@@ -931,7 +961,7 @@ void PdaScreen::open_context_menu() {
         if (inv_cursor_ < 0 || inv_cursor_ >= static_cast<int>(player_->inventory.items.size())) return;
         const auto& item = player_->inventory.items[inv_cursor_];
         context_menu_.add_option('l', "look");
-        if (item.type == ItemType::Implant) {
+        if (item.type == ItemType::Implant || item.type == ItemType::RelayCortex) {
             context_menu_.add_option('e', "install implant");
         } else if (item.slot.has_value()) {
             if (item.type == ItemType::MeleeWeapon) {
@@ -1010,12 +1040,13 @@ void PdaScreen::execute_context_action(char key) {
         return;
     }
     if (equip_focus_ == EquipFocus::PaperDoll) {
-        // Implant paper-doll routes to player_->implants[] instead.
+        // Implant paper-doll routes to player_->implant_at() instead.
         if (active_tab_ == PdaTab::Equipment &&
             equipment_tab_view_ == EquipmentTabView::Implants) {
             if (equip_cursor_ < 0 ||
-                equip_cursor_ >= static_cast<int>(player_->implants.size())) return;
-            auto& implant = player_->implants[equip_cursor_];
+                equip_cursor_ >= implant_paperdoll_slot_count()) return;
+            auto& implant = player_->implant_at(
+                implant_paperdoll_slot_at_cursor(equip_cursor_));
             if (!implant) return;
             if (key == 'l') {
                 look_item_ = &(*implant);
@@ -1102,25 +1133,67 @@ void PdaScreen::execute_context_action(char key) {
             look_open_ = true;
         } else if (key == 'e' || key == 'q') {
             auto& item = items[inv_cursor_];
-            if (item.type == ItemType::Implant) {
-                // Implants go into player_.implants[], not EquipSlot slots.
-                bool installed = false;
-                for (size_t i = 0; i < player_->implants.size(); ++i) {
-                    if (!player_->implants[i]) {
-                        Item to_install = std::move(item);
-                        items.erase(items.begin() + inv_cursor_);
-                        context_message_ = "Installed " + to_install.name +
-                                           " in implant slot " + std::to_string(i + 1) + ".";
-                        context_msg_timer_ = 3;
-                        player_->implants[i] = std::move(to_install);
-                        installed = true;
-                        break;
-                    }
-                }
-                if (!installed) {
-                    context_message_ = "All implant slots are occupied.";
+            if (item.type == ItemType::Implant || item.type == ItemType::RelayCortex) {
+                // Route by required_implant_slot — not blindly first-empty.
+                auto req = item.required_implant_slot;
+
+                auto try_install = [&](ImplantSlot s) -> bool {
+                    if (player_->has_implant(s)) return false;
+                    Item to_install = std::move(item);
+                    items.erase(items.begin() + inv_cursor_);
+                    context_message_ = "Installed " + to_install.name +
+                                       " (" + implant_slot_name(s) + ").";
                     context_msg_timer_ = 3;
+                    player_->implant_at(s) = std::move(to_install);
+                    return true;
+                };
+
+                switch (req) {
+                    case ImplantSlotRequirement::Eyes:
+                        if (!try_install(ImplantSlot::Eyes)) {
+                            context_message_ = "Eyes slot occupied.";
+                            context_msg_timer_ = 3;
+                        }
+                        break;
+                    case ImplantSlotRequirement::Head:
+                        if (!try_install(ImplantSlot::Head)) {
+                            context_message_ = "Head slot occupied.";
+                            context_msg_timer_ = 3;
+                        }
+                        break;
+                    case ImplantSlotRequirement::Spine:
+                        if (!try_install(ImplantSlot::Spine)) {
+                            context_message_ = "Spine slot occupied.";
+                            context_msg_timer_ = 3;
+                        }
+                        break;
+                    case ImplantSlotRequirement::Chest:
+                        if (!try_install(ImplantSlot::Chest)) {
+                            context_message_ = "Chest slot occupied.";
+                            context_msg_timer_ = 3;
+                        }
+                        break;
+                    case ImplantSlotRequirement::AnyHand:
+                        if (try_install(ImplantSlot::LeftHand))       {}
+                        else if (try_install(ImplantSlot::RightHand)) {}
+                        else { context_message_ = "Both hand slots occupied."; context_msg_timer_ = 3; }
+                        break;
+                    case ImplantSlotRequirement::AnyArm:
+                        if (try_install(ImplantSlot::LeftArm))        {}
+                        else if (try_install(ImplantSlot::RightArm))  {}
+                        else { context_message_ = "Both arm slots occupied.";  context_msg_timer_ = 3; }
+                        break;
+                    case ImplantSlotRequirement::AnyLeg:
+                        if (try_install(ImplantSlot::LeftLeg))        {}
+                        else if (try_install(ImplantSlot::RightLeg))  {}
+                        else { context_message_ = "Both leg slots occupied.";  context_msg_timer_ = 3; }
+                        break;
+                    case ImplantSlotRequirement::None:
+                        context_message_ = "This item has no implant slot.";
+                        context_msg_timer_ = 3;
+                        break;
                 }
+
                 if (inv_cursor_ >= static_cast<int>(items.size()) && inv_cursor_ > 0)
                     --inv_cursor_;
             } else if (item.slot) {
@@ -1241,9 +1314,17 @@ void PdaScreen::draw_context_menu(int screen_w, int screen_h) {
             inv_cursor_ >= 0 && inv_cursor_ < static_cast<int>(player_->inventory.items.size())) {
             ctx_item = &player_->inventory.items[inv_cursor_];
         } else if (equip_focus_ == EquipFocus::PaperDoll) {
-            auto slot = paperdoll_slot_at_cursor(equip_cursor_);
-            const auto& equipped = player_->equipment.slot_ref(slot);
-            if (equipped) ctx_item = &(*equipped);
+            if (equipment_tab_view_ == EquipmentTabView::Implants) {
+                if (equip_cursor_ >= 0 && equip_cursor_ < implant_paperdoll_slot_count()) {
+                    const auto& imp = player_->implant_at(
+                        implant_paperdoll_slot_at_cursor(equip_cursor_));
+                    if (imp) ctx_item = &(*imp);
+                }
+            } else {
+                auto slot = paperdoll_slot_at_cursor(equip_cursor_);
+                const auto& equipped = player_->equipment.slot_ref(slot);
+                if (equipped) ctx_item = &(*equipped);
+            }
         }
     } else if (player_ && active_tab_ == PdaTab::Ship) {
         if (ship_focus_ == ShipFocus::Inventory &&
