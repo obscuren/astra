@@ -113,18 +113,26 @@ WindowRect compute_window_rect(int screen_w, int screen_h) {
     return {x, y, w, h};
 }
 
-PlayfieldRect compute_playfield_rect(const WindowRect& wr) {
-    return { wr.x + 1,
-             wr.y + 5,
-             wr.w - 2 - kLogPaneW - 1,
-             wr.h - 5 - 3 };
+// Chrome height grows by 1 when the netspace declares a subtitle line (a
+// quote / flavour tag rendered below the title). All downstream rows
+// (separator, deck strip, playfield, log pane, column split) shift down
+// by `subtitle_rows` so the playfield contracts by that much.
+int subtitle_rows_for(const Netspace& ns) {
+    return ns.title_subtitle.empty() ? 0 : 1;
 }
 
-LogPaneRect compute_log_pane_rect(const WindowRect& wr) {
+PlayfieldRect compute_playfield_rect(const WindowRect& wr, int subtitle_rows) {
+    return { wr.x + 1,
+             wr.y + 5 + subtitle_rows,
+             wr.w - 2 - kLogPaneW - 1,
+             wr.h - 5 - subtitle_rows - 3 };
+}
+
+LogPaneRect compute_log_pane_rect(const WindowRect& wr, int subtitle_rows) {
     return { wr.x + wr.w - 1 - kLogPaneW,
-             wr.y + 5,
+             wr.y + 5 + subtitle_rows,
              kLogPaneW,
-             wr.h - 5 - 3 };
+             wr.h - 5 - subtitle_rows - 3 };
 }
 
 // ---------------------------------------------------------------------------
@@ -165,13 +173,13 @@ void draw_horizontal_separator(Renderer& r, const WindowRect& wr, int y_in_windo
     }
 }
 
-void draw_column_split(Renderer& r, const WindowRect& wr) {
+void draw_column_split(Renderer& r, const WindowRect& wr, int subtitle_rows) {
     int x = wr.x + wr.w - 1 - kLogPaneW - 1;
-    for (int j = wr.y + 5; j < wr.y + wr.h - 3; ++j) {
+    for (int j = wr.y + 5 + subtitle_rows; j < wr.y + wr.h - 3; ++j) {
         r.draw_glyph(x, j, "\xe2\x95\x91", kChrome);
     }
-    r.draw_glyph(x, wr.y + 4,           "\xe2\x95\xa6", kChrome); // ╦
-    r.draw_glyph(x, wr.y + wr.h - 3,    "\xe2\x95\xa9", kChrome); // ╩
+    r.draw_glyph(x, wr.y + 4 + subtitle_rows, "\xe2\x95\xa6", kChrome); // ╦
+    r.draw_glyph(x, wr.y + wr.h - 3,          "\xe2\x95\xa9", kChrome); // ╩
 }
 
 // ---------------------------------------------------------------------------
@@ -276,6 +284,16 @@ std::string short_host_label(const std::string& hostname) {
 // Top status row
 // ---------------------------------------------------------------------------
 
+// Tier badge color follows the design doc's threat-tier palette: 1 reads
+// as a routine civic lock (cyan), 2 as corp-tier (yellow), 3 as military /
+// dangerous (red), 4+ as bossfight / blackwall-adjacent (bright magenta).
+Color tier_badge_color(int tier) {
+    if (tier <= 1) return Color::Cyan;
+    if (tier == 2) return Color::Yellow;
+    if (tier == 3) return Color::Red;
+    return Color::BrightMagenta;
+}
+
 void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
                      const NetSession& s) {
     const int y = wr.y + 1;
@@ -311,10 +329,40 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
         draw_colored_string(r, x, y, ip_str, Color::Cyan);
     }
 
-    // Trace gauge — right-justified within the top status row.
-    // Layout: "TRACE " (6) + 5-seg bar + " NNN%" (5) = 16 cells; reserve a
-    // 1-cell margin to clear the right border. Anchor at wr.w - 17.
-    const int trace_label_x = wr.x + wr.w - 17;
+    // Right-side cluster grows from the right edge inward:
+    //   [ ... TRACE gauge ... ][ TIME: N meatworld ][ TIER N ]
+    // ‖ <- right border at wr.x + wr.w - 1; reserve 1 cell margin.
+    int right_edge = wr.x + wr.w - 2;   // last writable column
+
+    // Tier badge — always present.
+    std::string tier_label = "TIER " + std::to_string(s.netspace.target.tier);
+    int tier_w = visual_width(tier_label);
+    int tier_x = right_edge - tier_w + 1;
+    draw_colored_string(r, tier_x, y, tier_label,
+                        tier_badge_color(s.netspace.target.tier));
+
+    int cluster_left = tier_x;
+
+    // Time-dilation badge — only on title row when there's no subtitle row
+    // to host it. With a subtitle, draw_subtitle_row places it there.
+    const bool has_subtitle = !s.netspace.title_subtitle.empty();
+    if (s.netspace.time_dilation > 1 && !has_subtitle) {
+        std::string time_label = "TIME: "
+                               + std::to_string(s.netspace.time_dilation)
+                               + " meatworld";
+        int time_w = visual_width(time_label);
+        int time_x = cluster_left - 2 - time_w;
+        if (time_x > x + 1) {
+            draw_colored_string(r, time_x, y, time_label, Color::DarkGray);
+            cluster_left = time_x;
+        }
+    }
+
+    // Trace gauge — right-justified to the left of the badge cluster.
+    // Layout: "TRACE " (6) + 5-seg bar + " NNN%" (5) = 16 cells; keep
+    // 2 cells of spacing between the gauge and whatever sits to its right.
+    constexpr int kTraceW = 16;
+    const int trace_label_x = cluster_left - 2 - kTraceW;
     if (trace_label_x > x + 1) {
         draw_colored_string(r, trace_label_x, y, "TRACE ", Color::Cyan);
         int filled = s.trace * 5 / 100;
@@ -326,13 +374,39 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
     }
 }
 
+// Subtitle / second chrome row — flavour quote on the left, optional
+// time-dilation indicator on the right. Called only when the netspace
+// declares a non-empty title_subtitle (subtitle_rows_for() == 1).
+void draw_subtitle_row(Renderer& r, const WindowRect& wr,
+                       const NetSession& s) {
+    const int y = wr.y + 2;
+    const int x = wr.x + 2;
+    if (!s.netspace.title_subtitle.empty()) {
+        draw_colored_string(r, x, y, s.netspace.title_subtitle, Color::DarkGray);
+    }
+
+    // Time-dilation badge mirrors the title-row TIER position: anchored
+    // at the right edge with 1 cell of margin. Only drawn when active.
+    if (s.netspace.time_dilation > 1) {
+        std::string time_label = "TIME: "
+                               + std::to_string(s.netspace.time_dilation)
+                               + " meatworld";
+        int time_w = visual_width(time_label);
+        int time_x = wr.x + wr.w - 2 - time_w + 1;
+        int subtitle_end = x + visual_width(s.netspace.title_subtitle);
+        if (time_x > subtitle_end + 1) {
+            draw_colored_string(r, time_x, y, time_label, Color::DarkGray);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Deck strip
 // ---------------------------------------------------------------------------
 
 void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
-                     const NetSession& s) {
-    const int y = wr.y + 3;
+                     const NetSession& s, int subtitle_rows) {
+    const int y = wr.y + 3 + subtitle_rows;
     int x = wr.x + 2;
 
     // One block per unit: bar width = attribute max. HP 4/4 = 4 blocks,
@@ -941,23 +1015,27 @@ void render(Game& game, Renderer& r) {
     int sw = r.get_width();
     int sh = r.get_height();
     WindowRect    wr = compute_window_rect(sw, sh);
-    PlayfieldRect pr = compute_playfield_rect(wr);
-    LogPaneRect   lr = compute_log_pane_rect(wr);
+    const int     sub_rows = subtitle_rows_for(sess->netspace);
+    PlayfieldRect pr = compute_playfield_rect(wr, sub_rows);
+    LogPaneRect   lr = compute_log_pane_rect(wr, sub_rows);
 
     // Make the window opaque first so the monochrome world UI behind
     // doesn't bleed through into the Tron HUD.
     clear_window_interior(r, wr);
 
-    // Chrome — outer border + horizontal separators + column split.
+    // Chrome — outer border + horizontal separators + column split. With
+    // a subtitle row inserted at row 2, every downstream row shifts down
+    // by sub_rows; without one, the layout is unchanged.
     draw_window_chrome(r, wr);
-    draw_horizontal_separator(r, wr, 2);              // below top status (row 1)
-    draw_horizontal_separator(r, wr, 4);              // below deck strip (row 3)
-    draw_horizontal_separator(r, wr, wr.h - 3);       // above program bar
-    draw_column_split(r, wr);
+    draw_horizontal_separator(r, wr, 2 + sub_rows);       // below title (+ subtitle)
+    draw_horizontal_separator(r, wr, 4 + sub_rows);       // below deck strip
+    draw_horizontal_separator(r, wr, wr.h - 3);           // above program bar
+    draw_column_split(r, wr, sub_rows);
 
     // Populated layout slots.
     draw_top_status(game, r, wr, *sess);
-    draw_deck_strip(game, r, wr, *sess);
+    if (sub_rows > 0) draw_subtitle_row(r, wr, *sess);
+    draw_deck_strip(game, r, wr, *sess, sub_rows);
 
     draw_playfield(game, r, pr, *sess);
     draw_log_pane(r, lr, *sess);
