@@ -40,6 +40,10 @@ Key virtual keycodes (`KEY_UP`, `KEY_DOWN`, etc.) are defined in `renderer.h` so
 - Update `docs/design/roadmap.md` and check off boxes as we implement features.
 - All game mechanics and formulas go in `docs/design/mechanics.md` and must be updated.
 - All item stats (weapons, armor, cells, mods, etc.) go in `docs/design/items.md` and must be updated when items change.
+- **Player wiki must stay in sync with gameplay changes.** The wiki at `github.com/obscuren/astra/wiki` is the player-facing reference (separate from `docs/` which is dev-facing). When you add/change anything that affects players, also update the wiki:
+  - **Catalog pages** (`Items-*`, `Skills`, `Programs`) regenerate from source — run `python3 tools/wiki/generate.py --repo $(pwd) --out /tmp/astra.wiki` after cloning the wiki to `/tmp/astra.wiki`. No manual edits to these.
+  - **Manual pages** (mechanics guides, hacking, combat, lore, classes, controls, FAQ, etc.) need hand-written updates. List of all manual pages is in `_Sidebar.md` on the wiki. Touch only the pages affected by the change.
+  - Wiki commits are authored by the user (Jeffrey Wilcke); **never add `Co-Authored-By:` trailers or any AI references** to wiki commits or page content.
 
 ## Rules
 
