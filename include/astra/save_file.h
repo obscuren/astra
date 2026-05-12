@@ -29,7 +29,7 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 76;   // v76: Phase C implant runtime state
+inline constexpr uint32_t SAVE_FILE_VERSION = 77;   // v77: netspace Phase 0 — GridNetwork / GridSector / Imprint surfaces retired
                                                     // v75: Player::last_action_was_attack serialized
                                                     // v74: StatModifiers gains intelligence + cortex bonus fields
                                                     // v71: program fragment system — replace ProgramRecipe with fragment+pattern
