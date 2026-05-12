@@ -174,6 +174,11 @@ public:
     // serialized; closing the shell or saving wipes it. -1 = not wired.
     int is_jacked_into = -1;
 
+    // Set true when the player's most recent action was an attack (melee, ranged,
+    // or program fire). Set false on any non-attack action (move, wait, interact,
+    // pick up, etc.). Drives the quickness_when_idle implant bonus.
+    bool last_action_was_attack = false;
+
     // Cached skill flags (non-serialized; rebuilt after load and on skill grant).
     // Plan 8 — ImplantReader: gates NPC implant info in the look widget.
     bool skill_implant_reader = false;
@@ -201,6 +206,14 @@ public:
             total.blackice_shock_duration_pct += slot->modifiers.blackice_shock_duration_pct;
             total.blackice_shock_immunity     = total.blackice_shock_immunity
                                               || slot->modifiers.blackice_shock_immunity;
+            total.view_radius_dark_bonus      += slot->modifiers.view_radius_dark_bonus;
+            total.detect_cloaked               = total.detect_cloaked  || slot->modifiers.detect_cloaked;
+            total.pistol_agility_bonus        += slot->modifiers.pistol_agility_bonus;
+            total.pistol_hit_bonus_pct        += slot->modifiers.pistol_hit_bonus_pct;
+            total.strength_bonus              += slot->modifiers.strength_bonus;
+            total.quickness_when_idle         += slot->modifiers.quickness_when_idle;
+            total.knockback_immune             = total.knockback_immune || slot->modifiers.knockback_immune;
+            total.slip_immune                  = total.slip_immune     || slot->modifiers.slip_immune;
         }
         // Clamp trace resistance so stacking can't go beyond 100%.
         if (total.trace_resistance_pct > 100) total.trace_resistance_pct = 100;
@@ -245,6 +258,13 @@ public:
         return max_hp + (attributes.toughness - 10) * 2 + eq.max_hp + ef.max_hp + im.max_hp;
     }
 
+    // Strength with implant modifiers applied (no equipment strength field exists).
+    // Used for carry-weight cap and melee/ranged penetration rolls.
+    int effective_strength() const {
+        auto im = implant_modifiers();
+        return attributes.strength + im.strength_bonus;
+    }
+
     // Willpower with equipment + implant modifiers applied.
     int effective_willpower() const {
         auto eq = equipment.total_modifiers();
@@ -268,6 +288,7 @@ public:
         auto ef = effect_modifiers(effects);
         auto im = implant_modifiers();
         int q = quickness + eq.quickness + ef.quickness + im.quickness;
+        if (!last_action_was_attack) q += im.quickness_when_idle;
         return std::max(1, q);
     }
 };

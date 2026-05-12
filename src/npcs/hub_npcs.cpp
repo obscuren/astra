@@ -277,7 +277,13 @@ Npc build_arms_dealer(Race race, std::mt19937& rng, int faction_rep) {
         { StockManifestEntry::Mode::Always, ITEM_AI_MODULE,    Category::AccessoryMod, 2, 50 },
 
         // Relay Cortex Mk I — entry-level jack-in implant (Task 10)
-        { StockManifestEntry::Mode::Always, ITEM_RELAY_CORTEX_MK1, Category::Implant,  1 },
+        { StockManifestEntry::Mode::Always, ITEM_RELAY_CORTEX_MK1,   Category::Implant, 1 },
+        // Phase A content-pack implants — 5 Common slot implants always in stock
+        { StockManifestEntry::Mode::Always, ITEM_STANDARD_OPTICS,    Category::Implant, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_STANDARD_PLATE,     Category::Implant, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_SERVO_GRIP,         Category::Implant, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_PLATED_SLEEVE,      Category::Implant, 1 },
+        { StockManifestEntry::Mode::Always, ITEM_REFLEX_SPRINGS,     Category::Implant, 1 },
     };
 
     npc.interactions.shop = ShopTrait{

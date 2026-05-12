@@ -585,6 +585,7 @@ void Game::handle_play_input(int key) {
             break;
         case '.':
             log("You wait...");
+            player_.last_action_was_attack = false;
             advance_world(ActionCost::wait);
             recompute_fov();
             break;
@@ -719,6 +720,7 @@ void Game::handle_play_input(int key) {
                 int turns = 0;
                 bool interrupted = false;
                 auto do_wait = [&](int n) {
+                    player_.last_action_was_attack = false;
                     for (int i = 0; i < n; ++i) {
                         advance_world(ActionCost::wait);
                         ++turns;

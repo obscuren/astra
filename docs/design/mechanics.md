@@ -1087,6 +1087,17 @@ The schema fields exist for every save; gating is at the *write* side. A
 non-hacker without `ConsciousnessAnchor` simply never has `deep_grid_base`
 populated — the field stays `nullopt`.
 
+### Implant Effect Hooks
+
+Phase A implants (Eyes / Chest / Hand / Arm / Leg) expose several mechanical surfaces that feed into the core combat and movement calculations. All fields are aggregated by `Player::rebuild_derived_stats()` across all equipped implant slots.
+
+- **Pistol hit-roll modifiers.** `pistol_agility_bonus` (Targeting Lattice) is added to the player's effective AGI before the pistol hit roll — it does not touch the stat itself, only the hit calculation for pistol weapons. `pistol_hit_bonus_pct` (Pistol Targeter) adds a flat percentage to the final pistol hit chance after the roll; two Pistol Targeters installed in both hand slots each contribute, so the bonus stacks additively.
+- **Effective strength.** `Player::effective_strength()` sums base STR with `strength_bonus` from all implants (Reinforced Servos). The effective value feeds melee penetration and carry-weight cap; base STR for other stat uses (e.g. dialog checks) is unchanged.
+- **Idle quickness.** `quickness_when_idle` (Sprint Coils) activates only on turns where `Player::last_action_was_attack` is `false`. The flag is set to `true` at melee, ranged, and program-attack resolution; it is cleared to `false` at move, wait, pickup, and interact actions.
+- **View radius in dark.** `view_radius_dark_bonus` (Standard Optics contributes to general view; Heat-Spectrum Visor adds its bonus when the map is a dungeon — non-overworld, non-station, non-ship). The bonus accumulates on top of the player's base `light_radius` and any light-source extensions.
+- **Knockback / slip immunity.** `knockback_immune` and `ignore_slip_terrain` are aggregated across all leg implants (Mag-Lock Soles) but have no consumer system yet. Both fields are present and sum correctly; TODOs in `include/astra/item.h` describe the integration points for when the knockback and terrain-slip systems land.
+- **Cloaked NPC detection.** `detect_cloaked` (Heat-Spectrum Visor) is aggregated across all equipped implants. No cloak system exists yet; a TODO in `src/game_world.cpp` marks the integration point where NPC visibility queries will check this flag.
+
 ### Netmap overlay
 
 `netmap` (or `N` in the Hacking tab) opens a modal overlay over the terminal

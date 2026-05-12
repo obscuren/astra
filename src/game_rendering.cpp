@@ -539,6 +539,7 @@ void Game::pickup_ground_item() {
             }
             world_.ground_items().erase(it);
             quest_manager_.on_item_picked_up(picked_name);
+            player_.last_action_was_attack = false;
             advance_world(ActionCost::move);
             return;
         }

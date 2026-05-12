@@ -762,7 +762,7 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         damage = dmg_dice.roll(rng) + dmg_dice.roll(rng);
     } else {
         // Penetration: 1d10 + (STR-10)/2 vs npc.av + npc.type_affinity
-        int str_mod = (game.player().attributes.strength - 10) / 2;
+        int str_mod = (game.player().effective_strength() - 10) / 2;
         int effective_av = npc.av + npc.type_affinity.for_type(dtype);
         auto pen = roll_penetration(rng, str_mod, effective_av, dmg_dice);
         damage = pen.total_damage;
@@ -933,6 +933,9 @@ void CombatSystem::shoot_target(Game& game) {
     DamageType dtype = weapon->damage_type;
     WeaponClass wc = weapon->weapon_class;
 
+    // From here on the attack is committed — mark the action regardless of hit/miss.
+    game.player().last_action_was_attack = true;
+
     // Attack roll: 1d20 + (AGI-10)/2 + weapon_skill_bonus vs npc.dv
     int natural = roll_d20(rng);
     if (natural == 1) {
@@ -940,8 +943,18 @@ void CombatSystem::shoot_target(Game& game) {
         game.advance_world(ActionCost::shoot);
         return;
     }
-    int agi_mod = (game.player().attributes.agility - 10) / 2;
-    int attack_roll = natural + agi_mod + weapon_skill_bonus(game.player(), wc);
+    // Targeting Lattice implant: adds a flat AGI bonus specifically for pistol hit-rolls.
+    bool weapon_is_pistol = (wc == WeaponClass::Pistol);
+    const auto& imods = game.player().implant_modifiers();
+    int eff_agi = game.player().attributes.agility;
+    if (weapon_is_pistol) {
+        eff_agi += imods.pistol_agility_bonus;
+    }
+    int agi_mod = (eff_agi - 10) / 2;
+    // Pistol Targeter implant: pistol_hit_bonus_pct is an additive hit-% bonus.
+    // In the d20-vs-DV system each 5% ≈ +1 to the roll; we convert here.
+    int implant_hit_bonus = weapon_is_pistol ? imods.pistol_hit_bonus_pct / 5 : 0;
+    int attack_roll = natural + agi_mod + weapon_skill_bonus(game.player(), wc) + implant_hit_bonus;
     if (natural != 20 && attack_roll < target_npc_->dv) {
         game.log(display_name(*target_npc_) + " dodges your shot! (roll " +
                  std::to_string(attack_roll) + " vs DV " + std::to_string(target_npc_->dv) + ")");
@@ -960,7 +973,7 @@ void CombatSystem::shoot_target(Game& game) {
     if (is_crit) {
         damage = dmg_dice.roll(rng) + dmg_dice.roll(rng);
     } else {
-        int str_mod = (game.player().attributes.strength - 10) / 2;
+        int str_mod = (game.player().effective_strength() - 10) / 2;
         int effective_av = target_npc_->av + target_npc_->type_affinity.for_type(dtype);
         auto pen = roll_penetration(rng, str_mod, effective_av, dmg_dice);
         damage = pen.total_damage;

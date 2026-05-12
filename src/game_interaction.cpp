@@ -73,6 +73,7 @@ void Game::try_move(int dx, int dy) {
         SkillId lore = terrain_lore_for(stepped);
         if (static_cast<uint32_t>(lore) != 0 && player_has_skill(player_, lore))
             travel_cost /= 2;
+        player_.last_action_was_attack = false;
         advance_world(travel_cost);
         check_get_lost();
         return;
@@ -122,6 +123,7 @@ void Game::try_move(int dx, int dy) {
     for (auto& npc : world_.npcs()) {
         if (npc.alive() && npc.x == nx && npc.y == ny) {
             if (is_hostile_to_player(npc.faction, player_)) {
+                player_.last_action_was_attack = true;
                 combat_.attack_npc(npc, *this);
                 advance_world(move_action_cost(player_));
                 return;
@@ -138,6 +140,7 @@ void Game::try_move(int dx, int dy) {
             update_trap_detection(*this);
             recompute_fov();
             compute_camera();
+            player_.last_action_was_attack = false;
             advance_world(move_action_cost(player_));
             return;
         }
@@ -186,6 +189,7 @@ void Game::try_move(int dx, int dy) {
     recompute_fov();
     compute_camera();
     check_region_change();
+    player_.last_action_was_attack = false;
     advance_world(move_action_cost(player_));
 
     // Check if player regains bearings while lost on detail map
@@ -238,6 +242,7 @@ void Game::try_interact(int dx, int dy) {
             int fid = world_.map().fixture_id(tx, ty);
             if (fid >= 0 && world_.map().fixture(fid).interactable) {
                 dialog_.interact_fixture(fid, *this);
+                player_.last_action_was_attack = false;
                 advance_world(ActionCost::interact);
                 return;
             }
@@ -258,6 +263,7 @@ void Game::try_interact(int dx, int dy) {
     if (is_hostile_to_player(target->faction, player_)) {
         // Plan 7: hostile NPCs that carry an Electronic (non-AlienTech)
         log(target->label() + " snarls at you.");
+        player_.last_action_was_attack = false;
         advance_world(ActionCost::interact);
         return;
     }
@@ -269,6 +275,7 @@ void Game::try_interact(int dx, int dy) {
 
     log("You approach " + target->label() + ".");
     dialog_.open_npc_dialog(*target, *this);
+    player_.last_action_was_attack = false;
     advance_world(ActionCost::interact);
 }
 

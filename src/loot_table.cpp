@@ -124,6 +124,19 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_SENTINEL_CORTEX,      "sentinel_cortex",  R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
         LootEntry{ ITEM_ACUITY_CORTEX,        "acuity_cortex",    R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
         LootEntry{ ITEM_STOIC_CORTEX,         "stoic_cortex",     R::Rare,      R::Rare,       2, {}, LootSource::Chest | LootSource::BlackMarket,                                                       T::Tech,     2, C::Implant },
+        // Phase A content-pack implants
+        LootEntry{ ITEM_STANDARD_OPTICS,     "standard_optics",      R::Common,   R::Common,    8, {}, LootSource::Chest | LootSource::MerchantArms, T::Tech, 1, C::Implant },
+        LootEntry{ ITEM_TARGETING_LATTICE,   "targeting_lattice",    R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_HEAT_SPECTRUM_VISOR, "heat_spectrum_visor",  R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_STANDARD_PLATE,      "standard_plate",       R::Common,   R::Common,    8, {}, LootSource::Chest | LootSource::MerchantArms, T::Tech, 1, C::Implant },
+        LootEntry{ ITEM_SUBDERMAL_PLATING,   "subdermal_plating",    R::Uncommon, R::Uncommon,  4, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_SERVO_GRIP,          "servo_grip",           R::Common,   R::Common,    8, {}, LootSource::Chest | LootSource::MerchantArms, T::Tech, 1, C::Implant },
+        LootEntry{ ITEM_PISTOL_TARGETER,     "pistol_targeter",      R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_PLATED_SLEEVE,       "plated_sleeve",        R::Common,   R::Common,    8, {}, LootSource::Chest | LootSource::MerchantArms, T::Tech, 1, C::Implant },
+        LootEntry{ ITEM_REINFORCED_SERVOS,   "reinforced_servos",    R::Uncommon, R::Uncommon,  4, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_REFLEX_SPRINGS,      "reflex_springs",       R::Common,   R::Common,    8, {}, LootSource::Chest | LootSource::MerchantArms, T::Tech, 1, C::Implant },
+        LootEntry{ ITEM_SPRINT_COILS,        "sprint_coils",         R::Uncommon, R::Uncommon,  4, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_MAG_LOCK_SOLES,      "mag_lock_soles",       R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
 
         // ----- Code fragments (crafting material) ----------------------
         LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },

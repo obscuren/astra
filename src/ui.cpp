@@ -778,6 +778,44 @@ void draw_item_info(UIContext& ctx, const Item& item, const Player* player) {
             ctx.label_value(0, y, "Shock imm: ", Color::DarkGray, "yes", Color::Cyan);
             y++;
         }
+
+        // Phase A implant stats
+        wired_attr("STR:       ", item.modifiers.strength_bonus,
+                   item.modifiers.strength_bonus >= 0 ? Color::Cyan : Color::Red);
+        if (item.modifiers.pistol_agility_bonus != 0 && y < ctx.height()) {
+            std::string val = (item.modifiers.pistol_agility_bonus > 0 ? "+" : "")
+                            + std::to_string(item.modifiers.pistol_agility_bonus) + " (pistol)";
+            ctx.label_value(0, y, "AGI:       ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.pistol_hit_bonus_pct != 0 && y < ctx.height()) {
+            std::string val = (item.modifiers.pistol_hit_bonus_pct > 0 ? "+" : "")
+                            + std::to_string(item.modifiers.pistol_hit_bonus_pct) + "% (pistol)";
+            ctx.label_value(0, y, "Hit:       ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.view_radius_dark_bonus != 0 && y < ctx.height()) {
+            std::string val = "+" + std::to_string(item.modifiers.view_radius_dark_bonus) + " (dark)";
+            ctx.label_value(0, y, "Vision:    ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.quickness_when_idle != 0 && y < ctx.height()) {
+            std::string val = "+" + std::to_string(item.modifiers.quickness_when_idle) + " (idle)";
+            ctx.label_value(0, y, "Quickness: ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.detect_cloaked && y < ctx.height()) {
+            ctx.label_value(0, y, "Detect:    ", Color::DarkGray, "cloaked NPCs", Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.knockback_immune && y < ctx.height()) {
+            ctx.label_value(0, y, "Knockback: ", Color::DarkGray, "immune", Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.slip_immune && y < ctx.height()) {
+            ctx.label_value(0, y, "Slip:      ", Color::DarkGray, "immune", Color::Cyan);
+            y++;
+        }
     }
 
     if (item.type == ItemType::Program && item.program && y < ctx.height()) {

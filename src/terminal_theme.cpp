@@ -1363,6 +1363,20 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_ACUITY_CORTEX:           return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
         case ITEM_STOIC_CORTEX:            return {'*', "\xe2\x85\x8f", Color::Cyan, Color::Default}; // ⅏ head
 
+        // Phase A content-pack implants — slot glyph + rarity color
+        case ITEM_STANDARD_OPTICS:     return {'&', "\xe2\x9a\xaf", Color::White, Color::Default}; // ⚯ Eyes (Common)
+        case ITEM_TARGETING_LATTICE:   return {'&', "\xe2\x9a\xaf", Color::Cyan,  Color::Default}; // ⚯ Eyes (Rare)
+        case ITEM_HEAT_SPECTRUM_VISOR: return {'&', "\xe2\x9a\xaf", Color::Cyan,  Color::Default}; // ⚯ Eyes (Rare)
+        case ITEM_STANDARD_PLATE:      return {'[', "\xe2\x99\xa7", Color::White, Color::Default}; // ♧ Chest (Common)
+        case ITEM_SUBDERMAL_PLATING:   return {'[', "\xe2\x99\xa7", Color::Green, Color::Default}; // ♧ Chest (Uncommon)
+        case ITEM_SERVO_GRIP:          return {'+', "\xe2\x95\xac", Color::White, Color::Default}; // ╬ Hand (Common)
+        case ITEM_PISTOL_TARGETER:     return {'+', "\xe2\x95\xac", Color::Cyan,  Color::Default}; // ╬ Hand (Rare)
+        case ITEM_PLATED_SLEEVE:       return {'-', "\xe2\x95\xbc", Color::White, Color::Default}; // ╼ Arm (Common)
+        case ITEM_REINFORCED_SERVOS:   return {'-', "\xe2\x95\xbc", Color::Green, Color::Default}; // ╼ Arm (Uncommon)
+        case ITEM_REFLEX_SPRINGS:      return {'|', "\xe2\x95\xbf", Color::White, Color::Default}; // ╿ Leg (Common)
+        case ITEM_SPRINT_COILS:        return {'|', "\xe2\x95\xbf", Color::Green, Color::Default}; // ╿ Leg (Uncommon)
+        case ITEM_MAG_LOCK_SOLES:      return {'|', "\xe2\x95\xbf", Color::Cyan,  Color::Default}; // ╿ Leg (Rare)
+
         default: return {'?', nullptr, Color::Magenta, Color::Default};
     }
 }

@@ -138,6 +138,20 @@ Item build_sentinel_cortex();
 Item build_acuity_cortex();
 Item build_stoic_cortex();
 
+// --- Phase A implant content pack ---
+Item build_standard_optics();
+Item build_targeting_lattice();
+Item build_heat_spectrum_visor();
+Item build_standard_plate();
+Item build_subdermal_plating();
+Item build_servo_grip();
+Item build_pistol_targeter();
+Item build_plated_sleeve();
+Item build_reinforced_servos();
+Item build_reflex_springs();
+Item build_sprint_coils();
+Item build_mag_lock_soles();
+
 // --- Hacker mats ---
 Item build_program_disk();
 

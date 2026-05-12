@@ -2114,8 +2114,12 @@ void Game::recompute_fov() {
     if (is_indoor) {
         // Stations and ships: always fully lit, use base view_radius
     } else if (is_dungeon) {
-        // Underground: always use light_radius (no sunlight)
-        radius = player_.light_radius;
+        // Underground: always use light_radius (no sunlight).
+        // Heat-Spectrum Visor: view_radius_dark_bonus extends sight in dark/underground tiles.
+        radius = player_.light_radius + player_.implant_modifiers().view_radius_dark_bonus;
+        // TODO(implants): wire detect_cloaked when stealth/cloak system lands — currently no
+        // Npc::cloaked flag exists; when it does, NPCs in LOS with that flag should be revealed
+        // here (or in map_renderer.cpp draw-NPC pass) when implant_modifiers().detect_cloaked.
     } else if (!world_.on_overworld()) {
         // Surface detail maps: time of day affects view range
         int max_radius = std::max(world_.map().width(), world_.map().height());

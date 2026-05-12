@@ -254,6 +254,20 @@ constexpr uint16_t ITEM_SENTINEL_CORTEX      = 404;
 constexpr uint16_t ITEM_ACUITY_CORTEX        = 405;
 constexpr uint16_t ITEM_STOIC_CORTEX         = 406;
 
+// Phase A implant content pack (407-418)
+constexpr uint16_t ITEM_STANDARD_OPTICS      = 407;
+constexpr uint16_t ITEM_TARGETING_LATTICE    = 408;
+constexpr uint16_t ITEM_HEAT_SPECTRUM_VISOR  = 409;
+constexpr uint16_t ITEM_STANDARD_PLATE       = 410;
+constexpr uint16_t ITEM_SUBDERMAL_PLATING    = 411;
+constexpr uint16_t ITEM_SERVO_GRIP           = 412;
+constexpr uint16_t ITEM_PISTOL_TARGETER      = 413;
+constexpr uint16_t ITEM_PLATED_SLEEVE        = 414;
+constexpr uint16_t ITEM_REINFORCED_SERVOS    = 415;
+constexpr uint16_t ITEM_REFLEX_SPRINGS       = 416;
+constexpr uint16_t ITEM_SPRINT_COILS         = 417;
+constexpr uint16_t ITEM_MAG_LOCK_SOLES       = 418;
+
 // Hacker mats (430+) — fragment-system compile material.
 constexpr uint16_t ITEM_PROGRAM_DISK         = 430;
 

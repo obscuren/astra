@@ -403,6 +403,43 @@ Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab p
 |------|-----|------|---------|--------|
 | Neural Backup | `neural_backup` | Spine | -1 Willpower; auto-syncs lore at Precursor consoles via the Soul Mirror channel. | T2+ deep-Grid drops, BlackMarket. |
 
+### Eyes Implants
+
+| Name | Dev | Rarity | Effect | Wired |
+|------|-----|--------|--------|-------|
+| Standard Optics | `standard_optics` | Common | +1 view radius (all contexts). | Yes |
+| Targeting Lattice | `targeting_lattice` | Rare | Pistols treat AGI as +4 higher for the hit roll (`pistol_agility_bonus`). | Yes |
+| Heat-Spectrum Visor | `heat_spectrum_visor` | Rare | +2 view radius in dungeon maps (`view_radius_dark_bonus`). Reveals cloaked NPCs (`detect_cloaked`). | Partial — dark-radius bonus active; cloak detection dormant (pending cloak system). |
+
+### Chest Implants
+
+| Name | Dev | Rarity | Effect | Wired |
+|------|-----|--------|--------|-------|
+| Standard Plate | `standard_plate` | Common | +1 AV. | Yes |
+| Subdermal Plating | `subdermal_plating` | Uncommon | +2 AV. | Yes |
+
+### Hand Implants (AnyHand — L or R at install)
+
+| Name | Dev | Rarity | Effect | Wired |
+|------|-----|--------|--------|-------|
+| Servo Grip | `servo_grip` | Common | +1 Quickness. | Yes |
+| Pistol Targeter | `pistol_targeter` | Rare | +15% pistol hit chance (`pistol_hit_bonus_pct`). Stacks across both hands. | Yes |
+
+### Arm Implants (AnyArm — L or R at install)
+
+| Name | Dev | Rarity | Effect | Wired |
+|------|-----|--------|--------|-------|
+| Plated Sleeve | `plated_sleeve` | Common | +1 AV. | Yes |
+| Reinforced Servos | `reinforced_servos` | Uncommon | +1 STR (`strength_bonus`); feeds `Player::effective_strength()` for carry-weight cap and melee damage. | Yes |
+
+### Leg Implants (AnyLeg — L or R at install)
+
+| Name | Dev | Rarity | Effect | Wired |
+|------|-----|--------|--------|-------|
+| Reflex Springs | `reflex_springs` | Common | +1 DV. | Yes |
+| Sprint Coils | `sprint_coils` | Uncommon | +1 Quickness, but only on turns the player took no attack action (`quickness_when_idle`). | Yes |
+| Mag-Lock Soles | `mag_lock_soles` | Rare | Knockback immune; ignores slip-terrain. | Dormant — pending knockback and slip-terrain system support. |
+
 ### Relay Cortex (Head slot)
 
 The Relay Cortex family gates jack-in to the Grid. Installing **any** Relay Cortex variant in the Head slot enables `pda> jack <ip>`. All variants share `ItemType::RelayCortex` for gate-check purposes. See [mechanics.md](mechanics.md) § Hacking for the full jack-in contract.

@@ -646,6 +646,7 @@ void DialogManager::interact_fixture_use_only(int fid, Game& game) {
             }
             game.player().hp = game.player().max_hp;
             f.last_used_tick = game.world().world_tick();
+            game.player().last_action_was_attack = false;
             game.advance_world(20);
             game.log("You climb into the rest pod and sleep deeply. Fully restored.");
             break;
@@ -1143,6 +1144,7 @@ void DialogManager::advance_dialog(int selected, Game& game) {
             }
             if (kind == OptionKind::HackingSyncSoul) {
                 soul_mirror::begin_active(game, hack);
+                game.player().last_action_was_attack = false;
                 game.advance_world(ActionCost::interact);
                 return;
             }

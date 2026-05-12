@@ -1552,6 +1552,20 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         case ITEM_ACUITY_CORTEX:           return build_acuity_cortex();
         case ITEM_STOIC_CORTEX:            return build_stoic_cortex();
 
+        // Phase A implant content pack
+        case ITEM_STANDARD_OPTICS:         return build_standard_optics();
+        case ITEM_TARGETING_LATTICE:       return build_targeting_lattice();
+        case ITEM_HEAT_SPECTRUM_VISOR:     return build_heat_spectrum_visor();
+        case ITEM_STANDARD_PLATE:          return build_standard_plate();
+        case ITEM_SUBDERMAL_PLATING:       return build_subdermal_plating();
+        case ITEM_SERVO_GRIP:              return build_servo_grip();
+        case ITEM_PISTOL_TARGETER:         return build_pistol_targeter();
+        case ITEM_PLATED_SLEEVE:           return build_plated_sleeve();
+        case ITEM_REINFORCED_SERVOS:       return build_reinforced_servos();
+        case ITEM_REFLEX_SPRINGS:          return build_reflex_springs();
+        case ITEM_SPRINT_COILS:            return build_sprint_coils();
+        case ITEM_MAG_LOCK_SOLES:          return build_mag_lock_soles();
+
         // Hacker mats
         case ITEM_PROGRAM_DISK:            return build_program_disk();
 
@@ -2003,6 +2017,240 @@ Item build_stoic_cortex() {
         "Mental hardener that bolsters resilience against intrusion.";
     it.modifiers.willpower             = 2;  // +2 WIL while equipped
     it.modifiers.blackice_shock_immunity = true;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Phase A implant content pack — passive-bonus implants for body slots
+// ---------------------------------------------------------------------------
+
+Item build_standard_optics() {
+    Item it;
+    it.item_def_id           = ITEM_STANDARD_OPTICS;
+    it.id                    = 9207;
+    it.name                  = "Standard Optics";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Eyes;
+    it.rarity                = Rarity::Common;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 400;
+    it.sell_value            = 120;
+    it.description =
+        "Military-grade optical replacements. Sharpens your effective sight "
+        "radius by one tile in all conditions.";
+    it.modifiers.view_radius = 1;
+    return it;
+}
+
+Item build_targeting_lattice() {
+    Item it;
+    it.item_def_id           = ITEM_TARGETING_LATTICE;
+    it.id                    = 9208;
+    it.name                  = "Targeting Lattice";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Eyes;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2800;
+    it.sell_value            = 800;
+    it.description =
+        "Micro-projected targeting overlay stitched into the retina. "
+        "Locks pistol aim to a higher agility baseline.";
+    it.modifiers.pistol_agility_bonus = 4;
+    return it;
+}
+
+Item build_heat_spectrum_visor() {
+    Item it;
+    it.item_def_id           = ITEM_HEAT_SPECTRUM_VISOR;
+    it.id                    = 9209;
+    it.name                  = "Heat-Spectrum Visor";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Eyes;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 3000;
+    it.sell_value            = 900;
+    it.description =
+        "Thermal overlay broadens your sight in dark tunnels and lets you "
+        "spot cloaked heat signatures within line of sight.";
+    it.modifiers.view_radius_dark_bonus = 2;
+    it.modifiers.detect_cloaked        = true;
+    return it;
+}
+
+Item build_standard_plate() {
+    Item it;
+    it.item_def_id           = ITEM_STANDARD_PLATE;
+    it.id                    = 9210;
+    it.name                  = "Standard Plate";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Chest;
+    it.rarity                = Rarity::Common;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 500;
+    it.sell_value            = 150;
+    it.description =
+        "A subdermal chest plate pressed flush against the sternum. "
+        "Basic impact absorption, no external profile.";
+    it.modifiers.av = 1;
+    return it;
+}
+
+Item build_subdermal_plating() {
+    Item it;
+    it.item_def_id           = ITEM_SUBDERMAL_PLATING;
+    it.id                    = 9211;
+    it.name                  = "Subdermal Plating";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Chest;
+    it.rarity                = Rarity::Uncommon;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 1500;
+    it.sell_value            = 450;
+    it.description =
+        "Layered trauma-grade ceramic bonded under the skin. "
+        "Noticeably reduces incoming damage across the torso.";
+    it.modifiers.av = 2;
+    return it;
+}
+
+Item build_servo_grip() {
+    Item it;
+    it.item_def_id           = ITEM_SERVO_GRIP;
+    it.id                    = 9212;
+    it.name                  = "Servo Grip";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyHand;
+    it.rarity                = Rarity::Common;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 400;
+    it.sell_value            = 120;
+    it.description =
+        "Micro-actuator wrap around the palm tendons. "
+        "Tightens reaction time for weapon draws and interactions.";
+    it.modifiers.quickness = 1;
+    return it;
+}
+
+Item build_pistol_targeter() {
+    Item it;
+    it.item_def_id           = ITEM_PISTOL_TARGETER;
+    it.id                    = 9213;
+    it.name                  = "Pistol Targeter";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyHand;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2500;
+    it.sell_value            = 750;
+    it.description =
+        "Haptic feedback mesh woven through the trigger fingers. "
+        "Adds a significant flat hit bonus for pistol attacks.";
+    it.modifiers.pistol_hit_bonus_pct = 15;
+    return it;
+}
+
+Item build_plated_sleeve() {
+    Item it;
+    it.item_def_id           = ITEM_PLATED_SLEEVE;
+    it.id                    = 9214;
+    it.name                  = "Plated Sleeve";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyArm;
+    it.rarity                = Rarity::Common;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 450;
+    it.sell_value            = 135;
+    it.description =
+        "Segmented armor fused along the forearm. "
+        "Light coverage that doesn't restrict movement.";
+    it.modifiers.av = 1;
+    return it;
+}
+
+Item build_reinforced_servos() {
+    Item it;
+    it.item_def_id           = ITEM_REINFORCED_SERVOS;
+    it.id                    = 9215;
+    it.name                  = "Reinforced Servos";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyArm;
+    it.rarity                = Rarity::Uncommon;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 1700;
+    it.sell_value            = 500;
+    it.description =
+        "Hydraulic assists grafted along the upper arm. "
+        "Increases effective carry weight and melee impact.";
+    it.modifiers.strength_bonus = 1;
+    return it;
+}
+
+Item build_reflex_springs() {
+    Item it;
+    it.item_def_id           = ITEM_REFLEX_SPRINGS;
+    it.id                    = 9216;
+    it.name                  = "Reflex Springs";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyLeg;
+    it.rarity                = Rarity::Common;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 450;
+    it.sell_value            = 135;
+    it.description =
+        "Carbon-fiber coil inserts that let you shift weight faster. "
+        "Makes you harder to land a clean hit on.";
+    it.modifiers.dv = 1;
+    return it;
+}
+
+Item build_sprint_coils() {
+    Item it;
+    it.item_def_id           = ITEM_SPRINT_COILS;
+    it.id                    = 9217;
+    it.name                  = "Sprint Coils";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyLeg;
+    it.rarity                = Rarity::Uncommon;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 1600;
+    it.sell_value            = 480;
+    it.description =
+        "Kinetic-return coils that store energy between steps. "
+        "Grants a burst of speed when you hold your fire.";
+    it.modifiers.quickness_when_idle = 1;
+    return it;
+}
+
+Item build_mag_lock_soles() {
+    Item it;
+    it.item_def_id           = ITEM_MAG_LOCK_SOLES;
+    it.id                    = 9218;
+    it.name                  = "Mag-Lock Soles";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyLeg;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2700;
+    it.sell_value            = 800;
+    it.description =
+        "Electromagnetic anchors integrated into the heel and ball of the foot. "
+        "You don't move unless you choose to.";
+    it.modifiers.knockback_immune = true;
+    it.modifiers.slip_immune      = true;
     return it;
 }
 

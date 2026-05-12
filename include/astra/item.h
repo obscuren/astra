@@ -190,6 +190,27 @@ struct StatModifiers {
     int trace_resistance_pct = 0;        // % reduction to incoming trace gain (clamped 0..100)
     int blackice_shock_duration_pct = 0; // signed % adjustment to BlackIceShock duration (e.g. -50)
     bool blackice_shock_immunity = false; // if true, BlackIceShock effect is never applied
+
+    // Phase A — content pack
+    int  view_radius_dark_bonus = 0;   // Heat-Spectrum Visor: extra view radius in dark/underground
+    bool detect_cloaked         = false; // Heat-Spectrum Visor: reveal cloaked NPCs in LOS
+    int  pistol_agility_bonus   = 0;   // Targeting Lattice: AGI override for pistol hit-roll
+    int  pistol_hit_bonus_pct   = 0;   // Pistol Targeter: additive % to pistol hit chance
+    int  strength_bonus         = 0;   // Reinforced Servos: STR equivalent (carry + melee dmg)
+    int  quickness_when_idle    = 0;   // Sprint Coils: bonus quickness when no attack this turn
+    // TODO(knockback): knockback_immune is dormant — no forced-move / push system exists yet.
+    // When a knockback system is added, check player.implant_modifiers().knockback_immune before
+    // applying any forced position change to the player.  Example callsite sketch:
+    //   if (target == player && player.implant_modifiers().knockback_immune) {
+    //       game.log("The Mag-Lock Soles hold you in place.");
+    //       return;
+    //   }
+    bool knockback_immune       = false; // Mag-Lock Soles
+    // TODO(slip): slip_immune is dormant — no slip/ice-terrain status system exists yet.
+    // When slip-terrain is added, check player.implant_modifiers().slip_immune before applying
+    // the slip status to the player.  Example callsite sketch:
+    //   if (player.implant_modifiers().slip_immune) return; // skip slip status
+    bool slip_immune            = false; // Mag-Lock Soles
 };
 
 enum class ModuleKind : uint8_t {

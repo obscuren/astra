@@ -1085,6 +1085,8 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     for (const auto& slot : p.implants) {
         write_optional_item(w, slot);
     }
+    // v75: last_action_was_attack (idle-quickness implant gating)
+    w.write_u8(p.last_action_was_attack ? 1 : 0);
     w.end_section(pos);
 }
 
@@ -2041,6 +2043,8 @@ static void read_player_section(BinaryReader& r, Player& p) {
     for (auto& slot : p.implants) {
         slot = read_optional_item(r);
     }
+    // v75: last_action_was_attack (idle-quickness implant gating)
+    p.last_action_was_attack = (r.read_u8() != 0);
 }
 
 static Npc read_npc(BinaryReader& r) {

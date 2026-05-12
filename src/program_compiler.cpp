@@ -293,6 +293,9 @@ std::string fire_program(Game& game, const CompiledProgram& prog, int tx, int ty
              + " turns left.";
     }
 
+    // Firing a program is a combat action — prevent idle-quickness bonus next turn.
+    game.player().last_action_was_attack = true;
+
     // Charge heat + reserve RAM up front; heat-cap overflow triggers the
     // existing force_reboot path on the next tick check.
     cyberdeck_add_heat(deck, prog.heat_cost);
