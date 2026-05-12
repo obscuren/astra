@@ -1,12 +1,12 @@
-#include "astra/grid_input.h"
+#include "astra/net_input.h"
 
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
-#include "astra/grid_combat.h"
-#include "astra/grid_constants.h"
-#include "astra/grid_display.h"
-#include "astra/grid_session.h"
+#include "astra/net_combat.h"
+#include "astra/net_constants.h"
+#include "astra/net_display.h"
+#include "astra/net_session.h"
 #include "astra/hacking_system.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
@@ -23,11 +23,11 @@
 #include <random>
 #include <string>
 
-namespace astra::grid_input {
+namespace astra::net_input {
 
 namespace {
 
-bool try_move(GridSession& s, int dx, int dy) {
+bool try_move(NetSession& s, int dx, int dy) {
     int nx = s.avatar_x + dx;
     int ny = s.avatar_y + dy;
     if (!s.netspace.passable(nx, ny)) return false;
@@ -39,7 +39,7 @@ bool try_move(GridSession& s, int dx, int dy) {
 // While DaemonHijack is active, movement keys drive the puppeted ICE
 // instead of the avatar. Returns true if a turn was consumed (mirrors
 // try_move's contract — caller advances the world on true).
-bool try_move_hijacked_ice(GridSession& s, int dx, int dy) {
+bool try_move_hijacked_ice(NetSession& s, int dx, int dy) {
     if (s.hijacked_ice_idx < 0 ||
         s.hijacked_ice_idx >= static_cast<int>(s.ice.size())) {
         // Stale handle — clear and fall back to avatar movement.
@@ -73,7 +73,7 @@ bool try_move_hijacked_ice(GridSession& s, int dx, int dy) {
 // behavior. DataNode / EncryptedFile / DeepGridGateway / WarpAnchor were
 // part of the multi-region geography and are retired with the netspace
 // redesign. Per-target tile interactions return in Phase 1+ grammars.
-void on_step(Game& game, GridSession& s) {
+void on_step(Game& game, NetSession& s) {
     if (s.netspace.at(s.avatar_x, s.avatar_y) == NetTile::Exit) {
         s.push_log(">> Disconnect channel...");
         game.hacking().jack_out(game, JackOutKind::Voluntary);
@@ -84,7 +84,7 @@ void on_step(Game& game, GridSession& s) {
 // Plan 6: number-key program firing via Telegraph
 // ---------------------------------------------------------------------------
 
-bool can_afford_program(GridSession& s, const CyberdeckData& cd,
+bool can_afford_program(NetSession& s, const CyberdeckData& cd,
                         const ProgramDef& def) {
     if (s.ram < def.ram_cost) {
         s.push_log("[BLOCK] " + display_name(def) + " — "
@@ -99,7 +99,7 @@ bool can_afford_program(GridSession& s, const CyberdeckData& cd,
     return true;
 }
 
-void fire_program(Game& game, GridSession& s, CyberdeckData& cd,
+void fire_program(Game& game, NetSession& s, CyberdeckData& cd,
                   const ProgramDef& def, int tx, int ty) {
     s.ram -= def.ram_cost;
     int heat = def.heat_cost;
@@ -109,13 +109,13 @@ void fire_program(Game& game, GridSession& s, CyberdeckData& cd,
     }
     cyberdeck_add_heat(cd, heat);
 
-    GridProgramContext ctx{game, s, tx, ty};
+    NetProgramContext ctx{game, s, tx, ty};
     std::string msg = apply_program_in_grid(def.id, ctx);
     s.push_log("> " + display_name(def));
     if (!msg.empty()) s.push_log(std::string("  ") + msg);
 }
 
-void fire_program_slot(Game& game, GridSession& s, int slot_idx) {
+void fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         s.push_log("[BLOCK] no cyberdeck equipped");
@@ -198,13 +198,13 @@ bool handle(Game& game, int key) {
             if (warden.hp <= 0) continue;
             if (warden.x == nx && warden.y == ny) {
                 IceColor warden_color = warden.color;
-                warden.hp = std::max(0, warden.hp - kGridMeleeDamage);
+                warden.hp = std::max(0, warden.hp - kNetMeleeDamage);
                 // Pay melee costs.
-                s.ram = std::max(0, s.ram - kGridMeleeRamCost);
-                if (kGridMeleeHeatCost > 0) {
+                s.ram = std::max(0, s.ram - kNetMeleeRamCost);
+                if (kNetMeleeHeatCost > 0) {
                     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
                     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
-                        cyberdeck_add_heat(*(*deck_slot)->deck, kGridMeleeHeatCost);
+                        cyberdeck_add_heat(*(*deck_slot)->deck, kNetMeleeHeatCost);
                     }
                 }
                 // Grant XP if the strike destroyed the Warden.
@@ -212,7 +212,7 @@ bool handle(Game& game, int key) {
                     int xp = (warden_color == IceColor::White) ? kXpIceWhite
                            : (warden_color == IceColor::Gray)  ? kXpIceGray
                            :                                     kXpIceBlack;
-                    grant_grid_xp(game, xp);
+                    grant_net_xp(game, xp);
                 }
                 char buf[80];
                 std::snprintf(buf, sizeof buf,
@@ -252,4 +252,4 @@ bool handle(Game& game, int key) {
     return false;
 }
 
-} // namespace astra::grid_input
+} // namespace astra::net_input

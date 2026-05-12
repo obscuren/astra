@@ -8,7 +8,7 @@ namespace astra {
 enum class FixtureType : uint8_t;
 }
 
-namespace astra::grid_theme {
+namespace astra::net_theme {
 
 // Plan 5 Cut 2.6: pick the wall-mounted device-avatar glyph (UTF-8) for the
 // FixtureType that a subnet sector mirrors. Used by the subnet renderer when
@@ -55,4 +55,4 @@ constexpr const char* connector_glyph         = "\xe2\x95\x90";   // ═ (defaul
 constexpr const char* deep_grid_gateway_glyph = "\xe2\x8a\x95";   // ⊕
 constexpr const char* warp_anchor_glyph       = "\xe2\x97\x89";   // ◉
 
-} // namespace astra::grid_theme
+} // namespace astra::net_theme

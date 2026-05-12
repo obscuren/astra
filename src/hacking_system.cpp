@@ -5,8 +5,8 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
-#include "astra/grid_display.h"
-#include "astra/grid_ice.h"
+#include "astra/net_display.h"
+#include "astra/net_ice.h"
 #include "astra/hackable.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
@@ -351,7 +351,7 @@ std::string HackingSystem::execute_quickhack(Game& game, const Item& program,
     return std::string(def->name) + " executed.";
 }
 
-void HackingSystem::commit_loot_(Game& game, GridLootBuffer& loot, int pct) {
+void HackingSystem::commit_loot_(Game& game, NetLootBuffer& loot, int pct) {
     if (pct <= 0) return;
     int credits = (loot.credits * pct) / 100;
     game.player().money += credits;
@@ -365,12 +365,12 @@ void HackingSystem::commit_loot_(Game& game, GridLootBuffer& loot, int pct) {
         }
     }
     // TODO Plan 4: commit code_fragments and acquired programs as inventory items.
-    loot = GridLootBuffer{};
+    loot = NetLootBuffer{};
 }
 
 namespace {
 // Place an ICE actor in the sector, far from the avatar if possible.
-bool place_ice_far(GridSession& s, IceColor color, int hp,
+bool place_ice_far(NetSession& s, IceColor color, int hp,
                    uint32_t seed_xor, int min_distance) {
     std::mt19937 rng(seed_xor);
     std::uniform_int_distribution<int> xd(0, s.netspace.w - 1);
@@ -384,7 +384,7 @@ bool place_ice_far(GridSession& s, IceColor color, int hp,
         bool occupied = false;
         for (auto& i : s.ice) if (i.x == x && i.y == y) { occupied = true; break; }
         if (occupied) continue;
-        GridIce ice;
+        Ice ice;
         ice.x = x; ice.y = y;
         ice.color = color;
         ice.hp = hp;
@@ -395,11 +395,11 @@ bool place_ice_far(GridSession& s, IceColor color, int hp,
 }
 }
 
-void HackingSystem::spawn_black_ice_(GridSession& s) {
+void HackingSystem::spawn_black_ice_(NetSession& s) {
     place_ice_far(s, IceColor::Black, /*hp*/4, /*seed*/0xB1ACC1CEu, /*min_distance*/4);
 }
 
-void HackingSystem::spawn_gray_ice_reinforcement_(GridSession& s) {
+void HackingSystem::spawn_gray_ice_reinforcement_(NetSession& s) {
     place_ice_far(s, IceColor::Gray, /*hp*/2, /*seed*/0xC9A41CEu, /*min_distance*/3);
 }
 
@@ -421,7 +421,7 @@ bool HackingSystem::jack_in(Game& game) {
                                     ? &(*(*deck_slot)->deck)
                                     : nullptr;
 
-    GridSession s;
+    NetSession s;
     s.body_x       = game.player().x;
     s.body_y       = game.player().y;
     s.body_state   = GameState::Playing;
@@ -459,10 +459,10 @@ bool HackingSystem::jack_in(Game& game) {
     s.avatar_y = s.netspace.jack_in_y;
 
     // Body phase-out
-    add_effect(game.player().effects, make_grid_exposed_ge());
+    add_effect(game.player().effects, make_net_exposed_ge());
 
     session_ = std::move(s);
-    game.set_state(GameState::Grid);
+    game.set_state(GameState::Net);
     game.log("Uploading consciousness... You jack in.");
     return true;
 }
@@ -505,7 +505,7 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
             game.player().hp -= bleed;
             if (game.player().hp < 0) game.player().hp = 0;
             if (game.player().hp <= 0) {
-                remove_effect(game.player().effects, EffectId::GridExposed);
+                remove_effect(game.player().effects, EffectId::NetExposed);
                 game.set_death_message("Killed by black ICE in the Grid.");
                 game.set_state(GameState::GameOver);
                 session_.reset();
@@ -532,7 +532,7 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
             break;
     }
 
-    remove_effect(game.player().effects, EffectId::GridExposed);
+    remove_effect(game.player().effects, EffectId::NetExposed);
     game.set_state(s.body_state);
     session_.reset();
 }
@@ -542,9 +542,9 @@ void HackingSystem::tick_grid(Game& game) {
     auto& s = *session_;
 
     // 1. ICE actions (gray/black approach + attack; white patrols).
-    grid_ice::tick_all(s, game);
+    net_ice::tick_all(s, game);
     // 1a. Promote any ICE seeds that became eligible this tick (trace-gated).
-    grid_ice::promote_pending_seeds(s);
+    net_ice::promote_pending_seeds(s);
 
     // 1b. DaemonHijack countdown. tick_all already cleared the handle if the
     // puppet died this tick; here we just count down on a still-live hijack.

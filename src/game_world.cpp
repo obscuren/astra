@@ -2209,7 +2209,7 @@ void Game::recompute_fov() {
 }
 
 void Game::advance_world(int cost) {
-    if (state_ == GameState::Grid) {
+    if (state_ == GameState::Net) {
         // Snapshot body HP so we can warn the Grid log if the meatspace
         // body takes damage during the dilated real-world tick.
         int hp_before = player_.hp;
@@ -2220,7 +2220,7 @@ void Game::advance_world(int cost) {
         // 0.01 default → ~1 real tick per 100 grid keypresses.
         if (world_time_progression_rate_ > 0.0f) {
             real_tick_carry_ += world_time_progression_rate_;
-            while (real_tick_carry_ >= 1.0f && state_ == GameState::Grid) {
+            while (real_tick_carry_ >= 1.0f && state_ == GameState::Net) {
                 real_tick_carry_ -= 1.0f;
                 tick_real_world(ActionCost::wait);
             }

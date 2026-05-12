@@ -228,7 +228,7 @@ public:
     }
 
     // Derived stats — attribute modifier + equipment + implants + active effects.
-    // Any active effect with `dv_zero` (e.g. GridExposed while jacked in)
+    // Any active effect with `dv_zero` (e.g. NetExposed while jacked in)
     // forces the result to 0 — body cannot dodge.
     int effective_dv() const {
         for (const auto& e : effects) {

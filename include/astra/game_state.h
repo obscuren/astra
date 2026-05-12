@@ -10,7 +10,7 @@ enum class GameState : uint8_t {
     GameOver,
     LoadMenu,
     HallOfFame,
-    Grid,
+    Net,
 };
 
 } // namespace astra

@@ -290,7 +290,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     game.reset_interaction_state();
 
     // Spec §5: Grid sessions are not resumable across save/load.
-    if (game.state() == GameState::Grid) {
+    if (game.state() == GameState::Net) {
         game.set_state(GameState::Playing);
         game.log("Soft disconnect — Grid session not resumable.");
     }

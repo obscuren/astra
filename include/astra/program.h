@@ -8,7 +8,7 @@
 namespace astra {
 
 // Forward declaration to keep program.h independent of grid_session.h.
-struct GridSession;
+struct NetSession;
 
 enum class TargetingMode : uint8_t {
     Self,   // fires immediately, no cursor
@@ -59,7 +59,7 @@ struct ProgramDef {
     // [ERR] line is logged on miss.
     TargetingMode       targeting   = TargetingMode::Self;
     TelegraphSpec       telegraph_spec;
-    bool (*valid_target)(const GridSession&, int x, int y) = nullptr;
+    bool (*valid_target)(const NetSession&, int x, int y) = nullptr;
 };
 
 const std::vector<ProgramDef>& program_registry();

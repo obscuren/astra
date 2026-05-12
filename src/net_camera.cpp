@@ -1,10 +1,10 @@
-#include "astra/grid_camera.h"
+#include "astra/net_camera.h"
 
 #include <algorithm>
 
 namespace astra {
 
-void GridCamera::follow(int avatar_x, int avatar_y, int sector_w, int sector_h) {
+void NetCamera::follow(int avatar_x, int avatar_y, int sector_w, int sector_h) {
     if (sector_w <= viewport_w && sector_h <= viewport_h) {
         cam_x = 0;
         cam_y = 0;

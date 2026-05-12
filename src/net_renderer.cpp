@@ -1,11 +1,11 @@
-#include "astra/grid_renderer.h"
+#include "astra/net_renderer.h"
 
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
-#include "astra/grid_camera.h"
-#include "astra/grid_ice.h"
-#include "astra/grid_session.h"
-#include "astra/grid_theme.h"
+#include "astra/net_camera.h"
+#include "astra/net_ice.h"
+#include "astra/net_session.h"
+#include "astra/net_theme.h"
 #include "astra/hacking_system.h"
 #include "astra/ip.h"
 #include "astra/item.h"
@@ -25,7 +25,7 @@
 #include <cstring>
 #include <string>
 
-namespace astra::grid_theme {
+namespace astra::net_theme {
 
 // Plan 5 Cut 2.6: per-FixtureType wall-mounted device avatar glyph. All
 // avatars render in BrightWhite via the renderer's DeviceAvatar branch.
@@ -63,9 +63,9 @@ const char* device_avatar_glyph(FixtureType type) {
     }
 }
 
-} // namespace astra::grid_theme
+} // namespace astra::net_theme
 
-namespace astra::grid_renderer {
+namespace astra::net_renderer {
 
 namespace {
 
@@ -277,7 +277,7 @@ std::string short_host_label(const std::string& hostname) {
 // ---------------------------------------------------------------------------
 
 void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
-                     const GridSession& s) {
+                     const NetSession& s) {
     const int y = wr.y + 1;
     int x = wr.x + 2;
 
@@ -331,7 +331,7 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
 // ---------------------------------------------------------------------------
 
 void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
-                     const GridSession& s) {
+                     const NetSession& s) {
     const int y = wr.y + 3;
     int x = wr.x + 2;
 
@@ -590,7 +590,7 @@ std::string colorize_leading_tag(const std::string& line) {
     return colored(tag, tag_color(tag)) + line.substr(close + 1);
 }
 
-void draw_log_pane(Renderer& r, const LogPaneRect& lr, const GridSession& s) {
+void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s) {
     int rows = lr.h;
     if (rows < 1) return;
     int max_w = lr.w - 2;
@@ -630,7 +630,7 @@ const char* program_abbrev(ProgramId id) {
 }
 
 void draw_program_bar(Game& game, Renderer& r, const WindowRect& wr,
-                      const GridSession& s) {
+                      const NetSession& s) {
     const int y = wr.y + wr.h - 2;
     int x = wr.x + 2;
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
@@ -684,8 +684,8 @@ void draw_program_bar(Game& game, Renderer& r, const WindowRect& wr,
 // ---------------------------------------------------------------------------
 
 void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
-                    const GridSession& s) {
-    static GridCamera s_camera;
+                    const NetSession& s) {
+    static NetCamera s_camera;
     s_camera.viewport_w = pr.w;
     s_camera.viewport_h = pr.h;
     s_camera.follow(s.avatar_x, s.avatar_y, s.netspace.w, s.netspace.h);
@@ -708,25 +708,25 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             if (!s.netspace.in_bounds(tx, ty)) continue;
             NetTile t = s.netspace.at(tx, ty);
             const char* glyph = " ";
-            Color       color = grid_theme::floor;
+            Color       color = net_theme::floor;
             switch (t) {
                 case NetTile::Void:
                     glyph = " ";
                     break;
                 case NetTile::Floor:
                 case NetTile::JackIn:
-                    glyph = grid_theme::floor_glyph;
-                    color = grid_theme::floor;
+                    glyph = net_theme::floor_glyph;
+                    color = net_theme::floor;
                     break;
                 case NetTile::Wall:
                     glyph = wall_glyph_for_neighbours(
                         neigh(tx, ty - 1), neigh(tx, ty + 1),
                         neigh(tx + 1, ty), neigh(tx - 1, ty));
-                    color = grid_theme::floor;
+                    color = net_theme::floor;
                     break;
                 case NetTile::Exit:
-                    glyph = grid_theme::exit_glyph;
-                    color = grid_theme::exit_node;
+                    glyph = net_theme::exit_glyph;
+                    color = net_theme::exit_node;
                     break;
             }
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);
@@ -736,12 +736,12 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     for (const auto& ice : s.ice) {
         int sx, sy;
         if (!cull(ice.x, ice.y, sx, sy)) continue;
-        const char* g = ice.color == IceColor::White ? grid_theme::white_ice_glyph
-                      : ice.color == IceColor::Gray  ? grid_theme::gray_ice_glyph
-                      :                                 grid_theme::black_ice_glyph;
-        Color c = ice.color == IceColor::White ? grid_theme::white_ice
-                : ice.color == IceColor::Gray  ? grid_theme::gray_ice
-                :                                grid_theme::black_ice;
+        const char* g = ice.color == IceColor::White ? net_theme::white_ice_glyph
+                      : ice.color == IceColor::Gray  ? net_theme::gray_ice_glyph
+                      :                                 net_theme::black_ice_glyph;
+        Color c = ice.color == IceColor::White ? net_theme::white_ice
+                : ice.color == IceColor::Gray  ? net_theme::gray_ice
+                :                                net_theme::black_ice;
         r.draw_glyph(pr.x + sx, pr.y + sy, g, c);
     }
 
@@ -749,7 +749,7 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         int sx, sy;
         if (cull(s.avatar_x, s.avatar_y, sx, sy)) {
             r.draw_glyph(pr.x + sx, pr.y + sy,
-                         grid_theme::avatar_glyph, grid_theme::avatar);
+                         net_theme::avatar_glyph, net_theme::avatar);
         }
     }
 
@@ -795,4 +795,4 @@ void render(Game& game, Renderer& r) {
     draw_program_bar(game, r, wr, *sess);
 }
 
-} // namespace astra::grid_renderer
+} // namespace astra::net_renderer

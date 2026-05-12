@@ -1,7 +1,7 @@
 #include "astra/ability_bar.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
-#include "astra/grid_combat.h"
+#include "astra/net_combat.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/program.h"

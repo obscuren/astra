@@ -5,11 +5,11 @@
 #include "astra/display_name.h"
 #include "astra/effect.h"
 #include "astra/game.h"
-#include "astra/grid_combat.h"
-#include "astra/grid_constants.h"
-#include "astra/grid_display.h"
-#include "astra/grid_ice.h"
-#include "astra/grid_session.h"
+#include "astra/net_combat.h"
+#include "astra/net_constants.h"
+#include "astra/net_display.h"
+#include "astra/net_ice.h"
+#include "astra/net_session.h"
 #include "astra/hackable.h"
 #include "astra/lan.h"
 #include "astra/npc.h"
@@ -72,23 +72,23 @@ void apply_data_leech(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
 
 // Records the kill against the active LAN's runtime state when the ICE
 // reached HP <= 0. Returns true if the ICE was just killed.
-bool kill_and_persist(Game& game, GridSession& s, GridIce& ice) {
+bool kill_and_persist(Game& game, NetSession& s, Ice& ice) {
     if (ice.hp > 0) return false;
     IceColor col = ice.color;
-    bool killed = grid_ice::kill_if_dead(s, ice);
+    bool killed = net_ice::kill_if_dead(s, ice);
     if (killed) {
         int xp = (col == IceColor::White) ? kXpIceWhite
                : (col == IceColor::Gray)  ? kXpIceGray
                :                            kXpIceBlack;
-        grant_grid_xp(game, xp);
+        grant_net_xp(game, xp);
     }
     return killed;
 }
 
-std::string apply_icebreaker_lite_grid(GridProgramContext c) {
+std::string apply_icebreaker_lite_grid(NetProgramContext c) {
     // Plan 6: target tile supplied by Telegraph; valid_target predicate
     // already guaranteed an ICE is at (tx, ty).
-    GridIce* tgt = nullptr;
+    Ice* tgt = nullptr;
     for (auto& i : c.session.ice) {
         if (i.hp > 0 && i.x == c.target_x && i.y == c.target_y) {
             tgt = &i; break;
@@ -102,19 +102,19 @@ std::string apply_icebreaker_lite_grid(GridProgramContext c) {
             + (c.session.skill_icebreaking ? 1 : 0);
 
     IceColor col = tgt->color;
-    grid_ice::damage(c.session, *tgt, dmg);
+    net_ice::damage(c.session, *tgt, dmg);
     kill_and_persist(c.game, c.session, *tgt);
     return prefix + std::to_string(dmg) + " damage to " + display_name(col) + ".";
 }
 
-std::string apply_ghost_trace_grid(GridProgramContext c) {
+std::string apply_ghost_trace_grid(NetProgramContext c) {
     c.session.trace = std::max(0, c.session.trace - 3);
     add_effect(c.game.player().effects, make_ghost_cloak_ge(3));
     return display_name(ProgramId::GhostTrace)
          + ": invisible to " + display_name(IceColor::White) + " for 3 turns. Trace -3.";
 }
 
-std::string apply_cooldown_grid(GridProgramContext c) {
+std::string apply_cooldown_grid(NetProgramContext c) {
     const std::string prefix = display_name(ProgramId::Cooldown) + ": ";
     auto* slot = c.game.player().equipment.equipped_cyberdeck();
     if (!slot || !*slot || !(*slot)->deck) return prefix + "no deck.";
@@ -123,7 +123,7 @@ std::string apply_cooldown_grid(GridProgramContext c) {
     return prefix + "heat -4.";
 }
 
-std::string apply_breach_grid(GridProgramContext c) {
+std::string apply_breach_grid(NetProgramContext c) {
     // Firewall / Door / Gateway target tiles all retired with the legacy
     // sector. Per-target netspace grammars will (re)introduce tile-breaking
     // verbs in Phase 1+; Breach.exe sits idle until then.
@@ -131,13 +131,13 @@ std::string apply_breach_grid(GridProgramContext c) {
     return display_name(ProgramId::Breach) + ": nothing to break here.";
 }
 
-std::string apply_decrypt_grid(GridProgramContext c) {
+std::string apply_decrypt_grid(NetProgramContext c) {
     // EncryptedFile tile retired alongside the sector generators.
     (void)c;
     return display_name(ProgramId::Decrypt) + ": no archive at target.";
 }
 
-std::string apply_pulse_hammer_grid(GridProgramContext c) {
+std::string apply_pulse_hammer_grid(NetProgramContext c) {
     // Plan 6: AoE 3×3 centered on the Telegraph-supplied tile. Hits any ICE
     // in the footprint (1d6 each).
     const std::string prefix = display_name(ProgramId::PulseHammer) + ": ";
@@ -150,7 +150,7 @@ std::string apply_pulse_hammer_grid(GridProgramContext c) {
         int dy = std::abs(ice.y - ty);
         if (dx <= 1 && dy <= 1) {
             int dmg = roll(c.game.world().rng());
-            grid_ice::damage(c.session, ice, dmg);
+            net_ice::damage(c.session, ice, dmg);
             ++hit;
         }
     }
@@ -159,14 +159,14 @@ std::string apply_pulse_hammer_grid(GridProgramContext c) {
     return prefix + "hit " + std::to_string(hit) + " ICE.";
 }
 
-std::string apply_daemon_hijack_grid(GridProgramContext c) {
+std::string apply_daemon_hijack_grid(NetProgramContext c) {
     // Plan 6: target tile supplied by Telegraph; predicate already verified
     // a live ICE sits at (tx, ty). Hand the player control of that ICE for
     // N turns. The ICE's own AI is suppressed via charmed_turns_left; the
     // session-level fields route movement input to the puppet.
-    GridSession& s = c.session;
+    NetSession& s = c.session;
     int best_idx = -1;
-    GridIce* tgt = nullptr;
+    Ice* tgt = nullptr;
     for (size_t i = 0; i < s.ice.size(); ++i) {
         auto& ice = s.ice[i];
         if (ice.hp > 0 && ice.x == c.target_x && ice.y == c.target_y) {
@@ -198,7 +198,7 @@ void apply_program_effect(ProgramId id, Game& game, Hackable& target, int tx, in
     }
 }
 
-std::string apply_program_in_grid(ProgramId id, GridProgramContext ctx) {
+std::string apply_program_in_grid(ProgramId id, NetProgramContext ctx) {
     switch (id) {
         case ProgramId::IcebreakerLite: return apply_icebreaker_lite_grid(ctx);
         case ProgramId::GhostTrace:     return apply_ghost_trace_grid(ctx);

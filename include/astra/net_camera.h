@@ -6,7 +6,7 @@ namespace astra {
 // the centre never scrolls but approaching an edge does. When the sector
 // fits inside the viewport, the camera locks to (0, 0) and behaves like
 // the legacy fixed-origin renderer.
-struct GridCamera {
+struct NetCamera {
     int viewport_w = 60;
     int viewport_h = 22;
     int cam_x = 0;

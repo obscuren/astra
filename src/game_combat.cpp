@@ -15,7 +15,7 @@
 #include "astra/noise_event.h"
 #include "astra/skill_defs.h"
 #include "astra/tilemap.h"
-#include "astra/grid_combat.h"
+#include "astra/net_combat.h"
 #include "astra/vulnerability.h"
 
 #include <algorithm>
@@ -233,7 +233,7 @@ static int weapon_skill_bonus(const Player& player, WeaponClass wc) {
 enum class AttackKind { Melee, Ranged };
 
 static int player_contextual_dv(const Player& player, const Game& game, AttackKind kind) {
-    // Any active dv_zero effect (e.g. GridExposed while jacked) bypasses
+    // Any active dv_zero effect (e.g. NetExposed while jacked) bypasses
     // skill bonuses too — body cannot dodge, period.
     for (const auto& e : player.effects) {
         if (e.dv_zero) return 0;
@@ -1269,7 +1269,7 @@ void CombatSystem::check_level_up(Game& game) {
 }
 
 
-void grant_grid_xp(Game& game, int amount) {
+void grant_net_xp(Game& game, int amount) {
     if (amount <= 0) return;
     game.player().xp += amount;
     game.log("+" + std::to_string(amount) + " XP");

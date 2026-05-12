@@ -172,12 +172,12 @@ set(ASTRA_SOURCES
     src/station_type.cpp
     src/station_roll.cpp
     src/hacking_system.cpp
-    src/grid_input.cpp
-    src/grid_renderer.cpp
-    src/grid_camera.cpp
-    src/grid_ice.cpp
+    src/net_input.cpp
+    src/net_renderer.cpp
+    src/net_camera.cpp
+    src/net_ice.cpp
     src/rebirth_sequence.cpp
-    src/grid_session.cpp
+    src/net_session.cpp
     src/netspace_generator.cpp
     src/help_screen.cpp
     src/input_manager.cpp

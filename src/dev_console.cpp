@@ -315,7 +315,7 @@ static void cmd_spawn_ice(DevConsole& con, Game& game, const std::string& color_
         bool occupied = false;
         for (auto& i : sess->ice) if (i.x == nx && i.y == ny) { occupied = true; break; }
         if (occupied) continue;
-        GridIce ice;
+        Ice ice;
         ice.x = nx; ice.y = ny; ice.color = color; ice.hp = hp;
         sess->ice.push_back(ice);
         con.log("Spawned " + color_arg + " ICE.");
@@ -1596,7 +1596,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             bool occupied = false;
             for (auto& i : sess->ice) if (i.x == nx && i.y == ny) { occupied = true; break; }
             if (occupied) continue;
-            GridIce ice;
+            Ice ice;
             ice.x = nx; ice.y = ny; ice.color = color; ice.hp = hp;
             sess->ice.push_back(ice);
             log("Spawned " + args[1] + " ICE.");

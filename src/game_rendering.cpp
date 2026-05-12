@@ -10,7 +10,7 @@
 #include "astra/game.h"
 #include "astra/soul_mirror.h"
 #include "astra/grenade.h"
-#include "astra/grid_renderer.h"
+#include "astra/net_renderer.h"
 #include "astra/map_renderer.h"
 #include "astra/recipe.h"
 #include "astra/item_defs.h"
@@ -899,13 +899,13 @@ void Game::render() {
         case GameState::GameOver:   render_gameover();      break;
         case GameState::LoadMenu:   render_load_menu();     break;
         case GameState::HallOfFame: render_hall_of_fame();  break;
-        case GameState::Grid: {
+        case GameState::Net: {
             // Render world + world UI dimmed behind the Grid overlay window.
             // World state is frozen — no ticks during a Grid session.
             renderer_->set_monochrome(true);
             render_play();
             renderer_->set_monochrome(false);
-            grid_renderer::render(*this, *renderer_);
+            net_renderer::render(*this, *renderer_);
             break;
         }
     }
@@ -1086,7 +1086,7 @@ void Game::render_play() {
     // renderer draws Telegraph in its own playfield rect, otherwise the
     // cursor + AoE preview renders twice (once on the world map behind,
     // once inside the Grid window).
-    if (state_ != GameState::Grid) {
+    if (state_ != GameState::Net) {
         telegraph_.render(renderer_.get(), camera_x_, camera_y_,
                           map_rect_.w, map_rect_.h,
                           map_rect_.x, map_rect_.y);

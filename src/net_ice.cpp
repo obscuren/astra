@@ -1,10 +1,10 @@
-#include "astra/grid_ice.h"
+#include "astra/net_ice.h"
 
 #include "astra/effect.h"
 #include "astra/game.h"
-#include "astra/grid_constants.h"
-#include "astra/grid_display.h"
-#include "astra/grid_session.h"
+#include "astra/net_constants.h"
+#include "astra/net_display.h"
+#include "astra/net_session.h"
 #include "astra/player.h"
 
 #include <algorithm>
@@ -13,11 +13,11 @@
 
 namespace astra {
 
-namespace grid_ice {
+namespace net_ice {
 
 namespace {
 
-bool place_random(GridSession& s, std::mt19937& rng,
+bool place_random(NetSession& s, std::mt19937& rng,
                   int& out_x, int& out_y) {
     std::uniform_int_distribution<int> xd(0, s.netspace.w - 1);
     std::uniform_int_distribution<int> yd(0, s.netspace.h - 1);
@@ -39,7 +39,7 @@ int manhattan(int ax, int ay, int bx, int by) {
     return std::abs(ax - bx) + std::abs(ay - by);
 }
 
-void step_toward(GridSession& s, GridIce& ice, int tx, int ty) {
+void step_toward(NetSession& s, Ice& ice, int tx, int ty) {
     int best_dx = 0, best_dy = 0;
     int best_d = manhattan(ice.x, ice.y, tx, ty);
     static const int dx[4] = { 0, 0, -1, 1 };
@@ -68,14 +68,14 @@ void step_toward(GridSession& s, GridIce& ice, int tx, int ty) {
 
 } // namespace
 
-void spawn_for_sector(GridSession& s, uint32_t seed, int security_tier) {
+void spawn_for_sector(NetSession& s, uint32_t seed, int security_tier) {
     std::mt19937 rng(seed ^ 0xDECAFC0Du);
     int n_white = 1;
     int n_gray  = security_tier >= 2 ? 1 : 0;
 
     for (int i = 0; i < n_white; ++i) {
         int x, y; if (!place_random(s, rng, x, y)) break;
-        GridIce ice;
+        Ice ice;
         ice.x = x; ice.y = y;
         ice.color = IceColor::White;
         ice.hp = 1;
@@ -85,7 +85,7 @@ void spawn_for_sector(GridSession& s, uint32_t seed, int security_tier) {
     }
     for (int i = 0; i < n_gray; ++i) {
         int x, y; if (!place_random(s, rng, x, y)) break;
-        GridIce ice;
+        Ice ice;
         ice.x = x; ice.y = y;
         ice.color = IceColor::Gray;
         ice.hp = 2;
@@ -93,12 +93,12 @@ void spawn_for_sector(GridSession& s, uint32_t seed, int security_tier) {
     }
 }
 
-void spawn_from_seeds(GridSession&) {
+void spawn_from_seeds(NetSession&) {
     // ICE seed pipeline retired with the legacy sector generators.
     // Per-target netspace grammars (Phase 1+) seed ICE directly.
 }
 
-void promote_pending_seeds(GridSession&) {
+void promote_pending_seeds(NetSession&) {
     // No-op now that seeds aren't sourced from the sector.
 }
 
@@ -106,7 +106,7 @@ void promote_pending_seeds(GridSession&) {
 // Invulnerable GE — extends the real-world dev-cheat to the Grid.
 // `last_killer_color` is updated even while invulnerable so post-mortem
 // telemetry stays correct if invuln is later removed mid-fight.
-static void damage_avatar(GridSession& s, Game& game, int dmg, IceColor by) {
+static void damage_avatar(NetSession& s, Game& game, int dmg, IceColor by) {
     if (s.last_killer_color != IceColor::Black) {
         s.last_killer_color = by;
     }
@@ -114,13 +114,13 @@ static void damage_avatar(GridSession& s, Game& game, int dmg, IceColor by) {
     s.avatar_hp -= dmg;
 }
 
-static void tick_trace(GridSession& s, Game& game, int amount) {
+static void tick_trace(NetSession& s, Game& game, int amount) {
     if (amount <= 0) return;
     if (has_effect(game.player().effects, EffectId::Invulnerable)) return;
     s.gain_trace(amount);
 }
 
-void tick_all(GridSession& s, Game& game) {
+void tick_all(NetSession& s, Game& game) {
     static const int dxs[4] = { 0, 0, -1, 1 };
     static const int dys[4] = { -1, 1,  0, 0 };
 
@@ -194,19 +194,19 @@ void tick_all(GridSession& s, Game& game) {
     }
 
     s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
-        [](const GridIce& i){ return i.hp <= 0; }), s.ice.end());
+        [](const Ice& i){ return i.hp <= 0; }), s.ice.end());
 }
 
-void damage(GridSession& /*s*/, GridIce& ice, int dmg) {
+void damage(NetSession& /*s*/, Ice& ice, int dmg) {
     ice.hp -= dmg;
 }
 
-bool kill_if_dead(GridSession& s, GridIce& ice) {
+bool kill_if_dead(NetSession& s, Ice& ice) {
     if (ice.hp > 0) return false;
     s.gain_trace(kKillIceTrace);
     return true;
 }
 
-} // namespace grid_ice
+} // namespace net_ice
 
 } // namespace astra

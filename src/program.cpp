@@ -1,6 +1,6 @@
 #include "astra/program.h"
-#include "astra/grid_ice.h"
-#include "astra/grid_session.h"
+#include "astra/net_ice.h"
+#include "astra/net_session.h"
 #include "astra/hackable.h"
 
 namespace astra {
@@ -31,24 +31,24 @@ const char* program_kind_short(ProgramKind k) {
 
 namespace {
 
-bool icebreaker_valid_target(const GridSession& s, int x, int y) {
+bool icebreaker_valid_target(const NetSession& s, int x, int y) {
     for (const auto& ice : s.ice) {
         if (ice.hp > 0 && ice.x == x && ice.y == y) return true;
     }
     return false;
 }
 
-bool breach_valid_target(const GridSession&, int, int) {
+bool breach_valid_target(const NetSession&, int, int) {
     // Firewall/Door/Gateway tiles retired with the legacy sector.
     return false;
 }
 
-bool decrypt_valid_target(const GridSession&, int, int) {
+bool decrypt_valid_target(const NetSession&, int, int) {
     // EncryptedFile tile retired with the legacy sector.
     return false;
 }
 
-bool pulse_hammer_valid_target(const GridSession& s, int x, int y) {
+bool pulse_hammer_valid_target(const NetSession& s, int x, int y) {
     return s.netspace.passable(x, y);
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "astra/game_state.h"
-#include "astra/grid_ice.h"
+#include "astra/net_ice.h"
 #include "astra/netspace.h"
 
 #include <cstdint>
@@ -19,7 +19,7 @@ enum class JackOutKind : uint8_t {
     SoftDisconnect,   // load-time recovery -- Trace cleared, no penalty
 };
 
-struct GridLootBuffer {
+struct NetLootBuffer {
     int credits             = 0;
     int code_fragments_t1   = 0;
     int code_fragments_t2   = 0;
@@ -28,7 +28,7 @@ struct GridLootBuffer {
     bool empty() const;
 };
 
-struct GridSession {
+struct NetSession {
     // Body
     int body_x = 0;             // saved overworld/dungeon position
     int body_y = 0;
@@ -71,7 +71,7 @@ struct GridSession {
     // window state). Source of truth for renderer + input.
     Netspace netspace;
 
-    std::vector<GridIce> ice;
+    std::vector<Ice> ice;
 
     // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
     // instead of the avatar. -1 = no active hijack. The countdown decrements
@@ -81,7 +81,7 @@ struct GridSession {
     int hijacked_turns_left = 0;
 
     // Loot accumulated this session (committed on voluntary disconnect).
-    GridLootBuffer loot;
+    NetLootBuffer loot;
 
     IceColor last_killer_color = IceColor::White;
 

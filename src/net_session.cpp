@@ -1,12 +1,12 @@
-#include "astra/grid_session.h"
-#include "astra/grid_combat.h"
-#include "astra/grid_constants.h"
+#include "astra/net_session.h"
+#include "astra/net_combat.h"
+#include "astra/net_constants.h"
 
 #include <algorithm>
 
 namespace astra {
 
-int GridSession::gain_trace(int amount) {
+int NetSession::gain_trace(int amount) {
     if (amount > 0 && trace_resistance_pct > 0) {
         int pct = trace_resistance_pct;
         if (pct > 100) pct = 100;
@@ -21,7 +21,7 @@ int GridSession::gain_trace(int amount) {
 }
 
 
-bool GridLootBuffer::empty() const {
+bool NetLootBuffer::empty() const {
     return credits == 0
         && code_fragments_t1 == 0
         && code_fragments_t2 == 0

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "astra/grid_session.h"
+#include "astra/net_session.h"
 #include "astra/program_compiler.h"
 
 #include <cstdint>
@@ -67,8 +67,8 @@ public:
 
     // ── Grid lifecycle ──
     bool jacked_in() const { return session_.has_value(); }
-    GridSession*       session()       { return session_ ? &*session_ : nullptr; }
-    const GridSession* session() const { return session_ ? &*session_ : nullptr; }
+    NetSession*       session()       { return session_ ? &*session_ : nullptr; }
+    const NetSession* session() const { return session_ ? &*session_ : nullptr; }
 
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
     // Phase 0: jack-in always opens an empty Netspace stub regardless of
@@ -96,7 +96,7 @@ private:
 
     DetectionState detection_;
 
-    std::optional<GridSession> session_;
+    std::optional<NetSession> session_;
 
     // Active LOOP sustains. Runtime-only; not persisted (the design accepts
     // that a save-load mid-sustain drops the in-flight effect).
@@ -111,9 +111,9 @@ private:
 
     void on_detection_threshold_(int threshold);
 
-    void commit_loot_(Game& game, GridLootBuffer& loot, int pct);
-    void spawn_black_ice_(GridSession& s);
-    void spawn_gray_ice_reinforcement_(GridSession& s);
+    void commit_loot_(Game& game, NetLootBuffer& loot, int pct);
+    void spawn_black_ice_(NetSession& s);
+    void spawn_gray_ice_reinforcement_(NetSession& s);
 
     // Resolve the sector for `node` into `s.sector`, applying any persisted
     // mutations from `lan_metadata`. Pure data-side helper — does NOT touch

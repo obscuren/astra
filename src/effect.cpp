@@ -362,9 +362,9 @@ Effect make_deck_rebooting_ge() {
     return e;
 }
 
-Effect make_grid_exposed_ge() {
+Effect make_net_exposed_ge() {
     Effect e;
-    e.id = EffectId::GridExposed;
+    e.id = EffectId::NetExposed;
     e.name = "Wired In";
     e.color = Color::Red;
     e.duration = -1;
@@ -434,7 +434,7 @@ Effect effect_for_id(EffectId id) {
         case EffectId::Hearty:          return make_hearty_ge();
         case EffectId::EmpDisabled:     return make_emp_disabled_ge(5);
         case EffectId::Hijacked:        return make_hijacked_ge(2);
-        case EffectId::GridExposed: return make_grid_exposed_ge();
+        case EffectId::NetExposed: return make_net_exposed_ge();
         case EffectId::BlackIceShock:    return make_blackice_shock_long_ge();
         case EffectId::GhostCloak:       return make_ghost_cloak_ge(3);
         default: return Effect{};

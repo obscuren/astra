@@ -45,7 +45,7 @@ enum class EffectId : uint32_t {
     // Debuffs (400+)
     EmpDisabled         = 400,
     Hijacked            = 401,    // Hacking: NPC faction temporarily flipped
-    GridExposed         = 402,    // Grid: body wired in, DV → 0 (no dodging)
+    NetExposed         = 402,    // Grid: body wired in, DV → 0 (no dodging)
     BlackIceShock       = 403,    // Grid: debuff after non-black ICE death
     IceBreakerCharge    = 404,    // Grid: IceBreaker program charge active
     GhostCloak          = 405,    // Grid: GhostProtocol cloak active
@@ -79,7 +79,7 @@ struct Effect {
     int damage_flat_mod = 0;    // added after multiplier (positive = more damage taken)
 
     // If true, while this effect is active the owner's effective DV clamps
-    // to 0 (every attack hits). Used by GridExposed: jacked-in body cannot
+    // to 0 (every attack hits). Used by NetExposed: jacked-in body cannot
     // dodge meatspace attacks.
     bool dv_zero = false;
 
@@ -135,7 +135,7 @@ Effect make_hearty_ge();
 Effect make_emp_disabled_ge(int duration);
 Effect make_bleed_ge(int duration, int damage_per_tick);
 Effect make_hijacked_ge(int duration);
-Effect make_grid_exposed_ge();
+Effect make_net_exposed_ge();
 Effect make_deck_rebooting_ge();    // 5-turn cyberdeck reboot block
 Effect make_blackice_shock_short_ge();   // 20 ticks
 Effect make_blackice_shock_long_ge();    // 60 ticks; -1 av/quickness

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "astra/grid_ice.h"
-#include "astra/grid_theme.h"
+#include "astra/net_ice.h"
+#include "astra/net_theme.h"
 #include "astra/program.h"
 #include "astra/renderer.h"
 
@@ -11,9 +11,9 @@ namespace astra {
 
 inline std::string display_name(IceColor c) {
     switch (c) {
-        case IceColor::White: return colored("White ICE", grid_theme::white_ice);
-        case IceColor::Gray:  return colored("Gray ICE",  grid_theme::gray_ice);
-        case IceColor::Black: return colored("Black ICE", grid_theme::black_ice);
+        case IceColor::White: return colored("White ICE", net_theme::white_ice);
+        case IceColor::Gray:  return colored("Gray ICE",  net_theme::gray_ice);
+        case IceColor::Black: return colored("Black ICE", net_theme::black_ice);
     }
     return colored("ICE", Color::White);
 }

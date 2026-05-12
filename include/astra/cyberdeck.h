@@ -55,7 +55,7 @@ CyberdeckStats cyberdeck_stats_tier2();
 void cyberdeck_add_heat(CyberdeckData& cd, int amount);
 bool cyberdeck_decay_heat(CyberdeckData& cd);                 // -= cooling_rate, clamp 0; returns true if fully cooled
 // Session-aware overload: applies the implant cooling_rate bonus stored on the
-// active GridSession. Use this from in-session ticks; the no-arg form keeps the
+// active NetSession. Use this from in-session ticks; the no-arg form keeps the
 // non-session call sites unchanged.
 bool cyberdeck_decay_heat(CyberdeckData& cd, int extra_cooling);
 bool cyberdeck_overheated(const CyberdeckData& cd);           // heat > heat_cap
