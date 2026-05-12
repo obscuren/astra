@@ -1135,58 +1135,50 @@ void PdaScreen::execute_context_action(char key) {
             auto& item = items[inv_cursor_];
             if (item.type == ItemType::Implant || item.type == ItemType::RelayCortex) {
                 // Route by required_implant_slot — not blindly first-empty.
+                // Occupied slots swap: the existing implant returns to the
+                // inventory and the new one takes its place.
                 auto req = item.required_implant_slot;
 
-                auto try_install = [&](ImplantSlot s) -> bool {
-                    if (player_->has_implant(s)) return false;
+                auto install_or_swap = [&](ImplantSlot s) {
                     Item to_install = std::move(item);
                     items.erase(items.begin() + inv_cursor_);
-                    context_message_ = "Installed " + to_install.name +
-                                       " (" + implant_slot_name(s) + ").";
+                    auto& slot_ref = player_->implant_at(s);
+                    if (slot_ref) {
+                        std::string removed_name = slot_ref->name;
+                        items.push_back(std::move(*slot_ref));
+                        slot_ref.reset();
+                        context_message_ = "Swapped " + to_install.name +
+                                           " for " + removed_name +
+                                           " (" + implant_slot_name(s) + ").";
+                    } else {
+                        context_message_ = "Installed " + to_install.name +
+                                           " (" + implant_slot_name(s) + ").";
+                    }
                     context_msg_timer_ = 3;
-                    player_->implant_at(s) = std::move(to_install);
-                    return true;
+                    slot_ref = std::move(to_install);
+                };
+
+                // Paired slots: prefer the empty side; if both are full, swap
+                // into the Left slot.
+                auto install_paired = [&](ImplantSlot left, ImplantSlot right) {
+                    if (!player_->has_implant(left))       install_or_swap(left);
+                    else if (!player_->has_implant(right)) install_or_swap(right);
+                    else                                   install_or_swap(left);
                 };
 
                 switch (req) {
-                    case ImplantSlotRequirement::Eyes:
-                        if (!try_install(ImplantSlot::Eyes)) {
-                            context_message_ = "Eyes slot occupied.";
-                            context_msg_timer_ = 3;
-                        }
-                        break;
-                    case ImplantSlotRequirement::Head:
-                        if (!try_install(ImplantSlot::Head)) {
-                            context_message_ = "Head slot occupied.";
-                            context_msg_timer_ = 3;
-                        }
-                        break;
-                    case ImplantSlotRequirement::Spine:
-                        if (!try_install(ImplantSlot::Spine)) {
-                            context_message_ = "Spine slot occupied.";
-                            context_msg_timer_ = 3;
-                        }
-                        break;
-                    case ImplantSlotRequirement::Chest:
-                        if (!try_install(ImplantSlot::Chest)) {
-                            context_message_ = "Chest slot occupied.";
-                            context_msg_timer_ = 3;
-                        }
-                        break;
+                    case ImplantSlotRequirement::Eyes:  install_or_swap(ImplantSlot::Eyes);  break;
+                    case ImplantSlotRequirement::Head:  install_or_swap(ImplantSlot::Head);  break;
+                    case ImplantSlotRequirement::Spine: install_or_swap(ImplantSlot::Spine); break;
+                    case ImplantSlotRequirement::Chest: install_or_swap(ImplantSlot::Chest); break;
                     case ImplantSlotRequirement::AnyHand:
-                        if (try_install(ImplantSlot::LeftHand))       {}
-                        else if (try_install(ImplantSlot::RightHand)) {}
-                        else { context_message_ = "Both hand slots occupied."; context_msg_timer_ = 3; }
+                        install_paired(ImplantSlot::LeftHand, ImplantSlot::RightHand);
                         break;
                     case ImplantSlotRequirement::AnyArm:
-                        if (try_install(ImplantSlot::LeftArm))        {}
-                        else if (try_install(ImplantSlot::RightArm))  {}
-                        else { context_message_ = "Both arm slots occupied.";  context_msg_timer_ = 3; }
+                        install_paired(ImplantSlot::LeftArm, ImplantSlot::RightArm);
                         break;
                     case ImplantSlotRequirement::AnyLeg:
-                        if (try_install(ImplantSlot::LeftLeg))        {}
-                        else if (try_install(ImplantSlot::RightLeg))  {}
-                        else { context_message_ = "Both leg slots occupied.";  context_msg_timer_ = 3; }
+                        install_paired(ImplantSlot::LeftLeg, ImplantSlot::RightLeg);
                         break;
                     case ImplantSlotRequirement::None:
                         context_message_ = "This item has no implant slot.";
@@ -1467,7 +1459,7 @@ void PdaScreen::draw_look_overlay(UIContext& ctx) {
     // Item info in remaining space — with left/right padding
     int pad = 2;
     auto info_area = panel_content.sub(Rect{pad, y, cw - pad * 2, panel_content.height() - y});
-    draw_item_info(info_area, item);
+    draw_item_info(info_area, item, player_);
 }
 
 void PdaScreen::draw(int screen_w, int screen_h) {

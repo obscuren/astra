@@ -367,7 +367,7 @@ TinkerResult analyze_item(Item& item, Player& player, std::mt19937& rng) {
     auto* chosen = unknown[std::uniform_int_distribution<size_t>(0, unknown.size() - 1)(rng)];
 
     // Survival chance: 50% base + 3% per INT above 10
-    int survive_chance = 50 + std::max(0, (player.attributes.intelligence - 10)) * 3;
+    int survive_chance = 50 + std::max(0, (player.effective_intelligence() - 10)) * 3;
     bool survived = std::uniform_int_distribution<int>(0, 99)(rng) < survive_chance;
 
     // Learn the blueprint

@@ -156,7 +156,7 @@ std::string apply_breach_grid(GridProgramContext c) {
 
     if (t == GridTile::Firewall) {
         s.sector.set(x, y, GridTile::Floor);
-        s.trace = std::min(kTraceMax, s.trace + 5);
+        s.gain_trace(5);
         record_sector_mutation(c.game, x, y, GridTile::Floor);
         return prefix + display_name(GridTile::Firewall) + " down. Trace +5.";
     }
@@ -171,7 +171,7 @@ std::string apply_breach_grid(GridProgramContext c) {
         if (!crack_gateway_edge(net, s.current_node, meta.lan_root, tgt)) {
             return prefix + "edge not found for " + gw + " target.";
         }
-        s.trace = std::min(kTraceMax, s.trace + 5);
+        s.gain_trace(5);
 
         // First-time crack of a connected LAN's ⊕ registers an Atlas
         // WarpAnchor in the consciousness save and stamps a ◉ tile in the
@@ -189,7 +189,7 @@ std::string apply_breach_grid(GridProgramContext c) {
         }
         s.sector.unlock_door(x, y);
         record_cracked_door(c.game, x, y);
-        s.trace = std::min(kTraceMax, s.trace + 5);
+        s.gain_trace(5);
         return prefix + "lock cracked — door open. Trace +5.";
     }
     return prefix + "nothing to break here.";

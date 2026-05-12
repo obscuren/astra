@@ -11,7 +11,7 @@
 
 namespace astra {
 
-inline constexpr uint32_t CONSCIOUSNESS_SAVE_VERSION = 2;
+inline constexpr uint32_t CONSCIOUSNESS_SAVE_VERSION = 3;
 
 struct LoreFragmentRef {
     std::string archive_id;        // e.g. "ARCH-Hangar7-12x4"

@@ -1330,23 +1330,29 @@ void Game::render_deck_indicator() {
         }
     };
 
+    // Fold implant bonuses into the displayed values. RAM bonus adds to both
+    // current and max (a fresh implant comes "pre-charged"); HEAT bonus only
+    // extends the cap since heat_current is accumulated, not available.
+    auto im = player_.implant_modifiers();
+    int eff_ram_max  = deck.stats.ram_max + im.ram_cap_bonus;
+    int eff_ram_cur  = deck.ram_current   + im.ram_cap_bonus;
+    if (eff_ram_cur > eff_ram_max) eff_ram_cur = eff_ram_max;
+    int eff_heat_cap = deck.stats.heat_cap + im.heat_cap_bonus;
+
     // RAM bar — bright when full, dim as it depletes.
-    int ram_pct = deck.stats.ram_max > 0
-                ? (deck.ram_current * 100 / deck.stats.ram_max) : 0;
+    int ram_pct = eff_ram_max > 0 ? (eff_ram_cur * 100 / eff_ram_max) : 0;
     UITag ram_tag = (ram_pct >= 50) ? UITag::TextBright
                                     : (ram_pct >= 25 ? UITag::TextWarning
                                                      : UITag::TextDanger);
-    draw_bar(deck_ram_rect_, "RAM:",
-             deck.ram_current, deck.stats.ram_max, ram_tag);
+    draw_bar(deck_ram_rect_, "RAM:", eff_ram_cur, eff_ram_max, ram_tag);
 
     // HEAT bar — climbs toward heat_cap; warn at 50%, danger at 80%.
-    int heat_pct = deck.stats.heat_cap > 0
-                 ? (deck.heat_current * 100 / deck.stats.heat_cap) : 0;
+    int heat_pct = eff_heat_cap > 0
+                 ? (deck.heat_current * 100 / eff_heat_cap) : 0;
     UITag heat_tag = (heat_pct >= 80) ? UITag::TextDanger
                                       : (heat_pct >= 50 ? UITag::TextWarning
                                                         : UITag::TextDim);
-    draw_bar(deck_heat_rect_, "HEAT:",
-             deck.heat_current, deck.stats.heat_cap, heat_tag);
+    draw_bar(deck_heat_rect_, "HEAT:", deck.heat_current, eff_heat_cap, heat_tag);
 }
 
 void Game::render_widget_bar() {

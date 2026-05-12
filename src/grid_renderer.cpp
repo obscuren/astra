@@ -454,13 +454,13 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
     draw_colored_string(r, x, y, ram_buf, ram_col);
     x += static_cast<int>(std::strlen(ram_buf));
 
-    // HEAT (queries equipped cyberdeck)
+    // HEAT (queries equipped cyberdeck; plus active-session implant bonus)
     int heat_cur = 0, heat_cap = 0;
     if (auto* deck_slot = game.player().equipment.equipped_cyberdeck()) {
         if (*deck_slot && (*deck_slot)->deck) {
             const auto& cd = *(*deck_slot)->deck;
             heat_cur = cd.heat_current;
-            heat_cap = cd.stats.heat_cap;
+            heat_cap = cd.stats.heat_cap + s.heat_cap_bonus;
         }
     }
     draw_colored_string(r, x, y, " HEAT ", Color::Cyan);

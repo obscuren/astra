@@ -114,8 +114,11 @@ struct TextList {
 };
 
 // Draw item inspection content into a UIContext (no window frame — caller provides that).
+// Passing `player` lets the cyberdeck stat block fold in implant bonuses
+// (RAM cap, heat cap, cooling rate). Pass nullptr when no player is in scope.
 struct Item; // forward declare
-void draw_item_info(UIContext& ctx, const Item& item);
+struct Player;
+void draw_item_info(UIContext& ctx, const Item& item, const Player* player = nullptr);
 
 // Draw an item name: name in rarity color (or white if selected), stack count in white.
 // Returns the x position after the last character drawn.

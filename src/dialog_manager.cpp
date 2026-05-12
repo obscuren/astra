@@ -553,8 +553,17 @@ void DialogManager::jack_into_corpse(Game& game, int fid) {
     bool nf = player_has_skill(game.player(), SkillId::NeuralFortitude);
     s.avatar_hp_max = 3 + (nf ? 1 : 0);
     s.avatar_hp     = s.avatar_hp_max;
-    s.ram_max       = cd_ptr ? cd_ptr->stats.ram_max : 0;
-    s.ram           = cd_ptr ? cd_ptr->ram_current   : 0;
+    {
+        auto im = game.player().implant_modifiers();
+        int deck_ram = cd_ptr ? cd_ptr->stats.ram_max : 0;
+        int deck_cur = cd_ptr ? cd_ptr->ram_current   : 0;
+        s.ram_max = deck_ram + im.ram_cap_bonus;
+        s.ram     = deck_cur + im.ram_cap_bonus;
+        if (s.ram > s.ram_max) s.ram = s.ram_max;
+        s.heat_cap_bonus       = im.heat_cap_bonus;
+        s.cooling_rate_bonus   = im.cooling_rate_bonus;
+        s.trace_resistance_pct = im.trace_resistance_pct;
+    }
     s.trace_tick_per_turn = 1;  // dead-implant sector is a small isolated pocket
 
     s.skill_intrusion          = player_has_skill(game.player(), SkillId::Intrusion);

@@ -187,13 +187,24 @@ public:
         StatModifiers total;
         for (const auto& slot : implants) {
             if (!slot) continue;
-            total.av         += slot->modifiers.av;
-            total.dv         += slot->modifiers.dv;
-            total.max_hp     += slot->modifiers.max_hp;
-            total.view_radius += slot->modifiers.view_radius;
-            total.quickness  += slot->modifiers.quickness;
-            total.willpower  += slot->modifiers.willpower;
+            total.av                          += slot->modifiers.av;
+            total.dv                          += slot->modifiers.dv;
+            total.max_hp                      += slot->modifiers.max_hp;
+            total.view_radius                 += slot->modifiers.view_radius;
+            total.quickness                   += slot->modifiers.quickness;
+            total.willpower                   += slot->modifiers.willpower;
+            total.intelligence                += slot->modifiers.intelligence;
+            total.ram_cap_bonus               += slot->modifiers.ram_cap_bonus;
+            total.heat_cap_bonus              += slot->modifiers.heat_cap_bonus;
+            total.cooling_rate_bonus          += slot->modifiers.cooling_rate_bonus;
+            total.trace_resistance_pct        += slot->modifiers.trace_resistance_pct;
+            total.blackice_shock_duration_pct += slot->modifiers.blackice_shock_duration_pct;
+            total.blackice_shock_immunity     = total.blackice_shock_immunity
+                                              || slot->modifiers.blackice_shock_immunity;
         }
+        // Clamp trace resistance so stacking can't go beyond 100%.
+        if (total.trace_resistance_pct > 100) total.trace_resistance_pct = 100;
+        if (total.trace_resistance_pct < 0)   total.trace_resistance_pct = 0;
         return total;
     }
 
@@ -239,6 +250,13 @@ public:
         auto eq = equipment.total_modifiers();
         auto im = implant_modifiers();
         return attributes.willpower + eq.willpower + im.willpower;
+    }
+
+    // Intelligence with equipment + implant modifiers applied.
+    int effective_intelligence() const {
+        auto eq = equipment.total_modifiers();
+        auto im = implant_modifiers();
+        return attributes.intelligence + eq.intelligence + im.intelligence;
     }
 
     // Quickness with equipment + effect + implant modifiers applied.

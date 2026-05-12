@@ -55,6 +55,13 @@ struct GridSession {
     int trace = 0;              // [0, 100]
     int trace_alert_pulses = 0; // bookkeeping for breakpoint side effects
 
+    // Implant-derived bonuses cached at jack-in. RAM cap bonus is already
+    // baked into ram_max above; heat/cooling/trace bonuses are pulled by
+    // their respective consumers via session_effective_*() helpers.
+    int heat_cap_bonus       = 0;
+    int cooling_rate_bonus   = 0;
+    int trace_resistance_pct = 0;  // 0..100; applied to incoming trace gain
+
     // Tier-derived turn ticks. Drained through trace_carry (every 2 carry units
     // = +1 Trace) so subnet's tick=1 means +1 every 2 turns instead of +1/turn.
     int trace_tick_per_turn = 1;
@@ -105,6 +112,11 @@ struct GridSession {
         while (log_lines.size() > kLogCap) log_lines.pop_front();
     }
     void clear_log() { log_lines.clear(); }
+
+    // Apply incoming trace gain through the implant trace_resistance filter.
+    // Negative deltas pass through unchanged (cleanses ignore resistance).
+    // Returns the new clamped trace value for convenience.
+    int gain_trace(int amount);
 
     // Plan 6: index of the slot whose Telegraph is currently open. -1 when
     // none. The Grid HUD uses this to inverse-video the active program slot.

@@ -6,6 +6,7 @@
 #include "astra/hackable.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
+#include "astra/player.h"
 #include "astra/program.h"
 #include "astra/trap.h"
 #include "terminal_theme.h"
@@ -402,7 +403,7 @@ int draw_item_name(UIContext& ctx, int x, int y, const Item& item, bool /*select
 
 // --- Item info ---
 
-void draw_item_info(UIContext& ctx, const Item& item) {
+void draw_item_info(UIContext& ctx, const Item& item, const Player* player) {
     int y = 0;
 
     auto vis = item_visual(item.item_def_id);
@@ -668,8 +669,28 @@ void draw_item_info(UIContext& ctx, const Item& item) {
 
     if (item.type == ItemType::Cyberdeck && item.deck && y < ctx.height()) {
         const auto& d = *item.deck;
+        // Fold in the player's implant bonuses so the deck panel reflects
+        // the *effective* values once jacked in. Show the bonus separately
+        // (e.g. "4 +2") so the source remains visible.
+        int ram_bonus  = 0, heat_bonus = 0, cool_bonus = 0;
+        if (player) {
+            auto im      = player->implant_modifiers();
+            ram_bonus    = im.ram_cap_bonus;
+            heat_bonus   = im.heat_cap_bonus;
+            cool_bonus   = im.cooling_rate_bonus;
+        }
+        auto with_bonus = [](int base, int bonus) {
+            if (bonus == 0) return std::to_string(base);
+            return std::to_string(base + bonus) + " (" + std::to_string(base)
+                 + (bonus > 0 ? "+" : "") + std::to_string(bonus) + ")";
+        };
+        // RAM bonus bumps both current and cap (implant is pre-charged).
+        int eff_ram_cur = d.ram_current + ram_bonus;
+        int eff_ram_max = d.stats.ram_max + ram_bonus;
+        if (eff_ram_cur > eff_ram_max) eff_ram_cur = eff_ram_max;
         ctx.label_value(0, y, "RAM:       ", Color::DarkGray,
-            std::to_string(d.ram_current) + "/" + std::to_string(d.stats.ram_max),
+            std::to_string(eff_ram_cur) + "/"
+                + with_bonus(d.stats.ram_max, ram_bonus),
             Color::Cyan);
         y++;
         ctx.label_value(0, y, "CPU:       ", Color::DarkGray,
@@ -682,10 +703,10 @@ void draw_item_info(UIContext& ctx, const Item& item) {
             "+" + std::to_string(d.stats.stealth), Color::Cyan);
         y++;
         ctx.label_value(0, y, "Cooling:   ", Color::DarkGray,
-            std::to_string(d.stats.cooling_rate) + "/turn", Color::White);
+            with_bonus(d.stats.cooling_rate, cool_bonus) + "/turn", Color::White);
         y++;
         ctx.label_value(0, y, "Heat cap:  ", Color::DarkGray,
-            std::to_string(d.stats.heat_cap), Color::White);
+            with_bonus(d.stats.heat_cap, heat_bonus), Color::White);
         y++;
 
         // Loaded programs (live slots only)
@@ -709,6 +730,53 @@ void draw_item_info(UIContext& ctx, const Item& item) {
                 ctx.text(0, y, line, Color::Cyan);
                 y++;
             }
+        }
+    }
+
+    if ((item.type == ItemType::Implant || item.type == ItemType::RelayCortex)
+        && y < ctx.height()) {
+        // Slot row — always shown.
+        ctx.label_value(0, y, "Slot:      ", Color::DarkGray,
+            implant_slot_requirement_name(item.required_implant_slot),
+            Color::Cyan);
+        y++;
+
+        // Wired stat modifiers — render only non-zero / non-false values.
+        auto wired_attr = [&](const char* label, int value, Color val_col) {
+            if (value == 0 || y >= ctx.height()) return;
+            std::string val = (value > 0 ? "+" : "") + std::to_string(value);
+            ctx.label_value(0, y, label, Color::DarkGray, val, val_col);
+            y++;
+        };
+        auto wired_attr_suffix = [&](const char* label, int value,
+                                     const char* suffix, Color val_col) {
+            if (value == 0 || y >= ctx.height()) return;
+            std::string val = (value > 0 ? "+" : "") + std::to_string(value) + suffix;
+            ctx.label_value(0, y, label, Color::DarkGray, val, val_col);
+            y++;
+        };
+        auto col = [](int v) { return v >= 0 ? Color::Cyan : Color::Red; };
+
+        wired_attr("INT:       ", item.modifiers.intelligence, col(item.modifiers.intelligence));
+        wired_attr("WIL:       ", item.modifiers.willpower,    col(item.modifiers.willpower));
+        wired_attr("HP:        ", item.modifiers.max_hp,       col(item.modifiers.max_hp));
+        wired_attr("AV:        ", item.modifiers.av,           col(item.modifiers.av));
+        wired_attr("DV:        ", item.modifiers.dv,           col(item.modifiers.dv));
+        wired_attr("Vision:    ", item.modifiers.view_radius,  col(item.modifiers.view_radius));
+        wired_attr("Quickness: ", item.modifiers.quickness,    col(item.modifiers.quickness));
+        wired_attr("RAM cap:   ", item.modifiers.ram_cap_bonus,
+                   col(item.modifiers.ram_cap_bonus));
+        wired_attr("Heat cap:  ", item.modifiers.heat_cap_bonus,
+                   col(item.modifiers.heat_cap_bonus));
+        wired_attr_suffix("Cooling:   ", item.modifiers.cooling_rate_bonus, "/turn",
+                   col(item.modifiers.cooling_rate_bonus));
+        wired_attr_suffix("Trace res: ", item.modifiers.trace_resistance_pct, "%",
+                   col(item.modifiers.trace_resistance_pct));
+        wired_attr_suffix("Shock dur: ", item.modifiers.blackice_shock_duration_pct, "%",
+                   col(item.modifiers.blackice_shock_duration_pct));
+        if (item.modifiers.blackice_shock_immunity && y < ctx.height()) {
+            ctx.label_value(0, y, "Shock imm: ", Color::DarkGray, "yes", Color::Cyan);
+            y++;
         }
     }
 

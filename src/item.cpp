@@ -157,6 +157,7 @@ StatModifiers Equipment::total_modifiers() const {
             }
             total.quickness += (*s)->modifiers.quickness;
             total.willpower += (*s)->modifiers.willpower;
+            total.intelligence += (*s)->modifiers.intelligence;
         }
     }
     return total;

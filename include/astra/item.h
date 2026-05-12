@@ -183,6 +183,13 @@ struct StatModifiers {
     int view_radius = 0;
     int quickness = 0;
     int willpower = 0;  // v55: used by implants (e.g. Neural Backup -1 WIL)
+    int intelligence = 0;                // attribute bonus (mirrors willpower)
+    int ram_cap_bonus = 0;               // adds to effective cyberdeck RAM max at jack-in
+    int heat_cap_bonus = 0;              // adds to effective cyberdeck heat cap at jack-in
+    int cooling_rate_bonus = 0;          // adds to deck cooling_rate at jack-in
+    int trace_resistance_pct = 0;        // % reduction to incoming trace gain (clamped 0..100)
+    int blackice_shock_duration_pct = 0; // signed % adjustment to BlackIceShock duration (e.g. -50)
+    bool blackice_shock_immunity = false; // if true, BlackIceShock effect is never applied
 };
 
 enum class ModuleKind : uint8_t {

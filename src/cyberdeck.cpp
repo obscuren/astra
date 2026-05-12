@@ -28,8 +28,20 @@ bool cyberdeck_decay_heat(CyberdeckData& cd) {
     return cd.heat_current == 0;
 }
 
+bool cyberdeck_decay_heat(CyberdeckData& cd, int extra_cooling) {
+    int rate = cd.stats.cooling_rate + extra_cooling;
+    if (rate < 0) rate = 0;
+    cd.heat_current -= rate;
+    if (cd.heat_current < 0) cd.heat_current = 0;
+    return cd.heat_current == 0;
+}
+
 bool cyberdeck_overheated(const CyberdeckData& cd) {
     return cd.heat_current > cd.stats.heat_cap;
+}
+
+bool cyberdeck_overheated(const CyberdeckData& cd, int extra_heat_cap) {
+    return cd.heat_current > cd.stats.heat_cap + extra_heat_cap;
 }
 
 void cyberdeck_force_reboot(CyberdeckData& cd) {

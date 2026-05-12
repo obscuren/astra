@@ -54,7 +54,12 @@ CyberdeckStats cyberdeck_stats_tier2();
 // Heat helpers (Plan 3). Mutate CyberdeckData::heat_current.
 void cyberdeck_add_heat(CyberdeckData& cd, int amount);
 bool cyberdeck_decay_heat(CyberdeckData& cd);                 // -= cooling_rate, clamp 0; returns true if fully cooled
+// Session-aware overload: applies the implant cooling_rate bonus stored on the
+// active GridSession. Use this from in-session ticks; the no-arg form keeps the
+// non-session call sites unchanged.
+bool cyberdeck_decay_heat(CyberdeckData& cd, int extra_cooling);
 bool cyberdeck_overheated(const CyberdeckData& cd);           // heat > heat_cap
+bool cyberdeck_overheated(const CyberdeckData& cd, int extra_heat_cap);
 void cyberdeck_force_reboot(CyberdeckData& cd);               // ram_current = 0; heat_current = 0
 
 } // namespace astra

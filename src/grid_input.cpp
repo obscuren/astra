@@ -116,7 +116,7 @@ void traverse_via_gateway(Game& game, GridSession& s) {
                 if (em.to == tgt && em.from == e->from) {
                     em.cracked = true;
                     open = true;
-                    s.trace = std::min(kTraceMax, s.trace + 5);
+                    s.gain_trace(5);
                     s.push_log(">> " + colored("DeepGridNavigator", Color::Yellow)
                                + ": " + display_name(GridTile::DeepGridGateway)
                                + " cracked. Trace +5.");
@@ -223,7 +223,7 @@ bool can_afford_program(GridSession& s, const CyberdeckData& cd,
                    + std::to_string(s.ram) + " available");
         return false;
     }
-    if (cd.heat_current + def.heat_cost > cd.stats.heat_cap) {
+    if (cd.heat_current + def.heat_cost > cd.stats.heat_cap + s.heat_cap_bonus) {
         s.push_log("[BLOCK] " + display_name(def) + " — heat over cap");
         return false;
     }

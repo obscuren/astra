@@ -355,18 +355,29 @@ void draw_deck_subscreen(PdaScreen& self, UIContext& ctx) {
         ctx.text(2, y, text, Color::DarkGray);
     };
 
+    // Fold implant bonuses (Spike/Glacier cortex etc.) into the displayed
+    // capacities so the deck panel matches what the player gets once jacked in.
+    // RAM bonus bumps both current and cap (the implant comes pre-charged).
+    // HEAT only extends the cap — current heat is accumulated, not available.
+    auto im = self.player().implant_modifiers();
+    int eff_ram_max  = deck.stats.ram_max      + im.ram_cap_bonus;
+    int eff_ram_cur  = deck.ram_current        + im.ram_cap_bonus;
+    if (eff_ram_cur > eff_ram_max) eff_ram_cur = eff_ram_max;
+    int eff_heat_cap = deck.stats.heat_cap     + im.heat_cap_bonus;
+    int eff_cooling  = deck.stats.cooling_rate + im.cooling_rate_bonus;
+
     label("RAM");
-    draw_bar(ctx, bar_x, y, deck.ram_current, deck.stats.ram_max,
+    draw_bar(ctx, bar_x, y, eff_ram_cur, eff_ram_max,
              bar_w, Color::Cyan);
     ++y;
 
     label("HEAT");
-    draw_bar(ctx, bar_x, y, deck.heat_current, deck.stats.heat_cap,
+    draw_bar(ctx, bar_x, y, deck.heat_current, eff_heat_cap,
              bar_w, Color::Red);
     ++y;
 
     label("COOLING");
-    ctx.text(bar_x, y, std::to_string(deck.stats.cooling_rate) + "/turn",
+    ctx.text(bar_x, y, std::to_string(eff_cooling) + "/turn",
              Color::Default);
     ++y;
 

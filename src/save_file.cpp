@@ -207,6 +207,14 @@ static void write_stat_modifiers(BinaryWriter& w, const StatModifiers& m) {
     w.write_i32(m.view_radius);
     w.write_i32(m.quickness);
     w.write_i32(m.willpower);  // v56
+    // v74: cortex bonus fields
+    w.write_i32(m.intelligence);
+    w.write_i32(m.ram_cap_bonus);
+    w.write_i32(m.heat_cap_bonus);
+    w.write_i32(m.cooling_rate_bonus);
+    w.write_i32(m.trace_resistance_pct);
+    w.write_i32(m.blackice_shock_duration_pct);
+    w.write_u8(m.blackice_shock_immunity ? 1 : 0);
 }
 
 static StatModifiers read_stat_modifiers(BinaryReader& r) {
@@ -217,6 +225,14 @@ static StatModifiers read_stat_modifiers(BinaryReader& r) {
     m.view_radius = r.read_i32();
     m.quickness = r.read_i32();
     m.willpower = r.read_i32();  // v56
+    // v74: cortex bonus fields
+    m.intelligence                = r.read_i32();
+    m.ram_cap_bonus               = r.read_i32();
+    m.heat_cap_bonus              = r.read_i32();
+    m.cooling_rate_bonus          = r.read_i32();
+    m.trace_resistance_pct        = r.read_i32();
+    m.blackice_shock_duration_pct = r.read_i32();
+    m.blackice_shock_immunity     = r.read_u8() != 0;
     return m;
 }
 

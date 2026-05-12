@@ -410,11 +410,11 @@ The Relay Cortex family gates jack-in to the Grid. Installing **any** Relay Cort
 | Name | Dev | Rarity | Role | Stat wiring |
 |------|-----|--------|------|-------------|
 | Mk I Relay Cortex | `relay_cortex_mk1` | Common | Entry-level. Vendor-stocked at Heavens Above (~1000 cr). | Jack-in enabled. No other bonuses. |
-| Spike Cortex | `relay_cortex_spike` | Rare | Offensive hacker. | Jack-in + 2 bonus RAM cap, +1 heat capacity. (RAM/heat wiring TODO — modifier struct expands in a later plan.) |
-| Glacier Cortex | `relay_cortex_glacier` | Rare | Sustained-run hacker. | Jack-in + 2 heat capacity, +1 heat dissipation per tick. (Heat dissipation TODO.) |
-| Sentinel Cortex | `relay_cortex_sentinel` | Rare | Defensive non-hacker. | Jack-in + −25% trace gain per tick, −50% Black ICE Shock duration. (Trace/shock modifiers TODO.) |
-| Acuity Cortex | `relay_cortex_acuity` | Rare | Smart non-hacker. | Jack-in + 2 INT, −10% trace gain per tick. (INT TODO — StatModifiers gains intelligence field in a follow-up; trace TODO.) |
-| Stoic Cortex | `relay_cortex_stoic` | Rare | Mental-resilience non-hacker. | Jack-in + 2 WIL, full Black ICE Shock immunity (Shock effect blocked entirely). (WIL modifier wired; shock immunity TODO.) |
+| Spike Cortex | `relay_cortex_spike` | Rare | Offensive hacker. | Jack-in + 2 bonus RAM cap, +1 heat capacity. |
+| Glacier Cortex | `relay_cortex_glacier` | Rare | Sustained-run hacker. | Jack-in + 2 heat capacity, +1 heat dissipation per tick. |
+| Sentinel Cortex | `relay_cortex_sentinel` | Rare | Defensive non-hacker. | Jack-in + −25% trace gain per tick, −50% Black ICE Shock duration. |
+| Acuity Cortex | `relay_cortex_acuity` | Rare | Smart non-hacker. | Jack-in + 2 INT, −10% trace gain per tick. |
+| Stoic Cortex | `relay_cortex_stoic` | Rare | Mental-resilience non-hacker. | Jack-in + 2 WIL, full Black ICE Shock immunity (Shock effect blocked entirely). |
 
 ## Cyberdeck Mods
 

@@ -1879,8 +1879,7 @@ Item build_neural_backup() {
     it.description =
         "A spinal-mounted memory crystal that mirrors your decrypted "
         "lore archive into the deep-Grid each time you stand at a "
-        "Precursor console. Costs you a sliver of will. "
-        "Stats: -1 WIL.";
+        "Precursor console. Costs you a sliver of will.";
     it.rarity = Rarity::Rare;
     it.weight = 0;
     it.stackable = false;
@@ -1908,8 +1907,7 @@ Item build_relay_cortex_mk1() {
     it.buy_value             = 1000;
     it.sell_value            = 300;
     it.description =
-        "Entry-level neural interface. Lets you jack into the Relay Network. "
-        "Stats: none — pure gate.";
+        "Entry-level neural interface. Lets you jack into the Relay Network.";
     return it;
 }
 
@@ -1926,10 +1924,9 @@ Item build_spike_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Tuned for offensive net-running. Channels more deck RAM and absorbs more heat. "
-        "Stats: +2 RAM cap, +1 Heat cap (planned).";
-    // TODO(implants): wire ram_cap_bonus +2 when StatModifiers is extended
-    // TODO(implants): wire heat_capacity_bonus +1 when StatModifiers is extended
+        "Tuned for offensive net-running. Channels more deck RAM and absorbs more heat.";
+    it.modifiers.ram_cap_bonus  = 2;
+    it.modifiers.heat_cap_bonus = 1;
     return it;
 }
 
@@ -1946,10 +1943,9 @@ Item build_glacier_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Sustained-run tuning. Higher heat capacity and faster passive dissipation. "
-        "Stats: +2 Heat cap, +1 Heat dissipation/tick (planned).";
-    // TODO(implants): wire heat_capacity_bonus +2 when StatModifiers is extended
-    // TODO(implants): wire heat_dissipation_per_tick +1 when StatModifiers is extended
+        "Sustained-run tuning. Higher heat capacity and faster passive dissipation.";
+    it.modifiers.heat_cap_bonus     = 2;
+    it.modifiers.cooling_rate_bonus = 1;
     return it;
 }
 
@@ -1966,10 +1962,9 @@ Item build_sentinel_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Defensive interface. Hardened against trace and Black ICE shock. "
-        "Stats: +25% Trace resistance, -50% Black ICE Shock duration (planned).";
-    // TODO(implants): wire trace_resistance +25% when StatModifiers is extended
-    // TODO(implants): wire blackice_shock_duration_modifier -50% when StatModifiers is extended
+        "Defensive interface. Hardened against trace and Black ICE shock.";
+    it.modifiers.trace_resistance_pct        = 25;
+    it.modifiers.blackice_shock_duration_pct = -50;
     return it;
 }
 
@@ -1986,10 +1981,9 @@ Item build_acuity_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Cognitive amplifier with light Relay tooling. For specialists who jack in only when safe. "
-        "Stats: +2 INT, +10% Trace resistance (planned).";
-    // TODO(implants): wire intelligence +2 when StatModifiers gains intelligence field
-    // TODO(implants): wire trace_resistance +10% when StatModifiers is extended
+        "Cognitive amplifier with light Relay tooling. For specialists who jack in only when safe.";
+    it.modifiers.intelligence         = 2;
+    it.modifiers.trace_resistance_pct = 10;
     return it;
 }
 
@@ -2006,10 +2000,9 @@ Item build_stoic_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Mental hardener that bolsters resilience against intrusion. "
-        "Stats: +2 WIL; Black ICE Shock immunity (planned).";
-    it.modifiers.willpower   = 2;  // +2 WIL while equipped
-    // TODO(implants): wire blackice_shock_immunity when StatModifiers is extended
+        "Mental hardener that bolsters resilience against intrusion.";
+    it.modifiers.willpower             = 2;  // +2 WIL while equipped
+    it.modifiers.blackice_shock_immunity = true;
     return it;
 }
 

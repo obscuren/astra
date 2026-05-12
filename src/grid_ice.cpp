@@ -139,7 +139,7 @@ static void damage_avatar(GridSession& s, Game& game, int dmg, IceColor by) {
 static void tick_trace(GridSession& s, Game& game, int amount) {
     if (amount <= 0) return;
     if (has_effect(game.player().effects, EffectId::Invulnerable)) return;
-    s.trace = std::min(kTraceMax, s.trace + amount);
+    s.gain_trace(amount);
 }
 
 void tick_all(GridSession& s, Game& game) {
@@ -225,7 +225,7 @@ void damage(GridSession& /*s*/, GridIce& ice, int dmg) {
 
 bool kill_if_dead(GridSession& s, GridIce& ice) {
     if (ice.hp > 0) return false;
-    s.trace = std::min(kTraceMax, s.trace + kKillIceTrace);
+    s.gain_trace(kKillIceTrace);
     return true;
 }
 

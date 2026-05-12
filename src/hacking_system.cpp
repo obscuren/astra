@@ -162,9 +162,11 @@ void HackingSystem::tick(Game& game) {
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
         auto& deck = *(*deck_slot)->deck;
-        cyberdeck_decay_heat(deck);
+        int cool_bonus = session_ ? session_->cooling_rate_bonus : 0;
+        int cap_bonus  = session_ ? session_->heat_cap_bonus     : 0;
+        cyberdeck_decay_heat(deck, cool_bonus);
 
-        if (cyberdeck_overheated(deck)) {
+        if (cyberdeck_overheated(deck, cap_bonus)) {
             // Force reboot — RAM is wiped, all sustains lose their RAM
             // reservation (it's gone with the reboot) and are dropped.
             // Apply a 1-turn DeckRebooting effect so no programs can fire
@@ -492,8 +494,20 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     s.avatar_hp_max = 3 + (nf ? 1 : 0);
     s.avatar_hp     = s.avatar_hp_max;
 
-    s.ram_max = cd_ptr ? cd_ptr->stats.ram_max : 0;
-    s.ram     = cd_ptr ? cd_ptr->ram_current   : 0;
+    {
+        auto im = game.player().implant_modifiers();
+        int deck_ram = cd_ptr ? cd_ptr->stats.ram_max : 0;
+        int deck_cur = cd_ptr ? cd_ptr->ram_current   : 0;
+        s.ram_max = deck_ram + im.ram_cap_bonus;
+        s.ram     = deck_cur + im.ram_cap_bonus;
+        if (s.ram > s.ram_max) s.ram = s.ram_max;
+        // Cortex implants extend cyberdeck heat capacity and cooling rate
+        // for the duration of the run. Cached on the session so consumers
+        // can pull effective values without re-touching the player object.
+        s.heat_cap_bonus     = im.heat_cap_bonus;
+        s.cooling_rate_bonus = im.cooling_rate_bonus;
+        s.trace_resistance_pct = im.trace_resistance_pct;
+    }
 
     // Tier-driven Trace tick
     switch (node->kind) {
@@ -762,10 +776,23 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
             commit_loot_(game, s.loot, /*pct*/50);
             game.log("Hard jack-out. Your trail blares.");
             break;
-        case JackOutKind::NonBlackDeath:
-            add_effect(game.player().effects, make_blackice_shock_short_ge());
-            game.log("Avatar wiped. You wake disoriented at the console.");
+        case JackOutKind::NonBlackDeath: {
+            auto im = game.player().implant_modifiers();
+            if (!im.blackice_shock_immunity) {
+                Effect e = make_blackice_shock_short_ge();
+                if (im.blackice_shock_duration_pct != 0) {
+                    int adj = e.duration + e.duration * im.blackice_shock_duration_pct / 100;
+                    if (adj < 1) adj = 1;
+                    e.duration  = adj;
+                    e.remaining = adj;
+                }
+                add_effect(game.player().effects, e);
+                game.log("Avatar wiped. You wake disoriented at the console.");
+            } else {
+                game.log("Avatar wiped — but your Stoic Cortex absorbs the shock.");
+            }
             break;
+        }
         case JackOutKind::BlackIceDeath: {
             int bleed = s.skill_neural_fortitude ? 5 : 10;
             game.player().hp -= bleed;
@@ -777,8 +804,20 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
                 session_.reset();
                 return;
             }
-            add_effect(game.player().effects, make_blackice_shock_long_ge());
-            game.log("BLACK ICE BLEED-THROUGH. You convulse and slump.");
+            auto im = game.player().implant_modifiers();
+            if (!im.blackice_shock_immunity) {
+                Effect e = make_blackice_shock_long_ge();
+                if (im.blackice_shock_duration_pct != 0) {
+                    int adj = e.duration + e.duration * im.blackice_shock_duration_pct / 100;
+                    if (adj < 1) adj = 1;
+                    e.duration  = adj;
+                    e.remaining = adj;
+                }
+                add_effect(game.player().effects, e);
+                game.log("BLACK ICE BLEED-THROUGH. You convulse and slump.");
+            } else {
+                game.log("Black ICE bleed-through — your Stoic Cortex holds the line.");
+            }
             break;
         }
         case JackOutKind::SoftDisconnect:
@@ -824,15 +863,15 @@ void HackingSystem::tick_grid(Game& game) {
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (deck_slot && *deck_slot && (*deck_slot)->deck) {
         auto& cd = *(*deck_slot)->deck;
-        cyberdeck_decay_heat(cd);
+        cyberdeck_decay_heat(cd, s.cooling_rate_bonus);
 
         if (cd.heat_current > kHeatTraceCouplingThreshold) {
-            s.trace = std::min(kTraceMax, s.trace + 1);
+            s.gain_trace(1);
         }
-        if (cyberdeck_overheated(cd)) {
+        if (cyberdeck_overheated(cd, s.heat_cap_bonus)) {
             cyberdeck_force_reboot(cd);
             s.ram = 0;
-            s.trace = std::min(kTraceMax, s.trace + kRebootTracePenalty);
+            s.gain_trace(kRebootTracePenalty);
             s.push_log("[WARN] Deck overheated — forced reboot. RAM lost. Trace +10.");
         }
     }
@@ -845,7 +884,7 @@ void HackingSystem::tick_grid(Game& game) {
     if (s.trace_carry >= 2) {
         int delta = s.trace_carry / 2;
         s.trace_carry %= 2;
-        s.trace = std::min(kTraceMax, s.trace + delta);
+        s.gain_trace(delta);
     }
 
     // 4. Breakpoint side effects.
