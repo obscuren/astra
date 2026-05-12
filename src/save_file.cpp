@@ -6,7 +6,6 @@
 #include "astra/item_ids.h"
 #include "astra/lan.h"
 #include "astra/program_compiler.h"
-#include "astra/sector_runtime_state.h"
 #include "astra/world_manager.h"
 
 #include <unordered_map>
@@ -807,52 +806,7 @@ static Hackable read_hackable(BinaryReader& r) {
     return h;
 }
 
-// Plan 5 v60: SectorRuntimeState persistence
-static void write_sector_runtime_state(BinaryWriter& w, const SectorRuntimeState& s) {
-    w.write_u32(static_cast<uint32_t>(s.mutations.size()));
-    for (const auto& m : s.mutations) {
-        w.write_u8(m.x);
-        w.write_u8(m.y);
-        w.write_u8(static_cast<uint8_t>(m.new_tile));
-    }
-    w.write_u32(static_cast<uint32_t>(s.killed_ice.size()));
-    for (const auto& [x, y] : s.killed_ice) {
-        w.write_u8(x);
-        w.write_u8(y);
-    }
-    // Plan 8 Cut 7 v65: persist cracked doors (unlock_door() does not change
-    // tile — only removes from locked_doors — so mutations can't capture it).
-    w.write_u32(static_cast<uint32_t>(s.cracked_doors.size()));
-    for (const auto& [x, y] : s.cracked_doors) {
-        w.write_u8(x);
-        w.write_u8(y);
-    }
-}
-
-static void read_sector_runtime_state(BinaryReader& r, SectorRuntimeState& s) {
-    uint32_t nm = r.read_u32();
-    s.mutations.resize(nm);
-    for (auto& m : s.mutations) {
-        m.x = r.read_u8();
-        m.y = r.read_u8();
-        m.new_tile = static_cast<GridTile>(r.read_u8());
-    }
-    uint32_t ni = r.read_u32();
-    s.killed_ice.resize(ni);
-    for (auto& [x, y] : s.killed_ice) {
-        x = r.read_u8();
-        y = r.read_u8();
-    }
-    // Plan 8 Cut 7 v65: cracked doors.
-    uint32_t nd = r.read_u32();
-    s.cracked_doors.resize(nd);
-    for (auto& [x, y] : s.cracked_doors) {
-        x = r.read_u8();
-        y = r.read_u8();
-    }
-}
-
-// Plan 5 v60: LanMetadata persistence
+// LanMetadata persistence
 static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
     w.write_u32(meta.lan_root.value);
     w.write_u8(meta.has_deep_grid_edge ? 1 : 0);
@@ -883,14 +837,6 @@ static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
     w.write_i32(meta.ice_killed);
     w.write_i32(meta.lore_extracted);
     w.write_u16(meta.origin_galaxy_id);
-
-    write_sector_runtime_state(w, meta.lan_sector_state);
-
-    w.write_u32(static_cast<uint32_t>(meta.subnet_states.size()));
-    for (const auto& [k, v] : meta.subnet_states) {
-        w.write_u32(k);
-        write_sector_runtime_state(w, v);
-    }
 }
 
 static void read_lan_metadata(BinaryReader& r, LanMetadata& meta) {
@@ -924,18 +870,6 @@ static void read_lan_metadata(BinaryReader& r, LanMetadata& meta) {
     meta.ice_killed        = r.read_i32();
     meta.lore_extracted    = r.read_i32();
     meta.origin_galaxy_id  = r.read_u16();
-
-    read_sector_runtime_state(r, meta.lan_sector_state);
-
-    uint32_t nss = r.read_u32();
-    meta.subnet_states.clear();
-    meta.subnet_states.reserve(nss);
-    for (uint32_t i = 0; i < nss; ++i) {
-        uint32_t key = r.read_u32();
-        SectorRuntimeState v;
-        read_sector_runtime_state(r, v);
-        meta.subnet_states.emplace(key, std::move(v));
-    }
 }
 
 // ---------------------------------------------------------------------------

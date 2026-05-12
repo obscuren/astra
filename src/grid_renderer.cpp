@@ -6,7 +6,6 @@
 #include "astra/grid_ice.h"
 #include "astra/grid_session.h"
 #include "astra/grid_theme.h"
-#include "astra/grid_zone_overlay.h"
 #include "astra/hacking_system.h"
 #include "astra/ip.h"
 #include "astra/item.h"
@@ -827,9 +826,6 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);
         }
     }
-
-    // Plan 8 Cut 8: dashed zone perimeters + banners, between floor and content.
-    grid_zone_overlay::draw(r, s.sector, s_camera, pr.x, pr.y, pr.w, pr.h);
 
     for (const auto& ice : s.ice) {
         int sx, sy;

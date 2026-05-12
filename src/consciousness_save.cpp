@@ -75,43 +75,6 @@ static GridSector read_grid_sector(Reader& r) {
 }
 
 // ---------------------------------------------------------------------------
-// SectorRuntimeState serialization (v2, Task 15).
-// Mirrors save_file.cpp logic for mutations and killed_ice overlay.
-// ---------------------------------------------------------------------------
-
-static void write_sector_runtime_state(Writer& w, const SectorRuntimeState& s) {
-    w.write_u32(static_cast<uint32_t>(s.mutations.size()));
-    for (const auto& m : s.mutations) {
-        w.write_u8(m.x);
-        w.write_u8(m.y);
-        w.write_u8(static_cast<uint8_t>(m.new_tile));
-    }
-    w.write_u32(static_cast<uint32_t>(s.killed_ice.size()));
-    for (const auto& [x, y] : s.killed_ice) {
-        w.write_u8(x);
-        w.write_u8(y);
-    }
-}
-
-static SectorRuntimeState read_sector_runtime_state(Reader& r) {
-    SectorRuntimeState s;
-    uint32_t nm = r.read_u32();
-    s.mutations.resize(nm);
-    for (auto& m : s.mutations) {
-        m.x = r.read_u8();
-        m.y = r.read_u8();
-        m.new_tile = static_cast<GridTile>(r.read_u8());
-    }
-    uint32_t ni = r.read_u32();
-    s.killed_ice.resize(ni);
-    for (auto& [x, y] : s.killed_ice) {
-        x = r.read_u8();
-        y = r.read_u8();
-    }
-    return s;
-}
-
-// ---------------------------------------------------------------------------
 // Item body serialization — mirrors save_file.cpp's write_item / read_item.
 // Duplicated here because those helpers are static (file-local). When Plan 4
 // is complete and save_file helpers are lifted to a shared header, this copy
@@ -421,9 +384,6 @@ bool write_consciousness(const ConsciousnessSave& cs) {
         w.write_u32(static_cast<uint32_t>(cs.signature_program_rack.size()));
         for (const auto& item : cs.signature_program_rack) write_item(w, item);
 
-        // Plan 5 — runtime overlay applied to deep_grid_base on jack-in.
-        write_sector_runtime_state(w, cs.deep_grid_sector_state);
-
         w.write_u32(static_cast<uint32_t>(cs.warp_anchors.size()));
         for (const auto& a : cs.warp_anchors) {
             w.write_u16(a.galaxy_id);
@@ -486,9 +446,6 @@ bool read_consciousness(ConsciousnessSave& out) {
     tmp.signature_program_rack.reserve(rack_n);
     for (uint32_t i = 0; i < rack_n; ++i)
         tmp.signature_program_rack.push_back(read_item(r));
-
-    // Plan 5 — runtime overlay applied to deep_grid_base on jack-in.
-    tmp.deep_grid_sector_state = read_sector_runtime_state(r);
 
     uint32_t na = r.read_u32();
     tmp.warp_anchors.resize(na);

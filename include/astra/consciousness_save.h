@@ -2,7 +2,6 @@
 
 #include "astra/grid_sector.h"
 #include "astra/item.h"
-#include "astra/sector_runtime_state.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -47,14 +46,11 @@ struct ConsciousnessSave {
     int32_t                      grid_currency = 0;
 
     // Hacker-only — populated only with ConsciousnessAnchor capstone unlocked.
-    // Empty sector (sec.w == 0) means "not yet anchored". When the player
-    // takes the ConsciousnessAnchor capstone, this becomes the 60×40
-    // hand-authored layout from make_deep_grid_base().
+    // The personal deep-grid base sector retired with the netspace redesign;
+    // the field is kept as an empty placeholder for save-schema continuity
+    // until the next schema bump (Phase 0 Step 9).
     GridSector              deep_grid_base;
     std::vector<Item>       signature_program_rack;
-
-    // Plan 5 — runtime overlay applied to deep_grid_base on each jack-in.
-    SectorRuntimeState            deep_grid_sector_state;
 
     // Plan 5 Cut 3 — populated on first ⊕ crack per LAN.
     std::vector<WarpAnchorRecord> warp_anchors;

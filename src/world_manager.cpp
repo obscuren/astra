@@ -90,15 +90,7 @@ void WorldManager::on_hackable_removed(GridNodeId subnet_id) {
         n->security_tier = 0;
     }
 
-    // Drop any persistence keyed by this subnet from the active LAN.
-    // NPC death + fixture removal only happens on the live (active) map,
-    // so the owning LAN is always the active one. Cached maps' fixtures
-    // and NPCs are inert and don't trigger this code path.
     auto& active = lan_metadatas_[current_lan_key_];
-    auto it = active.subnet_states.find(subnet_id.value);
-    if (it != active.subnet_states.end()) {
-        active.subnet_states.erase(it);
-    }
     if (active.nodes_total > 0) active.nodes_total -= 1;
 }
 

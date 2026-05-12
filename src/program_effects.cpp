@@ -10,7 +10,6 @@
 #include "astra/grid_display.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_network.h"
-#include "astra/grid_persistence.h"
 #include "astra/grid_session.h"
 #include "astra/hackable.h"
 #include "astra/lan.h"
@@ -76,12 +75,9 @@ void apply_data_leech(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
 // reached HP <= 0. Returns true if the ICE was just killed.
 bool kill_and_persist(Game& game, GridSession& s, GridIce& ice) {
     if (ice.hp > 0) return false;
-    int kx = ice.x;
-    int ky = ice.y;
     IceColor col = ice.color;
     bool killed = grid_ice::kill_if_dead(s, ice);
     if (killed) {
-        record_killed_ice(game, kx, ky);
         int xp = (col == IceColor::White) ? kXpIceWhite
                : (col == IceColor::Gray)  ? kXpIceGray
                :                            kXpIceBlack;
@@ -156,7 +152,6 @@ std::string apply_breach_grid(GridProgramContext c) {
     if (t == GridTile::Firewall) {
         s.sector.set(x, y, GridTile::Floor);
         s.gain_trace(5);
-        record_sector_mutation(c.game, x, y, GridTile::Floor);
         return prefix + display_name(GridTile::Firewall) + " down. Trace +5.";
     }
     if (t == GridTile::DeepGridGateway) {
@@ -187,7 +182,6 @@ std::string apply_breach_grid(GridProgramContext c) {
             return prefix + "door already open.";
         }
         s.sector.unlock_door(x, y);
-        record_cracked_door(c.game, x, y);
         s.gain_trace(5);
         return prefix + "lock cracked — door open. Trace +5.";
     }
@@ -204,7 +198,6 @@ std::string apply_decrypt_grid(GridProgramContext c) {
         return prefix + "target lost.";
     }
     c.session.sector.set(x, y, GridTile::Floor);
-    record_sector_mutation(c.game, x, y, GridTile::Floor);
     c.session.loot.lore_unlocked.push_back(
         "ARCH-" + std::to_string(c.session.entry_node.value) +
         "-" + std::to_string(x * 1000 + y));

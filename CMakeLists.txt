@@ -165,7 +165,6 @@ set(ASTRA_SOURCES
     src/event_bus.cpp
     src/scenario_effects.cpp
     src/scenarios/stage4_hostility.cpp
-    src/sector_runtime_state.cpp
     src/faction.cpp
     src/fragment.cpp
     src/ship.cpp
@@ -176,12 +175,10 @@ set(ASTRA_SOURCES
     src/grid_input.cpp
     src/grid_network.cpp
     src/grid_renderer.cpp
-    src/grid_zone_overlay.cpp
     src/grid_sector.cpp
     src/grid_camera.cpp
     src/grid_ice.cpp
     src/grid_nmap_widget.cpp
-    src/grid_persistence.cpp
     src/rebirth_sequence.cpp
     src/grid_session.cpp
     src/netspace_generator.cpp

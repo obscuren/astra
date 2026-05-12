@@ -7,7 +7,6 @@
 #include "astra/grid_constants.h"
 #include "astra/grid_display.h"
 #include "astra/grid_network.h"
-#include "astra/grid_persistence.h"
 #include "astra/grid_session.h"
 #include "astra/hacking_system.h"
 #include "astra/item.h"
@@ -151,7 +150,6 @@ void on_step(Game& game, GridSession& s) {
             int credits = 5 + 5 * s.trace_tick_per_turn;
             s.loot.credits += credits;
             s.sector.set(s.avatar_x, s.avatar_y, GridTile::Floor);
-            record_sector_mutation(game, s.avatar_x, s.avatar_y, GridTile::Floor);
             s.push_log("> " + display_name(GridTile::DataNode) + " ripped: +"
                        + colored(std::to_string(credits), Color::Yellow) + " credits.");
             return;

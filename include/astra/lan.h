@@ -3,7 +3,6 @@
 #include "astra/grid_network.h"
 #include "astra/hackable.h"
 #include "astra/rect.h"
-#include "astra/sector_runtime_state.h"
 
 #include <cstdint>
 #include <string>
@@ -46,8 +45,6 @@ struct LanMetadata {
     int             ice_killed = 0;
     int             lore_extracted = 0;
     uint16_t        origin_galaxy_id = 0;
-    SectorRuntimeState                              lan_sector_state;
-    std::unordered_map<uint32_t, SectorRuntimeState> subnet_states;   // keyed by Subnet GridNodeId.value
 };
 
 // Plan 8: zone banner label for grid-layout HUD overlay. Returns
