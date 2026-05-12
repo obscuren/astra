@@ -1,5 +1,4 @@
 #include "astra/dev_console.h"
-#include "astra/lan_sector_generator.h"
 #include "astra/animation.h"
 #include "astra/aura.h"
 #include "astra/consciousness_save.h"
@@ -1573,64 +1572,6 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  subnet_base=0x" + std::to_string(meta.subnet_base) +
             " gen_seed=0x" + std::to_string(meta.gen_seed));
         log("  rooms.size=" + std::to_string(meta.zones.size()));
-    }
-    else if (verb == "lan-zones") {
-        // Plan 8: print zone partition for the current LAN.
-        const auto& meta = game.world().lan_metadata();
-        auto size  = compute_lan_v2_size(meta);
-        auto zones = partition_zones(meta, size,
-                                     game.world().grid_network(),
-                                     game.world());
-        log("LAN: " + std::to_string(meta.zones.size()) + " rooms; size "
-            + std::to_string(size.width) + "x" + std::to_string(size.height)
-            + "; " + std::to_string(zones.size()) + " zones");
-        for (const auto& z : zones) {
-            log("  zone t" + std::to_string(z.tier)
-                + " name=" + (z.name.empty() ? "<unset>" : z.name)
-                + " bbox=" + std::to_string(z.x) + "," + std::to_string(z.y)
-                + "+" + std::to_string(z.w) + "x" + std::to_string(z.h));
-        }
-    }
-    else if (verb == "lan-sector-v2") {
-        // Plan 8: generate a v2 sector for the current LAN and either swap it
-        // into the active hacking session (if jacked in) or dump it as ASCII
-        // to the log for inspection.
-        const auto& meta = game.world().lan_metadata();
-        const auto& net  = game.world().grid_network();
-        GridSector sec = generate_lan_sector_v2(meta, net, game.world());
-
-        auto* sess = game.hacking().session();
-        if (sess) {
-            sess->sector  = std::move(sec);
-            sess->avatar_x = sess->sector.spawn_x;
-            sess->avatar_y = sess->sector.spawn_y;
-            log("lan-sector-v2: sector swapped into active session ("
-                + std::to_string(sess->sector.w) + "x"
-                + std::to_string(sess->sector.h) + "). Avatar at "
-                + std::to_string(sess->avatar_x) + ","
-                + std::to_string(sess->avatar_y));
-        } else {
-            // Not jacked in — dump as ASCII to log.
-            log("lan-sector-v2: " + std::to_string(sec.w) + "x"
-                + std::to_string(sec.h) + " (not jacked in — ASCII dump):");
-            for (int y = 0; y < sec.h; ++y) {
-                std::string row;
-                row.reserve(static_cast<size_t>(sec.w));
-                for (int x = 0; x < sec.w; ++x) {
-                    GridTile t = sec.tiles[static_cast<size_t>(y) * sec.w + x];
-                    switch (t) {
-                        case GridTile::Floor:           row += '.'; break;
-                        case GridTile::Firewall:        row += '#'; break;
-                        case GridTile::Door:            row += '+'; break;
-                        case GridTile::ExitNode:        row += 'X'; break;
-                        case GridTile::DeepGridGateway: row += 'O'; break;
-                        case GridTile::DeviceAvatar:    row += 'A'; break;
-                        default:                        row += ' '; break;
-                    }
-                }
-                log(row);
-            }
-        }
     }
     else if (verb == "detection") {
         if (args.size() < 2) {

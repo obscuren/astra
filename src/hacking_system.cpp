@@ -1,13 +1,10 @@
 #include "astra/hacking_system.h"
 
 #include "astra/tilemap.h"
-#include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
-#include "astra/deep_grid_sector.h"
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
-#include "astra/grid_constants.h"
 #include "astra/grid_display.h"
 #include "astra/grid_ice.h"
 #include "astra/grid_sector.h"
@@ -15,12 +12,10 @@
 #include "astra/item.h"
 #include "astra/item_defs.h"
 #include "astra/lan.h"
-#include "astra/lan_sector_generator.h"
 #include "astra/netspace_generator.h"
 #include "astra/npc.h"
 #include "astra/program.h"
-#include "astra/program_effects.h"   // Task 9 will populate; Task 7 ships a stub
-#include "astra/sector_runtime_state.h"
+#include "astra/program_effects.h"
 #include "astra/skill_defs.h"
 #include "astra/visibility_map.h"
 #include "astra/world_manager.h"
@@ -547,143 +542,14 @@ bool HackingSystem::jack_in(Game& game, GridNodeId entry_node) {
     return true;
 }
 
-void HackingSystem::resolve_sector_for_(Game& game, GridSession& s,
-                                        const GridNode& node) {
-    const auto& meta = game.world().lan_metadata();
-    switch (node.kind) {
-        case GridNodeKind::LanRoot: {
-            s.sector = generate_lan_sector_v2(meta, game.world().grid_network(), game.world());
-            apply_mutations(s.sector, meta.lan_sector_state);
-            break;
-        }
-        case GridNodeKind::DeepGridAnchor: {
-            // Owned-anchor dispatch: if this DeepGridAnchor belongs to the
-            // current consciousness AND a customised base has been written
-            // (ConsciousnessAnchor capstone taken + edits made), serve the
-            // saved sector with runtime overlay. Otherwise serve the
-            // canonical 60×40 hand-authored hub (Anchor + Atlas + Frontier).
-            ConsciousnessSave cs;
-            const bool have = read_consciousness(cs);
-            if (have &&
-                node.owned_by_consciousness_id == cs.consciousness_id &&
-                cs.consciousness_id != 0 &&
-                cs.deep_grid_base.w > 0)
-            {
-                s.sector = cs.deep_grid_base;
-                apply_mutations(s.sector, cs.deep_grid_sector_state);
-            } else {
-                s.sector = make_player_deep_grid_base();
-            }
-            break;
-        }
-        case GridNodeKind::RegionalDarknet: {
-            s.sector = gen_regional_sector(node.source_seed, node.security_tier);
-            break;
-        }
-        case GridNodeKind::Subnet: {
-            // Plan 8 flat-model: jacking into a Subnet loads the LAN sector
-            // and spawns at the Subnet's per_node_spawn cell within it.
-            if (!meta.lan_root.valid()) {
-                game.log("[ERR] resolve_sector_for_: Subnet has no LAN root — empty sector.");
-                s.sector = GridSector{};
-                break;
-            }
-            s.sector = generate_lan_sector_v2(meta, game.world().grid_network(), game.world());
-            apply_mutations(s.sector, meta.lan_sector_state);
-
-            // Override spawn to land inside the target Subnet's room.
-            auto it = s.sector.per_node_spawn.find(node.id);
-            if (it != s.sector.per_node_spawn.end()) {
-                s.sector.spawn_x = it->second.first;
-                s.sector.spawn_y = it->second.second;
-            }
-            // Otherwise fall through to the generator's default lobby spawn — defensive.
-            break;
-        }
-        default: {
-            // Truly unexpected — log and serve empty.
-            game.log("[ERR] resolve_sector_for_: unexpected node kind. Serving empty sector.");
-            s.sector = GridSector{};
-            break;
-        }
-    }
-}
-
-bool HackingSystem::traverse_to(Game& game, GridNodeId target_id) {
+bool HackingSystem::traverse_to(Game& game, GridNodeId /*target_id*/) {
+    // Multi-region sector traversal retired with the netspace redesign.
+    // Mid-jack-in node hops do not exist in the per-target netspace model;
+    // each jack-in spawns its own Netspace. The deep-grid-gateway tile that
+    // used to call this is also gone (Phase 0 stub has no such tile).
     if (!session_) return false;
-    GridSession& s = *session_;
-    auto& net = game.world().grid_network();
-    const auto* node = net.find(target_id);
-    if (!node) {
-        game.log("traverse: unknown node.");
-        return false;
-    }
-
-    GridNodeId prev = s.current_node;
-
-    // Plan 8 flat-model: Subnet traversal within the current LAN sector
-    // is a teleport, not a sector regen. ICE, mutations, and content
-    // already live in the sector — only the avatar position + current_node
-    // change.
-    if (node->kind == GridNodeKind::Subnet) {
-        auto it = s.sector.per_node_spawn.find(target_id);
-        if (it != s.sector.per_node_spawn.end()) {
-            s.avatar_x           = it->second.first;
-            s.avatar_y           = it->second.second;
-            s.current_node       = target_id;
-            s.return_node        = prev;
-            s.trace_tick_per_turn = 1;  // Subnet tier
-            return true;
-        }
-        // No per_node_spawn entry — must be cross-LAN or a v1 sector. Fall
-        // through to the v1 sector-regen path.
-    }
-
-    // Existing v1 logic — sector regen for LanRoot, DeepGridAnchor,
-    // RegionalDarknet, and v1 Subnet fallback.
-    resolve_sector_for_(game, s, *node);
-    s.sector.source_node = node->id;
-    s.current_node       = target_id;
-    s.return_node        = prev;
-    s.avatar_x           = s.sector.spawn_x;
-    s.avatar_y           = s.sector.spawn_y;
-
-    // Re-spawn ICE for the new sector; only the hand-authored Anchor stays
-    // empty. LanRoot v2 sectors now consume ice_seeds just like Subnets.
-    s.ice.clear();
-    if (node->kind != GridNodeKind::DeepGridAnchor) {
-        // Plan 8 Cut 5: v2 sectors populate ice_seeds at generation time;
-        // use them when present. Fall back to v1 scatter spawn.
-        if (!s.sector.ice_seeds.empty()) {
-            grid_ice::spawn_from_seeds(s);
-        } else {
-            grid_ice::spawn_for_sector(s, node->source_seed, node->security_tier);
-        }
-        const auto& meta = game.world().lan_metadata();
-        // Plan 8: Subnet traversal (v1 fallback) loads the LAN sector, so
-        // both LanRoot and Subnet kinds share lan_sector_state.
-        const SectorRuntimeState* state = nullptr;
-        if (node->kind == GridNodeKind::Subnet || node->kind == GridNodeKind::LanRoot) {
-            state = &meta.lan_sector_state;
-        }
-        if (state && !state->killed_ice.empty()) {
-            s.ice.erase(std::remove_if(s.ice.begin(), s.ice.end(),
-                [&](const GridIce& ice) {
-                    for (const auto& k : state->killed_ice) {
-                        if (k.first == ice.x && k.second == ice.y) return true;
-                    }
-                    return false;
-                }), s.ice.end());
-        }
-    }
-
-    // Tier-driven trace tick mirrors jack_in's switch.
-    switch (node->kind) {
-        case GridNodeKind::Subnet:           s.trace_tick_per_turn = 1; break;
-        case GridNodeKind::LanRoot:          s.trace_tick_per_turn = 2; break;
-        case GridNodeKind::RegionalDarknet:  s.trace_tick_per_turn = 2; break;
-        case GridNodeKind::DeepGridAnchor:   s.trace_tick_per_turn = 3; break;
-    }
+    (void)game;
+    return false;
     return true;
 }
 

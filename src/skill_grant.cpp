@@ -2,7 +2,6 @@
 
 #include "astra/ability_bar.h"
 #include "astra/consciousness_save.h"
-#include "astra/deep_grid_sector.h"
 #include "astra/fragment.h"
 #include "astra/game.h"
 #include "astra/grid_sector.h"
@@ -103,9 +102,9 @@ void apply_skill_side_effects(Game& game, SkillId id) {
                 net.add_node(n);
             }
 
-            // 3. Persist the 60×40 hand-authored base (Plan 5 Cut 3 Task 30)
-            //    into consciousness.dat. resolve_sector_for_ reads this.
-            cs.deep_grid_base = make_deep_grid_base();
+            // Personal deep-grid base sector retired with the netspace
+            // redesign. The capstone still grants its node + records the
+            // consciousness id; the geometry the player edited is gone.
             write_consciousness(cs);
             break;
         }

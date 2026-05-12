@@ -120,10 +120,5 @@ struct GridSector {
     void     unlock_door(int x, int y);    // removes (x,y) from locked_doors
 };
 
-// Procedural generators. Same seed -> same layout (stable revisits).
-GridSector gen_regional_sector(uint32_t seed, int security_tier);
-// Hand-authored -- see grid_anchor_layout.cpp.
-GridSector make_consciousness_anchor_sector();
-GridSector make_player_deep_grid_base();
 
 } // namespace astra

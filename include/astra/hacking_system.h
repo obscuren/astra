@@ -121,7 +121,6 @@ private:
     // Resolve the sector for `node` into `s.sector`, applying any persisted
     // mutations from `lan_metadata`. Pure data-side helper — does NOT touch
     // avatar position, ICE, or session identity.
-    void resolve_sector_for_(Game& game, GridSession& s, const GridNode& node);
 };
 
 } // namespace astra

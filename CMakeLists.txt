@@ -131,8 +131,6 @@ set(ASTRA_SOURCES
     src/journal.cpp
     src/loot_table.cpp
     src/lan.cpp
-    src/lan_sector_generator.cpp
-    src/grid_room_templates.cpp
     src/recipe_defs.cpp
     src/tinkering.cpp
     src/trap.cpp
@@ -175,13 +173,11 @@ set(ASTRA_SOURCES
     src/station_type.cpp
     src/station_roll.cpp
     src/hacking_system.cpp
-    src/deep_grid_sector.cpp
     src/grid_input.cpp
     src/grid_network.cpp
     src/grid_renderer.cpp
     src/grid_zone_overlay.cpp
     src/grid_sector.cpp
-    src/grid_anchor_layout.cpp
     src/grid_camera.cpp
     src/grid_ice.cpp
     src/grid_nmap_widget.cpp
