@@ -147,7 +147,7 @@ A typical run, in lore terms (path-neutral except where noted):
 
 1. **Wake on The Heavens Above.** Pick up your starting kit — guns, gear, schematics, or a cyberdeck and a starter exploit, depending on the path you're taking. A small starship.
 2. **Travel.** Star to star, system to system, blackhole transit by blackhole transit. Asteroid belts, abandoned outposts, dungeon-rich worlds. Faction encounters. The galaxy is large.
-3. **Build your run.** Profession-specific: Tinkers gather schematics and craft. Marksmen hunt for better weapons and ammo. Melee fighters chase combat skill and augmentations. **Drifters jack into local Relay Sites, walk Chambers, loot Caches, Tether targets, jack into dead implants, and build their exploit library and cyberdeck capacity.** Most runs blend two or more.
+3. **Build your run.** Profession-specific: Tinkers gather schematics and craft. Marksmen hunt for better weapons and ammo. Melee fighters chase combat skill and augmentations. **Drifters jack into hackable targets — doors, cameras, ATMs, mainframes, dead implants, and stranger things — and build their program library and cyberdeck capacity** (see [`../design/netspace.md`](../design/netspace.md)). Most runs blend two or more.
 4. **Go deeper.** The further out you travel, the older the inheritance gets. Stations get stranger. Enemies get stronger. For Drifters specifically: references to "the Substrate" begin to appear in NPC dialogue. The Network begins to feel *alive* in ways it didn't at the surface.
 5. **Approach the core.** Long blackhole chains, dangerous transits, fewer maintained stations. The galactic core nears.
 6. **Sgr A*.** The final approach. Whatever ritual or mechanic delivers the player into Sgr A*'s event horizon. **Rebirth.**

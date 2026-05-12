@@ -786,7 +786,9 @@ Threshold callbacks (fire only on upward crossing):
 
 When the player moves to a different zone, the Detection counter resets to 0.
 
-## Hacking — The Grid (Plan 3 A-layer)
+> **The sections below describe the Plan 3 – Plan 8 "Grid" design — superseded by the netspace redesign ([`netspace.md`](netspace.md)).** Phase 0 of the redesign demolished `GridNetwork`, the legacy sector generators, the LAN graph, `GridSector`, the Imprint mechanic, and the dead-implant sector. Per-target netspace grammars (door / vending / camera / mainframe / NPC head / Blackwall tear / …) replace them in Phase 1+. The text below is preserved as historical reference until the design canon in `netspace.md` has been fully absorbed into this file; treat it as out-of-date.
+
+## Hacking — The Grid (Plan 3 A-layer) [SUPERSEDED]
 
 ### Trace
 
