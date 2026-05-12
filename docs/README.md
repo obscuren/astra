@@ -49,8 +49,7 @@ Reference docs for systems future-Claude (or future-you) will need to understand
 
 In-flight design work. **Specs are transient — they get deleted once the feature ships and the persistent docs (lore / design / technical) have absorbed anything load-bearing.** New specs land here from brainstorming sessions.
 
-- [`relay-manifesto.md`](specs/relay-manifesto.md) — eight-sub-project roadmap for the Relay Network combat & exploration loop.
-- [`relay-spine.md`](specs/relay-spine.md) — Spec 1: NPC Imprints, Relay combat, Drifter XP. The first sub-project under the manifesto.
+_(no active specs — netspace redesign is tracked in `.claude/specs/netspace-phasing.md`, untracked working notes)_
 
 ## ideas/ — pre-spec concepts
 

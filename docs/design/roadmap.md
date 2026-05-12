@@ -198,12 +198,12 @@
 ### Deferred / next
 
 - [x] **Hacking & The Grid — Plan 6 (UI / Grid HUD redesign)** (2026-05-03) — Tron-styled 70%×70% overlay window with world+UI rendered monochrome behind. Top status (▶ GRID + breadcrumb + IP + tier-coloured Trace gauge), deck strip (HP/RAM/Heat block-bars), playfield (re-anchored sector + Telegraph preview), right-pane message log (F1, word-wrapped, prefix-aware continuation indent), program bar (1–8 fire, abbrev + dim-when-unaffordable + active-slot inverse-video). Number keys 1–8 fire programs through Telegraph; per-program TargetingMode/TelegraphSpec/valid_target predicate. UTF-8-aware text helper. GridSession log isolated from world log; Convulsing GE bumped to AV-5 / QN-50 with jack-in lockout; player quickness now wired into advance_world's NPC energy scaling. Dev `:mono on/off` toggle for the monochrome filter.
-- [ ] **The Relay Network — Drifter combat & exploration loop** — major narrative + gameplay reframe. The Grid is now the Relay Network; the player can take the **Drifter** profession path to engage with it. Driving docs:
-  - [Manifesto](../specs/relay-manifesto.md) — eight sub-projects, dependency order
-  - [Spec 1: Spine](../specs/relay-spine.md) — NPC Imprints, Relay combat, Drifter XP
+- [ ] **The Net / Relay Network — netspace redesign** — major reframe of jack-in geography and combat. Each hackable object opens its own procgen netspace (door, vending, camera, ATM, turret, NPC head, mainframe, Blackwall tear, …) with its own shape grammar, ICE profile, and visual language. Replaces the prior single-Site / Imprint design end-to-end. Driving docs:
+  - [Design](netspace.md) — full canonical design for jack-in ritual, per-target netspaces, in-net combat, programs / fragments / daemons, bosses, Blackwall
   - [Lore](../lore/overview.md) — story arc, Substrate, Sgr A*, Drifter archetype
-- [x] **Site / LAN layout** *(shipped)*. Flat sector per LAN; packed independently-walled rooms; tag-themed templates; T1/T2/T3 zone clusters with locked-door chokes; door-only `breach.exe`; zone HUD overlay.
-- [~] **Plan 7 / Device shells** — *dormant.* Code remains in tree, disconnected from the active loop per the Relay reframe. May find a new purpose later (deep-Relay story content, AlienTech dialect, faction-specific sysop persona).
+  - Implementation phasing lives in `.claude/specs/netspace-phasing.md` (untracked working notes)
+- [~] **Legacy Site / LAN layout** — *retiring.* Sector generators, room templates, GridNetwork graph, and the Imprint mechanic are being demolished in Phase 0 of the netspace redesign; per-target grammars replace them in Phase 1+.
+- [~] **Plan 7 / Device shells** — *dormant.* Code remains in tree, disconnected from the active loop. May find a new purpose later (deep-Net story content, AlienTech dialect, faction-specific sysop persona).
 
 ---
 

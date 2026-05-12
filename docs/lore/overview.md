@@ -203,8 +203,7 @@ These are content seams. Future story specs may or may not close them. Many *sho
 
 ## 13. Cross-references
 
-- **Manifesto** (technical roadmap for Drift / Relay design): `../specs/relay-manifesto.md`
-- **Spec 1** (Imprints, Drifter combat, XP): `../specs/relay-spine.md`
+- **Net / netspace design** (jack-in, per-target generation, in-net combat, programs, daemons, bosses, Blackwall): `../design/netspace.md`
 - **Mechanics** (numbers, formulas): `../design/mechanics.md`
 - **Items** (gear, exploits, implants): `../design/items.md`
 - **Factions** (canonical list): `../../include/astra/faction.h`

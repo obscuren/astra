@@ -945,7 +945,7 @@ doors.
 
 ## Hacking — Device Shells (dormant)
 
-Per-device diegetic CLI shells. Code remains in tree but is **disconnected from the active gameplay loop** as of the Relay re-spec (see `../specs/relay-manifesto.md`). Behavior described below reflects the implementation that is currently mothballed.
+Per-device diegetic CLI shells. Code remains in tree but is **disconnected from the active gameplay loop** as of the netspace redesign (see [`netspace.md`](netspace.md)). Behavior described below reflects the implementation that is currently mothballed.
 
 ### Two doorways, one shell
 
