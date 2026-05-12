@@ -5,6 +5,8 @@
 #include "astra/energy.h"
 #include "astra/program.h"
 #include "astra/tinkering.h"
+#include "astra/desc_style.h"
+#include "astra/display_name.h"
 
 namespace astra {
 
@@ -1950,7 +1952,8 @@ Item build_spike_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Tuned for offensive net-running. Channels more deck RAM and absorbs more heat.";
+        "Tuned for offensive net-running. Channels more deck RAM and absorbs more heat.\n\n"
+        + desc_passive("+2 RAM cap, +1 Heat capacity while jacked in.");
     it.modifiers.ram_cap_bonus  = 2;
     it.modifiers.heat_cap_bonus = 1;
     return it;
@@ -1969,7 +1972,8 @@ Item build_glacier_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Sustained-run tuning. Higher heat capacity and faster passive dissipation.";
+        "Sustained-run tuning. Higher heat capacity and faster passive dissipation.\n\n"
+        + desc_passive("+2 Heat capacity, +1 Cooling per turn while jacked in.");
     it.modifiers.heat_cap_bonus     = 2;
     it.modifiers.cooling_rate_bonus = 1;
     return it;
@@ -1988,7 +1992,8 @@ Item build_sentinel_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Defensive interface. Hardened against trace and Black ICE shock.";
+        "Defensive interface. Hardened against trace and Black ICE shock.\n\n"
+        + desc_passive("25% Trace resistance; -50% Black ICE Shock duration.");
     it.modifiers.trace_resistance_pct        = 25;
     it.modifiers.blackice_shock_duration_pct = -50;
     return it;
@@ -2007,7 +2012,8 @@ Item build_acuity_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Cognitive amplifier with light Relay tooling. For specialists who jack in only when safe.";
+        "Cognitive amplifier with light Relay tooling. For specialists who jack in only when safe.\n\n"
+        + desc_passive("+2 Intelligence; 10% Trace resistance.");
     it.modifiers.intelligence         = 2;
     it.modifiers.trace_resistance_pct = 10;
     return it;
@@ -2026,7 +2032,8 @@ Item build_stoic_cortex() {
     it.buy_value             = 3500;
     it.sell_value            = 1000;
     it.description =
-        "Mental hardener that bolsters resilience against intrusion.";
+        "Mental hardener that bolsters resilience against intrusion.\n\n"
+        + desc_passive("+2 Willpower; immune to Black ICE Shock.");
     it.modifiers.willpower             = 2;  // +2 WIL while equipped
     it.modifiers.blackice_shock_immunity = true;
     return it;
@@ -2069,7 +2076,8 @@ Item build_targeting_lattice() {
     it.sell_value            = 800;
     it.description =
         "Micro-projected targeting overlay stitched into the retina. "
-        "Locks pistol aim to a higher agility baseline.";
+        "Locks pistol aim to a higher agility baseline.\n\n"
+        + desc_passive("Pistols treat your Agility as +4 for hit-roll calculations.");
     it.modifiers.pistol_agility_bonus = 4;
     return it;
 }
@@ -2088,7 +2096,8 @@ Item build_heat_spectrum_visor() {
     it.sell_value            = 900;
     it.description =
         "Thermal overlay broadens your sight in dark tunnels and lets you "
-        "spot cloaked heat signatures within line of sight.";
+        "spot cloaked heat signatures within line of sight.\n\n"
+        + desc_passive("+2 view radius in dark/dungeon maps. Reveals cloaked NPCs in line of sight.");
     it.modifiers.view_radius_dark_bonus = 2;
     it.modifiers.detect_cloaked        = true;
     return it;
@@ -2165,7 +2174,8 @@ Item build_pistol_targeter() {
     it.sell_value            = 750;
     it.description =
         "Haptic feedback mesh woven through the trigger fingers. "
-        "Adds a significant flat hit bonus for pistol attacks.";
+        "Adds a significant flat hit bonus for pistol attacks.\n\n"
+        + desc_passive("+15% pistol hit chance. Stacks if installed in both hands.");
     it.modifiers.pistol_hit_bonus_pct = 15;
     return it;
 }
@@ -2241,7 +2251,8 @@ Item build_sprint_coils() {
     it.sell_value            = 480;
     it.description =
         "Kinetic-return coils that store energy between steps. "
-        "Grants a burst of speed when you hold your fire.";
+        "Grants a burst of speed when you hold your fire.\n\n"
+        + desc_passive("+1 Quickness on turns where you took no attack action.");
     it.modifiers.quickness_when_idle = 1;
     return it;
 }
@@ -2260,7 +2271,8 @@ Item build_mag_lock_soles() {
     it.sell_value            = 800;
     it.description =
         "Electromagnetic anchors integrated into the heel and ball of the foot. "
-        "You don't move unless you choose to.";
+        "You don't move unless you choose to.\n\n"
+        + desc_passive("Immune to knockback and slip-terrain effects.");
     it.modifiers.knockback_immune = true;
     it.modifiers.slip_immune      = true;
     return it;
@@ -2282,7 +2294,11 @@ Item build_vibro_tip_fingers() {
     it.stackable             = false;
     it.buy_value             = 2500;
     it.sell_value            = 750;
-    it.description           = "Micro-vibrating fingertip implants. Adds kinetic edge to melee, occasionally rending soft tissue.";
+    it.description           =
+        "Micro-vibrating fingertip implants. Adds kinetic edge to melee, occasionally rending soft tissue.\n\n"
+        + desc_passive("Melee +1 " + display_name(DamageType::Kinetic) + " damage. "
+                       "10% chance per melee hit to apply "
+                       + desc_effect("Bleed", Color::Red) + " (3 turns @ 1 kinetic/turn).");
     it.modifiers.melee_kinetic_bonus  = 1;
     it.modifiers.melee_bleed_proc_pct = 10;
     return it;
@@ -2300,7 +2316,10 @@ Item build_static_palm() {
     it.stackable             = false;
     it.buy_value             = 2600;
     it.sell_value            = 780;
-    it.description           = "A capacitor net under the palm dumps an EMP arc on contact.";
+    it.description           =
+        "A capacitor net under the palm dumps an EMP arc on contact.\n\n"
+        + desc_passive("15% chance per melee hit to apply "
+                       + desc_effect("EmpDisabled", Color::Cyan) + " (1 turn).");
     it.modifiers.melee_emp_proc_pct = 15;
     return it;
 }
@@ -2317,7 +2336,11 @@ Item build_wrist_rocket() {
     it.stackable             = false;
     it.buy_value             = 2800;
     it.sell_value            = 850;
-    it.description           = "A concealed micro-rocket tube. Fires alongside your ranged attacks. Heat splash, narrow blast.";
+    it.description           =
+        "A concealed micro-rocket tube. Fires alongside your ranged attacks. Heat splash, narrow blast.\n\n"
+        + desc_passive("8% chance per ranged hit to fire a rocket dealing "
+                       + desc_dice("1d4") + " " + display_name(DamageType::Plasma)
+                       + " to the target and 4 cardinal neighbors.");
     it.modifiers.ranged_rocket_proc_pct = 8;
     return it;
 }
@@ -2334,7 +2357,9 @@ Item build_coilgun_punch() {
     it.stackable             = false;
     it.buy_value             = 2700;
     it.sell_value            = 800;
-    it.description           = "Magnetic accelerators in the humerus drive a second strike on the heels of the first.";
+    it.description           =
+        "Magnetic accelerators in the humerus drive a second strike on the heels of the first.\n\n"
+        + desc_passive("20% chance per melee hit to fire a free second strike at the same target.");
     it.modifiers.melee_extra_hit_proc_pct = 20;
     return it;
 }
@@ -2355,7 +2380,9 @@ Item build_threat_optics() {
     it.stackable             = false;
     it.buy_value             = 1400;
     it.sell_value            = 420;
-    it.description           = "Retinal overlay paints enemies with vital-sign telemetry. See their hit-points and active conditions at a glance.";
+    it.description           =
+        "Retinal overlay paints enemies with vital-sign telemetry. See their hit-points and active conditions at a glance.\n\n"
+        + desc_passive("Renders HP percentage and active status tag above each visible hostile NPC.");
     it.modifiers.show_enemy_threat = true;
     return it;
 }
@@ -2372,7 +2399,9 @@ Item build_adrenal_pump() {
     it.stackable             = false;
     it.buy_value             = 2700;
     it.sell_value            = 800;
-    it.description           = "A subdermal stim reservoir. Triggers once per fight when health drops critically low.";
+    it.description           =
+        "A subdermal stim reservoir. Triggers once per fight when health drops critically low.\n\n"
+        + desc_trigger("When HP drops below 30% of maximum, gain +1 Quickness for 5 turns. Fires once per combat.");
     it.modifiers.has_adrenal_pump = true;
     return it;
 }
@@ -2389,7 +2418,10 @@ Item build_emp_buffer() {
     it.stackable             = false;
     it.buy_value             = 2900;
     it.sell_value            = 870;
-    it.description           = "Sacrificial Faraday weave around the heart. Absorbs the first electric or EMP strike each level.";
+    it.description           =
+        "Sacrificial Faraday weave around the heart. Absorbs the first electric or EMP strike each level.\n\n"
+        + desc_trigger("First incoming electric or EMP attack each level is fully absorbed (damage and "
+                       + desc_effect("EmpDisabled", Color::Cyan) + " both blocked).");
     it.modifiers.has_emp_buffer = true;
     return it;
 }
@@ -2406,7 +2438,10 @@ Item build_burst_pistons() {
     it.stackable             = false;
     it.buy_value             = 2800;
     it.sell_value            = 850;
-    it.description           = "Spring-loaded leg pistons. Active: dash 3 tiles in one stride. 8-turn cooldown.";
+    it.description           =
+        "Spring-loaded leg pistons. Explosive burst of speed in a single stride.\n\n"
+        + desc_active("Press " + desc_key('d') + " then a cardinal direction to dash up to 3 tiles. "
+                      "Costs a turn. 8-turn cooldown; resets when combat ends.");
     it.modifiers.has_burst_pistons = true;
     return it;
 }

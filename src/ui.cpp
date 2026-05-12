@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -413,19 +414,90 @@ void draw_item_info(UIContext& ctx, const Item& item, const Player* player) {
 
     if (!item.description.empty()) {
         y++;
-        std::string_view desc = item.description;
-        int max_w = ctx.width();
-        while (!desc.empty() && y < ctx.height()) {
-            if (static_cast<int>(desc.size()) <= max_w) {
-                ctx.text(0, y++, desc, Color::Default);
-                break;
+        // Split on explicit newlines first; each paragraph is wrapped independently.
+        std::string desc_str = item.description;
+        // Split into paragraphs on "\n"
+        std::vector<std::string> paragraphs;
+        {
+            size_t start = 0;
+            while (start <= desc_str.size()) {
+                size_t nl = desc_str.find('\n', start);
+                if (nl == std::string::npos) {
+                    paragraphs.push_back(desc_str.substr(start));
+                    break;
+                }
+                paragraphs.push_back(desc_str.substr(start, nl - start));
+                start = nl + 1;
             }
-            int cut = max_w;
-            while (cut > 0 && desc[cut] != ' ') --cut;
-            if (cut == 0) cut = max_w;
-            ctx.text(0, y++, desc.substr(0, cut), Color::Default);
-            desc = desc.substr(cut);
-            if (!desc.empty() && desc[0] == ' ') desc = desc.substr(1);
+        }
+        int max_w = ctx.width();
+        for (const std::string& para : paragraphs) {
+            if (y >= ctx.height()) break;
+            if (para.empty()) {
+                // blank line between paragraphs
+                y++;
+                continue;
+            }
+            // Word-wrap the paragraph, respecting COLOR marker boundaries.
+            // Walk byte-by-byte counting visible columns; never split inside a
+            // COLOR_BEGIN <byte> ... COLOR_END triplet.
+            std::string_view sv = para;
+            while (!sv.empty() && y < ctx.height()) {
+                if (UIContext::rich_visible_length(sv) <= max_w) {
+                    ctx.text_rich(0, y++, sv, Color::Default);
+                    break;
+                }
+                // Find the last safe break point at or before max_w visible cols.
+                // Walk and track last space position (byte index) and its visible col.
+                int vis_col = 0;
+                size_t i = 0;
+                size_t last_space_byte = 0;
+                bool found_space = false;
+                bool in_color = false;
+                while (i < sv.size()) {
+                    unsigned char ch = static_cast<unsigned char>(sv[i]);
+                    // COLOR_BEGIN <byte>: skip both bytes, no visible column
+                    if (ch == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < sv.size()) {
+                        in_color = true;
+                        i += 2;
+                        continue;
+                    }
+                    // COLOR_END: skip byte, no visible column
+                    if (ch == static_cast<unsigned char>(COLOR_END)) {
+                        in_color = false;
+                        ++i;
+                        continue;
+                    }
+                    // Determine byte length of this character
+                    int seq_len = 1;
+                    if (ch >= 0x80) {
+                        if ((ch & 0xE0) == 0xC0) seq_len = 2;
+                        else if ((ch & 0xF0) == 0xE0) seq_len = 3;
+                        else if ((ch & 0xF8) == 0xF0) seq_len = 4;
+                    }
+                    // If this visible column would exceed max_w, stop
+                    if (vis_col >= max_w) break;
+                    // Record space positions for word-wrap break
+                    if (ch == ' ' && !in_color) {
+                        last_space_byte = i;
+                        found_space = true;
+                    }
+                    i += seq_len;
+                    ++vis_col;
+                }
+                // Determine cut point
+                size_t cut_byte;
+                if (found_space && last_space_byte > 0) {
+                    cut_byte = last_space_byte;
+                } else {
+                    // No space found — hard-cut at the byte position where we stopped
+                    cut_byte = i;
+                }
+                ctx.text_rich(0, y++, sv.substr(0, cut_byte), Color::Default);
+                sv = sv.substr(cut_byte);
+                // Skip leading space after the break
+                if (!sv.empty() && sv[0] == ' ') sv = sv.substr(1);
+            }
         }
     }
     y++;

@@ -25,6 +25,7 @@ How the game works, in numbers and rules.
 - [`tinkering.md`](design/tinkering.md) — crafting system. Materials catalog, refinement, synthesis, schematic-based crafting.
 - [`quest-system.md`](design/quest-system.md) — quest system architecture and content design notes.
 - [`roadmap.md`](design/roadmap.md) — what's shipped, what's planned. Top-level feature-tracking. Updated as work lands.
+- [`description-style.md`](design/description-style.md) — item description styling convention: Passive/Active/Trigger tags, inline color rules, helper functions, wrap renderer notes.
 
 ## lore/ — world & narrative
 
