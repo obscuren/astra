@@ -23,6 +23,7 @@ Living catalog of every design, narrative, and technical doc in the project. **A
 How the game works, in numbers and rules.
 
 - [`mechanics.md`](design/mechanics.md) — formulas, derived stats, combat / skill / wayfinding rules, status effects, hacking flow. **Source of truth for game rules.**
+- [`netspace.md`](design/netspace.md) — design doc for the Net / Relay Network from inside the cyberdeck: jack-in ritual, per-target netspace generation, in-net combat, programs / fragments / daemons, boss AIs, Blackwall, visual language. Canonical Drifter-side design surface.
 - [`items.md`](design/items.md) — full item catalog (weapons, armor, cells, mods, consumables, schematics). Player- and dev-facing reference.
 - [`tinkering.md`](design/tinkering.md) — crafting system. Materials catalog, refinement, synthesis, schematic-based crafting.
 - [`quest-system.md`](design/quest-system.md) — quest system architecture and content design notes.
