@@ -2,7 +2,6 @@
 
 #include "astra/game_state.h"
 #include "astra/grid_ice.h"
-#include "astra/grid_sector.h"
 #include "astra/netspace.h"
 
 #include <cstdint>
@@ -68,16 +67,11 @@ struct GridSession {
     bool skill_neural_fortitude   = false;
     bool ghost_protocol_used      = false;  // set true after first program of session
 
-    // Netspace (Phase 0+): the source-of-truth per-jack-in micro-dungeon.
-    // The legacy `sector` below mirrors this during Phase 0 so the existing
-    // renderer/input keep working; the mirror is removed in Phase 0 Step 7
-    // when those layers pivot to read Netspace directly.
+    // Netspace: the per-jack-in micro-dungeon (tiles, target descriptor,
+    // window state). Source of truth for renderer + input.
     Netspace netspace;
 
-    // Sector (legacy, removed in Phase 0 Step 7)
-    GridSector sector;
     std::vector<GridIce> ice;
-    std::vector<bool> ice_seed_spawned;  // legacy, removed in Phase 0 Step 7
 
     // DaemonHijack: while active, movement keys drive s.ice[hijacked_ice_idx]
     // instead of the avatar. -1 = no active hijack. The countdown decrements

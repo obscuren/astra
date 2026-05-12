@@ -30,7 +30,7 @@ namespace {
 bool try_move(GridSession& s, int dx, int dy) {
     int nx = s.avatar_x + dx;
     int ny = s.avatar_y + dy;
-    if (!s.sector.passable(nx, ny)) return false;
+    if (!s.netspace.passable(nx, ny)) return false;
     s.avatar_x = nx;
     s.avatar_y = ny;
     return true;
@@ -55,7 +55,7 @@ bool try_move_hijacked_ice(GridSession& s, int dx, int dy) {
     }
     int nx = ice.x + dx;
     int ny = ice.y + dy;
-    if (!s.sector.passable(nx, ny)) return true;          // bumped — turn still consumed
+    if (!s.netspace.passable(nx, ny)) return true;          // bumped — turn still consumed
     if (nx == s.avatar_x && ny == s.avatar_y) return true; // can't trample the operator
     // Don't stack onto another ICE.
     for (size_t i = 0; i < s.ice.size(); ++i) {
@@ -74,8 +74,7 @@ bool try_move_hijacked_ice(GridSession& s, int dx, int dy) {
 // part of the multi-region geography and are retired with the netspace
 // redesign. Per-target tile interactions return in Phase 1+ grammars.
 void on_step(Game& game, GridSession& s) {
-    GridTile here = s.sector.at(s.avatar_x, s.avatar_y);
-    if (here == GridTile::ExitNode) {
+    if (s.netspace.at(s.avatar_x, s.avatar_y) == NetTile::Exit) {
         s.push_log(">> Disconnect channel...");
         game.hacking().jack_out(game, JackOutKind::Voluntary);
     }
@@ -148,11 +147,8 @@ void fire_program_slot(Game& game, GridSession& s, int slot_idx) {
     // Tile-targeted: launch Telegraph with a Grid-aware passable predicate.
     TelegraphSpec spec = def->telegraph_spec;
     spec.passable_fn = [sess_ptr = &s](int x, int y) -> bool {
-        if (!sess_ptr->sector.in_bounds(x, y)) return false;
-        GridTile t = sess_ptr->sector.at(x, y);
-        // Walls and firewalls block LoS; other tiles let the cursor through.
-        // The valid_target predicate validates the dest tile separately.
-        return t != GridTile::Wall && t != GridTile::Firewall;
+        if (!sess_ptr->netspace.in_bounds(x, y)) return false;
+        return sess_ptr->netspace.at(x, y) != NetTile::Wall;
     };
 
     auto on_confirm = [&game, sess_ptr = &s, def_ptr = def](const TelegraphResult& r) {

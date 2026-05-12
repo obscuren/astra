@@ -46,35 +46,6 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// GridSector body serialization.
-// Only persists the fields that matter for consciousness.dat: grid geometry,
-// tiles, and spawn position. The gateway destination (deep_grid_destination)
-// is a single per-sector field resolved at runtime and is not persisted here.
-// ---------------------------------------------------------------------------
-
-static void write_grid_sector(Writer& w, const GridSector& s) {
-    w.write_i32(s.w);
-    w.write_i32(s.h);
-    w.write_u32(static_cast<uint32_t>(s.tiles.size()));
-    for (GridTile t : s.tiles) w.write_u8(static_cast<uint8_t>(t));
-    w.write_i32(s.spawn_x);
-    w.write_i32(s.spawn_y);
-}
-
-static GridSector read_grid_sector(Reader& r) {
-    GridSector s;
-    s.w = r.read_i32();
-    s.h = r.read_i32();
-    uint32_t tile_n = r.read_u32();
-    s.tiles.resize(tile_n);
-    for (uint32_t i = 0; i < tile_n; ++i)
-        s.tiles[i] = static_cast<GridTile>(r.read_u8());
-    s.spawn_x = r.read_i32();
-    s.spawn_y = r.read_i32();
-    return s;
-}
-
-// ---------------------------------------------------------------------------
 // Item body serialization — mirrors save_file.cpp's write_item / read_item.
 // Duplicated here because those helpers are static (file-local). When Plan 4
 // is complete and save_file helpers are lifted to a shared header, this copy
@@ -377,9 +348,6 @@ bool write_consciousness(const ConsciousnessSave& cs) {
 
         w.write_i32(cs.grid_currency);
 
-        // deep_grid_base body. Empty sector (w == 0) means "not yet anchored".
-        write_grid_sector(w, cs.deep_grid_base);
-
         // signature_program_rack body.
         w.write_u32(static_cast<uint32_t>(cs.signature_program_rack.size()));
         for (const auto& item : cs.signature_program_rack) write_item(w, item);
@@ -437,9 +405,6 @@ bool read_consciousness(ConsciousnessSave& out) {
     }
 
     tmp.grid_currency = r.read_i32();
-
-    // deep_grid_base body. Empty sector (w == 0) means "not yet anchored".
-    tmp.deep_grid_base = read_grid_sector(r);
 
     // signature_program_rack body.
     uint32_t rack_n = r.read_u32();

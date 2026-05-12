@@ -38,25 +38,18 @@ bool icebreaker_valid_target(const GridSession& s, int x, int y) {
     return false;
 }
 
-bool breach_valid_target(const GridSession& s, int x, int y) {
-    if (!s.sector.in_bounds(x, y)) return false;
-    GridTile t = s.sector.at(x, y);
-    // breach.exe targets locked Doors (the bridge tile between rooms),
-    // and the deep-grid gateway. Firewall is retained for hand-authored
-    // sectors that still stamp impassable walls.
-    if (t == GridTile::Door) return s.sector.is_locked_door(x, y);
-    return t == GridTile::Firewall ||
-           t == GridTile::DeepGridGateway;
+bool breach_valid_target(const GridSession&, int, int) {
+    // Firewall/Door/Gateway tiles retired with the legacy sector.
+    return false;
 }
 
-bool decrypt_valid_target(const GridSession& s, int x, int y) {
-    if (!s.sector.in_bounds(x, y)) return false;
-    return s.sector.at(x, y) == GridTile::EncryptedFile;
+bool decrypt_valid_target(const GridSession&, int, int) {
+    // EncryptedFile tile retired with the legacy sector.
+    return false;
 }
 
 bool pulse_hammer_valid_target(const GridSession& s, int x, int y) {
-    if (!s.sector.in_bounds(x, y)) return false;
-    return s.sector.passable(x, y);
+    return s.netspace.passable(x, y);
 }
 
 // daemon_hijack and icebreaker share the "any live ICE" predicate.

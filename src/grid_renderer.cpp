@@ -88,57 +88,9 @@ const char* wall_glyph_for_neighbours(bool n, bool s, bool e, bool w) {
     }
 }
 
-bool is_connectable(GridTile t) {
-    return t == GridTile::Wall || t == GridTile::Connector;
-}
-
-// Zone-tier colouring retired; per-target netspace grammars will set
-// floor colours via the visual-language layer in Phase 2.
-Color floor_color_for_zone_at(const GridSector&, int, int) {
-    return grid_theme::floor;
-}
-
-const char* glyph_for(GridTile t) {
-    using namespace grid_theme;
-    switch (t) {
-        case GridTile::Floor:           return floor_glyph;
-        case GridTile::Firewall:        return firewall_glyph;
-        case GridTile::DataNode:        return data_node_glyph;
-        case GridTile::ExitNode:        return exit_glyph;
-        case GridTile::EncryptedFile:   return encrypted_glyph;
-        case GridTile::Wall:            return " ";
-        case GridTile::Connector:       return connector_glyph;
-        case GridTile::DeepGridGateway: return deep_grid_gateway_glyph;
-        case GridTile::WarpAnchor:      return warp_anchor_glyph;
-        case GridTile::DeviceAvatar:    return " ";
-        // Door: glyph and color depend on lock state; resolved per-cell in draw_playfield.
-        case GridTile::Door:            return door_open_glyph;
-        // Void: v2 out-of-room background — renders as blank space.
-        case GridTile::Void:            return " ";
-    }
-    return " ";
-}
-
-Color color_for(GridTile t) {
-    using namespace grid_theme;
-    switch (t) {
-        case GridTile::Floor:           return floor;
-        case GridTile::Firewall:        return firewall;
-        case GridTile::DataNode:        return data_node;
-        case GridTile::ExitNode:        return exit_node;
-        case GridTile::EncryptedFile:   return encrypted;
-        case GridTile::Wall:            return floor;
-        case GridTile::Connector:       return connector;
-        case GridTile::DeepGridGateway: return deep_grid_gateway;
-        case GridTile::WarpAnchor:      return warp_anchor;
-        case GridTile::DeviceAvatar:    return Color::BrightWhite;
-        // Door: color depends on lock state; resolved per-cell in draw_playfield.
-        case GridTile::Door:            return door_open;
-        // Void: v2 out-of-room background — color irrelevant (space glyph).
-        case GridTile::Void:            return floor;
-    }
-    return Color::White;
-}
+// GridTile dispatch (glyph_for / color_for / is_connectable /
+// floor_color_for_zone_at) retired with the legacy sector. The renderer
+// now switches on NetTile directly inside draw_playfield.
 
 // ---------------------------------------------------------------------------
 // Window geometry
@@ -736,11 +688,11 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     static GridCamera s_camera;
     s_camera.viewport_w = pr.w;
     s_camera.viewport_h = pr.h;
-    s_camera.follow(s.avatar_x, s.avatar_y, s.sector.w, s.sector.h);
+    s_camera.follow(s.avatar_x, s.avatar_y, s.netspace.w, s.netspace.h);
 
     auto neigh = [&](int x, int y) -> bool {
-        if (x < 0 || y < 0 || x >= s.sector.w || y >= s.sector.h) return false;
-        return is_connectable(s.sector.at(x, y));
+        if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
+        return s.netspace.at(x, y) == NetTile::Wall;
     };
 
     auto cull = [&](int wx, int wy, int& sx, int& sy) {
@@ -753,29 +705,29 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         for (int x = 0; x < pr.w; ++x) {
             int tx = x + s_camera.cam_x;
             int ty = y + s_camera.cam_y;
-            if (tx < 0 || ty < 0 || tx >= s.sector.w || ty >= s.sector.h) continue;
-            GridTile t = s.sector.at(tx, ty);
-            const char* glyph;
-            Color       color;
-            if (t == GridTile::Floor) {
-                glyph = grid_theme::floor_glyph;
-                color = floor_color_for_zone_at(s.sector, tx, ty);
-            } else if (t == GridTile::Door) {
-                bool locked = s.sector.is_locked_door(tx, ty);
-                glyph = locked ? grid_theme::door_locked_glyph : grid_theme::door_open_glyph;
-                color = locked ? grid_theme::door_locked : grid_theme::door_open;
-            } else if (t == GridTile::DeviceAvatar) {
-                // Per-tile device-avatar glyph retired with subnet theming.
-                glyph = grid_theme::device_avatar_glyph(FixtureType{});
-                color = Color::BrightWhite;
-            } else if (t == GridTile::Wall || t == GridTile::Connector) {
-                glyph = wall_glyph_for_neighbours(
-                    neigh(tx, ty - 1), neigh(tx, ty + 1),
-                    neigh(tx + 1, ty), neigh(tx - 1, ty));
-                color = (t == GridTile::Connector) ? grid_theme::connector : grid_theme::floor;
-            } else {
-                glyph = glyph_for(t);
-                color = color_for(t);
+            if (!s.netspace.in_bounds(tx, ty)) continue;
+            NetTile t = s.netspace.at(tx, ty);
+            const char* glyph = " ";
+            Color       color = grid_theme::floor;
+            switch (t) {
+                case NetTile::Void:
+                    glyph = " ";
+                    break;
+                case NetTile::Floor:
+                case NetTile::JackIn:
+                    glyph = grid_theme::floor_glyph;
+                    color = grid_theme::floor;
+                    break;
+                case NetTile::Wall:
+                    glyph = wall_glyph_for_neighbours(
+                        neigh(tx, ty - 1), neigh(tx, ty + 1),
+                        neigh(tx + 1, ty), neigh(tx - 1, ty));
+                    color = grid_theme::floor;
+                    break;
+                case NetTile::Exit:
+                    glyph = grid_theme::exit_glyph;
+                    color = grid_theme::exit_node;
+                    break;
             }
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);
         }

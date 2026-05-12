@@ -311,7 +311,7 @@ static void cmd_spawn_ice(DevConsole& con, Game& game, const std::string& color_
     for (int d = 0; d < 4; ++d) {
         int nx = sess->avatar_x + dxs[d];
         int ny = sess->avatar_y + dys[d];
-        if (!sess->sector.passable(nx, ny)) continue;
+        if (!sess->netspace.passable(nx, ny)) continue;
         bool occupied = false;
         for (auto& i : sess->ice) if (i.x == nx && i.y == ny) { occupied = true; break; }
         if (occupied) continue;
@@ -1592,7 +1592,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         for (int d = 0; d < 4; ++d) {
             int nx = sess->avatar_x + dxs[d];
             int ny = sess->avatar_y + dys[d];
-            if (!sess->sector.passable(nx, ny)) continue;
+            if (!sess->netspace.passable(nx, ny)) continue;
             bool occupied = false;
             for (auto& i : sess->ice) if (i.x == nx && i.y == ny) { occupied = true; break; }
             if (occupied) continue;

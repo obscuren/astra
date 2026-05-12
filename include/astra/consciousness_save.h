@@ -1,6 +1,5 @@
 #pragma once
 
-#include "astra/grid_sector.h"
 #include "astra/item.h"
 
 #include <cstdint>
@@ -45,11 +44,6 @@ struct ConsciousnessSave {
     std::vector<LoreFragmentRef> lore_archive;
     int32_t                      grid_currency = 0;
 
-    // Hacker-only — populated only with ConsciousnessAnchor capstone unlocked.
-    // The personal deep-grid base sector retired with the netspace redesign;
-    // the field is kept as an empty placeholder for save-schema continuity
-    // until the next schema bump (Phase 0 Step 9).
-    GridSector              deep_grid_base;
     std::vector<Item>       signature_program_rack;
 
     // Plan 5 Cut 3 — populated on first ⊕ crack per LAN.

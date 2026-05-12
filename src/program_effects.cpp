@@ -124,49 +124,17 @@ std::string apply_cooldown_grid(GridProgramContext c) {
 }
 
 std::string apply_breach_grid(GridProgramContext c) {
-    // Plan 6: target tile supplied by Telegraph; valid_target predicate
-    // already guaranteed (tx, ty) is a Firewall, Gateway, or DeepGridGateway.
-    GridSession& s = c.session;
-    const std::string prefix = display_name(ProgramId::Breach) + ": ";
-    int x = c.target_x, y = c.target_y;
-    if (!s.sector.in_bounds(x, y)) return prefix + "target out of bounds.";
-    GridTile t = s.sector.at(x, y);
-
-    if (t == GridTile::Firewall) {
-        s.sector.set(x, y, GridTile::Floor);
-        s.gain_trace(5);
-        return prefix + display_name(GridTile::Firewall) + " down. Trace +5.";
-    }
-    // DeepGridGateway path retired with multi-region geography; the tile
-    // is no longer placed in any netspace.
-    // Plan 8 (Cut 3): Door branch for v2 generator locked bridges. Valid_target
-    // predicate already ensured this is a locked Door. Unlock in-memory; no tile
-    // change needed — renderer reads locked_doors set. v1 Firewall/Gateway
-    // branches above stay alive through Cut 6; removed in Cut 7.
-    if (t == GridTile::Door) {
-        if (!s.sector.is_locked_door(x, y)) {
-            return prefix + "door already open.";
-        }
-        s.sector.unlock_door(x, y);
-        s.gain_trace(5);
-        return prefix + "lock cracked — door open. Trace +5.";
-    }
-    return prefix + "nothing to break here.";
+    // Firewall / Door / Gateway target tiles all retired with the legacy
+    // sector. Per-target netspace grammars will (re)introduce tile-breaking
+    // verbs in Phase 1+; Breach.exe sits idle until then.
+    (void)c;
+    return display_name(ProgramId::Breach) + ": nothing to break here.";
 }
 
 std::string apply_decrypt_grid(GridProgramContext c) {
-    // Plan 6: target tile supplied by Telegraph; valid_target predicate
-    // already guaranteed (tx, ty) is an EncryptedFile.
-    const std::string prefix = display_name(ProgramId::Decrypt) + ": ";
-    int x = c.target_x, y = c.target_y;
-    if (!c.session.sector.in_bounds(x, y) ||
-        c.session.sector.at(x, y) != GridTile::EncryptedFile) {
-        return prefix + "target lost.";
-    }
-    c.session.sector.set(x, y, GridTile::Floor);
-    c.session.loot.lore_unlocked.push_back(
-        "ARCH-" + std::to_string(x * 1000 + y));
-    return prefix + "archive read.";
+    // EncryptedFile tile retired alongside the sector generators.
+    (void)c;
+    return display_name(ProgramId::Decrypt) + ": no archive at target.";
 }
 
 std::string apply_pulse_hammer_grid(GridProgramContext c) {

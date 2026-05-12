@@ -19,12 +19,12 @@ namespace {
 
 bool place_random(GridSession& s, std::mt19937& rng,
                   int& out_x, int& out_y) {
-    std::uniform_int_distribution<int> xd(0, s.sector.w - 1);
-    std::uniform_int_distribution<int> yd(0, s.sector.h - 1);
+    std::uniform_int_distribution<int> xd(0, s.netspace.w - 1);
+    std::uniform_int_distribution<int> yd(0, s.netspace.h - 1);
     for (int tries = 0; tries < 64; ++tries) {
         int x = xd(rng);
         int y = yd(rng);
-        if (!s.sector.passable(x, y)) continue;
+        if (!s.netspace.passable(x, y)) continue;
         if (x == s.avatar_x && y == s.avatar_y) continue;
         bool occupied = false;
         for (auto& i : s.ice) if (i.x == x && i.y == y) { occupied = true; break; }
@@ -47,7 +47,7 @@ void step_toward(GridSession& s, GridIce& ice, int tx, int ty) {
     for (int d = 0; d < 4; ++d) {
         int nx = ice.x + dx[d];
         int ny = ice.y + dy[d];
-        if (!s.sector.passable(nx, ny)) continue;
+        if (!s.netspace.passable(nx, ny)) continue;
         if (nx == s.avatar_x && ny == s.avatar_y) continue;
         bool occupied = false;
         for (auto& other : s.ice) {
@@ -150,7 +150,7 @@ void tick_all(GridSession& s, Game& game) {
                     int d = ice.patrol_dir;
                     int nx = ice.x + dxs[d];
                     int ny = ice.y + dys[d];
-                    if (s.sector.passable(nx, ny) &&
+                    if (s.netspace.passable(nx, ny) &&
                         !(nx == s.avatar_x && ny == s.avatar_y)) {
                         ice.x = nx; ice.y = ny;
                     } else {

@@ -7,7 +7,6 @@
 #include "astra/game.h"
 #include "astra/grid_display.h"
 #include "astra/grid_ice.h"
-#include "astra/grid_sector.h"
 #include "astra/hackable.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
@@ -374,12 +373,12 @@ namespace {
 bool place_ice_far(GridSession& s, IceColor color, int hp,
                    uint32_t seed_xor, int min_distance) {
     std::mt19937 rng(seed_xor);
-    std::uniform_int_distribution<int> xd(0, s.sector.w - 1);
-    std::uniform_int_distribution<int> yd(0, s.sector.h - 1);
+    std::uniform_int_distribution<int> xd(0, s.netspace.w - 1);
+    std::uniform_int_distribution<int> yd(0, s.netspace.h - 1);
     for (int tries = 0; tries < 96; ++tries) {
         int x = xd(rng);
         int y = yd(rng);
-        if (!s.sector.passable(x, y)) continue;
+        if (!s.netspace.passable(x, y)) continue;
         int d = std::abs(x - s.avatar_x) + std::abs(y - s.avatar_y);
         if (d < min_distance) continue;
         bool occupied = false;
@@ -452,33 +451,10 @@ bool HackingSystem::jack_in(Game& game) {
     s.skill_neural_fortitude   = nf;
 
     // Phase 0: jack-in opens a blank Netspace stub. Per-target grammars
-    // arrive in Phase 1. The legacy GridSector is populated as a
-    // transient mirror so the existing renderer/input keep working.
+    // arrive in Phase 1.
     s.netspace = gen_empty_netspace(TargetDescriptor{
         NetspaceTargetKind::Empty, /*tier=*/1, /*seed=*/0,
     });
-
-    s.sector = GridSector{};
-    s.sector.w = s.netspace.w;
-    s.sector.h = s.netspace.h;
-    s.sector.tiles.assign(
-        static_cast<size_t>(s.netspace.w) * static_cast<size_t>(s.netspace.h),
-        GridTile::Floor);
-    for (int y = 0; y < s.netspace.h; ++y) {
-        for (int x = 0; x < s.netspace.w; ++x) {
-            GridTile gt = GridTile::Floor;
-            switch (s.netspace.at(x, y)) {
-                case NetTile::Void:   gt = GridTile::Void;     break;
-                case NetTile::Floor:  gt = GridTile::Floor;    break;
-                case NetTile::Wall:   gt = GridTile::Wall;     break;
-                case NetTile::JackIn: gt = GridTile::Floor;    break;
-                case NetTile::Exit:   gt = GridTile::ExitNode; break;
-            }
-            s.sector.set(x, y, gt);
-        }
-    }
-    s.sector.spawn_x = s.netspace.jack_in_x;
-    s.sector.spawn_y = s.netspace.jack_in_y;
     s.avatar_x = s.netspace.jack_in_x;
     s.avatar_y = s.netspace.jack_in_y;
 

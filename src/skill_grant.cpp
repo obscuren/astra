@@ -4,7 +4,6 @@
 #include "astra/consciousness_save.h"
 #include "astra/fragment.h"
 #include "astra/game.h"
-#include "astra/grid_sector.h"
 #include "astra/player.h"
 
 #include <algorithm>
