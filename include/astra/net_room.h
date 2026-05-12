@@ -10,17 +10,25 @@
 // styles + glyphs each kind picks from.
 
 #include "astra/renderer.h"
-#include "astra/net_theme.h"
 
 #include <cstdint>
 #include <string>
 
 namespace astra {
 
-// A boxed labelled node in a netspace. NetRoom carries layout +
-// presentation metadata; the actual border tiles are stamped into the
-// tile grid by NetspaceBuilder at gen time so collision + Telegraph
-// work without special-casing rooms.
+// A boxed labelled node in a netspace.
+//
+// Interior layout (per design-doc samples — door, camera, vending):
+//
+//   ┌─────┐   ← top border (y+0)
+//   │ ◄── │   ← top_content     (y+1)
+//   │JACK │   ← label           (y+2)
+//   │ @   │   ← bottom_content  (y+3)
+//   └─────┘   ← bottom border   (y+4)
+//
+// For shorter rooms the slots collapse:
+// - h=4: label at y+1, bottom_content at y+2.
+// - h=3: a single content row at y+1 (label preferred over content).
 struct NetRoom {
     int                 x = 0;
     int                 y = 0;
@@ -30,29 +38,24 @@ struct NetRoom {
     enum class Border : uint8_t { Thin, Double, Block };
     Border              border = Border::Thin;
 
-    // Top-row label, e.g. "JACK", "LOCK 1", "BOLT", "DISPENSE", "FEED".
-    // Rendered centered inside the top border row.
-    std::string         label;
+    // Interior text rows. Each is rendered centered within the
+    // interior width (w-2). Empty strings are skipped.
+    std::string         top_content;    // e.g. "◄──", "░░░", "(o)", "▓▓▓"
+    std::string         label;          // e.g. "JACK", "LOCK", "BOLT", "FEED"
+    std::string         bottom_content; // e.g. "1", "◊", "►──"
 
-    // Optional second row (e.g. vending shelf glyph cluster).
-    std::string         subtitle;
+    Color               top_color    = Color::Cyan;
+    Color               label_color  = Color::Cyan;
+    Color               bottom_color = Color::Yellow;
 
-    // Inline glyph cluster drawn centered in the room's interior:
-    // "◊", "@", "§§§", "$$$$$", "▓▓▓", etc.
-    std::string         content;
-
-    Color               label_color   = Color::Cyan;
-    Color               subtitle_color = Color::Cyan;
-    Color               content_color = Color::Yellow;
-
-    // Generator hints used by builder helpers + dispatch.
+    // Generator hints used by the builder DSL + dispatch.
     bool                is_jack_in = false;
     bool                is_exit    = false;
 };
 
 // An animated data path between two rooms (or between two points).
 // The renderer paints pipe tiles each turn with a pulse cycle keyed
-// off (world_tick + pulse_offset). Pipes carry payloads (Phase 5);
+// off (world_tick + pulse_offset). Pipes carry payloads in Phase 5;
 // for now they're cosmetic + telegraph-passable.
 struct NetPipe {
     int                 x0 = 0;

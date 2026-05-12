@@ -822,16 +822,15 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         }
     }
 
-    // Room overlay layer — labels + subtitles + content drawn on top of
-    // the tile grid. The border tiles themselves were stamped at gen
-    // time and rendered by the switch above, so we only need to add the
-    // text inside each room.
+    // Room overlay layer — interior text rows drawn on top of the tile
+    // grid. The border tiles themselves were stamped at gen time and
+    // rendered by the switch above; we only add the centered text here.
     auto draw_centered = [&](int rx, int ry, int rw,
                              const std::string& text, Color col) {
         if (text.empty()) return;
         int sx, sy;
         if (!cull(rx, ry, sx, sy)) return;
-        // visual_width-light: count UTF-8 lead bytes only.
+        // UTF-8-aware width: count non-continuation bytes.
         int vw = 0;
         for (unsigned char ch : text) if ((ch & 0xC0) != 0x80) ++vw;
         int start_screen_x = sx + (rw - vw) / 2;
@@ -841,28 +840,38 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     for (const auto& room : s.netspace.rooms) {
         if (room.w < 3 || room.h < 3) continue;
         const int inner_w = room.w - 2;
-        // Top label sits ON the top border row, between the corners.
-        if (!room.label.empty()) {
-            draw_centered(room.x + 1, room.y + 1, inner_w,
+
+        // Slot positions per interior height. See NetRoom comment.
+        int top_y = 0, label_y = 0, bottom_y = 0;
+        if (room.h >= 5) {
+            top_y    = room.y + 1;
+            label_y  = room.y + 2;
+            bottom_y = room.y + 3;
+        } else if (room.h == 4) {
+            top_y    = -1;            // skip
+            label_y  = room.y + 1;
+            bottom_y = room.y + 2;
+        } else { // h == 3 — a single interior row, prefer label
+            top_y    = -1;
+            label_y  = room.y + 1;
+            bottom_y = -1;
+        }
+
+        if (top_y >= 0 && !room.top_content.empty()) {
+            draw_centered(room.x + 1, top_y, inner_w,
+                          room.top_content, room.top_color);
+        }
+        if (label_y >= 0 && !room.label.empty()) {
+            draw_centered(room.x + 1, label_y, inner_w,
                           room.label, room.label_color);
+        } else if (label_y >= 0 && !room.top_content.empty() && room.h == 3) {
+            // h=3 with only top_content — fall back to it.
+            draw_centered(room.x + 1, label_y, inner_w,
+                          room.top_content, room.top_color);
         }
-        // Subtitle in the second interior row.
-        if (!room.subtitle.empty() && room.h >= 4) {
-            draw_centered(room.x + 1, room.y + 2, inner_w,
-                          room.subtitle, room.subtitle_color);
-        }
-        // Content centered vertically + horizontally in the interior.
-        if (!room.content.empty()) {
-            int content_y = room.y + room.h / 2;
-            // If we already used row+1 for subtitle, push content one down.
-            if (!room.subtitle.empty() && content_y <= room.y + 2) {
-                content_y = room.y + 3;
-            }
-            if (content_y >= room.y + room.h - 1) {
-                content_y = room.y + room.h - 2;
-            }
-            draw_centered(room.x + 1, content_y, inner_w,
-                          room.content, room.content_color);
+        if (bottom_y >= 0 && !room.bottom_content.empty()) {
+            draw_centered(room.x + 1, bottom_y, inner_w,
+                          room.bottom_content, room.bottom_color);
         }
     }
 
