@@ -690,9 +690,30 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     s_camera.viewport_h = pr.h;
     s_camera.follow(s.avatar_x, s.avatar_y, s.netspace.w, s.netspace.h);
 
-    auto neigh = [&](int x, int y) -> bool {
+    auto wall_neigh = [&](int x, int y) -> bool {
         if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
-        return s.netspace.at(x, y) == NetTile::Wall;
+        return s.netspace.is_wall(x, y);
+    };
+    auto box_neigh = [&](int x, int y, NetTile style) -> bool {
+        if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
+        return s.netspace.at(x, y) == style;
+    };
+
+    // Per-cell box-glyph resolver: pick corner / edge / junction from
+    // the 4-neighbour mask. Only neighbours of the *same* box style
+    // count, so adjacent BoxThin + BoxDouble rooms still render with
+    // their own corners intact.
+    auto box_glyph = [](const net_theme::BoxGlyphs& g, bool n, bool s_, bool e, bool w) -> const char* {
+        // Vertical: only vertical neighbours.
+        if ((n || s_) && !(e || w)) return g.v;
+        // Horizontal: only horizontal neighbours.
+        if ((e || w) && !(n || s_)) return g.h;
+        // Corners — pick the one whose two arms point toward neighbours.
+        if (s_ && e) return g.tl;
+        if (s_ && w) return g.tr;
+        if (n && e)  return g.bl;
+        if (n && w)  return g.br;
+        return g.h;  // isolated cell: fall back to horizontal
     };
 
     auto cull = [&](int wx, int wy, int& sx, int& sy) {
@@ -718,15 +739,83 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     glyph = net_theme::floor_glyph;
                     color = net_theme::floor;
                     break;
-                case NetTile::Wall:
-                    glyph = wall_glyph_for_neighbours(
-                        neigh(tx, ty - 1), neigh(tx, ty + 1),
-                        neigh(tx + 1, ty), neigh(tx - 1, ty));
-                    color = net_theme::floor;
-                    break;
                 case NetTile::Exit:
                     glyph = net_theme::exit_glyph;
                     color = net_theme::exit_node;
+                    break;
+
+                // Wall density gradient.
+                case NetTile::WallDot:
+                    glyph = net_theme::wall_dot_glyph;
+                    color = net_theme::wall_dot;
+                    break;
+                case NetTile::WallLight:
+                    glyph = net_theme::wall_light_glyph;
+                    color = net_theme::wall_light;
+                    break;
+                case NetTile::WallMed:
+                    glyph = net_theme::wall_med_glyph;
+                    color = net_theme::wall_med;
+                    break;
+                case NetTile::WallHeavy:
+                    glyph = net_theme::wall_heavy_glyph;
+                    color = net_theme::wall_heavy;
+                    break;
+                case NetTile::WallSolid:
+                    glyph = wall_glyph_for_neighbours(
+                        wall_neigh(tx, ty - 1), wall_neigh(tx, ty + 1),
+                        wall_neigh(tx + 1, ty), wall_neigh(tx - 1, ty));
+                    color = net_theme::wall_solid;
+                    break;
+
+                // Box borders — resolve per-cell from same-style neighbours.
+                case NetTile::BoxThin:
+                    glyph = box_glyph(net_theme::box_thin,
+                        box_neigh(tx, ty - 1, NetTile::BoxThin),
+                        box_neigh(tx, ty + 1, NetTile::BoxThin),
+                        box_neigh(tx + 1, ty, NetTile::BoxThin),
+                        box_neigh(tx - 1, ty, NetTile::BoxThin));
+                    color = net_theme::box_thin_color;
+                    break;
+                case NetTile::BoxDouble:
+                    glyph = box_glyph(net_theme::box_double,
+                        box_neigh(tx, ty - 1, NetTile::BoxDouble),
+                        box_neigh(tx, ty + 1, NetTile::BoxDouble),
+                        box_neigh(tx + 1, ty, NetTile::BoxDouble),
+                        box_neigh(tx - 1, ty, NetTile::BoxDouble));
+                    color = net_theme::box_double_color;
+                    break;
+                case NetTile::BoxBlock:
+                    glyph = box_glyph(net_theme::box_block,
+                        box_neigh(tx, ty - 1, NetTile::BoxBlock),
+                        box_neigh(tx, ty + 1, NetTile::BoxBlock),
+                        box_neigh(tx + 1, ty, NetTile::BoxBlock),
+                        box_neigh(tx - 1, ty, NetTile::BoxBlock));
+                    color = net_theme::box_block_color;
+                    break;
+
+                // Animated data pipes — phase keyed off world tick + pipe offset.
+                case NetTile::PipeH: {
+                    int phase = static_cast<int>(game.world().world_tick() & 3);
+                    glyph = net_theme::pipe_h_frames[phase];
+                    color = net_theme::pipe_color;
+                    break;
+                }
+                case NetTile::PipeV: {
+                    int phase = static_cast<int>(game.world().world_tick() & 3);
+                    glyph = net_theme::pipe_v_frames[phase];
+                    color = net_theme::pipe_color;
+                    break;
+                }
+                case NetTile::PipeJunc:
+                    glyph = net_theme::pipe_junc_glyph;
+                    color = net_theme::pipe_color;
+                    break;
+
+                case NetTile::Glyph:
+                    // Phase 1 plan §1: per-tile glyph overrides land with NetRoom
+                    // content rendering in Step 2; until then this is a no-op.
+                    glyph = " ";
                     break;
             }
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);

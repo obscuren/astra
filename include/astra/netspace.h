@@ -42,15 +42,41 @@ struct TargetDescriptor {
     uint32_t           seed = 0;       // deterministic generation
 };
 
-// Tiles inside the netspace. Phase 0 vocabulary; Phase 2 expands this
-// into the wall-density gradient (· ░ ▒ ▓ █) and the full glyph set
-// from the design doc's visual language reference.
+// Tiles inside the netspace. Vocabulary mirrors the design doc's
+// "Visual Language Reference" — wall density gradient, box-drawing
+// borders per threat tier, animated pipe segments, plus the basic
+// floor/jack-in/exit set.
+//
+// Walls are impassable from `passable()`'s perspective regardless of
+// density tier; the density variants exist for visual signalling
+// (lock progression, ICE degradation per Phase 2).
 enum class NetTile : uint8_t {
-    Void,    // not part of the room — renders as nothing
-    Floor,   // walkable
-    Wall,    // impassable
-    JackIn,  // entry tile (avatar spawns here on jack-in)
-    Exit,    // exit tile (stepping on it triggers jack-out)
+    Void,       // not part of the room — renders as nothing
+    Floor,      // walkable interior
+    JackIn,     // entry tile (avatar spawns here)
+    Exit,       // step here -> jack_out
+
+    // Wall density gradient (impassable).
+    WallDot,    // · faint trace
+    WallLight,  // ░ tier 1
+    WallMed,    // ▒ tier 2
+    WallHeavy,  // ▓ tier 3
+    WallSolid,  // █ impassable / max (also: legacy default wall)
+
+    // Box-drawing borders for boxed nodes (NetRoom). The renderer
+    // resolves the per-cell glyph (corner / edge / junction) from the
+    // 4-neighbour mask of like-typed tiles.
+    BoxThin,    // ─ │ ┌ ┐ └ ┘ — civic, low-stakes
+    BoxDouble,  // ═ ║ ╔ ╗ ╚ ╝ — corporate, mid-stakes
+    BoxBlock,   // ▓ █ heavy block — military / boss
+
+    // Animated data pipes (NetPipe overlays write these).
+    PipeH,      // ─ horizontal segment
+    PipeV,      // │ vertical segment
+    PipeJunc,   // ┼ ┬ ┴ ├ ┤ junction
+
+    Glyph,      // tile carries an inline glyph; renderer reads it from
+                // Netspace::glyph_overrides keyed by (x, y).
 };
 
 // Render mode of the in-net overlay. The overlay mutates its own rules
@@ -98,7 +124,22 @@ struct Netspace {
     }
     bool passable(int x, int y) const {
         const NetTile t = at(x, y);
-        return t == NetTile::Floor || t == NetTile::JackIn || t == NetTile::Exit;
+        // Floor + JackIn + Exit walkable. Pipes carry payloads but the
+        // avatar can step on them too (telegraph LoS check is separate).
+        return t == NetTile::Floor
+            || t == NetTile::JackIn
+            || t == NetTile::Exit
+            || t == NetTile::PipeH
+            || t == NetTile::PipeV
+            || t == NetTile::PipeJunc;
+    }
+    bool is_wall(int x, int y) const {
+        const NetTile t = at(x, y);
+        return t == NetTile::WallDot
+            || t == NetTile::WallLight
+            || t == NetTile::WallMed
+            || t == NetTile::WallHeavy
+            || t == NetTile::WallSolid;
     }
 };
 

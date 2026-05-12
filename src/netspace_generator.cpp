@@ -23,12 +23,12 @@ Netspace gen_empty_netspace(const TargetDescriptor& desc) {
     n.title = "EMPTY :: jack out via exit tile";
 
     for (int x = 0; x < n.w; ++x) {
-        n.set(x, 0,         NetTile::Wall);
-        n.set(x, n.h - 1,   NetTile::Wall);
+        n.set(x, 0,         NetTile::WallSolid);
+        n.set(x, n.h - 1,   NetTile::WallSolid);
     }
     for (int y = 0; y < n.h; ++y) {
-        n.set(0,         y, NetTile::Wall);
-        n.set(n.w - 1,   y, NetTile::Wall);
+        n.set(0,         y, NetTile::WallSolid);
+        n.set(n.w - 1,   y, NetTile::WallSolid);
     }
 
     n.jack_in_x = kJackInX;

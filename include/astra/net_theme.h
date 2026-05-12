@@ -41,7 +41,7 @@ constexpr Color warp_anchor       = Color::BrightWhite;
 // Glyphs — UTF-8 strings per spec; rendered via Renderer::draw_glyph.
 constexpr const char* door_open_glyph   = "+";
 constexpr const char* door_locked_glyph = "\xe2\x96\xa3";  // ▣
-constexpr const char* floor_glyph     = "░";
+constexpr const char* floor_glyph     = "\xc2\xb7";        // · (mid-dot floor)
 constexpr const char* firewall_glyph  = "▓";
 constexpr const char* avatar_glyph    = "@";
 constexpr const char* white_ice_glyph = "▼";
@@ -49,10 +49,89 @@ constexpr const char* gray_ice_glyph  = "◇";
 constexpr const char* black_ice_glyph = "▲";
 constexpr const char* data_node_glyph = "$";
 constexpr const char* gateway_glyph   = "⌬";
-constexpr const char* exit_glyph      = "⊙";
+constexpr const char* exit_glyph      = "\xe2\x97\x84";    // ◄ design-doc exit arrow
 constexpr const char* encrypted_glyph = "⊘";
-constexpr const char* connector_glyph         = "\xe2\x95\x90";   // ═ (default; renderer picks neighbour-resolved variant in Task 19)
-constexpr const char* deep_grid_gateway_glyph = "\xe2\x8a\x95";   // ⊕
-constexpr const char* warp_anchor_glyph       = "\xe2\x97\x89";   // ◉
+
+// ─── Visual language reference (docs/design/netspace.md) ────────────
+//
+// Wall density gradient — used by the door grammar's lock progression
+// and (Phase 2) by walls degrading under fire.
+constexpr const char* wall_dot_glyph   = "\xc2\xb7";       // ·
+constexpr const char* wall_light_glyph = "\xe2\x96\x91";   // ░
+constexpr const char* wall_med_glyph   = "\xe2\x96\x92";   // ▒
+constexpr const char* wall_heavy_glyph = "\xe2\x96\x93";   // ▓
+constexpr const char* wall_solid_glyph = "\xe2\x96\x88";   // █
+
+// Wall density colors fade as density rises.
+constexpr Color wall_dot   = Color::DarkGray;
+constexpr Color wall_light = Color::DarkGray;
+constexpr Color wall_med   = Color::Cyan;
+constexpr Color wall_heavy = Color::BrightMagenta;
+constexpr Color wall_solid = Color::White;
+
+// Box-drawing — borders for NetRoom. The renderer resolves which
+// specific glyph (corner, edge, junction) by 4-neighbour mask. These
+// are the building blocks each style uses.
+struct BoxGlyphs {
+    const char* h;     // horizontal edge       ─ ═ ▀
+    const char* v;     // vertical edge         │ ║ ▌
+    const char* tl;    // top-left corner       ┌ ╔ ▛
+    const char* tr;    // top-right corner      ┐ ╗ ▜
+    const char* bl;    // bottom-left corner    └ ╚ ▙
+    const char* br;    // bottom-right corner   ┘ ╝ ▟
+};
+
+inline constexpr BoxGlyphs box_thin   = {
+    "\xe2\x94\x80", "\xe2\x94\x82",
+    "\xe2\x94\x8c", "\xe2\x94\x90",
+    "\xe2\x94\x94", "\xe2\x94\x98",
+};
+inline constexpr BoxGlyphs box_double = {
+    "\xe2\x95\x90", "\xe2\x95\x91",
+    "\xe2\x95\x94", "\xe2\x95\x97",
+    "\xe2\x95\x9a", "\xe2\x95\x9d",
+};
+inline constexpr BoxGlyphs box_block  = {
+    "\xe2\x96\x80", "\xe2\x96\x8c",
+    "\xe2\x96\x9b", "\xe2\x96\x9c",
+    "\xe2\x96\x99", "\xe2\x96\x9f",
+};
+
+// Border colors per threat tier.
+constexpr Color box_thin_color   = Color::DarkGray;
+constexpr Color box_double_color = Color::Cyan;
+constexpr Color box_block_color  = Color::BrightMagenta;
+
+// Animated data pipes — phase the renderer cycles each turn.
+constexpr const char* pipe_h_frames[4] = {
+    "\xe2\x95\x90",  // ═
+    "\xe2\x94\x80",  // ─
+    "\xe2\x95\x90",  // ═
+    "\xe2\x94\x80",  // ─
+};
+constexpr const char* pipe_v_frames[4] = {
+    "\xe2\x95\x91",  // ║
+    "\xe2\x94\x82",  // │
+    "\xe2\x95\x91",  // ║
+    "\xe2\x94\x82",  // │
+};
+constexpr const char* pipe_junc_glyph = "\xe2\x95\xac";  // ╬
+constexpr Color       pipe_color = Color::Cyan;
+
+// Canonical glyph vocabulary from the design doc.
+constexpr const char* glyph_jack_in_arrow = "\xe2\x97\x84";  // ◄
+constexpr const char* glyph_exit_arrow    = "\xe2\x96\xba";  // ►
+constexpr const char* glyph_payload       = "\xc2\xa7";       // §
+constexpr const char* glyph_enemy_payload = "\xc2\xa4";       // ¤
+constexpr const char* glyph_loop          = "\xe2\x80\xa1";   // ‡
+constexpr const char* glyph_break         = "\xce\xa9";        // Ω
+constexpr const char* glyph_black_ice     = "\xce\x9b";        // Λ
+constexpr const char* glyph_loot          = "\xe2\x97\x8a";    // ◊
+constexpr const char* glyph_workbench     = "\xe2\x96\xa3";    // ▣
+constexpr const char* glyph_dead_node     = "X";
+constexpr const char* glyph_unknown       = "?";
+constexpr const char* glyph_credit        = "$";
+constexpr const char* glyph_eye           = "\xe2\x97\x8f";    // ●
+constexpr const char* glyph_camera_lens   = "(o)";              // composed; rendered as a 3-cell content
 
 } // namespace astra::net_theme

@@ -148,7 +148,12 @@ void fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     TelegraphSpec spec = def->telegraph_spec;
     spec.passable_fn = [sess_ptr = &s](int x, int y) -> bool {
         if (!sess_ptr->netspace.in_bounds(x, y)) return false;
-        return sess_ptr->netspace.at(x, y) != NetTile::Wall;
+        // Any wall-density tier or box border blocks Telegraph LoS.
+        if (sess_ptr->netspace.is_wall(x, y)) return false;
+        const NetTile t = sess_ptr->netspace.at(x, y);
+        return t != NetTile::BoxThin
+            && t != NetTile::BoxDouble
+            && t != NetTile::BoxBlock;
     };
 
     auto on_confirm = [&game, sess_ptr = &s, def_ptr = def](const TelegraphResult& r) {
