@@ -1,7 +1,6 @@
 #pragma once
 
 #include "astra/dungeon_recipe.h"
-#include "astra/grid_network.h"
 #include "astra/item.h"
 #include "astra/lan.h"
 #include "astra/location_key.h"
@@ -159,9 +158,6 @@ public:
     NavigationData& navigation() { return navigation_; }
     const NavigationData& navigation() const { return navigation_; }
 
-    GridNetwork&       grid_network()       { return grid_network_; }
-    const GridNetwork& grid_network() const { return grid_network_; }
-
     // Plan 5.5: per-map LAN persistence. `lan_metadata()` returns the active
     // map's metadata. The active map is identified by `current_lan_key_`,
     // which `Game::on_map_loaded()` sets via `switch_active_lan(key)` on every
@@ -268,12 +264,6 @@ public:
         return "";
     }
 
-    // Production path: NPC death or fixture deletion. Removes the Subnet node
-    // + its edge from GridNetwork. Does NOT touch LanMetadata persistence —
-    // the orphan ⌬ Gateway tile in any active LAN sector remains visually
-    // but becomes inert (jack returns host-unreachable).
-    void on_hackable_removed(GridNodeId subnet_id);
-
     // Dev path (testing only). Wipes the active LAN's persisted runtime
     // state (cracked firewalls, looted nodes, decrypted files, killed ICE),
     // drops every Subnet + LanRoot node belonging to this LAN, and re-runs
@@ -311,7 +301,6 @@ private:
     std::mt19937 rng_;
     uint16_t galaxy_id_ = 0;
     NavigationData navigation_;
-    GridNetwork grid_network_;
     // Plan 5.5: per-map LAN persistence. `lan_metadatas_` is keyed by the
     // same LocationKey used by `location_cache_`. `current_lan_key_` selects
     // the active map's bucket; `lan_metadata()` returns it (lazy-creating

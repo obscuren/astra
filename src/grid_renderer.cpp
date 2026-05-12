@@ -92,20 +92,10 @@ bool is_connectable(GridTile t) {
     return t == GridTile::Wall || t == GridTile::Connector;
 }
 
-// Return the floor color appropriate for the zone tier at (x, y).
-// Linear scan over zone_boxes is trivial (1–3 zones per visible cell).
-Color floor_color_for_zone_at(const GridSector& sec, int x, int y) {
-    for (const auto& zb : sec.zone_boxes) {
-        if (x >= zb.x && x < zb.x + zb.w &&
-            y >= zb.y && y < zb.y + zb.h) {
-            switch (zb.tier) {
-                case 1: return Color::Blue;
-                case 2: return Color::Magenta;
-                case 3: return Color::Red;
-            }
-        }
-    }
-    return grid_theme::floor;  // cells outside any zone keep the default
+// Zone-tier colouring retired; per-target netspace grammars will set
+// floor colours via the visual-language layer in Phase 2.
+Color floor_color_for_zone_at(const GridSector&, int, int) {
+    return grid_theme::floor;
 }
 
 const char* glyph_for(GridTile t) {
@@ -775,13 +765,8 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                 glyph = locked ? grid_theme::door_locked_glyph : grid_theme::door_open_glyph;
                 color = locked ? grid_theme::door_locked : grid_theme::door_open;
             } else if (t == GridTile::DeviceAvatar) {
-                // Plan 8 Cut 4: prefer per-tile FixtureType from avatar_fixture_type;
-                // fall back to source_fixture_type for v1 sectors.
-                auto ait = s.sector.avatar_fixture_type.find({tx, ty});
-                FixtureType ft = (ait != s.sector.avatar_fixture_type.end())
-                                 ? ait->second
-                                 : s.sector.source_fixture_type;
-                glyph = grid_theme::device_avatar_glyph(ft);
+                // Per-tile device-avatar glyph retired with subnet theming.
+                glyph = grid_theme::device_avatar_glyph(FixtureType{});
                 color = Color::BrightWhite;
             } else if (t == GridTile::Wall || t == GridTile::Connector) {
                 glyph = wall_glyph_for_neighbours(

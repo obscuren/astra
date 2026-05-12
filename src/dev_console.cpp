@@ -11,7 +11,6 @@
 #include "astra/faction.h"
 #include "astra/fragment.h"
 #include "astra/game.h"
-#include "astra/grid_network.h"
 #include "astra/hackable.h"
 #include "astra/item_defs.h"
 #include "astra/item_gen.h"
@@ -1519,59 +1518,15 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("tp: fixture '" + fid + "' not found");
     }
     else if (verb == "lan-info") {
-        // Plan 5 diagnostic: dump LAN registration state for the active map.
         const auto& m = game.world().map();
-        const auto& net = game.world().grid_network();
         const auto& meta = game.world().lan_metadata();
-
-        int total_fixtures = m.fixture_count();
-        int with_cyber = 0;
-        int with_electronic = 0;
-        int with_jackin = 0;
-        for (int i = 0; i < total_fixtures; ++i) {
-            const auto& fd = m.fixture(i);
-            if (!fd.cyber) continue;
-            ++with_cyber;
-            if (has_tag(fd.cyber->tags, HackTag::Electronic))  ++with_electronic;
-            if (has_tag(fd.cyber->tags, HackTag::JackInPort))  ++with_jackin;
-        }
-
-        int n_subnet = 0, n_lan_root = 0, n_anchor = 0, n_regional = 0;
-        for (const auto& n : net.nodes()) {
-            switch (n.kind) {
-                case GridNodeKind::Subnet:          ++n_subnet; break;
-                case GridNodeKind::LanRoot:         ++n_lan_root; break;
-                case GridNodeKind::DeepGridAnchor:  ++n_anchor; break;
-                case GridNodeKind::RegionalDarknet: ++n_regional; break;
-            }
-        }
-
         log("=== LAN diagnostic ===");
         log("active map: '" + m.location_name() + "' (type " +
             std::to_string(static_cast<int>(m.map_type())) + ")");
-        log("fixtures: total=" + std::to_string(total_fixtures) +
-            " cyber=" + std::to_string(with_cyber) +
-            " electronic=" + std::to_string(with_electronic) +
-            " jackin=" + std::to_string(with_jackin));
-        log("grid_network nodes: total=" + std::to_string(net.nodes().size()) +
-            " subnet=" + std::to_string(n_subnet) +
-            " lan_root=" + std::to_string(n_lan_root) +
-            " anchor=" + std::to_string(n_anchor) +
-            " regional=" + std::to_string(n_regional));
-        log("grid_network edges: " + std::to_string(net.edges().size()));
-        log("lan_metadata:");
-        log("  region_label='" + meta.region_label + "'");
-        log("  display_name='" + meta.display_name + "'");
-        log("  lan_root.value=" + std::to_string(meta.lan_root.value) +
-            " (valid=" + (meta.lan_root.valid() ? "yes" : "no") + ")");
-        log("  flavour=" + std::to_string(static_cast<int>(meta.flavour)) +
-            " connected=" + std::string(meta.connected ? "yes" : "no") +
-            " has_deep_grid_edge=" + std::string(meta.has_deep_grid_edge ? "yes" : "no"));
-        log("  nodes_total=" + std::to_string(meta.nodes_total) +
-            " nodes_cracked=" + std::to_string(meta.nodes_cracked));
-        log("  subnet_base=0x" + std::to_string(meta.subnet_base) +
-            " gen_seed=0x" + std::to_string(meta.gen_seed));
-        log("  rooms.size=" + std::to_string(meta.zones.size()));
+        log("region_label='" + meta.region_label + "'");
+        log("display_name='" + meta.display_name + "'");
+        log("flavour=" + std::to_string(static_cast<int>(meta.flavour)) +
+            " connected=" + std::string(meta.connected ? "yes" : "no"));
     }
     else if (verb == "detection") {
         if (args.size() < 2) {

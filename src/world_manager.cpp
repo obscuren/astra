@@ -60,76 +60,15 @@ const LanMetadata& WorldManager::lan_metadata() const {
 
 void WorldManager::switch_active_lan(const LocationKey& key) {
     current_lan_key_ = key;
-    auto [it, inserted] = lan_metadatas_.try_emplace(key);
-    if (inserted) {
-        // First visit to this map — register the active map's hackables.
-        register_hackables_in_lan(*this, grid_network_, it->second);
-    }
-    // Otherwise: prior LAN is intact. Its Subnet nodes still live in
-    // `grid_network_` and the cached map's Hackables still hold their
-    // `jack_in_node_id` pointers from the prior visit, so re-jacking
-    // resolves to the same persisted sectors.
-}
-
-void WorldManager::on_hackable_removed(GridNodeId subnet_id) {
-    if (!subnet_id.valid()) return;
-
-    auto& net = grid_network_;
-    auto& edges = net.edges_mut();
-
-    // Remove edges touching this subnet
-    edges.erase(std::remove_if(edges.begin(), edges.end(),
-        [&](const GridEdge& e) { return e.from == subnet_id || e.to == subnet_id; }),
-        edges.end());
-
-    if (auto* n = net.find_mut(subnet_id)) {
-        // Tombstone the node so any latent reference (e.g. a Hackable
-        // still holding jack_in_node_id from before death) returns a
-        // visible "removed" marker rather than crashing.
-        n->label = "[removed]";
-        n->security_tier = 0;
-    }
-
-    auto& active = lan_metadatas_[current_lan_key_];
-    if (active.nodes_total > 0) active.nodes_total -= 1;
+    lan_metadatas_.try_emplace(key);
+    // Per-target netspaces replace the multi-region node graph that
+    // switch_active_lan used to populate; LAN metadata stays as a region
+    // name carrier only.
 }
 
 void WorldManager::lan_full_reset() {
-    auto& net = grid_network_;
     LanMetadata& meta = lan_metadatas_[current_lan_key_];
-
-    if (meta.lan_root.valid()) {
-        // Drop every Subnet node reachable from lan_root (one hop only —
-        // Subnets don't chain in this model).
-        std::vector<GridNodeId> to_drop;
-        for (const auto& e : net.edges()) {
-            if (e.from == meta.lan_root) {
-                if (auto* n = net.find(e.to)) {
-                    if (n->kind == GridNodeKind::Subnet) to_drop.push_back(e.to);
-                }
-            }
-        }
-        for (GridNodeId id : to_drop) on_hackable_removed(id);
-
-        // Drop the lan_root's own edges.
-        auto& edges = net.edges_mut();
-        edges.erase(std::remove_if(edges.begin(), edges.end(),
-            [&](const GridEdge& e) {
-                return e.from == meta.lan_root || e.to == meta.lan_root;
-            }),
-            edges.end());
-
-        // Tombstone lan_root.
-        if (auto* n = net.find_mut(meta.lan_root)) {
-            n->label = "[removed]";
-            n->security_tier = 0;
-        }
-    }
-
-    // Wipe persistence + reset meta to defaults — but ONLY the active LAN.
-    // Sibling maps' LANs in `lan_metadatas_` are left alone.
     meta = LanMetadata{};
-    register_hackables_in_lan(*this, net, meta);
 }
 
 const Hackable* WorldManager::find_hackable_by_ip(uint32_t ip) const {

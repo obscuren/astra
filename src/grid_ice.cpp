@@ -93,35 +93,13 @@ void spawn_for_sector(GridSession& s, uint32_t seed, int security_tier) {
     }
 }
 
-void spawn_from_seeds(GridSession& s) {
-    // Only spawn seeds whose min_trace ≤ current trace. Others wait for
-    // promote_pending_seeds to materialize them as the trace meter rises.
-    //
-    // Plan 8 bug-fix: idempotency is tracked by seed INDEX, not position.
-    // White ICE patrols away from its spawn point each tick, so checking
-    // "is anything at seed.x/seed.y" re-spawned a duplicate every turn.
-    const auto& seeds = s.sector.ice_seeds;
-    // Resize tracker to match the seed list (idempotent — only grows).
-    if (s.ice_seed_spawned.size() < seeds.size()) {
-        s.ice_seed_spawned.resize(seeds.size(), false);
-    }
-    for (size_t i = 0; i < seeds.size(); ++i) {
-        if (s.ice_seed_spawned[i]) continue;        // already spawned this session
-        if (seeds[i].min_trace > s.trace) continue; // not yet eligible
-        GridIce ice;
-        ice.x          = seeds[i].x;
-        ice.y          = seeds[i].y;
-        ice.hp         = seeds[i].hp;
-        ice.color      = seeds[i].color;
-        ice.patrol_dir = 0;
-        s.ice.push_back(ice);
-        s.ice_seed_spawned[i] = true;
-    }
+void spawn_from_seeds(GridSession&) {
+    // ICE seed pipeline retired with the legacy sector generators.
+    // Per-target netspace grammars (Phase 1+) seed ICE directly.
 }
 
-void promote_pending_seeds(GridSession& s) {
-    // Runs per tick — idempotent. Materializes seeds newly eligible by trace.
-    spawn_from_seeds(s);
+void promote_pending_seeds(GridSession&) {
+    // No-op now that seeds aren't sourced from the sector.
 }
 
 // Centralised damage + trace mutation. Single chokepoint for the

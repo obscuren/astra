@@ -11,7 +11,6 @@
 namespace astra {
 
 class Game;
-struct GridNodeId;
 struct Hackable;
 struct Item;
 class TileMap;

@@ -26,7 +26,6 @@ static SaveData build_save_data(Game& game, bool dead) {
         data.messages = game.messages();
         data.stash = world.stash();
         data.navigation = world.navigation();
-        data.grid_network = world.grid_network();
         data.surface_mode = static_cast<uint8_t>(world.surface_mode());
         data.overworld_x = world.overworld_x();
         data.overworld_y = world.overworld_y();
@@ -236,9 +235,7 @@ bool SaveSystem::load(const std::string& filename, Game& game) {
     // Restore navigation data (or bootstrap for old saves)
     if (!data.navigation.systems.empty()) {
         world.navigation() = data.navigation;
-        world.grid_network() = std::move(data.grid_network);
     } else {
-        world.grid_network().clear();
         world.navigation() = generate_galaxy(world.seed());
     }
     // Restore quest state (before star chart rebuild so markers appear)

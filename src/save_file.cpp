@@ -769,7 +769,6 @@ static void write_hackable(BinaryWriter& w, const Hackable& h) {
     w.write_u32(h.network_id);
     w.write_u8(static_cast<uint8_t>(h.state));
     w.write_i32(h.state_ticks_left);
-    w.write_i32(h.jack_in_node_id);
     // v57 — Plan 4: lore_fragments + soul_mirror_progress
     w.write_u32(static_cast<uint32_t>(h.lore_fragments.size()));
     for (const auto& f : h.lore_fragments) {
@@ -790,7 +789,6 @@ static Hackable read_hackable(BinaryReader& r) {
     h.network_id       = r.read_u32();
     h.state            = static_cast<HackState>(r.read_u8());
     h.state_ticks_left = r.read_i32();
-    h.jack_in_node_id  = r.read_i32();
     // v57 — Plan 4: lore_fragments + soul_mirror_progress
     uint32_t frag_n = r.read_u32();
     h.lore_fragments.reserve(frag_n);
@@ -806,10 +804,8 @@ static Hackable read_hackable(BinaryReader& r) {
     return h;
 }
 
-// LanMetadata persistence
+// LanMetadata persistence — slimmed after the GridNetwork delete.
 static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
-    w.write_u32(meta.lan_root.value);
-    w.write_u8(meta.has_deep_grid_edge ? 1 : 0);
     w.write_string(meta.region_label);
     w.write_string(meta.display_name);
     w.write_u8(static_cast<uint8_t>(meta.flavour));
@@ -818,7 +814,6 @@ static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
     w.write_u32(meta.gen_seed);
     w.write_u32(meta.subnet_base);
 
-    // Rooms
     w.write_u32(static_cast<uint32_t>(meta.zones.size()));
     for (const auto& room : meta.zones) {
         w.write_string(room.name);
@@ -827,8 +822,6 @@ static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
         w.write_i32(room.extents.w);
         w.write_i32(room.extents.h);
         w.write_i32(room.tier);
-        w.write_u32(static_cast<uint32_t>(room.contained_subnets.size()));
-        for (const auto& sid : room.contained_subnets) w.write_u32(sid.value);
     }
 
     w.write_u64(meta.last_visited_tick);
@@ -840,8 +833,6 @@ static void write_lan_metadata(BinaryWriter& w, const LanMetadata& meta) {
 }
 
 static void read_lan_metadata(BinaryReader& r, LanMetadata& meta) {
-    meta.lan_root.value      = r.read_u32();
-    meta.has_deep_grid_edge  = r.read_u8() != 0;
     meta.region_label        = r.read_string();
     meta.display_name        = r.read_string();
     meta.flavour             = static_cast<LanFlavour>(r.read_u8());
@@ -859,9 +850,6 @@ static void read_lan_metadata(BinaryReader& r, LanMetadata& meta) {
         room.extents.w = r.read_i32();
         room.extents.h = r.read_i32();
         room.tier = r.read_i32();
-        uint32_t nsub = r.read_u32();
-        room.contained_subnets.resize(nsub);
-        for (auto& sid : room.contained_subnets) sid.value = r.read_u32();
     }
 
     meta.last_visited_tick = r.read_u64();
@@ -2582,75 +2570,6 @@ static void read_lore_section(BinaryReader& r, WorldLore& lore) {
     lore.active_beacons = r.read_i32();
 }
 
-// ---------------------------------------------------------------------------
-// GridNetwork serialization (v54)
-// ---------------------------------------------------------------------------
-
-static void write_grid_network_section(BinaryWriter& w, const GridNetwork& net) {
-    auto pos = w.begin_section("GRID");
-    w.write_u32(static_cast<uint32_t>(net.nodes().size()));
-    for (const auto& n : net.nodes()) {
-        w.write_u32(n.id.value);
-        w.write_u8(static_cast<uint8_t>(n.kind));
-        w.write_u32(n.source_seed);
-        w.write_i32(n.security_tier);
-        w.write_string(n.label);
-        w.write_u32(static_cast<uint32_t>(n.sector_seeds.size()));
-        for (uint32_t s : n.sector_seeds) w.write_u32(s);
-        // v58: Plan 4 Task 9 — graph-view position + ownership
-        w.write_i32(n.layout_x);
-        w.write_i32(n.layout_y);
-        w.write_u64(n.owned_by_consciousness_id);
-        // v59: Plan 4 — per-node entry redirect (Precursor consoles point
-        // at their regional darknet so netmap and fixture-menu jacks agree).
-        w.write_u32(n.entry_redirect.value);
-        // v61: Plan 5 Cut 2.6 — source FixtureType for subnet device-avatar.
-        w.write_u8(static_cast<uint8_t>(n.source_fixture_type));
-    }
-    w.write_u32(static_cast<uint32_t>(net.edges().size()));
-    for (const auto& e : net.edges()) {
-        w.write_u32(e.from.value);
-        w.write_u32(e.to.value);
-        w.write_i32(e.gateway_tier);
-        w.write_u8(e.cracked ? 1 : 0);
-    }
-    w.end_section(pos);
-}
-
-static void read_grid_network_section(BinaryReader& r, GridNetwork& net) {
-    net.clear();
-    uint32_t n_nodes = r.read_u32();
-    for (uint32_t i = 0; i < n_nodes; ++i) {
-        GridNode n;
-        n.id.value      = r.read_u32();
-        n.kind          = static_cast<GridNodeKind>(r.read_u8());
-        n.source_seed   = r.read_u32();
-        n.security_tier = r.read_i32();
-        n.label         = r.read_string();
-        uint32_t ns = r.read_u32();
-        n.sector_seeds.reserve(ns);
-        for (uint32_t j = 0; j < ns; ++j) n.sector_seeds.push_back(r.read_u32());
-        // v58: Plan 4 Task 9 — graph-view position + ownership
-        n.layout_x                   = r.read_i32();
-        n.layout_y                   = r.read_i32();
-        n.owned_by_consciousness_id  = r.read_u64();
-        // v59: Plan 4 — per-node entry redirect.
-        n.entry_redirect.value       = r.read_u32();
-        // v61: Plan 5 Cut 2.6 — source FixtureType for subnet device-avatar.
-        n.source_fixture_type        = static_cast<FixtureType>(r.read_u8());
-        net.load_raw(std::move(n));
-    }
-    uint32_t n_edges = r.read_u32();
-    for (uint32_t i = 0; i < n_edges; ++i) {
-        GridEdge e;
-        e.from.value   = r.read_u32();
-        e.to.value     = r.read_u32();
-        e.gateway_tier = r.read_i32();
-        e.cracked      = r.read_u8() != 0;
-        net.add_edge(e);
-    }
-}
-
 bool write_save(const std::string& name, const SaveData& data) {
     auto dir = save_directory();
     std::filesystem::create_directories(dir);
@@ -2683,9 +2602,6 @@ bool write_save(const std::string& name, const SaveData& data) {
     }
     if (data.lore.generated) {
         write_lore_section(w, data.lore);
-    }
-    if (!data.grid_network.nodes().empty()) {
-        write_grid_network_section(w, data.grid_network);
     }
     // v62 (Plan 5.5): per-map LAN metadata + active key
     {
@@ -2776,8 +2692,6 @@ bool read_save(const std::string& name, SaveData& data) {
             read_dungeon_recipes_section(r, data);
         } else if (std::memcmp(tag, "LORE", 4) == 0) {
             read_lore_section(r, data.lore);
-        } else if (std::memcmp(tag, "GRID", 4) == 0) {
-            read_grid_network_section(r, data.grid_network);
         } else if (std::memcmp(tag, "LANM", 4) == 0) {
             // v62: per-map LAN metadata.
             uint32_t n = r.read_u32();

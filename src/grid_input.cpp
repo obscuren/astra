@@ -6,7 +6,6 @@
 #include "astra/grid_combat.h"
 #include "astra/grid_constants.h"
 #include "astra/grid_display.h"
-#include "astra/grid_network.h"
 #include "astra/grid_session.h"
 #include "astra/hacking_system.h"
 #include "astra/item.h"

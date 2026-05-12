@@ -1,6 +1,5 @@
 #pragma once
 
-#include "astra/grid_network.h"
 #include "astra/lan.h"
 #include "astra/lore_types.h"
 #include "astra/npc.h"
@@ -96,7 +95,6 @@ struct SaveData {
     std::string death_message;
     std::vector<Item> stash;
     NavigationData navigation;
-    GridNetwork    grid_network;   // v54: Plan 3 — persists across save/load
     uint8_t surface_mode = 0;  // 0=Dungeon, 1=DetailMap, 2=Overworld
     int overworld_x = 0;
     int overworld_y = 0;

@@ -9,7 +9,6 @@
 #include "astra/grid_constants.h"
 #include "astra/grid_display.h"
 #include "astra/grid_ice.h"
-#include "astra/grid_network.h"
 #include "astra/grid_session.h"
 #include "astra/hackable.h"
 #include "astra/lan.h"
@@ -122,22 +121,6 @@ std::string apply_cooldown_grid(GridProgramContext c) {
     auto& cd = *(*slot)->deck;
     cd.heat_current = std::max(0, cd.heat_current - 4);
     return prefix + "heat -4.";
-}
-
-// Try to crack the edge from (the LAN root or `from_node`) -> `target`.
-// Sets `cracked = true` on the matching edge if found. Returns true on hit.
-bool crack_gateway_edge(GridNetwork& net,
-                        GridNodeId from_node,
-                        GridNodeId lan_root,
-                        GridNodeId target) {
-    for (auto& e : net.edges_mut()) {
-        if (e.to == target &&
-            (e.from == from_node || (lan_root.valid() && e.from == lan_root))) {
-            e.cracked = true;
-            return true;
-        }
-    }
-    return false;
 }
 
 std::string apply_breach_grid(GridProgramContext c) {

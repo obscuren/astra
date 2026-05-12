@@ -77,7 +77,6 @@ struct Hackable {
     HackState   state         = HackState::Clean;
 
     // For PrecursorConsole only — Plan 3 will use this; Plan 2 stubs the verb.
-    int jack_in_node_id   = -1;
 
     // Compromised-state cooldown timer in ticks. Decremented per game tick;
     // when it hits 0 the state collapses back to Clean (or to Alarmed if a
