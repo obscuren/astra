@@ -179,6 +179,7 @@ set(ASTRA_SOURCES
     src/rebirth_sequence.cpp
     src/net_session.cpp
     src/netspace_generator.cpp
+    src/netspace_layout.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp
