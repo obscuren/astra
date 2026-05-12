@@ -130,6 +130,18 @@ Effect make_burn_ge(int duration, int damage_per_tick) {
     return e;
 }
 
+Effect make_bleed_ge(int duration, int damage_per_tick) {
+    Effect e;
+    e.id = EffectId::Bleed;
+    e.name = "Bleeding";
+    e.color = Color::Red;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    e.tick_damage = damage_per_tick;
+    return e;
+}
+
 Effect make_poison_ge(int duration, int damage_per_tick) {
     Effect e;
     e.id = EffectId::Poison;

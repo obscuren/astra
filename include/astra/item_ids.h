@@ -268,6 +268,12 @@ constexpr uint16_t ITEM_REFLEX_SPRINGS       = 416;
 constexpr uint16_t ITEM_SPRINT_COILS         = 417;
 constexpr uint16_t ITEM_MAG_LOCK_SOLES       = 418;
 
+// Phase B implant content pack (419-422)
+constexpr uint16_t ITEM_VIBRO_TIP_FINGERS = 419;
+constexpr uint16_t ITEM_STATIC_PALM       = 420;
+constexpr uint16_t ITEM_WRIST_ROCKET      = 421;
+constexpr uint16_t ITEM_COILGUN_PUNCH     = 422;
+
 // Hacker mats (430+) — fragment-system compile material.
 constexpr uint16_t ITEM_PROGRAM_DISK         = 430;
 

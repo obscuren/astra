@@ -214,6 +214,11 @@ public:
             total.quickness_when_idle         += slot->modifiers.quickness_when_idle;
             total.knockback_immune             = total.knockback_immune || slot->modifiers.knockback_immune;
             total.slip_immune                  = total.slip_immune     || slot->modifiers.slip_immune;
+            total.melee_kinetic_bonus      += slot->modifiers.melee_kinetic_bonus;
+            total.melee_bleed_proc_pct     += slot->modifiers.melee_bleed_proc_pct;
+            total.melee_emp_proc_pct       += slot->modifiers.melee_emp_proc_pct;
+            total.ranged_rocket_proc_pct   += slot->modifiers.ranged_rocket_proc_pct;
+            total.melee_extra_hit_proc_pct += slot->modifiers.melee_extra_hit_proc_pct;
         }
         // Clamp trace resistance so stacking can't go beyond 100%.
         if (total.trace_resistance_pct > 100) total.trace_resistance_pct = 100;

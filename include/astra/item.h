@@ -211,6 +211,13 @@ struct StatModifiers {
     // the slip status to the player.  Example callsite sketch:
     //   if (player.implant_modifiers().slip_immune) return; // skip slip status
     bool slip_immune            = false; // Mag-Lock Soles
+
+    // Phase B — proc-on-hit
+    int melee_kinetic_bonus      = 0;  // Vibro-Tip Fingers: flat +N kinetic on melee hit
+    int melee_bleed_proc_pct     = 0;  // Vibro-Tip Fingers: % chance to apply kinetic DoT on melee hit
+    int melee_emp_proc_pct       = 0;  // Static Palm:       % chance to apply EmpDisabled on melee hit
+    int ranged_rocket_proc_pct   = 0;  // Wrist Rocket:      % chance for splash rocket on ranged hit
+    int melee_extra_hit_proc_pct = 0;  // Coilgun Punch:     % chance for free 2nd melee hit
 };
 
 enum class ModuleKind : uint8_t {

@@ -23,7 +23,7 @@ public:
     void tick_blink() { ++blink_phase_; }
 
     // Actions
-    void attack_npc(Npc& npc, Game& game);
+    void attack_npc(Npc& npc, Game& game, bool in_extra_hit = false);
     void attack_npc_vs_npc(Npc& attacker, Npc& defender, Game& game);
     void process_npc_turn(Npc& npc, Game& game);
     void begin_targeting(Game& game);

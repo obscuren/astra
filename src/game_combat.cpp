@@ -719,7 +719,7 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
     }
 }
 
-void CombatSystem::attack_npc(Npc& npc, Game& game) {
+void CombatSystem::attack_npc(Npc& npc, Game& game, bool in_extra_hit) {
     auto& rng = game.world().rng();
 
     // Determine weapon and damage dice
@@ -778,6 +778,13 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         game.log("Your attack has no effect on " + display_name(npc) + ".");
         return;
     }
+
+    // 5a. melee_kinetic_bonus — flat kinetic bonus on every melee hit (kinetic weapons / unarmed)
+    const auto& imods = game.player().implant_modifiers();
+    if (imods.melee_kinetic_bonus > 0 && dtype == DamageType::Kinetic) {
+        damage += imods.melee_kinetic_bonus;
+    }
+
     npc.hp -= damage;
     if (npc.hp < 0) npc.hp = 0;
     game.animations().spawn_effect(anim_damage_flash, npc.x, npc.y);
@@ -788,9 +795,38 @@ void CombatSystem::attack_npc(Npc& npc, Game& game) {
         game.log("You strike " + display_name(npc) + " for " +
             std::to_string(damage) + " " + display_name(dtype) + " damage!");
     }
+
+    // 5b. melee_bleed_proc_pct — kinetic DoT proc on hit
+    if (imods.melee_bleed_proc_pct > 0 && npc.alive()) {
+        if (std::uniform_int_distribution<int>(0, 99)(rng) < imods.melee_bleed_proc_pct) {
+            add_effect(npc.effects, make_bleed_ge(3, 1));
+            game.log(colored(display_name(npc), Color::White) + colored(" bleeds!", Color::Red));
+        }
+    }
+
+    // 5c. melee_emp_proc_pct — EmpDisabled proc on hit
+    if (imods.melee_emp_proc_pct > 0 && npc.alive()) {
+        if (std::uniform_int_distribution<int>(0, 99)(rng) < imods.melee_emp_proc_pct) {
+            add_effect(npc.effects, make_emp_disabled_ge(1));
+            game.log(colored(display_name(npc), Color::White) + colored(" is jolted offline!", Color::Cyan));
+        }
+    }
+
     if (!npc.alive()) {
         game.log(display_name(npc) + " is destroyed!");
         award_npc_kill(game, npc);
+        return;
+    }
+
+    // 5d. melee_extra_hit_proc_pct — free 2nd melee strike (no chain recursion)
+    if (!in_extra_hit && imods.melee_extra_hit_proc_pct > 0) {
+        int dx = std::abs(npc.x - game.player().x);
+        int dy = std::abs(npc.y - game.player().y);
+        if (std::max(dx, dy) <= 1 &&
+            std::uniform_int_distribution<int>(0, 99)(rng) < imods.melee_extra_hit_proc_pct) {
+            game.log(colored("Coilgun discharges — second strike!", Color::Yellow));
+            attack_npc(npc, game, /*in_extra_hit=*/true);
+        }
     }
 }
 
@@ -1003,6 +1039,40 @@ void CombatSystem::shoot_target(Game& game) {
         std::to_string(damage) + " " + display_name(dtype) + " damage. [" +
         std::to_string(estore.current) + "/" +
         std::to_string(estore.capacity) + "]");
+
+    // Task 6: ranged_rocket_proc_pct — Wrist Rocket splash on ranged hit
+    {
+        const auto& rimods = game.player().implant_modifiers();
+        if (rimods.ranged_rocket_proc_pct > 0 &&
+            std::uniform_int_distribution<int>(0, 99)(rng) < rimods.ranged_rocket_proc_pct) {
+            game.log(colored("Wrist rocket fires!", Color::Yellow));
+            int tx = target_npc_->x;
+            int ty = target_npc_->y;
+            // Apply 1d4 heat splash to target + 4 cardinal neighbors
+            constexpr int splash_dirs[5][2] = { {0,0}, {0,-1}, {1,0}, {0,1}, {-1,0} };
+            for (auto& d : splash_dirs) {
+                int sx = tx + d[0];
+                int sy = ty + d[1];
+                for (auto& sn : game.world().npcs()) {
+                    if (!sn.alive() || sn.x != sx || sn.y != sy) continue;
+                    int rocket_dmg = std::uniform_int_distribution<int>(1, 4)(rng);
+                    rocket_dmg = apply_damage_effects(sn.effects, rocket_dmg);
+                    if (rocket_dmg > 0) {
+                        sn.hp -= rocket_dmg;
+                        if (sn.hp < 0) sn.hp = 0;
+                        game.animations().spawn_effect(anim_damage_flash, sn.x, sn.y);
+                        game.log("  " + display_name(sn) + " takes " +
+                                 std::to_string(rocket_dmg) + " " +
+                                 display_name(DamageType::Plasma) + " splash.");
+                        if (!sn.alive()) {
+                            game.log(display_name(sn) + " is destroyed!");
+                            award_npc_kill(game, sn);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (!target_npc_->alive()) {
         game.log(display_name(*target_npc_) + " is destroyed!");

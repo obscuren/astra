@@ -816,6 +816,36 @@ void draw_item_info(UIContext& ctx, const Item& item, const Player* player) {
             ctx.label_value(0, y, "Slip:      ", Color::DarkGray, "immune", Color::Cyan);
             y++;
         }
+
+        // Phase B implant stats — melee procs (Vibro-Tip Fingers, Static Palm)
+        if (item.modifiers.melee_kinetic_bonus != 0 && y < ctx.height()) {
+            std::string val = (item.modifiers.melee_kinetic_bonus > 0 ? "+" : "")
+                            + std::to_string(item.modifiers.melee_kinetic_bonus) + " kinetic (melee)";
+            ctx.label_value(0, y, "Damage:    ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.melee_bleed_proc_pct != 0 && y < ctx.height()) {
+            std::string val = std::to_string(item.modifiers.melee_bleed_proc_pct) + "% bleed";
+            ctx.label_value(0, y, "Proc:      ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.melee_emp_proc_pct != 0 && y < ctx.height()) {
+            std::string val = std::to_string(item.modifiers.melee_emp_proc_pct) + "% EMP";
+            ctx.label_value(0, y, "Proc:      ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.melee_extra_hit_proc_pct != 0 && y < ctx.height()) {
+            std::string val = std::to_string(item.modifiers.melee_extra_hit_proc_pct) + "% extra hit";
+            ctx.label_value(0, y, "Proc:      ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
+
+        // Ranged proc (Wrist Rocket)
+        if (item.modifiers.ranged_rocket_proc_pct != 0 && y < ctx.height()) {
+            std::string val = std::to_string(item.modifiers.ranged_rocket_proc_pct) + "% rocket";
+            ctx.label_value(0, y, "Proc:      ", Color::DarkGray, val, Color::Cyan);
+            y++;
+        }
     }
 
     if (item.type == ItemType::Program && item.program && y < ctx.height()) {

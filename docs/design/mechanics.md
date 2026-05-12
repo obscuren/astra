@@ -1098,6 +1098,12 @@ Phase A implants (Eyes / Chest / Hand / Arm / Leg) expose several mechanical sur
 - **Knockback / slip immunity.** `knockback_immune` and `ignore_slip_terrain` are aggregated across all leg implants (Mag-Lock Soles) but have no consumer system yet. Both fields are present and sum correctly; TODOs in `include/astra/item.h` describe the integration points for when the knockback and terrain-slip systems land.
 - **Cloaked NPC detection.** `detect_cloaked` (Heat-Spectrum Visor) is aggregated across all equipped implants. No cloak system exists yet; a TODO in `src/game_world.cpp` marks the integration point where NPC visibility queries will check this flag.
 
+### Implant Proc-on-Hit (Phase B)
+
+Phase B adds four proc-on-hit implants that fire conditional effects during melee and ranged attacks. Procs roll only on **landed hits** — never on misses or attacks at empty tiles. Each proc rolls independently once per attack; multiple proc implants on the same character stack without interaction. Coilgun Punch's free 2nd melee strike carries a guard flag (`in_extra_hit`) that prevents recursive proc chaining. Wrist Rocket fires a 1d4 plasma splash at the impact tile and four cardinal neighbors (5-tile cross pattern).
+
+A new `EffectId::Bleed` kinetic DoT effect tracks the Phase B Vibro-Tip Fingers proc: 3 turns duration, 1 kinetic damage per tick. Structure mirrors the existing Burn effect.
+
 ### Netmap overlay
 
 `netmap` (or `N` in the Hacking tab) opens a modal overlay over the terminal

@@ -1566,6 +1566,12 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         case ITEM_SPRINT_COILS:            return build_sprint_coils();
         case ITEM_MAG_LOCK_SOLES:          return build_mag_lock_soles();
 
+        // Phase B implant content pack
+        case ITEM_VIBRO_TIP_FINGERS:       return build_vibro_tip_fingers();
+        case ITEM_STATIC_PALM:             return build_static_palm();
+        case ITEM_WRIST_ROCKET:            return build_wrist_rocket();
+        case ITEM_COILGUN_PUNCH:           return build_coilgun_punch();
+
         // Hacker mats
         case ITEM_PROGRAM_DISK:            return build_program_disk();
 
@@ -2251,6 +2257,79 @@ Item build_mag_lock_soles() {
         "You don't move unless you choose to.";
     it.modifiers.knockback_immune = true;
     it.modifiers.slip_immune      = true;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Phase B implant content pack — proc-on-hit
+// ---------------------------------------------------------------------------
+
+Item build_vibro_tip_fingers() {
+    Item it;
+    it.item_def_id           = ITEM_VIBRO_TIP_FINGERS;
+    it.id                    = 9219;
+    it.name                  = "Vibro-Tip Fingers";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyHand;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2500;
+    it.sell_value            = 750;
+    it.description           = "Micro-vibrating fingertip implants. Adds kinetic edge to melee, occasionally rending soft tissue.";
+    it.modifiers.melee_kinetic_bonus  = 1;
+    it.modifiers.melee_bleed_proc_pct = 10;
+    return it;
+}
+
+Item build_static_palm() {
+    Item it;
+    it.item_def_id           = ITEM_STATIC_PALM;
+    it.id                    = 9220;
+    it.name                  = "Static Palm";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyHand;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2600;
+    it.sell_value            = 780;
+    it.description           = "A capacitor net under the palm dumps an EMP arc on contact.";
+    it.modifiers.melee_emp_proc_pct = 15;
+    return it;
+}
+
+Item build_wrist_rocket() {
+    Item it;
+    it.item_def_id           = ITEM_WRIST_ROCKET;
+    it.id                    = 9221;
+    it.name                  = "Wrist Rocket";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyArm;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2800;
+    it.sell_value            = 850;
+    it.description           = "A concealed micro-rocket tube. Fires alongside your ranged attacks. Heat splash, narrow blast.";
+    it.modifiers.ranged_rocket_proc_pct = 8;
+    return it;
+}
+
+Item build_coilgun_punch() {
+    Item it;
+    it.item_def_id           = ITEM_COILGUN_PUNCH;
+    it.id                    = 9222;
+    it.name                  = "Coilgun Punch";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyArm;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2700;
+    it.sell_value            = 800;
+    it.description           = "Magnetic accelerators in the humerus drive a second strike on the heels of the first.";
+    it.modifiers.melee_extra_hit_proc_pct = 20;
     return it;
 }
 

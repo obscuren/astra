@@ -424,6 +424,8 @@ Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab p
 |------|-----|--------|--------|-------|
 | Servo Grip | `servo_grip` | Common | +1 Quickness. | Yes |
 | Pistol Targeter | `pistol_targeter` | Rare | +15% pistol hit chance (`pistol_hit_bonus_pct`). Stacks across both hands. | Yes |
+| Vibro-Tip Fingers | `vibro_tip_fingers` | Rare | Melee +1 kinetic damage; 10% chance to apply Bleed (3 turns @ 1 kinetic/turn) on melee hit. | Yes |
+| Static Palm | `static_palm` | Rare | 15% chance to apply EmpDisabled (1 turn) on melee hit. | Yes |
 
 ### Arm Implants (AnyArm — L or R at install)
 
@@ -431,6 +433,8 @@ Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab p
 |------|-----|--------|--------|-------|
 | Plated Sleeve | `plated_sleeve` | Common | +1 AV. | Yes |
 | Reinforced Servos | `reinforced_servos` | Uncommon | +1 STR (`strength_bonus`); feeds `Player::effective_strength()` for carry-weight cap and melee damage. | Yes |
+| Wrist Rocket | `wrist_rocket` | Rare | 8% chance for splash rocket (1d4 plasma, 5-tile cross) on ranged hit. | Yes |
+| Coilgun Punch | `coilgun_punch` | Rare | 20% chance for free 2nd melee strike on melee hit. | Yes |
 
 ### Leg Implants (AnyLeg — L or R at install)
 

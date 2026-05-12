@@ -152,6 +152,12 @@ Item build_reflex_springs();
 Item build_sprint_coils();
 Item build_mag_lock_soles();
 
+// --- Phase B implant content pack ---
+Item build_vibro_tip_fingers();
+Item build_static_palm();
+Item build_wrist_rocket();
+Item build_coilgun_punch();
+
 // --- Hacker mats ---
 Item build_program_disk();
 
