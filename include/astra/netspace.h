@@ -9,6 +9,7 @@
 // abstraction and a blank-room stub generator; per-target grammars land
 // in Phase 1+.
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>

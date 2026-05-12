@@ -190,6 +190,7 @@ set(ASTRA_SOURCES
     src/grid_persistence.cpp
     src/rebirth_sequence.cpp
     src/grid_session.cpp
+    src/netspace_generator.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp
