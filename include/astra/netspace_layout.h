@@ -48,6 +48,15 @@ struct NetspaceBuilder {
     // center, sets ns.exit_x/y, sets room.is_exit.
     void set_exit(NetRoom& r);
 
+    // Mark a single cell as passable regardless of its underlying tile.
+    // Use for grammar-specific doorways through walls — e.g. an exit
+    // corridor through a room border — where the visual wall should
+    // stay intact but the avatar needs a walkable port. connect()
+    // calls this automatically for pipe-room attach points.
+    void make_passable(int x, int y) {
+        if (ns.in_bounds(x, y)) ns.passable_overrides.insert({x, y});
+    }
+
     // Finalize: return the populated Netspace by move.
     Netspace finalize() { return std::move(ns); }
 

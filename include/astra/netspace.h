@@ -13,7 +13,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace astra {
@@ -131,6 +133,15 @@ struct Netspace {
     std::vector<NetRoom> rooms;
     std::vector<NetPipe> pipes;
 
+    // Per-cell passability override. Cells listed here are walkable by
+    // the avatar (and pass Telegraph LoS) regardless of the underlying
+    // tile. The renderer is unchanged — visually the cell still draws
+    // as its tile (typically a BoxThin/Double/Block border), but the
+    // avatar can step through it. NetspaceBuilder uses this to open
+    // ports where pipes attach to room borders so room interiors stay
+    // visually sealed while traversal works.
+    std::set<std::pair<int, int>> passable_overrides;
+
     NetTile at(int x, int y) const {
         if (x < 0 || y < 0 || x >= w || y >= h) return NetTile::Void;
         return tiles[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)];
@@ -143,6 +154,7 @@ struct Netspace {
         return x >= 0 && y >= 0 && x < w && y < h;
     }
     bool passable(int x, int y) const {
+        if (passable_overrides.count({x, y})) return true;
         const NetTile t = at(x, y);
         // Floor + JackIn + Exit walkable. Pipes carry payloads but the
         // avatar can step on them too (telegraph LoS check is separate).

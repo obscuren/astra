@@ -119,13 +119,13 @@ Netspace gen_vending_netspace(const TargetDescriptor& desc) {
     b.ns.set(kShelf3X + kShelfW / 2, dispense_top, NetTile::PipeJunc);
 
     // ── Exit ──────────────────────────────────────────────────────────
-    // Carve an opening through DISPENSE's right wall at the avatar row
-    // and drop the Exit tile two steps further right on the outer floor.
-    // The Drifter walks: jack-in (DISPENSE center) → right → through
-    // opening → across outer floor → onto Exit → jack-out.
+    // Open a port through DISPENSE's right wall at the avatar row and
+    // place the Exit tile two steps further right on outer floor. The
+    // wall stays visually intact (BoxThin │ at that cell);
+    // make_passable lets the avatar phase through that one cell.
     const int avatar_y       = kDispenseY + kDispenseH - 2;  // bottom_content row
     const int dispense_right = kDispenseX + kDispenseW - 1;
-    b.ns.set(dispense_right, avatar_y, NetTile::Floor);
+    b.make_passable(dispense_right, avatar_y);
 
     // Place the exit on outer floor, one cell shy of the outer right wall
     // so it stays inside the machine frame.

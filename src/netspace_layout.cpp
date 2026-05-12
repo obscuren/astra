@@ -97,6 +97,11 @@ NetPipe& NetspaceBuilder::connect(const NetRoom& a, const NetRoom& b,
         p.x0 = ax; p.y0 = ay; p.x1 = bx; p.y1 = by;
         stamp_h(ay, ax, bx);
         if (ay != by) stamp_v(bx, ay, by);
+        // Open the room-side ports so the avatar can step out of the
+        // box through the wall the pipe attaches to. Tile stays the
+        // box border visually; passable_overrides makes it walkable.
+        make_passable(ax, ay);
+        make_passable(bx, by);
     } else {
         // Vertical-dominant L: V at a's near-y to b.x+1's column, then H.
         const int ax = a.x + a.w / 2;
@@ -106,6 +111,8 @@ NetPipe& NetspaceBuilder::connect(const NetRoom& a, const NetRoom& b,
         p.x0 = ax; p.y0 = ay; p.x1 = bx; p.y1 = by;
         stamp_v(ax, ay, by);
         if (ax != bx) stamp_h(by, ax, bx);
+        make_passable(ax, ay);
+        make_passable(bx, by);
     }
 
     ns.pipes.push_back(p);
