@@ -2,6 +2,8 @@
 
 Living catalog of every design, narrative, and technical doc in the project. **All docs live in subfolders;** this README is the only file at `docs/` root.
 
+> Player-facing reference lives on the [Astra Wiki](https://github.com/obscuren/astra/wiki). This `docs/` tree is dev/design material; the wiki is for active players. Catalog pages on the wiki are regenerated from `src/` via [`tools/wiki/generate.py`](../tools/wiki/README.md).
+
 ---
 
 ## Folder layout
