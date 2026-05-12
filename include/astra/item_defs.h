@@ -158,6 +158,12 @@ Item build_static_palm();
 Item build_wrist_rocket();
 Item build_coilgun_punch();
 
+// --- Phase C implant content pack ---
+Item build_threat_optics();
+Item build_adrenal_pump();
+Item build_emp_buffer();
+Item build_burst_pistons();
+
 // --- Hacker mats ---
 Item build_program_disk();
 

@@ -846,6 +846,27 @@ void draw_item_info(UIContext& ctx, const Item& item, const Player* player) {
             ctx.label_value(0, y, "Proc:      ", Color::DarkGray, val, Color::Cyan);
             y++;
         }
+
+        // Phase C — stateful / UI / active tags
+        if (item.modifiers.show_enemy_threat && y < ctx.height()) {
+            ctx.label_value(0, y, "Optics:    ", Color::DarkGray, "enemy HP + status", Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.has_adrenal_pump && y < ctx.height()) {
+            ctx.label_value(0, y, "Trigger:   ", Color::DarkGray,
+                "<30% HP -> +1 Quickness 5t (1x/combat)", Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.has_emp_buffer && y < ctx.height()) {
+            ctx.label_value(0, y, "Trigger:   ", Color::DarkGray,
+                "absorb 1st EMP per level", Color::Cyan);
+            y++;
+        }
+        if (item.modifiers.has_burst_pistons && y < ctx.height()) {
+            ctx.label_value(0, y, "Ability:   ", Color::DarkGray,
+                "[d] Dash 3 (8t cd)", Color::Cyan);
+            y++;
+        }
     }
 
     if (item.type == ItemType::Program && item.program && y < ctx.height()) {

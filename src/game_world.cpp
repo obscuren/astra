@@ -1,5 +1,6 @@
 #include "astra/game.h"
 #include "astra/soul_mirror.h"
+#include "astra/faction.h"
 #include "astra/item_ids.h"
 #include "astra/aura.h"
 #include "astra/civ_aesthetics.h"
@@ -229,6 +230,8 @@ void Game::restore_location(const LocationKey& key) {
 // intact (they live in `lan_metadatas_[key]`, which we don't touch).
 void Game::on_map_loaded() {
     world_.switch_active_lan(world_.current_location_key());
+    // Clear per-floor implant flags.
+    player_.emp_buffer_used_this_level = false;
 }
 
 void Game::enter_ship() {
@@ -2413,6 +2416,10 @@ void Game::tick_real_world(int cost) {
 
     energy_.tick(player_, world_, cost);
 
+    // Burst Pistons cooldown — decrement once per world tick (Phase C T4).
+    if (player_.burst_pistons_cooldown > 0)
+        --player_.burst_pistons_cooldown;
+
     // Hacking — detection counter ticks per advance_world step
     hacking_.tick(*this);
 
@@ -2450,6 +2457,28 @@ void Game::tick_real_world(int cost) {
 
     // Soul Mirror — progress channel if the player is still on the console tile
     soul_mirror::tick(*this);
+
+    // Combat-end detection — compute whether any hostile NPC is currently visible.
+    // When transitioning from in-combat → not in-combat, clear stateful implant flags.
+    {
+        bool in_combat = false;
+        const auto& vis = world_.visibility();
+        for (const auto& npc : world_.npcs()) {
+            if (!npc.alive()) continue;
+            if (!is_hostile_to_player(npc.faction, player_)) continue;
+            if (vis.get(npc.x, npc.y) == Visibility::Visible) {
+                in_combat = true;
+                break;
+            }
+        }
+        if (was_in_combat_ && !in_combat) {
+            // Combat just ended — reset per-combat implant flags.
+            player_.adrenal_pump_triggered_this_combat = false;
+            // Burst Pistons: restore dash charge between encounters.
+            player_.burst_pistons_cooldown = 0;
+        }
+        was_in_combat_ = in_combat;
+    }
 }
 
 

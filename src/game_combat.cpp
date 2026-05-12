@@ -31,6 +31,24 @@ constexpr int kSidestepDv  = 2;
 
 static int sign(int v) { return (v > 0) - (v < 0); }
 
+// Check and fire the Adrenal Pump implant.
+// Called after player HP is reduced. If the player has the implant and
+// hasn't triggered it this combat, and HP just fell below 30% of max,
+// apply a +1 quickness buff for 5 turns and log.
+static void check_adrenal_pump(Game& game) {
+    auto& p = game.player();
+    if (p.hp <= 0) return;
+    auto im = p.implant_modifiers();
+    if (!im.has_adrenal_pump) return;
+    if (p.adrenal_pump_triggered_this_combat) return;
+    int threshold = p.effective_max_hp() * 30 / 100;
+    if (p.hp >= threshold) return;
+    add_effect(p.effects, make_adrenal_pump_ge(5));
+    p.adrenal_pump_triggered_this_combat = true;
+    game.log(colored("Adrenal Pump fires", Color::Yellow) +
+             " \xe2\x80\x94 adrenaline floods your system!");
+}
+
 static int chebyshev_dist(int x1, int y1, int x2, int y2) {
     return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
 }
@@ -367,6 +385,7 @@ static void ranged_hit_player(Npc& npc, Game& game) {
     game.player().hp -= damage;
     if (game.player().hp < 0) game.player().hp = 0;
     soul_mirror::on_player_damaged(game);
+    check_adrenal_pump(game);
     game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
     game.log(display_name(npc) + " shoots you for " +
              std::to_string(damage) + " " + display_name(dtype) + " damage!");
@@ -609,6 +628,7 @@ void CombatSystem::process_npc_turn(Npc& npc, Game& game) {
             game.player().hp -= damage;
             if (game.player().hp < 0) game.player().hp = 0;
             soul_mirror::on_player_damaged(game);
+            check_adrenal_pump(game);
             game.animations().spawn_effect(anim_damage_flash, game.player().x, game.player().y);
             game.log(display_name(npc) + " strikes you for " +
                      std::to_string(damage) + " " + display_name(dtype) + " damage!");

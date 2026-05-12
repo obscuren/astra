@@ -1087,6 +1087,10 @@ static void write_player_section(BinaryWriter& w, const Player& p) {
     }
     // v75: last_action_was_attack (idle-quickness implant gating)
     w.write_u8(p.last_action_was_attack ? 1 : 0);
+    // v76: Phase C implant runtime state
+    w.write_u8(p.adrenal_pump_triggered_this_combat ? 1 : 0);
+    w.write_u8(p.emp_buffer_used_this_level ? 1 : 0);
+    w.write_i32(p.burst_pistons_cooldown);
     w.end_section(pos);
 }
 
@@ -2045,6 +2049,10 @@ static void read_player_section(BinaryReader& r, Player& p) {
     }
     // v75: last_action_was_attack (idle-quickness implant gating)
     p.last_action_was_attack = (r.read_u8() != 0);
+    // v76: Phase C implant runtime state
+    p.adrenal_pump_triggered_this_combat = (r.read_u8() != 0);
+    p.emp_buffer_used_this_level         = (r.read_u8() != 0);
+    p.burst_pistons_cooldown             = r.read_i32();
 }
 
 static Npc read_npc(BinaryReader& r) {

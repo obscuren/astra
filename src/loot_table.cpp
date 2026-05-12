@@ -141,6 +141,11 @@ const std::vector<LootEntry>& s_loot_table_data() {
         LootEntry{ ITEM_STATIC_PALM,         "static_palm",          R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
         LootEntry{ ITEM_WRIST_ROCKET,        "wrist_rocket",         R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
         LootEntry{ ITEM_COILGUN_PUNCH,       "coilgun_punch",        R::Rare,     R::Rare,      2, {}, LootSource::Chest | LootSource::BlackMarket,  T::Tech, 2, C::Implant },
+        // Phase C content-pack implants
+        LootEntry{ ITEM_THREAT_OPTICS, "threat_optics", R::Uncommon, R::Uncommon, 4, {}, LootSource::Chest | LootSource::BlackMarket, T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_ADRENAL_PUMP,  "adrenal_pump",  R::Rare,     R::Rare,     2, {}, LootSource::Chest | LootSource::BlackMarket, T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_EMP_BUFFER,    "emp_buffer",    R::Rare,     R::Rare,     2, {}, LootSource::Chest | LootSource::BlackMarket, T::Tech, 2, C::Implant },
+        LootEntry{ ITEM_BURST_PISTONS, "burst_pistons", R::Rare,     R::Rare,     2, {}, LootSource::Chest | LootSource::BlackMarket, T::Tech, 2, C::Implant },
 
         // ----- Code fragments (crafting material) ----------------------
         LootEntry{ ITEM_CODE_FRAGMENT_T1,     "code_fragment_t1", R::Common,    R::Common,    20, {}, LootSource::NpcDrop | LootSource::Chest | LootSource::MerchantArms,                                T::Tech,     1, C::CodeFragment },

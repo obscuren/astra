@@ -179,6 +179,11 @@ public:
     // pick up, etc.). Drives the quickness_when_idle implant bonus.
     bool last_action_was_attack = false;
 
+    // Phase C implant runtime state
+    bool adrenal_pump_triggered_this_combat = false;   // Cleared on combat-end (see Phase C T3)
+    bool emp_buffer_used_this_level         = false;   // Cleared on floor change (see Phase C T3)
+    int  burst_pistons_cooldown             = 0;       // Ticks down each player turn; 0 = ready (see Phase C T4)
+
     // Cached skill flags (non-serialized; rebuilt after load and on skill grant).
     // Plan 8 — ImplantReader: gates NPC implant info in the look widget.
     bool skill_implant_reader = false;
@@ -219,6 +224,10 @@ public:
             total.melee_emp_proc_pct       += slot->modifiers.melee_emp_proc_pct;
             total.ranged_rocket_proc_pct   += slot->modifiers.ranged_rocket_proc_pct;
             total.melee_extra_hit_proc_pct += slot->modifiers.melee_extra_hit_proc_pct;
+            total.show_enemy_threat = total.show_enemy_threat || slot->modifiers.show_enemy_threat;
+            total.has_adrenal_pump  = total.has_adrenal_pump  || slot->modifiers.has_adrenal_pump;
+            total.has_emp_buffer    = total.has_emp_buffer    || slot->modifiers.has_emp_buffer;
+            total.has_burst_pistons = total.has_burst_pistons || slot->modifiers.has_burst_pistons;
         }
         // Clamp trace resistance so stacking can't go beyond 100%.
         if (total.trace_resistance_pct > 100) total.trace_resistance_pct = 100;

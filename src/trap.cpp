@@ -195,12 +195,25 @@ bool should_trigger(const Trap& t, Game& game,
 }
 
 // Returns the damage actually applied (0 if the entity was placer-immune).
-int apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
+int apply_damage_and_status(Game& game, Player* player, Npc* npc,
                             const Trap& t, const TrapDef& def,
                             int stepper_npc_id) {
     // Splash immunity for the placer.
     if (player && t.placer_is_player) return 0;
     if (npc && !t.placer_is_player && stepper_npc_id == t.placer_npc_id) return 0;
+
+    EffectId status_id = static_cast<EffectId>(def.status);
+    bool is_emp_event = (status_id == EffectId::EmpDisabled);
+
+    // EMP Buffer — absorbs first EMP/electric event per level for the player.
+    if (player && is_emp_event) {
+        auto im = player->implant_modifiers();
+        if (im.has_emp_buffer && !player->emp_buffer_used_this_level) {
+            player->emp_buffer_used_this_level = true;
+            game.log(colored("EMP Buffer", Color::Cyan) + " absorbs the surge!");
+            return 0;
+        }
+    }
 
     int dmg = def.damage;
     if (player) {
@@ -209,7 +222,6 @@ int apply_damage_and_status(Game& /*game*/, Player* player, Npc* npc,
         npc->hp = std::max(0, npc->hp - dmg);
     }
 
-    EffectId status_id = static_cast<EffectId>(def.status);
     if (status_id != EffectId::Invulnerable) {
         Effect e;
         if (status_id == EffectId::Burn) {

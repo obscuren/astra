@@ -30,7 +30,8 @@ namespace astra {
 
 // Current save-file schema version. Pre-release: saves with any other
 // version are rejected on load; no backward-compatibility or migration code.
-inline constexpr uint32_t SAVE_FILE_VERSION = 75;   // v75: Player::last_action_was_attack serialized
+inline constexpr uint32_t SAVE_FILE_VERSION = 76;   // v76: Phase C implant runtime state
+                                                    // v75: Player::last_action_was_attack serialized
                                                     // v74: StatModifiers gains intelligence + cortex bonus fields
                                                     // v71: program fragment system — replace ProgramRecipe with fragment+pattern
                                                     // v70: learned_programs (Cyberdeck program recipes — split from schematics)

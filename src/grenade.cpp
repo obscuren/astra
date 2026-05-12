@@ -42,12 +42,24 @@ const char* short_status(int status_int) {
     }
 }
 
-void apply_to(Game& /*game*/, Player* p, Npc* n, const GrenadeDef& def) {
+void apply_to(Game& game, Player* p, Npc* n, const GrenadeDef& def) {
+    EffectId sid = static_cast<EffectId>(def.status);
+    bool is_emp_event = (sid == EffectId::EmpDisabled);
+
+    // EMP Buffer — absorbs first EMP/electric event per level for the player.
+    if (p && is_emp_event) {
+        auto im = p->implant_modifiers();
+        if (im.has_emp_buffer && !p->emp_buffer_used_this_level) {
+            p->emp_buffer_used_this_level = true;
+            game.log(colored("EMP Buffer", Color::Cyan) + " absorbs the surge!");
+            return;
+        }
+    }
+
     int dmg = def.damage;
     if (p) p->hp = std::max(0, p->hp - dmg);
     else if (n) n->hp = std::max(0, n->hp - dmg);
 
-    EffectId sid = static_cast<EffectId>(def.status);
     if (sid != EffectId::Invulnerable) {
         Effect e;
         if (sid == EffectId::Burn) {

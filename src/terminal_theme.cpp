@@ -1381,6 +1381,12 @@ static ResolvedVisual resolve_item(uint16_t item_def_id) {
         case ITEM_SPRINT_COILS:        return {'|', "\xe2\x95\xbf", Color::Green, Color::Default}; // ╿ Leg (Uncommon)
         case ITEM_MAG_LOCK_SOLES:      return {'|', "\xe2\x95\xbf", Color::Cyan,  Color::Default}; // ╿ Leg (Rare)
 
+        // Phase C content-pack implants — stateful / UI / active
+        case ITEM_THREAT_OPTICS:  return {'&', "\xe2\x9a\xaf", Color::Green, Color::Default}; // ⚯ Eyes (Uncommon)
+        case ITEM_ADRENAL_PUMP:   return {'[', "\xe2\x99\xa7", Color::Cyan,  Color::Default}; // ♧ Chest (Rare)
+        case ITEM_EMP_BUFFER:     return {'[', "\xe2\x99\xa7", Color::Cyan,  Color::Default}; // ♧ Chest (Rare)
+        case ITEM_BURST_PISTONS:  return {'|', "\xe2\x95\xbf", Color::Cyan,  Color::Default}; // ╿ Leg (Rare)
+
         default: return {'?', nullptr, Color::Magenta, Color::Default};
     }
 }

@@ -12,7 +12,12 @@
 #include "astra/quest.h"
 #include "astra/trap.h"
 #include "astra/ground_effect.h"
+#include "astra/effect.h"
+#include "astra/faction.h"
 #include "terminal_theme.h"
+
+#include <cstdio>
+#include <cstring>
 
 namespace astra {
 
@@ -39,6 +44,31 @@ const char* ground_effect_glyph(GroundEffectKind kind, int ttl, int center_ttl, 
 Color ground_effect_color(GroundEffectKind kind) {
     if (kind == GroundEffectKind::Smoke) return Color::DarkGray;
     return Color::White;
+}
+
+// Threat Optics: map an EffectId to a short 3-letter status tag.
+// Returns nullptr for effects without a display tag.
+static const char* status_tag(EffectId id) {
+    switch (id) {
+        case EffectId::Burn:           return "BRN";
+        case EffectId::Bleed:          return "BLD";
+        case EffectId::EmpDisabled:    return "EMP";
+        case EffectId::Slow:           return "SLW";
+        case EffectId::Poison:         return "PSN";
+        case EffectId::BlackIceShock:  return "BIS";
+        default:                       return nullptr;
+    }
+}
+
+// Return the tag string for the first prominent effect on an NPC,
+// or an empty string if none applies.
+static std::string first_status_tag(const Npc& npc) {
+    for (const auto& e : npc.effects) {
+        if (const char* tag = status_tag(e.id)) {
+            return tag;
+        }
+    }
+    return {};
 }
 
 } // namespace
@@ -419,6 +449,38 @@ void render_map(const MapRenderContext& rc) {
                         ctx.put(mx, my, glyph, color);
                     }
                 }
+            }
+        }
+    }
+
+    // Threat Optics: draw HP% + status badge one row above each visible hostile NPC
+    // when the player has the Threat Optics Eyes implant installed.
+    if (rc.player.implant_modifiers().show_enemy_threat) {
+        for (const auto& npc : rc.world.npcs()) {
+            if (!npc.alive()) continue;
+            if (rc.world.visibility().get(npc.x, npc.y) != Visibility::Visible) continue;
+            if (!is_hostile_to_player(npc.faction, rc.player)) continue;
+
+            int hp_pct = (npc.max_hp > 0) ? (npc.hp * 100 / npc.max_hp) : 0;
+            Color hp_col = (hp_pct >= 66) ? Color::Green
+                                          : (hp_pct >= 33 ? Color::Yellow : Color::Red);
+
+            char buf[8];
+            std::snprintf(buf, sizeof(buf), "%d%%", hp_pct);
+
+            int badge_x = npc.x - rc.camera_x;
+            int badge_y = npc.y - rc.camera_y - 1;
+
+            // Skip if the badge row would fall outside the map view
+            if (badge_y < 0) continue;
+
+            ctx.text(badge_x, badge_y, buf, hp_col);
+
+            // Append the most prominent status tag (if any), in magenta
+            std::string tag = first_status_tag(npc);
+            if (!tag.empty()) {
+                int tag_x = badge_x + static_cast<int>(std::strlen(buf));
+                ctx.text(tag_x, badge_y, tag, Color::Magenta);
             }
         }
     }

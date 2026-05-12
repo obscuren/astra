@@ -218,6 +218,12 @@ struct StatModifiers {
     int melee_emp_proc_pct       = 0;  // Static Palm:       % chance to apply EmpDisabled on melee hit
     int ranged_rocket_proc_pct   = 0;  // Wrist Rocket:      % chance for splash rocket on ranged hit
     int melee_extra_hit_proc_pct = 0;  // Coilgun Punch:     % chance for free 2nd melee hit
+
+    // Phase C — stateful triggers + UI + active
+    bool show_enemy_threat = false;   // Threat Optics: render enemy HP% + status badges
+    bool has_adrenal_pump  = false;   // Adrenal Pump: HP-threshold quickness trigger
+    bool has_emp_buffer    = false;   // EMP Buffer:   absorb first electric/EMP per level
+    bool has_burst_pistons = false;   // Burst Pistons: active 3-tile dash, 8t cooldown
 };
 
 enum class ModuleKind : uint8_t {

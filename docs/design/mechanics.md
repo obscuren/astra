@@ -1104,6 +1104,17 @@ Phase B adds four proc-on-hit implants that fire conditional effects during mele
 
 A new `EffectId::Bleed` kinetic DoT effect tracks the Phase B Vibro-Tip Fingers proc: 3 turns duration, 1 kinetic damage per tick. Structure mirrors the existing Burn effect.
 
+### Phase C — Stateful / UI / Active
+
+Phase C adds four implants whose effects are stateful at runtime, alter the rendering layer, or expose player-controlled active abilities.
+
+- **Threat Optics** (`show_enemy_threat`): each turn the renderer walks all hostile NPCs in the player's LOS and draws a one-row-above annotation showing HP% and the NPC's highest-priority status tag. Color is tiered by HP: green ≥ 60%, yellow ≥ 30%, red < 30%. Purely a rendering pass — no game-state write.
+- **Adrenal Pump** (`has_adrenal_pump`): checked inside `Player::apply_damage()`. If the incoming hit drops HP below 30% of max and `adrenal_pump_fired_` is `false`, the pump fires: `EffectId::AdrenalinePump` is applied (+1 Quickness for 5 turns) and `adrenal_pump_fired_` is set to `true`. The flag is cleared to `false` by the combat-end signal (see below).
+- **EMP Buffer** (`has_emp_buffer`): checked in the damage-resolution path before EMP damage and status are applied. If `emp_buffer_charged_` is `true`, both the damage and any accompanying `EmpDisabled` application are suppressed, and `emp_buffer_charged_` is cleared to `false`. The flag is restored to `true` on `on_map_loaded()` (every map transition), giving exactly one absorption per level.
+- **Burst Pistons** (`has_burst_pistons`): binds the `d` key during normal play. Press `d` to enter a cardinal-direction prompt; confirming a direction attempts a 3-tile dash in that direction. The dash moves the player one tile at a time, stopping before the first impassable cell or any NPC. Costs one turn. Sets `burst_pistons_cooldown_` to 8; the cooldown decrements by 1 per player turn and is shown in the HUD status area. Pressing `d` while cooldown > 0 is a no-op with a brief message. Cooldown resets to 0 at combat-end.
+
+**Combat-end signal**: after every player turn, the engine scans all NPCs in the player's current visibility radius. If `was_in_combat_` is `true` and zero hostile NPCs remain visible, `was_in_combat_` flips to `false`. This transition fires the Adrenal Pump reset (`adrenal_pump_fired_ = false`) and the Burst Pistons cooldown reset (`burst_pistons_cooldown_ = 0`). The flag flips back to `true` on the first turn a hostile NPC enters LOS.
+
 ### Netmap overlay
 
 `netmap` (or `N` in the Hacking tab) opens a modal overlay over the terminal

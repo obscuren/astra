@@ -8,6 +8,7 @@
 #include "astra/program_compiler.h"
 #include "astra/skill_defs.h"
 #include "astra/skill_grant.h"
+#include "astra/trap.h"
 
 #include <algorithm>
 
@@ -452,6 +453,58 @@ void Game::handle_play_input(int key) {
         return;
     }
 
+    // Awaiting Burst Pistons dash direction
+    if (awaiting_burst_pistons_) {
+        awaiting_burst_pistons_ = false;
+        int dx = 0, dy = 0;
+        switch (key) {
+            case 'k': case KEY_UP:    dy = -1; break;
+            case 'j': case KEY_DOWN:  dy =  1; break;
+            case 'h': case KEY_LEFT:  dx = -1; break;
+            case 'l': case KEY_RIGHT: dx =  1; break;
+            default:
+                log("Burst Pistons cancelled.");
+                return;
+        }
+        // Dash up to 3 tiles, stop at first impassable or map edge.
+        int moved = 0;
+        for (int step = 0; step < 3; ++step) {
+            int nx = player_.x + dx;
+            int ny = player_.y + dy;
+            if (nx < 0 || nx >= world_.map().width() ||
+                ny < 0 || ny >= world_.map().height()) break;
+            if (!world_.map().passable(nx, ny)) break;
+            // Stop before an NPC (don't swap or attack during the dash)
+            bool blocked_by_npc = false;
+            for (const auto& npc : world_.npcs()) {
+                if (npc.alive() && npc.x == nx && npc.y == ny) {
+                    blocked_by_npc = true;
+                    break;
+                }
+            }
+            if (blocked_by_npc) break;
+            player_.x = nx;
+            player_.y = ny;
+            ++moved;
+        }
+        if (moved > 0) {
+            player_.burst_pistons_cooldown = 8;
+            player_.last_action_was_attack = false;
+            recompute_fov();
+            compute_camera();
+            on_entity_enters_tile(*this, player_.x, player_.y,
+                                  /*is_player=*/true, /*npc_id=*/-1);
+            update_trap_detection(*this);
+            log("\xe2\x9c\xa6 Burst Pistons \xe2\x80\x94 dashed "
+                + std::to_string(moved)
+                + " tile" + (moved > 1 ? "s" : "") + ".  [8t cooldown]");
+            advance_world(ActionCost::move);
+        } else {
+            log("Burst Pistons: no room to dash.");
+        }
+        return;
+    }
+
     // Awaiting interact direction (space + direction)
     if (awaiting_interact_) {
         awaiting_interact_ = false;
@@ -605,6 +658,20 @@ void Game::handle_play_input(int key) {
         case 'b': combat_.recharge_shield(*this); break;
         case 'R': open_cell_picker(/*target_is_shield=*/false); break;
         case 'B': open_cell_picker(/*target_is_shield=*/true); break;
+        case 'd': {
+            // Burst Pistons: active 3-tile dash (requires implant installed)
+            auto im = player_.implant_modifiers();
+            if (!im.has_burst_pistons) break;  // silently ignore if not installed
+            if (player_.burst_pistons_cooldown > 0) {
+                log("Burst Pistons recharging \xe2\x80\x94 "
+                    + std::to_string(player_.burst_pistons_cooldown)
+                    + "t remaining.");
+                break;
+            }
+            awaiting_burst_pistons_ = true;
+            log("Burst Pistons: choose dash direction (arrow keys / hjkl), [Esc] cancel.");
+            break;
+        }
         case 'g': pickup_ground_item(); break;
         case '?': help_screen_.open(); break;
         case 'm':

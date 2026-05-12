@@ -416,6 +416,10 @@ private:
     int get_lost_chance(Tile terrain) const;    // % chance per overworld move
     int regain_chance() const;                  // % chance per detail move, ramps with lost_moves_
 
+    // Combat-end detection for stateful implants.
+    // True on the previous tick if any hostile NPC was in player LOS.
+    bool was_in_combat_ = false;
+
     // Event bus — scenarios subscribe to gameplay events here.
     EventBus event_bus_;
 
@@ -440,6 +444,9 @@ private:
     // Tether targeting mode (D2): set while the player is picking a Tether target
     // using the look cursor. Confirmed by Enter; cancelled by Esc.
     bool tether_targeting_ = false;
+
+    // Burst Pistons (Phase C T4): awaiting a cardinal direction key for the dash.
+    bool awaiting_burst_pistons_ = false;
 
     // UI layout (computed from screen size)
     int screen_w_ = 0;

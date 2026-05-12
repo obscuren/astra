@@ -410,6 +410,7 @@ Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab p
 | Standard Optics | `standard_optics` | Common | +1 view radius (all contexts). | Yes |
 | Targeting Lattice | `targeting_lattice` | Rare | Pistols treat AGI as +4 higher for the hit roll (`pistol_agility_bonus`). | Yes |
 | Heat-Spectrum Visor | `heat_spectrum_visor` | Rare | +2 view radius in dungeon maps (`view_radius_dark_bonus`). Reveals cloaked NPCs (`detect_cloaked`). | Partial — dark-radius bonus active; cloak detection dormant (pending cloak system). |
+| Threat Optics | `threat_optics` | Uncommon | Renders enemy HP% + status tag one row above each visible hostile NPC. Color-tiered: green ≥60%, yellow ≥30%, red <30%. | Wired |
 
 ### Chest Implants
 
@@ -417,6 +418,8 @@ Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab p
 |------|-----|--------|--------|-------|
 | Standard Plate | `standard_plate` | Common | +1 AV. | Yes |
 | Subdermal Plating | `subdermal_plating` | Uncommon | +2 AV. | Yes |
+| Adrenal Pump | `adrenal_pump` | Rare | When HP drops below 30% of max, applies `EffectId::AdrenalinePump` (+1 Quickness for 5 turns). Fires at most once per combat; flag clears at combat-end. | Wired |
+| EMP Buffer | `emp_buffer` | Rare | Absorbs the first incoming electric/EMP attack per level — suppresses both damage and any accompanying `EmpDisabled` status. Flag clears on map transition (`on_map_loaded()`). | Wired |
 
 ### Hand Implants (AnyHand — L or R at install)
 
@@ -443,6 +446,7 @@ Implants slot into the **Implant paperdoll** exposed via the PDA Equipment-tab p
 | Reflex Springs | `reflex_springs` | Common | +1 DV. | Yes |
 | Sprint Coils | `sprint_coils` | Uncommon | +1 Quickness, but only on turns the player took no attack action (`quickness_when_idle`). | Yes |
 | Mag-Lock Soles | `mag_lock_soles` | Rare | Knockback immune; ignores slip-terrain. | Dormant — pending knockback and slip-terrain system support. |
+| Burst Pistons | `burst_pistons` | Rare | Active: press `d` → cardinal direction prompt → dash up to 3 tiles (stops on first impassable tile or NPC); costs a turn; 8-turn cooldown. Cooldown decrements each turn; resets to 0 at combat-end. | Wired |
 
 ### Relay Cortex (Head slot)
 

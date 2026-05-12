@@ -274,6 +274,12 @@ constexpr uint16_t ITEM_STATIC_PALM       = 420;
 constexpr uint16_t ITEM_WRIST_ROCKET      = 421;
 constexpr uint16_t ITEM_COILGUN_PUNCH     = 422;
 
+// Phase C implant content pack (423-426)
+constexpr uint16_t ITEM_THREAT_OPTICS  = 423;
+constexpr uint16_t ITEM_ADRENAL_PUMP   = 424;
+constexpr uint16_t ITEM_EMP_BUFFER     = 425;
+constexpr uint16_t ITEM_BURST_PISTONS  = 426;
+
 // Hacker mats (430+) — fragment-system compile material.
 constexpr uint16_t ITEM_PROGRAM_DISK         = 430;
 

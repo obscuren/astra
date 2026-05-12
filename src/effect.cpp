@@ -414,6 +414,18 @@ Effect make_ghost_cloak_ge(int duration) {
     return e;
 }
 
+Effect make_adrenal_pump_ge(int duration) {
+    Effect e;
+    e.id = EffectId::AdrenalinePump;
+    e.name = "Adrenal Pump";
+    e.color = Color::Yellow;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    e.modifiers.quickness = 1;
+    return e;
+}
+
 Effect effect_for_id(EffectId id) {
     switch (id) {
         case EffectId::CookingFireAura: return make_cooking_fire_aura_ge();

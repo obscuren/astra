@@ -1572,6 +1572,12 @@ static Item build_by_def_id_impl(uint16_t def_id) {
         case ITEM_WRIST_ROCKET:            return build_wrist_rocket();
         case ITEM_COILGUN_PUNCH:           return build_coilgun_punch();
 
+        // Phase C implant content pack
+        case ITEM_THREAT_OPTICS:           return build_threat_optics();
+        case ITEM_ADRENAL_PUMP:            return build_adrenal_pump();
+        case ITEM_EMP_BUFFER:              return build_emp_buffer();
+        case ITEM_BURST_PISTONS:           return build_burst_pistons();
+
         // Hacker mats
         case ITEM_PROGRAM_DISK:            return build_program_disk();
 
@@ -2330,6 +2336,78 @@ Item build_coilgun_punch() {
     it.sell_value            = 800;
     it.description           = "Magnetic accelerators in the humerus drive a second strike on the heels of the first.";
     it.modifiers.melee_extra_hit_proc_pct = 20;
+    return it;
+}
+
+// ---------------------------------------------------------------------------
+// Phase C implant content pack — stateful / UI / active-ability
+// ---------------------------------------------------------------------------
+
+Item build_threat_optics() {
+    Item it;
+    it.item_def_id           = ITEM_THREAT_OPTICS;
+    it.id                    = 9223;
+    it.name                  = "Threat Optics";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Eyes;
+    it.rarity                = Rarity::Uncommon;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 1400;
+    it.sell_value            = 420;
+    it.description           = "Retinal overlay paints enemies with vital-sign telemetry. See their hit-points and active conditions at a glance.";
+    it.modifiers.show_enemy_threat = true;
+    return it;
+}
+
+Item build_adrenal_pump() {
+    Item it;
+    it.item_def_id           = ITEM_ADRENAL_PUMP;
+    it.id                    = 9224;
+    it.name                  = "Adrenal Pump";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Chest;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2700;
+    it.sell_value            = 800;
+    it.description           = "A subdermal stim reservoir. Triggers once per fight when health drops critically low.";
+    it.modifiers.has_adrenal_pump = true;
+    return it;
+}
+
+Item build_emp_buffer() {
+    Item it;
+    it.item_def_id           = ITEM_EMP_BUFFER;
+    it.id                    = 9225;
+    it.name                  = "EMP Buffer";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::Chest;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2900;
+    it.sell_value            = 870;
+    it.description           = "Sacrificial Faraday weave around the heart. Absorbs the first electric or EMP strike each level.";
+    it.modifiers.has_emp_buffer = true;
+    return it;
+}
+
+Item build_burst_pistons() {
+    Item it;
+    it.item_def_id           = ITEM_BURST_PISTONS;
+    it.id                    = 9226;
+    it.name                  = "Burst Pistons";
+    it.type                  = ItemType::Implant;
+    it.required_implant_slot = ImplantSlotRequirement::AnyLeg;
+    it.rarity                = Rarity::Rare;
+    it.weight                = 0;
+    it.stackable             = false;
+    it.buy_value             = 2800;
+    it.sell_value            = 850;
+    it.description           = "Spring-loaded leg pistons. Active: dash 3 tiles in one stride. 8-turn cooldown.";
+    it.modifiers.has_burst_pistons = true;
     return it;
 }
 

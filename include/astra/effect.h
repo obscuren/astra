@@ -51,6 +51,7 @@ enum class EffectId : uint32_t {
     GhostCloak          = 405,    // Grid: GhostProtocol cloak active
     DeckRebooting       = 406,    // Cyberdeck overheated — no programs may fire
     Bleed               = 407,    // Implant: Vibro-Tip Fingers kinetic DoT
+    AdrenalinePump      = 408,    // Implant: Adrenal Pump — +1 quickness for 5 turns
 };
 
 struct Effect {
@@ -139,6 +140,7 @@ Effect make_deck_rebooting_ge();    // 5-turn cyberdeck reboot block
 Effect make_blackice_shock_short_ge();   // 20 ticks
 Effect make_blackice_shock_long_ge();    // 60 ticks; -1 av/quickness
 Effect make_ghost_cloak_ge(int duration);
+Effect make_adrenal_pump_ge(int duration);
 
 // Build a runtime Effect from its EffectId. Used by systems (cooking,
 // aura system) that store EffectIds in data and need to materialise
