@@ -138,9 +138,6 @@ Netspace gen_camera_netspace(const TargetDescriptor& desc) {
     b.set_jack_in(feed);
     b.set_exit(dvr);
 
-    // Renderer reads this and paints a drifting ─ scan-line each turn.
-    b.ns.ambient = NetspaceAmbient::ScanLines;
-
     return b.finalize();
 }
 

@@ -83,12 +83,12 @@ enum class NetTile : uint8_t {
                 // Netspace::glyph_overrides keyed by (x, y).
 };
 
-// Ambient animation overlay the renderer paints each turn, independent
-// of the tile grid. Each grammar opts in by setting the field; the
-// default is None.
+// Ambient animation overlay scaffold — grammars opt in by setting
+// `Netspace::ambient`. Currently no variants ship; previous ScanLines
+// effect was dropped. Kept so later phases (Blackwall drift, trace
+// corruption) can re-introduce ambients without re-plumbing.
 enum class NetspaceAmbient : uint8_t {
     None,
-    ScanLines,    // camera grammar — a row of ─ drifts down one row per turn
 };
 
 // Render mode of the in-net overlay. The overlay mutates its own rules

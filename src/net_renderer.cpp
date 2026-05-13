@@ -952,32 +952,8 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         }
     }
 
-    // Ambient animation overlay (Phase 1 Step 8). Painted after the
-    // room/tile pass but before ICE/avatar so the avatar still sits
-    // on top of the drifting scan-line. Drift keyed off the frame
-    // counter so it advances even while the player is idle: one row
-    // per 30 frames ≈ 500ms.
-    if (s.netspace.ambient == NetspaceAmbient::ScanLines) {
-        const int h_for_mod = std::max(1, s.netspace.h);
-        const int frame     = game.hacking().blink_phase();
-        int scan_y = (frame / 30) % h_for_mod;
-        if (scan_y < 0) scan_y += h_for_mod;
-        int sx_unused, sy;
-        if (cull(0, scan_y, sx_unused, sy)) {
-            for (int x = 0; x < pr.w; ++x) {
-                const int wx = x + s_camera.cam_x;
-                if (wx < 0 || wx >= s.netspace.w) continue;
-                // Only overdraw open ground — leave room borders, pipes
-                // and box chrome intact.
-                const NetTile under = s.netspace.at(wx, scan_y);
-                if (under == NetTile::Floor || under == NetTile::Void) {
-                    r.draw_glyph(pr.x + x, pr.y + sy,
-                                 "\xe2\x94\x80",  // ─
-                                 Color::DarkGray);
-                }
-            }
-        }
-    }
+    // Ambient overlay scaffold — currently no variants ship. Later
+    // phases (Blackwall drift, trace corruption) hook in here.
 
     for (const auto& ice : s.ice) {
         int sx, sy;
