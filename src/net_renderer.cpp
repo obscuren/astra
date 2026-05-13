@@ -868,15 +868,18 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     color = net_theme::box_block_color;
                     break;
 
-                // Animated data pipes — phase keyed off world tick + pipe offset.
+                // Animated data pipes — phase keyed off the frame counter
+                // (hacking_.blink_phase ticks ~60Hz regardless of world
+                // turns) so the pulse keeps moving even while the player
+                // is idle. 15 frames per phase ≈ 250ms cycle step.
                 case NetTile::PipeH: {
-                    int phase = static_cast<int>(game.world().world_tick() & 3);
+                    int phase = (game.hacking().blink_phase() / 15) & 3;
                     glyph = net_theme::pipe_h_frames[phase];
                     color = net_theme::pipe_color;
                     break;
                 }
                 case NetTile::PipeV: {
-                    int phase = static_cast<int>(game.world().world_tick() & 3);
+                    int phase = (game.hacking().blink_phase() / 15) & 3;
                     glyph = net_theme::pipe_v_frames[phase];
                     color = net_theme::pipe_color;
                     break;
@@ -951,13 +954,13 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
 
     // Ambient animation overlay (Phase 1 Step 8). Painted after the
     // room/tile pass but before ICE/avatar so the avatar still sits
-    // on top of the drifting scan-line.
+    // on top of the drifting scan-line. Drift keyed off the frame
+    // counter so it advances even while the player is idle: one row
+    // per 30 frames ≈ 500ms.
     if (s.netspace.ambient == NetspaceAmbient::ScanLines) {
         const int h_for_mod = std::max(1, s.netspace.h);
-        const int tick      = game.world().world_tick();
-        // Positive modulo — world_tick is non-negative in practice but
-        // guard anyway.
-        int scan_y = tick % h_for_mod;
+        const int frame     = game.hacking().blink_phase();
+        int scan_y = (frame / 30) % h_for_mod;
         if (scan_y < 0) scan_y += h_for_mod;
         int sx_unused, sy;
         if (cull(0, scan_y, sx_unused, sy)) {
