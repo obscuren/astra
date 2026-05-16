@@ -37,10 +37,6 @@ struct WindowSequence {
     bool active() const { return kind != WindowSeqKind::None; }
 };
 
-// TASK 1 TEMPORARY forward decl — real impl (returning WindowSeqKind)
-// lands in net_window_anim.h/.cpp in Task 6.
-void window_seq_advance(WindowSequence& q);
-
 enum class JackOutKind : uint8_t {
     Voluntary,        // walked to exit node -- full loot, no penalty
     HardJackOut,      // hotkey -- Trace +10, drop 50% loot

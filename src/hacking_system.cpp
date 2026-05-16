@@ -1,4 +1,5 @@
 #include "astra/hacking_system.h"
+#include "astra/net_window_anim.h"
 
 #include "astra/tilemap.h"
 #include "astra/cyberdeck.h"
@@ -54,8 +55,8 @@ void HackingSystem::on_window_sequence_complete(Game& /*game*/) {
     // Sequence completion handling added in later tasks.
 }
 
-// TASK 1 TEMPORARY — replaced by net_window_anim.cpp in Task 6.
-void window_seq_advance(WindowSequence& q) { q.kind = WindowSeqKind::None; }
+// Stub — real impl lands in Task 8.
+void HackingSystem::request_takeover() {}
 
 namespace {
 constexpr int kDetectionDecayInterval = 5;   // tick every N world steps, -1 to value
@@ -568,6 +569,7 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
 void HackingSystem::tick_grid(Game& game) {
     if (!session_) return;
     auto& s = *session_;
+    ++s.net_turn;
 
     // 1. ICE actions (gray/black approach + attack; white patrols).
     net_ice::tick_all(s, game);
@@ -632,6 +634,17 @@ void HackingSystem::tick_grid(Game& game) {
                          ? JackOutKind::BlackIceDeath
                          : JackOutKind::NonBlackDeath;
         jack_out(game, kind);
+        return;   // session_ may be reset by jack_out; s is now dangling.
+                  // Nothing further this tick (band recompute below skipped).
+    }
+
+    // 6. Window-state band (skip while a transient sequence owns the window).
+    if (!in_blocking_transition()) {
+        bool black_present = false;
+        for (const auto& i : s.ice)
+            if (i.color == IceColor::Black) { black_present = true; break; }
+        s.netspace.window_state =
+            window_band(s.trace, s.netspace.window_state, black_present);
     }
 }
 

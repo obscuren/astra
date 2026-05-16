@@ -1,5 +1,6 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
+#include "astra/net_window_anim.h"
 #include "astra/aura.h"
 #include "astra/consciousness_save.h"
 #include "astra/biome_profile.h"
@@ -335,6 +336,11 @@ static void cmd_spawn_trap(DevConsole& con, Game& game, const std::string& kind_
     else { con.log("unknown trap kind: " + kind_arg); return; }
     place_dungeon_trap(game.world(), game.player().x, game.player().y, k);
     con.log("Spawned " + display_name(k));
+}
+
+// Stub — real impl lands in Task 3.
+static void run_net_selftest(DevConsole& con) {
+    con.log("net selftest: (stub)");
 }
 
 void DevConsole::execute_command(const std::string& cmd, Game& game) {
@@ -1601,6 +1607,38 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         n = std::clamp(n, 0, 100);
         game.hacking().session()->trace = n;
         log("Trace = " + std::to_string(n));
+    }
+    else if (verb == "net") {
+        if (!game.hacking().jacked_in()) { log("Not jacked in."); return; }
+        auto* s = game.hacking().session_mut();
+        if (args.size() >= 2 && args[1] == "state") {
+            const char* n[] = {"Opening","Stable","Stressed","Hunted",
+                               "Critical","BlackIceTakeover","Blackwall","Closing"};
+            log("window_state=" + std::string(n[(int)s->netspace.window_state])
+                + " trace=" + std::to_string(s->trace)
+                + " seq=" + std::to_string((int)s->window_seq.kind));
+        }
+        else if (args.size() >= 3 && args[1] == "force") {
+            const std::string& w = args[2];
+            WindowState ws = s->netspace.window_state;
+            if      (w=="stable")   ws=WindowState::Stable;
+            else if (w=="stressed") ws=WindowState::Stressed;
+            else if (w=="hunted")   ws=WindowState::Hunted;
+            else if (w=="critical") ws=WindowState::Critical;
+            else if (w=="blackwall")ws=WindowState::Blackwall;
+            else { log("usage: net force stable|stressed|hunted|critical|blackwall"); return; }
+            s->netspace.window_state = ws;
+            log("forced window_state=" + w + " (will re-derive on next world tick unless held)");
+        }
+        else if (args.size() >= 2 && args[1] == "selftest") {
+            run_net_selftest(*this);   // Task 3 (stub now)
+        }
+        else if (args.size() >= 2 && args[1] == "takeover") {
+            game.hacking().request_takeover();   // Task 8 (stub now)
+        }
+        else {
+            log("usage: net state | net force <s> | net selftest | net takeover");
+        }
     }
     else if (verb == "spawn-ice") {
         if (args.size() < 2) {

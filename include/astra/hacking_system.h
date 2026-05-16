@@ -69,6 +69,8 @@ public:
     bool jacked_in() const { return session_.has_value(); }
     NetSession*       session()       { return session_ ? &*session_ : nullptr; }
     const NetSession* session() const { return session_ ? &*session_ : nullptr; }
+    // Dev-tooling accessor — mutable session pointer (same null-safety as session()).
+    NetSession* session_mut() { return session_ ? &*session_ : nullptr; }
 
     // Returns true if jack-in succeeded (preconditions met). Logs reason on failure.
     // The TargetDescriptor selects the per-target grammar; callers build
@@ -100,6 +102,9 @@ public:
     // subsequent world tick at loop_intensity_mult intensity until the
     // turn counter expires; the reserved RAM is returned on expiration.
     void register_sustain(const CompiledProgram& prog, int tx, int ty);
+
+    // Initiate a Black ICE takeover sequence. Stub — real impl in Task 8.
+    void request_takeover();
 
 private:
     bool targeting_ = false;

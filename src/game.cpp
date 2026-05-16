@@ -1,6 +1,7 @@
 #include "astra/game.h"
 #include "astra/aura.h"
 #include "astra/net_input.h"
+#include "astra/net_window_anim.h"
 #include "astra/boot_sequence.h"
 #include "astra/dungeon_level_generator.h"
 #include "astra/dungeon_recipe.h"
@@ -91,7 +92,7 @@ static void advance_window_sequence(NetSession& s) {
     q.last_tick = now;
     if (delta < 0) delta = 0;
     q.elapsed_ms += q.skip_held ? delta * 6 : delta;
-    window_seq_advance(q);   // Task 1 temp stub: sets kind=None immediately
+    window_seq_advance(q);   // net_window_anim.cpp (stub until Task 6)
 }
 
 void Game::run() {
