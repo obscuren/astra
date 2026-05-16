@@ -20,6 +20,18 @@ enum Key {
     KEY_F2,
     KEY_F3,
     KEY_F4,
+    KEY_MOUSE,  // a mouse event was decoded; query Renderer::last_mouse()
+};
+
+// Abstract mouse input (no platform code — decoded by renderer backends).
+enum class MouseButton { None, Left, Middle, Right, WheelUp, WheelDown };
+enum class MouseAction { None, Press, Release, Drag, Move };
+
+struct MouseEvent {
+    int x = 0;                              // 0-based cell column
+    int y = 0;                              // 0-based cell row
+    MouseButton button = MouseButton::None;
+    MouseAction action = MouseAction::None;
 };
 
 // 256-color palette indices stored directly in the enum.
@@ -149,6 +161,10 @@ public:
 
     // Blocks up to timeout_ms milliseconds. Returns -1 on timeout.
     virtual int wait_input_timeout(int timeout_ms) = 0;
+
+    // Most recent decoded mouse event. Returned whenever an input call
+    // yields KEY_MOUSE. Default empty so non-terminal backends need no change.
+    virtual MouseEvent last_mouse() const { return MouseEvent{}; }
 
 protected:
     bool monochrome_ = false;
