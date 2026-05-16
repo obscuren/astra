@@ -158,26 +158,68 @@ void draw_window_chrome(Renderer& r, const WindowRect& wr,
     r.draw_glyph(wr.x,            wr.y + wr.h - 1, "\xe2\x95\x9a", kChrome);
     r.draw_glyph(wr.x + wr.w - 1, wr.y + wr.h - 1, "\xe2\x95\x9d", kChrome);
 
-    // Border crawl: Hunted+ states replace ~1-in-7 edge cells with §
-    // in a pattern that shifts with the blink phase.
-    auto glitch_at = [&](int idx) {
-        if (ws != WindowState::Hunted && ws != WindowState::Critical &&
-            ws != WindowState::Blackwall) return false;
-        return ((idx + phase / 3) % 7) == 0;
+    // Border tear: Hunted+ states fracture short contiguous segments of
+    // the frame into corruption / box-break glyphs (incl. dropouts) that
+    // churn fast, relocate, and heal at irregular intervals — the rest of
+    // the frame stays clean. Same burst grammar as the title-bar glitch.
+    const bool corrupt = (ws == WindowState::Hunted ||
+                          ws == WindowState::Critical ||
+                          ws == WindowState::Blackwall);
+    auto mix = [](uint32_t x) {
+        x ^= x >> 16; x *= 0x7feb352du;
+        x ^= x >> 15; x *= 0x846ca68bu;
+        x ^= x >> 16; return x;
+    };
+    static const char* const kFrag[] = {
+        "\xc2\xa7",        // §
+        "\xc2\xa4",        // ¤
+        "\xe2\x80\xa1",    // ‡
+        "\xce\xa3",        // Σ
+        "\xce\xa8",        // Ψ
+        "\xe2\x95\xb3",    // ╳
+        "\xe2\x95\xaa",    // ╪
+        "\xe2\x95\xab",    // ╫
+        "\xe2\x96\x93",    // ▓
+        "\xe2\x96\x88",    // █
+        "\xe2\x96\x9a",    // ▚
+        " ",               // dropout
+    };
+    constexpr uint32_t kFragN = 12;
+    const uint32_t t  = static_cast<uint32_t>(phase);
+    const uint32_t ep = t / 3u;                 // tear relocates ~every 3 ticks
+    // Is cell p of an N-long edge `eid` inside this epoch's tear?
+    auto torn = [&](uint32_t eid, int p, int N) -> bool {
+        if (!corrupt || N <= 2) return false;
+        uint32_t hh = mix(eid * 2654435761u ^ (ep + 1u) * 40503u);
+        if ((hh % 3u) == 0u) return false;              // ~1/3 epochs: clean
+        int len = 2 + static_cast<int>((hh >> 3) % 6u); // tear span 2..7
+        int s   = static_cast<int>((hh >> 8) % static_cast<uint32_t>(N));
+        return p >= s && p < s + len;
+    };
+    auto frag = [&](int key) -> const char* {           // churns every tick
+        uint32_t h = mix(static_cast<uint32_t>(key) * 0x9e3779b9u
+                       ^ (t * 2654435761u));
+        return kFrag[(h >> 13) % kFragN];
     };
     for (int i = 1; i < wr.w - 1; ++i) {
-        bool g = glitch_at(i);
-        r.draw_glyph(wr.x + i, wr.y,            g ? "\xc2\xa7" : "\xe2\x95\x90",
-                     g ? Color::Magenta : kChrome);
-        r.draw_glyph(wr.x + i, wr.y + wr.h - 1, g ? "\xc2\xa7" : "\xe2\x95\x90",
-                     g ? Color::Magenta : kChrome);
+        const int p = i - 1, N = wr.w - 2;
+        bool gt = torn(0, p, N), gb = torn(1, p, N);
+        r.draw_glyph(wr.x + i, wr.y,
+                     gt ? frag(p)       : "\xe2\x95\x90",
+                     gt ? Color::Magenta : kChrome);
+        r.draw_glyph(wr.x + i, wr.y + wr.h - 1,
+                     gb ? frag(p + 777)  : "\xe2\x95\x90",
+                     gb ? Color::Magenta : kChrome);
     }
     for (int j = 1; j < wr.h - 1; ++j) {
-        bool g = glitch_at(j + wr.w);
-        r.draw_glyph(wr.x,            wr.y + j, g ? "\xc2\xa7" : "\xe2\x95\x91",
-                     g ? Color::Magenta : kChrome);
-        r.draw_glyph(wr.x + wr.w - 1, wr.y + j, g ? "\xc2\xa7" : "\xe2\x95\x91",
-                     g ? Color::Magenta : kChrome);
+        const int p = j - 1, N = wr.h - 2;
+        bool gl = torn(2, p, N), gr = torn(3, p, N);
+        r.draw_glyph(wr.x, wr.y + j,
+                     gl ? frag(p + 1111) : "\xe2\x95\x91",
+                     gl ? Color::Magenta : kChrome);
+        r.draw_glyph(wr.x + wr.w - 1, wr.y + j,
+                     gr ? frag(p + 2222) : "\xe2\x95\x91",
+                     gr ? Color::Magenta : kChrome);
     }
 }
 
@@ -390,18 +432,52 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
         draw_colored_string(r, trace_label_x + 11, y, pct_buf, Color::Cyan);
     }
 
-    // Title-bar flicker: Stressed+ states scatter § glitches across the
-    // title row. Stressed gets 1 glitch cell; Hunted/Critical/Blackwall get 3.
+    // Title-bar glitch: Stressed+ states run a burst cycle on the title
+    // row — pick a random spot + random length (3..8) + random on-time,
+    // hold that spot/length while the glyphs churn fast, then restore and
+    // wait a random gap before the next burst.
     WindowState ws = s.netspace.window_state;
     if (ws == WindowState::Stressed || ws == WindowState::Hunted ||
         ws == WindowState::Critical || ws == WindowState::Blackwall) {
-        int ph = game.hacking().blink_phase();
-        int n_glitch = (ws == WindowState::Stressed) ? 1 : 3;
-        for (int g = 0; g < n_glitch; ++g) {
-            int cx = wr.x + 2 + ((ph * 7 + g * 13) % std::max(1, wr.w - 6));
-            if ((ph / 5 + g) % 3 == 0)
-                r.draw_glyph(cx, y, "\xc2\xa7", Color::Magenta);
+        static const char* const kGlitch[] = {
+            "\xc2\xa7",        // §
+            "\xc2\xa4",        // ¤
+            "\xe2\x80\xa1",    // ‡
+            "\xce\xa3",        // Σ
+            "\xce\xa8",        // Ψ
+            "\xce\x9e",        // Ξ
+            "\xe2\x97\x8a",    // ◊
+            "\xe2\x95\xb3",    // ╳
+        };
+        constexpr uint32_t kPalette = 8;
+        auto mix = [](uint32_t x) {
+            x ^= x >> 16; x *= 0x7feb352du;
+            x ^= x >> 15; x *= 0x846ca68bu;
+            x ^= x >> 16; return x;
+        };
+        const uint32_t t   = static_cast<uint32_t>(
+                                 game.hacking().blink_phase());
+        constexpr uint32_t kCycle = 6u;              // ticks per burst cycle
+        const uint32_t cyc = t / kCycle;             // which burst
+        const uint32_t off = t % kCycle;             // offset within it
+        const uint32_t hc  = mix(cyc);               // per-cycle randomness
+        const uint32_t on_dur = 2u + (hc % 4u);      // on-time: 2..5 ticks
+        if (off < on_dur) {                          // (1)-(4): burst ON
+            const int len = 3 + static_cast<int>((hc >> 4) % 6u);   // 3..8
+            int maxstart = wr.w - 2 - len;
+            if (maxstart < 1) maxstart = 1;
+            const int start = wr.x + 1 + static_cast<int>(           // fixed
+                                  (hc >> 8) % static_cast<uint32_t>(maxstart));
+            for (int g = 0; g < len; ++g) {
+                // glyph keyed off t too → randomizes quickly each tick
+                uint32_t h = mix(hc
+                               ^ (static_cast<uint32_t>(g) * 0x9e3779b9u)
+                               ^ (t * 2654435761u));
+                r.draw_glyph(start + g, y,
+                             kGlitch[(h >> 19) % kPalette], Color::Magenta);
+            }
         }
+        // else (5): restored — title row left untouched until next cycle.
     }
 }
 
@@ -1102,6 +1178,12 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
 void draw_window_sequence(Renderer& r, const WindowRect& wr,
                           const NetSession& s, int phase) {
     const auto& q = s.window_seq;
+    const uint32_t ph = static_cast<uint32_t>(phase);
+    auto mix = [](uint32_t v) {
+        v ^= v >> 16; v *= 0x7feb352du;
+        v ^= v >> 15; v *= 0x846ca68bu;
+        v ^= v >> 16; return v;
+    };
     auto fill = [&](const char* g, Color c) {
         for (int j=1;j<wr.h-1;++j) for (int i=1;i<wr.w-1;++i)
             r.draw_glyph(wr.x+i, wr.y+j, g, c);
@@ -1111,6 +1193,24 @@ void draw_window_sequence(Renderer& r, const WindowRect& wr,
         draw_colored_string(r, sx, wr.y + row, t, c);
     };
     if (q.kind == WindowSeqKind::Opening) {
+        // Persistent title bar — drawn on EVERY Opening frame so it stays
+        // visible through the whole ritual, and the per-frame body
+        // animation is clipped strictly below its separator so it can
+        // never overwrite the title row or the chrome.
+        const int sub    = subtitle_rows_for(s.netspace);
+        const int sep_in = 2 + sub;                 // title-bar bottom line (window-rel y)
+        const int by0    = wr.y + sep_in + 1;       // first body row (screen y)
+        const int by1    = wr.y + wr.h - 1;         // exclusive last body row
+        const int bx0    = wr.x + 1;
+        const int bx1    = wr.x + wr.w - 1;         // exclusive
+
+        // Per-frame chrome header (design doc frames): handshake frames
+        // keep "JACKING IN :: <target>" + heart rate; the invert /
+        // dissolution / signal-acquired frames take the doc's header art.
+        auto hdr_center = [&](const std::string& t, Color c) {
+            int sx = wr.x + (wr.w - visual_width(t)) / 2;
+            draw_colored_string(r, sx, wr.y+1, t, c);
+        };
         switch (q.frame_index) {
             case 0: case 1: {
                 int hr = 88 + q.frame_index*4 + (phase/5)%3;
@@ -1120,28 +1220,176 @@ void draw_window_sequence(Renderer& r, const WindowRect& wr,
                 char hb[32]; std::snprintf(hb,sizeof(hb),"heart rate %d", hr);
                 draw_colored_string(r, wr.x+wr.w-2-(int)std::strlen(hb), wr.y+1,
                                     hb, Color::Magenta);
-                const char* msg[] = {"establishing handshake...",
-                                     "parsing reality offset..."};
-                center(wr.h/2, msg[q.frame_index], Color::Cyan);
                 break;
             }
-            case 2: fill("\xe2\x96\x93", Color::Cyan);
-                    center(wr.h-2, "neural sync", Color::Cyan); break;
+            case 2:   // doc No.3 — the screen inverts: full ▓ header bar
+                for (int i=bx0;i<bx1;++i)
+                    r.draw_glyph(i, wr.y+1, "\xe2\x96\x93", Color::Cyan);
+                break;
+            case 3:   // doc No.4 — dissolution: density gradient
+                hdr_center("\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 "
+                           "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 "
+                           "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93 "
+                           "\xe2\x96\x88\xe2\x96\x88\xe2\x96\x88\xe2\x96\x88 "
+                           "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93 "
+                           "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 "
+                           "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91",
+                           Color::Cyan);
+                break;
+            case 4:   // doc No.5 — first glimpse: signal acquired
+                hdr_center("\xe2\x96\x92\xe2\x96\x91  signal acquired  "
+                           "\xe2\x96\x91\xe2\x96\x92", Color::Cyan);
+                break;
+            default: break;
+        }
+        draw_horizontal_separator(r, wr, sep_in);
+
+        auto body_center = [&](const std::string& t, Color c) {
+            int sx = wr.x + (wr.w - (int)t.size())/2;
+            draw_colored_string(r, sx, (by0+by1)/2, t, c);
+        };
+
+        switch (q.frame_index) {
+            case 0: case 1: {
+                const char* msg[] = {"establishing handshake...",
+                                     "parsing reality offset..."};
+                body_center(msg[q.frame_index], Color::Cyan);
+                break;
+            }
+            case 2: {
+                // doc No.3 — reality inverts: a ▓ box around the
+                // meatspace room, █ furniture, the @ pulled through a
+                // density gradient, the jack cable dropping below it.
+                int BW = std::min(41, bx1 - bx0);
+                if (BW < 21) BW = bx1 - bx0;            // tiny-window fallback
+                const int BH = 7;
+                const int L  = wr.x + (wr.w - BW) / 2;
+                const int T  = (by0 + by1 - BH) / 2;
+                // The inverted reality buzzes — every block cell flickers
+                // between ▓ █ ▒ each tick.
+                static const char* const kInv[] = {
+                    "\xe2\x96\x93", "\xe2\x96\x88", "\xe2\x96\x92" }; // ▓ █ ▒
+                auto buzz = [&](int x, int y) {
+                    return kInv[mix(static_cast<uint32_t>(x*131 + y*977) ^ ph)
+                                % 3u];
+                };
+                for (int i=0;i<BW;++i){
+                    r.draw_glyph(L+i, T,      buzz(L+i,T),      Color::Cyan);
+                    r.draw_glyph(L+i, T+BH-1, buzz(L+i,T+BH-1), Color::Cyan);
+                }
+                for (int j=0;j<BH;++j){
+                    r.draw_glyph(L,      T+j, buzz(L,T+j),      Color::Cyan);
+                    r.draw_glyph(L+BW-1, T+j, buzz(L+BW-1,T+j), Color::Cyan);
+                }
+                const int fW=4, fH=3, fyt=T+2;
+                const int flx=L+4, frx=L+BW-1-4-fW;
+                for (int j=0;j<fH;++j) for (int i=0;i<fW;++i){
+                    r.draw_glyph(flx+i, fyt+j, buzz(flx+i,fyt+j), Color::Cyan);
+                    r.draw_glyph(frx+i, fyt+j, buzz(frx+i,fyt+j), Color::Cyan);
+                }
+                const std::string grad =
+                    "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93 "        // ▓▓▓
+                    "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 @ "      // ▒▒▒ @
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 "        // ░░░
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91";        // ░░░
+                const int gy = T+2;
+                const int gx = wr.x + (wr.w - visual_width(grad))/2;
+                draw_colored_string(r, gx, gy, grad, Color::Cyan);
+                const int atx = gx + visual_width(
+                    "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93 "
+                    "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 ");
+                r.draw_glyph(atx, gy,  "@",            Color::BrightWhite);
+                // cable pulses as consciousness is drawn down it
+                const bool c1 = ((ph    ) & 1u) != 0u;
+                const bool c2 = ((ph + 1u) & 1u) != 0u;
+                r.draw_glyph(atx, T+3, c1 ? "\xe2\x94\x82" : " ", Color::Cyan);
+                r.draw_glyph(atx, T+4, c2 ? "\xe2\x94\x82" : " ", Color::Cyan);
+                r.draw_glyph(atx, T+5, "\xe2\x96\xbc", Color::Cyan); // ▼
+                const std::string cap =
+                    "> \xe2\x96\x91\xe2\x96\x91\xe2\x96\x91"
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 neural sync "
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91"
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91";
+                draw_colored_string(r, wr.x+(wr.w-visual_width(cap))/2,
+                                    wr.y+wr.h-2, cap, Color::Cyan);
+                break;
+            }
             case 3: {
-                for (int j=1;j<wr.h-1;++j) for (int i=1;i<wr.w-1;++i)
-                    if (((i*7+j*13+phase)%9)==0)
-                        r.draw_glyph(wr.x+i,wr.y+j,"\xe2\x96\x92",Color::Cyan);
-                center(wr.h/2, "@", Color::BrightWhite);
-                center(wr.h-2, "consciousness migrating", Color::Cyan); break;
+                // doc No.4 — dissolution: the @ floats in churning static.
+                // Layout is the doc's authored scatter; the particles and
+                // dots twinkle every tick so it reads as live noise.
+                const std::string D="\xe2\x96\x91", M="\xe2\x96\x92",
+                                  H="\xe2\x96\x93";
+                const std::string rows[5] = {
+                    ". .   .  "+D+" "+M+"  .   .   .  "+H+" "+M+"   .  . .",
+                    "    .       "+D+"         "+D+"       .",
+                    ".       "+D+"       @       "+D+"       .",
+                    "    .       "+D+"         "+D+"       .",
+                    ". .   .  "+H+" "+M+"  .   .   .  "+D+" "+M+"   .  . .",
+                };
+                int maxw=0;
+                for (const auto& s2:rows) maxw=std::max(maxw,visual_width(s2));
+                const int left = wr.x + (wr.w - maxw)/2;
+                const int top  = (by0 + by1 - 5)/2;
+                static const char* const dens[] = {
+                    "\xe2\x96\x91","\xe2\x96\x92","\xe2\x96\x93"," " }; // ░▒▓ ·
+                for (int k=0;k<5;++k){
+                    const std::string& row = rows[k];
+                    int col = 0;
+                    for (size_t bi=0; bi<row.size(); ) {
+                        unsigned char b = static_cast<unsigned char>(row[bi]);
+                        std::string gch;
+                        if (b < 0x80) { gch.assign(1, row[bi]); bi += 1; }
+                        else          { gch = row.substr(bi, 3); bi += 3; }
+                        const int cx = left + col; ++col;
+                        if (gch == " ") continue;
+                        if (gch == "@") {
+                            r.draw_glyph(cx, top+k, "@", Color::BrightWhite);
+                            continue;
+                        }
+                        uint32_t h = mix(static_cast<uint32_t>(
+                            cx*131 + (top+k)*977) ^ ph);
+                        if (gch == ".") {            // anchor dots twinkle
+                            if (h & 1u)
+                                r.draw_glyph(cx, top+k, ".", Color::Cyan);
+                            continue;
+                        }
+                        r.draw_glyph(cx, top+k, dens[h % 4u], Color::Cyan);
+                    }
+                }
+                const std::string cap =
+                    "> "+M+D+" consciousness migrating "+D+M;
+                draw_colored_string(r, wr.x+(wr.w-visual_width(cap))/2,
+                                    wr.y+wr.h-2, cap, Color::Cyan);
+                break;
             }
             case 4: {
-                int bx=wr.x+wr.w/2-7, by=wr.y+wr.h/2-3;
-                for (int i=0;i<14;++i){ r.draw_glyph(bx+i,by,"\xe2\x95\x8c",Color::DarkGray);
-                    r.draw_glyph(bx+i,by+6,"\xe2\x95\x8c",Color::DarkGray);}
-                for (int j=0;j<6;++j){ r.draw_glyph(bx,by+j,"\xe2\x95\x8e",Color::DarkGray);
-                    r.draw_glyph(bx+14,by+j,"\xe2\x95\x8e",Color::DarkGray);}
-                r.draw_glyph(bx+7,by+3,"@",Color::BrightWhite);
-                center(wr.h-2, "resolving topology...", Color::Cyan); break;
+                // Ghost room materialising: thin corners anchor it while
+                // the ╌/╎ dashed edges shimmer (a gap crawls along them)
+                // and the @ pulses — "not yet real".
+                const int bw = 16, bh = 7;
+                const int bx = wr.x + (wr.w - bw) / 2;
+                const int by = (by0 + by1 - bh) / 2;
+                const Color gc = Color::DarkGray;
+                r.draw_glyph(bx,        by,        "\xe2\x94\x8c", gc); // ┌
+                r.draw_glyph(bx+bw-1,   by,        "\xe2\x94\x90", gc); // ┐
+                r.draw_glyph(bx,        by+bh-1,   "\xe2\x94\x94", gc); // └
+                r.draw_glyph(bx+bw-1,   by+bh-1,   "\xe2\x94\x98", gc); // ┘
+                auto edge = [&](int seed, const char* g) -> const char* {
+                    return ((seed + static_cast<int>(ph)) & 3) == 0 ? " " : g;
+                };
+                for (int i = 1; i < bw-1; ++i) {
+                    r.draw_glyph(bx+i, by,      edge(i,   "\xe2\x95\x8c"), gc);
+                    r.draw_glyph(bx+i, by+bh-1, edge(i+2, "\xe2\x95\x8c"), gc);
+                }
+                for (int j = 1; j < bh-1; ++j) {
+                    r.draw_glyph(bx,      by+j, edge(j+1, "\xe2\x95\x8e"), gc);
+                    r.draw_glyph(bx+bw-1, by+j, edge(j+3, "\xe2\x95\x8e"), gc);
+                }
+                const Color ac = ((ph / 3u) & 1u) ? Color::BrightWhite
+                                                  : Color::Cyan;
+                r.draw_glyph(bx+bw/2, by+bh/2, "@", ac);  // pulsing @
+                center(wr.h-2, "> resolving topology...", Color::Cyan); break;
             }
             default: break;   // case 5: instant; loop clears, normal render next frame
         }
@@ -1235,6 +1483,14 @@ void render(Game& game, Renderer& r) {
     // Full-window scripted sequence (jack-in ritual, jack-out, takeover).
     // The sequence owns the entire interior; skip normal layout while active.
     if (sess->window_seq.active()) {
+        // The ritual plays *inside* the In-Net UI window, so the frame
+        // must be drawn — the window reads as "open" with the sequence
+        // animating in its interior. The Black-ICE takeover is the one
+        // deliberate exception (design doc: "the only time the window's
+        // frame breaks"), so it stays frameless.
+        if (sess->window_seq.kind != WindowSeqKind::BlackIceTakeover)
+            draw_window_chrome(r, wr, sess->netspace.window_state,
+                               game.hacking().blink_phase());
         draw_window_sequence(r, wr, *sess, game.hacking().blink_phase());
         return;   // sequence owns the whole window; skip normal layout
     }
@@ -1243,21 +1499,56 @@ void render(Game& game, Renderer& r) {
     // a subtitle row inserted at row 2, every downstream row shifts down
     // by sub_rows; without one, the layout is unchanged.
     //
-    // At Critical/Blackwall the interior separators flicker out on a
-    // phase-dependent schedule so the chrome feels unstable while the
-    // playfield and vitals remain fully legible.
-    auto flicker_out = [&](int salt) {
-        WindowState ws = sess->netspace.window_state;
-        if (ws != WindowState::Critical && ws != WindowState::Blackwall) return false;
-        int ph = game.hacking().blink_phase();
-        return ((ph / 4 + salt * 3) % 5) == 0;   // ~1 frame in 5, staggered
-    };
+    // At Critical/Blackwall the interior dividers stay drawn but
+    // violently fracture into RED corruption (wider/faster than the
+    // Hunted border tear) — the UI shredding itself reads as "critical",
+    // where a blank-disappearing separator just read as a render bug.
     draw_window_chrome(r, wr, sess->netspace.window_state,
                        game.hacking().blink_phase());
-    if (!flicker_out(0)) draw_horizontal_separator(r, wr, 2 + sub_rows);       // below title (+ subtitle)
-    if (!flicker_out(1)) draw_horizontal_separator(r, wr, 4 + sub_rows);       // below deck strip
-    if (!flicker_out(2)) draw_horizontal_separator(r, wr, wr.h - 3);           // above program bar
-    if (!flicker_out(3)) draw_column_split(r, wr, sub_rows);
+    draw_horizontal_separator(r, wr, 2 + sub_rows);   // below title (+ subtitle)
+    draw_horizontal_separator(r, wr, 4 + sub_rows);   // below deck strip
+    draw_horizontal_separator(r, wr, wr.h - 3);       // above program bar
+    draw_column_split(r, wr, sub_rows);
+    if (sess->netspace.window_state == WindowState::Critical ||
+        sess->netspace.window_state == WindowState::Blackwall) {
+        auto mix = [](uint32_t v) {
+            v ^= v >> 16; v *= 0x7feb352du;
+            v ^= v >> 15; v *= 0x846ca68bu;
+            v ^= v >> 16; return v;
+        };
+        static const char* const kBreak[] = {
+            "\xe2\x95\xb3",    // ╳
+            "\xe2\x95\xaa",    // ╪
+            "\xe2\x95\xab",    // ╫
+            "\xe2\x96\x93",    // ▓
+            "\xe2\x96\x88",    // █
+            "\xc2\xa7",        // §
+            "\xce\xa3",        // Σ
+            " ",               // dropout
+        };
+        constexpr uint32_t kBreakN = 8;
+        const uint32_t t  = static_cast<uint32_t>(game.hacking().blink_phase());
+        const uint32_t ep = t / 2u;                  // tear relocates fast
+        auto fracture_row = [&](int yr, uint32_t eid) {
+            const int N = wr.w - 2;
+            if (N <= 4) return;
+            uint32_t hh = mix(eid * 2654435761u ^ (ep + 1u) * 40503u);
+            if ((hh % 4u) == 0u) return;             // ~1/4 epochs: clean
+            int len = 4 + static_cast<int>((hh >> 3) % 10u);   // 4..13
+            if (len > N) len = N;
+            int s = static_cast<int>((hh >> 8)
+                                     % static_cast<uint32_t>(N - len + 1));
+            for (int k = 0; k < len; ++k) {
+                uint32_t g = mix(static_cast<uint32_t>(s + k) * 0x9e3779b9u
+                               ^ (t * 2654435761u));
+                r.draw_glyph(wr.x + 1 + s + k, wr.y + yr,
+                             kBreak[(g >> 13) % kBreakN], Color::Red);
+            }
+        };
+        fracture_row(2 + sub_rows, 11u);
+        fracture_row(4 + sub_rows, 22u);
+        fracture_row(wr.h - 3,     33u);
+    }
 
     // Populated layout slots.
     draw_top_status(game, r, wr, *sess);

@@ -1653,10 +1653,10 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             log("forced window_state=" + w + " (will re-derive on next world tick unless held)");
         }
         else if (args.size() >= 2 && args[1] == "selftest") {
-            run_net_selftest(*this);   // Task 3 (stub now)
+            run_net_selftest(*this);
         }
         else if (args.size() >= 2 && args[1] == "takeover") {
-            game.hacking().request_takeover();   // Task 8 (stub now)
+            game.hacking().request_takeover();
         }
         else {
             log("usage: net state | net force <s> | net selftest | net takeover");
