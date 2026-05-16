@@ -38,9 +38,10 @@ bool icebreaker_valid_target(const NetSession& s, int x, int y) {
     return false;
 }
 
-bool breach_valid_target(const NetSession&, int, int) {
-    // Firewall/Door/Gateway tiles retired with the legacy sector.
-    return false;
+bool breach_valid_target(const NetSession& s, int x, int y) {
+    auto it = s.netspace.breakwall_lookup.find({x, y});
+    if (it == s.netspace.breakwall_lookup.end()) return false;
+    return s.netspace.breakwalls[it->second].current_density > 0;
 }
 
 bool decrypt_valid_target(const NetSession&, int, int) {
@@ -90,7 +91,7 @@ const std::vector<ProgramDef>& program_registry() {
         { ProgramId::Cooldown,       ProgramKind::Stl, 1, 2, 0, "Cooldown",        "cooldown.exe",
           "Drops the equipped deck's Heat by 4.", 0, {},
           TM::Self, {}, nullptr },
-        { ProgramId::Breach,         ProgramKind::Utl, 1, 3, 3, "Breach",          "breach.exe",
+        { ProgramId::Breach,         ProgramKind::Utl, 1, 0, 3, "Breach",          "breach.exe",
           "Burns one firewall tile or cracks one gateway under your cursor.", 0, {},
           TM::Tile, burst_at(1), &breach_valid_target },
         { ProgramId::Decrypt,        ProgramKind::Utl, 1, 2, 1, "Decrypt",         "decrypt.exe",

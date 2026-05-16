@@ -1722,10 +1722,22 @@ Item build_program_cooldown() {
 }
 
 Item build_program_breach() {
-    return make_program_(ITEM_PROG_BREACH, 9103, ProgramId::Breach,
+    // breach.exe's effect is dispatched by ProgramId via apply_breach_grid;
+    // the fragment chain here exists only to satisfy the PDA's
+    // compiled_program.has_value() filter for the Load Program popup.
+    // Fragment choice is cosmetic — Pyre reads as "burn one tile" thematically.
+    Item it = build_compiled_program_(
+        ITEM_PROG_BREACH, 9103,
         "breach.exe",
-        "UTL | tier 1 | 3 RAM, 3 Heat. Burns one firewall tile. (Used in the Grid.)",
+        "UTL | tier 1 | 3 Heat. Burns one firewall tile. (Used in the Grid.)",
+        { mk(FragmentId::Pyre) },
         Rarity::Uncommon, 100, 35);
+    // Preserve the legacy ProgramData id so apply_program_in_grid dispatches
+    // to apply_breach_grid by ProgramId (fire_program_slot reads it.program->id).
+    ProgramData pd;
+    pd.id = ProgramId::Breach;
+    it.program = pd;
+    return it;
 }
 
 Item build_program_decrypt() {

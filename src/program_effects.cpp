@@ -68,6 +68,35 @@ void apply_data_leech(Game& game, Hackable& target, int /*tx*/, int /*ty*/) {
              " credits skimmed off the bus.");
 }
 
+// ── Breach helpers ───────────────────────────────────────────────────
+
+constexpr int kBreachTraceCost = 2;  // % trace gain per Breach cast
+
+// Return a `length`-cell density row string for command-line output.
+// e.g. density=2, length=5 -> "░░░░░".
+std::string density_row_str(uint8_t density, size_t length) {
+    const char* glyph;
+    switch (density) {
+        case 1: glyph = "\xc2\xb7";       break;   // ·
+        case 2: glyph = "\xe2\x96\x91";  break;   // ░
+        case 3: glyph = "\xe2\x96\x92";  break;   // ▒
+        case 4: glyph = "\xe2\x96\x93";  break;   // ▓
+        case 5: glyph = "\xe2\x96\x88";  break;   // █
+        default: glyph = "\xc2\xb7";     break;   // fallback: ·
+    }
+    std::string out;
+    out.reserve(length * 4);
+    for (size_t i = 0; i < length; ++i) out += glyph;
+    return out;
+}
+
+std::string describe_breakwall_demote(uint8_t before, uint8_t after, size_t row_len) {
+    if (after == 0) return "wall cleared.";
+    return "encryption " + density_row_str(before, row_len)
+         + " \xe2\x86\x92 "                                // " → "
+         + density_row_str(after, row_len) + ".";
+}
+
 // ── Grid-.exe helpers ────────────────────────────────────────────────
 
 // Records the kill against the active LAN's runtime state when the ICE
@@ -124,11 +153,31 @@ std::string apply_cooldown_grid(NetProgramContext c) {
 }
 
 std::string apply_breach_grid(NetProgramContext c) {
-    // Firewall / Door / Gateway target tiles all retired with the legacy
-    // sector. Per-target netspace grammars will (re)introduce tile-breaking
-    // verbs in Phase 1+; Breach.exe sits idle until then.
-    (void)c;
-    return display_name(ProgramId::Breach) + ": nothing to break here.";
+    const std::string prefix = display_name(ProgramId::Breach) + ": ";
+    auto& ns = c.session.netspace;
+    auto it  = ns.breakwall_lookup.find({c.target_x, c.target_y});
+    if (it == ns.breakwall_lookup.end())          return prefix + "no wall at target.";
+
+    BreakwallGroup& g = ns.breakwalls[it->second];
+    if (g.current_density == 0)                   return prefix + "wall already cleared.";
+
+    const uint8_t before = g.current_density;
+    --g.current_density;
+    restamp_breakwall_group(ns, g);
+
+    // Spawn one glitch animation per tile with a randomized frame offset
+    // so the row reads as chaotic (different glyph on each tile per frame).
+    auto& rng = c.game.world().rng();
+    const int frame_count = static_cast<int>(anim_net_breakwall_glitch.frames.size());
+    std::uniform_int_distribution<int> offset_dist(0, frame_count - 1);
+    for (const auto& [x, y] : g.tiles) {
+        c.session.animations.spawn_effect_offset(
+            anim_net_breakwall_glitch, x, y, offset_dist(rng));
+    }
+
+    c.session.gain_trace(kBreachTraceCost);
+
+    return prefix + describe_breakwall_demote(before, g.current_density, g.tiles.size());
 }
 
 std::string apply_decrypt_grid(NetProgramContext c) {
