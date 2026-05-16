@@ -41,30 +41,6 @@ std::string door_id(uint32_t seed) {
     return buf;
 }
 
-// UTF-8 density-gradient cells. Index 0 = lightest (·), 3 = heaviest (▓).
-constexpr const char* kDensityCells[4] = {
-    "\xc2\xb7",        // ·
-    "\xe2\x96\x91",    // ░
-    "\xe2\x96\x92",    // ▒
-    "\xe2\x96\x93",    // ▓
-};
-
-constexpr Color kDensityColors[4] = {
-    net_theme::wall_dot,
-    net_theme::wall_light,
-    net_theme::wall_med,
-    net_theme::wall_heavy,
-};
-
-// Triple-cell content row, e.g. "░░░", "▒▒▒", "▓▓▓".
-std::string density_row(int idx) {
-    std::string out;
-    out += kDensityCells[idx];
-    out += kDensityCells[idx];
-    out += kDensityCells[idx];
-    return out;
-}
-
 }  // namespace
 
 Netspace gen_door_netspace(const TargetDescriptor& desc) {
@@ -111,8 +87,9 @@ Netspace gen_door_netspace(const TargetDescriptor& desc) {
 
         NetRoom& lock = b.add_room(x, y, kRoomW, kRoomH, "LOCK",
                                    NetRoom::Border::Thin);
-        lock.top_content    = density_row(den_idx);
-        lock.top_color      = kDensityColors[den_idx];
+        const uint8_t density = static_cast<uint8_t>(den_idx + 1);  // 0..3 -> 1..4 (·/░/▒/▓)
+        b.fill_top_row_with_breakwall(lock, density);
+        lock.top_content    = "";
         lock.label_color    = net_theme::box_thin_color;
         lock.bottom_content = std::to_string(i + 1);
         lock.bottom_color   = net_theme::box_thin_color;
@@ -125,10 +102,10 @@ Netspace gen_door_netspace(const TargetDescriptor& desc) {
     // ── BOLT ───────────────────────────────────────────────────────
     NetRoom& bolt = b.add_room(x, y, kRoomW, kRoomH, "BOLT",
                                NetRoom::Border::Thin);
-    bolt.top_content    = density_row(3);   // ▓▓▓
-    bolt.top_color      = net_theme::wall_heavy;
+    b.fill_top_row_with_breakwall(bolt, /*density=*/4);   // ▓▓▓▓▓ — Breakwall heavy density
+    bolt.top_content    = "";
     bolt.label_color    = net_theme::box_thin_color;
-    bolt.bottom_content = net_theme::glyph_loot;  // ◊
+    bolt.bottom_content = net_theme::glyph_loot;     // ◊
     bolt.bottom_color   = Color::Yellow;
     b.connect(*prev, bolt, NetPipe::Style::Double);
     x += kRoomW + kGap;
