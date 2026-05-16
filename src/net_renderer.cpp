@@ -1122,12 +1122,22 @@ void render(Game& game, Renderer& r) {
     // Chrome — outer border + horizontal separators + column split. With
     // a subtitle row inserted at row 2, every downstream row shifts down
     // by sub_rows; without one, the layout is unchanged.
+    //
+    // At Critical/Blackwall the interior separators flicker out on a
+    // phase-dependent schedule so the chrome feels unstable while the
+    // playfield and vitals remain fully legible.
+    auto flicker_out = [&](int salt) {
+        WindowState ws = sess->netspace.window_state;
+        if (ws != WindowState::Critical && ws != WindowState::Blackwall) return false;
+        int ph = game.hacking().blink_phase();
+        return ((ph / 4 + salt * 3) % 5) == 0;   // ~1 frame in 5, staggered
+    };
     draw_window_chrome(r, wr, sess->netspace.window_state,
                        game.hacking().blink_phase());
-    draw_horizontal_separator(r, wr, 2 + sub_rows);       // below title (+ subtitle)
-    draw_horizontal_separator(r, wr, 4 + sub_rows);       // below deck strip
-    draw_horizontal_separator(r, wr, wr.h - 3);           // above program bar
-    draw_column_split(r, wr, sub_rows);
+    if (!flicker_out(0)) draw_horizontal_separator(r, wr, 2 + sub_rows);       // below title (+ subtitle)
+    if (!flicker_out(1)) draw_horizontal_separator(r, wr, 4 + sub_rows);       // below deck strip
+    if (!flicker_out(2)) draw_horizontal_separator(r, wr, wr.h - 3);           // above program bar
+    if (!flicker_out(3)) draw_column_split(r, wr, sub_rows);
 
     // Populated layout slots.
     draw_top_status(game, r, wr, *sess);
