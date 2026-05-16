@@ -33,12 +33,28 @@ struct NetspaceBuilder {
     NetRoom& add_room(int x, int y, int w, int h, std::string label,
                       NetRoom::Border border = NetRoom::Border::Thin);
 
+    // Like add_room, but stamps ONLY the border — the interior is left as
+    // the canvas background tile (Void by default). Use for "outer frame"
+    // containers where the inside is supposed to hold other rooms and the
+    // space between them must NOT be walkable. Returns a NetRoom registered
+    // with Netspace for ownership tracking, same as add_room.
+    NetRoom& add_room_outline(int x, int y, int w, int h,
+                              std::string label, NetRoom::Border border);
+
     // Connect two rooms with a pipe along an L-shaped route (horizontal
     // then vertical or vice versa, picked deterministically). Stamps
     // PipeH / PipeV / PipeJunc tiles where they cross. Returns the
     // stored NetPipe for tweaks (style, color, pulse_offset).
     NetPipe& connect(const NetRoom& a, const NetRoom& b,
                      NetPipe::Style style = NetPipe::Style::Double);
+
+    // Like connect(), but always routes a straight vertical drop from a's
+    // facing edge to b's, regardless of the dx/dy ratio. Use when the
+    // grammar intends a clean top-to-bottom pipe and must not let the
+    // auto-router flip to a horizontal L (e.g. vending shelf → DISPENSE
+    // when a shelf sits far from DISPENSE's center).
+    NetPipe& connect_vertical(const NetRoom& a, const NetRoom& b,
+                              NetPipe::Style style = NetPipe::Style::Double);
 
     // Mark a room as the jack-in point. Writes JackIn tile at the room
     // center, sets ns.jack_in_x/y, sets room.is_jack_in.
@@ -56,6 +72,20 @@ struct NetspaceBuilder {
     void make_passable(int x, int y) {
         if (ns.in_bounds(x, y)) ns.passable_overrides.insert({x, y});
     }
+
+    // Add a horizontal contiguous run of breakwall tiles at row y from x0..x1
+    // inclusive. Stamps tiles AND registers a single BreakwallGroup.
+    BreakwallGroup& add_breakwall_row(int x0, int x1, int y, uint8_t density);
+
+    // Add a single isolated breakwall tile as a one-tile BreakwallGroup.
+    BreakwallGroup& add_breakwall_tile(int x, int y, uint8_t density);
+
+    // Add an arbitrary set of tiles as one BreakwallGroup.
+    BreakwallGroup& add_breakwall_blob(std::vector<std::pair<int, int>> tiles, uint8_t density);
+
+    // Convenience: fill the top interior row of `room` with a breakwall group
+    // at the given density. Used by the door grammar's LOCK / BOLT rooms.
+    BreakwallGroup& fill_top_row_with_breakwall(const NetRoom& room, uint8_t density);
 
     // Finalize: return the populated Netspace by move.
     Netspace finalize() { return std::move(ns); }

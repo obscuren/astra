@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <utility>
 
 namespace astra {
 
@@ -35,6 +36,33 @@ NetRoom& NetspaceBuilder::add_room(int x, int y, int w, int h,
             const bool is_border = (dx == 0 || dx == w - 1 ||
                                     dy == 0 || dy == h - 1);
             ns.set(tx, ty, is_border ? box : NetTile::Floor);
+        }
+    }
+
+    ns.rooms.push_back(std::move(room));
+    return ns.rooms.back();
+}
+
+NetRoom& NetspaceBuilder::add_room_outline(int x, int y, int w, int h,
+                                            std::string label, NetRoom::Border border) {
+    NetRoom room;
+    room.x = x;
+    room.y = y;
+    room.w = w;
+    room.h = h;
+    room.border = border;
+    room.label = std::move(label);
+
+    const NetTile box = box_tile_for(border);
+    for (int dy = 0; dy < h; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            const int tx = x + dx;
+            const int ty = y + dy;
+            if (!ns.in_bounds(tx, ty)) continue;
+            const bool is_border = (dx == 0 || dx == w - 1 ||
+                                    dy == 0 || dy == h - 1);
+            if (is_border) ns.set(tx, ty, box);
+            // else: leave interior cell untouched (canvas background)
         }
     }
 
@@ -119,6 +147,30 @@ NetPipe& NetspaceBuilder::connect(const NetRoom& a, const NetRoom& b,
     return ns.pipes.back();
 }
 
+NetPipe& NetspaceBuilder::connect_vertical(const NetRoom& a, const NetRoom& b,
+                                           NetPipe::Style style) {
+    // Always the vertical-dominant route — never flips to a horizontal L.
+    const int ay_c = a.y + a.h / 2;
+    const int by_c = b.y + b.h / 2;
+    const int dy   = by_c - ay_c;
+
+    NetPipe p;
+    p.style = style;
+
+    const int ax = a.x + a.w / 2;
+    const int bx = b.x + b.w / 2;
+    const int ay = (dy >= 0) ? a.y + a.h - 1 : a.y;
+    const int by = (dy >= 0) ? b.y : b.y + b.h - 1;
+    p.x0 = ax; p.y0 = ay; p.x1 = bx; p.y1 = by;
+    stamp_v(ax, ay, by);
+    if (ax != bx) stamp_h(by, ax, bx);
+    make_passable(ax, ay);
+    make_passable(bx, by);
+
+    ns.pipes.push_back(p);
+    return ns.pipes.back();
+}
+
 // For 5-tall rooms the design-doc samples place the avatar @ on the
 // bottom_content row (y+3). For 4-tall rooms the bottom_content row is
 // y+2. In both cases that's room.y + room.h - 2 — the last interior
@@ -148,6 +200,52 @@ void NetspaceBuilder::set_exit(NetRoom& r) {
     if (ns.in_bounds(cx, cy)) {
         ns.set(cx, cy, NetTile::Exit);
     }
+}
+
+BreakwallGroup& NetspaceBuilder::add_breakwall_row(int x0, int x1, int y, uint8_t density) {
+    BreakwallGroup g;
+    g.current_density = density;
+    if (x1 < x0) std::swap(x0, x1);
+    for (int x = x0; x <= x1; ++x) {
+        g.tiles.emplace_back(x, y);
+    }
+    ns.breakwalls.push_back(std::move(g));
+    const size_t idx = ns.breakwalls.size() - 1;
+    for (const auto& tile : ns.breakwalls[idx].tiles) {
+        ns.breakwall_lookup[tile] = idx;
+    }
+    restamp_breakwall_group(ns, ns.breakwalls[idx]);
+    return ns.breakwalls[idx];
+}
+
+BreakwallGroup& NetspaceBuilder::add_breakwall_tile(int x, int y, uint8_t density) {
+    BreakwallGroup g;
+    g.current_density = density;
+    g.tiles.emplace_back(x, y);
+    ns.breakwalls.push_back(std::move(g));
+    const size_t idx = ns.breakwalls.size() - 1;
+    ns.breakwall_lookup[{x, y}] = idx;
+    restamp_breakwall_group(ns, ns.breakwalls[idx]);
+    return ns.breakwalls[idx];
+}
+
+BreakwallGroup& NetspaceBuilder::add_breakwall_blob(std::vector<std::pair<int, int>> tiles,
+                                                     uint8_t density) {
+    BreakwallGroup g;
+    g.current_density = density;
+    g.tiles = std::move(tiles);
+    ns.breakwalls.push_back(std::move(g));
+    const size_t idx = ns.breakwalls.size() - 1;
+    for (const auto& tile : ns.breakwalls[idx].tiles) {
+        ns.breakwall_lookup[tile] = idx;
+    }
+    restamp_breakwall_group(ns, ns.breakwalls[idx]);
+    return ns.breakwalls[idx];
+}
+
+BreakwallGroup& NetspaceBuilder::fill_top_row_with_breakwall(const NetRoom& room, uint8_t density) {
+    // Top interior row = room.y + 1; interior x-range = [room.x + 1, room.x + room.w - 2].
+    return add_breakwall_row(room.x + 1, room.x + room.w - 2, room.y + 1, density);
 }
 
 }  // namespace astra
