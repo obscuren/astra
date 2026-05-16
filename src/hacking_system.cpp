@@ -29,6 +29,15 @@
 
 namespace astra {
 
+// Process-lifetime flag: set true once the first Opening sequence completes.
+// Enables the skip-held fast-forward on subsequent jack-ins.
+static bool s_seen_ritual = false;
+
+// No-op audio hook. Replace with real engine call when audio lands.
+static void play_sound_hook(const char* /*tag*/) {
+    // TODO(audio): trigger sound by tag
+}
+
 bool HackingSystem::in_blocking_transition() const {
     if (!session_) return false;
     switch (session_->window_seq.kind) {
@@ -49,10 +58,29 @@ bool HackingSystem::consume_panic_meat_glitch() {
     return v;
 }
 
-// Filled in Task 6/7/8. For now: any finished sequence just clears.
+void HackingSystem::notify_sequence_finished(WindowSeqKind k) {
+    finished_seq_ = k;
+}
+
+bool HackingSystem::has_seen_ritual() const {
+    return s_seen_ritual;
+}
+
 void HackingSystem::on_window_sequence_complete(Game& /*game*/) {
     if (!session_) return;
-    // Sequence completion handling added in later tasks.
+    WindowSeqKind k = finished_seq_;
+    finished_seq_ = WindowSeqKind::None;
+    if (k == WindowSeqKind::None) return;
+    auto& s = *session_;
+    if (k == WindowSeqKind::Opening) {
+        s_seen_ritual = true;
+        bool black = false;
+        for (auto& i : s.ice) if (i.color == IceColor::Black) { black = true; break; }
+        s.netspace.window_state = window_band(s.trace, WindowState::Stable, black);
+        play_sound_hook("jack_in_arrive");
+        return;
+    }
+    // Closing variants: Task 7. Takeover: Task 8.
 }
 
 // Stub — real impl lands in Task 8.
@@ -492,6 +520,14 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
 
     session_ = std::move(s);
     game.set_state(GameState::Net);
+
+    // Start the Opening ritual — the window sequence owns the display
+    // until it completes; on_window_sequence_complete then recomputes the band.
+    session_->netspace.window_state = WindowState::Opening;
+    session_->window_seq = WindowSequence{};
+    session_->window_seq.kind = WindowSeqKind::Opening;
+    play_sound_hook("jack_in_begin");
+
     game.log("Uploading consciousness... You jack in.");
     return true;
 }

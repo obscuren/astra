@@ -92,6 +92,14 @@ public:
     // a completed sequence (band recompute / deferred jack-out teardown).
     void on_window_sequence_complete(Game& game);
 
+    // Records the kind that just finished (called from game.cpp run loop
+    // before on_window_sequence_complete, where hacking_ is in scope).
+    void notify_sequence_finished(WindowSeqKind k);
+
+    // True after the first Opening sequence has fully completed this process.
+    // Used by net_input to enable the skip-held fast-forward on repeat jacks.
+    bool has_seen_ritual() const;
+
     // One-frame transient: true for the first meatworld frame after a
     // panic jack-out, so the meatworld player glyph draws corrupted (~@~).
     // Auto-clears on read.
@@ -131,6 +139,7 @@ private:
 
     JackOutKind   pending_jack_out_ = JackOutKind::Voluntary;
     bool          panic_meat_glitch_ = false;
+    WindowSeqKind finished_seq_ = WindowSeqKind::None;
 
     void commit_loot_(Game& game, NetLootBuffer& loot, int pct);
     void spawn_black_ice_(NetSession& s);

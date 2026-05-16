@@ -174,7 +174,15 @@ void fire_program_slot(Game& game, NetSession& s, int slot_idx) {
 } // namespace
 
 bool handle(Game& game, int key) {
-    if (game.hacking().in_blocking_transition()) return false;  // sequence playing
+    if (game.hacking().in_blocking_transition()) {
+        if (auto* s = game.hacking().session_mut()) {
+            auto k = s->window_seq.kind;
+            if ((k == WindowSeqKind::Opening || k == WindowSeqKind::ClosingNormal)
+                && game.hacking().has_seen_ritual())
+                s->window_seq.skip_held = true;
+        }
+        return false;
+    }
 
     auto* sess = game.hacking().session();
     if (!sess) return false;

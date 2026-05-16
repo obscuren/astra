@@ -78,7 +78,41 @@ int ram_lie(int true_ram, int ram_max, WindowState ws, uint32_t turn_seed) {
     if (shown < 0) shown = 0;
     return shown;
 }
-int window_seq_frame_count(WindowSeqKind) { return 0; }
-void window_seq_advance(WindowSequence& q) { q.kind = WindowSeqKind::None; }
+namespace {
+struct SeqFrame { int ms; };
+constexpr SeqFrame kOpening[]       = { {600},{600},{350},{350},{350},{1} };
+constexpr SeqFrame kClosingNormal[] = { {300},{300},{300},{300},{300},{1} };
+constexpr SeqFrame kClosingPanic[]  = { {120},{120},{120},{140} };
+constexpr SeqFrame kForcedHold[]    = { {500} };
+constexpr SeqFrame kTakeover[]      = { {1000} };
+const SeqFrame* table_for(WindowSeqKind k, int& n) {
+    switch (k) {
+        case WindowSeqKind::Opening:          n=6; return kOpening;
+        case WindowSeqKind::ClosingNormal:    n=6; return kClosingNormal;
+        case WindowSeqKind::ClosingPanic:     n=4; return kClosingPanic;
+        case WindowSeqKind::ForcedHold:       n=1; return kForcedHold;
+        case WindowSeqKind::BlackIceTakeover: n=1; return kTakeover;
+        default:                              n=0; return nullptr;
+    }
+}
+}  // namespace
+
+int window_seq_frame_count(WindowSeqKind k) { int n=0; table_for(k,n); return n; }
+
+WindowSeqKind window_seq_advance(WindowSequence& q) {
+    int n = 0; const SeqFrame* t = table_for(q.kind, n);
+    if (!t || n == 0) { q.kind = WindowSeqKind::None; return WindowSeqKind::None; }
+    while (q.frame_index < n && q.elapsed_ms >= t[q.frame_index].ms) {
+        q.elapsed_ms -= t[q.frame_index].ms;
+        ++q.frame_index;
+    }
+    if (q.frame_index >= n) {
+        WindowSeqKind finished = q.kind;
+        q.frame_index = n - 1;
+        q.kind = WindowSeqKind::None;
+        return finished;          // the kind that just completed
+    }
+    return WindowSeqKind::None;    // still running
+}
 
 }  // namespace astra

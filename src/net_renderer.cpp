@@ -1098,6 +1098,57 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     }
 }
 
+void draw_window_sequence(Renderer& r, const WindowRect& wr,
+                          const NetSession& s, int phase) {
+    const auto& q = s.window_seq;
+    auto fill = [&](const char* g, Color c) {
+        for (int j=1;j<wr.h-1;++j) for (int i=1;i<wr.w-1;++i)
+            r.draw_glyph(wr.x+i, wr.y+j, g, c);
+    };
+    auto center = [&](int row, const std::string& t, Color c) {
+        int sx = wr.x + (wr.w - (int)t.size())/2;
+        draw_colored_string(r, sx, wr.y + row, t, c);
+    };
+    if (q.kind == WindowSeqKind::Opening) {
+        switch (q.frame_index) {
+            case 0: case 1: {
+                int hr = 88 + q.frame_index*4 + (phase/5)%3;
+                std::string hdr = "JACKING IN :: " + (s.netspace.title.empty()
+                                  ? std::string("TARGET") : s.netspace.title);
+                draw_colored_string(r, wr.x+2, wr.y+1, hdr, Color::Cyan);
+                char hb[32]; std::snprintf(hb,sizeof(hb),"heart rate %d", hr);
+                draw_colored_string(r, wr.x+wr.w-2-(int)std::strlen(hb), wr.y+1,
+                                    hb, Color::Magenta);
+                const char* msg[] = {"establishing handshake...",
+                                     "parsing reality offset..."};
+                center(wr.h/2, msg[q.frame_index], Color::Cyan);
+                break;
+            }
+            case 2: fill("\xe2\x96\x93", Color::Cyan);
+                    center(wr.h-2, "neural sync", Color::Cyan); break;
+            case 3: {
+                for (int j=1;j<wr.h-1;++j) for (int i=1;i<wr.w-1;++i)
+                    if (((i*7+j*13+phase)%9)==0)
+                        r.draw_glyph(wr.x+i,wr.y+j,"\xe2\x96\x92",Color::Cyan);
+                center(wr.h/2, "@", Color::BrightWhite);
+                center(wr.h-2, "consciousness migrating", Color::Cyan); break;
+            }
+            case 4: {
+                int bx=wr.x+wr.w/2-7, by=wr.y+wr.h/2-3;
+                for (int i=0;i<14;++i){ r.draw_glyph(bx+i,by,"\xe2\x95\x8c",Color::DarkGray);
+                    r.draw_glyph(bx+i,by+6,"\xe2\x95\x8c",Color::DarkGray);}
+                for (int j=0;j<6;++j){ r.draw_glyph(bx,by+j,"\xe2\x95\x8e",Color::DarkGray);
+                    r.draw_glyph(bx+14,by+j,"\xe2\x95\x8e",Color::DarkGray);}
+                r.draw_glyph(bx+7,by+3,"@",Color::BrightWhite);
+                center(wr.h-2, "resolving topology...", Color::Cyan); break;
+            }
+            default: break;   // case 5: instant; loop clears, normal render next frame
+        }
+    }
+    // else if ClosingNormal / ClosingPanic / ForcedHold: Task 7
+    // else if BlackIceTakeover: Task 8
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -1118,6 +1169,13 @@ void render(Game& game, Renderer& r) {
     // Make the window opaque first so the monochrome world UI behind
     // doesn't bleed through into the Tron HUD.
     clear_window_interior(r, wr);
+
+    // Full-window scripted sequence (jack-in ritual, jack-out, takeover).
+    // The sequence owns the entire interior; skip normal layout while active.
+    if (sess->window_seq.active()) {
+        draw_window_sequence(r, wr, *sess, game.hacking().blink_phase());
+        return;   // sequence owns the whole window; skip normal layout
+    }
 
     // Chrome — outer border + horizontal separators + column split. With
     // a subtitle row inserted at row 2, every downstream row shifts down

@@ -32,7 +32,9 @@ int ram_lie(int true_ram, int ram_max, WindowState ws, uint32_t turn_seed);
 
 // Advance a WindowSequence by its accumulated elapsed_ms using the
 // per-kind frame table. Sets kind=None when the last frame elapses.
-void window_seq_advance(WindowSequence& q);
+// Returns the kind that JUST FINISHED this call, or WindowSeqKind::None
+// if the sequence is still running or nothing was active.
+WindowSeqKind window_seq_advance(WindowSequence& q);
 
 // Total frame count for a sequence kind (0 for None).
 int window_seq_frame_count(WindowSeqKind k);

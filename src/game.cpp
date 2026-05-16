@@ -83,16 +83,16 @@ std::string Game::dominant_faction_in_current_map() const {
 // playing while the player is idle. Frame durations come from
 // net_window_anim.cpp (Task 6); until then the table is empty and this
 // is a no-op for kind==None.
-static void advance_window_sequence(NetSession& s) {
+static WindowSeqKind advance_window_sequence(NetSession& s) {
     auto& q = s.window_seq;
-    if (!q.active()) { q.last_tick = std::chrono::steady_clock::now(); return; }
+    if (!q.active()) { q.last_tick = std::chrono::steady_clock::now(); return WindowSeqKind::None; }
     auto now = std::chrono::steady_clock::now();
     int delta = static_cast<int>(
         std::chrono::duration_cast<std::chrono::milliseconds>(now - q.last_tick).count());
     q.last_tick = now;
     if (delta < 0) delta = 0;
     q.elapsed_ms += q.skip_held ? delta * 6 : delta;
-    window_seq_advance(q);   // net_window_anim.cpp (stub until Task 6)
+    return window_seq_advance(q);   // net_window_anim.cpp
 }
 
 void Game::run() {
@@ -177,7 +177,8 @@ void Game::run() {
         animations_.tick();
         if (auto* s = hacking_.session()) {
             s->animations.tick();
-            advance_window_sequence(*s);          // wall-clock; see below
+            WindowSeqKind fin = advance_window_sequence(*s);   // wall-clock; see below
+            hacking_.notify_sequence_finished(fin);
             hacking_.on_window_sequence_complete(*this);
 
             // Net corruption effects (border crawl, title flicker, log
