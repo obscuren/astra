@@ -5,12 +5,41 @@
 #include "astra/net_ice.h"
 #include "astra/netspace.h"
 
+#include <chrono>
 #include <cstdint>
 #include <deque>
 #include <string>
 #include <vector>
 
 namespace astra {
+
+enum class WindowSeqKind : uint8_t {
+    None,
+    Opening,
+    ClosingNormal,
+    ClosingPanic,
+    ForcedHold,
+    BlackIceTakeover,
+};
+
+// A scripted full-window sequence (jack-in ritual, jack-out teardown,
+// Black-ICE takeover). Advances on the WALL-CLOCK from the run loop,
+// never the world tick. Per-frame durations come from a static table
+// in net_window_anim.cpp (Task 6) keyed by `kind`.
+struct WindowSequence {
+    WindowSeqKind kind        = WindowSeqKind::None;
+    int           frame_index = 0;
+    int           elapsed_ms  = 0;
+    bool          skip_held   = false;  // held-key fast-forward (Opening/ClosingNormal)
+    std::chrono::steady_clock::time_point last_tick =
+        std::chrono::steady_clock::now();
+
+    bool active() const { return kind != WindowSeqKind::None; }
+};
+
+// TASK 1 TEMPORARY forward decl — real impl (returning WindowSeqKind)
+// lands in net_window_anim.h/.cpp in Task 6.
+void window_seq_advance(WindowSequence& q);
 
 enum class JackOutKind : uint8_t {
     Voluntary,        // walked to exit node -- full loot, no penalty
@@ -90,6 +119,15 @@ struct NetSession {
     // pipe payload glyphs, turret rounds, etc.). Not serialized — animations
     // die with the session.
     AnimationManager animations;
+
+    // Phase 3: scripted full-window sequence state (jack-in/out ritual,
+    // takeover). Wall-clock driven from Game::run(). Not serialized.
+    WindowSequence window_seq;
+
+    // Phase 3: monotonically increments once per tick_grid (world turn in
+    // net). Seeds the per-turn-stable RAM lie so it only re-rolls on a
+    // world tick, not every render frame.
+    uint32_t net_turn = 0;
 
     // Per-session log ring. Read by the Grid HUD's right pane.
     // Capped — push_log drops the oldest entry when full.

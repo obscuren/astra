@@ -82,6 +82,19 @@ public:
     // Per-turn Grid update. Called from Game::advance_world when state == Grid.
     void tick_grid(Game& game);
 
+    // True while a blocking full-window sequence is playing — input and
+    // world progression are suspended.
+    bool in_blocking_transition() const;
+
+    // Called from the run loop after WindowSequence is ticked. Finalizes
+    // a completed sequence (band recompute / deferred jack-out teardown).
+    void on_window_sequence_complete(Game& game);
+
+    // One-frame transient: true for the first meatworld frame after a
+    // panic jack-out, so the meatworld player glyph draws corrupted (~@~).
+    // Auto-clears on read.
+    bool consume_panic_meat_glitch();
+
     // Register an in-flight LOOP sustain. Called by fire_program when a
     // program with loop_count > 0 fires. The body will re-fire each
     // subsequent world tick at loop_intensity_mult intensity until the
@@ -110,6 +123,9 @@ private:
     static uint64_t compute_zone_signature(const Game& game);
 
     void on_detection_threshold_(int threshold);
+
+    JackOutKind   pending_jack_out_ = JackOutKind::Voluntary;
+    bool          panic_meat_glitch_ = false;
 
     void commit_loot_(Game& game, NetLootBuffer& loot, int pct);
     void spawn_black_ice_(NetSession& s);

@@ -174,6 +174,8 @@ void fire_program_slot(Game& game, NetSession& s, int slot_idx) {
 } // namespace
 
 bool handle(Game& game, int key) {
+    if (game.hacking().in_blocking_transition()) return false;  // sequence playing
+
     auto* sess = game.hacking().session();
     if (!sess) return false;
     auto& s = *sess;

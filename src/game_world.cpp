@@ -2214,7 +2214,9 @@ void Game::advance_world(int cost) {
         // body takes damage during the dilated real-world tick.
         int hp_before = player_.hp;
 
-        hacking_.tick_grid(*this);
+        if (!hacking_.in_blocking_transition()) {
+            hacking_.tick_grid(*this);
+        }
 
         // Time-dilation: drip real-world ticks at the configured rate.
         // 0.01 default → ~1 real tick per 100 grid keypresses.

@@ -28,6 +28,35 @@
 
 namespace astra {
 
+bool HackingSystem::in_blocking_transition() const {
+    if (!session_) return false;
+    switch (session_->window_seq.kind) {
+        case WindowSeqKind::Opening:
+        case WindowSeqKind::ClosingNormal:
+        case WindowSeqKind::ClosingPanic:
+        case WindowSeqKind::ForcedHold:
+        case WindowSeqKind::BlackIceTakeover:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool HackingSystem::consume_panic_meat_glitch() {
+    bool v = panic_meat_glitch_;
+    panic_meat_glitch_ = false;
+    return v;
+}
+
+// Filled in Task 6/7/8. For now: any finished sequence just clears.
+void HackingSystem::on_window_sequence_complete(Game& /*game*/) {
+    if (!session_) return;
+    // Sequence completion handling added in later tasks.
+}
+
+// TASK 1 TEMPORARY — replaced by net_window_anim.cpp in Task 6.
+void window_seq_advance(WindowSequence& q) { q.kind = WindowSeqKind::None; }
+
 namespace {
 constexpr int kDetectionDecayInterval = 5;   // tick every N world steps, -1 to value
 constexpr int kDetectionMax = 100;
