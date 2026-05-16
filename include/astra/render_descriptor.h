@@ -50,6 +50,7 @@ enum class AnimationType : uint8_t {
     LavaShimmer,
     ShipTerminalBlink,
     CampfireFlicker,
+    NetBreakwallGlitch,
 };
 
 // Deterministic position hash for visual variation.

@@ -99,6 +99,12 @@ const AnimationDef anim_ship_terminal_blink = {
     true
 };
 
+const AnimationDef anim_net_breakwall_glitch = {
+    AnimationType::NetBreakwallGlitch,
+    {{60}, {60}, {60}, {60}, {60}},
+    false,
+};
+
 // ─────────────────────────────────────────────────────────────────
 // AnimationManager
 // ─────────────────────────────────────────────────────────────────
@@ -174,8 +180,13 @@ std::optional<AnimQueryResult> AnimationManager::query(int mx, int my) const {
     auto eit = effect_index_.find(key);
     if (eit != effect_index_.end()) {
         const auto& a = effect_anims_[eit->second];
-        if (!a.finished && a.delay_ms <= 0)
-            return AnimQueryResult{a.def->type, a.current_frame};
+        if (!a.finished && a.delay_ms <= 0) {
+            const int n = static_cast<int>(a.def->frames.size());
+            const int frame = n > 0
+                ? ((a.current_frame + a.frame_offset) % n + n) % n
+                : 0;
+            return AnimQueryResult{a.def->type, frame};
+        }
     }
     auto fit = fixture_index_.find(key);
     if (fit != fixture_index_.end()) {
@@ -189,8 +200,13 @@ std::optional<AnimQueryResult> AnimationManager::query_effect(int mx, int my) co
     auto eit = effect_index_.find(pos_key(mx, my));
     if (eit != effect_index_.end()) {
         const auto& a = effect_anims_[eit->second];
-        if (!a.finished && a.delay_ms <= 0)
-            return AnimQueryResult{a.def->type, a.current_frame};
+        if (!a.finished && a.delay_ms <= 0) {
+            const int n = static_cast<int>(a.def->frames.size());
+            const int frame = n > 0
+                ? ((a.current_frame + a.frame_offset) % n + n) % n
+                : 0;
+            return AnimQueryResult{a.def->type, frame};
+        }
     }
     return std::nullopt;
 }
@@ -200,7 +216,26 @@ void AnimationManager::spawn_effect(const AnimationDef& def, int x, int y) {
         last_tick_ = std::chrono::steady_clock::now();
     }
     int idx = static_cast<int>(effect_anims_.size());
-    effect_anims_.push_back({x, y, &def, 0, 0, 0, false});
+    ActiveAnimation a{};
+    a.x   = x;
+    a.y   = y;
+    a.def = &def;
+    effect_anims_.push_back(a);
+    effect_index_[pos_key(x, y)] = idx;
+}
+
+void AnimationManager::spawn_effect_offset(const AnimationDef& def,
+                                           int x, int y, int frame_offset) {
+    if (effect_anims_.empty()) {
+        last_tick_ = std::chrono::steady_clock::now();
+    }
+    int idx = static_cast<int>(effect_anims_.size());
+    ActiveAnimation a{};
+    a.x = x;
+    a.y = y;
+    a.def = &def;
+    a.frame_offset = frame_offset;
+    effect_anims_.push_back(a);
     effect_index_[pos_key(x, y)] = idx;
 }
 

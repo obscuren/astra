@@ -34,6 +34,7 @@ struct ActiveAnimation {
     int current_frame = 0;
     int elapsed_ms = 0;
     int delay_ms = 0;            // countdown before animation starts
+    int frame_offset = 0;        // added by spawn_effect_offset; applied at query time
     bool finished = false;
 };
 
@@ -50,6 +51,11 @@ public:
 
     // Spawn a one-shot effect at a position
     void spawn_effect(const AnimationDef& def, int x, int y);
+
+    // Like spawn_effect, but the displayed frame index is shifted by
+    // frame_offset (modulo frames.size()) at query time. Use to desync
+    // otherwise-synchronized animations across multiple tiles.
+    void spawn_effect_offset(const AnimationDef& def, int x, int y, int frame_offset);
 
     // Spawn a one-shot effect along a Bresenham line (staggered delays)
     void spawn_effect_line(const AnimationDef& def, int x0, int y0, int x1, int y1);
@@ -90,5 +96,6 @@ extern const AnimationDef anim_projectile;
 extern const AnimationDef anim_level_up;
 extern const AnimationDef anim_torch_flicker;
 extern const AnimationDef anim_campfire_flicker;
+extern const AnimationDef anim_net_breakwall_glitch;
 
 } // namespace astra

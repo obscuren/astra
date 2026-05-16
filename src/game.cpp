@@ -140,6 +140,9 @@ void Game::run() {
         }
 
         animations_.tick();
+        if (auto* s = hacking_.session()) {
+            s->animations.tick();
+        }
         playback_viewer_.tick();
         update();
         render();

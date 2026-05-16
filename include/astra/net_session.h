@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/animation.h"
 #include "astra/game_state.h"
 #include "astra/net_ice.h"
 #include "astra/netspace.h"
@@ -84,6 +85,11 @@ struct NetSession {
     NetLootBuffer loot;
 
     IceColor last_killer_color = IceColor::White;
+
+    // Transient render-state for in-net effects (wall-hit glitch, future
+    // pipe payload glyphs, turret rounds, etc.). Not serialized — animations
+    // die with the session.
+    AnimationManager animations;
 
     // Per-session log ring. Read by the Grid HUD's right pane.
     // Capped — push_log drops the oldest entry when full.
