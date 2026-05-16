@@ -176,8 +176,10 @@ set(ASTRA_SOURCES
     src/net_renderer.cpp
     src/net_camera.cpp
     src/net_ice.cpp
+    src/net_theme.cpp
     src/rebirth_sequence.cpp
     src/net_session.cpp
+    src/netspace.cpp
     src/netspace_generator.cpp
     src/netspace_layout.cpp
     src/grammars/gen_door_netspace.cpp

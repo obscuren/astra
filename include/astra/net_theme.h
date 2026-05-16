@@ -41,7 +41,7 @@ constexpr Color warp_anchor       = Color::BrightWhite;
 // Glyphs — UTF-8 strings per spec; rendered via Renderer::draw_glyph.
 constexpr const char* door_open_glyph   = "+";
 constexpr const char* door_locked_glyph = "\xe2\x96\xa3";  // ▣
-constexpr const char* floor_glyph     = "\xc2\xb7";        // · (mid-dot floor)
+constexpr const char* floor_glyph     = " ";              // (none) — design-doc empty space
 constexpr const char* firewall_glyph  = "▓";
 constexpr const char* avatar_glyph    = "@";
 constexpr const char* white_ice_glyph = "▼";
@@ -62,7 +62,6 @@ constexpr const char* wall_med_glyph   = "\xe2\x96\x92";   // ▒
 constexpr const char* wall_heavy_glyph = "\xe2\x96\x93";   // ▓
 constexpr const char* wall_solid_glyph = "\xe2\x96\x88";   // █
 
-// Wall density colors fade as density rises.
 constexpr Color wall_dot   = Color::DarkGray;
 constexpr Color wall_light = Color::DarkGray;
 constexpr Color wall_med   = Color::Cyan;
@@ -115,7 +114,10 @@ constexpr const char* pipe_v_frames[4] = {
     "\xe2\x95\x91",  // ║
     "\xe2\x94\x82",  // │
 };
-constexpr const char* pipe_junc_glyph = "\xe2\x95\xac";  // ╬
+constexpr const char* pipe_junc_glyph  = "\xe2\x95\xac";  // ╬
+constexpr const char* pipe_port_v_glyph = "\xe2\x95\xa8";  // ╨ — pipe enters box from top
+constexpr const char* pipe_port_corner_tr_glyph = "\xe2\x95\x9c";  // ╜ — pipe enters box top-right corner
+constexpr const char* pipe_port_down_d_glyph = "\xe2\x95\xa6";  // ╦ — pipe exits double-box bottom
 constexpr Color       pipe_color = Color::Cyan;
 
 // Canonical glyph vocabulary from the design doc.
@@ -133,5 +135,16 @@ constexpr const char* glyph_unknown       = "?";
 constexpr const char* glyph_credit        = "$";
 constexpr const char* glyph_eye           = "\xe2\x97\x8f";    // ●
 constexpr const char* glyph_camera_lens   = "(o)";              // composed; rendered as a 3-cell content
+
+// Pick a "glitch" UTF-8 glyph deterministically from a fixed pool using
+// a (x, y, frame) hash so each (tile, frame) combination shows a
+// different chaotic glyph. Pool excludes zalgo combining diacritics
+// (those are reserved for Phase 8 Blackwall corruption).
+const char* wall_glitch_glyph(int x, int y, int frame);
+
+// Brightness-modulated shade of the density's normal wall color.
+// Phase 2: returns the density's base color; brightness wobble is a
+// deferred polish pass (the glyph chaos alone reads as a strong hit).
+Color shade_for_density(uint8_t density, int frame);
 
 } // namespace astra::net_theme

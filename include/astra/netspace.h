@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string>
 #include <utility>
@@ -78,9 +79,25 @@ enum class NetTile : uint8_t {
     PipeH,      // ─ horizontal segment
     PipeV,      // │ vertical segment
     PipeJunc,   // ┼ ┬ ┴ ├ ┤ junction
+    PipePortV,  // box-border cell that accepts a vertical pipe — renders as
+                // ╨ (thin horizontal + double-line up). Passable; used at
+                // box-top intersections so the pipe terminates visibly at
+                // the box border without overwriting it as PipeJunc's heavy ╬.
+    PipePortCornerTR,  // top-right box corner that accepts a vertical pipe
+                       // from above — renders as ╜ (double-up + thin-left).
+                       // Passable; used where a pipe drops onto the very
+                       // top-right corner of a thin-bordered box.
+    PipePortDownD,     // double-box bottom-edge cell that emits a vertical
+                       // pipe downward — renders as ╦ (double horizontal +
+                       // double down). Passable; used where a pipe exits
+                       // the bottom of a BoxDouble node (vending shelves).
 
     Glyph,      // tile carries an inline glyph; renderer reads it from
                 // Netspace::glyph_overrides keyed by (x, y).
+
+    Breakwall,  // breakable barrier — density lives on its BreakwallGroup
+                // (looked up via Netspace::breakwall_lookup); impassable
+                // until current_density == 0.
 };
 
 // Ambient animation overlay scaffold — grammars opt in by setting
@@ -108,6 +125,15 @@ enum class WindowState : uint8_t {
     Closing,           // jack-out ritual playing
 };
 
+// One logical "breakable barrier" — may be one tile or many. Tiles in a
+// group share density and demote together when any one is Breach-targeted.
+// Grammars declare groups at gen time via NetspaceBuilder helpers; Netspace
+// owns the state; renderer reads tiles only.
+struct BreakwallGroup {
+    uint8_t                          current_density = 0;   // 0=cleared, 1=·, 2=░, 3=▒, 4=▓, 5=█
+    std::vector<std::pair<int, int>> tiles;
+};
+
 // The netspace itself. A flat row-major tile grid plus the bookkeeping
 // the renderer / input layer reads. ICE, payloads-in-flight, ghost
 // nodes, etc. are added per phase.
@@ -132,6 +158,12 @@ struct Netspace {
     // the pipes on top of the tile layer.
     std::vector<NetRoom> rooms;
     std::vector<NetPipe> pipes;
+
+    // Phase 2: breakable barrier state. `breakwalls` is the source of truth
+    // (persisted); `breakwall_lookup` is an index from tile position to
+    // breakwalls[idx], recomputed from `breakwalls` on load (not persisted).
+    std::vector<BreakwallGroup>          breakwalls;
+    std::map<std::pair<int,int>, size_t> breakwall_lookup;
 
     // Per-cell passability override. Cells listed here are walkable by
     // the avatar (and pass Telegraph LoS) regardless of the underlying
@@ -163,7 +195,10 @@ struct Netspace {
             || t == NetTile::Exit
             || t == NetTile::PipeH
             || t == NetTile::PipeV
-            || t == NetTile::PipeJunc;
+            || t == NetTile::PipeJunc
+            || t == NetTile::PipePortV
+            || t == NetTile::PipePortCornerTR
+            || t == NetTile::PipePortDownD;
     }
     bool is_wall(int x, int y) const {
         const NetTile t = at(x, y);
@@ -171,7 +206,8 @@ struct Netspace {
             || t == NetTile::WallLight
             || t == NetTile::WallMed
             || t == NetTile::WallHeavy
-            || t == NetTile::WallSolid;
+            || t == NetTile::WallSolid
+            || t == NetTile::Breakwall;
     }
 };
 
@@ -184,5 +220,15 @@ inline NetTile box_tile_for(NetRoom::Border b) {
     }
     return NetTile::BoxThin;
 }
+
+// Recompute Netspace::breakwall_lookup from Netspace::breakwalls. Call after
+// load (where breakwall_lookup is not persisted) and after any operation that
+// mutates breakwalls[i].tiles.
+void recompute_breakwall_lookup(Netspace& ns);
+
+// Re-stamp every tile in `g` with NetTile::Breakwall (current_density > 0)
+// or NetTile::Floor (current_density == 0). Call after gen-time setup and
+// after each Breach demote.
+void restamp_breakwall_group(Netspace& ns, const BreakwallGroup& g);
 
 }  // namespace astra
