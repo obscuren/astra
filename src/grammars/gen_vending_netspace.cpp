@@ -18,7 +18,7 @@ constexpr int kCanvasW   = 54;
 constexpr int kCanvasH   = 14;
 constexpr int kOuterX    = 19;
 constexpr int kOuterY    = 1;
-constexpr int kOuterW    = 17;
+constexpr int kOuterW    = 18;
 constexpr int kOuterH    = 12;
 
 // Shelf rooms — 3w × 3h BoxDouble nodes, three across, in a row near the
@@ -27,6 +27,11 @@ constexpr int kOuterH    = 12;
 constexpr int kShelfY    = kOuterY + 2;
 constexpr int kShelfW    = 3;
 constexpr int kShelfH    = 3;
+// Shelves 1 and 2 keep their original positions (left side untouched).
+// Shelf 3 sits one step further right so its center pipe lands exactly
+// on DISPENSE's widened top-right corner:
+//   shelf3 pipe col  = kShelf3X + kShelfW/2 = kOuterX + 14
+//   DISPENSE TR col   = kDispenseX + kDispenseW - 1 = kOuterX + 14
 constexpr int kShelf1X   = kOuterX + 3;
 constexpr int kShelf2X   = kOuterX + 7;
 constexpr int kShelf3X   = kOuterX + 11;
@@ -36,7 +41,7 @@ constexpr int kShelf3X   = kOuterX + 11;
 // the avatar tile onto bottom_content (the design-doc avatar row).
 constexpr int kDispenseX = kOuterX + 2;
 constexpr int kDispenseY = kOuterY + 7;
-constexpr int kDispenseW = 12;
+constexpr int kDispenseW = 13;
 constexpr int kDispenseH = 4;
 
 // "VEND_NN" id from the seed — two decimal digits, like the design's VEND_09.
@@ -66,11 +71,11 @@ Netspace gen_vending_netspace(const TargetDescriptor& desc) {
     b.ns.rooms.reserve(5);
 
     // ── Outer machine ─────────────────────────────────────────────────
-    // BoxThin frame with no label or content — its Floor interior is
-    // what the shelves and DISPENSE are stamped into.
-    NetRoom& outer = b.add_room(kOuterX, kOuterY, kOuterW, kOuterH, "",
-                                NetRoom::Border::Thin);
-    outer.label_color = net_theme::box_thin_color;
+    // Border-only frame: interior stays Void so the avatar can only
+    // traverse via the pipe corridors between shelves and DISPENSE.
+    NetRoom& outer = b.add_room_outline(kOuterX, kOuterY, kOuterW, kOuterH, "",
+                                        NetRoom::Border::Thin);
+    (void)outer;
 
     // ── Three shelf nodes ─────────────────────────────────────────────
     // Per the design-doc sample, the trio reads ▓ ░ ▒ left-to-right.
@@ -101,9 +106,9 @@ Netspace gen_vending_netspace(const TargetDescriptor& desc) {
     // connect() picks vertical-dominant routing (centers differ more in
     // y than x) and stamp_v skips Box* cells, so each pipe runs cleanly
     // through the two Floor rows between shelf bottom and DISPENSE top.
-    b.connect(shelf1, dispense, NetPipe::Style::Double);
-    b.connect(shelf2, dispense, NetPipe::Style::Double);
-    b.connect(shelf3, dispense, NetPipe::Style::Double);
+    b.connect_vertical(shelf1, dispense, NetPipe::Style::Double);
+    b.connect_vertical(shelf2, dispense, NetPipe::Style::Double);
+    b.connect_vertical(shelf3, dispense, NetPipe::Style::Double);
 
     // Avatar spawns inside DISPENSE on its bottom_content row.
     b.set_jack_in(dispense);
@@ -114,23 +119,36 @@ Netspace gen_vending_netspace(const TargetDescriptor& desc) {
     // and — crucially — for those cells to be passable so the avatar can
     // walk between DISPENSE and the shelves via the pipes.
     const int dispense_top = kDispenseY;
-    b.ns.set(kShelf1X + kShelfW / 2, dispense_top, NetTile::PipeJunc);
-    b.ns.set(kShelf2X + kShelfW / 2, dispense_top, NetTile::PipeJunc);
-    b.ns.set(kShelf3X + kShelfW / 2, dispense_top, NetTile::PipeJunc);
+    b.ns.set(kShelf1X + kShelfW / 2, dispense_top, NetTile::PipePortV);
+    b.ns.set(kShelf2X + kShelfW / 2, dispense_top, NetTile::PipePortV);
+    b.ns.set(kShelf3X + kShelfW / 2, dispense_top, NetTile::PipePortV);
+
+    // Matching ports where each pipe exits the shelf's BoxDouble bottom
+    // edge — renders ╦ so the pipe connects through the shelf border.
+    const int shelf_bottom = kShelfY + kShelfH - 1;
+    b.ns.set(kShelf1X + kShelfW / 2, shelf_bottom, NetTile::PipePortDownD);
+    b.ns.set(kShelf2X + kShelfW / 2, shelf_bottom, NetTile::PipePortDownD);
+    b.ns.set(kShelf3X + kShelfW / 2, shelf_bottom, NetTile::PipePortDownD);
 
     // ── Exit ──────────────────────────────────────────────────────────
-    // Open a port through DISPENSE's right wall at the avatar row and
-    // place the Exit tile two steps further right on outer floor. The
-    // wall stays visually intact (BoxThin │ at that cell);
-    // make_passable lets the avatar phase through that one cell.
+    // Open a port through DISPENSE's right wall at the avatar row, then
+    // lay a horizontal pipe to the exit. The outer interior is now Void
+    // (not Floor), so the pipe is the only walkable path to the Exit.
     const int avatar_y       = kDispenseY + kDispenseH - 2;  // bottom_content row
     const int dispense_right = kDispenseX + kDispenseW - 1;
+    const int exit_x         = kOuterX + kOuterW - 2;
+    const int exit_y         = avatar_y;
+
+    // Open the DISPENSE right-edge port (border stays visible, passable).
     b.make_passable(dispense_right, avatar_y);
 
-    // Place the exit on outer floor, one cell shy of the outer right wall
-    // so it stays inside the machine frame.
-    const int exit_x = kOuterX + kOuterW - 2;
-    const int exit_y = avatar_y;
+    // Lay a horizontal pipe from just outside DISPENSE's right wall to the
+    // cell before the exit. Pipes are passable by default.
+    for (int x = dispense_right + 1; x < exit_x; ++x) {
+        b.ns.set(x, exit_y, NetTile::PipeH);
+    }
+
+    // Place the Exit at the end of the pipe.
     b.ns.set(exit_x, exit_y, NetTile::Exit);
     b.ns.exit_x = exit_x;
     b.ns.exit_y = exit_y;
