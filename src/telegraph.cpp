@@ -127,7 +127,7 @@ void Telegraph::recompute(const Game& game) {
                 int tx = cursor_x_ + dx;
                 int ty = cursor_y_ + dy;
                 bool blocked = preview_.blocked_los;
-                if (!is_passable(tx, ty)) {
+                if (spec_.require_walkable_dest && !is_passable(tx, ty)) {
                     blocked = true;
                 }
                 preview_.path.push_back({tx, ty, blocked});
