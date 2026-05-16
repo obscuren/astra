@@ -110,6 +110,8 @@ This also means the In-Net UI window is a **single development target**. Buildin
 
 ## The Jack-In Ritual
 
+*Implemented in Phase 3.*
+
 The transition between meatspace and netspace is the moment the player commits. It must feel ritualistic — long enough to register as a decision, short enough not to annoy on the hundredth run. **Target: 2–3 seconds, 6 frames, skippable after first run with a held key.**
 
 Mechanically, this is the sequence that **opens the In-Net UI window** on top of the still-running meatworld UI. The meatworld continues to render and tick throughout the entire sequence — the In-Net UI window is what is opening, not the meatworld closing. The animation plays *inside the new window* as it materializes. From frame 3 onward, the window is open and rendering — first in unstable, dissolving states (frames 3–5), then snapping into its stable rendering mode at frame 6, at which point the net playfield is fully drawn inside the window. Jack-out plays this in reverse, with the window closing at the end.
@@ -957,6 +959,8 @@ How much the player can see about the enemy's plan is itself a progression axis:
 | Blackwall entity | Lies — the readout shows wrong information |
 
 ### Critical States
+
+*Implemented in Phase 3.*
 
 Critical states are render modes of the **In-Net UI window**. Each state transition is the window mutating its own rendering rules — borders, vitals readout, command line, glyph rendering — to reflect the Drifter's deteriorating situation. The map data underneath remains accurate; the *window rendering it* is what becomes unreliable.
 
