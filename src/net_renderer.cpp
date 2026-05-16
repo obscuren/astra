@@ -1145,7 +1145,48 @@ void draw_window_sequence(Renderer& r, const WindowRect& wr,
             default: break;   // case 5: instant; loop clears, normal render next frame
         }
     }
-    // else if ClosingNormal / ClosingPanic / ForcedHold: Task 7
+    else if (q.kind == WindowSeqKind::ClosingNormal) {
+        switch (q.frame_index) {
+            case 1: {
+                int bx = wr.x + wr.w/2 - 7, by = wr.y + wr.h/2 - 3;
+                for (int i = 0; i < 14; ++i) {
+                    r.draw_glyph(bx+i, by,   "\xe2\x95\x8c", Color::DarkGray);
+                    r.draw_glyph(bx+i, by+6, "\xe2\x95\x8c", Color::DarkGray);
+                }
+                for (int j = 0; j < 6; ++j) {
+                    r.draw_glyph(bx,    by+j, "\xe2\x95\x8e", Color::DarkGray);
+                    r.draw_glyph(bx+14, by+j, "\xe2\x95\x8e", Color::DarkGray);
+                }
+                center(wr.h-2, "disconnecting...", Color::Cyan);
+                break;
+            }
+            case 2:
+                for (int j = 1; j < wr.h-1; ++j)
+                    for (int i = 1; i < wr.w-1; ++i)
+                        if (((i*7 + j*13 + phase) % 9) == 0)
+                            r.draw_glyph(wr.x+i, wr.y+j, "\xe2\x96\x92", Color::Cyan);
+                break;
+            case 3: fill("\xe2\x96\x93", Color::Cyan); break;
+            case 4: fill(" ", Color::DarkGray); break;
+            default: break;
+        }
+    }
+    else if (q.kind == WindowSeqKind::ClosingPanic) {
+        if (q.frame_index >= 3) {
+            fill("\xe2\x96\x88", Color::Red);
+        } else {
+            for (int j = 1; j < wr.h-1; ++j)
+                for (int i = 1; i < wr.w-1; ++i)
+                    if (((i + j + phase) % 2) == 0)
+                        r.draw_glyph(wr.x+i, wr.y+j, "\xe2\x96\x93", Color::Red);
+            center(wr.h/2, "DISCONNECT", Color::Red);
+        }
+    }
+    else if (q.kind == WindowSeqKind::ForcedHold) {
+        fill("\xe2\x96\x88", Color::Red);
+        center(wr.h/2 - 1, "AVATAR LOST", Color::BrightWhite);
+        center(wr.h/2 + 1, "connection severed", Color::Red);
+    }
     // else if BlackIceTakeover: Task 8
 }
 

@@ -28,6 +28,7 @@ struct MapRenderContext {
     const AnimationManager* animations = nullptr;
     const QuestManager* quests = nullptr;   // for NPC quest markers
     bool reveal_traps_debug = false;        // dev override: render hidden traps
+    bool panic_meat_glitch  = false;        // one-frame corrupted ~@~ after panic jack-out
 };
 
 void render_map(const MapRenderContext& ctx);

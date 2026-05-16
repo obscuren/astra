@@ -508,6 +508,14 @@ void render_map(const MapRenderContext& rc) {
                                                              : Color::BrightWhite;
                 rc.renderer->draw_char(sx, sy, '@', pulse);
             }
+            // One-frame corrupted glyph after a panic jack-out.
+            if (rc.panic_meat_glitch) {
+                int sx = rc.map_rect.x + (rc.player.x - rc.camera_x);
+                int sy = rc.map_rect.y + (rc.player.y - rc.camera_y);
+                rc.renderer->draw_char(sx - 1, sy, '~', Color::Red);
+                rc.renderer->draw_char(sx,     sy, '@', Color::Red);
+                rc.renderer->draw_char(sx + 1, sy, '~', Color::Red);
+            }
         }
     }
 

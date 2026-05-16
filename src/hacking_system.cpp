@@ -66,7 +66,7 @@ bool HackingSystem::has_seen_ritual() const {
     return s_seen_ritual;
 }
 
-void HackingSystem::on_window_sequence_complete(Game& /*game*/) {
+void HackingSystem::on_window_sequence_complete(Game& game) {
     if (!session_) return;
     WindowSeqKind k = finished_seq_;
     finished_seq_ = WindowSeqKind::None;
@@ -80,7 +80,13 @@ void HackingSystem::on_window_sequence_complete(Game& /*game*/) {
         play_sound_hook("jack_in_arrive");
         return;
     }
-    // Closing variants: Task 7. Takeover: Task 8.
+    if (k == WindowSeqKind::ClosingNormal || k == WindowSeqKind::ClosingPanic
+        || k == WindowSeqKind::ForcedHold) {
+        if (k == WindowSeqKind::ClosingPanic) panic_meat_glitch_ = true;
+        finalize_jack_out_(game, pending_jack_out_);
+        return;
+    }
+    // Takeover: Task 8.
 }
 
 // Stub — real impl lands in Task 8.
@@ -533,6 +539,37 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
 }
 
 void HackingSystem::jack_out(Game& game, JackOutKind kind) {
+    if (!session_) return;
+    auto& s = *session_;
+    if (in_blocking_transition()) return;   // already tearing down
+    pending_jack_out_ = kind;
+    switch (kind) {
+        case JackOutKind::Voluntary:
+            s.netspace.window_state = WindowState::Closing;
+            s.window_seq = WindowSequence{};
+            s.window_seq.kind = WindowSeqKind::ClosingNormal;
+            play_sound_hook("jack_out_normal");
+            return;
+        case JackOutKind::HardJackOut:
+            s.netspace.window_state = WindowState::Closing;
+            s.window_seq = WindowSequence{};
+            s.window_seq.kind = WindowSeqKind::ClosingPanic;
+            play_sound_hook("jack_out_panic");
+            return;
+        case JackOutKind::NonBlackDeath:
+        case JackOutKind::BlackIceDeath:
+            s.netspace.window_state = WindowState::Closing;
+            s.window_seq = WindowSequence{};
+            s.window_seq.kind = WindowSeqKind::ForcedHold;
+            play_sound_hook("jack_out_forced");
+            return;
+        case JackOutKind::SoftDisconnect:
+            finalize_jack_out_(game, kind);   // load-time recovery: immediate
+            return;
+    }
+}
+
+void HackingSystem::finalize_jack_out_(Game& game, JackOutKind kind) {
     if (!session_) return;
     auto& s = *session_;
 

@@ -1078,9 +1078,13 @@ void Game::render_play() {
     UIContext sep_ctx(renderer_.get(), separator_rect_);
     sep_ctx.separator({.vertical = true});
 
-    render_map({renderer_.get(), map_rect_, world_, player_, combat_, hacking_, input_,
-                camera_x_, camera_y_, &animations_, &quest_manager_,
-                reveal_traps_debug_});
+    {
+        MapRenderContext mrc{renderer_.get(), map_rect_, world_, player_, combat_, hacking_,
+                             input_, camera_x_, camera_y_, &animations_, &quest_manager_,
+                             reveal_traps_debug_};
+        mrc.panic_meat_glitch = (state_ != GameState::Net) ? hacking_.consume_panic_meat_glitch() : false;
+        render_map(mrc);
+    }
 
     // Skip world Telegraph render when a Grid session is active — the Grid
     // renderer draws Telegraph in its own playfield rect, otherwise the

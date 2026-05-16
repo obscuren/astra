@@ -145,6 +145,12 @@ private:
     void spawn_black_ice_(NetSession& s);
     void spawn_gray_ice_reinforcement_(NetSession& s);
 
+    // Performs the actual teardown (loot commit, effect application,
+    // GameOver path, state restore, session reset). Called immediately for
+    // SoftDisconnect and deferred (via on_window_sequence_complete) for all
+    // other kinds.
+    void finalize_jack_out_(Game& game, JackOutKind kind);
+
     // Resolve the sector for `node` into `s.sector`, applying any persisted
     // mutations from `lan_metadata`. Pure data-side helper — does NOT touch
     // avatar position, ICE, or session identity.

@@ -179,14 +179,18 @@ void Game::run() {
             s->animations.tick();
             WindowSeqKind fin = advance_window_sequence(*s);   // wall-clock; see below
             hacking_.notify_sequence_finished(fin);
-            hacking_.on_window_sequence_complete(*this);
-
-            // Net corruption effects (border crawl, title flicker, log
-            // corruption) are wall-clock — advance blink unconditionally every
-            // iteration while a sequence or corruption state is active.
-            // The key==-1 branch above skips its hacking_.tick_blink() call in
-            // this case, so this is the single authoritative advance point,
-            // ensuring exactly one tick_blink() per loop iteration.
+            hacking_.on_window_sequence_complete(*this);   // may reset session_ (finalize_jack_out_)
+        }
+        // Re-query: on_window_sequence_complete may have torn the session down
+        // (finalize_jack_out_ -> session_.reset()). Never reuse the pre-completion
+        // pointer past this point.
+        // Net corruption effects (border crawl, title flicker, log
+        // corruption) are wall-clock — advance blink unconditionally every
+        // iteration while a sequence or corruption state is active.
+        // The key==-1 branch above skips its hacking_.tick_blink() call in
+        // this case, so this is the single authoritative advance point,
+        // ensuring exactly one tick_blink() per loop iteration.
+        if (auto* s = hacking_.session()) {
             if (s->window_seq.active()
                 || s->netspace.window_state == WindowState::Stressed
                 || s->netspace.window_state == WindowState::Hunted
