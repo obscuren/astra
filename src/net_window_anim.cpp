@@ -45,12 +45,39 @@ WindowState window_band(int trace, WindowState prev, bool black_ice_present) {
     return prev;                            // hold the higher band
 }
 
-// hp_lie / ram_lie / window_seq_advance / window_seq_frame_count:
-// implemented in Tasks 3 and 6. Provide compiling stubs now.
-std::string hp_lie(int true_pct, WindowState, uint32_t) {
-    char b[8]; std::snprintf(b, sizeof(b), "%d", true_pct); return b;
+std::string hp_lie(int true_pct, WindowState ws, uint32_t phase) {
+    if (true_pct < 0) true_pct = 0;
+    if (true_pct > 100) true_pct = 100;
+    char buf[8];
+    std::snprintf(buf, sizeof(buf), "%d", true_pct);
+    std::string s(buf);
+    if (ws != WindowState::Hunted && ws != WindowState::Critical &&
+        ws != WindowState::Blackwall)
+        return s;
+    // Per-digit corruption probability (out of 1000). Hunted ~350,
+    // Critical/Blackwall ~800.
+    uint32_t pmil = (ws == WindowState::Hunted) ? 350u : 800u;
+    for (size_t i = 0; i < s.size(); ++i) {
+        uint32_t h = hash32(phase * 131u + static_cast<uint32_t>(i) * 977u
+                            + static_cast<uint32_t>(true_pct) * 17u);
+        if (h % 1000u < pmil) {
+            uint32_t pick = (h >> 10) % 11u;     // 0..9 -> digit, 10 -> '?'
+            s[i] = (pick == 10u) ? '?' : static_cast<char>('0' + pick);
+        }
+    }
+    return s;
 }
-int ram_lie(int true_ram, int, WindowState, uint32_t) { return true_ram; }
+
+int ram_lie(int true_ram, int ram_max, WindowState ws, uint32_t turn_seed) {
+    if (ws != WindowState::Critical && ws != WindowState::Blackwall)
+        return true_ram;
+    uint32_t h = hash32(turn_seed * 2654435761u + 0x9E3779B9u);
+    int bump = 1 + static_cast<int>(h % 2u);     // +1..+2, biased high
+    int shown = true_ram + bump;
+    if (shown > ram_max) shown = ram_max;
+    if (shown < 0) shown = 0;
+    return shown;
+}
 int window_seq_frame_count(WindowSeqKind) { return 0; }
 void window_seq_advance(WindowSequence& q) { q.kind = WindowSeqKind::None; }
 

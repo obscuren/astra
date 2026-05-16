@@ -338,9 +338,31 @@ static void cmd_spawn_trap(DevConsole& con, Game& game, const std::string& kind_
     con.log("Spawned " + display_name(k));
 }
 
-// Stub — real impl lands in Task 3.
 static void run_net_selftest(DevConsole& con) {
-    con.log("net selftest: (stub)");
+    int fails = 0;
+    auto check = [&](bool ok, const std::string& what) {
+        if (!ok) { ++fails; con.log("FAIL " + what); }
+    };
+    using astra::WindowState;
+    // window_band: thresholds + hysteresis + black-ice pin
+    check(astra::window_band(0,  WindowState::Stable, false) == WindowState::Stable,   "band@0");
+    check(astra::window_band(45, WindowState::Stable, false) == WindowState::Stressed, "band@45");
+    check(astra::window_band(80, WindowState::Stable, false) == WindowState::Hunted,   "band@80");
+    check(astra::window_band(97, WindowState::Stable, false) == WindowState::Critical, "band@97");
+    check(astra::window_band(20, WindowState::Stable, true)  == WindowState::Critical, "blackpin");
+    // de-escalate from Critical: 91 holds, 89 drops
+    check(astra::window_band(91, WindowState::Critical, false) == WindowState::Critical,"hyst-hold");
+    check(astra::window_band(89, WindowState::Critical, false) == WindowState::Hunted,  "hyst-drop");
+    // ram_lie biased high & bounded; stable within a turn seed
+    int a = astra::ram_lie(3, 6, WindowState::Critical, 42);
+    int b = astra::ram_lie(3, 6, WindowState::Critical, 42);
+    check(a == b,            "ram-stable");
+    check(a > 3 && a <= 6,   "ram-biased-bounded");
+    check(astra::ram_lie(3, 6, WindowState::Stable, 42) == 3, "ram-honest-stable");
+    // hp_lie honest at Stable, length-preserving when lying
+    check(astra::hp_lie(82, WindowState::Stable, 1) == "82", "hp-honest");
+    check(astra::hp_lie(82, WindowState::Hunted, 1).size() == 2, "hp-len");
+    con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 
 void DevConsole::execute_command(const std::string& cmd, Game& game) {

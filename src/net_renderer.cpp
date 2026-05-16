@@ -1,6 +1,7 @@
 #include "astra/net_renderer.h"
 
 #include "astra/cyberdeck.h"
+#include "astra/net_window_anim.h"
 #include "astra/game.h"
 #include "astra/net_camera.h"
 #include "astra/net_ice.h"
@@ -422,9 +423,16 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
     x += 3;
     draw_block_gauge(r, x, y, s.avatar_hp_max, clamp_filled(s.avatar_hp, s.avatar_hp_max), Color::Cyan);
     x += s.avatar_hp_max;
+    int hp_pct = s.avatar_hp_max > 0
+               ? (s.avatar_hp * 100 / s.avatar_hp_max) : 0;
+    std::string hp_str = hp_lie(hp_pct, s.netspace.window_state,
+                                static_cast<uint32_t>(game.hacking().blink_phase()));
     char hp_buf[24];
-    std::snprintf(hp_buf, sizeof(hp_buf), " %3d/%-3d ", s.avatar_hp, s.avatar_hp_max);
-    draw_colored_string(r, x, y, hp_buf, Color::Cyan);
+    std::snprintf(hp_buf, sizeof(hp_buf), " %s%% ", hp_str.c_str());
+    draw_colored_string(r, x, y, hp_buf,
+        (s.netspace.window_state == WindowState::Hunted ||
+         s.netspace.window_state == WindowState::Critical)
+            ? Color::Magenta : Color::Cyan);
     x += static_cast<int>(std::strlen(hp_buf));
 
     // RAM
@@ -433,8 +441,9 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
     Color ram_col = (s.ram < 5) ? Color::DarkGray : Color::Cyan;
     draw_block_gauge(r, x, y, s.ram_max, clamp_filled(s.ram, s.ram_max), ram_col);
     x += s.ram_max;
+    int ram_shown = ram_lie(s.ram, s.ram_max, s.netspace.window_state, s.net_turn);
     char ram_buf[24];
-    std::snprintf(ram_buf, sizeof(ram_buf), " %2d/%-2d ", s.ram, s.ram_max);
+    std::snprintf(ram_buf, sizeof(ram_buf), " %2d/%-2d ", ram_shown, s.ram_max);
     draw_colored_string(r, x, y, ram_buf, ram_col);
     x += static_cast<int>(std::strlen(ram_buf));
 
