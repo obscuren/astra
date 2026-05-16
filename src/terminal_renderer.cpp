@@ -47,7 +47,7 @@ static volatile sig_atomic_t s_resized = 0;
 
 static void restore_terminal() {
     if (s_raw_mode) {
-        const char seq[] = "\033[0m\033[?25h\033[?1049l";
+        const char seq[] = "\033[0m\033[?25h\033[?1049l\033[?1002l\033[?1006l";
         write(STDOUT_FILENO, seq, sizeof(seq) - 1);
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &s_orig_termios);
         s_raw_mode = 0;
@@ -68,7 +68,7 @@ static void sigwinch_handler(int) {
 static void sigtstp_handler(int) {
     // Restore terminal before suspending
     restore_terminal();
-    std::printf("\033[0m\033[?25h\033[?1049l"); // reset colors, show cursor, main screen
+    std::printf("\033[0m\033[?25h\033[?1049l\033[?1002l\033[?1006l"); // reset, show cursor, main screen, drop mouse
     std::fflush(stdout);
     std::fprintf(stderr,
         "\n"
@@ -90,9 +90,10 @@ static void sigcont_handler(int) {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     s_raw_mode = 1;
 
-    // Restore alternate screen, hide cursor
+    // Restore alternate screen, hide cursor, re-claim mouse
     std::printf("\033[?1049h");
     std::printf("\033[?25l");
+    std::printf("\033[?1002h\033[?1006h");
     std::fflush(stdout);
 
     // Re-register SIGTSTP handler (was reset to SIG_DFL before suspend)
@@ -184,9 +185,12 @@ void TerminalRenderer::init() {
 
     rebuild_buffer();
 
-    // Hide cursor, switch to alternate screen
+    // Hide cursor, switch to alternate screen, claim the mouse so the
+    // terminal stops doing native click-drag selection (Shift+drag still
+    // copies). Mouse reports are absorbed by decode_escape_sequence().
     std::printf("\033[?1049h");
     std::printf("\033[?25l");
+    std::printf("\033[?1002h\033[?1006h");
     std::fflush(stdout);
 }
 
