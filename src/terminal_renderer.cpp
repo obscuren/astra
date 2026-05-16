@@ -421,6 +421,137 @@ void TerminalRenderer::check_resize() {
     }
 }
 
+// Decodes an escape sequence after the leading ESC (\033) has already been
+// consumed. All subsequent bytes are read here via STDIN (non-blocking raw
+// mode is already in effect at every call site). Returns a Key code, a raw
+// byte, KEY_MOUSE (with `mouse` populated), or '\033' for an unrecognised /
+// truncated sequence. Centralising this prevents the three input paths from
+// drifting and is the single place mouse sequences are absorbed so they never
+// leak into the game as junk keystrokes.
+static int decode_escape_sequence(MouseEvent& mouse /* out */) {
+    char seq0;
+    if (read(STDIN_FILENO, &seq0, 1) != 1) return '\033';
+
+    if (seq0 == 'O') {
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) return '\033';
+        switch (c) {
+            case 'P': return KEY_F1;
+            case 'Q': return KEY_F2;
+            case 'R': return KEY_F3;
+            case 'S': return KEY_F4;
+        }
+        return '\033';
+    }
+
+    if (seq0 != '[') return '\033';
+
+    char seq1;
+    if (read(STDIN_FILENO, &seq1, 1) != 1) return '\033';
+
+    // --- SGR 1006 mouse: ESC [ < b ; x ; y (M|m) ---
+    if (seq1 == '<') {
+        char body[32];
+        int n = 0;
+        char term = 0;
+        while (n < static_cast<int>(sizeof(body)) - 1) {
+            char c;
+            if (read(STDIN_FILENO, &c, 1) != 1) return '\033';
+            if (c == 'M' || c == 'm') { term = c; break; }
+            body[n++] = c;
+        }
+        body[n] = '\0';
+        if (term == 0) return '\033';
+
+        int bcode = 0, col = 0, row = 0;
+        if (std::sscanf(body, "%d;%d;%d", &bcode, &col, &row) != 3) return '\033';
+
+        mouse = MouseEvent{};
+        mouse.x = col > 0 ? col - 1 : 0;
+        mouse.y = row > 0 ? row - 1 : 0;
+
+        if (bcode & 0x40) {                       // wheel
+            mouse.button = (bcode & 0x01) ? MouseButton::WheelDown
+                                          : MouseButton::WheelUp;
+            mouse.action = MouseAction::Press;
+            // wheel events only ever terminate with 'M'; 'm' is never sent
+        } else {
+            switch (bcode & 0x03) {
+                case 0:  mouse.button = MouseButton::Left;   break;
+                case 1:  mouse.button = MouseButton::Middle; break;
+                case 2:  mouse.button = MouseButton::Right;  break;
+                default: mouse.button = MouseButton::None;   break;
+            }
+            if (term == 'm')            mouse.action = MouseAction::Release;
+            else if (bcode & 0x20)      mouse.action = MouseAction::Drag;
+            else                        mouse.action = MouseAction::Press;
+        }
+        return KEY_MOUSE;
+    }
+
+    // --- Legacy X10 mouse: ESC [ M b x y  (3 bytes, +32 offset) ---
+    if (seq1 == 'M') {
+        char b3[3];
+        for (int i = 0; i < 3; ++i) {
+            if (read(STDIN_FILENO, &b3[i], 1) != 1) return '\033';
+        }
+        int bcode = static_cast<unsigned char>(b3[0]) - 32;
+        int col   = static_cast<unsigned char>(b3[1]) - 32;
+        int row   = static_cast<unsigned char>(b3[2]) - 32;
+
+        mouse = MouseEvent{};
+        mouse.x = col > 0 ? col - 1 : 0;
+        mouse.y = row > 0 ? row - 1 : 0;
+
+        if (bcode & 0x40) {
+            mouse.button = (bcode & 0x01) ? MouseButton::WheelDown
+                                          : MouseButton::WheelUp;
+            mouse.action = MouseAction::Press;
+            // wheel events only ever terminate with 'M'; 'm' is never sent
+        } else {
+            switch (bcode & 0x03) {
+                case 0:  mouse.button = MouseButton::Left;   break;
+                case 1:  mouse.button = MouseButton::Middle; break;
+                case 2:  mouse.button = MouseButton::Right;  break;
+                default: mouse.button = MouseButton::None;   break;  // 3 = release
+            }
+            if ((bcode & 0x03) == 3)  mouse.action = MouseAction::Release;
+            else if (bcode & 0x20)    mouse.action = MouseAction::Drag;
+            else                      mouse.action = MouseAction::Press;
+        }
+        return KEY_MOUSE;
+    }
+
+    // --- Non-mouse CSI keys ---
+    switch (seq1) {
+        case 'A': return KEY_UP;
+        case 'B': return KEY_DOWN;
+        case 'C': return KEY_RIGHT;
+        case 'D': return KEY_LEFT;
+        case 'Z': return KEY_SHIFT_TAB;
+        case '3': case '5': case '6': {
+            char tilde;
+            if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                if (seq1 == '3') return KEY_DELETE;
+                return seq1 == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
+            }
+            break;
+        }
+        case '1': {
+            char c3, tilde;
+            if (read(STDIN_FILENO, &c3, 1) == 1 &&
+                read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
+                if (c3 == '1') return KEY_F1;
+                if (c3 == '2') return KEY_F2;
+                if (c3 == '3') return KEY_F3;
+                if (c3 == '4') return KEY_F4;
+            }
+            break;
+        }
+    }
+    return '\033';
+}
+
 int TerminalRenderer::poll_input() {
     check_resize();
 
@@ -429,26 +560,8 @@ int TerminalRenderer::poll_input() {
         return -1;
     }
 
-    // Escape sequence: arrow keys are \033 [ A/B/C/D
     if (ch == '\033') {
-        char seq[2];
-        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\033';
-        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\033';
-        if (seq[0] == '[') {
-            switch (seq[1]) {
-                case 'A': return KEY_UP;
-                case 'B': return KEY_DOWN;
-                case 'C': return KEY_RIGHT;
-                case 'D': return KEY_LEFT;
-            }
-        }
-        if (seq[0] == 'O') {
-            if (seq[1] == 'P') return KEY_F1;
-            if (seq[1] == 'Q') return KEY_F2;
-            if (seq[1] == 'R') return KEY_F3;
-            if (seq[1] == 'S') return KEY_F4;
-        }
-        return '\033';
+        return decode_escape_sequence(last_mouse_);
     }
 
     return static_cast<int>(ch);
@@ -484,44 +597,7 @@ int TerminalRenderer::wait_input() {
     check_resize();
 
     if (ch == '\033') {
-        char seq[2];
-        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\033';
-        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\033';
-        if (seq[0] == '[') {
-            switch (seq[1]) {
-                case 'A': return KEY_UP;
-                case 'B': return KEY_DOWN;
-                case 'C': return KEY_RIGHT;
-                case 'D': return KEY_LEFT;
-                case 'Z': return KEY_SHIFT_TAB;
-                case '3': case '5': case '6': {
-                    char tilde;
-                    if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
-                        if (seq[1] == '3') return KEY_DELETE;
-                        return seq[1] == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
-                    }
-                    break;
-                }
-                case '1': {
-                    char c3, tilde;
-                    if (read(STDIN_FILENO, &c3, 1) == 1 &&
-                        read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
-                        if (c3 == '1') return KEY_F1;
-                        if (c3 == '2') return KEY_F2;
-                        if (c3 == '3') return KEY_F3;
-                        if (c3 == '4') return KEY_F4;
-                    }
-                    break;
-                }
-            }
-        }
-        if (seq[0] == 'O') {
-            if (seq[1] == 'P') return KEY_F1;
-            if (seq[1] == 'Q') return KEY_F2;
-            if (seq[1] == 'R') return KEY_F3;
-            if (seq[1] == 'S') return KEY_F4;
-        }
-        return '\033';
+        return decode_escape_sequence(last_mouse_);
     }
 
     return static_cast<int>(ch);
@@ -551,44 +627,7 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
     if (read(STDIN_FILENO, &ch, 1) != 1) return -1;
 
     if (ch == '\033') {
-        char seq[2];
-        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\033';
-        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\033';
-        if (seq[0] == '[') {
-            switch (seq[1]) {
-                case 'A': return KEY_UP;
-                case 'B': return KEY_DOWN;
-                case 'C': return KEY_RIGHT;
-                case 'D': return KEY_LEFT;
-                case 'Z': return KEY_SHIFT_TAB;
-                case '3': case '5': case '6': {
-                    char tilde;
-                    if (read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
-                        if (seq[1] == '3') return KEY_DELETE;
-                        return seq[1] == '5' ? KEY_PAGE_UP : KEY_PAGE_DOWN;
-                    }
-                    break;
-                }
-                case '1': {
-                    char c3, tilde;
-                    if (read(STDIN_FILENO, &c3, 1) == 1 &&
-                        read(STDIN_FILENO, &tilde, 1) == 1 && tilde == '~') {
-                        if (c3 == '1') return KEY_F1;
-                        if (c3 == '2') return KEY_F2;
-                        if (c3 == '3') return KEY_F3;
-                        if (c3 == '4') return KEY_F4;
-                    }
-                    break;
-                }
-            }
-        }
-        if (seq[0] == 'O') {
-            if (seq[1] == 'P') return KEY_F1;
-            if (seq[1] == 'Q') return KEY_F2;
-            if (seq[1] == 'R') return KEY_F3;
-            if (seq[1] == 'S') return KEY_F4;
-        }
-        return '\033';
+        return decode_escape_sequence(last_mouse_);
     }
 
     return static_cast<int>(ch);
