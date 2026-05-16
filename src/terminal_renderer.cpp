@@ -594,6 +594,10 @@ int TerminalRenderer::wait_input_timeout(int timeout_ms) {
     return static_cast<int>(ch);
 }
 
+MouseEvent TerminalRenderer::last_mouse() const {
+    return last_mouse_;
+}
+
 } // namespace astra
 
 // Semantic rendering implementations — kept after the anonymous namespace

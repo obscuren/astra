@@ -47,6 +47,7 @@ public:
     int poll_input() override;
     int wait_input() override;
     int wait_input_timeout(int timeout_ms) override;
+    MouseEvent last_mouse() const override;
 
 private:
     void check_resize();
@@ -64,6 +65,7 @@ private:
     int height_ = 24;
     std::vector<std::vector<Cell>> buffer_;
     std::string out_buf_;
+    MouseEvent last_mouse_{};
 
     struct Impl;
     std::unique_ptr<Impl> impl_;
