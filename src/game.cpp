@@ -104,14 +104,27 @@ void Game::run() {
 
     while (running_) {
         bool revealing = playback_viewer_.is_revealing();
+        // True when a net corruption/sequence is active and must keep
+        // animating even without player input.
+        auto net_corruption_active = [&]() -> bool {
+            const auto* s = hacking_.session();
+            if (!s) return false;
+            return s->window_seq.active()   // covers all blocking SeqKinds (in_blocking_transition() ⊂ this)
+                || s->netspace.window_state == WindowState::Stressed
+                || s->netspace.window_state == WindowState::Hunted
+                || s->netspace.window_state == WindowState::Critical
+                || s->netspace.window_state == WindowState::Blackwall;
+        };
         bool needs_timeout = combat_.targeting() || input_.looking()
                            || quit_confirm_.open
                            || auto_walking_ || auto_exploring_
                            || animations_.has_any()
-                           || revealing;
+                           || revealing
+                           || net_corruption_active();
         int timeout_ms = revealing                                 ? 33
                        : (auto_walking_ || auto_exploring_)         ? 50
                        : animations_.has_active_effects()           ? 80
+                       : net_corruption_active()                    ? 80
                        : animations_.has_any()                      ? 200
                                                                     : 300;
         int key = needs_timeout ? renderer_->wait_input_timeout(timeout_ms)
@@ -131,7 +144,11 @@ void Game::run() {
         } else if (key == -1) {
             // Timeout — toggle blink phase for reticule
             combat_.tick_blink();
-            hacking_.tick_blink();
+            // hacking_.tick_blink() is called unconditionally below when a
+            // net corruption/sequence is active (to keep exactly one advance
+            // per iteration). Only call it here for the non-corruption case.
+            if (!net_corruption_active())
+                hacking_.tick_blink();
             input_.tick_look_blink();
             // Auto-walk/explore step
             if (auto_walking_ || auto_exploring_) {
@@ -162,6 +179,19 @@ void Game::run() {
             s->animations.tick();
             advance_window_sequence(*s);          // wall-clock; see below
             hacking_.on_window_sequence_complete(*this);
+
+            // Net corruption effects (border crawl, title flicker, log
+            // corruption) are wall-clock — advance blink unconditionally every
+            // iteration while a sequence or corruption state is active.
+            // The key==-1 branch above skips its hacking_.tick_blink() call in
+            // this case, so this is the single authoritative advance point,
+            // ensuring exactly one tick_blink() per loop iteration.
+            if (s->window_seq.active()
+                || s->netspace.window_state == WindowState::Stressed
+                || s->netspace.window_state == WindowState::Hunted
+                || s->netspace.window_state == WindowState::Critical
+                || s->netspace.window_state == WindowState::Blackwall)
+                hacking_.tick_blink();
         }
         playback_viewer_.tick();
         update();

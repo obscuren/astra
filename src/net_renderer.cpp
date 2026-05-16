@@ -150,18 +150,34 @@ void clear_window_interior(Renderer& r, const WindowRect& wr) {
     }
 }
 
-void draw_window_chrome(Renderer& r, const WindowRect& wr) {
+void draw_window_chrome(Renderer& r, const WindowRect& wr,
+                        WindowState ws, int phase) {
+    // Corners are always drawn clean regardless of corruption state.
     r.draw_glyph(wr.x,            wr.y,            "\xe2\x95\x94", kChrome);
     r.draw_glyph(wr.x + wr.w - 1, wr.y,            "\xe2\x95\x97", kChrome);
     r.draw_glyph(wr.x,            wr.y + wr.h - 1, "\xe2\x95\x9a", kChrome);
     r.draw_glyph(wr.x + wr.w - 1, wr.y + wr.h - 1, "\xe2\x95\x9d", kChrome);
+
+    // Border crawl: Hunted+ states replace ~1-in-7 edge cells with §
+    // in a pattern that shifts with the blink phase.
+    auto glitch_at = [&](int idx) {
+        if (ws != WindowState::Hunted && ws != WindowState::Critical &&
+            ws != WindowState::Blackwall) return false;
+        return ((idx + phase / 3) % 7) == 0;
+    };
     for (int i = 1; i < wr.w - 1; ++i) {
-        r.draw_glyph(wr.x + i, wr.y,            "\xe2\x95\x90", kChrome);
-        r.draw_glyph(wr.x + i, wr.y + wr.h - 1, "\xe2\x95\x90", kChrome);
+        bool g = glitch_at(i);
+        r.draw_glyph(wr.x + i, wr.y,            g ? "\xc2\xa7" : "\xe2\x95\x90",
+                     g ? Color::Magenta : kChrome);
+        r.draw_glyph(wr.x + i, wr.y + wr.h - 1, g ? "\xc2\xa7" : "\xe2\x95\x90",
+                     g ? Color::Magenta : kChrome);
     }
     for (int j = 1; j < wr.h - 1; ++j) {
-        r.draw_glyph(wr.x,            wr.y + j, "\xe2\x95\x91", kChrome);
-        r.draw_glyph(wr.x + wr.w - 1, wr.y + j, "\xe2\x95\x91", kChrome);
+        bool g = glitch_at(j + wr.w);
+        r.draw_glyph(wr.x,            wr.y + j, g ? "\xc2\xa7" : "\xe2\x95\x91",
+                     g ? Color::Magenta : kChrome);
+        r.draw_glyph(wr.x + wr.w - 1, wr.y + j, g ? "\xc2\xa7" : "\xe2\x95\x91",
+                     g ? Color::Magenta : kChrome);
     }
 }
 
@@ -372,6 +388,20 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
         char pct_buf[16];
         std::snprintf(pct_buf, sizeof(pct_buf), " %3d%%", s.trace);
         draw_colored_string(r, trace_label_x + 11, y, pct_buf, Color::Cyan);
+    }
+
+    // Title-bar flicker: Stressed+ states scatter § glitches across the
+    // title row. Stressed gets 1 glitch cell; Hunted/Critical/Blackwall get 3.
+    WindowState ws = s.netspace.window_state;
+    if (ws == WindowState::Stressed || ws == WindowState::Hunted ||
+        ws == WindowState::Critical || ws == WindowState::Blackwall) {
+        int ph = game.hacking().blink_phase();
+        int n_glitch = (ws == WindowState::Stressed) ? 1 : 3;
+        for (int g = 0; g < n_glitch; ++g) {
+            int cx = wr.x + 2 + ((ph * 7 + g * 13) % std::max(1, wr.w - 6));
+            if ((ph / 5 + g) % 3 == 0)
+                r.draw_glyph(cx, y, "\xc2\xa7", Color::Magenta);
+        }
     }
 }
 
@@ -673,7 +703,8 @@ std::string colorize_leading_tag(const std::string& line) {
     return colored(tag, tag_color(tag)) + line.substr(close + 1);
 }
 
-void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s) {
+void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s,
+                   int phase) {
     int rows = lr.h;
     if (rows < 1) return;
     int max_w = lr.w - 2;
@@ -692,6 +723,21 @@ void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s) {
     int start = std::max(0, total - rows);
     for (int i = 0; i < rows && start + i < total; ++i) {
         draw_colored_string(r, lr.x + 1, lr.y + i, wrapped[start + i], Color::White);
+    }
+
+    // Command-line glitch: Hunted+ states corrupt ~20% of the last visible
+    // log row with § glyphs, crawling with the blink phase.
+    if (s.netspace.window_state == WindowState::Hunted ||
+        s.netspace.window_state == WindowState::Critical ||
+        s.netspace.window_state == WindowState::Blackwall) {
+        int last = std::min(rows, total) - 1;
+        if (last >= 0) {
+            int yrow = lr.y + last;
+            for (int cx = 0; cx < lr.w - 2; ++cx) {
+                if ((cx * 31 + phase) % 5 == 0)
+                    r.draw_glyph(lr.x + 1 + cx, yrow, "\xc2\xa7", Color::Magenta);
+            }
+        }
     }
 }
 
@@ -1076,7 +1122,8 @@ void render(Game& game, Renderer& r) {
     // Chrome — outer border + horizontal separators + column split. With
     // a subtitle row inserted at row 2, every downstream row shifts down
     // by sub_rows; without one, the layout is unchanged.
-    draw_window_chrome(r, wr);
+    draw_window_chrome(r, wr, sess->netspace.window_state,
+                       game.hacking().blink_phase());
     draw_horizontal_separator(r, wr, 2 + sub_rows);       // below title (+ subtitle)
     draw_horizontal_separator(r, wr, 4 + sub_rows);       // below deck strip
     draw_horizontal_separator(r, wr, wr.h - 3);           // above program bar
@@ -1088,7 +1135,7 @@ void render(Game& game, Renderer& r) {
     draw_deck_strip(game, r, wr, *sess, sub_rows);
 
     draw_playfield(game, r, pr, *sess);
-    draw_log_pane(r, lr, *sess);
+    draw_log_pane(r, lr, *sess, game.hacking().blink_phase());
     draw_program_bar(game, r, wr, *sess);
 }
 
