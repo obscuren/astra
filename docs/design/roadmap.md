@@ -170,6 +170,7 @@
 - [x] **Ability bar** — display and activate learned abilities (keys 1-5)
 - [x] **Ability bar rows** — 3-row paged hotbar, persistent slot assignments on Player, auto-assign on learn, compact on remove, PgUp/PgDn paging with wrap
 - [x] **Message log scrollback** — scroll through message history
+- [x] **Terminal mouse capture** (2026-05-17) — `TerminalRenderer` claims DECSET `?1002`+`?1006` so the emulator stops doing native click-drag selection over the viewport (Shift+drag still copies). The three input parsers were consolidated into one helper that decodes SGR-1006 / legacy-X10 mouse reports into an abstract `MouseEvent`, surfaced via `Renderer::last_mouse()` behind a new `KEY_MOUSE` sentinel. No gameplay consumers yet.
 - [x] **Quest tab categorization** — Main Missions / Contracts / Bounties / Completed; arcs rendered under Main with active, locked (title/hidden), and completed steps inline
 - [ ] **Item comparison** — show stat diff when hovering equipment
 - [ ] **Character panel tab memory** — remember the last active tab; reopening shows the same tab
