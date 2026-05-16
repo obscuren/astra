@@ -461,7 +461,8 @@ void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
     std::snprintf(hp_buf, sizeof(hp_buf), " %s%% ", hp_str.c_str());
     draw_colored_string(r, x, y, hp_buf,
         (s.netspace.window_state == WindowState::Hunted ||
-         s.netspace.window_state == WindowState::Critical)
+         s.netspace.window_state == WindowState::Critical ||
+         s.netspace.window_state == WindowState::Blackwall)
             ? Color::Magenta : Color::Cyan);
     x += static_cast<int>(std::strlen(hp_buf));
 
@@ -1187,7 +1188,27 @@ void draw_window_sequence(Renderer& r, const WindowRect& wr,
         center(wr.h/2 - 1, "AVATAR LOST", Color::BrightWhite);
         center(wr.h/2 + 1, "connection severed", Color::Red);
     }
-    // else if BlackIceTakeover: Task 8
+    else if (q.kind == WindowSeqKind::BlackIceTakeover) {
+        // Black interior, then a centered heavy box + lethal announcement.
+        for (int j=1;j<wr.h-1;++j) for (int i=1;i<wr.w-1;++i)
+            r.draw_glyph(wr.x+i, wr.y+j, " ", Color::Black);
+        int bw = 14, bh = 8;
+        int bx = wr.x + (wr.w - bw)/2;
+        int by = wr.y + (wr.h - bh)/2;
+        for (int i=0;i<bw;++i) {
+            r.draw_glyph(bx+i, by,        "\xe2\x96\x93", Color::Red);
+            r.draw_glyph(bx+i, by+bh-1,   "\xe2\x96\x93", Color::Red);
+        }
+        for (int j=0;j<bh;++j) {
+            r.draw_glyph(bx,        by+j, "\xe2\x96\x93", Color::Red);
+            r.draw_glyph(bx+bw-1,   by+j, "\xe2\x96\x93", Color::Red);
+        }
+        center(wr.h/2 - 1, "YOU",  Color::BrightWhite);
+        center(wr.h/2,     "ARE",  Color::BrightWhite);
+        center(wr.h/2 + 1, "SEEN", Color::BrightWhite);
+        center(wr.h/2 + 4, "BLACK ICE",        Color::Red);
+        center(wr.h/2 + 5, "initiated lethal", Color::Red);
+    }
 }
 
 } // namespace
@@ -1246,6 +1267,16 @@ void render(Game& game, Renderer& r) {
     draw_playfield(game, r, pr, *sess);
     draw_log_pane(r, lr, *sess, game.hacking().blink_phase());
     draw_program_bar(game, r, wr, *sess);
+
+    if (sess->netspace.window_state == WindowState::Blackwall &&
+        !sess->window_seq.active()) {
+        int ph = game.hacking().blink_phase();
+        const char* zal[] = { "\xce\xa3", "\xce\xa8" };   // Σ Ψ — out-of-vocabulary
+        for (int k=0;k<5;++k) {
+            int i = (ph*3 + k*29) % (wr.w-2) + 1;
+            r.draw_glyph(wr.x+i, wr.y, zal[k&1], Color::Green);
+        }
+    }
 }
 
 } // namespace astra::net_renderer

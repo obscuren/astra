@@ -112,6 +112,9 @@ static void damage_avatar(NetSession& s, Game& game, int dmg, IceColor by) {
     }
     if (has_effect(game.player().effects, EffectId::Invulnerable)) return;
     s.avatar_hp -= dmg;
+    if (by == IceColor::Black && dmg > 0 && s.avatar_hp > 0) {
+        game.hacking().request_takeover();
+    }
 }
 
 static void tick_trace(NetSession& s, Game& game, int amount) {

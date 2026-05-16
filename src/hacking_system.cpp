@@ -86,11 +86,23 @@ void HackingSystem::on_window_sequence_complete(Game& game) {
         finalize_jack_out_(game, pending_jack_out_);
         return;
     }
-    // Takeover: Task 8.
+    if (k == WindowSeqKind::BlackIceTakeover) {
+        bool black = false;
+        for (auto& i : s.ice) if (i.color == IceColor::Black) { black = true; break; }
+        s.netspace.window_state = window_band(s.trace, WindowState::Hunted, black);
+        return;
+    }
 }
 
-// Stub — real impl lands in Task 8.
-void HackingSystem::request_takeover() {}
+void HackingSystem::request_takeover() {
+    if (!session_) return;
+    auto& s = *session_;
+    if (in_blocking_transition()) return;       // don't stomp a jack-out/closing/opening
+    s.netspace.window_state = WindowState::BlackIceTakeover;
+    s.window_seq = WindowSequence{};
+    s.window_seq.kind = WindowSeqKind::BlackIceTakeover;
+    play_sound_hook("black_ice_takeover");
+}
 
 namespace {
 constexpr int kDetectionDecayInterval = 5;   // tick every N world steps, -1 to value
