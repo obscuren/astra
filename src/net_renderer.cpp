@@ -770,7 +770,15 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     };
     auto box_neigh = [&](int x, int y, NetTile style) -> bool {
         if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
-        return s.netspace.at(x, y) == style;
+        const NetTile t = s.netspace.at(x, y);
+        if (t == style) return true;
+        // A pipe-port embedded in a box edge is transparent to corner /
+        // edge resolution — the flanking box cells should render as if
+        // the edge ran continuously through the port (so a ╦/╨/╜ port
+        // doesn't strip the adjacent corners down to straight ║).
+        return t == NetTile::PipePortV
+            || t == NetTile::PipePortCornerTR
+            || t == NetTile::PipePortDownD;
     };
 
     // Per-cell box-glyph resolver: pick corner / edge / junction from
@@ -842,6 +850,26 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     color = net_theme::wall_solid;
                     break;
 
+                case NetTile::Breakwall: {
+                    auto it = s.netspace.breakwall_lookup.find({tx, ty});
+                    if (it != s.netspace.breakwall_lookup.end()) {
+                        const BreakwallGroup& g = s.netspace.breakwalls[it->second];
+                        switch (g.current_density) {
+                            case 1: glyph = net_theme::wall_dot_glyph;   color = net_theme::wall_dot;   break;
+                            case 2: glyph = net_theme::wall_light_glyph; color = net_theme::wall_light; break;
+                            case 3: glyph = net_theme::wall_med_glyph;   color = net_theme::wall_med;   break;
+                            case 4: glyph = net_theme::wall_heavy_glyph; color = net_theme::wall_heavy; break;
+                            case 5: glyph = net_theme::wall_solid_glyph; color = net_theme::wall_solid; break;
+                            default: glyph = " "; color = net_theme::floor; break;
+                        }
+                    } else {
+                        // Orphan Breakwall — shouldn't happen; render as solid wall defensively.
+                        glyph = net_theme::wall_solid_glyph;
+                        color = net_theme::wall_solid;
+                    }
+                    break;
+                }
+
                 // Box borders — resolve per-cell from same-style neighbours.
                 case NetTile::BoxThin:
                     glyph = box_glyph(net_theme::box_thin,
@@ -871,21 +899,33 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                 // Animated data pipes — phase keyed off the frame counter
                 // (hacking_.blink_phase ticks ~60Hz regardless of world
                 // turns) so the pulse keeps moving even while the player
-                // is idle. 15 frames per phase ≈ 250ms cycle step.
+                // is idle. 9 frames per phase ≈ 150ms cycle step.
                 case NetTile::PipeH: {
-                    int phase = (game.hacking().blink_phase() / 15) & 3;
+                    int phase = (game.hacking().blink_phase() / 9) & 3;
                     glyph = net_theme::pipe_h_frames[phase];
                     color = net_theme::pipe_color;
                     break;
                 }
                 case NetTile::PipeV: {
-                    int phase = (game.hacking().blink_phase() / 15) & 3;
+                    int phase = (game.hacking().blink_phase() / 9) & 3;
                     glyph = net_theme::pipe_v_frames[phase];
                     color = net_theme::pipe_color;
                     break;
                 }
                 case NetTile::PipeJunc:
                     glyph = net_theme::pipe_junc_glyph;
+                    color = net_theme::pipe_color;
+                    break;
+                case NetTile::PipePortV:
+                    glyph = net_theme::pipe_port_v_glyph;
+                    color = net_theme::pipe_color;
+                    break;
+                case NetTile::PipePortCornerTR:
+                    glyph = net_theme::pipe_port_corner_tr_glyph;
+                    color = net_theme::pipe_color;
+                    break;
+                case NetTile::PipePortDownD:
+                    glyph = net_theme::pipe_port_down_d_glyph;
                     color = net_theme::pipe_color;
                     break;
 
@@ -895,6 +935,28 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     glyph = " ";
                     break;
             }
+
+            // NetBreakwallGlitch override: when a breakwall tile is mid-glitch,
+            // override the resolved glyph/color with a chaos glyph from net_theme
+            // and a density-keyed color. Self-pruning — query_effect returns
+            // nullopt once the 800ms window expires.
+            if (auto q = s.animations.query_effect(tx, ty)) {
+                if (q->type == AnimationType::NetBreakwallGlitch) {
+                    auto it = s.netspace.breakwall_lookup.find({tx, ty});
+                    if (it != s.netspace.breakwall_lookup.end()) {
+                        const BreakwallGroup& g = s.netspace.breakwalls[it->second];
+                        glyph = net_theme::wall_glitch_glyph(tx, ty, q->frame_index);
+                        // During the glitch window, paint in the pre-demote color — the
+                        // post-demote color appears naturally once the animation ends.
+                        // current_density has already been decremented by apply_breach_grid,
+                        // so +1 recovers the prior density. Clamped just in case.
+                        const uint8_t shade_density = static_cast<uint8_t>(
+                            std::min<int>(5, g.current_density + 1));
+                        color = net_theme::shade_for_density(shade_density, q->frame_index);
+                    }
+                }
+            }
+
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);
         }
     }
