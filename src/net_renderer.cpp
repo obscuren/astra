@@ -604,10 +604,10 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
 // Deck strip
 // ---------------------------------------------------------------------------
 
-void draw_deck_strip(Game& game, Renderer& r, const WindowRect& wr,
-                     const NetSession& s, int subtitle_rows) {
-    const int y = wr.y + 3 + subtitle_rows;
-    int x = wr.x + 2;
+void draw_deck_strip(Game& game, Renderer& r, const Rect& vit,
+                     const NetSession& s) {
+    const int y = vit.y;
+    int x = vit.x + 1;
 
     // One block per unit: bar width = attribute max. HP 4/4 = 4 blocks,
     // HEAT 0/12 = 12 blocks (all empty), etc.
@@ -1895,7 +1895,7 @@ void render(Game& game, Renderer& r) {
     // Populated layout slots.
     draw_top_status(game, r, wr, *sess);
     // subtitle row removed this slice (Phase 5 folds it away)
-    draw_deck_strip(game, r, wr, *sess, /*subtitle_rows=*/0);
+    draw_deck_strip(game, r, b.vitals, *sess);
 
     draw_playfield(game, r, PlayfieldRect{ b.field.x, b.field.y,
                                           b.field.w, b.field.h }, *sess);
