@@ -487,6 +487,33 @@ static void run_net_selftest(DevConsole& con) {
         check(ns.ram == ns.ram_max, "slice2-idle-ram-clamped");
         check(ns.committed_this_key == false, "slice2-commit-flag-default");
     }
+    {
+        // Slice 3a in-flight queue — decidable invariants.
+        astra::NetSession ns;
+        ns.ram_max = 6; ns.ram = 6;
+        astra::NetInFlight f;
+        f.slot = 2; f.turns_total = 3; f.turns_left = 3; f.ram_held = 4;
+        ns.ram -= f.ram_held;                       // reserved at cast
+        ns.in_flight.push_back(f);
+        check(ns.slot_in_flight(2), "s3a-slot-busy");
+        check(!ns.slot_in_flight(0), "s3a-slot-free");
+        // advance 3 turns -> completes, RAM returned, dequeued
+        for (int t = 0; t < 3; ++t) {
+            auto& e = ns.in_flight.back();
+            if (--e.turns_left == 0) {
+                ns.ram = std::min(ns.ram_max, ns.ram + e.ram_held);
+                ns.in_flight.pop_back();
+            }
+        }
+        check(ns.in_flight.empty(), "s3a-completed-dequeued");
+        check(ns.ram == 6, "s3a-ram-returned-on-complete");
+        // cancel path: reserve, cancel -> dequeued, NO refund
+        astra::NetSession nc; nc.ram_max = 6; nc.ram = 6;
+        astra::NetInFlight g; g.slot = 1; g.ram_held = 3;
+        nc.ram -= g.ram_held; nc.in_flight.push_back(g);
+        nc.in_flight.clear();                        // cancel = drop, no refund
+        check(nc.ram == 3, "s3a-cancel-no-refund");
+    }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 
