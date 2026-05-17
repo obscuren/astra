@@ -839,7 +839,7 @@ The in-net overlay renders six full-width horizontal bands, top to bottom, insid
 - **Field** — elastic (fills remaining vertical space, at least 1 row): the scrollable netspace playfield. Immediately below the header separator sits a one-row contextual **caption** line (node label, ICE name, or empty).
 - **`[ DECK ]`** — one header row + one row per effective cyberdeck slot: `[n] NAME.exe  glyph  state` for each loaded program.
 - **Vitals** — one row: the HP / RAM / HEAT readout, relocated from the legacy footer position.
-- **Log** — three rows: runner command-line voice (most-recent actions, scroll-aged).
+- **Log** — eight rows: runner command-line voice (most-recent actions); scrollable through history with PgUp/PgDn (PgDn returns to the live tail). Scrolling is a free action and never consumes a turn.
 - **Footer** — one row: `meatworld clock HH:MM:SS  [net paused — body is not]`. Cosmetic — meatworld remains paused during a net turn; the clock reads real wall time, not sim time.
 
 Minimum window height for all bands to render without collision: `deck_slots + 1 + kLogRows + 12` rows. Below that threshold the band separators are suppressed to avoid overwriting the chrome border.

@@ -125,7 +125,7 @@ struct NetBands {
     Rect log;      // kLogRows rows
     Rect footer;   // 1 row — row for the meatworld-clock footer — consumed in Slice 1 Task 8
 };
-constexpr int kLogRows = 3;
+constexpr int kLogRows = 8;
 
 // `deck_slots` = effective cyberdeck slots (a [ DECK ] header row is added on top).
 NetBands compute_bands(const WindowRect& wr, int deck_slots) {
@@ -926,7 +926,10 @@ void draw_log_pane(Renderer& r, const Rect& log, const NetSession& s,
     }
 
     int total = static_cast<int>(wrapped.size());
-    int start = std::max(0, total - rows);
+    int max_start = std::max(0, total - rows);
+    int start = max_start - s.log_scroll;   // scroll UP = earlier start
+    if (start < 0) start = 0;
+    if (start > max_start) start = max_start;
     for (int i = 0; i < rows && start + i < total; ++i) {
         draw_colored_string(r, log.x + 1, log.y + i, wrapped[start + i], Color::White);
     }
@@ -945,6 +948,13 @@ void draw_log_pane(Renderer& r, const Rect& log, const NetSession& s,
             }
         }
     }
+
+    // Minimal scrollback affordance: dim arrows indicate hidden older/newer lines.
+    // Drawn last so they sit on top of text. Single-glyph only — art-directed later.
+    if (start > 0)
+        r.draw_glyph(log.x + log.w - 2, log.y,            "\xe2\x96\xb2", Color::DarkGray);
+    if (start < max_start)
+        r.draw_glyph(log.x + log.w - 2, log.y + rows - 1, "\xe2\x96\xbc", Color::DarkGray);
 }
 
 // ---------------------------------------------------------------------------

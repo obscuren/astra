@@ -391,6 +391,23 @@ bool handle(Game& game, int key) {
         return false;
     }
 
+    // Log scrollback — free action (never consumes a world turn).
+    // Page step = band height - 1 line of context overlap.
+    constexpr int kLogPageStep = 7;
+    if (key == KEY_PAGE_UP || key == KEY_PAGE_DOWN) {
+        if (key == KEY_PAGE_UP) {
+            s.log_scroll += kLogPageStep;
+        } else {
+            s.log_scroll -= kLogPageStep;
+        }
+        if (s.log_scroll < 0) s.log_scroll = 0;
+        // Over-approximation upper bound: draw_log_pane re-clamps against the
+        // true wrapped-line count, so pinning to log_lines.size() is safe.
+        int hi = static_cast<int>(s.log_lines.size());
+        if (s.log_scroll > hi) s.log_scroll = hi;
+        return false;
+    }
+
     auto move_with_step = [&](int dx, int dy) -> bool {
         int nx = s.avatar_x + dx;
         int ny = s.avatar_y + dy;
