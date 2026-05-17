@@ -574,20 +574,20 @@ Tiny, cute borders, barely-functional ICE called `SODA.dmn`. This is the tutoria
 ║ UNKNOWN DECK :: OWNER: ̷K̴̴.̷ ̶R̴E̸N̸̷N̷E̷R̴ :: STATUS: DEAD     ║
 ╠══════════════════════════════════════════════════════╣
 ║                                                      ║
-║   ┌───────┐   ▓̷̧̛ ̴ ̷ ̶ ̴ ̷ ̶    ┌─────────┐               ║
+║   ┌───────┐   ▓̷̧̛ ̴ ̷ ̶ ̴ ̷ ̶ ̴ ̷ ̴   ┌─────────┐               ║
 ║   │ JACK  │═══▓̴ M̷E̷M̶O̴R̷Y̶ ̴▓═══│  ░░░░░  │               ║
-║   │  @    │   ▓̷ ̴ ̷ ̶ ̴ ̷ ̶ ̴▓     │   §§§   │ ◄ programs   ║
-║   └───┬───┘                  └────┬────┘   they wrote║
-║       ║          ┌─────────┐      ║                  ║
-║       ╠══════════│ ░░░░░░░ │══════╣                  ║
-║       ║          │ ░ LAST  │      ║                  ║
-║       ║          │ ░ RUN ░ │      ║                  ║
-║       ║          │ ░░░░░░░ │      ║                  ║
-║       ║          └─────────┘      ║                  ║
-║       ║                           ║                  ║
-║   ┌───╨────┐                ┌─────╨────┐             ║
-║   │ STASH? │ ◄ map lead     │ G̷H̷O̴S̴T̷ ̸ │ ◄ talk to     ║
-║   │  ◊◊◊   │   to meat-loot │  ̴a̷v̷a̴t̸a̷r̶ │   the dead   ║
+║   │  @    │   ▓̷ ̴ ̷ ̶ ̴ ̷ ̶ ̴ ̴ ̷▓  │   §§§   │  ◄ programs   ║
+║   └───┬───┘                └─────┬────┘   they wrote ║
+║       ║        ┌─────────┐       ║                   ║
+║       ╠════════│ ░░░░░░░ │═══════╣                   ║
+║       ║        │ ░ LAST  │       ║                   ║
+║       ║        │ ░ RUN ░ │       ║                   ║
+║       ║        │ ░░░░░░░ │       ║                   ║
+║       ║        └─────────┘       ║                   ║
+║       ║                          ║                   ║
+║   ┌───╨────┐                ┌────╨─────┐             ║
+║   │ STASH? │ ◄ map lead     │ G̷H̷O̴S̴T̷ ̸   │ ◄ talk to   ║
+║   │  ◊◊◊   │   to meat-loot │  ̴a̷v̷a̴t̸a̷r̶  │   the dead  ║
 ║   └────────┘                └──────────┘             ║
 ║                                                      ║
 ║   Half the rooms are scrambled. Some won't load.     ║
@@ -595,6 +595,8 @@ Tiny, cute borders, barely-functional ICE called `SODA.dmn`. This is the tutoria
 ```
 
 The title bar glitches with zalgo. Walls are corruption blocks. The ghost node is a conversation — sometimes lore, sometimes a quest, sometimes a Drifter still alive in the meatworld who wants their deck back.
+
+**Implemented (Phase 4):** Hub+branch layout; the zalgo title and some room labels are baked, seed-deterministic combining-mark UTF-8 (not a render effect). The MEMORY room is rendered as impassable corruption — a dread texture that cannot be entered (both visual variants). **STASH?** opens a `Stash` node; **GHOST** opens a branching in-net mini-dialog (`GhostDialog`) that intercepts all input until resolved (Space/Enter confirm, Esc leaves, world does not tick). Three seed-selected scripts × 3 choices: mournful-lore (`+lore string`), stash-lead (`+50 cr + lore string`), or provoke (spawn adjacent Gray ICE + `gain_trace(8)`). Quest-system wiring is deferred.
 
 ### NPC Head — organic, neural, ethically loud
 
@@ -661,6 +663,8 @@ Wavy walls (`~`) instead of straight ones — no two memory rooms have the same 
 ```
 
 Heavy `▓` border screams *military*. `>>>>` and `<<<<` are animated rounds firing in real-time, shifting each turn. Two terminal nodes: disarm (safe) or flip allegiance (chaos). Short netspace, mean fight.
+
+**Implemented (Phase 4):** `1 + tier/2` Gray ICE (hp 2) spawn within ICE vision range of jack-in and are hostile from frame 1. **TurretDisarm** = clean voluntary jack-out (logs turret powered down). **TurretFlip** = jack-out + `gain_trace(10)`; on the source meatworld turret at `TargetDescriptor.{src_x, src_y}`, the turret's faction is saved, then set to the transient `PlayerAllied` pseudo-faction (which targets NPCs hostile to the player) via a timed `TurretAllied` effect of `N = 8 + tier*4` turns — auto-reverting when the effect expires, using the same FriendlyFire/Hijacked machinery. If no source NPC exists (e.g. dev `:jack turret`), the intended effect is log-only.
 
 ### Elevator — vertical, multi-floor metaphor
 
@@ -761,6 +765,8 @@ Branching tree. Two firewalls force route choice early. Mid-tier nodes give part
 No bounding box. Walls are diagonals, lone diamonds, fragments. The `@` is on a small island of stability — the Drifter's avatar literally holding the geometry together. Each turn, *something on the map moves that should not*. Greek letters, math symbols, zalgo. This is where the rules break.
 
 ### Traffic Light — civic infrastructure
+
+> **Status: deferred.** The Traffic Light grammar is designed but not yet implemented. Its only reward is a meatspace event (a six-car pile-up triggering cop/pursuit responses), and no meatworld vehicle/pursuit sim or event hook exists in the codebase. It will ship in the phase that introduces meatworld pursuit mechanics.
 
 ```
 ╔══════════════════════════════════════════════════════╗

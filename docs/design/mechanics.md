@@ -786,6 +786,51 @@ Threshold callbacks (fire only on upward crossing):
 
 When the player moves to a different zone, the Detection counter resets to 0.
 
+## Hacking — Netspace Factions
+
+### `PlayerAllied` pseudo-faction
+
+A transient pseudo-faction assigned to a meatworld turret NPC when the player executes the **TurretFlip** outcome inside a turret netspace. `PlayerAllied` is never hostile to the player; a turret carrying this faction targets any NPC that `is_hostile_to_player`. It is distinct from `"Hijacked"` — the Hijacked faction stays universally hostile, while PlayerAllied only shoots player-enemies.
+
+The flip applies a timed `EffectId::TurretAllied` effect (`N = 8 + tier*4` turns) on the source turret NPC. The turret's original faction is saved in `pre_hijack_faction` at flip time and restored automatically when `TurretAllied` (or `Hijacked`) expires — reusing the existing FriendlyFire/Hijacked revert machinery.
+
+## Hacking — Per-Target Netspace Rules (Phase 4)
+
+Numeric details for each Phase 4 grammar. Tier is the source fixture's hack tier (0-based). See [`netspace.md`](netspace.md) for layout reference samples and visual-language rules.
+
+### ATM
+
+- **Trace tick hint:** 2 (fast trace accumulation).
+- **BALANCE node:** `Stash` — modest credit reward.
+- **VAULT node:** `VaultGrab` — `300 + tier*200` credits, then `gain_trace(20 + tier*8)`. Gated behind a Breakwall (must Breach to access).
+- **FRAUD trigger:** `TurnCountAtLeast` threshold `6 - min(tier, 3)` turns; spawns a Gray ICE (hp 2) when fired (one-shot).
+- **Packet trigger:** `TraceAtLeast 100`; converts `4 + (tier >= 3 ? 2 : 0)` `$`-border cells into Gray ICE (hp 1) "packets" (one-shot).
+
+### Turret
+
+- **ICE spawn:** `1 + tier/2` Gray ICE (hp 2) placed within ICE vision range of jack-in; hostile from frame 1 (no patrol phase).
+- **TurretDisarm:** clean voluntary jack-out; logs turret powered down.
+- **TurretFlip:** jack-out + `gain_trace(10)`; applies `PlayerAllied` faction + `TurretAllied` effect (`N = 8 + tier*4` turns) on the source meatworld turret — auto-reverting on expiry.
+
+### Elevator
+
+- **Floor count:** `n_floors = 4 + (tier >= 3 ? 2 : 0)` (4 or 6 floors).
+- **LOBBY:** floor 0; jack-in point. Jacking out from LOBBY is free (no trace cost, no HP penalty).
+- **Per floor k ≥ 1:** spawns `k/2` Gray ICE (hp 2) + a `Stash` node (payload `20 + k*25` credits).
+- **SECURITY floor:** floor `mid = n_floors/2`; Breakwall-gated — must Breach to ascend further.
+- **Jack-out cost (non-LOBBY):** `trace += floor * 8` (`press_luck_step = 8`). Additionally, jacking out from the top floors (when `floor_count - floor <= 1`) costs −1 avatar HP.
+
+### Corpse / Dead Cyberdeck
+
+- **Layout:** hub + branch; title and some room labels are baked seed-deterministic zalgo (combining-mark UTF-8, not a render effect).
+- **MEMORY room:** impassable dread-texture corruption — cannot be entered; both visual variants rendered.
+- **STASH? node:** `Stash` — standard credit payload.
+- **GHOST node:** opens `GhostDialog` — a branching in-net mini-dialog (intercepts all input; world does not tick). Three seed-selected scripts × 3 choices:
+  - Choice 0 — mournful lore (`"ghost-lore"` string key).
+  - Choice 1 — stash lead (`+50` cr + `"stash-lead"` lore string).
+  - Choice 2 — provoke: spawn an adjacent Gray ICE + `gain_trace(8)`.
+- **Quest wiring:** not yet wired to the quest system (deferred).
+
 > **The sections below describe the Plan 3 – Plan 8 "Grid" design — superseded by the netspace redesign ([`netspace.md`](netspace.md)).** Phase 0 of the redesign demolished `GridNetwork`, the legacy sector generators, the LAN graph, `GridSector`, the Imprint mechanic, and the dead-implant sector. Per-target netspace grammars (door / vending / camera / mainframe / NPC head / Blackwall tear / …) replace them in Phase 1+. The text below is preserved as historical reference until the design canon in `netspace.md` has been fully absorbed into this file; treat it as out-of-date.
 
 ## Hacking — The Grid (Plan 3 A-layer) [SUPERSEDED]
