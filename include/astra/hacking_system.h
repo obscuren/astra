@@ -81,6 +81,13 @@ public:
     // Drains/persists loot per kind, restores body, returns to previous game state.
     void jack_out(Game& game, JackOutKind kind);
 
+    // Apply the meatworld outcome of a turret hack. If flip=false the turret
+    // is disarmed (powers down). If flip=true the turret's faction is flipped
+    // to PlayerAllied for N turns. Looks up the turret NPC at
+    // s.netspace.target.(src_x, src_y); logs a dev message if coords are
+    // absent (pre-placed fixtures not yet wired to a meatworld position).
+    void turret_outcome(Game& game, NetSession& s, bool flip);
+
     // Per-turn Grid update. Called from Game::advance_world when state == Grid.
     void tick_grid(Game& game);
 

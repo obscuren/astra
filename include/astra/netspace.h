@@ -9,6 +9,7 @@
 // abstraction and a blank-room stub generator; per-target grammars land
 // in Phase 1+.
 
+#include "astra/net_ice.h"
 #include "astra/net_room.h"
 
 #include <cstddef>
@@ -43,8 +44,10 @@ enum class NetspaceTargetKind : uint8_t {
 // npc id, faction tag, etc.).
 struct TargetDescriptor {
     NetspaceTargetKind kind = NetspaceTargetKind::Empty;
-    int                tier = 1;       // 1..5 difficulty band
-    uint32_t           seed = 0;       // deterministic generation
+    int                tier  = 1;      // 1..5 difficulty band
+    uint32_t           seed  = 0;      // deterministic generation
+    int                src_x = -1;    // meatworld source NPC cell; -1 = none (used by Turret)
+    int                src_y = -1;
 };
 
 // Tiles inside the netspace. Vocabulary mirrors the design doc's
@@ -134,6 +137,35 @@ struct BreakwallGroup {
     std::vector<std::pair<int, int>> tiles;
 };
 
+// Phase 4: declarative action nodes — interactable points of interest that
+// grammars stamp into a netspace and the input layer resolves when the
+// avatar steps on them.
+enum class NetNodeKind : uint8_t { None = 0, TurretDisarm, TurretFlip, GhostTalk, Stash, VaultGrab };
+struct NetNode {
+    int x = 0;
+    int y = 0;
+    NetNodeKind kind = NetNodeKind::None;
+    std::string label;  // render hint — unused until a later renderer pass
+    uint32_t payload = 0;
+    bool consumed = false;
+};
+
+// Phase 4: grammar triggers — one-shot ICE spawn events gated on trace
+// level or turn count. Declared by grammars; evaluated each tick_grid.
+enum class NetTriggerCond : uint8_t { TraceAtLeast, TurnCountAtLeast };
+struct NetSpawnSpec {
+    IceColor color = IceColor::Gray;
+    int hp = 1;
+    int count = 1;
+    std::vector<std::pair<int,int>> cells;
+};
+struct NetTrigger {
+    NetTriggerCond cond = NetTriggerCond::TraceAtLeast;
+    int threshold = 0;
+    NetSpawnSpec spawn;
+    bool fired = false;
+};
+
 // The netspace itself. A flat row-major tile grid plus the bookkeeping
 // the renderer / input layer reads. ICE, payloads-in-flight, ghost
 // nodes, etc. are added per phase.
@@ -174,6 +206,33 @@ struct Netspace {
     // visually sealed while traversal works.
     std::set<std::pair<int, int>> passable_overrides;
 
+    // Per-cell glyph overrides. Tiles typed NetTile::Glyph render the
+    // UTF-8 string stored here keyed by (x, y). Also used as a spawn
+    // pool by grammar triggers when NetSpawnSpec::cells is empty.
+    std::map<std::pair<int,int>, std::string> glyph_overrides;
+
+    // Optional per-cell color for NetTile::Glyph overrides. If a cell has
+    // no entry here, the renderer falls back to a neutral default.
+    std::map<std::pair<int,int>, Color> glyph_color_overrides;
+
+    // Phase 4: declarative non-geometry lists. Grammars populate these at
+    // gen time; jack_in seeds initial_ice into the session; tick_grid
+    // evaluates triggers; net_input resolves action_nodes on avatar step.
+    std::vector<Ice>        initial_ice;
+    std::vector<NetNode>    action_nodes;
+    std::vector<NetTrigger> triggers;
+
+    // Trace-tick rate hint set by the grammar. jack_in reads this after
+    // gen_for_target() and assigns it to NetSession::trace_tick_per_turn.
+    // Default 1 = unchanged for existing grammars.
+    int trace_tick_hint = 1;
+
+    // Elevator grammar: number of floors (0 = not an elevator).
+    int floor_count     = 0;
+    // Elevator grammar: trace penalty added per floor on voluntary jack-out
+    // (0 = none; non-elevator grammars leave this at 0).
+    int press_luck_step = 0;
+
     NetTile at(int x, int y) const {
         if (x < 0 || y < 0 || x >= w || y >= h) return NetTile::Void;
         return tiles[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)];
@@ -208,6 +267,16 @@ struct Netspace {
             || t == NetTile::WallHeavy
             || t == NetTile::WallSolid
             || t == NetTile::Breakwall;
+    }
+
+    // Returns the index of the first non-consumed action node at (x, y),
+    // or -1 if none. Used by net_input to dispatch on avatar step.
+    int action_node_at(int x, int y) const {
+        for (size_t i = 0; i < action_nodes.size(); ++i) {
+            const auto& n = action_nodes[i];
+            if (!n.consumed && n.x == x && n.y == y) return static_cast<int>(i);
+        }
+        return -1;
     }
 };
 

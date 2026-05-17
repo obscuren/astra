@@ -517,8 +517,6 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
         s.cooling_rate_bonus   = im.cooling_rate_bonus;
         s.trace_resistance_pct = im.trace_resistance_pct;
     }
-    s.trace_tick_per_turn = 1;  // Phase 0 default; per-target grammars tune later.
-
     s.skill_intrusion          = player_has_skill(game.player(), SkillId::Intrusion);
     s.skill_icebreaking        = player_has_skill(game.player(), SkillId::IceBreaking);
     s.skill_daemon_mastery     = player_has_skill(game.player(), SkillId::DaemonMastery);
@@ -530,6 +528,15 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
     // (and vending / camera in Steps 7 + 8); unimplemented kinds fall
     // back to the empty stub.
     s.netspace = gen_for_target(desc);
+
+    // Phase 4: grammar-declared trace rate (ATM fast, others default 1).
+    s.trace_tick_per_turn = s.netspace.trace_tick_hint > 0
+                            ? s.netspace.trace_tick_hint
+                            : 1;
+
+    // Phase 4: grammar-declared ICE seeded into the live session.
+    for (const auto& ice : s.netspace.initial_ice) s.ice.push_back(ice);
+
     s.avatar_x = s.netspace.jack_in_x;
     s.avatar_y = s.netspace.jack_in_y;
 
@@ -578,6 +585,35 @@ void HackingSystem::jack_out(Game& game, JackOutKind kind) {
         case JackOutKind::SoftDisconnect:
             finalize_jack_out_(game, kind);   // load-time recovery: immediate
             return;
+    }
+}
+
+void HackingSystem::turret_outcome(Game& game, NetSession& s, bool flip) {
+    const int N = 8 + s.netspace.target.tier * 4;
+    int tx = s.netspace.target.src_x, ty = s.netspace.target.src_y;
+    if (tx < 0 || ty < 0) {
+        game.log(flip ? std::string("[dev] Turret would flip to PlayerAllied for ")
+                           + std::to_string(N) + " turns."
+                       : std::string("[dev] Turret would go inert for ")
+                           + std::to_string(N) + " turns.");
+        return;
+    }
+    for (auto& npc : game.world().npcs()) {
+        if (npc.x == tx && npc.y == ty && npc.alive()) {
+            if (flip) {
+                if (npc.pre_hijack_faction.empty())
+                    npc.pre_hijack_faction = npc.faction;
+                npc.faction = "PlayerAllied";
+                add_effect(npc.effects, make_turret_allied_ge(N));
+                game.log("The turret swings toward your enemies.");
+            } else {
+                // No NPC effect: jack-out is instantaneous after this, and a
+                // disarmed turret is simply left neutral (no timed state needed
+                // in Phase 4 scope).
+                game.log("The turret powers down.");
+            }
+            return;
+        }
     }
 }
 
@@ -661,7 +697,42 @@ void HackingSystem::tick_grid(Game& game) {
     // 1a. Promote any ICE seeds that became eligible this tick (trace-gated).
     net_ice::promote_pending_seeds(s);
 
-    // 1b. DaemonHijack countdown. tick_all already cleared the handle if the
+    // 1b. Phase 4: grammar triggers (trace-/turn-gated one-shot spawns).
+    for (auto& tr : s.netspace.triggers) {
+        if (tr.fired) continue;
+        bool hit = (tr.cond == NetTriggerCond::TraceAtLeast)
+                       ? (s.trace >= tr.threshold)
+                       : (s.net_turn >= static_cast<uint32_t>(tr.threshold));
+        if (!hit) continue;
+        tr.fired = true;
+        std::vector<std::pair<int,int>> cells = tr.spawn.cells;
+        if (cells.empty()) {
+            // domain-sep so trigger shuffles are independent of other gen RNG
+            std::mt19937 rng(s.netspace.target.seed ^ 0x2444u ^ static_cast<uint32_t>(tr.threshold));
+            std::vector<std::pair<int,int>> pool;
+            for (auto& kv : s.netspace.glyph_overrides)
+                if (kv.second == "$") pool.push_back(kv.first);
+            std::shuffle(pool.begin(), pool.end(), rng);
+            for (int i = 0; i < tr.spawn.count && i < static_cast<int>(pool.size()); ++i)
+                cells.push_back(pool[i]);
+        }
+        int made = 0;
+        for (auto& c : cells) {
+            if (made >= tr.spawn.count) break;
+            bool occ = false;
+            for (const auto& existing : s.ice)
+                if (existing.x == c.first && existing.y == c.second) { occ = true; break; }
+            if (occ) continue;
+            Ice ice; ice.x = c.first; ice.y = c.second;
+            ice.color = tr.spawn.color; ice.hp = tr.spawn.hp;
+            s.ice.push_back(ice);
+            ++made;
+        }
+        if (made > 0)
+            s.push_log(">> Hostile process spawned (" + std::to_string(made) + ").");
+    }
+
+    // 1c. DaemonHijack countdown. tick_all already cleared the handle if the
     // puppet died this tick; here we just count down on a still-live hijack.
     if (s.hijacked_ice_idx >= 0 && s.hijacked_turns_left > 0) {
         --s.hijacked_turns_left;

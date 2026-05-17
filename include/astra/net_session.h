@@ -45,6 +45,19 @@ enum class JackOutKind : uint8_t {
     SoftDisconnect,   // load-time recovery -- Trace cleared, no penalty
 };
 
+struct GhostDialogChoice {
+    std::string text;
+    int outcome = 0;  // 0=lore  1=stash  2=provoke
+};
+
+struct GhostDialog {
+    bool                           open        = false;
+    std::vector<std::string>       lines;
+    std::vector<GhostDialogChoice> choices;
+    int                            sel         = 0;
+    int                            node_index  = -1;  // index into Netspace::action_nodes to consume on resolve
+};
+
 struct NetLootBuffer {
     int credits             = 0;
     int code_fragments_t1   = 0;
@@ -119,6 +132,9 @@ struct NetSession {
     // Phase 3: scripted full-window sequence state (jack-in/out ritual,
     // takeover). Wall-clock driven from Game::run(). Not serialized.
     WindowSequence window_seq;
+
+    // Phase 4: in-net ghost mini-dialog modal. Not serialized.
+    GhostDialog ghost_dialog;
 
     // Phase 3: monotonically increments once per tick_grid (world turn in
     // net). Seeds the per-turn-stable RAM lie so it only re-rolls on a

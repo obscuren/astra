@@ -1,6 +1,8 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
+#include "astra/grammars/gen_elevator_netspace.h"
 #include "astra/net_window_anim.h"
+#include "astra/netspace_generator.h"
 #include "astra/aura.h"
 #include "astra/consciousness_save.h"
 #include "astra/biome_profile.h"
@@ -362,6 +364,111 @@ static void run_net_selftest(DevConsole& con) {
     // hp_lie honest at Stable, length-preserving when lying
     check(astra::hp_lie(82, WindowState::Stable, 1) == "82", "hp-honest");
     check(astra::hp_lie(82, WindowState::Hunted, 1).size() == 2, "hp-len");
+    // Phase 4: declarative layer plumbing.
+    {
+        astra::TargetDescriptor d;
+        d.kind = astra::NetspaceTargetKind::Empty;
+        astra::Netspace ns = astra::gen_for_target(d);
+        check(ns.action_node_at(0, 0) == -1, "p4-node-empty");
+        astra::NetNode n; n.x = 2; n.y = 3; n.kind = astra::NetNodeKind::Stash;
+        ns.action_nodes.push_back(n);
+        check(ns.action_node_at(2, 3) == 0, "p4-node-hit");
+        ns.action_nodes[0].consumed = true;
+        check(ns.action_node_at(2, 3) == -1, "p4-node-consumed");
+    }
+    // ATM grammar invariants.
+    {
+        astra::TargetDescriptor d; d.kind = astra::NetspaceTargetKind::Atm;
+        d.tier = 2; d.seed = 7;
+        astra::Netspace a  = astra::gen_for_target(d);
+        astra::Netspace b2 = astra::gen_for_target(d);
+        check(a.tiles == b2.tiles && a.action_nodes.size() == b2.action_nodes.size(),
+              "atm-deterministic");
+        check(a.trace_tick_hint >= 2, "atm-fast-trace");
+        int vault = 0, stash = 0, tr_trace = 0, tr_turn = 0;
+        for (auto& n : a.action_nodes) {
+            if (n.kind == astra::NetNodeKind::VaultGrab) ++vault;
+            if (n.kind == astra::NetNodeKind::Stash)     ++stash;
+        }
+        for (auto& t : a.triggers) {
+            if (t.cond == astra::NetTriggerCond::TraceAtLeast && t.threshold == 100) ++tr_trace;
+            if (t.cond == astra::NetTriggerCond::TurnCountAtLeast) ++tr_turn;
+        }
+        check(vault == 1 && stash == 1, "atm-nodes");
+        check(tr_trace == 1 && tr_turn == 1, "atm-triggers");
+    }
+    // Turret grammar invariants.
+    {
+        astra::TargetDescriptor d; d.kind = astra::NetspaceTargetKind::Turret;
+        d.tier = 3; d.seed = 4;
+        astra::Netspace a = astra::gen_for_target(d);
+        astra::Netspace a2 = astra::gen_for_target(d);
+        check(a.tiles == a2.tiles && a.initial_ice.size() == a2.initial_ice.size(),
+              "turret-deterministic");
+        check(!a.initial_ice.empty(), "turret-ice");
+        bool all_gray = true;
+        for (auto& ic : a.initial_ice) if (ic.color != astra::IceColor::Gray) all_gray = false;
+        check(all_gray, "turret-ice-gray");
+        int dis=0, fl=0;
+        for (auto& nd : a.action_nodes) {
+            if (nd.kind == astra::NetNodeKind::TurretDisarm) ++dis;
+            if (nd.kind == astra::NetNodeKind::TurretFlip)   ++fl;
+        }
+        check(dis == 1 && fl == 1, "turret-nodes");
+    }
+    // PlayerAllied: friendly to player; never hostile to itself.
+    {
+        astra::Player p;  // default-constructed; reputation empty
+        check(astra::is_hostile_to_player("PlayerAllied", p) == false, "pa-not-vs-player");
+        check(astra::is_hostile("PlayerAllied", "PlayerAllied") == false, "pa-self");
+        check(astra::is_hostile("Hijacked", "anything") == true, "hijacked-still-univ");
+    }
+    // Elevator grammar invariants.
+    {
+        astra::TargetDescriptor d; d.kind = astra::NetspaceTargetKind::Elevator;
+        d.tier = 3; d.seed = 11;
+        astra::Netspace a  = astra::gen_for_target(d);
+        astra::Netspace a2 = astra::gen_for_target(d);
+        check(a.tiles == a2.tiles, "elev-deterministic");
+        check(a.floor_count >= 4, "elev-floors");
+        bool has_h = false;
+        for (auto t : a.tiles) if (t == astra::NetTile::PipeH) has_h = true;
+        check(!has_h, "elev-vertical-only");
+        bool has_bw = !a.breakwalls.empty();
+        check(has_bw, "elev-gated");
+        int f_lobby = astra::elevator_floor_for_y(a, a.jack_in_y);
+        check(f_lobby == 0, "elev-lobby-floor0");
+        // press-your-luck now reachable: a non-LOBBY floor has an Exit tile
+        // whose y maps to a floor > 0 via elevator_floor_for_y.
+        bool upper_exit = false;
+        for (int yy = 0; yy < a.h && !upper_exit; ++yy)
+            for (int xx = 0; xx < a.w; ++xx)
+                if (a.at(xx, yy) == astra::NetTile::Exit &&
+                    astra::elevator_floor_for_y(a, yy) > 0) { upper_exit = true; break; }
+        check(upper_exit, "elev-press-luck-live");
+    }
+    // Corpse grammar invariants.
+    {
+        astra::TargetDescriptor d; d.kind = astra::NetspaceTargetKind::Corpse;
+        d.tier = 2; d.seed = 9;
+        astra::Netspace a = astra::gen_for_target(d);
+        astra::Netspace a2 = astra::gen_for_target(d);
+        check(a.tiles == a2.tiles && a.title == a2.title, "corpse-deterministic");
+        int gt=0, st=0;
+        for (auto& nd : a.action_nodes) {
+            if (nd.kind == astra::NetNodeKind::GhostTalk) ++gt;
+            if (nd.kind == astra::NetNodeKind::Stash)     ++st;
+        }
+        check(gt == 1 && st == 1, "corpse-nodes");
+        bool zalgo = false;
+        for (unsigned char c : a.title) if (c == 0xCC) { zalgo = true; break; } // combining-mark lead byte
+        check(zalgo, "corpse-zalgo");
+        bool corrupt = false;
+        for (int yy=0; yy<a.h && !corrupt; ++yy)
+            for (int xx=0; xx<a.w; ++xx)
+                if (a.is_wall(xx,yy)) { corrupt = true; break; }
+        check(corrupt, "corpse-corruption");
+    }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 

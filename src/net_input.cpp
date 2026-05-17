@@ -1,5 +1,6 @@
 #include "astra/net_input.h"
 
+#include "astra/grammars/gen_elevator_netspace.h"
 #include "astra/consciousness_save.h"
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
@@ -26,6 +27,10 @@
 namespace astra::net_input {
 
 namespace {
+
+// Forward declarations — defined below resolve_action_node.
+void resolve_ghost_choice(Game& game, NetSession& s, const GhostDialogChoice& c);
+void open_ghost_dialog(NetSession& s, uint32_t seed, int node_index);
 
 bool try_move(NetSession& s, int dx, int dy) {
     int nx = s.avatar_x + dx;
@@ -68,13 +73,175 @@ bool try_move_hijacked_ice(NetSession& s, int dx, int dy) {
     return true;
 }
 
+// Phase 4: resolve an action node when the avatar steps onto it.
+void resolve_action_node(Game& game, NetSession& s, NetNode& n) {
+    switch (n.kind) {
+        case NetNodeKind::None:
+            // Inert placeholder — no effect, no log, no consume.
+            break;
+        case NetNodeKind::Stash: {
+            int cr = 10 + static_cast<int>(n.payload % 40u);
+            s.loot.credits += cr;
+            s.loot.lore_unlocked.push_back("stash-lead");  // TODO: real lore-key table in a later phase
+            s.push_log(">> Stash lead recovered (+" + std::to_string(cr) + " cr).");
+            n.consumed = true;
+            break;
+        }
+        case NetNodeKind::VaultGrab: {
+            int cr = static_cast<int>(n.payload);
+            s.loot.credits += cr;
+            int spike = 20 + s.netspace.target.tier * 8;
+            s.gain_trace(spike);
+            s.push_log(">> VAULT cracked: +" + std::to_string(cr) +
+                       " cr. Trace +" + std::to_string(spike) + ".");
+            n.consumed = true;
+            break;
+        }
+        case NetNodeKind::TurretDisarm: {
+            game.hacking().turret_outcome(game, s, /*flip=*/false);
+            n.consumed = true;
+            game.hacking().jack_out(game, JackOutKind::Voluntary);
+            break;
+        }
+        case NetNodeKind::TurretFlip: {
+            game.hacking().turret_outcome(game, s, /*flip=*/true);
+            s.gain_trace(10);
+            n.consumed = true;
+            game.hacking().jack_out(game, JackOutKind::Voluntary);
+            break;
+        }
+        case NetNodeKind::GhostTalk: {
+            // Guard: don't re-open if the dialog is already showing
+            // (avatar standing on the tile while dialog is open).
+            if (!s.ghost_dialog.open) {
+                int idx = s.netspace.action_node_at(n.x, n.y);
+                open_ghost_dialog(s, n.payload, idx);
+            }
+            // NOT consumed here — resolve_ghost_choice / Esc consumes it.
+            break;
+        }
+        default:
+            s.push_log(">> [unimpl node] kind=" +
+                       std::to_string(static_cast<int>(n.kind)));
+            n.consumed = true;
+            break;
+    }
+}
+
+void resolve_ghost_choice(Game& game, NetSession& s, const GhostDialogChoice& c) {
+    (void)game;
+    auto& gd = s.ghost_dialog;
+    switch (c.outcome) {
+        case 1: // stash lead
+            s.loot.credits += kGhostStashCredits;
+            s.loot.lore_unlocked.push_back("stash-lead");
+            s.push_log(">> The ghost murmurs a location. Stash lead recorded.");
+            break;
+        case 2: { // provoke — a guard fragment manifests
+            Ice g; g.color = IceColor::Gray; g.hp = 2;
+            int ax = s.avatar_x, ay = s.avatar_y;
+            const int dx[4] = {0, 0, -1, 1}, dy[4] = {-1, 1, 0, 0};
+            bool placed = false;
+            for (int i = 0; i < 4 && !placed; ++i) {
+                int nx = ax + dx[i], ny = ay + dy[i];
+                if (s.netspace.passable(nx, ny)) {
+                    bool occ = false;
+                    for (auto& ic : s.ice) if (ic.x == nx && ic.y == ny) { occ = true; break; }
+                    if (!occ) { g.x = nx; g.y = ny; s.ice.push_back(g); placed = true; }
+                }
+            }
+            s.gain_trace(kGhostProvokeTrace);
+            s.push_log(">> You pushed too hard. Something old wakes up.");
+            break;
+        }
+        default: // 0 = lore
+            s.loot.lore_unlocked.push_back("ghost-lore");
+            s.push_log(">> The ghost tells you what it remembers.");
+            break;
+    }
+    if (gd.node_index >= 0 &&
+        gd.node_index < static_cast<int>(s.netspace.action_nodes.size()))
+        s.netspace.action_nodes[gd.node_index].consumed = true;
+}
+
+void open_ghost_dialog(NetSession& s, uint32_t seed, int node_index) {
+    auto& gd = s.ghost_dialog;
+    gd.open       = true;
+    gd.node_index = node_index;
+    gd.sel        = 0;
+    gd.lines.clear();
+    gd.choices.clear();
+
+    // Three authored scripts; pick deterministically by seed.
+    switch (seed % 3u) {
+        case 0: // mournful lore
+            gd.lines = {
+                "A face flickers in the dead deck. It does not",
+                "recognize you. \"...did I make it out? Tell me",
+                "I made it out.\"",
+            };
+            gd.choices = {
+                { "\"You made it out.\" (let it rest)", 0 },
+                { "Ask what it was running from",        0 },
+                { "Say nothing. Take what you need.",    2 },
+            };
+            break;
+        case 1: // stash lead
+            gd.lines = {
+                "The ghost is lucid for a moment. \"There's a",
+                "cache. Behind the noodle bar on Jig-Jig. I",
+                "never spent it. You should.\"",
+            };
+            gd.choices = {
+                { "Press for the exact location", 1 },
+                { "Ask who it was",               0 },
+                { "Pull the data by force",       2 },
+            };
+            break;
+        default: // still alive; wants the deck back
+            gd.lines = {
+                "Not a ghost -- a live uplink. \"That's MY deck.",
+                "I'm not dead yet. Put it down and walk away",
+                "and maybe I forget your face.\"",
+            };
+            gd.choices = {
+                { "Promise to return it (lie)", 0 },
+                { "Ask for the stash as payment", 1 },
+                { "Cut the uplink hard",          2 },
+            };
+            break;
+    }
+}
+
 // Look up the edge from `from` to `to` (LAN root edges fan out from the
 // Phase 0: the Netspace stub only carries Exit tiles for interactable
 // behavior. DataNode / EncryptedFile / DeepGridGateway / WarpAnchor were
 // part of the multi-region geography and are retired with the netspace
 // redesign. Per-target tile interactions return in Phase 1+ grammars.
 void on_step(Game& game, NetSession& s) {
+    // Phase 4: action node dispatch — only intercepts for non-None kinds;
+    // None nodes are inert and fall through to Exit handling below.
+    int ni = s.netspace.action_node_at(s.avatar_x, s.avatar_y);
+    if (ni >= 0 && s.netspace.action_nodes[ni].kind != NetNodeKind::None) {
+        resolve_action_node(game, s, s.netspace.action_nodes[ni]);
+        return;
+    }
     if (s.netspace.at(s.avatar_x, s.avatar_y) == NetTile::Exit) {
+        if (s.netspace.press_luck_step > 0) {
+            int floor = elevator_floor_for_y(s.netspace, s.avatar_y);
+            if (floor > 0) {
+                s.gain_trace(floor * s.netspace.press_luck_step);
+                // Top-floor "bleeding from the ears" cost. Reachable: every upper
+                // floor now has a dedicated side-step Exit (gen_elevator_netspace.cpp)
+                // so floor>0 fires whenever the avatar jacks out from a non-LOBBY floor.
+                if (s.netspace.floor_count - floor <= 1) {
+                    s.avatar_hp -= 1;
+                    if (s.avatar_hp < 0) s.avatar_hp = 0;
+                }
+                s.push_log(">> Disconnect from F" + std::to_string(floor) +
+                           " — trace +" + std::to_string(floor * s.netspace.press_luck_step) + ".");
+            }
+        }
         s.push_log(">> Disconnect channel...");
         game.hacking().jack_out(game, JackOutKind::Voluntary);
     }
@@ -187,6 +354,33 @@ bool handle(Game& game, int key) {
     auto* sess = game.hacking().session();
     if (!sess) return false;
     auto& s = *sess;
+
+    // Ghost dialog modal — intercepts ALL keys while open; world never advances.
+    if (s.ghost_dialog.open) {
+        auto& gd = s.ghost_dialog;
+        switch (key) {
+            case KEY_UP:
+                if (gd.sel > 0) --gd.sel;
+                return false;
+            case KEY_DOWN:
+                if (gd.sel + 1 < static_cast<int>(gd.choices.size())) ++gd.sel;
+                return false;
+            case ' ': case '\r': case '\n':
+                if (!gd.choices.empty())
+                    resolve_ghost_choice(game, s, gd.choices[gd.sel]);
+                gd.open = false;
+                return false;
+            case 27: /* Esc — leave without payload; consume the node */
+                if (gd.node_index >= 0 &&
+                    gd.node_index < static_cast<int>(s.netspace.action_nodes.size()))
+                    s.netspace.action_nodes[gd.node_index].consumed = true;
+                gd.open = false;
+                return false;
+            default:
+                // All other keys (incl. Q hard-jack-out) deliberately blocked while the ghost speaks; Esc dismisses the dialog, then normal keys resume.
+                return false;  // modal swallows everything else; no world tick
+        }
+    }
 
     // Telegraph eats input first when active.
     if (game.telegraph().active()) {

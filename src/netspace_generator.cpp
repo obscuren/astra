@@ -3,6 +3,10 @@
 #include "astra/grammars/gen_door_netspace.h"
 #include "astra/grammars/gen_vending_netspace.h"
 #include "astra/grammars/gen_camera_netspace.h"
+#include "astra/grammars/gen_atm_netspace.h"
+#include "astra/grammars/gen_turret_netspace.h"
+#include "astra/grammars/gen_elevator_netspace.h"
+#include "astra/grammars/gen_corpse_netspace.h"
 
 namespace astra {
 
@@ -56,10 +60,14 @@ Netspace gen_for_target(const TargetDescriptor& desc) {
             return gen_camera_netspace(desc);
         // Phase 4+ lights up the remaining kinds.
         case NetspaceTargetKind::Atm:
+            return gen_atm_netspace(desc);
         case NetspaceTargetKind::Turret:
+            return gen_turret_netspace(desc);
         case NetspaceTargetKind::Elevator:
-        case NetspaceTargetKind::TrafficLight:
+            return gen_elevator_netspace(desc);
         case NetspaceTargetKind::Corpse:
+            return gen_corpse_netspace(desc);
+        case NetspaceTargetKind::TrafficLight:
         case NetspaceTargetKind::NpcHead:
         case NetspaceTargetKind::Mainframe:
         case NetspaceTargetKind::BlackwallTear:
