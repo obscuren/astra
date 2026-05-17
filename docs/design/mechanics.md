@@ -844,6 +844,20 @@ The in-net overlay renders six full-width horizontal bands, top to bottom, insid
 
 Minimum window height for all bands to render without collision: `deck_slots + 1 + kLogRows + 12` rows. Below that threshold the band separators are suppressed to avoid overwriting the chrome border.
 
+## Hacking — In-Net Action Economy (Phase 5)
+
+Per [`combat.md`](combat.md) §Action Economy. Each in-net turn the player commits **exactly one** of:
+
+- **One movement** — traverse to an adjacent node (or bump-attack ICE).
+- **One program command** — a self-targeted program fires instantly on its deck key; a tile-targeted program is committed when its target is confirmed in the Telegraph (Space or Enter). Opening the telegraph and re-aiming are free.
+- **One idle** (`.`) — stay put; the deck cools, +1 RAM (clamped at `ram_max`). Passive trace decay applies turn-driven.
+
+Free actions (never advance the net clock): **observe** (`o`), aiming/cancelling a Telegraph, log scrollback (PgUp/PgDn), opening the dev console. The net clock is paused during deliberation; only a committed action advances it (and drips the dilated meatworld clock).
+
+Move and program-command are mutually exclusive — one keypress is one action, so repositioning always costs program tempo and vice-versa.
+
+> Reactive out-of-turn defense (`CANCEL`/`DEFLECT`/`SHIELD` firing in response to an incoming threat and forfeiting the next turn's program command) is specified in `combat.md` but lands in **Slice 9**, alongside payload collision — it requires the defensive fragments (Slice 8) and in-flight threats (Slices 3/4/6) that do not exist yet.
+
 > **The sections below describe the Plan 3 – Plan 8 "Grid" design — superseded by the netspace redesign ([`netspace.md`](netspace.md)).** Phase 0 of the redesign demolished `GridNetwork`, the legacy sector generators, the LAN graph, `GridSector`, the Imprint mechanic, and the dead-implant sector. Per-target netspace grammars (door / vending / camera / mainframe / NPC head / Blackwall tear / …) replace them in Phase 1+. The text below is preserved as historical reference until the design canon in `netspace.md` has been fully absorbed into this file; treat it as out-of-date.
 
 ## Hacking — The Grid (Plan 3 A-layer) [SUPERSEDED]

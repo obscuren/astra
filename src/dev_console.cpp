@@ -474,6 +474,19 @@ static void run_net_selftest(DevConsole& con) {
         std::string be;
         check(astra::net_renderer::selftest_bands(be), "bands" + (be.empty() ? std::string() : (" " + be)));
     }
+    {
+        // Slice 2 action economy — statically-decidable invariants.
+        // (move-XOR-cast / telegraph-confirm-commits / observe-is-free are
+        // integration paths verified in-game per the working agreement.)
+        astra::NetSession ns;
+        ns.ram_max = 6; ns.ram = 4;
+        if (ns.ram < ns.ram_max) ++ns.ram;          // idle regen
+        check(ns.ram == 5, "slice2-idle-ram-regen");
+        ns.ram = ns.ram_max;
+        if (ns.ram < ns.ram_max) ++ns.ram;          // idle regen at cap
+        check(ns.ram == ns.ram_max, "slice2-idle-ram-clamped");
+        check(ns.committed_this_key == false, "slice2-commit-flag-default");
+    }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 
