@@ -310,6 +310,7 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     int eff_slots = std::min(kCyberdeckMaxSlots,
                              cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
     if (slot_idx < 0 || slot_idx >= eff_slots) return FireOutcome::NoOp;
+    if (s.slot_in_flight(slot_idx)) return FireOutcome::NoOp;   // slot busy
     if (cd.loaded[slot_idx].program_def_id == 0) {
         s.push_log("[BLOCK] empty slot");
         return FireOutcome::NoOp;
@@ -355,6 +356,22 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     s.active_slot = slot_idx;
     game.telegraph().begin(spec, s.avatar_x, s.avatar_y, on_confirm);
     return FireOutcome::Telegraphing;
+}
+
+// Cancel an in-flight program occupying `slot`: free the slot, drop the
+// program, NO RAM refund (combat.md §Action Economy — cancel is the
+// turn's program command). Returns true iff a program was cancelled.
+bool try_cancel_slot(NetSession& s, int slot) {
+    for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ++it) {
+        if (it->slot == slot) {
+            s.push_log(astra::net_voice::cmd("cancel slot "
+                       + std::to_string(slot + 1)
+                       + ". RAM not refunded."));
+            s.in_flight.erase(it);
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -522,14 +539,14 @@ bool handle(Game& game, int key) {
             return false;   // FREE — net clock does not advance
         }
 
-        case '1': return fire_program_slot(game, s, 0) == FireOutcome::Fired;
-        case '2': return fire_program_slot(game, s, 1) == FireOutcome::Fired;
-        case '3': return fire_program_slot(game, s, 2) == FireOutcome::Fired;
-        case '4': return fire_program_slot(game, s, 3) == FireOutcome::Fired;
-        case '5': return fire_program_slot(game, s, 4) == FireOutcome::Fired;
-        case '6': return fire_program_slot(game, s, 5) == FireOutcome::Fired;
-        case '7': return fire_program_slot(game, s, 6) == FireOutcome::Fired;
-        case '8': return fire_program_slot(game, s, 7) == FireOutcome::Fired;
+        case '1': return try_cancel_slot(s, 0) || fire_program_slot(game, s, 0) == FireOutcome::Fired;
+        case '2': return try_cancel_slot(s, 1) || fire_program_slot(game, s, 1) == FireOutcome::Fired;
+        case '3': return try_cancel_slot(s, 2) || fire_program_slot(game, s, 2) == FireOutcome::Fired;
+        case '4': return try_cancel_slot(s, 3) || fire_program_slot(game, s, 3) == FireOutcome::Fired;
+        case '5': return try_cancel_slot(s, 4) || fire_program_slot(game, s, 4) == FireOutcome::Fired;
+        case '6': return try_cancel_slot(s, 5) || fire_program_slot(game, s, 5) == FireOutcome::Fired;
+        case '7': return try_cancel_slot(s, 6) || fire_program_slot(game, s, 6) == FireOutcome::Fired;
+        case '8': return try_cancel_slot(s, 7) || fire_program_slot(game, s, 7) == FireOutcome::Fired;
 
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);
