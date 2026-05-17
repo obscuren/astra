@@ -1,6 +1,7 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
 #include "astra/grammars/gen_elevator_netspace.h"
+#include "astra/net_renderer.h"
 #include "astra/net_window_anim.h"
 #include "astra/netspace_generator.h"
 #include "astra/aura.h"
@@ -468,6 +469,10 @@ static void run_net_selftest(DevConsole& con) {
             for (int xx=0; xx<a.w; ++xx)
                 if (a.is_wall(xx,yy)) { corrupt = true; break; }
         check(corrupt, "corpse-corruption");
+    }
+    {
+        std::string be;
+        check(astra::net_renderer::selftest_bands(be), "bands" + (be.empty() ? std::string() : (" " + be)));
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }

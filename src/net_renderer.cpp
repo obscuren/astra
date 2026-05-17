@@ -520,8 +520,9 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
 
     int cluster_left = tier_x;
 
-    // Time-dilation badge — only on title row when there's no subtitle row
-    // to host it. With a subtitle, draw_subtitle_row places it there.
+    // Time-dilation badge — shown on the title row only when the netspace
+    // has no subtitle string (Phase 5 removed the subtitle row entirely;
+    // has_subtitle suppresses the badge when the field is non-empty).
     const bool has_subtitle = !s.netspace.title_subtitle.empty();
     if (s.netspace.time_dilation > 1 && !has_subtitle) {
         std::string time_label = "TIME: "
@@ -1976,5 +1977,80 @@ void render(Game& game, Renderer& r) {
     if (sess->ghost_dialog.open)
         draw_ghost_dialog(r, wr, *sess);
 }
+
+// ---------------------------------------------------------------------------
+// Slice 1 band-geometry self-test (pure — no rendering)
+// ---------------------------------------------------------------------------
+
+bool selftest_bands(std::string& err) {
+    struct TestCase { int sw, sh, deck_slots; };
+    static const TestCase kCases[] = {
+        { 80,  40, 1 }, {  80,  40, 4 }, {  80,  40, 6 },
+        { 100, 50, 1 }, { 100,  50, 4 }, { 100,  50, 6 },
+        { 120, 60, 1 }, { 120,  60, 4 }, { 120,  60, 6 },
+        {  60, 30, 1 }, {  60,  30, 4 }, {  60,  30, 6 },
+    };
+
+    for (const auto& tc : kCases) {
+        const int sw = tc.sw, sh = tc.sh, deck_slots = tc.deck_slots;
+        WindowRect wr = compute_window_rect(sw, sh);
+        const int kmin = deck_slots + 1 + kLogRows + 12;
+        if (wr.h < kmin) continue;   // below documented minimum — geometry intentionally degrades
+
+        NetBands b = compute_bands(wr, deck_slots);
+
+        auto fail = [&](const char* what) -> bool {
+            char buf[128];
+            std::snprintf(buf, sizeof(buf), "(%d,%d,ds=%d) %s", sw, sh, deck_slots, what);
+            err = buf;
+            return false;
+        };
+
+        // Fixed-height bands.
+        if (b.header.h  != 1)           return fail("header.h!=1");
+        if (b.caption.h != 1)           return fail("caption.h!=1");
+        if (b.vitals.h  != 1)           return fail("vitals.h!=1");
+        if (b.footer.h  != 1)           return fail("footer.h!=1");
+        if (b.log.h     != kLogRows)    return fail("log.h!=kLogRows");
+        if (b.deck.h    != 1 + deck_slots) return fail("deck.h!=1+deck_slots");
+        if (b.field.h   < 1)            return fail("field.h<1");
+
+        // Interior containment for every band.
+        const int ix = wr.x + 1;
+        const int ir = wr.x + wr.w - 1;   // one past last interior column
+        const int iy = wr.y + 1;
+        const int ib = wr.y + wr.h - 1;   // one past last interior row
+        auto check_rect = [&](const Rect& r2, const char* name) -> bool {
+            char buf[64];
+            if (r2.x < ix) { std::snprintf(buf, sizeof(buf), "%s.x<ix", name); return fail(buf); }
+            if (r2.x + r2.w > ir) { std::snprintf(buf, sizeof(buf), "%s right>ir", name); return fail(buf); }
+            if (r2.y < iy) { std::snprintf(buf, sizeof(buf), "%s.y<iy", name); return fail(buf); }
+            if (r2.y + r2.h > ib) { std::snprintf(buf, sizeof(buf), "%s bottom>ib", name); return fail(buf); }
+            return true;
+        };
+        if (!check_rect(b.header,  "header"))  return false;
+        if (!check_rect(b.field,   "field"))   return false;
+        if (!check_rect(b.caption, "caption")) return false;
+        if (!check_rect(b.deck,    "deck"))    return false;
+        if (!check_rect(b.vitals,  "vitals"))  return false;
+        if (!check_rect(b.log,     "log"))     return false;
+        if (!check_rect(b.footer,  "footer"))  return false;
+
+        // Footer pinned at wr.y + wr.h - 2.
+        if (b.footer.y != wr.y + wr.h - 2) return fail("footer.y!=wr.y+wr.h-2");
+
+        // Strict top→bottom order (no overlap for adjacent pairs in render order).
+        // header→field: a separator row sits between them, so field.y >= header.y+header.h+1.
+        if (b.field.y < b.header.y + b.header.h + 1) return fail("field.y<header bottom+1");
+        // Remaining adjacent pairs: next.y >= cur.y + cur.h (no overlap; separator may follow).
+        if (b.caption.y < b.field.y   + b.field.h)   return fail("caption overlaps field");
+        if (b.deck.y    < b.caption.y + b.caption.h)  return fail("deck overlaps caption");
+        if (b.vitals.y  < b.deck.y    + b.deck.h)     return fail("vitals overlaps deck");
+        if (b.log.y     < b.vitals.y  + b.vitals.h)   return fail("log overlaps vitals");
+        if (b.footer.y  < b.log.y     + b.log.h)      return fail("footer overlaps log");
+    }
+    return true;
+}
+
 
 } // namespace astra::net_renderer

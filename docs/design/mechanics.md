@@ -831,6 +831,19 @@ Numeric details for each Phase 4 grammar. Tier is the source fixture's hack tier
   - Choice 2 — provoke: spawn an adjacent Gray ICE + `gain_trace(8)`.
 - **Quest wiring:** not yet wired to the quest system (deferred).
 
+## Hacking — In-Net Combat HUD (Phase 5)
+
+The in-net overlay renders six full-width horizontal bands, top to bottom, inside the Tron chrome window. See [`netspace.md`](netspace.md) for the visual spec and layout samples.
+
+- **Header** — one row: the shipped GRID / region / title / IP / TRACE gauge / TIER badge bar, plus a `:: COMBAT` or `:: OPEN` status token appended on the right.
+- **Field** — elastic (fills remaining vertical space, at least 1 row): the scrollable netspace playfield. Immediately below the header separator sits a one-row contextual **caption** line (node label, ICE name, or empty).
+- **`[ DECK ]`** — one header row + one row per effective cyberdeck slot: `[n] NAME.exe  glyph  state` for each loaded program.
+- **Vitals** — one row: the HP / RAM / HEAT readout, relocated from the legacy footer position.
+- **Log** — three rows: runner command-line voice (most-recent actions, scroll-aged).
+- **Footer** — one row: `meatworld clock HH:MM:SS  [net paused — body is not]`. Cosmetic — meatworld remains paused during a net turn; the clock reads real wall time, not sim time.
+
+Minimum window height for all bands to render without collision: `deck_slots + 1 + kLogRows + 12` rows. Below that threshold the band separators are suppressed to avoid overwriting the chrome border.
+
 > **The sections below describe the Plan 3 – Plan 8 "Grid" design — superseded by the netspace redesign ([`netspace.md`](netspace.md)).** Phase 0 of the redesign demolished `GridNetwork`, the legacy sector generators, the LAN graph, `GridSector`, the Imprint mechanic, and the dead-implant sector. Per-target netspace grammars (door / vending / camera / mainframe / NPC head / Blackwall tear / …) replace them in Phase 1+. The text below is preserved as historical reference until the design canon in `netspace.md` has been fully absorbed into this file; treat it as out-of-date.
 
 ## Hacking — The Grid (Plan 3 A-layer) [SUPERSEDED]
