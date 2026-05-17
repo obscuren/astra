@@ -67,6 +67,19 @@ struct NetLootBuffer {
     bool empty() const;
 };
 
+// Phase 5 slice 3a: an in-flight net program occupying a deck slot.
+// RAM is reserved at cast and returned when the program completes (NOT
+// on cancel). Runtime-only; NetSession is not serialized.
+struct NetInFlight {
+    int        slot        = -1;   // deck slot index this occupies
+    uint16_t   program_id  = 0;    // ProgramId value, for resolve + panel name
+    int        turns_total = 1;
+    int        turns_left  = 1;
+    int        ram_held    = 0;    // reserved RAM, returned on completion only
+    int        target_x    = -1;
+    int        target_y    = -1;
+};
+
 struct NetSession {
     // Body
     int body_x = 0;             // saved overworld/dungeon position
@@ -184,6 +197,16 @@ struct NetSession {
     // The telegraph-active branch in net_input::handle consumes+clears it to
     // decide whether that keypress committed the turn. Transient, not serialized.
     bool committed_this_key = false;
+
+    // Phase 5 slice 3a: in-flight program queue (concurrent; one per
+    // occupied slot). Renderer reads it; tick_grid advances it. Transient.
+    std::vector<NetInFlight> in_flight;
+
+    // True if deck slot `slot` currently has an in-flight program.
+    bool slot_in_flight(int slot) const {
+        for (const auto& f : in_flight) if (f.slot == slot) return true;
+        return false;
+    }
 
 };
 

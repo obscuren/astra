@@ -60,6 +60,13 @@ struct ProgramDef {
     TargetingMode       targeting   = TargetingMode::Self;
     TelegraphSpec       telegraph_spec;
     bool (*valid_target)(const NetSession&, int x, int y) = nullptr;
+
+    // Phase 5 slice 3a: net-combat execution duration in turns. The program
+    // occupies its deck slot and reserves its RAM for this many net turns;
+    // the bespoke effect resolves when the countdown reaches 0. Default 1
+    // (resolves within the casting turn's tick_grid). >1 = multi-turn
+    // in-flight. (Slice 3b will derive this from an authored fragment chain.)
+    int net_exec_turns = 1;
 };
 
 const std::vector<ProgramDef>& program_registry();
