@@ -261,6 +261,33 @@ void draw_block_gauge(Renderer& r, int x, int y, int width,
     }
 }
 
+// Decode the UTF-8 sequence at text[i] into a codepoint; sets `len` to its
+// byte length (1..4, clamped to the buffer). Malformed lead bytes decode as
+// a 1-byte replacement so callers always make progress.
+uint32_t decode_utf8(const std::string& text, size_t i, int& len) {
+    unsigned char b = static_cast<unsigned char>(text[i]);
+    if (b < 0x80) { len = 1; return b; }
+    auto cont = [&](size_t k) -> uint32_t {
+        return (i + k < text.size())
+                   ? (static_cast<unsigned char>(text[i + k]) & 0x3Fu) : 0u;
+    };
+    if ((b & 0xE0) == 0xC0) { len = 2; return ((b & 0x1Fu) << 6) | cont(1); }
+    if ((b & 0xF0) == 0xE0) { len = 3; return ((b & 0x0Fu) << 12) | (cont(1) << 6) | cont(2); }
+    if ((b & 0xF8) == 0xF0) { len = 4; return ((b & 0x07u) << 18) | (cont(1) << 12) | (cont(2) << 6) | cont(3); }
+    len = 1; return b;
+}
+
+// A combining mark stacks on the preceding base glyph and adds ZERO advance
+// width (zalgo titles/labels). Covers the blocks zalgo draws from.
+bool is_combining_cp(uint32_t cp) {
+    return (cp >= 0x0300 && cp <= 0x036F) ||  // Combining Diacritical Marks
+           (cp >= 0x0483 && cp <= 0x0489) ||  // Combining Cyrillic
+           (cp >= 0x1AB0 && cp <= 0x1AFF) ||  // ...Extended
+           (cp >= 0x1DC0 && cp <= 0x1DFF) ||  // ...Supplement
+           (cp >= 0x20D0 && cp <= 0x20FF) ||  // ...for Symbols
+           (cp >= 0xFE20 && cp <= 0xFE2F);    // Combining Half Marks
+}
+
 // Renderer's draw_string takes no color parameter and writes byte-by-byte —
 // multi-byte UTF-8 glyphs (▶, ›, ▮ …) collapse to one visual cell on screen
 // but consume N buffer cells, throwing off downstream column math. Emit each
@@ -282,29 +309,59 @@ void draw_colored_string(Renderer& r, int x, int y, const std::string& text, Col
             ++i;
             continue;
         }
-        if (b < 0x80) {
-            r.draw_char(cursor, y, static_cast<char>(b), cur);
-            ++i;
-            ++cursor;
-        } else {
-            int len = 1;
-            if      ((b & 0xE0) == 0xC0) len = 2;
-            else if ((b & 0xF0) == 0xE0) len = 3;
-            else if ((b & 0xF8) == 0xF0) len = 4;
-            char buf[5] = {0};
-            for (int k = 0; k < len && i + k < text.size(); ++k) {
-                buf[k] = text[i + k];
-            }
-            r.draw_glyph(cursor, y, buf, cur);
-            i += len;
-            ++cursor;
+        // Build one cell = a base glyph plus any combining marks that
+        // immediately follow it. Marks overstrike the base in the same
+        // cell and never advance the cursor (so column math, the title
+        // border, and centered room labels stay aligned). The terminal
+        // Cell holds 4 content bytes — an ASCII base + one 2-byte mark
+        // fits; whole marks past capacity are dropped (zalgo still
+        // reads). A sequence is only ever copied IN FULL — never split
+        // mid-codepoint, which would emit invalid UTF-8 (renders as ).
+        constexpr int kCellBytes = 4;       // TerminalRenderer::Cell::ch holds 4 + NUL
+        char buf[kCellBytes + 1] = {0};
+        int  used = 0;
+        auto append_full = [&](size_t at, int len) {
+            if (used + len > kCellBytes) return;          // whole-sequence-or-nothing
+            for (int k = 0; k < len && at + k < text.size(); ++k)
+                buf[used++] = text[at + k];
+        };
+        int  base_len = 1;
+        uint32_t base_cp = decode_utf8(text, i, base_len);
+        if (is_combining_cp(base_cp)) {
+            // Orphan combining mark with no preceding base on this cell:
+            // overstrike the current cell without advancing the cursor.
+            append_full(i, base_len);
+            buf[used] = '\0';
+            if (used > 0) r.draw_glyph(cursor, y, buf, cur);
+            i += base_len;
+            continue;  // cursor unchanged — next glyph lands on the same cell
         }
+        append_full(i, base_len);
+        i += base_len;
+        // Absorb trailing combining marks into the same cell (whole marks only).
+        while (i < text.size()) {
+            unsigned char nb = static_cast<unsigned char>(text[i]);
+            if (nb == static_cast<unsigned char>(COLOR_BEGIN) ||
+                nb == static_cast<unsigned char>(COLOR_END)) break;
+            int mlen = 1;
+            uint32_t mcp = decode_utf8(text, i, mlen);
+            if (!is_combining_cp(mcp)) break;
+            append_full(i, mlen);
+            i += mlen;  // consume the mark even if it didn't fit (drop whole mark)
+        }
+        buf[used] = '\0';
+        if (base_cp < 0x80 && used == 1)
+            r.draw_char(cursor, y, buf[0], cur);
+        else if (used > 0)
+            r.draw_glyph(cursor, y, buf, cur);
+        ++cursor;
     }
 }
 
-// Visual cell width of a UTF-8 string: ASCII = 1, every multi-byte code
-// point = 1. COLOR_BEGIN/COLOR_END markers are zero-width metadata and
-// skipped. Caller is responsible for advancing x by this much.
+// Visual cell width of a UTF-8 string: ASCII / base multi-byte glyph = 1,
+// combining mark = 0 (it overstrikes the previous cell). COLOR_BEGIN/
+// COLOR_END markers are zero-width metadata and skipped. Caller advances x
+// by this much.
 int visual_width(const std::string& text) {
     int w = 0;
     size_t i = 0;
@@ -318,13 +375,37 @@ int visual_width(const std::string& text) {
             ++i;
             continue;
         }
-        if (b < 0x80) { ++w; ++i; }
-        else if ((b & 0xE0) == 0xC0) { ++w; i += 2; }
-        else if ((b & 0xF0) == 0xE0) { ++w; i += 3; }
-        else if ((b & 0xF8) == 0xF0) { ++w; i += 4; }
-        else                          { ++w; ++i; }
+        int len = 1;
+        uint32_t cp = decode_utf8(text, i, len);
+        if (!is_combining_cp(cp)) ++w;   // combining marks add 0 width
+        i += len;
     }
     return w;
+}
+
+// Clip a UTF-8 string (which may contain COLOR_BEGIN/COLOR_END markers) to at
+// most `max_cells` visual cells, cutting only at a code-point boundary. Color
+// markers are zero-width and never cut mid-sequence. Used by draw_ghost_dialog
+// to safely truncate lore/choice lines that exceed the panel's inner width.
+std::string utf8_clip(const std::string& text, int max_cells) {
+    int cells = 0;
+    size_t i = 0;
+    while (i < text.size()) {
+        unsigned char b = static_cast<unsigned char>(text[i]);
+        if (b == static_cast<unsigned char>(COLOR_BEGIN) && i + 1 < text.size()) {
+            i += 2; continue;  // zero-width marker — never clips here
+        }
+        if (b == static_cast<unsigned char>(COLOR_END)) {
+            ++i; continue;     // zero-width marker
+        }
+        int seq = 1;
+        uint32_t cp = decode_utf8(text, i, seq);
+        if (is_combining_cp(cp)) { i += seq; continue; }  // rides with prev base; 0 cells
+        if (cells + 1 > max_cells) break;  // would overflow — cut before this base
+        ++cells;
+        i += seq;
+    }
+    return text.substr(0, i);
 }
 
 std::string upper(std::string s) {
@@ -819,6 +900,166 @@ void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s,
 }
 
 // ---------------------------------------------------------------------------
+// Ghost dialog modal
+// ---------------------------------------------------------------------------
+
+// Draws a compact centered bordered modal panel over the net overlay when
+// s.ghost_dialog.open is true. Mirrors the BlackIceTakeover centered-box
+// idiom (draw_window_sequence, ~line 1486) and uses draw_colored_string +
+// draw_char(bg) inverse-video for the selected choice, matching the
+// program-bar active-slot highlight (draw_program_bar, ~line 874).
+void draw_ghost_dialog(Renderer& r, const WindowRect& wr, const NetSession& s) {
+    if (!s.ghost_dialog.open) return;
+    const auto& gd = s.ghost_dialog;
+
+    // Panel dimensions: wide enough for lines + choices, min 36 cols.
+    constexpr int kMinW = 36;
+    constexpr int kPad  = 2;   // left/right interior padding
+
+    // Measure content width using visual_width (UTF-8 + color-marker safe).
+    // Mirror of the log-panel width scan at net_renderer.cpp ~line 680.
+    int content_w = kMinW;
+    for (const auto& line : gd.lines) {
+        int lw = visual_width(line) + kPad * 2;
+        if (lw > content_w) content_w = lw;
+    }
+    for (const auto& ch : gd.choices) {
+        // "▸ " prefix occupies 2 cells + visual text + kPad*2
+        int cw = visual_width(ch.text) + 2 + kPad * 2;
+        if (cw > content_w) content_w = cw;
+    }
+    // Footer hint: "Space: choose   Esc: leave"
+    constexpr int kFooterLen = 26;
+    if (kFooterLen + kPad * 2 > content_w) content_w = kFooterLen + kPad * 2;
+
+    // Clamp width to window interior.
+    int max_w = wr.w - 4;
+    if (content_w > max_w) content_w = max_w;
+    int bw = content_w + 2;  // +2 for left/right border columns
+
+    int n_lines   = static_cast<int>(gd.lines.size());
+    int n_choices = static_cast<int>(gd.choices.size());
+    // Fixed rows: footer separator (1) + footer (1) + top/bottom border (2) = 4.
+    // Choice rows are always reserved first so they remain visible; lore rows
+    // fill whatever space remains when content exceeds the window height.
+    constexpr int kFixedRows = 4;  // top border + footer sep + footer + bottom border
+    int sep_rows = (n_lines > 0 && n_choices > 0) ? 1 : 0;
+
+    // Ideal height: all content + separator + fixed chrome.
+    int ideal_inner_h = n_lines + sep_rows + n_choices + 2 /* footer sep+row */;
+    int bh = ideal_inner_h + 2;  // +2 for top/bottom border
+    if (bh < 6) bh = 6;
+
+    // Clamp height to window interior (mirrors width clamp above).
+    int max_h = wr.h - 4;
+    if (bh > max_h) bh = max_h;
+
+    // Recompute how many lore lines actually fit after clamping.
+    // Choices are always drawn; lore gets the remaining rows.
+    int inner_h   = bh - 2;  // rows inside the border
+    int reserved  = n_choices + sep_rows + 2;  // footer sep + footer
+    int lines_fit = std::max(0, inner_h - reserved);
+    if (lines_fit > n_lines) lines_fit = n_lines;
+
+    // Center the panel inside the window.
+    int bx = wr.x + (wr.w - bw) / 2;
+    int by = wr.y + (wr.h - bh) / 2;
+
+    // Black interior.
+    for (int j = 1; j < bh - 1; ++j)
+        for (int i = 1; i < bw - 1; ++i)
+            r.draw_char(bx + i, by + j, ' ', Color::White, Color::Black);
+
+    // Border using double-line box-draw glyphs (same family as main chrome).
+    r.draw_glyph(bx,          by,          "\xe2\x95\x94", Color::Cyan);  // ╔
+    r.draw_glyph(bx + bw - 1, by,          "\xe2\x95\x97", Color::Cyan);  // ╗
+    r.draw_glyph(bx,          by + bh - 1, "\xe2\x95\x9a", Color::Cyan);  // ╚
+    r.draw_glyph(bx + bw - 1, by + bh - 1, "\xe2\x95\x9d", Color::Cyan);  // ╝
+    for (int i = 1; i < bw - 1; ++i) {
+        r.draw_glyph(bx + i, by,          "\xe2\x95\x90", Color::Cyan);   // ═
+        r.draw_glyph(bx + i, by + bh - 1, "\xe2\x95\x90", Color::Cyan);   // ═
+    }
+    for (int j = 1; j < bh - 1; ++j) {
+        r.draw_glyph(bx,          by + j, "\xe2\x95\x91", Color::Cyan);   // ║
+        r.draw_glyph(bx + bw - 1, by + j, "\xe2\x95\x91", Color::Cyan);   // ║
+    }
+
+    // Content rows.
+    int row = by + 1;
+    const int text_x = bx + 1 + kPad;
+    const int text_w = bw - 2 - kPad * 2;
+
+    // Lore/flavour lines — clipped to lines_fit rows, each line clipped to
+    // text_w visual cells via utf8_clip (never a raw byte substr).
+    // Pattern mirrors draw_log_panel (net_renderer.cpp ~line 802) which also
+    // passes pre-clipped strings to draw_colored_string for bounded rows.
+    for (int li = 0; li < lines_fit; ++li) {
+        std::string clamped = utf8_clip(gd.lines[li], text_w);
+        draw_colored_string(r, text_x, row, clamped, Color::White);
+        ++row;
+    }
+
+    // Separator between lore and choices.
+    if (n_lines > 0 && n_choices > 0) {
+        r.draw_glyph(bx,          row, "\xe2\x95\xa0", Color::Cyan);   // ╠
+        r.draw_glyph(bx + bw - 1, row, "\xe2\x95\xa3", Color::Cyan);   // ╣
+        for (int i = 1; i < bw - 1; ++i)
+            r.draw_glyph(bx + i, row, "\xe2\x95\x90", Color::Cyan);    // ═
+        ++row;
+    }
+
+    // Choices — selected choice gets ▸ marker + inverse-video highlight.
+    // Choice text is clipped to (text_w - 1) cells via utf8_clip; the
+    // selected-row draw uses draw_colored_string with the inverse colors
+    // rather than the byte-unsafe `for (char c : label)` loop.
+    for (int ci = 0; ci < n_choices; ++ci) {
+        const auto& ch = gd.choices[ci];
+        bool sel = (ci == gd.sel);
+        // Clip choice label at a UTF-8 character boundary.
+        std::string label = utf8_clip(ch.text, text_w - 1);
+        if (sel) {
+            // Inverse-video: fill the choice row background.
+            for (int i = 1; i < bw - 1; ++i)
+                r.draw_char(bx + i, row, ' ', Color::Black, Color::Cyan);
+            // Cursor marker ▸ then text. Walk code points (not bytes) so
+            // multi-byte glyphs are passed whole to draw_glyph, not split.
+            r.draw_glyph(text_x - 1, row, "\xe2\x96\xb8", Color::Black, Color::Cyan);  // ▸
+            int cx = text_x;
+            for (size_t bi = 0; bi < label.size(); ) {
+                unsigned char b = static_cast<unsigned char>(label[bi]);
+                int seq = 1;
+                if      ((b & 0xE0) == 0xC0) seq = 2;
+                else if ((b & 0xF0) == 0xE0) seq = 3;
+                else if ((b & 0xF8) == 0xF0) seq = 4;
+                if (seq == 1) {
+                    r.draw_char(cx, row, label[bi], Color::Black, Color::Cyan);
+                } else {
+                    char buf[5] = {0};
+                    for (int k = 0; k < seq && bi + k < label.size(); ++k)
+                        buf[k] = label[bi + k];
+                    r.draw_glyph(cx, row, buf, Color::Black, Color::Cyan);
+                }
+                bi += seq;
+                ++cx;
+            }
+        } else {
+            r.draw_glyph(text_x - 1, row, " ", Color::Cyan);
+            draw_colored_string(r, text_x, row, label, Color::Cyan);
+        }
+        ++row;
+    }
+
+    // Footer separator + hint.
+    r.draw_glyph(bx,          row, "\xe2\x95\xa0", Color::Cyan);   // ╠
+    r.draw_glyph(bx + bw - 1, row, "\xe2\x95\xa3", Color::Cyan);   // ╣
+    for (int i = 1; i < bw - 1; ++i)
+        r.draw_glyph(bx + i, row, "\xe2\x95\x90", Color::Cyan);    // ═
+    ++row;
+
+    draw_colored_string(r, text_x, row, "Space: choose   Esc: leave", Color::DarkGray);
+}
+
+// ---------------------------------------------------------------------------
 // Program bar
 // ---------------------------------------------------------------------------
 
@@ -899,6 +1140,18 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     auto wall_neigh = [&](int x, int y) -> bool {
         if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
         return s.netspace.is_wall(x, y);
+    };
+    // A cell counts as "pipe-connected" for junction-glyph resolution if it
+    // carries a pipe/port tile or is an opened port (make_passable) — so a
+    // bend cell resolves to a real corner (╗ ╝ …) instead of a stray ─.
+    auto pipe_neigh = [&](int x, int y) -> bool {
+        if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
+        const NetTile t = s.netspace.at(x, y);
+        if (t == NetTile::PipeH || t == NetTile::PipeV ||
+            t == NetTile::PipeJunc || t == NetTile::PipePortV ||
+            t == NetTile::PipePortCornerTR || t == NetTile::PipePortDownD)
+            return true;
+        return s.netspace.passable_overrides.count({x, y}) > 0;
     };
     auto box_neigh = [&](int x, int y, NetTile style) -> bool {
         if (x < 0 || y < 0 || x >= s.netspace.w || y >= s.netspace.h) return false;
@@ -1045,7 +1298,12 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     break;
                 }
                 case NetTile::PipeJunc:
-                    glyph = net_theme::pipe_junc_glyph;
+                    // Resolve from pipe neighbours: 2 arms → corner
+                    // (╗ ╝ ╔ ╚), 3 → tee, 4 → ╬. Reuses the double-line
+                    // glyph table so it matches the ═║ pipe aesthetic.
+                    glyph = wall_glyph_for_neighbours(
+                        pipe_neigh(tx, ty - 1), pipe_neigh(tx, ty + 1),
+                        pipe_neigh(tx + 1, ty), pipe_neigh(tx - 1, ty));
                     color = net_theme::pipe_color;
                     break;
                 case NetTile::PipePortV:
@@ -1061,11 +1319,18 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     color = net_theme::pipe_color;
                     break;
 
-                case NetTile::Glyph:
-                    // Phase 1 plan §1: per-tile glyph overrides land with NetRoom
-                    // content rendering in Step 2; until then this is a no-op.
-                    glyph = " ";
+                case NetTile::Glyph: {
+                    // Render the per-cell override glyph (e.g. the ATM $-border,
+                    // the turret █ arena wall). Color from glyph_color_overrides
+                    // when set, else a neutral default. Empty string ⇒ blank.
+                    auto gi = s.netspace.glyph_overrides.find({tx, ty});
+                    glyph = (gi != s.netspace.glyph_overrides.end() && !gi->second.empty())
+                                ? gi->second.c_str() : " ";
+                    auto ci = s.netspace.glyph_color_overrides.find({tx, ty});
+                    color = (ci != s.netspace.glyph_color_overrides.end())
+                                ? ci->second : Color::White;
                     break;
+                }
             }
 
             // NetBreakwallGlitch override: when a breakwall tile is mid-glitch,
@@ -1146,8 +1411,55 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         }
     }
 
-    // Ambient overlay scaffold — currently no variants ship. Later
-    // phases (Blackwall drift, trace corruption) hook in here.
+    // Ambient overlay scaffold — per-kind visual overlays that sit above
+    // the tile grid but below ICE/avatar so they never obscure actors.
+    if (s.netspace.target.kind == NetspaceTargetKind::Turret) {
+        // Turret "rounds" band: animated > rows above and < rows below the
+        // right side of the arena interior, phase-shifted per blink_phase.
+        // Uses the same 9-frame cadence as the pipe animation so the
+        // rounds appear to travel rightward (>) above and leftward (<) below.
+        // Visual-only: does not alter tiles or passability.
+        const int bp  = game.hacking().blink_phase();
+        const int ph  = (bp / 2) & 7;          // fast rounds — phase steps ~every 2 frames
+        // Draw two rows of > glyphs and two rows of < glyphs in the
+        // right half of the arena interior, using floor cells only.
+        // Bounds derived from arena dims in gen_turret_netspace.cpp:
+        //   kArenaX=3, kArenaW=40 → arena right interior col = 3+40-2 = 41
+        //   kArenaY=1, kArenaH=24 → arena y interior = 2..23
+        //   ax0: kArenaX+1=4 (first interior col) + 12 (right-half offset into
+        //        the ~34-col wide interior) — keep in sync with gen_turret_netspace.cpp
+        //        arena consts if kArenaX / kArenaW / kArenaH change.
+        const int arena_interior_left = 4;  // kArenaX + 1
+        const int rounds_right_offset = 12; // shift band into right half of interior
+        const int ax0 = arena_interior_left + rounds_right_offset; // first column of rounds band
+        const int ax1 = 41; // kArenaX + kArenaW - 2 = 3 + 40 - 2 = 41 (last interior col)
+        const int ay_above1 = 3;   // kArenaY + 2 = 1 + 2 = 3; first > row (above spine)
+        const int ay_above2 = 4;   // kArenaY + 3 = 1 + 3 = 4; second > row
+        const int ay_below1 = 22;  // kArenaY + kArenaH - 3 = 1 + 24 - 3 = 22; first < row
+        const int ay_below2 = 23;  // kArenaY + kArenaH - 2 = 1 + 24 - 2 = 23; second < row
+        for (int x = ax0; x <= ax1; ++x) {
+            // Only draw over Floor/Void tiles (never overwrite walls, pipes, boxes).
+            auto safe = [&](int cx, int cy) -> bool {
+                if (!s.netspace.in_bounds(cx, cy)) return false;
+                NetTile t = s.netspace.at(cx, cy);
+                return t == NetTile::Floor || t == NetTile::Void;
+            };
+            // Phase-shifted: one column in four shows the glyph (when (x+ph)&3 == 0),
+            // the rest are spaces — the active column marches right each phase step,
+            // giving a crawling-rightward illusion for '>' and crawling-leftward for '<'.
+            const char* fwd = ((x + ph) & 3) == 0 ? ">" : " ";
+            const char* bwd = ((x - ph) & 3) == 0 ? "<" : " ";
+            int sx, sy;
+            if (safe(x, ay_above1) && cull(x, ay_above1, sx, sy))
+                r.draw_glyph(pr.x + sx, pr.y + sy, fwd, Color::Red);
+            if (safe(x, ay_above2) && cull(x, ay_above2, sx, sy))
+                r.draw_glyph(pr.x + sx, pr.y + sy, fwd, Color::Red);
+            if (safe(x, ay_below1) && cull(x, ay_below1, sx, sy))
+                r.draw_glyph(pr.x + sx, pr.y + sy, bwd, Color::Red);
+            if (safe(x, ay_below2) && cull(x, ay_below2, sx, sy))
+                r.draw_glyph(pr.x + sx, pr.y + sy, bwd, Color::Red);
+        }
+    }
 
     for (const auto& ice : s.ice) {
         int sx, sy;
@@ -1568,6 +1880,10 @@ void render(Game& game, Renderer& r) {
             r.draw_glyph(wr.x+i, wr.y, zal[k&1], Color::Green);
         }
     }
+
+    // Phase 4: ghost dialog modal — drawn last so it composites above everything.
+    if (sess->ghost_dialog.open)
+        draw_ghost_dialog(r, wr, *sess);
 }
 
 } // namespace astra::net_renderer
