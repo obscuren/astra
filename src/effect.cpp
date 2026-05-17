@@ -351,6 +351,17 @@ Effect make_hijacked_ge(int duration) {
     return e;
 }
 
+Effect make_turret_allied_ge(int duration) {
+    Effect e;
+    e.id = EffectId::TurretAllied;
+    e.name = "Allied Turret";
+    e.color = Color::Cyan;
+    e.duration = duration;
+    e.remaining = duration;
+    e.show_in_bar = true;
+    return e;
+}
+
 Effect make_deck_rebooting_ge() {
     Effect e;
     e.id = EffectId::DeckRebooting;
@@ -434,6 +445,7 @@ Effect effect_for_id(EffectId id) {
         case EffectId::Hearty:          return make_hearty_ge();
         case EffectId::EmpDisabled:     return make_emp_disabled_ge(5);
         case EffectId::Hijacked:        return make_hijacked_ge(2);
+        case EffectId::TurretAllied:    return make_turret_allied_ge(2);
         case EffectId::NetExposed: return make_net_exposed_ge();
         case EffectId::BlackIceShock:    return make_blackice_shock_long_ge();
         case EffectId::GhostCloak:       return make_ghost_cloak_ge(3);

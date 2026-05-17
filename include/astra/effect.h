@@ -52,6 +52,7 @@ enum class EffectId : uint32_t {
     DeckRebooting       = 406,    // Cyberdeck overheated — no programs may fire
     Bleed               = 407,    // Implant: Vibro-Tip Fingers kinetic DoT
     AdrenalinePump      = 408,    // Implant: Adrenal Pump — +1 quickness for 5 turns
+    TurretAllied        = 409,    // Netspace: turret faction flipped to PlayerAllied for N turns
 };
 
 struct Effect {
@@ -135,6 +136,7 @@ Effect make_hearty_ge();
 Effect make_emp_disabled_ge(int duration);
 Effect make_bleed_ge(int duration, int damage_per_tick);
 Effect make_hijacked_ge(int duration);
+Effect make_turret_allied_ge(int duration);
 Effect make_net_exposed_ge();
 Effect make_deck_rebooting_ge();    // 5-turn cyberdeck reboot block
 Effect make_blackice_shock_short_ge();   // 20 ticks

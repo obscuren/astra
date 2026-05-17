@@ -2346,10 +2346,11 @@ void Game::tick_real_world(int cost) {
         }
     }
 
-    // Hacking: restore NPC faction when Hijacked effect has expired
+    // Hacking: restore NPC faction when Hijacked or TurretAllied effect has expired
     for (auto& npc : world_.npcs()) {
         if (!npc.pre_hijack_faction.empty() &&
-            !has_effect(npc.effects, EffectId::Hijacked)) {
+            !has_effect(npc.effects, EffectId::Hijacked) &&
+            !has_effect(npc.effects, EffectId::TurretAllied)) {
             npc.faction = npc.pre_hijack_faction;
             npc.pre_hijack_faction.clear();
         }

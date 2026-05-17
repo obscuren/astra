@@ -84,7 +84,7 @@ struct Npc {
     uint64_t flags = 0;         // CreatureFlag bitfield (Mechanical, Biological, ...)
     InteractionData interactions;
     std::optional<Hackable> cyber;       // present iff this NPC is hackable
-    std::string pre_hijack_faction;      // restored when Hijacked effect expires
+    std::string pre_hijack_faction;      // restored when Hijacked or TurretAllied effect expires
 
     // Runtime vulnerability/DoT tracking
     VulnerabilityStack vuln;

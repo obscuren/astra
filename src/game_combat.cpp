@@ -313,7 +313,13 @@ static HostileTarget find_nearest_hostile(Npc& self, Game& game) {
 
     for (auto& other : game.world().npcs()) {
         if (&other == &self || !other.alive()) continue;
-        if (!is_hostile(self.faction, other.faction)) continue;
+        // A PlayerAllied turret targets whoever is hostile to the player;
+        // skip other PlayerAllied units (allied turrets don't shoot each other).
+        bool target_valid = (self.faction == "PlayerAllied")
+            ? (other.faction != "PlayerAllied" &&
+               is_hostile_to_player(other.faction, game.player()))
+            : is_hostile(self.faction, other.faction);
+        if (!target_valid) continue;
         int d = chebyshev_dist(self.x, self.y, other.x, other.y);
         if (d <= detection_range && d < best.distance) {
             best.npc = &other;

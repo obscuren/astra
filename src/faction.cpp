@@ -184,12 +184,19 @@ bool is_hostile(const std::string& faction_a, const std::string& faction_b) {
     // FriendlyFire quickhack. Treat it as universally hostile so the AI
     // turns the hijacked unit on its allies.
     if (faction_a == "Hijacked" || faction_b == "Hijacked") return true;
+    // "PlayerAllied" is a transient pseudo-faction stamped on a turret by
+    // the netspace TurretFlip outcome. Never hostile to the player and
+    // never hostile to itself; hostility toward other NPCs is decided by
+    // is_hostile_to_player at the turret targeting site (game_combat), so
+    // in the faction-vs-faction test PlayerAllied is treated as non-hostile.
+    if (faction_a == "PlayerAllied" || faction_b == "PlayerAllied") return false;
     return default_faction_standing(faction_a, faction_b) <= hostile_threshold;
 }
 
 bool is_hostile_to_player(const std::string& npc_faction, const Player& player) {
     if (npc_faction.empty()) return false;
     if (npc_faction == "Hijacked") return true;
+    if (npc_faction == "PlayerAllied") return false;
     int rep = reputation_for(player, npc_faction);
     return rep <= hostile_threshold;
 }
