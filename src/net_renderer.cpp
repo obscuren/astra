@@ -98,7 +98,6 @@ const char* wall_glyph_for_neighbours(bool n, bool s, bool e, bool w) {
 
 struct WindowRect    { int x, y, w, h; };
 struct PlayfieldRect { int x, y, w, h; };
-struct LogPaneRect   { int x, y, w, h; };
 
 constexpr Color kChrome  = Color::Cyan;
 
@@ -882,11 +881,11 @@ std::string colorize_leading_tag(const std::string& line) {
     return colored(tag, tag_color(tag)) + line.substr(close + 1);
 }
 
-void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s,
+void draw_log_pane(Renderer& r, const Rect& log, const NetSession& s,
                    int phase) {
-    int rows = lr.h;
+    int rows = log.h;
     if (rows < 1) return;
-    int max_w = lr.w - 2;
+    int max_w = log.w - 2;
     if (max_w < 4) return;
 
     // Build the full wrapped buffer (oldest → newest), then take the
@@ -901,7 +900,7 @@ void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s,
     int total = static_cast<int>(wrapped.size());
     int start = std::max(0, total - rows);
     for (int i = 0; i < rows && start + i < total; ++i) {
-        draw_colored_string(r, lr.x + 1, lr.y + i, wrapped[start + i], Color::White);
+        draw_colored_string(r, log.x + 1, log.y + i, wrapped[start + i], Color::White);
     }
 
     // Command-line glitch: Hunted+ states corrupt ~20% of the last visible
@@ -911,10 +910,10 @@ void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s,
         s.netspace.window_state == WindowState::Blackwall) {
         int last = std::min(rows, total) - 1;
         if (last >= 0) {
-            int yrow = lr.y + last;
-            for (int cx = 0; cx < lr.w - 2; ++cx) {
+            int yrow = log.y + last;
+            for (int cx = 0; cx < log.w - 2; ++cx) {
                 if ((cx * 31 + phase) % 5 == 0)
-                    r.draw_glyph(lr.x + 1 + cx, yrow, "\xc2\xa7", Color::Magenta);
+                    r.draw_glyph(log.x + 1 + cx, yrow, "\xc2\xa7", Color::Magenta);
             }
         }
     }
@@ -1942,9 +1941,7 @@ void render(Game& game, Renderer& r) {
     draw_playfield(game, r, PlayfieldRect{ b.field.x, b.field.y,
                                           b.field.w, b.field.h }, *sess);
     draw_field_caption(r, b.caption, *sess);
-    draw_log_pane(r, LogPaneRect{ b.log.x, b.log.y,
-                                  b.log.w, b.log.h }, *sess,
-                  game.hacking().blink_phase());
+    draw_log_pane(r, b.log, *sess, game.hacking().blink_phase());
     draw_deck_panel(game, r, b.deck, *sess);
 
     if (sess->netspace.window_state == WindowState::Blackwall &&
