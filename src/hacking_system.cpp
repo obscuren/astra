@@ -712,6 +712,21 @@ void HackingSystem::tick_grid(Game& game) {
     // 1a. Promote any ICE seeds that became eligible this tick (trace-gated).
     net_ice::promote_pending_seeds(s);
 
+    // Phase 5 slice 3a: advance in-flight programs. Each occupies its
+    // deck slot + reserves RAM until it completes; the bespoke effect
+    // resolves when the countdown hits 0, then the reserved RAM returns.
+    // (combat.md turn order: enemies advance, then player programs that
+    // complete this turn resolve.)
+    for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ) {
+        if (--it->turns_left > 0) { ++it; continue; }
+        ProgramId pid = static_cast<ProgramId>(it->program_id);
+        NetProgramContext ctx{game, s, it->target_x, it->target_y};
+        std::string msg = apply_program_in_grid(pid, ctx);
+        if (!msg.empty()) s.push_log(std::string("  ") + msg);
+        s.ram = std::min(s.ram_max, s.ram + it->ram_held);   // reservation returned
+        it = s.in_flight.erase(it);
+    }
+
     // 1b. Phase 4: grammar triggers (trace-/turn-gated one-shot spawns).
     for (auto& tr : s.netspace.triggers) {
         if (tr.fired) continue;
