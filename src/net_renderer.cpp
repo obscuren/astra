@@ -159,7 +159,7 @@ NetBands compute_bands(const WindowRect& wr, int deck_slots) {
     return b;
 }
 
-// Mirrors the eff_slots logic in draw_program_bar so render() can size the
+// Mirrors the eff_slots logic in draw_deck_panel so render() can size the
 // deck band before calling the draw functions.
 int effective_deck_slots(Game& game, const NetSession& s) {
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
@@ -928,7 +928,7 @@ void draw_log_pane(Renderer& r, const LogPaneRect& lr, const NetSession& s,
 // s.ghost_dialog.open is true. Mirrors the BlackIceTakeover centered-box
 // idiom (draw_window_sequence, ~line 1486) and uses draw_colored_string +
 // draw_char(bg) inverse-video for the selected choice, matching the
-// program-bar active-slot highlight (draw_program_bar, ~line 874).
+// deck-panel active-slot highlight (draw_deck_panel).
 void draw_ghost_dialog(Renderer& r, const WindowRect& wr, const NetSession& s) {
     if (!s.ghost_dialog.open) return;
     const auto& gd = s.ghost_dialog;
@@ -1081,69 +1081,111 @@ void draw_ghost_dialog(Renderer& r, const WindowRect& wr, const NetSession& s) {
 }
 
 // ---------------------------------------------------------------------------
-// Program bar
+// Deck panel  (Phase 5 Slice 1 — replaces the old single-row program bar)
 // ---------------------------------------------------------------------------
 
-const char* program_abbrev(ProgramId id) {
-    switch (id) {
-        case ProgramId::IcebreakerLite: return "ICE";
-        case ProgramId::Breach:         return "BRC";
-        case ProgramId::Decrypt:        return "DEC";
-        case ProgramId::PulseHammer:    return "PUL";
-        case ProgramId::DaemonHijack:   return "HIJ";
-        case ProgramId::GhostTrace:     return "GHO";
-        case ProgramId::Cooldown:       return "COD";
-        default:                        return "   ";
+// draw_deck_panel renders the [ DECK ] band: one header row then one row per
+// slot.  Column layout (all columns within deck.w - 2 interior):
+//
+//   [n] NAME.exe         §   N RAM   ready
+//   [n] ________         --  --      empty      (empty slot)
+//
+// Active slot: the "[n] NAME.exe" token is rendered in inverse video.
+// Placeholder glyph § is used for all occupied programs.
+// TODO Slice 8: per-program signature glyph (replace § with program-specific icon)
+void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
+                     const NetSession& s) {
+    // Header row.
+    draw_colored_string(r, deck.x + 1, deck.y, "[ DECK ]", Color::Cyan);
+
+    const int deck_slots = deck.h - 1;   // band was sized 1 + deck_slots
+
+    // Read the equipped cyberdeck (may be absent).
+    auto* deck_slot_ptr = game.player().equipment.equipped_cyberdeck();
+    const bool has_deck = deck_slot_ptr && *deck_slot_ptr && (*deck_slot_ptr)->deck;
+
+    int eff_slots = 0;
+    // cd_ptr points into the optional so we can reference it conditionally
+    // below without a CyberdeckData copy.
+    const CyberdeckData* cd_ptr = nullptr;
+    if (has_deck) {
+        cd_ptr    = &(*(*deck_slot_ptr)->deck);
+        eff_slots = std::min(kCyberdeckMaxSlots,
+                             cd_ptr->stats.slots + (s.skill_daemon_mastery ? 1 : 0));
     }
-}
 
-void draw_program_bar(Game& game, Renderer& r, const WindowRect& wr,
-                      const NetSession& s) {
-    const int y = wr.y + wr.h - 2;
-    int x = wr.x + 2;
-    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) return;
-    const auto& cd = *(*deck_slot)->deck;
+    // Fixed column offsets (relative to deck.x + 1, the interior left edge).
+    //   col_name  : "[n] NAME.exe" — starts at interior x+0
+    //   col_glyph : glyph / "--"   — fixed at interior x+22
+    //   col_cost  : "N RAM" / "--" — fixed at interior x+26
+    //   col_state : "ready"/"empty"— fixed at interior x+33
+    const int ix         = deck.x + 1;
+    const int col_glyph  = ix + 22;
+    const int col_cost   = ix + 26;
+    const int col_state  = ix + 33;
 
-    int eff_slots = std::min(kCyberdeckMaxSlots,
-                             cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
+    for (int i = 0; i < deck_slots; ++i) {
+        const int row = deck.y + 1 + i;
+        if (row >= deck.y + deck.h) break;   // guard: clip to band
 
-    for (int i = 0; i < 8; ++i) {
-        char num = static_cast<char>('1' + i);
-        r.draw_glyph(x,     y, "\xe2\x94\x83", Color::Cyan); // ┃
-        r.draw_char(x + 1,  y, num, Color::Cyan);
-        r.draw_glyph(x + 2, y, "\xe2\x94\x83", Color::Cyan);
-        x += 3;
+        // Slot number tag "[n] ".
+        char slot_tag[5];
+        std::snprintf(slot_tag, sizeof(slot_tag), "[%d] ", i + 1);
 
-        const char* abbrev = "   ";
-        Color label_col    = Color::DarkGray;
+        // Resolve program for this slot (if equipped deck and slot occupied).
+        bool occupied        = false;
+        bool affordable      = false;
+        std::string name_str = "________";
+        int  ram_cost        = 0;
 
-        if (i < eff_slots && cd.loaded[i].program_def_id != 0) {
-            Item probe = build_by_def_id(cd.loaded[i].program_def_id);
+        if (has_deck && cd_ptr && i < eff_slots &&
+            cd_ptr->loaded[i].program_def_id != 0) {
+            Item probe = build_by_def_id(cd_ptr->loaded[i].program_def_id);
             if (probe.program) {
-                ProgramId pid  = probe.program->id;
-                const auto* def = find_program(pid);
+                ProgramId pid       = probe.program->id;
+                const auto* def     = find_program(pid);
                 if (def && def->kind != ProgramKind::Qh) {
-                    abbrev = program_abbrev(pid);
-                    bool affordable = (s.ram >= def->ram_cost) &&
-                                      (cd.heat_current + def->heat_cost <= cd.stats.heat_cap);
-                    label_col = affordable ? Color::Cyan : Color::DarkGray;
+                    occupied   = true;
+                    name_str   = std::string(def->name) + ".exe";
+                    ram_cost   = def->ram_cost;
+                    affordable = (s.ram >= def->ram_cost) &&
+                                 (cd_ptr->heat_current + def->heat_cost
+                                  <= cd_ptr->stats.heat_cap);
                 }
             }
         }
 
-        // Plan 6: active slot inverse-videos while its Telegraph is open.
-        if (i == s.active_slot) {
-            for (int k = 0; k < 3; ++k) {
-                r.draw_char(x + k, y,
-                            (k < static_cast<int>(std::strlen(abbrev))) ? abbrev[k] : ' ',
-                            Color::Black, Color::Cyan);
+        if (occupied) {
+            // "[n] NAME.exe" — active slot gets inverse-video treatment.
+            const std::string full_label = std::string(slot_tag) + name_str;
+            if (i == s.active_slot) {
+                int cx = ix;
+                for (char ch : full_label) {
+                    r.draw_char(cx++, row, ch, Color::Black, Color::Cyan);
+                }
+            } else {
+                Color name_col = affordable ? Color::Cyan : Color::DarkGray;
+                draw_colored_string(r, ix, row, full_label, name_col);
             }
+
+            // Glyph column — placeholder § until Slice 8 per-program table.
+            // TODO Slice 8: per-program signature glyph
+            r.draw_glyph(col_glyph, row, "\xc2\xa7", Color::Cyan);  // §
+
+            // Cost + ready/dim columns.
+            char cost_buf[12];
+            std::snprintf(cost_buf, sizeof(cost_buf), "%d RAM", ram_cost);
+            Color status_col = affordable ? Color::Cyan : Color::DarkGray;
+            draw_colored_string(r, col_cost,  row, cost_buf, status_col);
+            draw_colored_string(r, col_state, row, "ready",  status_col);
         } else {
-            draw_colored_string(r, x, y, abbrev, label_col);
+            // Empty slot — everything dimmed.
+            const std::string empty_label = std::string(slot_tag) + "________";
+            draw_colored_string(r, ix,        row, empty_label, Color::DarkGray);
+            draw_colored_string(r, col_glyph, row, "--",        Color::DarkGray);
+            draw_colored_string(r, col_cost,  row, "--",        Color::DarkGray);
+            draw_colored_string(r, col_state, row, "empty",     Color::DarkGray);
         }
-        x += 3;
-        x += 2;  // spacing between slots
     }
 }
 
@@ -1903,7 +1945,7 @@ void render(Game& game, Renderer& r) {
     draw_log_pane(r, LogPaneRect{ b.log.x, b.log.y,
                                   b.log.w, b.log.h }, *sess,
                   game.hacking().blink_phase());
-    draw_program_bar(game, r, wr, *sess);
+    draw_deck_panel(game, r, b.deck, *sess);
 
     if (sess->netspace.window_state == WindowState::Blackwall &&
         !sess->window_seq.active()) {
