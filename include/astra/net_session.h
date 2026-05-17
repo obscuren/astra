@@ -141,6 +141,13 @@ struct NetSession {
     // world tick, not every render frame.
     uint32_t net_turn = 0;
 
+    // Phase 5: meatworld clock seed (seconds proxy) captured at jack-in.
+    // Footer shows base + net_turn * max(1,time_dilation), formatted
+    // HH:MM:SS. Display-only — the meatworld stays paused (no sim, no
+    // interrupts). TODO: a later pass could map true time-of-day from
+    // DayClock instead of the world-tick proxy.
+    int meat_clock_base_secs = 0;
+
     // Per-session log ring. Read by the Grid HUD's right pane.
     // Capped — push_log drops the oldest entry when full.
     static constexpr size_t kLogCap = 64;

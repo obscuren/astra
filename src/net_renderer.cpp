@@ -861,6 +861,23 @@ Color tag_color(const std::string& tag) {
     return Color::Cyan;
 }
 
+void draw_meatworld_footer(Renderer& r, const Rect& f, const NetSession& s) {
+    long secs = static_cast<long>(s.meat_clock_base_secs)
+              + static_cast<long>(s.net_turn)
+                * std::max(1, s.netspace.time_dilation);
+    long tod = ((secs % 86400) + 86400) % 86400;   // wrap to a day
+    int hh = static_cast<int>(tod / 3600);
+    int mm = static_cast<int>((tod % 3600) / 60);
+    int ss = static_cast<int>(tod % 60);
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "meatworld clock %02d:%02d:%02d", hh, mm, ss);
+    int x = f.x + 1;
+    draw_colored_string(r, x, f.y, buf, Color::Cyan);
+    x += static_cast<int>(std::strlen(buf));
+    draw_colored_string(r, x, f.y, "   [net paused \xe2\x80\x94 body is not]",
+                        Color::DarkGray);
+}
+
 void draw_field_caption(Renderer& r, const Rect& cap, const NetSession& s) {
     if (s.field_caption.empty()) return;
     std::string line = s.field_caption;
@@ -1942,6 +1959,7 @@ void render(Game& game, Renderer& r) {
                                           b.field.w, b.field.h }, *sess);
     draw_field_caption(r, b.caption, *sess);
     draw_log_pane(r, b.log, *sess, game.hacking().blink_phase());
+    draw_meatworld_footer(r, b.footer, *sess);
     draw_deck_panel(game, r, b.deck, *sess);
 
     if (sess->netspace.window_state == WindowState::Blackwall &&

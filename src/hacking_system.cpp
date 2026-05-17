@@ -557,6 +557,8 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
         session_->push_log(net_voice::cmd("trace " + std::to_string(session_->trace) + "%. clean entry."));
     }
 
+    session_->meat_clock_base_secs = game.world().world_tick();
+
     game.set_state(GameState::Net);
 
     // Start the Opening ritual — the window sequence owns the display
