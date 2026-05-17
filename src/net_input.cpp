@@ -339,6 +339,7 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
         if (!deck_slot2 || !*deck_slot2 || !(*deck_slot2)->deck) return;
         auto& cd2 = *(*deck_slot2)->deck;
         fire_program(game, *sess_ptr, cd2, *def_ptr, r.dest_x, r.dest_y);
+        sess_ptr->committed_this_key = true;
     };
 
     s.active_slot = slot_idx;
@@ -392,11 +393,12 @@ bool handle(Game& game, int key) {
 
     // Telegraph eats input first when active.
     if (game.telegraph().active()) {
-        game.telegraph().handle_input(key, game);
-        // If Telegraph closed (confirm or cancel), clear the active-slot
-        // highlight so the program bar returns to normal rendering.
+        s.committed_this_key = false;
+        game.telegraph().handle_input(key, game);   // may run on_confirm -> fire_program
         if (!game.telegraph().active()) s.active_slot = -1;
-        return false;
+        bool committed = s.committed_this_key;       // set only by a successful on_confirm
+        s.committed_this_key = false;
+        return committed;   // confirmed fire -> turn; re-aim / cancel -> free
     }
 
     // Log scrollback — free action (never consumes a world turn).
@@ -470,14 +472,14 @@ bool handle(Game& game, int key) {
         case KEY_RIGHT: case 'l': return move_with_step( 1,  0);
         case '.':                 return true;
 
-        case '1': { (void)fire_program_slot(game, s, 0); return false; }
-        case '2': { (void)fire_program_slot(game, s, 1); return false; }
-        case '3': { (void)fire_program_slot(game, s, 2); return false; }
-        case '4': { (void)fire_program_slot(game, s, 3); return false; }
-        case '5': { (void)fire_program_slot(game, s, 4); return false; }
-        case '6': { (void)fire_program_slot(game, s, 5); return false; }
-        case '7': { (void)fire_program_slot(game, s, 6); return false; }
-        case '8': { (void)fire_program_slot(game, s, 7); return false; }
+        case '1': return fire_program_slot(game, s, 0) == FireOutcome::Fired;
+        case '2': return fire_program_slot(game, s, 1) == FireOutcome::Fired;
+        case '3': return fire_program_slot(game, s, 2) == FireOutcome::Fired;
+        case '4': return fire_program_slot(game, s, 3) == FireOutcome::Fired;
+        case '5': return fire_program_slot(game, s, 4) == FireOutcome::Fired;
+        case '6': return fire_program_slot(game, s, 5) == FireOutcome::Fired;
+        case '7': return fire_program_slot(game, s, 6) == FireOutcome::Fired;
+        case '8': return fire_program_slot(game, s, 7) == FireOutcome::Fired;
 
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);

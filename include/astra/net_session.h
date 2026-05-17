@@ -179,6 +179,12 @@ struct NetSession {
     // none. The Grid HUD uses this to inverse-video the active program slot.
     int active_slot = -1;
 
+    // Phase 5 slice 2: set by a tile-targeted program's Telegraph on_confirm
+    // (which runs inside game.telegraph().handle_input on a later keypress).
+    // The telegraph-active branch in net_input::handle consumes+clears it to
+    // decide whether that keypress committed the turn. Transient, not serialized.
+    bool committed_this_key = false;
+
 };
 
 } // namespace astra
