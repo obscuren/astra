@@ -152,6 +152,11 @@ struct NetSession {
     }
     void clear_log() { log_lines.clear(); }
 
+    // Phase 5: one-line contextual board status rendered in the field-caption
+    // band (e.g. "bolt running SLAM.exe [##....] 2/6"). Set by combat code in
+    // later slices; renderer-read only. Empty = nothing drawn.
+    std::string field_caption;
+
     // Apply incoming trace gain through the implant trace_resistance filter.
     // Negative deltas pass through unchanged (cleanses ignore resistance).
     // Returns the new clamped trace value for convenience.

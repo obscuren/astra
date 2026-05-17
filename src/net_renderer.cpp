@@ -862,6 +862,15 @@ Color tag_color(const std::string& tag) {
     return Color::Cyan;
 }
 
+void draw_field_caption(Renderer& r, const Rect& cap, const NetSession& s) {
+    if (s.field_caption.empty()) return;
+    std::string line = s.field_caption;
+    // Truncate to interior width by visual cells (UTF-8/zalgo-safe).
+    while (visual_width(line) > cap.w - 2 && !line.empty())
+        line.pop_back();
+    draw_colored_string(r, cap.x + 1, cap.y, line, Color::DarkGray);
+}
+
 // Wrap any leading "[TAG]" prefix in colored() so it renders in tag_color.
 // No-op if the line doesn't start with a bracket tag, or if it's already
 // been wrapped in markers.
@@ -1890,6 +1899,7 @@ void render(Game& game, Renderer& r) {
 
     draw_playfield(game, r, PlayfieldRect{ b.field.x, b.field.y,
                                           b.field.w, b.field.h }, *sess);
+    draw_field_caption(r, b.caption, *sess);
     draw_log_pane(r, LogPaneRect{ b.log.x, b.log.y,
                                   b.log.w, b.log.h }, *sess,
                   game.hacking().blink_phase());
