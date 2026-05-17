@@ -14,7 +14,6 @@
 #include "astra/lan.h"
 #include "astra/player.h"
 #include "astra/program.h"
-#include "astra/rect.h"
 #include "astra/renderer.h"
 #include "astra/telegraph.h"
 #include "astra/tilemap.h"
@@ -102,7 +101,6 @@ struct PlayfieldRect { int x, y, w, h; };
 struct LogPaneRect   { int x, y, w, h; };
 
 constexpr Color kChrome  = Color::Cyan;
-constexpr int   kLogPaneW = 40;
 
 WindowRect compute_window_rect(int screen_w, int screen_h) {
     int w = screen_w * 8 / 10;
@@ -114,26 +112,63 @@ WindowRect compute_window_rect(int screen_w, int screen_h) {
     return {x, y, w, h};
 }
 
-// Chrome height grows by 1 when the netspace declares a subtitle line (a
-// quote / flavour tag rendered below the title). All downstream rows
-// (separator, deck strip, playfield, log pane, column split) shift down
-// by `subtitle_rows` so the playfield contracts by that much.
-int subtitle_rows_for(const Netspace& ns) {
-    return ns.title_subtitle.empty() ? 0 : 1;
+// ---------------------------------------------------------------------------
+// Band geometry  (Phase 5 horizontal layout)
+// ---------------------------------------------------------------------------
+
+struct Rect { int x, y, w, h; };
+struct NetBands {
+    Rect header;   // 1 row
+    Rect field;    // elastic
+    Rect caption;  // 1 row
+    Rect deck;     // 1 header row + eff_slots rows
+    Rect vitals;   // 1 row
+    Rect log;      // kLogRows rows
+    Rect footer;   // 1 row — row for the meatworld-clock footer — consumed in Slice 1 Task 8
+};
+constexpr int kLogRows = 3;
+
+// `deck_slots` = effective cyberdeck slots (a [ DECK ] header row is added on top).
+NetBands compute_bands(const WindowRect& wr, int deck_slots) {
+    const int ix = wr.x + 1;          // interior left
+    const int iw = wr.w - 2;          // interior width
+    const int deck_h = 1 + deck_slots;
+    // bottom_block = caption(1) + sep + deck(deck_h) + sep + vitals(1) + sep + log(kLogRows) + sep + footer(1)
+    // = deck_h + kLogRows + 7; footer is pinned at wr.h-2, no separator below it.
+    const int bottom_block = 1 /*footer*/ + 1 + kLogRows + 1 + 1 /*vitals*/
+                           + 1 + deck_h + 1 + 1 /*caption*/;
+    NetBands b{};
+    b.header  = { ix, wr.y + 1, iw, 1 };
+    int y = wr.y + 3;                 // after header (row +1) + its separator (row +2)
+    const int field_h = std::max(1, wr.h - 2 /*chrome*/ - 1 /*header*/
+                                 - 1 /*hdr sep*/ - bottom_block);
+    b.field   = { ix, y, iw, field_h };          y += field_h;
+    b.caption = { ix, y, iw, 1 };                y += 1 + 1; // caption + its sep
+    b.deck    = { ix, y, iw, deck_h };           y += deck_h + 1;
+    b.vitals  = { ix, y, iw, 1 };                y += 1 + 1;
+    b.log     = { ix, y, iw, kLogRows };         y += kLogRows + 1;
+    b.footer  = { ix, wr.y + wr.h - 2, iw, 1 };
+    // NOTE: compute_bands assumes wr.h >= deck_h + kLogRows + 12 for all bands
+    // to fit without collision (top border(1) + header(1) + sep(1) + field(1) +
+    // caption(1) + sep(1) + deck(deck_h) + sep(1) + vitals(1) + sep(1) +
+    // log(kLogRows) + sep(1) + footer(1) + bottom border(1) = deck_h+kLogRows+12,
+    // guaranteeing field_h >= 1 and sep_log == wr.h-3 with no footer collision).
+    // Below this minimum the field shrinks to 1 (via std::max); on pathologically
+    // short windows the band separators are skipped in render() to avoid
+    // overwriting the bottom chrome border.
+    return b;
 }
 
-PlayfieldRect compute_playfield_rect(const WindowRect& wr, int subtitle_rows) {
-    return { wr.x + 1,
-             wr.y + 5 + subtitle_rows,
-             wr.w - 2 - kLogPaneW - 1,
-             wr.h - 5 - subtitle_rows - 3 };
-}
-
-LogPaneRect compute_log_pane_rect(const WindowRect& wr, int subtitle_rows) {
-    return { wr.x + wr.w - 1 - kLogPaneW,
-             wr.y + 5 + subtitle_rows,
-             kLogPaneW,
-             wr.h - 5 - subtitle_rows - 3 };
+// Mirrors the eff_slots logic in draw_program_bar so render() can size the
+// deck band before calling the draw functions.
+int effective_deck_slots(Game& game, const NetSession& s) {
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (deck_slot && *deck_slot && (*deck_slot)->deck) {
+        const auto& cd = *(*deck_slot)->deck;
+        return std::min(kCyberdeckMaxSlots,
+                        cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
+    }
+    return kCyberdeckMaxSlots;
 }
 
 // ---------------------------------------------------------------------------
@@ -232,14 +267,6 @@ void draw_horizontal_separator(Renderer& r, const WindowRect& wr, int y_in_windo
     }
 }
 
-void draw_column_split(Renderer& r, const WindowRect& wr, int subtitle_rows) {
-    int x = wr.x + wr.w - 1 - kLogPaneW - 1;
-    for (int j = wr.y + 5 + subtitle_rows; j < wr.y + wr.h - 3; ++j) {
-        r.draw_glyph(x, j, "\xe2\x95\x91", kChrome);
-    }
-    r.draw_glyph(x, wr.y + 4 + subtitle_rows, "\xe2\x95\xa6", kChrome); // ╦
-    r.draw_glyph(x, wr.y + wr.h - 3,          "\xe2\x95\xa9", kChrome); // ╩
-}
 
 // ---------------------------------------------------------------------------
 // Gauges + helpers
@@ -559,32 +586,6 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
             }
         }
         // else (5): restored — title row left untouched until next cycle.
-    }
-}
-
-// Subtitle / second chrome row — flavour quote on the left, optional
-// time-dilation indicator on the right. Called only when the netspace
-// declares a non-empty title_subtitle (subtitle_rows_for() == 1).
-void draw_subtitle_row(Renderer& r, const WindowRect& wr,
-                       const NetSession& s) {
-    const int y = wr.y + 2;
-    const int x = wr.x + 2;
-    if (!s.netspace.title_subtitle.empty()) {
-        draw_colored_string(r, x, y, s.netspace.title_subtitle, Color::DarkGray);
-    }
-
-    // Time-dilation badge mirrors the title-row TIER position: anchored
-    // at the right edge with 1 cell of margin. Only drawn when active.
-    if (s.netspace.time_dilation > 1) {
-        std::string time_label = "TIME: "
-                               + std::to_string(s.netspace.time_dilation)
-                               + " meatworld";
-        int time_w = visual_width(time_label);
-        int time_x = wr.x + wr.w - 2 - time_w + 1;
-        int subtitle_end = x + visual_width(s.netspace.title_subtitle);
-        if (time_x > subtitle_end + 1) {
-            draw_colored_string(r, time_x, y, time_label, Color::DarkGray);
-        }
     }
 }
 
@@ -1509,8 +1510,7 @@ void draw_window_sequence(Renderer& r, const WindowRect& wr,
         // visible through the whole ritual, and the per-frame body
         // animation is clipped strictly below its separator so it can
         // never overwrite the title row or the chrome.
-        const int sub    = subtitle_rows_for(s.netspace);
-        const int sep_in = 2 + sub;                 // title-bar bottom line (window-rel y)
+        const int sep_in = 2;                        // title-bar bottom line (window-rel y)
         const int by0    = wr.y + sep_in + 1;       // first body row (screen y)
         const int by1    = wr.y + wr.h - 1;         // exclusive last body row
         const int bx0    = wr.x + 1;
@@ -1783,10 +1783,9 @@ void render(Game& game, Renderer& r) {
 
     int sw = r.get_width();
     int sh = r.get_height();
-    WindowRect    wr = compute_window_rect(sw, sh);
-    const int     sub_rows = subtitle_rows_for(sess->netspace);
-    PlayfieldRect pr = compute_playfield_rect(wr, sub_rows);
-    LogPaneRect   lr = compute_log_pane_rect(wr, sub_rows);
+    WindowRect wr = compute_window_rect(sw, sh);
+    int deck_slots = effective_deck_slots(game, *sess);
+    NetBands b = compute_bands(wr, deck_slots);
 
     // Make the window opaque first so the monochrome world UI behind
     // doesn't bleed through into the Tron HUD.
@@ -1807,68 +1806,82 @@ void render(Game& game, Renderer& r) {
         return;   // sequence owns the whole window; skip normal layout
     }
 
-    // Chrome — outer border + horizontal separators + column split. With
-    // a subtitle row inserted at row 2, every downstream row shifts down
-    // by sub_rows; without one, the layout is unchanged.
-    //
-    // At Critical/Blackwall the interior dividers stay drawn but
-    // violently fracture into RED corruption (wider/faster than the
-    // Hunted border tear) — the UI shredding itself reads as "critical",
-    // where a blank-disappearing separator just read as a render bug.
+    // Chrome — outer border + horizontal separators (one per band boundary).
+    // At Critical/Blackwall the interior dividers stay drawn but violently
+    // fracture into RED corruption — the UI shredding itself reads as
+    // "critical", where a blank-disappearing separator just read as a bug.
     draw_window_chrome(r, wr, sess->netspace.window_state,
                        game.hacking().blink_phase());
-    draw_horizontal_separator(r, wr, 2 + sub_rows);   // below title (+ subtitle)
-    draw_horizontal_separator(r, wr, 4 + sub_rows);   // below deck strip
-    draw_horizontal_separator(r, wr, wr.h - 3);       // above program bar
-    draw_column_split(r, wr, sub_rows);
-    if (sess->netspace.window_state == WindowState::Critical ||
-        sess->netspace.window_state == WindowState::Blackwall) {
-        auto mix = [](uint32_t v) {
-            v ^= v >> 16; v *= 0x7feb352du;
-            v ^= v >> 15; v *= 0x846ca68bu;
-            v ^= v >> 16; return v;
-        };
-        static const char* const kBreak[] = {
-            "\xe2\x95\xb3",    // ╳
-            "\xe2\x95\xaa",    // ╪
-            "\xe2\x95\xab",    // ╫
-            "\xe2\x96\x93",    // ▓
-            "\xe2\x96\x88",    // █
-            "\xc2\xa7",        // §
-            "\xce\xa3",        // Σ
-            " ",               // dropout
-        };
-        constexpr uint32_t kBreakN = 8;
-        const uint32_t t  = static_cast<uint32_t>(game.hacking().blink_phase());
-        const uint32_t ep = t / 2u;                  // tear relocates fast
-        auto fracture_row = [&](int yr, uint32_t eid) {
-            const int N = wr.w - 2;
-            if (N <= 4) return;
-            uint32_t hh = mix(eid * 2654435761u ^ (ep + 1u) * 40503u);
-            if ((hh % 4u) == 0u) return;             // ~1/4 epochs: clean
-            int len = 4 + static_cast<int>((hh >> 3) % 10u);   // 4..13
-            if (len > N) len = N;
-            int s = static_cast<int>((hh >> 8)
-                                     % static_cast<uint32_t>(N - len + 1));
-            for (int k = 0; k < len; ++k) {
-                uint32_t g = mix(static_cast<uint32_t>(s + k) * 0x9e3779b9u
-                               ^ (t * 2654435761u));
-                r.draw_glyph(wr.x + 1 + s + k, wr.y + yr,
-                             kBreak[(g >> 13) % kBreakN], Color::Red);
-            }
-        };
-        fracture_row(2 + sub_rows, 11u);
-        fracture_row(4 + sub_rows, 22u);
-        fracture_row(wr.h - 3,     33u);
+
+    // Five band-boundary separators (window-relative rows).
+    // Skip all of them if the window is too short to fit the full bottom block
+    // (pathological resize) — avoids overwriting the bottom chrome border.
+    const int kMinBandH = deck_slots + 1 + kLogRows + 12;
+    const int sep_hdr     = (b.header.y  + b.header.h)  - wr.y; // under header
+    const int sep_caption = (b.caption.y + b.caption.h) - wr.y; // under caption
+    const int sep_deck    = (b.deck.y    + b.deck.h)    - wr.y; // under deck
+    const int sep_vitals  = (b.vitals.y  + b.vitals.h)  - wr.y; // under vitals
+    const int sep_log     = (b.log.y     + b.log.h)     - wr.y; // under log
+
+    if (wr.h >= kMinBandH) {
+        draw_horizontal_separator(r, wr, sep_hdr);
+        draw_horizontal_separator(r, wr, sep_caption);
+        draw_horizontal_separator(r, wr, sep_deck);
+        draw_horizontal_separator(r, wr, sep_vitals);
+        draw_horizontal_separator(r, wr, sep_log);
+
+        if (sess->netspace.window_state == WindowState::Critical ||
+            sess->netspace.window_state == WindowState::Blackwall) {
+            auto mix = [](uint32_t v) {
+                v ^= v >> 16; v *= 0x7feb352du;
+                v ^= v >> 15; v *= 0x846ca68bu;
+                v ^= v >> 16; return v;
+            };
+            static const char* const kBreak[] = {
+                "\xe2\x95\xb3",    // ╳
+                "\xe2\x95\xaa",    // ╪
+                "\xe2\x95\xab",    // ╫
+                "\xe2\x96\x93",    // ▓
+                "\xe2\x96\x88",    // █
+                "\xc2\xa7",        // §
+                "\xce\xa3",        // Σ
+                " ",               // dropout
+            };
+            constexpr uint32_t kBreakN = 8;
+            const uint32_t t  = static_cast<uint32_t>(game.hacking().blink_phase());
+            const uint32_t ep = t / 2u;                  // tear relocates fast
+            auto fracture_row = [&](int yr, uint32_t eid) {
+                const int N = wr.w - 2;
+                if (N <= 4) return;
+                uint32_t hh = mix(eid * 2654435761u ^ (ep + 1u) * 40503u);
+                if ((hh % 4u) == 0u) return;             // ~1/4 epochs: clean
+                int len = 4 + static_cast<int>((hh >> 3) % 10u);   // 4..13
+                if (len > N) len = N;
+                int s = static_cast<int>((hh >> 8)
+                                         % static_cast<uint32_t>(N - len + 1));
+                for (int k = 0; k < len; ++k) {
+                    uint32_t g = mix(static_cast<uint32_t>(s + k) * 0x9e3779b9u
+                                   ^ (t * 2654435761u));
+                    r.draw_glyph(wr.x + 1 + s + k, wr.y + yr,
+                                 kBreak[(g >> 13) % kBreakN], Color::Red);
+                }
+            };
+            fracture_row(sep_hdr,  11u);
+            fracture_row(sep_deck, 22u);
+            fracture_row(sep_log,  33u);
+        }
     }
 
     // Populated layout slots.
     draw_top_status(game, r, wr, *sess);
-    if (sub_rows > 0) draw_subtitle_row(r, wr, *sess);
-    draw_deck_strip(game, r, wr, *sess, sub_rows);
+    // subtitle row removed this slice (Phase 5 folds it away)
+    draw_deck_strip(game, r, wr, *sess, /*subtitle_rows=*/0);
 
-    draw_playfield(game, r, pr, *sess);
-    draw_log_pane(r, lr, *sess, game.hacking().blink_phase());
+    draw_playfield(game, r, PlayfieldRect{ b.field.x, b.field.y,
+                                          b.field.w, b.field.h }, *sess);
+    draw_log_pane(r, LogPaneRect{ b.log.x, b.log.y,
+                                  b.log.w, b.log.h }, *sess,
+                  game.hacking().blink_phase());
     draw_program_bar(game, r, wr, *sess);
 
     if (sess->netspace.window_state == WindowState::Blackwall &&
