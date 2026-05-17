@@ -186,7 +186,7 @@ bool Telegraph::handle_input(int key, Game& game) {
         case 'u': handle_dir( 1, -1); break;
         case 'b': handle_dir(-1,  1); break;
         case 'n': handle_dir( 1,  1); break;
-        case '\n': case '\r': {
+        case ' ': case '\n': case '\r': {   // Space = canonical confirm (CLAUDE.md); Enter aliases
             recompute(game);
             bool ok = false;
             if (spec_.shape == TelegraphShape::Burst) {
