@@ -147,14 +147,24 @@ NetBands compute_bands(const WindowRect& wr, int deck_slots) {
     b.vitals  = { ix, y, iw, 1 };                y += 1 + 1;
     b.log     = { ix, y, iw, kLogRows };         y += kLogRows + 1;
     b.footer  = { ix, wr.y + wr.h - 2, iw, 1 };
+    // Sub-minimum-window safety: the footer is pinned at wr.h-2 independently
+    // of the top-down accumulator, so on windows below the documented minimum
+    // the log band (kLogRows tall, drawn unconditionally by draw_log_pane) can
+    // run into the pinned footer or the bottom chrome row. Clamp its height so
+    // it never overruns the footer. <=0 height makes draw_log_pane no-op.
+    if (b.log.y + b.log.h > b.footer.y)
+        b.log.h = std::max(0, b.footer.y - b.log.y);
     // NOTE: compute_bands assumes wr.h >= deck_h + kLogRows + 12 for all bands
-    // to fit without collision (top border(1) + header(1) + sep(1) + field(1) +
-    // caption(1) + sep(1) + deck(deck_h) + sep(1) + vitals(1) + sep(1) +
-    // log(kLogRows) + sep(1) + footer(1) + bottom border(1) = deck_h+kLogRows+12,
-    // guaranteeing field_h >= 1 and sep_log == wr.h-3 with no footer collision).
-    // Below this minimum the field shrinks to 1 (via std::max); on pathologically
-    // short windows the band separators are skipped in render() to avoid
-    // overwriting the bottom chrome border.
+    // to fit without collision. Row budget, top->bottom:
+    //   top border(1) + header(1) + sep(1) + field(1) + caption(1) + sep(1)
+    //   + deck(deck_h) + sep(1) + vitals(1) + sep(1) + log(kLogRows) + sep(1)
+    //   + footer(1) + bottom border(1)  =  deck_h + kLogRows + 12
+    // The single sep between caption and deck is the only sep among the
+    // field/caption pair — there is NO separator between field and caption
+    // (caption sits directly under the field). At exactly the minimum,
+    // field_h == 1 and sep_log == wr.h-3, so footer/border do not collide.
+    // Below the minimum the field shrinks to 1 (std::max), the log band is
+    // clamped above, and render() skips the band separators entirely.
     return b;
 }
 
