@@ -268,8 +268,8 @@ bool can_afford_program(NetSession& s, const CyberdeckData& cd,
 }
 
 void fire_program(Game& game, NetSession& s, CyberdeckData& cd,
-                  const ProgramDef& def, int tx, int ty) {
-    s.ram -= def.ram_cost;
+                  const ProgramDef& def, int tx, int ty, int slot_idx) {
+    s.ram -= def.ram_cost;                       // reserved at cast
     int heat = def.heat_cost;
     if (s.skill_ghost_protocol && !s.ghost_protocol_used) {
         heat = 0;
@@ -277,10 +277,19 @@ void fire_program(Game& game, NetSession& s, CyberdeckData& cd,
     }
     cyberdeck_add_heat(cd, heat);
 
-    NetProgramContext ctx{game, s, tx, ty};
-    std::string msg = apply_program_in_grid(def.id, ctx);
-    s.push_log("> " + display_name(def));
-    if (!msg.empty()) s.push_log(std::string("  ") + msg);
+    NetInFlight f;
+    f.slot        = slot_idx;
+    f.program_id  = static_cast<uint16_t>(def.id);
+    f.turns_total = std::max(1, def.net_exec_turns);
+    f.turns_left  = f.turns_total;
+    f.ram_held    = def.ram_cost;
+    f.target_x    = tx;
+    f.target_y    = ty;
+    s.in_flight.push_back(f);
+    s.push_log(astra::net_voice::cmd("run " + std::string(display_name(def))
+               + (f.turns_total > 1
+                  ? ". exec 0/" + std::to_string(f.turns_total) + "."
+                  : ".")));
 }
 
 // Outcome of a deck-slot key. Drives the slice-2 action economy: only a
@@ -315,7 +324,7 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     if (!can_afford_program(s, cd, *def)) return FireOutcome::NoOp;
 
     if (def->targeting == TargetingMode::Self) {
-        fire_program(game, s, cd, *def, -1, -1);
+        fire_program(game, s, cd, *def, -1, -1, slot_idx);
         return FireOutcome::Fired;
     }
 
@@ -331,7 +340,7 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
             && t != NetTile::BoxBlock;
     };
 
-    auto on_confirm = [&game, sess_ptr = &s, def_ptr = def](const TelegraphResult& r) {
+    auto on_confirm = [&game, sess_ptr = &s, def_ptr = def, slot_idx](const TelegraphResult& r) {
         if (def_ptr->valid_target && !def_ptr->valid_target(*sess_ptr, r.dest_x, r.dest_y)) {
             sess_ptr->push_log("[ERR] invalid target for " + display_name(*def_ptr));
             return;
@@ -339,7 +348,7 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
         auto* deck_slot2 = game.player().equipment.equipped_cyberdeck();
         if (!deck_slot2 || !*deck_slot2 || !(*deck_slot2)->deck) return;
         auto& cd2 = *(*deck_slot2)->deck;
-        fire_program(game, *sess_ptr, cd2, *def_ptr, r.dest_x, r.dest_y);
+        fire_program(game, *sess_ptr, cd2, *def_ptr, r.dest_x, r.dest_y, slot_idx);
         sess_ptr->committed_this_key = true;
     };
 
