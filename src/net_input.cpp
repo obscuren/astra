@@ -483,6 +483,36 @@ bool handle(Game& game, int key) {
             return true;
         }
 
+        case 'o': {
+            // Observe — a FREE action (combat.md §Action Economy): inspect
+            // the immediate surroundings; never advances the net clock.
+            // Minimal honest verb for slice 2; tiered enemy-intent
+            // telegraph content lands in slice 6.
+            const auto& ns = s.netspace;
+            NetTile here = ns.at(s.avatar_x, s.avatar_y);
+            bool on_pipe = (here == NetTile::PipeH
+                         || here == NetTile::PipeV
+                         || here == NetTile::PipeJunc);
+            std::string note = on_pipe
+                ? "observe: standing on a data pipe. "
+                : "observe: in open node. ";
+            int best = -1;
+            long bd = 0;
+            for (size_t i = 0; i < s.ice.size(); ++i) {
+                if (s.ice[i].hp <= 0) continue;
+                long dx = s.ice[i].x - s.avatar_x;
+                long dy = s.ice[i].y - s.avatar_y;
+                long d = dx * dx + dy * dy;
+                if (best < 0 || d < bd) { best = static_cast<int>(i); bd = d; }
+            }
+            if (best >= 0)
+                note += display_name(s.ice[best].color) + " process nearby.";
+            else
+                note += "no hostile process in sight.";
+            s.push_log(astra::net_voice::cmd(note));
+            return false;   // FREE — net clock does not advance
+        }
+
         case '1': return fire_program_slot(game, s, 0) == FireOutcome::Fired;
         case '2': return fire_program_slot(game, s, 1) == FireOutcome::Fired;
         case '3': return fire_program_slot(game, s, 2) == FireOutcome::Fired;
