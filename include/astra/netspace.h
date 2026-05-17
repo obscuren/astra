@@ -174,8 +174,10 @@ struct Netspace {
     int                  w = 0;
     int                  h = 0;
     std::vector<NetTile> tiles;        // size = w * h, row-major
+    enum class CombatStatus : uint8_t { Combat, Open };
     std::string          title;        // chrome line (e.g. "MAGLOCK :: DOOR_47B :: TIER 1")
     std::string          title_subtitle;  // optional second line (e.g. vending's quote)
+    CombatStatus         combat_status = CombatStatus::Combat;
     int                  time_dilation = 1;  // meatworld ticks per net tick; 1 = no dilation
     NetspaceAmbient      ambient = NetspaceAmbient::None;
     int                  jack_in_x = 0;

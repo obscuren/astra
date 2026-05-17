@@ -487,6 +487,17 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
         x += visual_width(sep);
         draw_colored_string(r, x, y, s.netspace.title, Color::White);
         x += visual_width(s.netspace.title);
+
+        std::string status_token =
+            (s.netspace.combat_status == Netspace::CombatStatus::Combat)
+            ? " :: COMBAT"
+            : " :: OPEN";
+        Color status_color =
+            (s.netspace.combat_status == Netspace::CombatStatus::Combat)
+            ? Color::Magenta
+            : Color::Cyan;
+        draw_colored_string(r, x, y, status_token, status_color);
+        x += visual_width(status_token);
     }
 
     if (ip_str.empty()) ip_str = format_ip(meta.subnet_base);
