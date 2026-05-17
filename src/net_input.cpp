@@ -282,33 +282,40 @@ void fire_program(Game& game, NetSession& s, CyberdeckData& cd,
     if (!msg.empty()) s.push_log(std::string("  ") + msg);
 }
 
-void fire_program_slot(Game& game, NetSession& s, int slot_idx) {
+// Outcome of a deck-slot key. Drives the slice-2 action economy: only a
+// program that actually FIRED this keypress (self-targeted, instant)
+// commits the turn at the slot key. Telegraphing = a tile-targeted aim
+// was opened (free until the player confirms a target). NoOp = nothing
+// happened (no turn burned).
+enum class FireOutcome { NoOp, Fired, Telegraphing };
+
+FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();
     if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
         s.push_log("[BLOCK] no cyberdeck equipped");
-        return;
+        return FireOutcome::NoOp;
     }
     auto& cd = *(*deck_slot)->deck;
 
     int eff_slots = std::min(kCyberdeckMaxSlots,
                              cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
-    if (slot_idx < 0 || slot_idx >= eff_slots) return;
+    if (slot_idx < 0 || slot_idx >= eff_slots) return FireOutcome::NoOp;
     if (cd.loaded[slot_idx].program_def_id == 0) {
         s.push_log("[BLOCK] empty slot");
-        return;
+        return FireOutcome::NoOp;
     }
 
     Item probe = build_by_def_id(cd.loaded[slot_idx].program_def_id);
-    if (!probe.program) return;
+    if (!probe.program) return FireOutcome::NoOp;
     ProgramId pid = probe.program->id;
     const auto* def = find_program(pid);
-    if (!def || def->kind == ProgramKind::Qh) return;
+    if (!def || def->kind == ProgramKind::Qh) return FireOutcome::NoOp;
 
-    if (!can_afford_program(s, cd, *def)) return;
+    if (!can_afford_program(s, cd, *def)) return FireOutcome::NoOp;
 
     if (def->targeting == TargetingMode::Self) {
         fire_program(game, s, cd, *def, -1, -1);
-        return;
+        return FireOutcome::Fired;
     }
 
     // Tile-targeted: launch Telegraph with a Grid-aware passable predicate.
@@ -336,6 +343,7 @@ void fire_program_slot(Game& game, NetSession& s, int slot_idx) {
 
     s.active_slot = slot_idx;
     game.telegraph().begin(spec, s.avatar_x, s.avatar_y, on_confirm);
+    return FireOutcome::Telegraphing;
 }
 
 } // namespace
@@ -462,14 +470,14 @@ bool handle(Game& game, int key) {
         case KEY_RIGHT: case 'l': return move_with_step( 1,  0);
         case '.':                 return true;
 
-        case '1': fire_program_slot(game, s, 0); return false;
-        case '2': fire_program_slot(game, s, 1); return false;
-        case '3': fire_program_slot(game, s, 2); return false;
-        case '4': fire_program_slot(game, s, 3); return false;
-        case '5': fire_program_slot(game, s, 4); return false;
-        case '6': fire_program_slot(game, s, 5); return false;
-        case '7': fire_program_slot(game, s, 6); return false;
-        case '8': fire_program_slot(game, s, 7); return false;
+        case '1': { (void)fire_program_slot(game, s, 0); return false; }
+        case '2': { (void)fire_program_slot(game, s, 1); return false; }
+        case '3': { (void)fire_program_slot(game, s, 2); return false; }
+        case '4': { (void)fire_program_slot(game, s, 3); return false; }
+        case '5': { (void)fire_program_slot(game, s, 4); return false; }
+        case '6': { (void)fire_program_slot(game, s, 5); return false; }
+        case '7': { (void)fire_program_slot(game, s, 6); return false; }
+        case '8': { (void)fire_program_slot(game, s, 7); return false; }
 
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);
