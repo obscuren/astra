@@ -8,6 +8,7 @@
 #include "astra/net_constants.h"
 #include "astra/net_display.h"
 #include "astra/net_session.h"
+#include "astra/net_voice.h"
 #include "astra/hacking_system.h"
 #include "astra/item.h"
 #include "astra/item_defs.h"
@@ -470,7 +471,17 @@ bool handle(Game& game, int key) {
         case KEY_DOWN:  case 'j': return move_with_step( 0,  1);
         case KEY_LEFT:  case 'h': return move_with_step(-1,  0);
         case KEY_RIGHT: case 'l': return move_with_step( 1,  0);
-        case '.':                 return true;
+        case '.': {
+            // Idle/stay: a committed turn that does nothing but let the
+            // deck cool — passive +1 RAM (clamped at ram_max). Passive
+            // trace decay is already applied turn-driven in tick_grid.
+            // Storyboard /tmp/ui-mock-2 frame 5: "idle: RAM regen +1 -> 2".
+            if (s.ram < s.ram_max) ++s.ram;
+            s.push_log(astra::net_voice::cmd(
+                "idle. deck cooling. RAM " + std::to_string(s.ram)
+                + "/" + std::to_string(s.ram_max) + "."));
+            return true;
+        }
 
         case '1': return fire_program_slot(game, s, 0) == FireOutcome::Fired;
         case '2': return fire_program_slot(game, s, 1) == FireOutcome::Fired;
