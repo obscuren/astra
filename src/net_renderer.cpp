@@ -1209,12 +1209,25 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
             // TODO Slice 8: per-program signature glyph
             r.draw_glyph(col_glyph, row, "\xc2\xa7", Color::Cyan);  // §
 
-            // Cost + ready/dim columns.
-            char cost_buf[12];
-            std::snprintf(cost_buf, sizeof(cost_buf), "%d RAM", ram_cost);
-            Color status_col = affordable ? Color::Cyan : Color::DarkGray;
-            draw_colored_string(r, col_cost,  row, cost_buf, status_col);
-            draw_colored_string(r, col_state, row, "ready",  status_col);
+            // Cost / state columns. An in-flight slot shows exec progress
+            // (Slice 3a) instead of the resting RAM/ready columns.
+            const NetInFlight* fl = nullptr;
+            for (const auto& f : s.in_flight) {
+                if (f.slot == i) { fl = &f; break; }
+            }
+            if (fl) {
+                char exec_buf[16];
+                std::snprintf(exec_buf, sizeof(exec_buf), "exec %d/%d",
+                              fl->turns_total - fl->turns_left, fl->turns_total);
+                draw_colored_string(r, col_cost,  row, "busy",   Color::Magenta);
+                draw_colored_string(r, col_state, row, exec_buf, Color::Magenta);
+            } else {
+                char cost_buf[12];
+                std::snprintf(cost_buf, sizeof(cost_buf), "%d RAM", ram_cost);
+                Color status_col = affordable ? Color::Cyan : Color::DarkGray;
+                draw_colored_string(r, col_cost,  row, cost_buf, status_col);
+                draw_colored_string(r, col_state, row, "ready",  status_col);
+            }
         } else {
             // Empty slot — everything dimmed.
             const std::string empty_label = std::string(slot_tag) + "________";
