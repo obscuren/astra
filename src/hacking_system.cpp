@@ -1,4 +1,5 @@
 #include "astra/hacking_system.h"
+#include "astra/net_voice.h"
 #include "astra/net_window_anim.h"
 
 #include "astra/tilemap.h"
@@ -544,6 +545,18 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
     add_effect(game.player().effects, make_net_exposed_ge());
 
     session_ = std::move(s);
+
+    // Jack-in intro lines — runner command-line voice (storyboard frame 1).
+    {
+        const std::string title = session_->netspace.title.empty()
+                                      ? "netspace"
+                                      : session_->netspace.title;
+        const std::string tier_str = std::to_string(session_->netspace.target.tier);
+        session_->push_log(net_voice::cmd("jacked in. topology resolved."));
+        session_->push_log(net_voice::cmd(title + ", tier " + tier_str + "."));
+        session_->push_log(net_voice::cmd("trace " + std::to_string(session_->trace) + "%. clean entry."));
+    }
+
     game.set_state(GameState::Net);
 
     // Start the Opening ritual — the window sequence owns the display

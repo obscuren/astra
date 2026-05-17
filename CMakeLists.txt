@@ -174,6 +174,7 @@ set(ASTRA_SOURCES
     src/hacking_system.cpp
     src/net_input.cpp
     src/net_renderer.cpp
+    src/net_voice.cpp
     src/net_window_anim.cpp
     src/net_camera.cpp
     src/net_ice.cpp
