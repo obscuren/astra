@@ -217,6 +217,24 @@ void apply_to_hackable(Hackable& h, const EffectSpec& s) {
     (void)s;
 }
 
+// Colored label for an EffectSpec damage kind — mirrors the
+// display_name(DamageType) idiom (colored(name, palette-color)), reusing
+// the existing damage palette: Volt≈Electrical (Cyan), Pyre≈Plasma (Red),
+// Decay≈Acid (Green), Drain = Magenta (vampiric/special), Warp = the
+// established warp color (BrightWhite, cf. net_theme warp_anchor).
+// Empty for None (no type word appended).
+static std::string damage_kind_label(EffectSpec::DamageKind k) {
+    switch (k) {
+        case EffectSpec::DamageKind::Volt:  return colored("Volt",  Color::Cyan);
+        case EffectSpec::DamageKind::Pyre:  return colored("Pyre",  Color::Red);
+        case EffectSpec::DamageKind::Decay: return colored("Decay", Color::Green);
+        case EffectSpec::DamageKind::Drain: return colored("Drain", Color::Magenta);
+        case EffectSpec::DamageKind::Warp:  return colored("Warp",  Color::BrightWhite);
+        case EffectSpec::DamageKind::None:  break;
+    }
+    return "";
+}
+
 void apply_to_npc(Game& game, Npc& npc, const EffectSpec& s) {
     int dmg = s.damage;
     if (s.per_target_mult != 1.0f) {
@@ -226,6 +244,15 @@ void apply_to_npc(Game& game, Npc& npc, const EffectSpec& s) {
         // Use existing damage-application API to keep AV / death routing consistent.
         npc.hp -= dmg;
         if (npc.hp < 0) npc.hp = 0;
+        // Per-hit feedback (meatspace authored/EffectSpec programs had none —
+        // only a terse "fired" summary + "defeated" on kill). Mirrors the
+        // canonical combat-log format (game_combat.cpp): display_name(npc) is
+        // already race-coloured (do NOT re-wrap), damage number plain, the
+        // damage kind colored by type via damage_kind_label (the thing
+        // authored programs never surfaced).
+        std::string kind = damage_kind_label(s.damage_kind);
+        game.log(display_name(npc) + " takes " + std::to_string(dmg)
+               + (kind.empty() ? "" : " " + kind) + " damage.");
         if (npc.hp == 0) {
             game.log(display_name(npc) + " is defeated.");
         }
