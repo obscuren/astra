@@ -5,6 +5,7 @@
 #include "astra/game.h"
 #include "astra/net_camera.h"
 #include "astra/net_ice.h"
+#include "astra/net_pipe_path.h"
 #include "astra/net_session.h"
 #include "astra/net_theme.h"
 #include "astra/hacking_system.h"
@@ -24,6 +25,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <unordered_set>
 
 namespace astra::net_theme {
 
@@ -1233,7 +1235,11 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
             }
             if (fl) {
                 char exec_buf[16];
-                if (fl->compiled && fl->turns_total > 1) {
+                if (!fl->pipe_path.empty()) {
+                    // Travel entry (slice 4): show iters_launched / iters_total.
+                    std::snprintf(exec_buf, sizeof(exec_buf), "iter %d/%d",
+                                  fl->iters_launched, fl->iters_total);
+                } else if (fl->compiled && fl->turns_total > 1) {
                     std::snprintf(exec_buf, sizeof(exec_buf), "iter %d/%d",
                                   (fl->turns_total - fl->turns_left) + 1,
                                   fl->turns_total);
@@ -1247,9 +1253,15 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
             } else {
                 char cost_buf[12];
                 std::snprintf(cost_buf, sizeof(cost_buf), "%d RAM", ram_cost);
-                Color status_col = affordable ? Color::Cyan : Color::DarkGray;
-                draw_colored_string(r, col_cost,  row, cost_buf, status_col);
-                draw_colored_string(r, col_state, row, "ready",  status_col);
+                // ARMED takes precedence over ready when this slot is armed.
+                if (i == s.armed_slot) {
+                    draw_colored_string(r, col_cost,  row, cost_buf, Color::Yellow);
+                    draw_colored_string(r, col_state, row, "ARMED",  Color::Yellow);
+                } else {
+                    Color status_col = affordable ? Color::Cyan : Color::DarkGray;
+                    draw_colored_string(r, col_cost,  row, cost_buf, status_col);
+                    draw_colored_string(r, col_state, row, "ready",  status_col);
+                }
             }
         } else {
             // Empty slot — everything dimmed.
@@ -1324,6 +1336,25 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         sy = wy - s_camera.cam_y;
         return sx >= 0 && sy >= 0 && sx < pr.w && sy < pr.h;
     };
+
+    // Step 1 — active-pipe highlight set (computed once per frame, O(1) per cell lookup).
+    // Gate on armed_slot >= 0: only highlight the active pipe when a program is armed.
+    // Uses an unordered_set with a flat key (y*w+x) for O(1) membership in the cell loop.
+    struct PairHash {
+        size_t operator()(std::pair<int,int> p) const noexcept {
+            return std::hash<long long>()(((long long)p.first << 32) | (unsigned)p.second);
+        }
+    };
+    std::unordered_set<std::pair<int,int>, PairHash> active_pipe_cells;
+    if (s.armed_slot >= 0) {
+        auto conn = connected_pipe_indices(s.netspace, s.avatar_x, s.avatar_y);
+        if (!conn.empty()) {
+            int pidx = conn[std::min<int>(s.active_pipe, (int)conn.size() - 1)];
+            auto cells = pipe_path_cells(s.netspace, pidx, s.avatar_x, s.avatar_y);
+            for (const auto& c : cells)
+                active_pipe_cells.insert(c);
+        }
+    }
 
     for (int y = 0; y < pr.h; ++y) {
         for (int x = 0; x < pr.w; ++x) {
@@ -1424,13 +1455,15 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                 case NetTile::PipeH: {
                     int phase = (game.hacking().blink_phase() / 9) & 3;
                     glyph = net_theme::pipe_h_frames[phase];
-                    color = net_theme::pipe_color;
+                    color = active_pipe_cells.count({tx, ty})
+                                ? Color::Yellow : net_theme::pipe_color;
                     break;
                 }
                 case NetTile::PipeV: {
                     int phase = (game.hacking().blink_phase() / 9) & 3;
                     glyph = net_theme::pipe_v_frames[phase];
-                    color = net_theme::pipe_color;
+                    color = active_pipe_cells.count({tx, ty})
+                                ? Color::Yellow : net_theme::pipe_color;
                     break;
                 }
                 case NetTile::PipeJunc:
@@ -1440,19 +1473,23 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     glyph = wall_glyph_for_neighbours(
                         pipe_neigh(tx, ty - 1), pipe_neigh(tx, ty + 1),
                         pipe_neigh(tx + 1, ty), pipe_neigh(tx - 1, ty));
-                    color = net_theme::pipe_color;
+                    color = active_pipe_cells.count({tx, ty})
+                                ? Color::Yellow : net_theme::pipe_color;
                     break;
                 case NetTile::PipePortV:
                     glyph = net_theme::pipe_port_v_glyph;
-                    color = net_theme::pipe_color;
+                    color = active_pipe_cells.count({tx, ty})
+                                ? Color::Yellow : net_theme::pipe_color;
                     break;
                 case NetTile::PipePortCornerTR:
                     glyph = net_theme::pipe_port_corner_tr_glyph;
-                    color = net_theme::pipe_color;
+                    color = active_pipe_cells.count({tx, ty})
+                                ? Color::Yellow : net_theme::pipe_color;
                     break;
                 case NetTile::PipePortDownD:
                     glyph = net_theme::pipe_port_down_d_glyph;
-                    color = net_theme::pipe_color;
+                    color = active_pipe_cells.count({tx, ty})
+                                ? Color::Yellow : net_theme::pipe_color;
                     break;
 
                 case NetTile::Glyph: {
@@ -1491,6 +1528,21 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             }
 
             r.draw_glyph(pr.x + x, pr.y + y, glyph, color);
+        }
+    }
+
+    // Step 2 — payload travel glyphs (§, Cyan). Drawn on top of the tile grid
+    // so the glyph is always visible. No interpolation; segment advance is owned
+    // by the world tick. Only entries with a non-empty pipe_path produce glyphs.
+    for (const auto& f : s.in_flight) {
+        if (f.pipe_path.empty()) continue;
+        for (int seg : f.payloads) {
+            int idx = std::clamp(seg, 0, (int)f.pipe_path.size() - 1);
+            int wx = f.pipe_path[idx].first;
+            int wy = f.pipe_path[idx].second;
+            int sx, sy;
+            if (!cull(wx, wy, sx, sy)) continue;
+            r.draw_glyph(pr.x + sx, pr.y + sy, "\xc2\xa7", Color::Cyan);  // §
         }
     }
 
