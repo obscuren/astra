@@ -645,6 +645,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  rebirth                       - open Sgr A* rebirth modal");
         log("  rebirth-reset                 - delete consciousness.dat (clean slate)");
         log("  netprog                       - load test Loop(3){Volt} chain into deck slot 1 (slice-3b AST bridge)");
+        log("  jack combat [tier] [seed]     - jack into the combat test bench (hub + 4 pipes: short/mid/long/wall)");
     }
     else if (verb == "clear") {
         clear();
@@ -1769,7 +1770,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "jack") {
         // Usage: jack [kind] [tier] [seed]
         //   kind: empty | door | vending | camera | atm | turret |
-        //         elevator | traffic | corpse | npc | mainframe | blackwall
+        //         elevator | traffic | corpse | npc | mainframe | blackwall | combat
         //   tier: 1..5 (default 1)
         //   seed: uint32 (default world_tick)
         TargetDescriptor d;
@@ -1791,6 +1792,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
             else if (k == "npc")       d.kind = NetspaceTargetKind::NpcHead;
             else if (k == "mainframe") d.kind = NetspaceTargetKind::Mainframe;
             else if (k == "blackwall") d.kind = NetspaceTargetKind::BlackwallTear;
+            else if (k == "combat")    d.kind = NetspaceTargetKind::CombatArena;
             else { log("unknown netspace kind: " + k); return; }
         }
         if (args.size() >= 3) {

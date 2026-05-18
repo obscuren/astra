@@ -37,6 +37,7 @@ enum class NetspaceTargetKind : uint8_t {
     NpcHead,        // living NPC's neural jack
     Mainframe,
     BlackwallTear,  // endgame; rules break
+    CombatArena,    // dev-only — :jack combat test bench (no in-world fixture)
 };
 
 // Per-jack-in target descriptor. Built by the caller of jack_in(); fed

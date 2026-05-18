@@ -193,6 +193,7 @@ set(ASTRA_SOURCES
     src/grammars/gen_turret_netspace.cpp
     src/grammars/gen_elevator_netspace.cpp
     src/grammars/gen_corpse_netspace.cpp
+    src/grammars/gen_combat_netspace.cpp
     src/help_screen.cpp
     src/input_manager.cpp
     src/dialog_manager.cpp

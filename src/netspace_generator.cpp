@@ -7,6 +7,7 @@
 #include "astra/grammars/gen_turret_netspace.h"
 #include "astra/grammars/gen_elevator_netspace.h"
 #include "astra/grammars/gen_corpse_netspace.h"
+#include "astra/grammars/gen_combat_netspace.h"
 
 namespace astra {
 
@@ -67,6 +68,8 @@ Netspace gen_for_target(const TargetDescriptor& desc) {
             return gen_elevator_netspace(desc);
         case NetspaceTargetKind::Corpse:
             return gen_corpse_netspace(desc);
+        case NetspaceTargetKind::CombatArena:
+            return gen_combat_netspace(desc);
         case NetspaceTargetKind::TrafficLight:
         case NetspaceTargetKind::NpcHead:
         case NetspaceTargetKind::Mainframe:
