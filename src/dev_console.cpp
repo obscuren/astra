@@ -584,6 +584,22 @@ static void run_net_selftest(DevConsole& con) {
               "s4ar-roster-t1");
         check(!a.breakwall_lookup.empty(), "s4ar-breakwall");
         check(wall_ok, "s4ar-wall-impact-cell");
+        // Each non-breakwall station pipe must carry an ICE on its exact
+        // Slice-4 Impact cell — regression for the radius-0 miss bug
+        // (payload Impacts the pipe terminus; ICE used to sit in the room
+        // interior, out of a single-target program's range).
+        int station_pipes = 0, station_hits = 0;
+        for (int idx : conn) {
+            auto path = astra::pipe_path_cells(a, idx,
+                                               a.jack_in_x, a.jack_in_y);
+            if (path.empty() || a.breakwall_lookup.count(path.back()))
+                continue;
+            ++station_pipes;
+            for (auto& ic : a.initial_ice)
+                if (ic.x == path.back().first
+                    && ic.y == path.back().second) { ++station_hits; break; }
+        }
+        check(station_pipes == 3 && station_hits == 3, "s4ar-ice-on-impact");
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }

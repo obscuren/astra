@@ -43,24 +43,59 @@ int white_hp(int tier)     { return 1 + (tier >= 4 ? 1 : 0); }
 int gray_hp(int tier)      { return 2 + tier / 2; }
 int black_hp(int tier)     { return 4 + tier; }
 
-// Push `count` ICE of color/hp onto seed-shuffled interior floor cells
-// of `room` (jitters exact cell, never leaves the room). Dormant at
-// hub distance — they exist as payload Impact targets, not melee aggro.
-void seed_ice(NetspaceBuilder& b, const NetRoom& room, IceColor color,
+// Far-node (Impact) cell of pipe `idx` as seen from the JACK node, or
+// {-1,-1} if it has no path. This is the EXACT cell Slice-4
+// confirm_armed targets (pipe_path_cells(...).back()), so seeding an ICE
+// here makes a single-target (radius-0) program landing there hit it.
+std::pair<int,int> pipe_far_cell(NetspaceBuilder& b, int idx) {
+    auto p = pipe_path_cells(b.ns, idx, b.ns.jack_in_x, b.ns.jack_in_y);
+    if (p.empty()) return {-1, -1};
+    return p.back();
+}
+
+// Anchor `count` ICE on/around a station's Impact cell (cx,cy): ICE #0
+// sits EXACTLY on it (radius-0 programs landing there hit), the rest
+// spill outward in Chebyshev rings (within RELAY range) so AOE/chain
+// programs sweep the pack too. Deterministic; seed jitters intra-ring
+// order only. Never doubles a cell or goes out of bounds.
+//
+// NOTE: this is a throwaway player-side Impact TEST FIXTURE, not the
+// real (bidirectional) netspace combat model — see
+// .claude/specs/netspace-tactical-combat-design.md.
+void seed_ice(NetspaceBuilder& b, int cx, int cy, IceColor color,
               int count, int hp, uint32_t salt) {
-    std::vector<std::pair<int,int>> cells;
-    for (int yy = room.y + 1; yy < room.y + room.h - 1; ++yy)
-        for (int xx = room.x + 1; xx < room.x + room.w - 1; ++xx)
-            cells.emplace_back(xx, yy);
-    std::mt19937 rng(b.ns.target.seed ^ salt);
-    std::shuffle(cells.begin(), cells.end(), rng);
-    for (int i = 0; i < count && i < static_cast<int>(cells.size()); ++i) {
+    if (count <= 0 || cx < 0 || cy < 0) return;
+    std::vector<std::pair<int,int>> cand;
+    cand.emplace_back(cx, cy);                         // anchor first
+    for (int r = 1; r <= 3 && static_cast<int>(cand.size()) < count; ++r) {
+        std::vector<std::pair<int,int>> ring;
+        for (int dy = -r; dy <= r; ++dy)
+            for (int dx = -r; dx <= r; ++dx) {
+                int ax = dx < 0 ? -dx : dx;
+                int ay = dy < 0 ? -dy : dy;
+                if ((ax > ay ? ax : ay) != r) continue;   // ring edge only
+                int x = cx + dx, y = cy + dy;
+                if (b.ns.in_bounds(x, y)) ring.emplace_back(x, y);
+            }
+        std::mt19937 rng(b.ns.target.seed ^ salt
+                         ^ static_cast<uint32_t>(r));
+        std::shuffle(ring.begin(), ring.end(), rng);
+        for (auto& c : ring) cand.push_back(c);
+    }
+    int placed = 0;
+    for (auto& c : cand) {
+        if (placed >= count) break;
+        bool taken = false;
+        for (auto& ic : b.ns.initial_ice)
+            if (ic.x == c.first && ic.y == c.second) { taken = true; break; }
+        if (taken) continue;
         Ice ic;
-        ic.x = cells[i].first;
-        ic.y = cells[i].second;
+        ic.x = c.first;
+        ic.y = c.second;
         ic.color = color;
         ic.hp = hp;
         b.ns.initial_ice.push_back(ic);
+        ++placed;
     }
 }
 
@@ -109,10 +144,13 @@ Netspace gen_combat_netspace(const TargetDescriptor& desc) {
     vault.label_color = net_theme::box_thin_color;
 
     // All four pipes attach to JACK -> connected_pipe_indices(jack)==4.
+    const int white_idx = static_cast<int>(b.ns.pipes.size());
     b.connect(jack, white, NetPipe::Style::Double);            // SHORT (east)
+    const int gray_idx  = static_cast<int>(b.ns.pipes.size());
     b.connect_vertical(jack, gray, NetPipe::Style::Double);     // MID   (north)
+    const int black_idx = static_cast<int>(b.ns.pipes.size());
     b.connect_vertical(jack, black, NetPipe::Style::Double);    // LONG  (south)
-    const int wall_idx = static_cast<int>(b.ns.pipes.size());
+    const int wall_idx  = static_cast<int>(b.ns.pipes.size());
     b.connect(jack, vault, NetPipe::Style::Double);             // WALL  (west)
 
     // Breakwall at EXACTLY the Slice-4 Impact cell of the WALL pipe:
@@ -126,10 +164,19 @@ Netspace gen_combat_netspace(const TargetDescriptor& desc) {
                              wall_density(tier));
     }
 
-    // Tier-scaled ICE roster — one station per color.
-    seed_ice(b, white, IceColor::White, white_count(tier), white_hp(tier), 0x5711u);
-    seed_ice(b, gray,  IceColor::Gray,  gray_pack(tier),   gray_hp(tier),  0x6712u);
-    seed_ice(b, black, IceColor::Black, black_count(tier), black_hp(tier), 0x6713u);
+    // Tier-scaled ICE roster, anchored on each station pipe's Slice-4
+    // Impact cell so a radius-0 program landing there actually hits (the
+    // bench's whole point). NOTE: test fixture, not the real combat
+    // model — see .claude/specs/netspace-tactical-combat-design.md.
+    auto wf = pipe_far_cell(b, white_idx);
+    auto gf = pipe_far_cell(b, gray_idx);
+    auto bf = pipe_far_cell(b, black_idx);
+    seed_ice(b, wf.first, wf.second, IceColor::White,
+             white_count(tier), white_hp(tier), 0x5711u);
+    seed_ice(b, gf.first, gf.second, IceColor::Gray,
+             gray_pack(tier),  gray_hp(tier),  0x6712u);
+    seed_ice(b, bf.first, bf.second, IceColor::Black,
+             black_count(tier), black_hp(tier), 0x6713u);
 
     return b.finalize();
 }
