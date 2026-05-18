@@ -1217,8 +1217,15 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
             }
             if (fl) {
                 char exec_buf[16];
-                std::snprintf(exec_buf, sizeof(exec_buf), "exec %d/%d",
-                              fl->turns_total - fl->turns_left, fl->turns_total);
+                if (fl->compiled && fl->turns_total > 1) {
+                    std::snprintf(exec_buf, sizeof(exec_buf), "iter %d/%d",
+                                  (fl->turns_total - fl->turns_left) + 1,
+                                  fl->turns_total);
+                } else {
+                    std::snprintf(exec_buf, sizeof(exec_buf), "exec %d/%d",
+                                  fl->turns_total - fl->turns_left,
+                                  fl->turns_total);
+                }
                 draw_colored_string(r, col_cost,  row, "busy",   Color::Magenta);
                 draw_colored_string(r, col_state, row, exec_buf, Color::Magenta);
             } else {

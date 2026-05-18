@@ -7,6 +7,7 @@
 #include "astra/effect.h"
 #include "astra/faction.h"
 #include "astra/game.h"
+#include "astra/net_combat.h"
 #include "astra/net_display.h"
 #include "astra/net_ice.h"
 #include "astra/hackable.h"
@@ -765,13 +766,26 @@ void HackingSystem::tick_grid(Game& game) {
     // reserves RAM until it completes; the bespoke effect resolves when
     // the countdown hits 0, then the reserved RAM returns (not on cancel).
     for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ) {
-        if (--it->turns_left > 0) { ++it; continue; }
-        ProgramId pid = static_cast<ProgramId>(it->program_id);
-        NetProgramContext ctx{game, s, it->target_x, it->target_y};
-        std::string msg = apply_program_in_grid(pid, ctx);
-        if (!msg.empty()) s.push_log(std::string("  ") + msg);
-        s.ram = std::min(s.ram_max, s.ram + it->ram_held);   // reservation returned
-        it = s.in_flight.erase(it);
+        if (it->compiled) {
+            // Per-iteration: apply the EffectSpec once each turn for the
+            // program's loop/tick duration. Flat damage per iteration
+            // (loop_intensity_mult falloff = documented tuning deferral).
+            std::string msg = apply_effect_in_net(game, s, it->spec,
+                                                  it->target_x, it->target_y);
+            if (!msg.empty())
+                s.push_log("  " + it->prog_name + ": " + msg);
+            if (--it->turns_left > 0) { ++it; continue; }
+            s.ram = std::min(s.ram_max, s.ram + it->ram_held);
+            it = s.in_flight.erase(it);
+        } else {
+            if (--it->turns_left > 0) { ++it; continue; }
+            ProgramId pid = static_cast<ProgramId>(it->program_id);
+            NetProgramContext ctx{game, s, it->target_x, it->target_y};
+            std::string msg = apply_program_in_grid(pid, ctx);
+            if (!msg.empty()) s.push_log(std::string("  ") + msg);
+            s.ram = std::min(s.ram_max, s.ram + it->ram_held);
+            it = s.in_flight.erase(it);
+        }
     }
 
     // 2. Heat decay on equipped deck + heat→trace coupling + forced reboot.
