@@ -609,6 +609,7 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         log("  unlock-anchor                 - grant ConsciousnessAnchor + seed deep-Grid base");
         log("  rebirth                       - open Sgr A* rebirth modal");
         log("  rebirth-reset                 - delete consciousness.dat (clean slate)");
+        log("  netprog                       - load test Loop(3){Volt} chain into deck slot 1 (slice-3b AST bridge)");
     }
     else if (verb == "clear") {
         clear();
@@ -1933,6 +1934,29 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
     else if (verb == "rebirth-reset") {
         delete_consciousness();
         log("consciousness.dat cleared.");
+    }
+    // :netprog — load a test authored chain (Loop x3 { Volt }) into deck slot 0
+    // so the slice-3b AST bridge can be exercised in-game:
+    // jack in, press 1 near ICE -> iter 1/3..3/3, ICE takes damage.
+    else if (verb == "netprog") {
+        auto* ds = game.player().equipment.equipped_cyberdeck();
+        if (!ds || !*ds || !(*ds)->deck) {
+            log("netprog: no cyberdeck equipped");
+            return;
+        }
+        auto& dk = *(*ds)->deck;
+        astra::ProgramNode prod;
+        prod.fragment = astra::FragmentId::Volt;
+        astra::ProgramNode loop_node;
+        loop_node.fragment = astra::FragmentId::Loop;
+        loop_node.param = 3;
+        loop_node.body.push_back(prod);
+        std::vector<astra::ProgramNode> chain;
+        chain.push_back(loop_node);
+        astra::CompiledProgram cp = astra::compile_program(chain, "test-loop3");
+        dk.loaded[0].program_def_id = 0;
+        dk.loaded[0].compiled = cp;
+        log("netprog: loaded test-loop3 (Loop x3 { Volt }) into slot 1; jack in and press 1 near ICE.");
     }
     else {
         log("Unknown command: " + verb + ". Type 'help' for commands.");
