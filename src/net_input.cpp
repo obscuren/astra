@@ -7,6 +7,7 @@
 #include "astra/net_combat.h"
 #include "astra/net_constants.h"
 #include "astra/net_display.h"
+#include "astra/net_pipe_path.h"
 #include "astra/net_session.h"
 #include "astra/net_voice.h"
 #include "astra/hacking_system.h"
@@ -402,19 +403,36 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
     return FireOutcome::Telegraphing;
 }
 
-// Cancel an in-flight program occupying `slot`: free the slot, drop the
-// program, NO RAM refund (combat.md §Action Economy — cancel is the
-// turn's program command). Returns true iff a program was cancelled.
-bool try_cancel_slot(NetSession& s, int slot) {
-    for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ++it) {
-        if (it->slot == slot) {
-            s.push_log(astra::net_voice::cmd("cancel slot "
-                       + std::to_string(slot + 1)
-                       + ". RAM not refunded."));
-            s.in_flight.erase(it);
-            return true;
-        }
+// Arm a slot for directed fire: validates the slot, sets s.armed_slot, and
+// returns false (arming spends no world turn). Pressing the same or a
+// different slot key while armed simply re-arms to the new slot.
+bool arm_slot(Game& game, NetSession& s, int slot) {
+    if (s.slot_in_flight(slot)) {
+        s.push_log("[BLOCK] slot busy.");
+        return false;
     }
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        s.push_log("[BLOCK] no cyberdeck equipped");
+        return false;
+    }
+    auto& cd = *(*deck_slot)->deck;
+    if (slot < 0 || slot >= kCyberdeckMaxSlots || slot_is_empty(cd.loaded[slot])) {
+        s.push_log("[BLOCK] empty slot");
+        return false;
+    }
+    s.armed_slot  = slot;
+    s.active_pipe = 0;
+    s.push_log(astra::net_voice::cmd(
+        "armed slot " + std::to_string(slot + 1)
+        + ". Tab=pipe  Space=run  Esc=cancel."));
+    return false;   // arming spends no world turn
+}
+
+// Slice 4 Task 4 fills this. Returns true iff a world turn was committed.
+bool confirm_armed(Game& game, NetSession& s, const std::vector<int>& conn) {
+    (void)game; (void)conn;
+    s.armed_slot = -1;
     return false;
 }
 
@@ -459,6 +477,26 @@ bool handle(Game& game, int key) {
             default:
                 // All other keys (incl. Q hard-jack-out) deliberately blocked while the ghost speaks; Esc dismisses the dialog, then normal keys resume.
                 return false;  // modal swallows everything else; no world tick
+        }
+    }
+
+    // Arm-mode modal — intercepts ALL keys while a slot is armed.
+    if (s.armed_slot >= 0) {
+        auto conn = connected_pipe_indices(s.netspace, s.avatar_x, s.avatar_y);
+        switch (key) {
+            case 27:                                  // Esc — abort the arm
+                s.armed_slot = -1;
+                s.push_log(astra::net_voice::cmd("cancelled."));
+                return false;
+            case '\t':                                // Tab — cycle active pipe
+                if (!conn.empty())
+                    s.active_pipe = (s.active_pipe + 1)
+                                    % static_cast<int>(conn.size());
+                return false;
+            case ' ': case '\r': case '\n':           // confirm — execute
+                return confirm_armed(game, s, conn);
+            default:
+                return false;                         // arm mode owns input
         }
     }
 
@@ -583,14 +621,14 @@ bool handle(Game& game, int key) {
             return false;   // FREE — net clock does not advance
         }
 
-        case '1': return try_cancel_slot(s, 0) || fire_program_slot(game, s, 0) == FireOutcome::Fired;
-        case '2': return try_cancel_slot(s, 1) || fire_program_slot(game, s, 1) == FireOutcome::Fired;
-        case '3': return try_cancel_slot(s, 2) || fire_program_slot(game, s, 2) == FireOutcome::Fired;
-        case '4': return try_cancel_slot(s, 3) || fire_program_slot(game, s, 3) == FireOutcome::Fired;
-        case '5': return try_cancel_slot(s, 4) || fire_program_slot(game, s, 4) == FireOutcome::Fired;
-        case '6': return try_cancel_slot(s, 5) || fire_program_slot(game, s, 5) == FireOutcome::Fired;
-        case '7': return try_cancel_slot(s, 6) || fire_program_slot(game, s, 6) == FireOutcome::Fired;
-        case '8': return try_cancel_slot(s, 7) || fire_program_slot(game, s, 7) == FireOutcome::Fired;
+        case '1': return arm_slot(game, s, 0);
+        case '2': return arm_slot(game, s, 1);
+        case '3': return arm_slot(game, s, 2);
+        case '4': return arm_slot(game, s, 3);
+        case '5': return arm_slot(game, s, 4);
+        case '6': return arm_slot(game, s, 5);
+        case '7': return arm_slot(game, s, 6);
+        case '8': return arm_slot(game, s, 7);
 
         case 'Q':
             game.hacking().jack_out(game, JackOutKind::HardJackOut);
