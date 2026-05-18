@@ -5,7 +5,9 @@
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +34,35 @@ constexpr int kGapLongS  = 9;    // JACK -> BLACK (south) : raw 11 -> seg 6 (cla
 constexpr int kGapWallW  = 2;    // JACK -> VAULT (west)  : raw 4 -> seg 4 + breakwall
 
 uint8_t wall_density(int tier) { return tier <= 1 ? 3 : 4; }
+
+// Tier-scaled roster (see .claude/specs/netspace-combat-arena-spec.md).
+int gray_pack(int tier)    { return 2 + tier / 2; }            // t1=2 t2=3 t3=3 t4=4 t5=4
+int white_count(int tier)  { return tier >= 2 ? 2 : 1; }
+int black_count(int tier)  { return tier >= 3 ? 2 : 1; }
+int white_hp(int tier)     { return 1 + (tier >= 4 ? 1 : 0); }
+int gray_hp(int tier)      { return 2 + tier / 2; }
+int black_hp(int tier)     { return 4 + tier; }
+
+// Push `count` ICE of color/hp onto seed-shuffled interior floor cells
+// of `room` (jitters exact cell, never leaves the room). Dormant at
+// hub distance — they exist as payload Impact targets, not melee aggro.
+void seed_ice(NetspaceBuilder& b, const NetRoom& room, IceColor color,
+              int count, int hp, uint32_t salt) {
+    std::vector<std::pair<int,int>> cells;
+    for (int yy = room.y + 1; yy < room.y + room.h - 1; ++yy)
+        for (int xx = room.x + 1; xx < room.x + room.w - 1; ++xx)
+            cells.emplace_back(xx, yy);
+    std::mt19937 rng(b.ns.target.seed ^ salt);
+    std::shuffle(cells.begin(), cells.end(), rng);
+    for (int i = 0; i < count && i < static_cast<int>(cells.size()); ++i) {
+        Ice ic;
+        ic.x = cells[i].first;
+        ic.y = cells[i].second;
+        ic.color = color;
+        ic.hp = hp;
+        b.ns.initial_ice.push_back(ic);
+    }
+}
 
 }  // namespace
 
@@ -94,6 +125,11 @@ Netspace gen_combat_netspace(const TargetDescriptor& desc) {
         b.add_breakwall_tile(wpath.back().first, wpath.back().second,
                              wall_density(tier));
     }
+
+    // Tier-scaled ICE roster — one station per color.
+    seed_ice(b, white, IceColor::White, white_count(tier), white_hp(tier), 0x5711u);
+    seed_ice(b, gray,  IceColor::Gray,  gray_pack(tier),   gray_hp(tier),  0x6712u);
+    seed_ice(b, black, IceColor::Black, black_count(tier), black_hp(tier), 0x6713u);
 
     return b.finalize();
 }
