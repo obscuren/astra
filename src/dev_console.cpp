@@ -1,6 +1,7 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
 #include "astra/grammars/gen_elevator_netspace.h"
+#include "astra/net_pipe_path.h"
 #include "astra/net_renderer.h"
 #include "astra/net_window_anim.h"
 #include "astra/netspace_generator.h"
@@ -530,6 +531,23 @@ static void run_net_selftest(DevConsole& con) {
         astra::NetInFlight d;            // default
         check(!d.compiled, "s3b-compiled-default-false");
         check(!d.launched, "s3b-launch-default");
+    }
+    {
+        // Slice 4 — pipe payload travel model (statically decidable).
+        // clamp_seg_len: bounds are [2,6] per net_pipe_path.h.
+        check(astra::clamp_seg_len(1) == 2, "s4-seg-clamp");   // below low → clamp to 2
+        check(astra::clamp_seg_len(9) == 6, "s4-seg-clamp");   // above high → clamp to 6
+        check(astra::clamp_seg_len(4) == 4, "s4-seg-clamp");   // in-range → identity
+        // NetInFlight with a 3-cell pipe_path: seg_len == clamp_seg_len(3) == 3.
+        astra::NetInFlight f;
+        f.pipe_path = {{1,1},{2,1},{3,1}};
+        f.seg_len   = astra::clamp_seg_len((int)f.pipe_path.size());
+        check(f.seg_len        == 3, "s4-inflight-defaults");   // clamp(3,2,6)==3
+        check(f.payloads.empty(),    "s4-inflight-defaults");   // default vector empty
+        check(f.iters_launched == 0, "s4-inflight-defaults");   // in-class default
+        // NetSession slice-4 fields: armed_slot==-1, active_pipe==0.
+        astra::NetSession ns;
+        check(ns.armed_slot == -1 && ns.active_pipe == 0, "s4-arm-defaults");
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
