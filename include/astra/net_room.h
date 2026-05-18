@@ -13,6 +13,8 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace astra {
 
@@ -68,6 +70,12 @@ struct NetPipe {
 
     Color               color = Color::Cyan;
     int                 pulse_offset = 0;
+
+    // Phase 5 slice 4: exact pipe-tile cells this connection stamped, in
+    // route order from the (x0,y0) endpoint to the (x1,y1) endpoint.
+    // Populated by NetspaceBuilder::connect / connect_vertical at gen time
+    // (the stamper records precisely what it laid — no re-derivation).
+    std::vector<std::pair<int,int>> cells;
 };
 
 }  // namespace astra

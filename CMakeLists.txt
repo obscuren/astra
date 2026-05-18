@@ -173,6 +173,7 @@ set(ASTRA_SOURCES
     src/station_roll.cpp
     src/hacking_system.cpp
     src/net_combat.cpp
+    src/net_pipe_path.cpp
     src/net_input.cpp
     src/net_renderer.cpp
     src/net_voice.cpp

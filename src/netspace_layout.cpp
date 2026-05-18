@@ -116,6 +116,8 @@ NetPipe& NetspaceBuilder::connect(const NetRoom& a, const NetRoom& b,
     NetPipe p;
     p.style = style;
 
+    std::vector<std::pair<int,int>> cells;
+
     if (std::abs(dx) >= std::abs(dy)) {
         // Horizontal-dominant L: H at a.y+1, then V at b's near-x to b.y+1.
         const int ay = a.y + 1;
@@ -130,6 +132,21 @@ NetPipe& NetspaceBuilder::connect(const NetRoom& a, const NetRoom& b,
         // box border visually; passable_overrides makes it walkable.
         make_passable(ax, ay);
         make_passable(bx, by);
+        // Record cells A→B: walk H leg from ax toward bx (inclusive),
+        // then V leg from ay toward by (exclusive of junction to avoid
+        // duplicating the corner cell at (bx, ay)).
+        {
+            const int step = (ax <= bx) ? 1 : -1;
+            for (int x = ax; x != bx + step; x += step) {
+                if (ns.in_bounds(x, ay)) cells.emplace_back(x, ay);
+            }
+            if (ay != by) {
+                const int vstep = (ay < by) ? 1 : -1;
+                for (int y = ay + vstep; y != by + vstep; y += vstep) {
+                    if (ns.in_bounds(bx, y)) cells.emplace_back(bx, y);
+                }
+            }
+        }
     } else {
         // Vertical-dominant L: V at a's near-y to b.x+1's column, then H.
         const int ax = a.x + a.w / 2;
@@ -141,9 +158,25 @@ NetPipe& NetspaceBuilder::connect(const NetRoom& a, const NetRoom& b,
         if (ax != bx) stamp_h(by, ax, bx);
         make_passable(ax, ay);
         make_passable(bx, by);
+        // Record cells A→B: walk V leg from ay toward by (inclusive),
+        // then H leg from ax toward bx (exclusive of junction to avoid
+        // duplicating the corner cell at (ax, by)).
+        {
+            const int vstep = (ay <= by) ? 1 : -1;
+            for (int y = ay; y != by + vstep; y += vstep) {
+                if (ns.in_bounds(ax, y)) cells.emplace_back(ax, y);
+            }
+            if (ax != bx) {
+                const int hstep = (ax < bx) ? 1 : -1;
+                for (int x = ax + hstep; x != bx + hstep; x += hstep) {
+                    if (ns.in_bounds(x, by)) cells.emplace_back(x, by);
+                }
+            }
+        }
     }
 
-    ns.pipes.push_back(p);
+    p.cells = std::move(cells);
+    ns.pipes.push_back(std::move(p));
     return ns.pipes.back();
 }
 
@@ -167,7 +200,25 @@ NetPipe& NetspaceBuilder::connect_vertical(const NetRoom& a, const NetRoom& b,
     make_passable(ax, ay);
     make_passable(bx, by);
 
-    ns.pipes.push_back(p);
+    // Record cells A→B: walk V leg from ay toward by (inclusive),
+    // then H leg from ax toward bx (exclusive of junction to avoid
+    // duplicating the corner cell at (ax, by)).
+    std::vector<std::pair<int,int>> cells;
+    {
+        const int vstep = (ay <= by) ? 1 : -1;
+        for (int y = ay; y != by + vstep; y += vstep) {
+            if (ns.in_bounds(ax, y)) cells.emplace_back(ax, y);
+        }
+        if (ax != bx) {
+            const int hstep = (ax < bx) ? 1 : -1;
+            for (int x = ax + hstep; x != bx + hstep; x += hstep) {
+                if (ns.in_bounds(x, by)) cells.emplace_back(x, by);
+            }
+        }
+    }
+    p.cells = std::move(cells);
+
+    ns.pipes.push_back(std::move(p));
     return ns.pipes.back();
 }
 
