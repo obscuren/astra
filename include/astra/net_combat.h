@@ -1,8 +1,12 @@
 #pragma once
 
+#include <string>
+
 namespace astra {
 
 class Game; // forward declare
+struct EffectSpec;
+struct NetSession;
 
 // Bump-attack melee tunables.
 inline constexpr int kNetMeleeDamage   = 3;
@@ -18,5 +22,14 @@ inline constexpr int kXpIceBlack = 16;
 // Grant netspace-kill XP into the main player pool and check for level-up.
 // No-op if amount <= 0.
 void grant_net_xp(Game& game, int amount);
+
+// Phase 5 slice 3b: apply a compiled program's EffectSpec to the
+// netspace. Honors damage + radius (ICE within the radius box of
+// (tx,ty) take spec.damage via net_ice::damage + kill/XP). Statuses
+// (jitter/slag/warp), DRAIN (returns_hp_pct) and relay_hops have NO
+// ICE representation and are an explicit documented no-op in 3b.
+// Returns a one-line summary for the log.
+std::string apply_effect_in_net(Game& game, NetSession& s,
+                                const EffectSpec& spec, int tx, int ty);
 
 }  // namespace astra
