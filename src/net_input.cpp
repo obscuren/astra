@@ -530,7 +530,14 @@ bool handle(Game& game, int key) {
     // keys are inert (no world tick). CORE actions land in Slice 2.
     if (s.combat_mode == NetSession::NetCombatMode::Combat) {
         switch (key) {
+            // Gate every locomotion binding, not just the arrow keycodes:
+            // h/j/k/l are full movement aliases (see the move dispatch
+            // below). '.' (wait) is intentionally NOT gated here — the
+            // round model that replaces generic wait with CORE stances
+            // is Slice 2; blocking it now would leave a program-less
+            // player no way to pass a turn.
             case KEY_UP: case KEY_DOWN: case KEY_LEFT: case KEY_RIGHT:
+            case 'k':    case 'j':      case 'h':      case 'l':
                 return false;            // swallowed, no world advance
             default:
                 break;
