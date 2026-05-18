@@ -96,6 +96,19 @@ struct NetInFlight {
     // the following turns, so the panel shows iter 1/N on cast then
     // 2/N..N/N. (Legacy non-compiled entries never set/read this.)
     bool        launched  = false;
+
+    // Phase 5 slice 4: mechanical payload travel. pipe_path = ordered
+    // cells avatar-end -> far-end (from net_pipe_path::pipe_path_cells);
+    // seg_len = clamp(pipe_path.size(),2,6); each payload is a segment
+    // index 0..seg_len (Impact at seg_len). iters_total = k (loop_count
+    // else 1); iters_launched counts payloads spawned. target_x/target_y
+    // are reused as the far-node Impact cell. Empty pipe_path = a legacy
+    // non-travel (self) entry (3b behaviour).
+    std::vector<std::pair<int,int>> pipe_path;
+    int                             seg_len        = 0;
+    std::vector<int>                payloads;
+    int                             iters_total    = 1;
+    int                             iters_launched = 0;
 };
 
 struct NetSession {
@@ -209,6 +222,12 @@ struct NetSession {
     // Plan 6: index of the slot whose Telegraph is currently open. -1 when
     // none. The Grid HUD uses this to inverse-video the active program slot.
     int active_slot = -1;
+
+    // Phase 5 slice 4: armed (pre-confirm) program slot; -1 = none.
+    int armed_slot = -1;
+    // Phase 5 slice 4: index into connected_pipe_indices() of the
+    // highlighted active pipe at the avatar's node (clamped on use).
+    int active_pipe = 0;
 
     // Phase 5 slice 2: set by a tile-targeted program's Telegraph on_confirm
     // (which runs inside game.telegraph().handle_input on a later keypress).
