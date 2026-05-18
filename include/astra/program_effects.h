@@ -29,4 +29,9 @@ struct NetProgramContext {
 // handled upstream by the program picker. Returns a log message string.
 std::string apply_program_in_grid(ProgramId id, NetProgramContext ctx);
 
+// Demote the breakwall group at (x, y) by one density step, spawn glitch
+// animations, charge trace, and return a bare result string (no program prefix).
+// Shared by apply_breach_grid and the Slice-4 payload Impact handler.
+std::string demote_breakwall_at(Game& game, NetSession& s, int x, int y);
+
 } // namespace astra
