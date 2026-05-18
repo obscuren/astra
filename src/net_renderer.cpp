@@ -499,14 +499,13 @@ void draw_top_status(Game& game, Renderer& r, const WindowRect& wr,
         draw_colored_string(r, x, y, s.netspace.title, Color::White);
         x += visual_width(s.netspace.title);
 
-        std::string status_token =
-            (s.netspace.combat_status == Netspace::CombatStatus::Combat)
-            ? " :: COMBAT"
-            : " :: OPEN";
-        Color status_color =
-            (s.netspace.combat_status == Netspace::CombatStatus::Combat)
-            ? Color::Magenta
-            : Color::Cyan;
+        // Drive the header token from the real Slice-1 combat state.
+        // (Netspace::combat_status was an unwired placeholder that
+        // defaulted to Combat forever — never assigned anywhere.)
+        const bool in_combat =
+            s.combat_mode == NetSession::NetCombatMode::Combat;
+        std::string status_token = in_combat ? " :: COMBAT" : " :: OPEN";
+        Color status_color = in_combat ? Color::Magenta : Color::Cyan;
         draw_colored_string(r, x, y, status_token, status_color);
         x += visual_width(status_token);
     }
