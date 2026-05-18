@@ -525,6 +525,18 @@ bool handle(Game& game, int key) {
         }
     }
 
+    // Phase 5 tactical combat (Slice 1): in COMBAT you are node-locked —
+    // free movement is disabled (cast flow above still works). Movement
+    // keys are inert (no world tick). CORE actions land in Slice 2.
+    if (s.combat_mode == NetSession::NetCombatMode::Combat) {
+        switch (key) {
+            case KEY_UP: case KEY_DOWN: case KEY_LEFT: case KEY_RIGHT:
+                return false;            // swallowed, no world advance
+            default:
+                break;
+        }
+    }
+
     // Telegraph eats input first when active.
     if (game.telegraph().active()) {
         s.committed_this_key = false;

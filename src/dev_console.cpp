@@ -1,6 +1,7 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
 #include "astra/grammars/gen_elevator_netspace.h"
+#include "astra/net_combat_mode.h"
 #include "astra/net_pipe_path.h"
 #include "astra/net_renderer.h"
 #include "astra/net_window_anim.h"
@@ -600,6 +601,34 @@ static void run_net_selftest(DevConsole& con) {
                     && ic.y == path.back().second) { ++station_hits; break; }
         }
         check(station_pipes == 3 && station_hits == 3, "s4ar-ice-on-impact");
+    }
+    // Slice-1 tactical-combat lock predicate (Game-free).
+    {
+        astra::NetSession ns;
+        ns.netspace.rooms.clear();
+        astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+        astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+        ns.netspace.rooms.push_back(a);
+        ns.netspace.rooms.push_back(b);
+        astra::NetPipe p;
+        p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+        for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+        ns.netspace.pipes.push_back(p);
+        ns.avatar_x = 1; ns.avatar_y = 1;
+        check(!astra::combat_should_lock(ns), "s5tc-no-ice");
+        astra::Ice g; g.x = 11; g.y = 1;
+        g.color = astra::IceColor::Gray; g.hp = 2;
+        ns.ice.push_back(g);
+        check(astra::combat_should_lock(ns), "s5tc-gray-locks");
+        ns.ice[0].color = astra::IceColor::White;
+        check(!astra::combat_should_lock(ns), "s5tc-white-ambient");
+        ns.ice[0].color = astra::IceColor::Gray;
+        ns.ice[0].charmed_turns_left = 3;
+        check(!astra::combat_should_lock(ns), "s5tc-charmed-safe");
+        ns.ice[0].charmed_turns_left = 0;
+        check(astra::update_combat_lock(ns), "s5tc-transition");
+        check(ns.combat_mode == astra::NetSession::NetCombatMode::Combat,
+              "s5tc-mode-combat");
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
@@ -1900,8 +1929,14 @@ void DevConsole::execute_command(const std::string& cmd, Game& game) {
         else if (args.size() >= 2 && args[1] == "takeover") {
             game.hacking().request_takeover();
         }
+        else if (args.size() >= 2 && args[1] == "combat") {
+            bool on = !(args.size() >= 3 && args[2] == "off");
+            s->combat_manual = on;
+            astra::update_combat_lock(*s);
+            log(std::string("combat ") + (on ? "ON (manual)" : "OFF"));
+        }
         else {
-            log("usage: net state | net force <s> | net selftest | net takeover");
+            log("usage: net state | net force <s> | net selftest | net takeover | net combat on|off");
         }
     }
     else if (verb == "spawn-ice") {

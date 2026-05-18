@@ -223,6 +223,14 @@ struct NetSession {
     // none. The Grid HUD uses this to inverse-video the active program slot.
     int active_slot = -1;
 
+    // Phase 5 tactical combat (Slice 1). Runtime only (NetSession not
+    // serialized). combat_mode is auto-driven by update_combat_lock();
+    // combat_manual pins COMBAT regardless of hostiles until cleared
+    // (manual entry to fight a passive node, e.g. a LOCK).
+    enum class NetCombatMode : uint8_t { Normal, Combat };
+    NetCombatMode combat_mode   = NetCombatMode::Normal;
+    bool          combat_manual = false;
+
     // Phase 5 slice 4: armed (pre-confirm) program slot; -1 = none.
     int armed_slot = -1;
     // Phase 5 slice 4: index into connected_pipe_indices() of the

@@ -8,6 +8,7 @@
 #include "astra/faction.h"
 #include "astra/game.h"
 #include "astra/net_combat.h"
+#include "astra/net_combat_mode.h"
 #include "astra/net_display.h"
 #include "astra/net_ice.h"
 #include "astra/hackable.h"
@@ -860,6 +861,10 @@ void HackingSystem::tick_grid(Game& game) {
         s.netspace.window_state =
             window_band(s.trace, s.netspace.window_state, black_present);
     }
+
+    // Phase 5 tactical combat (Slice 1): recompute the COMBAT lock from
+    // the post-tick ICE positions.
+    update_combat_lock(s);
 }
 
 } // namespace astra
