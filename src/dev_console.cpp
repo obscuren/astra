@@ -514,6 +514,22 @@ static void run_net_selftest(DevConsole& con) {
         nc.in_flight.clear();                        // cancel = drop, no refund
         check(nc.ram == 3, "s3a-cancel-no-refund");
     }
+    {
+        // Slice 3b — compiled in-flight path (decidable without a Game).
+        // apply_effect_in_net's damage path needs a live Game& (grant_net_xp);
+        // it is exercised in-game via :netprog (see mechanics.md), not unit-
+        // asserted here.
+        astra::NetSession ns;
+        astra::EffectSpec sp; sp.damage = 4; sp.radius = 0;
+        astra::NetInFlight f; f.compiled = true; f.turns_total = 3;
+        f.turns_left = 3; f.spec = sp; f.slot = 0; f.ram_held = 0;
+        ns.in_flight.push_back(f);
+        check(ns.in_flight[0].compiled, "s3b-compiled-flag");
+        check(ns.in_flight[0].turns_total == 3, "s3b-compiled-duration");
+        check(ns.in_flight[0].spec.damage == 4, "s3b-compiled-spec-carried");
+        astra::NetInFlight d;            // default
+        check(!d.compiled, "s3b-compiled-default-false");
+    }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 
