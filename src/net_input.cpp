@@ -311,9 +311,44 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
                              cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
     if (slot_idx < 0 || slot_idx >= eff_slots) return FireOutcome::NoOp;
     if (s.slot_in_flight(slot_idx)) return FireOutcome::NoOp;   // slot busy
-    if (cd.loaded[slot_idx].program_def_id == 0) {
+    if (slot_is_empty(cd.loaded[slot_idx])) {
         s.push_log("[BLOCK] empty slot");
         return FireOutcome::NoOp;
+    }
+
+    if (cd.loaded[slot_idx].compiled.has_value()) {
+        const CompiledProgram& cp = *cd.loaded[slot_idx].compiled;
+        // Auto-target nearest live ICE (player-aimed telegraph for
+        // authored programs deferred — see spec §3b scope). Fall back to
+        // the avatar's own cell when no ICE is alive.
+        int btx = s.avatar_x, bty = s.avatar_y;
+        int best = -1; long bd = 0;
+        for (size_t i = 0; i < s.ice.size(); ++i) {
+            if (s.ice[i].hp <= 0) continue;
+            long dx = s.ice[i].x - s.avatar_x;
+            long dy = s.ice[i].y - s.avatar_y;
+            long d = dx * dx + dy * dy;
+            if (best < 0 || d < bd) { best = static_cast<int>(i); bd = d; }
+        }
+        if (best >= 0) { btx = s.ice[best].x; bty = s.ice[best].y; }
+        s.ram -= cp.ram_held;                       // reserved at cast
+        cyberdeck_add_heat(cd, cp.heat_cost);
+        int dur = cp.resolved.loop_count > 0 ? cp.resolved.loop_count
+                : cp.resolved.tick_count > 0 ? cp.resolved.tick_count : 1;
+        NetInFlight f;
+        f.slot        = slot_idx;
+        f.compiled    = true;
+        f.spec        = cp.resolved;
+        f.prog_name   = cp.name.empty() ? std::string("program") : cp.name;
+        f.turns_total = dur;
+        f.turns_left  = dur;
+        f.ram_held    = cp.ram_held;
+        f.target_x    = btx;
+        f.target_y    = bty;
+        s.in_flight.push_back(f);
+        s.push_log(astra::net_voice::cmd("run " + f.prog_name
+                   + ". exec 0/" + std::to_string(dur) + "."));
+        return FireOutcome::Fired;
     }
 
     Item probe = build_by_def_id(cd.loaded[slot_idx].program_def_id);
