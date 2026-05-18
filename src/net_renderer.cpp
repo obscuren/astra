@@ -1175,19 +1175,35 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
         std::string name_str = "________";
         int  ram_cost        = 0;
 
-        if (has_deck && cd_ptr && i < eff_slots &&
-            cd_ptr->loaded[i].program_def_id != 0) {
-            Item probe = build_by_def_id(cd_ptr->loaded[i].program_def_id);
-            if (probe.program) {
-                ProgramId pid       = probe.program->id;
-                const auto* def     = find_program(pid);
-                if (def && def->kind != ProgramKind::Qh) {
-                    occupied   = true;
-                    name_str   = std::string(def->name) + ".exe";
-                    ram_cost   = def->ram_cost;
-                    affordable = (s.ram >= def->ram_cost) &&
-                                 (cd_ptr->heat_current + def->heat_cost
-                                  <= cd_ptr->stats.heat_cap);
+        if (has_deck && cd_ptr && i < eff_slots) {
+            const auto& sl = cd_ptr->loaded[i];
+            if (sl.compiled.has_value()) {
+                // Authored fragment chain (Slice 3b). Mirrors the
+                // fire_program_slot precedence: a compiled payload wins
+                // over a legacy def_id, so a :netprog / PDA-editor slot
+                // (def_id==0) renders + shows its in-flight iter/exec
+                // instead of falling through to the empty branch.
+                const auto& cp = *sl.compiled;
+                occupied   = true;
+                name_str   = (cp.name.empty() ? std::string("program")
+                                              : cp.name) + ".exe";
+                ram_cost   = cp.ram_held;
+                affordable = (s.ram >= cp.ram_held) &&
+                             (cd_ptr->heat_current + cp.heat_cost
+                              <= cd_ptr->stats.heat_cap);
+            } else if (sl.program_def_id != 0) {
+                Item probe = build_by_def_id(sl.program_def_id);
+                if (probe.program) {
+                    ProgramId pid       = probe.program->id;
+                    const auto* def     = find_program(pid);
+                    if (def && def->kind != ProgramKind::Qh) {
+                        occupied   = true;
+                        name_str   = std::string(def->name) + ".exe";
+                        ram_cost   = def->ram_cost;
+                        affordable = (s.ram >= def->ram_cost) &&
+                                     (cd_ptr->heat_current + def->heat_cost
+                                      <= cd_ptr->stats.heat_cap);
+                    }
                 }
             }
         }
