@@ -19,16 +19,17 @@ constexpr int kRoomH  = 5;
 constexpr int kMargin = 3;
 
 // Pipe-length tuning knobs. Stations sit at these gaps from JACK;
-// connect()/connect_vertical stamps that many pipe cells, and Slice-4
-// clamp_seg_len maps the drawn length into [2,6]. The bench MUST span
-// both clamp bounds — selftest `s4ar-seg-span` (Task 3) asserts
-// min==2 && max==6. If that fails after a build, widen kGapLongS until
-// the longest pipe clamps to 6 and/or narrow kGapShortE until the
-// shortest clamps to 2.
-constexpr int kGapShortE = 2;    // JACK -> WHITE (east)  : short -> seg 2
-constexpr int kGapMidN   = 4;    // JACK -> GRAY  (north) : mid   -> seg 4
-constexpr int kGapLongS  = 9;    // JACK -> BLACK (south) : long  -> seg 6 (ceiling)
-constexpr int kGapWallW  = 4;    // JACK -> VAULT (west)  : mid   -> seg ~4 + breakwall
+// connect()/connect_vertical stamps that many pipe cells (raw == gap+2),
+// and Slice-4 clamp_seg_len maps the drawn length into [2,6]. The bench
+// MUST span both clamp bounds — selftest `s4ar-seg-span` (Task 3) asserts
+// min==2 && max==6. Tuned to the design table {2,4,6,4}: gap+2 -> raw,
+// then clamp [2,6]. clamp_seg_len's floor of 2 makes the short pipe read
+// 2 even if a gap-0 pipe is degenerate. If `s4ar-seg-span` ever fails,
+// widen kGapLongS / shrink kGapShortE and rebuild.
+constexpr int kGapShortE = 0;    // JACK -> WHITE (east)  : raw 2 -> seg 2 (clamp floor)
+constexpr int kGapMidN   = 2;    // JACK -> GRAY  (north) : raw 4 -> seg 4
+constexpr int kGapLongS  = 9;    // JACK -> BLACK (south) : raw 11 -> seg 6 (clamp ceiling)
+constexpr int kGapWallW  = 2;    // JACK -> VAULT (west)  : raw 4 -> seg 4 + breakwall
 
 uint8_t wall_density(int tier) { return tier <= 1 ? 3 : 4; }
 
