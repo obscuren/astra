@@ -29,6 +29,11 @@ enum class DominantAttr : uint8_t {
 
 // Compile-time effect description. Resolved at fire-time into actual world events.
 // Fields are set as the compiler walks the tree. Patterns can override behavior.
+// RELAY: max Chebyshev tiles one chain arc may jump to the next target.
+// Effective max chain reach = relay_hops * kRelayArcRange. Shared by the
+// meatspace (apply_effect_at) and netspace (apply_effect_in_net) chain.
+inline constexpr int kRelayArcRange = 3;
+
 struct EffectSpec {
     // Damage block
     int    damage              = 0;

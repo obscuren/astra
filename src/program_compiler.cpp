@@ -277,6 +277,8 @@ void apply_effect_at(Game& game, const EffectSpec& spec, int tx, int ty) {
     int min_x = tx - radius, max_x = tx + radius;
     int min_y = ty - radius, max_y = ty + radius;
 
+    std::vector<Npc*> hit;   // RELAY: targets already struck (don't re-chain)
+
     for (int y = min_y; y <= max_y; ++y) {
         for (int x = min_x; x <= max_x; ++x) {
             if (x < 0 || x >= map.width() || y < 0 || y >= map.height()) continue;
@@ -298,7 +300,44 @@ void apply_effect_at(Game& game, const EffectSpec& spec, int tx, int ty) {
                 if (!is_hostile_to_player(npc.faction, game.player())) continue;
                 apply_to_npc(game, npc, spec);
                 if (npc.cyber) apply_to_hackable(*npc.cyber, spec);
+                hit.push_back(&npc);
             }
+        }
+    }
+
+    // RELAY: chain the same effect (the previous fragment's output) to
+    // successive fresh hostiles. Each arc jumps to the nearest not-yet-hit
+    // hostile within kRelayArcRange (Chebyshev) of the last struck target;
+    // damage falls off by relay_falloff per hop. No-op when relay_hops==0
+    // (so non-RELAY programs are unchanged).
+    if (spec.relay_hops > 0 && spec.damage > 0) {
+        int cx = tx, cy = ty;
+        float factor = 1.0f;
+        for (int hop = 0; hop < spec.relay_hops; ++hop) {
+            factor *= spec.relay_falloff;
+            int d = round_dmg(spec.damage * factor);
+            if (d <= 0) break;                       // arc fizzled out
+            Npc* best = nullptr;
+            int bestdist = kRelayArcRange + 1;
+            for (auto& npc : world.npcs()) {
+                if (!npc.alive()) continue;
+                if (!is_hostile_to_player(npc.faction, game.player())) continue;
+                if (std::find(hit.begin(), hit.end(), &npc) != hit.end()) continue;
+                int adx = npc.x - cx; if (adx < 0) adx = -adx;
+                int ady = npc.y - cy; if (ady < 0) ady = -ady;
+                int dd = adx > ady ? adx : ady;
+                if (dd <= kRelayArcRange && dd < bestdist) { best = &npc; bestdist = dd; }
+            }
+            if (!best) break;                        // no target in arc range
+            EffectSpec cs = spec;
+            cs.damage         = d;
+            cs.radius         = 0;
+            cs.relay_hops     = 0;                    // single-target, no recursion
+            cs.per_target_mult = 1.0f;               // chain != broadcast split
+            apply_to_npc(game, *best, cs);
+            if (best->cyber) apply_to_hackable(*best->cyber, cs);
+            hit.push_back(best);
+            cx = best->x; cy = best->y;
         }
     }
 }
