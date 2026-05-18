@@ -87,6 +87,15 @@ struct NetInFlight {
     bool        compiled  = false;
     EffectSpec  spec{};
     std::string prog_name;
+
+    // Phase 5 slice 3b fix: the cast turn is a no-effect LAUNCH beat.
+    // combat.md worked example: a cast "enters the execution queue" and
+    // "fires payloads on turns 2 and 4" — NOT on the cast turn. The first
+    // tick_grid that sees a compiled entry (the same advance as the cast
+    // keypress, before any render) only sets `launched`; effects fire on
+    // the following turns, so the panel shows iter 1/N on cast then
+    // 2/N..N/N. (Legacy non-compiled entries never set/read this.)
+    bool        launched  = false;
 };
 
 struct NetSession {

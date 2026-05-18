@@ -767,6 +767,13 @@ void HackingSystem::tick_grid(Game& game) {
     // the countdown hits 0, then the reserved RAM returns (not on cancel).
     for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ) {
         if (it->compiled) {
+            // Cast turn = no-effect LAUNCH beat (combat.md: a cast enters
+            // the queue and fires on SUBSEQUENT turns, not the cast turn).
+            // This tick_grid runs in the same advance as the cast keypress
+            // (before any render); just mark launched + skip — no apply, no
+            // decrement — so the panel shows iter 1/N on cast, then the N
+            // effect turns follow (2/N..N/N).
+            if (!it->launched) { it->launched = true; ++it; continue; }
             // Per-iteration: apply the EffectSpec once each turn for the
             // program's loop/tick duration. Flat damage per iteration
             // (loop_intensity_mult falloff = documented tuning deferral).

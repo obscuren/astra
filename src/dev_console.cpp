@@ -529,6 +529,7 @@ static void run_net_selftest(DevConsole& con) {
         check(ns.in_flight[0].spec.damage == 4, "s3b-compiled-spec-carried");
         astra::NetInFlight d;            // default
         check(!d.compiled, "s3b-compiled-default-false");
+        check(!d.launched, "s3b-launch-default");
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
