@@ -6,6 +6,7 @@ namespace astra {
 
 class Game; // forward declare
 struct EffectSpec;
+struct NetInFlight;
 struct NetSession;
 
 // Bump-attack melee tunables.
@@ -31,5 +32,11 @@ void grant_net_xp(Game& game, int amount);
 // Returns a one-line summary for the log.
 std::string apply_effect_in_net(Game& game, NetSession& s,
                                 const EffectSpec& spec, int tx, int ty);
+
+// Phase 5 slice 4: resolve a payload that has reached the far node of
+// its pipe. If the target cell is a breakwall, demotes it by one density
+// step; otherwise applies the program's compiled EffectSpec or ProgramDef
+// effect at (f.target_x, f.target_y). Logs result into s.
+void impact_resolve(Game& game, NetSession& s, NetInFlight& f);
 
 }  // namespace astra

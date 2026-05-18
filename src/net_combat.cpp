@@ -3,7 +3,9 @@
 #include "astra/game.h"
 #include "astra/net_ice.h"
 #include "astra/net_session.h"
+#include "astra/program.h"
 #include "astra/program_compiler.h"
+#include "astra/program_effects.h"
 
 #include <cmath>
 #include <string>
@@ -84,6 +86,27 @@ std::string apply_effect_in_net(Game& game, NetSession& s,
     if (hit == 0)   return "no target in range.";
     if (kills == 0) return std::to_string(hit) + " hit.";
     return std::to_string(hit) + " hit, " + std::to_string(kills) + " down.";
+}
+
+void impact_resolve(Game& game, NetSession& s, NetInFlight& f) {
+    // Breakwall at the far node: demote by one density step.
+    if (s.netspace.breakwall_lookup.count({f.target_x, f.target_y})) {
+        std::string m = demote_breakwall_at(game, s, f.target_x, f.target_y);
+        if (!m.empty())
+            s.push_log("  " + f.prog_name + ": " + m);
+        return;
+    }
+    // Otherwise: 3b resolution at the far node.
+    if (f.compiled) {
+        std::string m = apply_effect_in_net(game, s, f.spec, f.target_x, f.target_y);
+        if (!m.empty())
+            s.push_log("  " + f.prog_name + ": " + m);
+    } else {
+        NetProgramContext ctx{game, s, f.target_x, f.target_y};
+        std::string m = apply_program_in_grid(static_cast<ProgramId>(f.program_id), ctx);
+        if (!m.empty())
+            s.push_log("  " + m);
+    }
 }
 
 } // namespace astra

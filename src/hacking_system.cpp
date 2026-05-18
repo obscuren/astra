@@ -766,33 +766,38 @@ void HackingSystem::tick_grid(Game& game) {
     // reserves RAM until it completes; the bespoke effect resolves when
     // the countdown hits 0, then the reserved RAM returns (not on cancel).
     for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ) {
-        if (it->compiled) {
-            // Cast turn = no-effect LAUNCH beat (combat.md: a cast enters
-            // the queue and fires on SUBSEQUENT turns, not the cast turn).
-            // This tick_grid runs in the same advance as the cast keypress
-            // (before any render); just mark launched + skip — no apply, no
-            // decrement — so the panel shows iter 1/N on cast, then the N
-            // effect turns follow (2/N..N/N).
+        if (it->pipe_path.empty()) {
+            // Legacy non-travel / self entry — exact pre-Slice-4 3b behaviour.
             if (!it->launched) { it->launched = true; ++it; continue; }
-            // Per-iteration: apply the EffectSpec once each turn for the
-            // program's loop/tick duration. Flat damage per iteration
-            // (loop_intensity_mult falloff = documented tuning deferral).
-            std::string msg = apply_effect_in_net(game, s, it->spec,
-                                                  it->target_x, it->target_y);
-            if (!msg.empty())
-                s.push_log("  " + it->prog_name + ": " + msg);
+            if (it->compiled) {
+                std::string msg = apply_effect_in_net(game, s, it->spec,
+                                                      it->target_x, it->target_y);
+                if (!msg.empty())
+                    s.push_log("  " + it->prog_name + ": " + msg);
+            } else {
+                NetProgramContext ctx{game, s, it->target_x, it->target_y};
+                std::string msg = apply_program_in_grid(
+                    static_cast<ProgramId>(it->program_id), ctx);
+                if (!msg.empty()) s.push_log(std::string("  ") + msg);
+            }
             if (--it->turns_left > 0) { ++it; continue; }
             s.ram = std::min(s.ram_max, s.ram + it->ram_held);
-            it = s.in_flight.erase(it);
-        } else {
-            if (--it->turns_left > 0) { ++it; continue; }
-            ProgramId pid = static_cast<ProgramId>(it->program_id);
-            NetProgramContext ctx{game, s, it->target_x, it->target_y};
-            std::string msg = apply_program_in_grid(pid, ctx);
-            if (!msg.empty()) s.push_log(std::string("  ") + msg);
-            s.ram = std::min(s.ram_max, s.ram + it->ram_held);
-            it = s.in_flight.erase(it);
+            it = s.in_flight.erase(it); continue;
         }
+        // Slice-4 payload travel.
+        if (!it->launched) { it->launched = true; ++it; continue; }      // cast turn = launch beat
+        if (it->iters_launched < it->iters_total) { it->payloads.push_back(0); ++it->iters_launched; }
+        for (int& seg : it->payloads) ++seg;
+        for (size_t k = 0; k < it->payloads.size(); ) {
+            if (it->payloads[k] >= it->seg_len) {
+                impact_resolve(game, s, *it);
+                it->payloads.erase(it->payloads.begin() + static_cast<long>(k));
+            } else ++k;
+        }
+        if (it->iters_launched >= it->iters_total && it->payloads.empty()) {
+            s.ram = std::min(s.ram_max, s.ram + it->ram_held);            // RAM returned on completion
+            it = s.in_flight.erase(it);
+        } else ++it;
     }
 
     // 2. Heat decay on equipped deck + heat→trace coupling + forced reboot.

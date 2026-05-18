@@ -293,116 +293,6 @@ void fire_program(Game& game, NetSession& s, CyberdeckData& cd,
                   : ".")));
 }
 
-// Outcome of a deck-slot key. Drives the slice-2 action economy: only a
-// program that actually FIRED this keypress (self-targeted, instant)
-// commits the turn at the slot key. Telegraphing = a tile-targeted aim
-// was opened (free until the player confirms a target). NoOp = nothing
-// happened (no turn burned).
-enum class FireOutcome { NoOp, Fired, Telegraphing };
-
-FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
-    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
-    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
-        s.push_log("[BLOCK] no cyberdeck equipped");
-        return FireOutcome::NoOp;
-    }
-    auto& cd = *(*deck_slot)->deck;
-
-    int eff_slots = std::min(kCyberdeckMaxSlots,
-                             cd.stats.slots + (s.skill_daemon_mastery ? 1 : 0));
-    if (slot_idx < 0 || slot_idx >= eff_slots) return FireOutcome::NoOp;
-    if (s.slot_in_flight(slot_idx)) return FireOutcome::NoOp;   // slot busy
-    if (slot_is_empty(cd.loaded[slot_idx])) {
-        s.push_log("[BLOCK] empty slot");
-        return FireOutcome::NoOp;
-    }
-
-    if (cd.loaded[slot_idx].compiled.has_value()) {
-        const CompiledProgram& cp = *cd.loaded[slot_idx].compiled;
-        // Affordability gate (the legacy path has can_afford_program; the
-        // compiled branch was missing it, so casting with insufficient RAM
-        // drove s.ram negative). Mirror can_afford_program semantics: no
-        // reserve, no turn when unaffordable — RAM can never go below 0.
-        if (s.ram < cp.ram_held ||
-            cd.heat_current + cp.heat_cost > cd.stats.heat_cap) {
-            s.push_log("[BLOCK] insufficient RAM/heat");
-            return FireOutcome::NoOp;
-        }
-        // Auto-target nearest live ICE (player-aimed telegraph for
-        // authored programs deferred — see spec §3b scope). Fall back to
-        // the avatar's own cell when no ICE is alive.
-        int btx = s.avatar_x, bty = s.avatar_y;
-        int best = -1; long bd = 0;
-        for (size_t i = 0; i < s.ice.size(); ++i) {
-            if (s.ice[i].hp <= 0) continue;
-            long dx = s.ice[i].x - s.avatar_x;
-            long dy = s.ice[i].y - s.avatar_y;
-            long d = dx * dx + dy * dy;
-            if (best < 0 || d < bd) { best = static_cast<int>(i); bd = d; }
-        }
-        if (best >= 0) { btx = s.ice[best].x; bty = s.ice[best].y; }
-        s.ram -= cp.ram_held;                       // reserved at cast
-        cyberdeck_add_heat(cd, cp.heat_cost);
-        int dur = cp.resolved.loop_count > 0 ? cp.resolved.loop_count
-                : cp.resolved.tick_count > 0 ? cp.resolved.tick_count : 1;
-        NetInFlight f;
-        f.slot        = slot_idx;
-        f.compiled    = true;
-        f.spec        = cp.resolved;
-        f.prog_name   = cp.name.empty() ? std::string("program") : cp.name;
-        f.turns_total = dur;
-        f.turns_left  = dur;
-        f.ram_held    = cp.ram_held;
-        f.target_x    = btx;
-        f.target_y    = bty;
-        s.in_flight.push_back(f);
-        s.push_log(astra::net_voice::cmd("run " + f.prog_name
-                   + ". exec 0/" + std::to_string(dur) + "."));
-        return FireOutcome::Fired;
-    }
-
-    Item probe = build_by_def_id(cd.loaded[slot_idx].program_def_id);
-    if (!probe.program) return FireOutcome::NoOp;
-    ProgramId pid = probe.program->id;
-    const auto* def = find_program(pid);
-    if (!def || def->kind == ProgramKind::Qh) return FireOutcome::NoOp;
-
-    if (!can_afford_program(s, cd, *def)) return FireOutcome::NoOp;
-
-    if (def->targeting == TargetingMode::Self) {
-        fire_program(game, s, cd, *def, -1, -1, slot_idx);
-        return FireOutcome::Fired;
-    }
-
-    // Tile-targeted: launch Telegraph with a Grid-aware passable predicate.
-    TelegraphSpec spec = def->telegraph_spec;
-    spec.passable_fn = [sess_ptr = &s](int x, int y) -> bool {
-        if (!sess_ptr->netspace.in_bounds(x, y)) return false;
-        // Any wall-density tier or box border blocks Telegraph LoS.
-        if (sess_ptr->netspace.is_wall(x, y)) return false;
-        const NetTile t = sess_ptr->netspace.at(x, y);
-        return t != NetTile::BoxThin
-            && t != NetTile::BoxDouble
-            && t != NetTile::BoxBlock;
-    };
-
-    auto on_confirm = [&game, sess_ptr = &s, def_ptr = def, slot_idx](const TelegraphResult& r) {
-        if (def_ptr->valid_target && !def_ptr->valid_target(*sess_ptr, r.dest_x, r.dest_y)) {
-            sess_ptr->push_log("[ERR] invalid target for " + display_name(*def_ptr));
-            return;
-        }
-        auto* deck_slot2 = game.player().equipment.equipped_cyberdeck();
-        if (!deck_slot2 || !*deck_slot2 || !(*deck_slot2)->deck) return;
-        auto& cd2 = *(*deck_slot2)->deck;
-        fire_program(game, *sess_ptr, cd2, *def_ptr, r.dest_x, r.dest_y, slot_idx);
-        sess_ptr->committed_this_key = true;
-    };
-
-    s.active_slot = slot_idx;
-    game.telegraph().begin(spec, s.avatar_x, s.avatar_y, on_confirm);
-    return FireOutcome::Telegraphing;
-}
-
 // Arm a slot for directed fire: validates the slot, sets s.armed_slot, and
 // returns false (arming spends no world turn). Pressing the same or a
 // different slot key while armed simply re-arms to the new slot.
@@ -431,9 +321,144 @@ bool arm_slot(Game& game, NetSession& s, int slot) {
 
 // Slice 4 Task 4 fills this. Returns true iff a world turn was committed.
 bool confirm_armed(Game& game, NetSession& s, const std::vector<int>& conn) {
-    (void)game; (void)conn;
+    int slot = s.armed_slot;   // guaranteed >= 0 by the arm-mode dispatch above
+
+    auto* deck_slot = game.player().equipment.equipped_cyberdeck();
+    if (!deck_slot || !*deck_slot || !(*deck_slot)->deck) {
+        s.push_log("[BLOCK] no cyberdeck equipped");
+        s.armed_slot = -1;
+        return false;
+    }
+    auto& cd = *(*deck_slot)->deck;
+
+    if (slot_is_empty(cd.loaded[slot])) {
+        s.armed_slot = -1;
+        return false;
+    }
+
+    // ── Compiled (player-authored fragment chain) ─────────────────────────
+    if (cd.loaded[slot].compiled.has_value()) {
+        const CompiledProgram& cp = *cd.loaded[slot].compiled;
+
+        // Affordability gate: no reserve, no turn when unaffordable, so
+        // RAM can never go below 0 (matches can_afford_program semantics).
+        if (s.ram < cp.ram_held ||
+            cd.heat_current + cp.heat_cost > cd.stats.heat_cap) {
+            s.push_log("[BLOCK] insufficient RAM/heat");
+            s.armed_slot = -1;
+            return false;
+        }
+
+        // Pipe availability gate.
+        if (conn.empty()) {
+            s.push_log("[BLOCK] no pipe from here.");
+            s.armed_slot = -1;
+            return false;
+        }
+        int pidx = conn[std::min<int>(s.active_pipe,
+                                      static_cast<int>(conn.size()) - 1)];
+        auto path = pipe_path_cells(s.netspace, pidx, s.avatar_x, s.avatar_y);
+        if (path.empty()) {
+            s.push_log("[BLOCK] no pipe path.");
+            s.armed_slot = -1;
+            return false;
+        }
+
+        // Reserve RAM + heat at cast (returned on completion only).
+        s.ram -= cp.ram_held;
+        cyberdeck_add_heat(cd, cp.heat_cost);
+
+        int iters = cp.resolved.loop_count > 0 ? cp.resolved.loop_count
+                  : cp.resolved.tick_count > 0 ? cp.resolved.tick_count
+                  : 1;
+
+        NetInFlight f;
+        f.slot           = slot;
+        f.compiled       = true;
+        f.spec           = cp.resolved;
+        f.prog_name      = cp.name.empty() ? std::string("program") : cp.name;
+        f.turns_total    = iters;
+        f.turns_left     = iters;
+        f.ram_held       = cp.ram_held;
+        f.launched       = false;
+        f.pipe_path      = path;
+        f.seg_len        = clamp_seg_len(static_cast<int>(path.size()));
+        f.iters_total    = iters;
+        f.iters_launched = 0;
+        f.payloads.clear();
+        f.target_x       = path.back().first;
+        f.target_y       = path.back().second;
+        s.in_flight.push_back(std::move(f));
+        s.push_log(astra::net_voice::cmd(
+            "run " + cd.loaded[slot].compiled->name + ". launching."));
+        s.armed_slot = -1;
+        return true;
+    }
+
+    // ── ProgramDef (legacy authored program) ──────────────────────────────
+    Item probe = build_by_def_id(cd.loaded[slot].program_def_id);
+    if (!probe.program) { s.armed_slot = -1; return false; }
+    ProgramId pid = probe.program->id;
+    const auto* def = find_program(pid);
+    if (!def || def->kind == ProgramKind::Qh) { s.armed_slot = -1; return false; }
+
+    if (!can_afford_program(s, cd, *def)) {
+        s.armed_slot = -1;
+        return false;
+    }
+
+    // Self-targeted: resolve instantly — exactly as the legacy self branch does.
+    if (def->targeting == TargetingMode::Self) {
+        fire_program(game, s, cd, *def, -1, -1, slot);
+        s.armed_slot = -1;
+        return true;
+    }
+
+    // Tile-targeted / pipe travel.
+    if (conn.empty()) {
+        s.push_log("[BLOCK] no pipe from here.");
+        s.armed_slot = -1;
+        return false;
+    }
+    int pidx = conn[std::min<int>(s.active_pipe,
+                                  static_cast<int>(conn.size()) - 1)];
+    auto path = pipe_path_cells(s.netspace, pidx, s.avatar_x, s.avatar_y);
+    if (path.empty()) {
+        s.push_log("[BLOCK] no pipe path.");
+        s.armed_slot = -1;
+        return false;
+    }
+
+    // Reserve RAM + heat (mirrors fire_program body).
+    s.ram -= def->ram_cost;
+    int heat = def->heat_cost;
+    if (s.skill_ghost_protocol && !s.ghost_protocol_used) {
+        heat = 0;
+        s.ghost_protocol_used = true;
+    }
+    cyberdeck_add_heat(cd, heat);
+
+    NetInFlight f;
+    f.slot           = slot;
+    f.compiled       = false;
+    f.program_id     = static_cast<uint16_t>(def->id);
+    f.prog_name      = std::string(display_name(*def));
+    f.turns_total    = std::max(1, def->net_exec_turns);
+    f.turns_left     = f.turns_total;
+    f.ram_held       = def->ram_cost;
+    f.launched       = false;
+    f.pipe_path      = path;
+    f.seg_len        = clamp_seg_len(static_cast<int>(path.size()));
+    f.iters_total    = 1;
+    f.iters_launched = 0;
+    f.payloads.clear();
+    f.target_x       = path.back().first;
+    f.target_y       = path.back().second;
+    s.in_flight.push_back(std::move(f));
+    s.push_log(astra::net_voice::cmd(
+        "run " + std::string(display_name(*def)) + ". launching."));
     s.armed_slot = -1;
-    return false;
+    return true;
 }
 
 } // namespace
