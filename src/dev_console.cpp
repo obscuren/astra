@@ -549,6 +549,42 @@ static void run_net_selftest(DevConsole& con) {
         astra::NetSession ns;
         check(ns.armed_slot == -1 && ns.active_pipe == 0, "s4-arm-defaults");
     }
+    // Combat-arena bench invariants (Game-free).
+    {
+        astra::TargetDescriptor d;
+        d.kind = astra::NetspaceTargetKind::CombatArena;
+        d.tier = 1; d.seed = 1;
+        astra::Netspace a  = astra::gen_for_target(d);
+        astra::Netspace a2 = astra::gen_for_target(d);
+        check(a.tiles == a2.tiles
+              && a.initial_ice.size() == a2.initial_ice.size(),
+              "s4ar-deterministic");
+        check(a.pipes.size() >= 4, "s4ar-pipes");
+        auto conn = astra::connected_pipe_indices(a, a.jack_in_x, a.jack_in_y);
+        check(conn.size() >= 4, "s4ar-hub-fanout");
+        int smin = 99, smax = 0;
+        bool wall_ok = false;
+        for (int idx : conn) {
+            auto path = astra::pipe_path_cells(a, idx,
+                                               a.jack_in_x, a.jack_in_y);
+            int n = astra::clamp_seg_len(static_cast<int>(path.size()));
+            if (n < smin) smin = n;
+            if (n > smax) smax = n;
+            if (!path.empty() && a.breakwall_lookup.count(path.back()))
+                wall_ok = true;
+        }
+        check(smin == 2 && smax == 6, "s4ar-seg-span");
+        int w = 0, g = 0, bl = 0;
+        for (auto& ic : a.initial_ice) {
+            if      (ic.color == astra::IceColor::White) ++w;
+            else if (ic.color == astra::IceColor::Gray)  ++g;
+            else                                         ++bl;
+        }
+        check(w == 1 && g == 2 && bl == 1 && a.initial_ice.size() == 4,
+              "s4ar-roster-t1");
+        check(!a.breakwall_lookup.empty(), "s4ar-breakwall");
+        check(wall_ok, "s4ar-wall-impact-cell");
+    }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 
