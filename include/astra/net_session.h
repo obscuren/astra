@@ -4,6 +4,7 @@
 #include "astra/game_state.h"
 #include "astra/net_ice.h"
 #include "astra/netspace.h"
+#include "astra/program_compiler.h"
 
 #include <chrono>
 #include <cstdint>
@@ -78,6 +79,14 @@ struct NetInFlight {
     int        ram_held    = 0;    // reserved RAM, returned on completion only
     int        target_x    = -1;
     int        target_y    = -1;
+
+    // Phase 5 slice 3b: compiled (player-authored fragment chain) path.
+    // When `compiled` is true, tick_grid resolves via apply_effect_in_net
+    // with `spec` each turn instead of apply_program_in_grid(program_id);
+    // `prog_name` drives the deck-panel label.
+    bool        compiled  = false;
+    EffectSpec  spec{};
+    std::string prog_name;
 };
 
 struct NetSession {
