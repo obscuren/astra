@@ -318,6 +318,15 @@ FireOutcome fire_program_slot(Game& game, NetSession& s, int slot_idx) {
 
     if (cd.loaded[slot_idx].compiled.has_value()) {
         const CompiledProgram& cp = *cd.loaded[slot_idx].compiled;
+        // Affordability gate (the legacy path has can_afford_program; the
+        // compiled branch was missing it, so casting with insufficient RAM
+        // drove s.ram negative). Mirror can_afford_program semantics: no
+        // reserve, no turn when unaffordable — RAM can never go below 0.
+        if (s.ram < cp.ram_held ||
+            cd.heat_current + cp.heat_cost > cd.stats.heat_cap) {
+            s.push_log("[BLOCK] insufficient RAM/heat");
+            return FireOutcome::NoOp;
+        }
         // Auto-target nearest live ICE (player-aimed telegraph for
         // authored programs deferred — see spec §3b scope). Fall back to
         // the avatar's own cell when no ICE is alive.
