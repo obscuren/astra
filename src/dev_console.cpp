@@ -587,22 +587,27 @@ static void run_net_selftest(DevConsole& con) {
               "s4ar-roster-t1");
         check(!a.breakwall_lookup.empty(), "s4ar-breakwall");
         check(wall_ok, "s4ar-wall-impact-cell");
-        // Each non-breakwall station pipe must carry an ICE on its exact
-        // Slice-4 Impact cell — regression for the radius-0 miss bug
-        // (payload Impacts the pipe terminus; ICE used to sit in the room
-        // interior, out of a single-target program's range).
-        int station_pipes = 0, station_hits = 0;
+        // Since S4 (node-scoped Impact) a station pipe only needs a live
+        // ICE somewhere IN the terminus room, not on the exact cell.
+        int station_pipes = 0, station_in_node = 0;
         for (int idx : conn) {
             auto path = astra::pipe_path_cells(a, idx,
                                                a.jack_in_x, a.jack_in_y);
             if (path.empty() || a.breakwall_lookup.count(path.back()))
                 continue;
             ++station_pipes;
+            int ri = astra::room_index_at(a, path.back().first,
+                                          path.back().second);
+            if (ri < 0 || ri >= static_cast<int>(a.rooms.size())) continue;
+            const astra::NetRoom& rm = a.rooms[static_cast<size_t>(ri)];
             for (auto& ic : a.initial_ice)
-                if (ic.x == path.back().first
-                    && ic.y == path.back().second) { ++station_hits; break; }
+                if (ic.x >= rm.x && ic.x < rm.x + rm.w &&
+                    ic.y >= rm.y && ic.y < rm.y + rm.h) {
+                    ++station_in_node; break;
+                }
         }
-        check(station_pipes == 3 && station_hits == 3, "s4ar-ice-on-impact");
+        check(station_pipes == 3 && station_in_node == 3,
+              "s4ar-ice-in-node");
     }
     // Slice-1 tactical-combat lock predicate (Game-free).
     {
@@ -719,6 +724,99 @@ static void run_net_selftest(DevConsole& con) {
         ns.ice[0].color = astra::IceColor::Black;
         astra::ice_cast_tick(ns);
         check(ns.in_flight.empty(), "s5tc3-black-not-caster");
+    }
+    // Slice-4 pipe collision + node-scoped Impact selection (Game-free).
+    {
+        astra::NetInFlight df;
+        check(df.pipe_index == -1, "s5tc4-pipe-index-default");
+
+        auto mk = [](bool hostile, int pipe, int seg_len,
+                     int dmg, int seg) {
+            astra::NetInFlight f;
+            f.hostile    = hostile;
+            f.pipe_index = pipe;
+            f.seg_len    = seg_len;
+            f.spec.damage = dmg;
+            f.pipe_path  = {{0,0},{1,0}};      // non-empty = travel entry
+            f.payloads   = { seg };
+            return f;
+        };
+
+        // Same cell (uP=3, uI=5-2=3), equal damage -> annihilate both.
+        {
+            astra::NetSession ns;
+            ns.in_flight.push_back(mk(false, 0, 5, 3, 3));   // player uP=3
+            ns.in_flight.push_back(mk(true,  0, 5, 3, 2));   // ICE    uI=3
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.empty()
+               && ns.in_flight[1].payloads.empty(),
+               "s5tc4-collide-annihilate");
+        }
+        // Unequal -> loser destroyed, winner carries the difference.
+        {
+            astra::NetSession ns;
+            ns.in_flight.push_back(mk(false, 0, 5, 5, 3));   // player uP=3
+            ns.in_flight.push_back(mk(true,  0, 5, 2, 2));   // ICE    uI=3
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.size() == 1
+               && ns.in_flight[1].payloads.empty()
+               && ns.in_flight[0].spec.damage == 3,
+               "s5tc4-collide-carry");
+        }
+        // Adjacent swap (uP=4, uI=5-2=3 -> diff==1) collides.
+        {
+            astra::NetSession ns;
+            ns.in_flight.push_back(mk(false, 0, 5, 1, 4));   // uP=4
+            ns.in_flight.push_back(mk(true,  0, 5, 1, 2));   // uI=3
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.empty()
+               && ns.in_flight[1].payloads.empty(),
+               "s5tc4-collide-swap");
+        }
+        // Same direction never collides; different pipe never collides.
+        {
+            astra::NetSession ns;
+            ns.in_flight.push_back(mk(false, 0, 5, 1, 3));
+            ns.in_flight.push_back(mk(false, 0, 5, 1, 3));   // both player
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.size() == 1
+               && ns.in_flight[1].payloads.size() == 1,
+               "s5tc4-same-dir-no-collide");
+        }
+        {
+            astra::NetSession ns;
+            ns.in_flight.push_back(mk(false, 0, 5, 1, 3));
+            ns.in_flight.push_back(mk(true,  1, 5, 1, 2));   // pipe 1
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.size() == 1
+               && ns.in_flight[1].payloads.size() == 1,
+               "s5tc4-diff-pipe-no-collide");
+        }
+
+        // net_node_targets: room-scoped selection (the radius-0 fix).
+        {
+            astra::NetSession ns;
+            astra::NetRoom rm; rm.x = 0; rm.y = 0; rm.w = 5; rm.h = 5;
+            ns.netspace.rooms.push_back(rm);
+            astra::Ice i0; i0.x = 1; i0.y = 1; i0.hp = 2;   // in room
+            astra::Ice i1; i1.x = 3; i1.y = 3; i1.hp = 2;   // in room
+            astra::Ice i2; i2.x = 50; i2.y = 50; i2.hp = 2; // outside
+            ns.ice = { i0, i1, i2 };
+            astra::EffectSpec sp; sp.damage = 1; sp.radius = 0;
+            auto single = astra::net_node_targets(ns, sp, 4, 2);
+            // closest in-room to (4,2): i1 Cheb=1 < i0 Cheb=3.
+            check(single.size() == 1 && single[0] == 1,
+                  "s5tc4-node-single-closest");
+            sp.radius = 1;                                  // AOE
+            auto aoe = astra::net_node_targets(ns, sp, 4, 2);
+            check(aoe.size() == 2, "s5tc4-node-aoe-all");   // i2 excluded
+            ns.ice.clear();
+            check(astra::net_node_targets(ns, sp, 4, 2).empty(),
+                  "s5tc4-node-none");
+            astra::EffectSpec z; z.damage = 0;
+            check(astra::net_node_targets(ns, z, 4, 2).empty(),
+                  "s5tc4-node-nodmg");
+        }
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }

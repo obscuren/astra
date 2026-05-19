@@ -770,47 +770,16 @@ void HackingSystem::tick_grid(Game& game) {
         }
     }
 
-    // Phase 5 slice 3a: advance in-flight programs. Resolved AFTER ICE
-    // act (combat.md turn order: enemies advance, then player programs
-    // that complete this turn resolve) and AFTER the hijack countdown
-    // (1c) so a DaemonHijack that completes this turn isn't decremented
-    // on the same tick it's set. Each entry occupies its deck slot +
-    // reserves RAM until it completes; the bespoke effect resolves when
-    // the countdown hits 0, then the reserved RAM returns (not on cancel).
-    for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ) {
-        if (it->pipe_path.empty()) {
-            // Legacy non-travel / self entry — exact pre-Slice-4 3b behaviour.
-            if (!it->launched) { it->launched = true; ++it; continue; }
-            if (it->compiled) {
-                std::string msg = apply_effect_in_net(game, s, it->spec,
-                                                      it->target_x, it->target_y);
-                if (!msg.empty())
-                    s.push_log("  " + it->prog_name + ": " + msg);
-            } else {
-                NetProgramContext ctx{game, s, it->target_x, it->target_y};
-                std::string msg = apply_program_in_grid(
-                    static_cast<ProgramId>(it->program_id), ctx);
-                if (!msg.empty()) s.push_log(std::string("  ") + msg);
-            }
-            if (--it->turns_left > 0) { ++it; continue; }
-            s.ram = std::min(s.ram_max, s.ram + it->ram_held);
-            it = s.in_flight.erase(it); continue;
-        }
-        // Slice-4 payload travel.
-        if (!it->launched) { it->launched = true; ++it; continue; }      // cast turn = launch beat
-        if (it->iters_launched < it->iters_total) { it->payloads.push_back(0); ++it->iters_launched; }
-        for (int& seg : it->payloads) ++seg;
-        for (size_t k = 0; k < it->payloads.size(); ) {
-            if (it->payloads[k] >= it->seg_len) {
-                impact_resolve(game, s, *it);
-                it->payloads.erase(it->payloads.begin() + static_cast<long>(k));
-            } else ++k;
-        }
-        if (it->iters_launched >= it->iters_total && it->payloads.empty()) {
-            s.ram = std::min(s.ram_max, s.ram + it->ram_held);            // RAM returned on completion
-            it = s.in_flight.erase(it);
-        } else ++it;
-    }
+    // Phase 5 S4: the in-flight beat, decomposed (behaviour-preserving
+    // + additive — collisions are the only new effect). Resolved AFTER
+    // ICE act / §1b / §1c (combat.md turn order: enemies advance, then
+    // player programs that complete resolve) and AFTER the hijack
+    // countdown so a DaemonHijack completing this turn isn't decremented
+    // the tick it's set. advance + collide are Game-free; impact keeps
+    // the exact legacy/self + travel resolve and RAM-return/erase.
+    net_inflight_advance(s);
+    resolve_pipe_collisions(s);
+    resolve_inflight_impacts(game, s);
 
     // 2. Heat decay on equipped deck + heat→trace coupling + forced reboot.
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();

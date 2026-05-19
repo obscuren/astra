@@ -118,6 +118,13 @@ struct NetInFlight {
     // ICE resolution. Forward-correct: S4 payload-vs-payload collision
     // keys off this ownership marker. Player casts leave it false.
     bool hostile = false;
+
+    // Phase 5 S4: index into netspace.pipes of the pipe this payload
+    // rides (-1 = none, e.g. self/legacy). The same-pipe key for
+    // payload collision: a player payload and an ICE payload on one
+    // physical pipe share this index (their pipe_path is merely
+    // reversed). Set by confirm_armed (pidx) / ice_cast_tick (idx).
+    int pipe_index = -1;
 };
 
 struct NetSession {

@@ -389,6 +389,7 @@ bool confirm_armed(Game& game, NetSession& s, const std::vector<int>& conn) {
         f.payloads.clear();
         f.target_x       = path.back().first;
         f.target_y       = path.back().second;
+        f.pipe_index     = pidx;
         s.in_flight.push_back(std::move(f));
         s.push_log(astra::net_voice::cmd(
             "run " + cd.loaded[slot].compiled->name + ". launching."));
@@ -455,6 +456,7 @@ bool confirm_armed(Game& game, NetSession& s, const std::vector<int>& conn) {
     f.payloads.clear();
     f.target_x       = path.back().first;
     f.target_y       = path.back().second;
+    f.pipe_index     = pidx;
     s.in_flight.push_back(std::move(f));
     s.push_log(astra::net_voice::cmd(
         "run " + std::string(display_name(*def)) + ". launching."));

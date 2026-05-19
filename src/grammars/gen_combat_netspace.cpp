@@ -43,8 +43,9 @@ int white_hp(int tier)     { return 1 + (tier >= 4 ? 1 : 0); }
 int gray_hp(int tier)      { return 2 + tier / 2; }
 int black_hp(int tier)     { return 4 + tier; }
 
-// Far-node (Impact) cell of pipe idx from JACK. Player payloads resolve here (radius-0 hits the seeded ICE);
-// since S3 a Gray seeded here also casts back down this pipe at JACK. {-1,-1} if no path.
+// Far-node (Impact) cell of pipe idx from JACK. Payloads Impact here; since S4 node-scoped resolution
+// hits any live ICE in this cell's room (not just one on the exact cell). Since S3 a Gray in this node
+// also casts back down the pipe. {-1,-1} if no path.
 std::pair<int,int> pipe_far_cell(NetspaceBuilder& b, int idx) {
     auto p = pipe_path_cells(b.ns, idx, b.ns.jack_in_x, b.ns.jack_in_y);
     if (p.empty()) return {-1, -1};
@@ -58,7 +59,9 @@ std::pair<int,int> pipe_far_cell(NetspaceBuilder& b, int idx) {
 // order only. Never doubles a cell or goes out of bounds.
 //
 // NOTE: since S3 this bench is bidirectional — a Gray seeded on a JACK-connected node casts back
-// (net_combat.cpp ice_cast_tick). The anchor-on-Impact-cell placement still lets a radius-0 player program hit it.
+// (net_combat.cpp ice_cast_tick). Since S4 (node-scoped Impact) the anchor-on-Impact-cell placement
+// is no longer required for a single-target program to connect — any live ICE in the station room is
+// hit; the anchor is kept only for deterministic, readable bench placement.
 void seed_ice(NetspaceBuilder& b, int cx, int cy, IceColor color,
               int count, int hp, uint32_t salt) {
     if (count <= 0 || cx < 0 || cy < 0) return;
@@ -161,9 +164,11 @@ Netspace gen_combat_netspace(const TargetDescriptor& desc) {
                              wall_density(tier));
     }
 
-    // Tier-scaled ICE roster, anchored on each station pipe's Slice-4
-    // Impact cell so a radius-0 program landing there actually hits (the
-    // bench's whole point). NOTE: bidirectional since S3 — the GRAY pack both takes player payloads here AND casts back at JACK.
+    // Tier-scaled ICE roster, anchored on each station pipe's Impact cell
+    // for deterministic, readable bench placement. NOTE: bidirectional
+    // since S3 — the GRAY pack both takes player payloads here AND casts
+    // back at JACK. Node-scoped Impact since S4 — station ICE need not
+    // sit on the exact terminus cell.
     auto wf = pipe_far_cell(b, white_idx);
     auto gf = pipe_far_cell(b, gray_idx);
     auto bf = pipe_far_cell(b, black_idx);

@@ -12,8 +12,10 @@
 #include "astra/program_effects.h"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace astra {
@@ -27,36 +29,28 @@ std::string apply_effect_in_net(Game& game, NetSession& s,
     int kills = 0;
 
     if (spec.damage > 0) {
-        int r = spec.radius;
+        std::vector<std::size_t> tgt = net_node_targets(s, spec, tx, ty);
         std::vector<char> struck(s.ice.size(), 0);   // RELAY: don't re-chain
-
-        // Pass 1: primary AoE box. Mirrors the apply_pulse_hammer_grid
-        // convention — damage all, resolve kills in a later pass (never
-        // erase while iterating).
-        for (size_t i = 0; i < s.ice.size(); ++i) {
-            Ice& ice = s.ice[i];
-            if (ice.hp <= 0) continue;
-            int dx = std::abs(ice.x - tx);
-            int dy = std::abs(ice.y - ty);
-            if (dx <= r && dy <= r) {
-                net_ice::damage(s, ice, spec.damage);
-                struck[i] = 1;
-                ++hit;
-            }
+        for (std::size_t i : tgt) {
+            net_ice::damage(s, s.ice[i], spec.damage);
+            struck[i] = 1;
+            ++hit;
         }
-
-        // Pass 1b: RELAY chain — jump to the nearest not-yet-struck live
-        // ICE within kRelayArcRange (Chebyshev) of the last hit; damage
-        // falls off by relay_falloff per hop. No-op when relay_hops==0.
+        // RELAY chain — origin = the single struck ICE's cell for a
+        // single-target hit, else the Impact cell. Falloff/struck
+        // bookkeeping unchanged from the shipped behaviour.
         if (spec.relay_hops > 0) {
             int cx = tx, cy = ty;
+            if (spec.radius < 1 && tgt.size() == 1) {
+                cx = s.ice[tgt[0]].x; cy = s.ice[tgt[0]].y;
+            }
             float factor = 1.0f;
             for (int hop = 0; hop < spec.relay_hops; ++hop) {
                 factor *= spec.relay_falloff;
                 int d = static_cast<int>(spec.damage * factor + 0.5f);
                 if (d <= 0) break;
                 int best = -1, bestdist = kRelayArcRange + 1;
-                for (size_t i = 0; i < s.ice.size(); ++i) {
+                for (std::size_t i = 0; i < s.ice.size(); ++i) {
                     if (struck[i] || s.ice[i].hp <= 0) continue;
                     int dx = std::abs(s.ice[i].x - cx);
                     int dy = std::abs(s.ice[i].y - cy);
@@ -72,10 +66,7 @@ std::string apply_effect_in_net(Game& game, NetSession& s,
                 cx = s.ice[best].x; cy = s.ice[best].y;
             }
         }
-
-        // Pass 2: resolve kills + grant XP over the whole vector (catches
-        // chain kills too). kill_and_persist pattern; dead ICE left in
-        // s.ice for net_ice::tick_all's hp<=0 skip; no erase here.
+        // Pass 2: resolve kills + grant XP (unchanged).
         for (auto& ice : s.ice) {
             if (ice.hp > 0) continue;
             IceColor col = ice.color;
@@ -132,6 +123,133 @@ bool in_room(const NetRoom& r, int x, int y) {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
 }  // namespace
+
+std::vector<std::size_t> net_node_targets(const NetSession& s,
+                                          const EffectSpec& spec,
+                                          int tx, int ty) {
+    std::vector<std::size_t> out;
+    if (spec.damage <= 0) return out;
+    int ri = room_index_at(s.netspace, tx, ty);
+    if (ri < 0 || ri >= static_cast<int>(s.netspace.rooms.size())) {
+        // Defensive: legacy Chebyshev box so S4 never regresses if the
+        // room lookup somehow fails (shouldn't in a real netspace).
+        const int r = spec.radius;
+        for (std::size_t i = 0; i < s.ice.size(); ++i) {
+            if (s.ice[i].hp <= 0) continue;
+            if (std::abs(s.ice[i].x - tx) <= r &&
+                std::abs(s.ice[i].y - ty) <= r) out.push_back(i);
+        }
+        return out;
+    }
+    const NetRoom& room = s.netspace.rooms[static_cast<std::size_t>(ri)];
+    if (spec.radius >= 1) {                       // AOE: all live ICE in node
+        for (std::size_t i = 0; i < s.ice.size(); ++i)
+            if (s.ice[i].hp > 0 && in_room(room, s.ice[i].x, s.ice[i].y))
+                out.push_back(i);
+        return out;
+    }
+    // Single-target: closest live ICE in the node to the Impact cell
+    // (Chebyshev), tiebreak by ICE index for determinism.
+    int best = -1, bestd = INT_MAX;
+    for (std::size_t i = 0; i < s.ice.size(); ++i) {
+        if (s.ice[i].hp <= 0) continue;
+        if (!in_room(room, s.ice[i].x, s.ice[i].y)) continue;
+        int dx = std::abs(s.ice[i].x - tx);
+        int dy = std::abs(s.ice[i].y - ty);
+        int dd = dx > dy ? dx : dy;
+        if (dd < bestd) { bestd = dd; best = static_cast<int>(i); }
+    }
+    if (best >= 0) out.push_back(static_cast<std::size_t>(best));
+    return out;
+}
+
+void net_inflight_advance(NetSession& s) {
+    for (auto& f : s.in_flight) {
+        if (f.pipe_path.empty()) continue;          // legacy/self: impacts phase
+        if (!f.launched) { f.launched = true; continue; }   // launch beat
+        if (f.iters_launched < f.iters_total) {
+            f.payloads.push_back(0);
+            ++f.iters_launched;
+        }
+        for (int& seg : f.payloads) ++seg;
+    }
+}
+
+namespace {
+// Distance of payload `seg` from the avatar end of its pipe. Player
+// travels avatar->far (u=seg); ICE travels far->avatar on the reversed
+// path (u=seg_len-seg). Common coordinate on a shared pipe.
+int payload_u(const NetInFlight& f, int seg) {
+    return f.hostile ? (f.seg_len - seg) : seg;
+}
+
+// payload<->payload contact (the S5 Black seam: a payload<->Black
+// branch is added here). Equal damage annihilates both; else the loser
+// payload is removed and the winner entry carries the damage
+// difference. Mutates payloads + spec.damage only. Terse log line.
+std::string resolve_pipe_contact(NetInFlight& a, std::size_t ai,
+                                  NetInFlight& b, std::size_t bi) {
+    const int ad = a.spec.damage;
+    const int bd = b.spec.damage;
+    if (ad == bd) {
+        a.payloads.erase(a.payloads.begin() + static_cast<long>(ai));
+        b.payloads.erase(b.payloads.begin() + static_cast<long>(bi));
+        return "pipe collision: payloads annihilate.";
+    }
+    if (ad > bd) {
+        a.spec.damage = ad - bd;
+        b.payloads.erase(b.payloads.begin() + static_cast<long>(bi));
+    } else {
+        b.spec.damage = bd - ad;
+        a.payloads.erase(a.payloads.begin() + static_cast<long>(ai));
+    }
+    return "pipe collision: payload survives ("
+         + std::to_string(ad > bd ? ad - bd : bd - ad) + ").";
+}
+}  // namespace
+
+void resolve_pipe_collisions(NetSession& s) {
+    // Repeat until no contact remains this beat (a carrying winner can
+    // meet the next opponent). Pipes are short and payload counts small,
+    // so the full rescan after each resolve is cheap and makes
+    // erase-invalidation a non-issue.
+    for (;;) {
+        bool found = false;
+        std::tuple<int,int,std::size_t,std::size_t,std::size_t,std::size_t>
+            best_key;
+        std::size_t bp_e = 0, bp_p = 0, bi_e = 0, bi_p = 0;
+        for (std::size_t pe = 0; pe < s.in_flight.size(); ++pe) {
+            NetInFlight& P = s.in_flight[pe];
+            if (P.hostile || P.pipe_index < 0 || P.pipe_path.empty())
+                continue;
+            for (std::size_t pp = 0; pp < P.payloads.size(); ++pp) {
+                const int uP = payload_u(P, P.payloads[pp]);
+                for (std::size_t ie = 0; ie < s.in_flight.size(); ++ie) {
+                    NetInFlight& I = s.in_flight[ie];
+                    if (!I.hostile || I.pipe_index != P.pipe_index ||
+                        I.pipe_path.empty())
+                        continue;
+                    for (std::size_t ip = 0; ip < I.payloads.size(); ++ip) {
+                        const int uI = payload_u(I, I.payloads[ip]);
+                        const int diff = uP - uI;
+                        if (diff < 0 || diff > 1) continue;   // not in contact
+                        auto key = std::make_tuple(P.pipe_index, uI,
+                                                   pe, pp, ie, ip);
+                        if (!found || key < best_key) {
+                            found    = true;
+                            best_key = key;
+                            bp_e = pe; bp_p = pp; bi_e = ie; bi_p = ip;
+                        }
+                    }
+                }
+            }
+        }
+        if (!found) break;
+        std::string m = resolve_pipe_contact(s.in_flight[bp_e], bp_p,
+                                             s.in_flight[bi_e], bi_p);
+        s.push_log(astra::net_voice::sys(m));
+    }
+}
 
 std::string apply_effect_at_avatar(Game& game, NetSession& s,
                                    const EffectSpec& spec, IceColor by) {
@@ -203,11 +321,52 @@ void ice_cast_tick(NetSession& s) {
             f.payloads.clear();
             f.target_x       = rpath.back().first;     // avatar-end cell
             f.target_y       = rpath.back().second;
+            f.pipe_index     = idx;
             s.in_flight.push_back(std::move(f));
             s.push_log(astra::net_voice::sys("gray ICE: casting."));
             ice.cast_cooldown = kIceCastCadence;
             break;                                     // one cast / ICE / beat
         }
+    }
+}
+
+void resolve_inflight_impacts(Game& game, NetSession& s) {
+    for (auto it = s.in_flight.begin(); it != s.in_flight.end(); ) {
+        if (it->pipe_path.empty()) {
+            // Legacy non-travel / self entry — exact pre-Slice-4 3b
+            // behaviour (unchanged).
+            if (!it->launched) { it->launched = true; ++it; continue; }
+            if (it->compiled) {
+                std::string msg = apply_effect_in_net(game, s, it->spec,
+                                                      it->target_x,
+                                                      it->target_y);
+                if (!msg.empty())
+                    s.push_log("  " + it->prog_name + ": " + msg);
+            } else {
+                NetProgramContext ctx{game, s, it->target_x, it->target_y};
+                std::string msg = apply_program_in_grid(
+                    static_cast<ProgramId>(it->program_id), ctx);
+                if (!msg.empty()) s.push_log(std::string("  ") + msg);
+            }
+            if (--it->turns_left > 0) { ++it; continue; }
+            s.ram = std::min(s.ram_max, s.ram + it->ram_held);
+            it = s.in_flight.erase(it); continue;
+        }
+        // Slice-4 payload travel: Impact survivors at/over seg_len.
+        // (launch beat was consumed in net_inflight_advance; this guard
+        // is a defensive no-op.)
+        if (!it->launched) { ++it; continue; }
+        for (std::size_t k = 0; k < it->payloads.size(); ) {
+            if (it->payloads[k] >= it->seg_len) {
+                impact_resolve(game, s, *it);
+                it->payloads.erase(it->payloads.begin()
+                                   + static_cast<long>(k));
+            } else ++k;
+        }
+        if (it->iters_launched >= it->iters_total && it->payloads.empty()) {
+            s.ram = std::min(s.ram_max, s.ram + it->ram_held);
+            it = s.in_flight.erase(it);
+        } else ++it;
     }
 }
 

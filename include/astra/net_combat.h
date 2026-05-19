@@ -2,7 +2,9 @@
 
 #include "astra/net_ice.h"
 
+#include <cstddef>
 #include <string>
+#include <vector>
 
 namespace astra {
 
@@ -66,5 +68,26 @@ std::string apply_effect_at_avatar(Game& game, NetSession& s,
 // kIceCastCadence cooldown. Game-free (enqueue/topology only). Called
 // from HackingSystem::tick_grid right after net_ice::tick_all.
 void ice_cast_tick(NetSession& s);
+
+// Phase 5 S4: which s.ice indices an Impact of `spec` at (tx,ty)
+// damages — node-scoped on the room containing (tx,ty): AOE
+// (radius>=1) => all live ICE in that room; single (radius==0) => the
+// closest live ICE in it (Chebyshev to (tx,ty), tiebreak by index);
+// {} if none / spec.damage<=0. Defensive legacy Chebyshev-box
+// fallback only if room_index_at fails. Game-free.
+std::vector<std::size_t> net_node_targets(const NetSession& s,
+                                          const EffectSpec& spec,
+                                          int tx, int ty);
+
+// Phase 5 S4: the in-flight beat, decomposed (called in this order
+// from tick_grid). advance = launch-beat + spawn + ++seg for travel
+// payloads (legacy/self skipped). resolve_pipe_collisions = opposing
+// same-pipe payloads that met-or-crossed annihilate / winner carries
+// the damage difference. Both Game-free. resolve_inflight_impacts =
+// the exact legacy/self resolve (unchanged) + travel Impact at
+// seg>=seg_len + RAM-return/erase.
+void net_inflight_advance(NetSession& s);
+void resolve_pipe_collisions(NetSession& s);
+void resolve_inflight_impacts(Game& game, NetSession& s);
 
 }  // namespace astra
