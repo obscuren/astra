@@ -18,4 +18,9 @@ bool combat_should_lock(const NetSession& s);
 // Returns true on a NORMAL->COMBAT or COMBAT->NORMAL transition.
 bool update_combat_lock(NetSession& s);
 
+// Phase 5 S2: execute the CORE action at deck index idx (0=q,1=w,2=e,3=r).
+// No-ops on None or out-of-range. Stub behaviours: SNIFF logs ICE/in-flight
+// counts; CHANNEL adds +2 RAM (clamped); BRACE sets brace_turns=1; RUN logs.
+void core_action_perform(NetSession& s, int idx);
+
 }  // namespace astra

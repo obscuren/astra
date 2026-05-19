@@ -2,6 +2,7 @@
 
 #include "astra/animation.h"
 #include "astra/game_state.h"
+#include "astra/net_core_action.h"
 #include "astra/net_ice.h"
 #include "astra/netspace.h"
 #include "astra/program_compiler.h"
@@ -230,6 +231,12 @@ struct NetSession {
     enum class NetCombatMode : uint8_t { Normal, Combat };
     NetCombatMode combat_mode   = NetCombatMode::Normal;
     bool          combat_manual = false;
+
+    // Phase 5 S2: equipped deck's CORE actions, cached at jack-in
+    // (mirrors s.skill_* caching). q/w/e/r = index 0..3.
+    std::array<NetCoreAction,4> core_actions{ NetCoreAction::None,
+        NetCoreAction::None, NetCoreAction::None, NetCoreAction::None };
+    int brace_turns = 0;   // S2 BRACE stub: 1-beat mitigation flag
 
     // Phase 5 slice 4: armed (pre-confirm) program slot; -1 = none.
     int armed_slot = -1;

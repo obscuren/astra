@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra/net_core_action.h"    // NetCoreAction
 #include "astra/program_compiler.h"   // CompiledProgram
 
 #include <array>
@@ -16,6 +17,11 @@ struct CyberdeckStats {
     int  stealth       = 0;       // additive bonus to Trace reduction (Plan 3)
     int  cooling_rate  = 1;       // heat decay per turn (Plan 3)
     int  heat_cap      = 10;      // max heat (Plan 3)
+
+    // Phase 5 tactical combat: deck's intrinsic CORE actions (fixed 4,
+    // index -> q/w/e/r; None = empty). Deck-def data, immutable per deck.
+    std::array<NetCoreAction,4> core_actions{ NetCoreAction::None,
+        NetCoreAction::None, NetCoreAction::None, NetCoreAction::None };
 };
 
 // Fixed-size slot array. CyberdeckData is held inline on Item via

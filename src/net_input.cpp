@@ -5,6 +5,7 @@
 #include "astra/cyberdeck.h"
 #include "astra/game.h"
 #include "astra/net_combat.h"
+#include "astra/net_combat_mode.h"
 #include "astra/net_constants.h"
 #include "astra/net_display.h"
 #include "astra/net_pipe_path.h"
@@ -539,6 +540,15 @@ bool handle(Game& game, int key) {
             case KEY_UP: case KEY_DOWN: case KEY_LEFT: case KEY_RIGHT:
             case 'k':    case 'j':      case 'h':      case 'l':
                 return false;            // swallowed, no world advance
+            case 'q': case 'w': case 'e': case 'r': {
+                int idx = (key == 'q') ? 0 : (key == 'w') ? 1
+                        : (key == 'e') ? 2 : 3;
+                if (s.core_actions[static_cast<size_t>(idx)]
+                        == NetCoreAction::None)
+                    return false;
+                core_action_perform(s, idx);
+                return true;
+            }
             default:
                 break;
         }

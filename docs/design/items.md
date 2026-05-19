@@ -353,10 +353,10 @@ These items exist but never drop and aren't in the loot table.
 
 A **cyberdeck** is the device required to fire any quickhack (`.qh`) program in the world or to jack into the Grid (Plan 3+). Decks are equipped in the `Cyberdeck` slot.
 
-| Tier | Name | Dev | Slots | RAM | CPU | Stealth | Heat cap | Notes |
-|------|------|-----|-------|-----|-----|---------|----------|-------|
-| 1 | Pidgin Mark I | `pidgin_mk1` | 3 | 8 | 1 | +0 | 10 | Pawn-shop deck. |
-| 2 | Polyglot DCK-2 | `polyglot_dck2` | 4 | 12 | 2 | +1 | 12 | Corp surplus. |
+| Tier | Name | Dev | Slots | RAM | CPU | Stealth | Heat cap | CORE actions | Notes |
+|------|------|-----|-------|-----|-----|---------|----------|--------------|-------|
+| 1 | Pidgin Mark I | `pidgin_mk1` | 3 | 8 | 1 | +0 | 10 | SNIFF, CHANNEL | Pawn-shop deck. |
+| 2 | Polyglot DCK-2 | `polyglot_dck2` | 4 | 12 | 2 | +1 | 12 | SNIFF, CHANNEL, BRACE, RUN | Corp surplus. |
 
 ## Programs
 

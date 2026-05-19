@@ -527,6 +527,12 @@ bool HackingSystem::jack_in(Game& game, TargetDescriptor desc) {
     s.skill_deepgrid_navigator = player_has_skill(game.player(), SkillId::DeepGridNavigator);
     s.skill_neural_fortitude   = nf;
 
+    // Phase 5 S2: cache deck's CORE actions at jack-in (mirrors skill_* caching).
+    if (deck_slot && *deck_slot && (*deck_slot)->deck)
+        s.core_actions = (*deck_slot)->deck->stats.core_actions;
+    else
+        s.core_actions.fill(astra::NetCoreAction::None);
+
     // Dispatch to the per-target grammar. Phase 1 lights up Door
     // (and vending / camera in Steps 7 + 8); unimplemented kinds fall
     // back to the empty stub.

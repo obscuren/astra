@@ -3,7 +3,10 @@
 namespace astra {
 
 CyberdeckStats cyberdeck_stats_tier1() {
-    return CyberdeckStats{};
+    CyberdeckStats s;
+    s.core_actions = { NetCoreAction::Sniff, NetCoreAction::Channel,
+                       NetCoreAction::None,  NetCoreAction::None };
+    return s;
 }
 
 CyberdeckStats cyberdeck_stats_tier2() {
@@ -14,6 +17,8 @@ CyberdeckStats cyberdeck_stats_tier2() {
     s.stealth      = 1;
     s.cooling_rate = 1;
     s.heat_cap     = 12;
+    s.core_actions = { NetCoreAction::Sniff, NetCoreAction::Channel,
+                       NetCoreAction::Brace, NetCoreAction::Run };
     return s;
 }
 

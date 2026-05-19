@@ -3,6 +3,9 @@
 #include "astra/net_pipe_path.h"
 #include "astra/net_voice.h"
 
+#include <algorithm>
+#include <string>
+
 namespace astra {
 
 namespace {
@@ -51,6 +54,33 @@ bool update_combat_lock(NetSession& s) {
         s.push_log(astra::net_voice::cmd("combat clear."));
     }
     return true;
+}
+
+void core_action_perform(NetSession& s, int idx) {
+    if (idx < 0 || idx > 3) return;
+    switch (s.core_actions[static_cast<size_t>(idx)]) {
+        case NetCoreAction::Sniff: {
+            int live = 0;
+            for (auto& ic : s.ice) if (ic.hp > 0) ++live;
+            s.push_log(astra::net_voice::cmd(
+                "sniff: " + std::to_string(live) + " ICE, "
+                + std::to_string(static_cast<int>(s.in_flight.size()))
+                + " in flight."));
+            break;
+        }
+        case NetCoreAction::Channel:
+            s.ram = std::min(s.ram_max, s.ram + 2);
+            s.push_log(astra::net_voice::cmd("channel: +RAM."));
+            break;
+        case NetCoreAction::Brace:
+            s.brace_turns = 1;
+            s.push_log(astra::net_voice::cmd("brace."));
+            break;
+        case NetCoreAction::Run:
+            s.push_log(astra::net_voice::cmd("autopilot."));
+            break;
+        default: break;
+    }
 }
 
 }  // namespace astra

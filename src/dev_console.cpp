@@ -1,5 +1,6 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
+#include "astra/cyberdeck.h"
 #include "astra/grammars/gen_elevator_netspace.h"
 #include "astra/net_combat_mode.h"
 #include "astra/net_pipe_path.h"
@@ -629,6 +630,32 @@ static void run_net_selftest(DevConsole& con) {
         check(astra::update_combat_lock(ns), "s5tc-transition");
         check(ns.combat_mode == astra::NetSession::NetCombatMode::Combat,
               "s5tc-mode-combat");
+    }
+    // Slice-2 CORE action registry + deck-def mapping (Game-free).
+    {
+        auto t1 = astra::cyberdeck_stats_tier1();
+        auto t2 = astra::cyberdeck_stats_tier2();
+        check(t1.core_actions[0] == astra::NetCoreAction::Sniff
+           && t1.core_actions[1] == astra::NetCoreAction::Channel
+           && t1.core_actions[2] == astra::NetCoreAction::None
+           && t1.core_actions[3] == astra::NetCoreAction::None,
+           "s5tc2-deck-tier1");
+        check(t2.core_actions[0] == astra::NetCoreAction::Sniff
+           && t2.core_actions[3] == astra::NetCoreAction::Run,
+           "s5tc2-deck-tier2");
+        astra::NetSession ns;
+        ns.core_actions = t1.core_actions;
+        ns.ram = 0; ns.ram_max = 8;
+        astra::core_action_perform(ns, 1);
+        check(ns.ram == 2, "s5tc2-channel");
+        ns.brace_turns = 0;
+        astra::core_action_perform(ns, 0);
+        check(ns.brace_turns == 0, "s5tc2-sniff-noop-state");
+        ns.core_actions[2] = astra::NetCoreAction::Brace;
+        astra::core_action_perform(ns, 2);
+        check(ns.brace_turns == 1, "s5tc2-brace");
+        check(std::string(astra::core_action_label(
+            astra::NetCoreAction::None)).empty(), "s5tc2-none-label");
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }

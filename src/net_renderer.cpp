@@ -1271,6 +1271,32 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
             draw_colored_string(r, col_state, row, "empty",     Color::DarkGray);
         }
     }
+
+    // Phase 5 S2: CORE action column — fixed 4 rows (q/w/e/r), right-hand side
+    // of the deck band.  Draws: keycap + glyph + label in the action's color.
+    // None slots render dim (▭).
+    // Column offsets relative to the deck interior:
+    //   col_core_key   : keycap "⟦Q⟧" etc  — ix + 40
+    //   col_core_glyph : action glyph       — ix + 44
+    //   col_core_label : action label       — ix + 46
+    static const char* kCoreKeys[4] = {
+        "\xe2\x9f\xa6" "Q" "\xe2\x9f\xa7",  // ⟦Q⟧
+        "\xe2\x9f\xa6" "W" "\xe2\x9f\xa7",  // ⟦W⟧
+        "\xe2\x9f\xa6" "E" "\xe2\x9f\xa7",  // ⟦E⟧
+        "\xe2\x9f\xa6" "R" "\xe2\x9f\xa7",  // ⟦R⟧
+    };
+    const int col_core_key   = ix + 40;
+    const int col_core_glyph = ix + 44;
+    const int col_core_label = ix + 46;
+    for (int i = 0; i < 4; ++i) {
+        const int row = deck.y + 1 + i;
+        if (row >= deck.y + deck.h) break;
+        NetCoreAction act = s.core_actions[static_cast<size_t>(i)];
+        Color col = core_action_color(act);
+        draw_colored_string(r, col_core_key,   row, kCoreKeys[i],           col);
+        r.draw_glyph(           col_core_glyph, row, core_action_glyph(act), col);
+        draw_colored_string(r, col_core_label,  row, core_action_label(act), col);
+    }
 }
 
 // ---------------------------------------------------------------------------
