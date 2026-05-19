@@ -14,7 +14,7 @@ inline const char* core_action_label(NetCoreAction a) {
 }
 inline const char* core_action_glyph(NetCoreAction a) {
     switch (a) {
-        case NetCoreAction::Sniff:   return "\xe2\x97\x9c\xe2\x97\x9e";
+        case NetCoreAction::Sniff:   return "\xe2\x89\x88";  // ≈ placeholder (single codepoint; was 2-cp ◜◞ — unrenderable in one cell). Final glyph TBD by owner.
         case NetCoreAction::Channel: return "\xe2\x86\xbb";
         case NetCoreAction::Brace:   return "\xe2\x96\xa3";
         case NetCoreAction::Run:     return "\xc2\xbb";
