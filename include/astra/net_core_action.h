@@ -1,6 +1,5 @@
 #pragma once
 #include "astra/renderer.h"   // Color
-#include <array>
 #include <cstdint>
 namespace astra {
 enum class NetCoreAction : uint8_t { None, Sniff, Channel, Brace, Run };

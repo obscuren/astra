@@ -7,6 +7,7 @@
 #include "astra/netspace.h"
 #include "astra/program_compiler.h"
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <deque>
