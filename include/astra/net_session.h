@@ -111,6 +111,13 @@ struct NetInFlight {
     std::vector<int>                payloads;
     int                             iters_total    = 1;
     int                             iters_launched = 0;
+
+    // Phase 5 slice 3 (tactical combat): true = an ICE-origin payload
+    // (hostile). impact_resolve routes hostile payloads to
+    // apply_effect_at_avatar (avatar damage) instead of the player-side
+    // ICE resolution. Forward-correct: S4 payload-vs-payload collision
+    // keys off this ownership marker. Player casts leave it false.
+    bool hostile = false;
 };
 
 struct NetSession {

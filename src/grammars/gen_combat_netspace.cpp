@@ -35,7 +35,7 @@ constexpr int kGapWallW  = 2;    // JACK -> VAULT (west)  : raw 4 -> seg 4 + bre
 
 uint8_t wall_density(int tier) { return tier <= 1 ? 3 : 4; }
 
-// Tier-scaled roster (see .claude/specs/netspace-combat-arena-spec.md).
+// Tier-scaled roster (see .claude/specs/netspace-combat-arena-spec.md). Bidirectional since S3: the GRAY station shoots back.
 int gray_pack(int tier)    { return 2 + tier / 2; }            // t1=2 t2=3 t3=3 t4=4 t5=4
 int white_count(int tier)  { return tier >= 2 ? 2 : 1; }
 int black_count(int tier)  { return tier >= 3 ? 2 : 1; }
@@ -43,10 +43,8 @@ int white_hp(int tier)     { return 1 + (tier >= 4 ? 1 : 0); }
 int gray_hp(int tier)      { return 2 + tier / 2; }
 int black_hp(int tier)     { return 4 + tier; }
 
-// Far-node (Impact) cell of pipe `idx` as seen from the JACK node, or
-// {-1,-1} if it has no path. This is the EXACT cell Slice-4
-// confirm_armed targets (pipe_path_cells(...).back()), so seeding an ICE
-// here makes a single-target (radius-0) program landing there hit it.
+// Far-node (Impact) cell of pipe idx from JACK. Player payloads resolve here (radius-0 hits the seeded ICE);
+// since S3 a Gray seeded here also casts back down this pipe at JACK. {-1,-1} if no path.
 std::pair<int,int> pipe_far_cell(NetspaceBuilder& b, int idx) {
     auto p = pipe_path_cells(b.ns, idx, b.ns.jack_in_x, b.ns.jack_in_y);
     if (p.empty()) return {-1, -1};
@@ -59,9 +57,8 @@ std::pair<int,int> pipe_far_cell(NetspaceBuilder& b, int idx) {
 // programs sweep the pack too. Deterministic; seed jitters intra-ring
 // order only. Never doubles a cell or goes out of bounds.
 //
-// NOTE: this is a throwaway player-side Impact TEST FIXTURE, not the
-// real (bidirectional) netspace combat model — see
-// .claude/specs/netspace-tactical-combat-design.md.
+// NOTE: since S3 this bench is bidirectional — a Gray seeded on a JACK-connected node casts back
+// (net_combat.cpp ice_cast_tick). The anchor-on-Impact-cell placement still lets a radius-0 player program hit it.
 void seed_ice(NetspaceBuilder& b, int cx, int cy, IceColor color,
               int count, int hp, uint32_t salt) {
     if (count <= 0 || cx < 0 || cy < 0) return;
@@ -166,8 +163,7 @@ Netspace gen_combat_netspace(const TargetDescriptor& desc) {
 
     // Tier-scaled ICE roster, anchored on each station pipe's Slice-4
     // Impact cell so a radius-0 program landing there actually hits (the
-    // bench's whole point). NOTE: test fixture, not the real combat
-    // model — see .claude/specs/netspace-tactical-combat-design.md.
+    // bench's whole point). NOTE: bidirectional since S3 — the GRAY pack both takes player payloads here AND casts back at JACK.
     auto wf = pipe_far_cell(b, white_idx);
     auto gf = pipe_far_cell(b, gray_idx);
     auto bf = pipe_far_cell(b, black_idx);

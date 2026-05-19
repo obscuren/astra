@@ -14,6 +14,7 @@ struct Ice {
     int       patrol_dir = 0;          // 0..3 (white only)
     bool      sees_avatar = false;     // refreshed each turn for all colors
     int       charmed_turns_left = 0;  // Plan 4: DaemonHijack — skips enemy AI while > 0
+    int       cast_cooldown = 0;       // Phase 5 S3: beats until this ICE may ranged-cast again (0 = ready)
 };
 
 struct NetSession; // fwd

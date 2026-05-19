@@ -717,6 +717,11 @@ void HackingSystem::tick_grid(Game& game) {
 
     // 1. ICE actions (gray/black approach + attack; white patrols).
     net_ice::tick_all(s, game);
+    // 1·. Phase 5 S3: non-Black caster ICE (Gray) cast down their
+    // connecting pipe at the player. Enqueues hostile NetInFlight that
+    // the Slice-4 in-flight block below launches this same tick (its
+    // !launched gate), symmetric with a player cast.
+    ice_cast_tick(s);
     // 1a. Promote any ICE seeds that became eligible this tick (trace-gated).
     net_ice::promote_pending_seeds(s);
 

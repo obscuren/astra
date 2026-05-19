@@ -2,6 +2,7 @@
 #include "astra/animation.h"
 #include "astra/cyberdeck.h"
 #include "astra/grammars/gen_elevator_netspace.h"
+#include "astra/net_combat.h"
 #include "astra/net_combat_mode.h"
 #include "astra/net_pipe_path.h"
 #include "astra/net_renderer.h"
@@ -656,6 +657,68 @@ static void run_net_selftest(DevConsole& con) {
         check(ns.brace_turns == 1, "s5tc2-brace");
         check(std::string(astra::core_action_label(
             astra::NetCoreAction::None)).empty(), "s5tc2-none-label");
+    }
+    // Slice-3 ranged-caster engagement + enqueue + cadence (Game-free).
+    {
+        astra::NetInFlight df;
+        check(!df.hostile, "s5tc3-inflight-hostile-default");
+        astra::Ice di;
+        check(di.cast_cooldown == 0, "s5tc3-ice-cooldown-default");
+
+        astra::NetSession ns;
+        ns.netspace.rooms.clear();
+        astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+        astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+        ns.netspace.rooms.push_back(a);
+        ns.netspace.rooms.push_back(b);
+        astra::NetPipe p;
+        p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+        for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+        ns.netspace.pipes.push_back(p);
+        ns.avatar_x = 1; ns.avatar_y = 1;            // room a (near node)
+        astra::Ice g; g.x = 11; g.y = 1;             // room b (far node)
+        g.color = astra::IceColor::Gray; g.hp = 2;
+        ns.ice.push_back(g);
+
+        // Not engaged until the S1 lock says COMBAT.
+        astra::ice_cast_tick(ns);
+        check(ns.in_flight.empty(), "s5tc3-no-cast-in-normal");
+
+        astra::update_combat_lock(ns);               // topology -> COMBAT
+        check(ns.combat_mode == astra::NetSession::NetCombatMode::Combat,
+              "s5tc3-locked");
+        astra::ice_cast_tick(ns);
+        check(ns.in_flight.size() == 1, "s5tc3-cast-enqueued");
+        check(ns.in_flight[0].hostile, "s5tc3-payload-hostile");
+        check(ns.in_flight[0].seg_len >= 2
+              && ns.in_flight[0].seg_len <= 6, "s5tc3-seg-clamped");
+        // Reversed path: payload targets the avatar-end cell.
+        check(ns.in_flight[0].target_x == 1
+              && ns.in_flight[0].target_y == 1, "s5tc3-target-avatar-end");
+        check(ns.ice[0].cast_cooldown == astra::kIceCastCadence,
+              "s5tc3-cooldown-armed");
+
+        // Cadence: no second cast while cooling down (just decrements).
+        astra::ice_cast_tick(ns);
+        check(ns.in_flight.size() == 1, "s5tc3-cadence-gated");
+        check(ns.ice[0].cast_cooldown == astra::kIceCastCadence - 1,
+              "s5tc3-cooldown-decrements");
+
+        // White never casts; charmed Gray never casts.
+        ns.in_flight.clear();
+        ns.ice[0].cast_cooldown = 0;
+        ns.ice[0].color = astra::IceColor::White;
+        astra::ice_cast_tick(ns);
+        check(ns.in_flight.empty(), "s5tc3-white-ambient");
+        ns.ice[0].color = astra::IceColor::Gray;
+        ns.ice[0].charmed_turns_left = 2;
+        astra::ice_cast_tick(ns);
+        check(ns.in_flight.empty(), "s5tc3-charmed-no-cast");
+        // Black is the walker (S5) — never a caster.
+        ns.ice[0].charmed_turns_left = 0;
+        ns.ice[0].color = astra::IceColor::Black;
+        astra::ice_cast_tick(ns);
+        check(ns.in_flight.empty(), "s5tc3-black-not-caster");
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }

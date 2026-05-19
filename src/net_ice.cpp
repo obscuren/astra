@@ -162,15 +162,14 @@ void tick_all(NetSession& s, Game& game) {
                 }
                 break;
             }
-            case IceColor::Gray: {
-                if (!sees) break;
-                if (manhattan(ice.x, ice.y, s.avatar_x, s.avatar_y) == 1) {
-                    damage_avatar(s, game, 1, IceColor::Gray);
-                } else {
-                    step_toward(s, ice, s.avatar_x, s.avatar_y);
-                }
+            case IceColor::Gray:
+                // Phase 5 S3: Gray's legacy melee/chase is RETIRED in
+                // netspace. Its turn is now a ranged pipe-cast at the
+                // player node, driven from net_combat.cpp ice_cast_tick
+                // (called from tick_grid right after this pass). Gray
+                // takes no action in tick_all anymore. White (ambient)
+                // and Black (walker, S5) are unchanged below.
                 break;
-            }
             case IceColor::Black: {
                 if (manhattan(ice.x, ice.y, s.avatar_x, s.avatar_y) == 1) {
                     int dmg = s.skill_neural_fortitude ? 1 : 2;
