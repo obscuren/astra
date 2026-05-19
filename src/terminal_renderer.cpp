@@ -47,7 +47,7 @@ static volatile sig_atomic_t s_resized = 0;
 
 static void restore_terminal() {
     if (s_raw_mode) {
-        const char seq[] = "\033[0m\033[?25h\033[?1049l\033[?1002l\033[?1006l";
+        const char seq[] = "\033[0m\033[?7h\033[?25h\033[?1049l\033[?1002l\033[?1006l";
         write(STDOUT_FILENO, seq, sizeof(seq) - 1);
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &s_orig_termios);
         s_raw_mode = 0;
@@ -68,7 +68,7 @@ static void sigwinch_handler(int) {
 static void sigtstp_handler(int) {
     // Restore terminal before suspending
     restore_terminal();
-    std::printf("\033[0m\033[?25h\033[?1049l\033[?1002l\033[?1006l"); // reset, show cursor, main screen, drop mouse
+    std::printf("\033[0m\033[?7h\033[?25h\033[?1049l\033[?1002l\033[?1006l"); // reset, restore autowrap, show cursor, main screen, drop mouse
     std::fflush(stdout);
     std::fprintf(stderr,
         "\n"
@@ -93,6 +93,7 @@ static void sigcont_handler(int) {
     // Restore alternate screen, hide cursor, re-claim mouse
     std::printf("\033[?1049h");
     std::printf("\033[?25l");
+    std::printf("\033[?7l");                 // disable autowrap (no edge scroll)
     std::printf("\033[?1002h\033[?1006h");
     std::fflush(stdout);
 
@@ -190,6 +191,7 @@ void TerminalRenderer::init() {
     // copies). Mouse reports are absorbed by decode_escape_sequence().
     std::printf("\033[?1049h");
     std::printf("\033[?25l");
+    std::printf("\033[?7l");                 // disable autowrap (no edge scroll)
     std::printf("\033[?1002h\033[?1006h");
     std::fflush(stdout);
 }
@@ -220,14 +222,23 @@ void TerminalRenderer::clear() {
 
 void TerminalRenderer::present() {
     out_buf_.clear();
-    out_buf_.reserve(width_ * height_ * 2 + height_ + 64);
+    out_buf_.reserve(width_ * height_ * 2 + height_ * 9 + 64);
 
-    out_buf_ += "\033[H"; // cursor home
-
+    // Absolute per-row positioning (not a single home + '\n'-joined rows).
+    // The old line-oriented scheme only stayed aligned if every row emitted
+    // exactly width_ display columns; a row whose glyph widths diverge from
+    // the cell count (net-UI box-drawing / zero-width / zalgo glyphs) would
+    // overflow, autowrap, and cascade into a bottom-line scroll every frame.
+    // Each row now starts at \033[y+1;1H, no '\n' is emitted, and autowrap
+    // is disabled at init — so an over-wide row is clipped, never scrolled.
     Color prev_fg = Color::Default;
     Color prev_bg = Color::Default;
 
     for (int y = 0; y < height_; ++y) {
+        char pos[16];
+        int plen = std::snprintf(pos, sizeof(pos), "\033[%d;1H", y + 1);
+        out_buf_.append(pos, plen);
+
         for (int x = 0; x < width_; ++x) {
             const auto& cell = buffer_[y][x];
 
@@ -252,9 +263,6 @@ void TerminalRenderer::present() {
             }
 
             out_buf_ += cell.ch;
-        }
-        if (y < height_ - 1) {
-            out_buf_ += '\n';
         }
     }
 
