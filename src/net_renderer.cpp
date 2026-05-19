@@ -1272,18 +1272,21 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
         }
     }
 
-    // Phase 5 S2: CORE action column — right-anchored 4 rows (q/w/e/r).
+    // Phase 5 S2: CORE action column — left-anchored beside the PROGRAMS
+    // column, 3-col gap from the furthest program text. 4 rows (q/w/e/r).
     // Draws: keycap + glyph + label in the action's color; None slots dim (▭).
     //
-    // Right-anchor geometry (widths are visual cells):
+    // Geometry (widths are visual cells):
     //   keycap "⟦Q⟧" = 3  |  gap = 1  |  glyph (max 2)  |  gap = 1  |  label (max 6 "CHANNL")
     //   full band = 13 cols
     // programs_end = one past the longest PROGRAMS text col (col_state + 8 = ix+41).
-    // Degradation tiers (avail = deck_border_col - programs_end):
-    //   avail >= 14 → FULL  (key + glyph + label)
-    //   avail >= 7  → PARTIAL (key + glyph, no label)
-    //   avail >= 4  → MINIMAL (keycap only)
-    //   else        → SKIP   (no CORE band drawn — too narrow)
+    // core_x = programs_end + 3 (the requested 3-col gap from the furthest).
+    // Degradation tiers (avail = deck_border_col - programs_end), the +3
+    // is the gap that must fit before the band itself:
+    //   avail >= 16 → FULL    (key + glyph + label)
+    //   avail >=  9 → PARTIAL (key + glyph, no label)
+    //   avail >=  6 → MINIMAL (keycap only)
+    //   else        → SKIP    (no CORE band drawn — too narrow)
     // Nothing is drawn at or after deck_border_col (the border cell).
     static const char* kCoreKeys[4] = {
         "\xe2\x9f\xa6" "Q" "\xe2\x9f\xa7",  // ⟦Q⟧
@@ -1298,29 +1301,31 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
         // col_state = ix+33, longest state text is "exec 6/6" (8 chars) → ix+41.
         const int programs_end = ix + 41;
         const int avail        = deck_border_col - programs_end;
+        const int core_x       = programs_end + 3;   // 3-col gap from furthest
         // band widths: key=3, gap=1, glyph=2, gap=1, label=6 → full=13
         constexpr int kKeyW   = 3;
         constexpr int kFullW  = 13;  // key+gap+glyph+gap+label
         constexpr int kKGW    =  6;  // key+gap+glyph
+        constexpr int kGap    =  3;  // requested spacing from the furthest
         for (int i = 0; i < 4; ++i) {
             const int row = deck.y + 1 + i;
             if (row >= deck.y + deck.h) break;
             NetCoreAction act = s.core_actions[static_cast<size_t>(i)];
             Color col = core_action_color(act);
-            if (avail >= kFullW + 1) {
-                // FULL: right-anchor the band so it ends exactly at deck_border_col.
-                const int ck = deck_border_col - kFullW;
+            if (avail >= kFullW + kGap) {
+                // FULL: left-anchored at core_x; last cell core_x+12 < border.
+                const int ck = core_x;
                 draw_colored_string(r, ck,      row, kCoreKeys[i],           col);
                 r.draw_glyph(          ck + 4,  row, core_action_glyph(act), col);
                 draw_colored_string(r, ck + 7,  row, core_action_label(act), col);
-            } else if (avail >= kKGW + 1) {
+            } else if (avail >= kKGW + kGap) {
                 // PARTIAL: keycap + glyph, label dropped.
-                const int ck = deck_border_col - kKGW;
+                const int ck = core_x;
                 draw_colored_string(r, ck,     row, kCoreKeys[i],           col);
                 r.draw_glyph(          ck + 4, row, core_action_glyph(act), col);
-            } else if (avail >= kKeyW + 1) {
+            } else if (avail >= kKeyW + kGap) {
                 // MINIMAL: keycap only.
-                const int ck = deck_border_col - kKeyW;
+                const int ck = core_x;
                 draw_colored_string(r, ck, row, kCoreKeys[i], col);
             }
             // else SKIP — avail too small; drawing here would corrupt the border.
