@@ -12,6 +12,7 @@ class Game; // forward declare
 struct EffectSpec;
 struct NetInFlight;
 struct NetSession;
+struct Netspace;
 
 // Bump-attack melee tunables.
 inline constexpr int kNetMeleeDamage   = 3;
@@ -89,5 +90,23 @@ std::vector<std::size_t> net_node_targets(const NetSession& s,
 void net_inflight_advance(NetSession& s);
 void resolve_pipe_collisions(NetSession& s);
 void resolve_inflight_impacts(Game& game, NetSession& s);
+
+// Phase 5 S5: pipe-graph BFS — returns the netspace.pipes index of the
+// first-hop pipe on a shortest path from from_room to to_room, or -1
+// if no path / from_room == to_room / out-of-range. Neighbor order is
+// pipes-index ascending => deterministic shortest-path tiebreak.
+// Game-free.
+int pipe_graph_next_hop(const Netspace& ns, int from_room, int to_room);
+
+// Phase 5 S5: per-world-turn Black-walker step. For each live, un-
+// charmed Black ICE: at a node, BFS-picks the next pipe toward the
+// avatar's room (pipe_graph_next_hop) and steps into its first cell
+// this same beat (no idle launch beat); in-pipe, advances one cell.
+// On arrival at an intermediate room, immediately picks the next hop
+// (still one cell of progress per beat). On arrival in the avatar's
+// room, sets s.black_reached_player_node = true (consumed by tick_grid
+// to route jack_out(BlackIceDeath) -> unconditional GameOver). Game-
+// free; tick_grid is the only Game-touching caller.
+void black_walker_tick(NetSession& s);
 
 }  // namespace astra

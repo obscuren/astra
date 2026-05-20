@@ -2,6 +2,7 @@
 #include "astra/net_voice.h"
 #include "astra/net_window_anim.h"
 
+#include "astra/net_pipe_path.h"
 #include "astra/tilemap.h"
 #include "astra/cyberdeck.h"
 #include "astra/effect.h"
@@ -454,6 +455,11 @@ bool place_ice_far(NetSession& s, IceColor color, int hp,
     std::mt19937 rng(seed_xor);
     std::uniform_int_distribution<int> xd(0, s.netspace.w - 1);
     std::uniform_int_distribution<int> yd(0, s.netspace.h - 1);
+    // Avatar room is stable across the entire retry loop — hoist.
+    const int av_room = (color == IceColor::Black)
+                        ? astra::room_index_at(s.netspace,
+                                               s.avatar_x, s.avatar_y)
+                        : -1;
     for (int tries = 0; tries < 96; ++tries) {
         int x = xd(rng);
         int y = yd(rng);
@@ -463,6 +469,13 @@ bool place_ice_far(NetSession& s, IceColor color, int hp,
         bool occupied = false;
         for (auto& i : s.ice) if (i.x == x && i.y == y) { occupied = true; break; }
         if (occupied) continue;
+        // Phase 5 S5: never spawn Black inside the avatar's room — S5
+        // walker treats that as "already reached you" and unconditional
+        // GameOver fires the next beat, with zero player agency.
+        if (color == IceColor::Black) {
+            int spawn_room = astra::room_index_at(s.netspace, x, y);
+            if (spawn_room >= 0 && spawn_room == av_room) continue;
+        }
         Ice ice;
         ice.x = x; ice.y = y;
         ice.color = color;
@@ -674,31 +687,20 @@ void HackingSystem::finalize_jack_out_(Game& game, JackOutKind kind) {
             break;
         }
         case JackOutKind::BlackIceDeath: {
-            int bleed = s.skill_neural_fortitude ? 5 : 10;
-            game.player().hp -= bleed;
-            if (game.player().hp < 0) game.player().hp = 0;
-            if (game.player().hp <= 0) {
-                remove_effect(game.player().effects, EffectId::NetExposed);
-                game.set_death_message("Killed by black ICE in the Grid.");
-                game.set_state(GameState::GameOver);
-                session_.reset();
-                return;
-            }
-            auto im = game.player().implant_modifiers();
-            if (!im.blackice_shock_immunity) {
-                Effect e = make_blackice_shock_long_ge();
-                if (im.blackice_shock_duration_pct != 0) {
-                    int adj = e.duration + e.duration * im.blackice_shock_duration_pct / 100;
-                    if (adj < 1) adj = 1;
-                    e.duration  = adj;
-                    e.remaining = adj;
-                }
-                add_effect(game.player().effects, e);
-                game.log("BLACK ICE BLEED-THROUGH. You convulse and slump.");
-            } else {
-                game.log("Black ICE bleed-through — your Stoic Cortex holds the line.");
-            }
-            break;
+            // Phase 5 S5: Black walker reaching your node is
+            // unconditionally lethal in net AND meat. The pre-S5
+            // survivable bleed-through branch (meat HP bleed, Stoic
+            // Cortex immunity, blackice_shock_long GE) is removed --
+            // post-S5 Black has no tile-melee, so the only Black-kill
+            // path is the walker reach, and the design ruling is
+            // decisive (see netspace-tactical-combat-design §3 +
+            // plan S5; user pick 2026-05-20). GameOver regardless of
+            // meat HP.
+            remove_effect(game.player().effects, EffectId::NetExposed);
+            game.set_death_message("Killed by black ICE in the Grid.");
+            game.set_state(GameState::GameOver);
+            session_.reset();
+            return;
         }
         case JackOutKind::SoftDisconnect:
             // Load-time recovery — no penalty, no loot.
@@ -722,6 +724,18 @@ void HackingSystem::tick_grid(Game& game) {
     // the Slice-4 in-flight block below launches this same tick (its
     // !launched gate), symmetric with a player cast.
     ice_cast_tick(s);
+    // Phase 5 S5: Black-walker step (Game-free). One pipe-cell per
+    // beat toward the avatar's room; collisions resolve in the same
+    // beat via resolve_pipe_collisions below. Placed BEFORE the
+    // in-flight beat so a Black that just stepped into a pipe cell is
+    // visible to the collision pass.
+    black_walker_tick(s);
+    if (s.black_reached_player_node) {
+        s.black_reached_player_node = false;
+        s.last_killer_color         = IceColor::Black;
+        jack_out(game, JackOutKind::BlackIceDeath);
+        return;     // jack_out resets session_; bail out of tick_grid
+    }
     // 1a. Promote any ICE seeds that became eligible this tick (trace-gated).
     net_ice::promote_pending_seeds(s);
 

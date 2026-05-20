@@ -122,6 +122,20 @@ namespace {
 bool in_room(const NetRoom& r, int x, int y) {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
+
+// Map a walker's abstract segment index (walk_seg) to a physical cell
+// index in walk_path. Linear interpolation so a clamped-seg_len pipe
+// (walk_path.size() > walk_seg_len) covers the whole physical pipe in
+// walk_seg_len beats (Black "skips" cells, symmetric with how player
+// payloads on long pipes impact after seg_len beats regardless of
+// physical length). Identity on unclamped pipes (N == walk_seg_len).
+int walker_cell_idx(int walk_seg, int walk_seg_len, int N) {
+    if (walk_seg_len <= 1 || N <= 1) return 0;
+    int idx = (walk_seg - 1) * (N - 1) / (walk_seg_len - 1);
+    if (idx < 0) idx = 0;
+    if (idx >= N) idx = N - 1;
+    return idx;
+}
 }  // namespace
 
 std::vector<std::size_t> net_node_targets(const NetSession& s,
@@ -161,6 +175,151 @@ std::vector<std::size_t> net_node_targets(const NetSession& s,
     }
     if (best >= 0) out.push_back(static_cast<std::size_t>(best));
     return out;
+}
+
+int pipe_graph_next_hop(const Netspace& ns, int from_room, int to_room) {
+    const int N = static_cast<int>(ns.rooms.size());
+    if (from_room < 0 || to_room < 0 ||
+        from_room >= N || to_room >= N ||
+        from_room == to_room) return -1;
+
+    // Build adjacency from netspace.pipes endpoints. Each pipe connects
+    // the rooms containing its (x0,y0) and (x1,y1) endpoints.
+    struct Edge { int a; int b; int pipe; };
+    std::vector<Edge> edges;
+    edges.reserve(ns.pipes.size());
+    for (std::size_t i = 0; i < ns.pipes.size(); ++i) {
+        const auto& p = ns.pipes[i];
+        int ra = room_index_at(ns, p.x0, p.y0);
+        int rb = room_index_at(ns, p.x1, p.y1);
+        if (ra < 0 || rb < 0 || ra == rb) continue;
+        edges.push_back({ra, rb, static_cast<int>(i)});
+    }
+
+    // BFS from from_room. parent_pipe[r] = the pipe used to enter r;
+    // parent_room[r] = the room we entered r from.
+    std::vector<int>  parent_room(static_cast<std::size_t>(N), -1);
+    std::vector<int>  parent_pipe(static_cast<std::size_t>(N), -1);
+    std::vector<char> seen(static_cast<std::size_t>(N), 0);
+    std::vector<int>  q;
+    q.push_back(from_room);
+    seen[static_cast<std::size_t>(from_room)] = 1;
+    bool found = false;
+    for (std::size_t qi = 0; qi < q.size() && !found; ++qi) {
+        int cur = q[qi];
+        // Deterministic neighbor order: edges iterated in pipes-index
+        // order (the edges vector preserves it).
+        for (const auto& e : edges) {
+            int nb = (e.a == cur) ? e.b : (e.b == cur) ? e.a : -1;
+            if (nb < 0 || seen[static_cast<std::size_t>(nb)]) continue;
+            seen[static_cast<std::size_t>(nb)]        = 1;
+            parent_room[static_cast<std::size_t>(nb)] = cur;
+            parent_pipe[static_cast<std::size_t>(nb)] = e.pipe;
+            if (nb == to_room) { found = true; break; }
+            q.push_back(nb);
+        }
+    }
+    if (!found) return -1;
+
+    // Walk parents from to_room back until the parent IS from_room.
+    int cur = to_room;
+    while (parent_room[static_cast<std::size_t>(cur)] != from_room) {
+        cur = parent_room[static_cast<std::size_t>(cur)];
+        if (cur < 0) return -1;
+    }
+    return parent_pipe[static_cast<std::size_t>(cur)];
+}
+
+void black_walker_tick(NetSession& s) {
+    const int avatar_room =
+        room_index_at(s.netspace, s.avatar_x, s.avatar_y);
+
+    for (auto& ice : s.ice) {
+        if (ice.color != IceColor::Black) continue;
+        if (ice.hp <= 0 || ice.charmed_turns_left != 0) continue;
+
+        // (I2) Stale-walk-state detection: a DaemonHijack may have moved
+        // ice.x/ice.y off the interpolated walker position. Reset to at-
+        // node so we BFS afresh from the current cell this beat.
+        if (ice.walk_pipe_index >= 0 && ice.walk_seg >= 1 &&
+            ice.walk_seg <= ice.walk_seg_len) {
+            const int N   = static_cast<int>(ice.walk_path.size());
+            const int idx = walker_cell_idx(ice.walk_seg,
+                                            ice.walk_seg_len, N);
+            const auto& expected =
+                ice.walk_path[static_cast<std::size_t>(idx)];
+            if (ice.x != expected.first || ice.y != expected.second) {
+                ice.walk_pipe_index = -1;
+                ice.walk_seg        = 0;
+                ice.walk_seg_len    = 0;
+                ice.walk_path.clear();
+                // Falls into the at-node section below.
+            }
+        }
+
+        // (1) In-pipe: advance one cell.
+        if (ice.walk_pipe_index >= 0) {
+            // Phase 5 S5 fix (I1): step over [1, walk_seg_len] not
+            // [1, walk_path.size()]; on long pipes where
+            // clamp_seg_len(walk_path.size()) < walk_path.size(),
+            // map walk_seg -> physical cell via linear interpolation.
+            // Keeps uB = walk_seg_len - walk_seg in [0, walk_seg_len-1]
+            // for the entire in-pipe traversal so collision works on
+            // long pipes (mechanics.md promise upheld).
+            ++ice.walk_seg;
+            if (ice.walk_seg <= ice.walk_seg_len) {
+                const int N       = static_cast<int>(ice.walk_path.size());
+                const int cell_idx = walker_cell_idx(ice.walk_seg,
+                                                     ice.walk_seg_len, N);
+                const auto& c = ice.walk_path[static_cast<std::size_t>(
+                    cell_idx)];
+                ice.x = c.first;
+                ice.y = c.second;
+                continue;     // still in pipe; collision pass handles
+            }
+            // Arrived at the far end: snap into the next room, reset.
+            if (!ice.walk_path.empty()) {
+                ice.x = ice.walk_path.back().first;
+                ice.y = ice.walk_path.back().second;
+            }
+            ice.walk_pipe_index = -1;
+            ice.walk_seg        = 0;
+            ice.walk_seg_len    = 0;
+            ice.walk_path.clear();
+            int my_room =
+                room_index_at(s.netspace, ice.x, ice.y);
+            if (my_room == avatar_room && avatar_room >= 0) {
+                s.black_reached_player_node = true;
+                return;       // stop processing further ICE this beat
+            }
+            // Otherwise fall through: pick next hop THIS beat (Black
+            // doesn't idle on arrival -- the boss clock keeps ticking).
+        }
+
+        // (2) At a node: pick next-hop pipe toward the avatar's room.
+        int my_room =
+            room_index_at(s.netspace, ice.x, ice.y);
+        if (my_room < 0 || avatar_room < 0) continue;
+        if (my_room == avatar_room) {
+            // Already in the avatar's room (e.g. spawned there).
+            s.black_reached_player_node = true;
+            return;
+        }
+        int hop = pipe_graph_next_hop(s.netspace, my_room, avatar_room);
+        if (hop < 0) continue;          // stranded -- idle this beat
+        ice.walk_pipe_index = hop;
+        ice.walk_path = pipe_path_cells(s.netspace, hop, ice.x, ice.y);
+        if (ice.walk_path.empty()) {
+            ice.walk_pipe_index = -1;
+            continue;
+        }
+        ice.walk_seg_len = clamp_seg_len(
+            static_cast<int>(ice.walk_path.size()));
+        ice.walk_seg = 1;
+        const auto& c0 = ice.walk_path[0];
+        ice.x = c0.first;
+        ice.y = c0.second;
+    }
 }
 
 void net_inflight_advance(NetSession& s) {
@@ -242,6 +401,55 @@ void resolve_pipe_collisions(NetSession& s) {
                         }
                     }
                 }
+            }
+        }
+        // Phase 5 S5: if no payload<->payload contact this iteration,
+        // try payload<->Black (the S4-named resolve_pipe_contact seam
+        // built here). A Black walker with walk_pipe_index>=0 occupies
+        // walk_path[walk_seg-1] in segment-space; its u-from-avatar-end
+        // = walk_seg_len - walk_seg (mirrors a hostile payload's u).
+        if (!found) {
+            int      best_pipe_b = INT_MAX;
+            int      best_ub     = INT_MAX;
+            std::size_t bp_e_b = 0, bp_p_b = 0, bi_b = 0;
+            bool     found_b = false;
+            for (std::size_t pe = 0; pe < s.in_flight.size(); ++pe) {
+                NetInFlight& P = s.in_flight[pe];
+                if (P.hostile || P.pipe_index < 0 ||
+                    P.pipe_path.empty()) continue;
+                for (std::size_t pp = 0; pp < P.payloads.size(); ++pp) {
+                    const int uP = payload_u(P, P.payloads[pp]);
+                    for (std::size_t bi = 0; bi < s.ice.size(); ++bi) {
+                        const Ice& B = s.ice[bi];
+                        if (B.color != IceColor::Black) continue;
+                        if (B.hp <= 0 || B.killed) continue;
+                        if (B.walk_pipe_index != P.pipe_index) continue;
+                        const int uB = B.walk_seg_len - B.walk_seg;
+                        const int diff = uP - uB;
+                        if (diff < 0 || diff > 1) continue;
+                        if (!found_b ||
+                            P.pipe_index < best_pipe_b ||
+                            (P.pipe_index == best_pipe_b &&
+                             uB < best_ub)) {
+                            found_b      = true;
+                            best_pipe_b  = P.pipe_index;
+                            best_ub      = uB;
+                            bp_e_b = pe; bp_p_b = pp; bi_b = bi;
+                        }
+                    }
+                }
+            }
+            if (found_b) {
+                NetInFlight& P = s.in_flight[bp_e_b];
+                Ice&         B = s.ice[bi_b];
+                const int dmg = P.spec.damage;
+                B.hp -= dmg;
+                P.payloads.erase(P.payloads.begin()
+                                 + static_cast<long>(bp_p_b));
+                s.push_log(astra::net_voice::sys(
+                    "pipe collision: black ICE struck ("
+                    + std::to_string(dmg) + ")."));
+                continue;     // rescan from the top
             }
         }
         if (!found) break;
@@ -367,6 +575,24 @@ void resolve_inflight_impacts(Game& game, NetSession& s) {
             s.ram = std::min(s.ram_max, s.ram + it->ram_held);
             it = s.in_flight.erase(it);
         } else ++it;
+    }
+
+    // Phase 5 S5: any ICE reduced to hp<=0 by collision in
+    // resolve_pipe_collisions this beat did NOT go through
+    // apply_effect_in_net's Pass-2 (collisions don't call that). Sweep
+    // here so collision-killed Black (and any future collision-kill
+    // case) grants XP + trace exactly once. kill_if_dead is idempotent
+    // via Ice::killed, so this is safe to call after Pass-2 has
+    // already processed the same ICE.
+    for (auto& ice : s.ice) {
+        if (ice.hp > 0 || ice.killed) continue;
+        IceColor col = ice.color;
+        if (net_ice::kill_if_dead(s, ice)) {
+            int xp = (col == IceColor::White) ? kXpIceWhite
+                   : (col == IceColor::Gray)  ? kXpIceGray
+                   :                            kXpIceBlack;
+            grant_net_xp(game, xp);
+        }
     }
 }
 

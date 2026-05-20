@@ -168,7 +168,10 @@ Netspace gen_combat_netspace(const TargetDescriptor& desc) {
     // for deterministic, readable bench placement. NOTE: bidirectional
     // since S3 — the GRAY pack both takes player payloads here AND casts
     // back at JACK. Node-scoped Impact since S4 — station ICE need not
-    // sit on the exact terminus cell.
+    // sit on the exact terminus cell. Since S5, the seeded Black walks the
+    // pipe graph toward JACK (cell-per-beat); killable in-pipe via collision
+    // OR at its node by a player payload, OR it reaches you = unconditional
+    // GameOver.
     auto wf = pipe_far_cell(b, white_idx);
     auto gf = pipe_far_cell(b, gray_idx);
     auto bf = pipe_far_cell(b, black_idx);

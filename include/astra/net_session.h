@@ -44,7 +44,7 @@ enum class JackOutKind : uint8_t {
     Voluntary,        // walked to exit node -- full loot, no penalty
     HardJackOut,      // hotkey -- Trace +10, drop 50% loot
     NonBlackDeath,    // avatar HP=0 by gray/white ICE -- body debuff, unsaved loot lost
-    BlackIceDeath,    // avatar HP=0 by black ICE -- real HP damage (lethal possible)
+    BlackIceDeath,    // S5: Black walker reached your node -- unconditional GameOver (no survivable bleed)
     SoftDisconnect,   // load-time recovery -- Trace cleared, no penalty
 };
 
@@ -246,6 +246,12 @@ struct NetSession {
     enum class NetCombatMode : uint8_t { Normal, Combat };
     NetCombatMode combat_mode   = NetCombatMode::Normal;
     bool          combat_manual = false;
+
+    // Phase 5 S5: set by black_walker_tick when a Black walker steps
+    // into the avatar's room this beat. tick_grid consumes (and resets)
+    // this flag right after the walker call, routing
+    // jack_out(BlackIceDeath) which is unconditional GameOver post-S5.
+    bool black_reached_player_node = false;
 
     // Phase 5 S2: equipped deck's CORE actions, cached at jack-in
     // (mirrors s.skill_* caching). q/w/e/r = index 0..3.

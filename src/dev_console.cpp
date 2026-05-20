@@ -818,6 +818,157 @@ static void run_net_selftest(DevConsole& con) {
                   "s5tc4-node-nodmg");
         }
     }
+    // Slice-5 Black pipe-graph walker + payload<->Black contact (Game-free).
+    {
+        astra::Ice di;
+        check(di.walk_pipe_index == -1 && di.walk_seg == 0
+              && di.walk_seg_len == 0 && !di.killed,
+              "s5tc5-ice-walker-defaults");
+
+        // pipe_graph_next_hop: 2-room linear graph.
+        {
+            astra::Netspace ns;
+            astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+            astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+            ns.rooms = { a, b };
+            astra::NetPipe p;
+            p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+            for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+            ns.pipes.push_back(p);
+            check(astra::pipe_graph_next_hop(ns, 0, 1) == 0,
+                  "s5tc5-bfs-direct");
+            check(astra::pipe_graph_next_hop(ns, 1, 0) == 0,
+                  "s5tc5-bfs-direct-reverse");
+            check(astra::pipe_graph_next_hop(ns, 0, 0) == -1,
+                  "s5tc5-bfs-same-room");
+            check(astra::pipe_graph_next_hop(ns, 0, 5) == -1,
+                  "s5tc5-bfs-out-of-range");
+        }
+
+        // 3-room linear: A -- pipe0 -- B -- pipe1 -- C.
+        {
+            astra::Netspace ns;
+            astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+            astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+            astra::NetRoom c; c.x = 20; c.y = 0; c.w = 3; c.h = 3;
+            ns.rooms = { a, b, c };
+            astra::NetPipe p0; p0.x0 = 1; p0.y0 = 1;
+            p0.x1 = 11; p0.y1 = 1;
+            for (int x = 1; x <= 11; ++x) p0.cells.emplace_back(x, 1);
+            astra::NetPipe p1; p1.x0 = 11; p1.y0 = 1;
+            p1.x1 = 21; p1.y1 = 1;
+            for (int x = 11; x <= 21; ++x) p1.cells.emplace_back(x, 1);
+            ns.pipes = { p0, p1 };
+            check(astra::pipe_graph_next_hop(ns, 0, 2) == 0,
+                  "s5tc5-bfs-two-hop-first-hop");
+            check(astra::pipe_graph_next_hop(ns, 2, 0) == 1,
+                  "s5tc5-bfs-two-hop-reverse");
+        }
+
+        // black_walker_tick: avatar in room a, Black in room b, one
+        // pipe. Walker picks the pipe and starts stepping immediately.
+        {
+            astra::NetSession ns;
+            astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+            astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+            ns.netspace.rooms = { a, b };
+            astra::NetPipe p;
+            p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+            for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+            ns.netspace.pipes.push_back(p);
+            ns.avatar_x = 1; ns.avatar_y = 1;            // room a
+            astra::Ice blk;
+            blk.x = 11; blk.y = 1;                        // room b
+            blk.color = astra::IceColor::Black; blk.hp = 4;
+            ns.ice.push_back(blk);
+
+            astra::black_walker_tick(ns);
+            check(ns.ice[0].walk_pipe_index == 0
+                  && ns.ice[0].walk_seg == 1
+                  && ns.ice[0].walk_seg_len >= 2
+                  && ns.ice[0].walk_seg_len <= 6,
+                  "s5tc5-walker-launch");
+            check(!ns.black_reached_player_node,
+                  "s5tc5-not-reached-yet");
+            // Drive enough beats for arrival (worst-case seg_len = 6).
+            for (int i = 0; i < 12; ++i) {
+                if (ns.black_reached_player_node) break;
+                astra::black_walker_tick(ns);
+            }
+            check(ns.black_reached_player_node, "s5tc5-reached-avatar");
+        }
+
+        // payload<->Black contact: player payload meets a Black at the
+        // same physical pipe segment -> Black takes damage, payload gone.
+        {
+            astra::NetSession ns;
+            // Single payload entry on pipe 0, player-side (hostile=false).
+            astra::NetInFlight f;
+            f.hostile = false; f.pipe_index = 0; f.seg_len = 5;
+            f.spec.damage = 3;
+            f.pipe_path = {{0,0},{1,0}};      // non-empty = travel entry
+            f.payloads = { 3 };               // uP = 3
+            ns.in_flight.push_back(f);
+            // Black in transit on the same pipe with walk_seg_len=5
+            // and walk_seg=2 -> u_black = 5 - 2 = 3. Same cell.
+            astra::Ice blk;
+            blk.color = astra::IceColor::Black; blk.hp = 5;
+            blk.walk_pipe_index = 0;
+            blk.walk_seg        = 2;
+            blk.walk_seg_len    = 5;
+            blk.walk_path       = {{1,0},{2,0},{3,0},{4,0},{5,0}};
+            ns.ice.push_back(blk);
+
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.empty(),
+                  "s5tc5-payload-vs-black-consumes-payload");
+            check(ns.ice[0].hp == 2,    // 5 - 3
+                  "s5tc5-payload-vs-black-damages-black");
+        }
+
+        // I1 regression: long pipe (clamped seg_len < walk_path.size()).
+        {
+            astra::NetSession ns;
+            astra::NetInFlight f;
+            f.hostile = false; f.pipe_index = 0; f.seg_len = 6;
+            f.spec.damage = 4;
+            f.pipe_path = {{0,0},{1,0}};       // non-empty
+            f.payloads  = { 3 };               // uP = 3
+            ns.in_flight.push_back(f);
+            astra::Ice blk;
+            blk.color = astra::IceColor::Black; blk.hp = 5;
+            blk.walk_pipe_index = 0;
+            blk.walk_seg        = 4;
+            blk.walk_seg_len    = 6;
+            // 11-cell physical path simulating the bench's JACK->BLACK.
+            blk.walk_path = {{0,0},{1,0},{2,0},{3,0},{4,0},
+                              {5,0},{6,0},{7,0},{8,0},{9,0},{10,0}};
+            ns.ice.push_back(blk);
+            astra::resolve_pipe_collisions(ns);
+            check(ns.in_flight[0].payloads.empty(),
+                  "s5tc5-long-pipe-payload-consumed");
+            check(ns.ice[0].hp == 1,                 // 5 - 4
+                  "s5tc5-long-pipe-black-damaged");
+        }
+
+        // C1 regression: a Black somehow co-located with the avatar is
+        // the same-room detection's responsibility. (The place_ice_far
+        // fix prevents the configuration arising; this pins the
+        // walker's behaviour as the safety net.)
+        {
+            astra::NetSession ns;
+            astra::NetRoom a; a.x = 0; a.y = 0; a.w = 3; a.h = 3;
+            ns.netspace.rooms = { a };
+            ns.avatar_x = 1; ns.avatar_y = 1;
+            astra::Ice blk;
+            blk.x = 1; blk.y = 1;
+            blk.color = astra::IceColor::Black; blk.hp = 4;
+            ns.ice.push_back(blk);
+            astra::black_walker_tick(ns);
+            check(ns.black_reached_player_node,
+                  "s5tc5-same-room-instant-reach");
+        }
+    }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 

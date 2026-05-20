@@ -39,7 +39,7 @@ int manhattan(int ax, int ay, int bx, int by) {
     return std::abs(ax - bx) + std::abs(ay - by);
 }
 
-void step_toward(NetSession& s, Ice& ice, int tx, int ty) {
+[[maybe_unused]] void step_toward(NetSession& s, Ice& ice, int tx, int ty) {
     int best_dx = 0, best_dy = 0;
     int best_d = manhattan(ice.x, ice.y, tx, ty);
     static const int dx[4] = { 0, 0, -1, 1 };
@@ -106,7 +106,7 @@ void promote_pending_seeds(NetSession&) {
 // Invulnerable GE — extends the real-world dev-cheat to the Grid.
 // `last_killer_color` is updated even while invulnerable so post-mortem
 // telemetry stays correct if invuln is later removed mid-fight.
-static void damage_avatar(NetSession& s, Game& game, int dmg, IceColor by) {
+[[maybe_unused]] static void damage_avatar(NetSession& s, Game& game, int dmg, IceColor by) {
     if (s.last_killer_color != IceColor::Black) {
         s.last_killer_color = by;
     }
@@ -170,15 +170,14 @@ void tick_all(NetSession& s, Game& game) {
                 // takes no action in tick_all anymore. White (ambient)
                 // and Black (walker, S5) are unchanged below.
                 break;
-            case IceColor::Black: {
-                if (manhattan(ice.x, ice.y, s.avatar_x, s.avatar_y) == 1) {
-                    int dmg = s.skill_neural_fortitude ? 1 : 2;
-                    damage_avatar(s, game, dmg, IceColor::Black);
-                } else {
-                    step_toward(s, ice, s.avatar_x, s.avatar_y);
-                }
+            case IceColor::Black:
+                // Phase 5 S5: Black's legacy tile-chase + manhattan==1
+                // melee is RETIRED. Black is now a pipe-graph walker
+                // driven from net_combat.cpp black_walker_tick (called
+                // from tick_grid right after ice_cast_tick). White
+                // (ambient) above unchanged; Gray (retired S3) above
+                // also unchanged this slice.
                 break;
-            }
         }
     }
 
@@ -204,7 +203,13 @@ void damage(NetSession& /*s*/, Ice& ice, int dmg) {
 }
 
 bool kill_if_dead(NetSession& s, Ice& ice) {
-    if (ice.hp > 0) return false;
+    // Phase 5 S5: idempotent. A single dead ICE may be visited by both
+    // apply_effect_in_net's Pass-2 AND the resolve_inflight_impacts
+    // end-sweep (which catches collision-killed ICE) in the same beat.
+    // Returning true exactly once on the first call preserves the
+    // existing trace/XP accounting.
+    if (ice.hp > 0 || ice.killed) return false;
+    ice.killed = true;
     s.gain_trace(kKillIceTrace);
     return true;
 }
