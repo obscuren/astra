@@ -1,5 +1,6 @@
 #include "astra/net_combat_mode.h"
 
+#include "astra/net_ice_telegraph.h"
 #include "astra/net_pipe_path.h"
 #include "astra/net_voice.h"
 
@@ -60,12 +61,24 @@ void core_action_perform(NetSession& s, int idx) {
     if (idx < 0 || idx > 3) return;
     switch (s.core_actions[static_cast<size_t>(idx)]) {
         case NetCoreAction::Sniff: {
-            int live = 0;
-            for (auto& ic : s.ice) if (ic.hp > 0) ++live;
-            s.push_log(astra::net_voice::cmd(
-                "sniff: " + std::to_string(live) + " ICE, "
-                + std::to_string(static_cast<int>(s.in_flight.size()))
-                + " in flight."));
+            // Sticky ladder: ++sniff_level capped at kSniffMax.
+            const int prev = s.sniff_level;
+            if (s.sniff_level < kSniffMax) ++s.sniff_level;
+            const int now = s.sniff_level;
+            if (now > prev) {
+                // Per-tier reveal log line so the player learns the
+                // ladder by playing it.
+                std::string newly;
+                if (now == 1)
+                    newly = "payload dmg + cast bars + Black proximity exposed.";
+                else if (now == 2)
+                    newly = "ICE names + HP + precise Black ETA exposed.";
+                s.push_log(astra::net_voice::cmd(
+                    "sniff: tier " + std::to_string(now) + " -- " + newly));
+            } else {
+                s.push_log(astra::net_voice::cmd(
+                    "sniff: max tier (already wide-open)."));
+            }
             break;
         }
         case NetCoreAction::Channel:
@@ -77,7 +90,11 @@ void core_action_perform(NetSession& s, int idx) {
             s.push_log(astra::net_voice::cmd("brace."));
             break;
         case NetCoreAction::Run:
-            s.push_log(astra::net_voice::cmd("autopilot."));
+            // RUN is Game-touching and dispatched separately via
+            // core_action_run() from net_input.cpp. This branch should
+            // not be reached -- assert-style no-op log if it ever is.
+            s.push_log(astra::net_voice::cmd(
+                "autopilot: routed (RUN dispatch sentinel)."));
             break;
         default: break;
     }

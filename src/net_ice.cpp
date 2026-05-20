@@ -4,6 +4,7 @@
 #include "astra/game.h"
 #include "astra/net_constants.h"
 #include "astra/net_display.h"
+#include "astra/net_pipe_path.h"
 #include "astra/net_session.h"
 #include "astra/player.h"
 
@@ -153,7 +154,17 @@ void tick_all(NetSession& s, Game& game) {
                     int d = ice.patrol_dir;
                     int nx = ice.x + dxs[d];
                     int ny = ice.y + dys[d];
-                    if (s.netspace.passable(nx, ny) &&
+                    // Phase 5 S6.3: White patrols within its home room only.
+                    // home_room_idx == -1 means legacy/unset -> no constraint
+                    // (back-compat for any pre-S6.3 spawn site). When set, the
+                    // candidate cell must also resolve to the same room index.
+                    bool same_room = true;
+                    if (ice.home_room_idx >= 0) {
+                        int dest_room = room_index_at(s.netspace, nx, ny);
+                        same_room = (dest_room == ice.home_room_idx);
+                    }
+                    if (same_room &&
+                        s.netspace.passable(nx, ny) &&
                         !(nx == s.avatar_x && ny == s.avatar_y)) {
                         ice.x = nx; ice.y = ny;
                     } else {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra/net_ice.h"
+#include "astra/net_ice_telegraph.h"
 
 #include <cstddef>
 #include <string>
@@ -108,5 +109,14 @@ int pipe_graph_next_hop(const Netspace& ns, int from_room, int to_room);
 // to route jack_out(BlackIceDeath) -> unconditional GameOver). Game-
 // free; tick_grid is the only Game-touching caller.
 void black_walker_tick(NetSession& s);
+
+// Phase 5 S6: RUN core-action's Game-touching autopilot loop. Ticks
+// game.hacking().tick_grid(game) up to kRunAutopilotCap beats, halting
+// the first beat a live Black walker is one pipe-hop away from the
+// avatar's room (edge-trigger: was-not-adjacent last beat, IS-adjacent
+// now). Also halts on game-over (jack-out, GameOver) or if the cap is
+// reached (safety; never reached in practice). Single keypress = one
+// committed turn from the outer caller's perspective.
+void core_action_run(Game& game);
 
 }  // namespace astra

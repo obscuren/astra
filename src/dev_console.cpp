@@ -4,6 +4,7 @@
 #include "astra/grammars/gen_elevator_netspace.h"
 #include "astra/net_combat.h"
 #include "astra/net_combat_mode.h"
+#include "astra/net_ice_telegraph.h"
 #include "astra/net_pipe_path.h"
 #include "astra/net_renderer.h"
 #include "astra/net_window_anim.h"
@@ -968,6 +969,133 @@ static void run_net_selftest(DevConsole& con) {
             check(ns.black_reached_player_node,
                   "s5tc5-same-room-instant-reach");
         }
+    }
+
+    // Slice-6 telegraph + sniff_show + windup + RUN-adjacent (Game-free).
+    {
+        astra::Ice di;
+        check(di.telegraph_tier == astra::IceTelegraphTier::Watchdog
+              && di.cast_windup_left == 0 && di.cast_windup_total == 0,
+              "s5tc6-defaults");
+
+        astra::NetSession s0;
+        check(s0.sniff_level == 0 && !s0.run_active,
+              "s5tc6-sniff-default");
+
+        // sniff-clamp: N>kSniffMax presses cap at kSniffMax.
+        s0.core_actions[0] = astra::NetCoreAction::Sniff;
+        for (int i = 0; i < 10; ++i) astra::core_action_perform(s0, 0);
+        check(s0.sniff_level == astra::kSniffMax,
+              "s5tc6-sniff-clamp");
+
+        // sniff_show table: Watchdog/T0 hides all.
+        using astra::sniff_show;
+        using astra::IceTelegraphTier;
+        using astra::RevealKind;
+        check(!sniff_show(IceTelegraphTier::Watchdog, 0, RevealKind::PayloadDmg)
+              && !sniff_show(IceTelegraphTier::Watchdog, 0, RevealKind::IceCastBar)
+              && !sniff_show(IceTelegraphTier::Watchdog, 0, RevealKind::IceCastName)
+              && !sniff_show(IceTelegraphTier::Watchdog, 0, RevealKind::IceHp)
+              && !sniff_show(IceTelegraphTier::Watchdog, 0, RevealKind::BlackEtaCoarse)
+              && !sniff_show(IceTelegraphTier::Watchdog, 0, RevealKind::BlackEtaPrecise),
+              "s5tc6-sniff-show-watchdog-t0");
+
+        // Watchdog/T1: PayloadDmg + IceCastBar + BlackEtaCoarse open.
+        check(sniff_show(IceTelegraphTier::Watchdog, 1, RevealKind::PayloadDmg)
+              && sniff_show(IceTelegraphTier::Watchdog, 1, RevealKind::IceCastBar)
+              && sniff_show(IceTelegraphTier::Watchdog, 1, RevealKind::BlackEtaCoarse)
+              && !sniff_show(IceTelegraphTier::Watchdog, 1, RevealKind::IceCastName)
+              && !sniff_show(IceTelegraphTier::Watchdog, 1, RevealKind::IceHp)
+              && !sniff_show(IceTelegraphTier::Watchdog, 1, RevealKind::BlackEtaPrecise),
+              "s5tc6-sniff-show-watchdog-t1");
+
+        // Watchdog/T2: everything open.
+        check(sniff_show(IceTelegraphTier::Watchdog, 2, RevealKind::PayloadDmg)
+              && sniff_show(IceTelegraphTier::Watchdog, 2, RevealKind::IceCastBar)
+              && sniff_show(IceTelegraphTier::Watchdog, 2, RevealKind::IceCastName)
+              && sniff_show(IceTelegraphTier::Watchdog, 2, RevealKind::IceHp)
+              && sniff_show(IceTelegraphTier::Watchdog, 2, RevealKind::BlackEtaCoarse)
+              && sniff_show(IceTelegraphTier::Watchdog, 2, RevealKind::BlackEtaPrecise),
+              "s5tc6-sniff-show-watchdog-t2");
+
+        // Non-Watchdog tiers hide everything (future-content seam).
+        check(!sniff_show(IceTelegraphTier::Elite, 2, RevealKind::PayloadDmg)
+              && !sniff_show(IceTelegraphTier::Boss, 2, RevealKind::IceCastBar)
+              && !sniff_show(IceTelegraphTier::Blackwall, 2, RevealKind::IceCastName),
+              "s5tc6-sniff-show-future-tiers-hidden");
+
+        // Windup pipeline: Gray engaged with cooldown=0 enters windup,
+        // does NOT spawn until windup ticks to 0.
+        {
+            astra::NetSession ns;
+            astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+            astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+            ns.netspace.rooms = { a, b };
+            astra::NetPipe p;
+            p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+            for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+            ns.netspace.pipes.push_back(p);
+            ns.avatar_x = 1; ns.avatar_y = 1;
+            ns.combat_mode = astra::NetSession::NetCombatMode::Combat;
+            astra::Ice gr;
+            gr.x = 11; gr.y = 1;
+            gr.color = astra::IceColor::Gray; gr.hp = 2;
+            gr.cast_cooldown = 0;     // ready
+            ns.ice.push_back(gr);
+
+            astra::ice_cast_tick(ns);
+            check(ns.ice[0].cast_windup_left == astra::kIceGrayWindupBeats
+                  && ns.ice[0].cast_windup_total == astra::kIceGrayWindupBeats,
+                  "s5tc6-windup-enters");
+            check(ns.in_flight.empty(),
+                  "s5tc6-windup-no-launch");
+            // Tick down to zero; payload should spawn on the very beat
+            // windup_left transitions from 1 to 0.
+            for (int i = 0; i < astra::kIceGrayWindupBeats - 1; ++i)
+                astra::ice_cast_tick(ns);
+            check(ns.ice[0].cast_windup_left == 1 && ns.in_flight.empty(),
+                  "s5tc6-windup-pre-fire");
+            astra::ice_cast_tick(ns);
+            check(ns.ice[0].cast_windup_left == 0
+                  && ns.in_flight.size() == 1
+                  && ns.in_flight[0].hostile
+                  && ns.in_flight[0].spec.damage == astra::kIceGrayCastDamage,
+                  "s5tc6-windup-fires-at-zero");
+            check(ns.ice[0].cast_cooldown == astra::kIceCastCadence,
+                  "s5tc6-cadence-reset");
+            // S6.2: spawn-time linkage from payload back to source ICE.
+            // Single ICE in this test scene -> &ice - s.ice.data() == 0.
+            check(!ns.in_flight.empty()
+                  && ns.in_flight[0].source_ice_idx == 0,
+                  "s5tc6-source-ice-idx");
+        }
+
+        // black_eta_beats: 2-room linear, Black at far room, avatar at
+        // near room. ETA = cells of the connecting pipe (= 11 here).
+        {
+            astra::NetSession ns;
+            astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+            astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+            ns.netspace.rooms = { a, b };
+            astra::NetPipe p;
+            p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+            for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+            ns.netspace.pipes.push_back(p);
+            ns.avatar_x = 1; ns.avatar_y = 1;
+            astra::Ice blk;
+            blk.x = 11; blk.y = 1;
+            blk.color = astra::IceColor::Black; blk.hp = 4;
+            ns.ice.push_back(blk);
+            int eta = astra::black_eta_beats(ns, ns.ice[0]);
+            check(eta == 11, "s5tc6-black-eta-far-room");
+        }
+
+        // (RUN halt-on-Black-adjacent is exercised in-game; the helper
+        // any_black_one_hop is file-local in net_combat.cpp so we test
+        // the user-visible contract via Black walker placement: a Black
+        // already in the avatar's room is "adjacent" per the helper.
+        // Detection logic is covered by the precision selftest above +
+        // S5's s5tc5-reached-avatar.)
     }
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }

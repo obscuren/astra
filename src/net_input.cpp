@@ -545,10 +545,17 @@ bool handle(Game& game, int key) {
             case 'q': case 'w': case 'e': case 'r': {
                 int idx = (key == 'q') ? 0 : (key == 'w') ? 1
                         : (key == 'e') ? 2 : 3;
-                if (s.core_actions[static_cast<size_t>(idx)]
-                        == NetCoreAction::None)
-                    return false;
-                core_action_perform(s, idx);
+                NetCoreAction act = s.core_actions[static_cast<size_t>(idx)];
+                if (act == NetCoreAction::None) return false;
+                if (act == NetCoreAction::Run) {
+                    // Game-touching autopilot loop -- ticks tick_grid
+                    // internally up to kRunAutopilotCap beats; returns
+                    // having committed the player's "turn" as a single
+                    // input event from this dispatcher's POV.
+                    core_action_run(game);
+                } else {
+                    core_action_perform(s, idx);
+                }
                 return true;
             }
             default:

@@ -136,6 +136,56 @@ int walker_cell_idx(int walk_seg, int walk_seg_len, int N) {
     if (idx >= N) idx = N - 1;
     return idx;
 }
+
+// Phase 5 S6: predicate for core_action_run's edge-trigger halt. True
+// if any live, un-charmed Black walker is one pipe-hop (or less) from
+// the avatar's room. "Adjacent" = (a) sitting in the avatar's room
+// already; (b) in-transit on a pipe that terminates in the avatar's
+// room and has fully traversed it; (c) at a node whose next-hop pipe
+// (per pipe_graph_next_hop) leads into the avatar's room. Game-free.
+bool any_black_one_hop(const NetSession& s) {
+    const int avatar_room =
+        room_index_at(s.netspace, s.avatar_x, s.avatar_y);
+    if (avatar_room < 0) return false;
+    for (const auto& blk : s.ice) {
+        if (blk.color != IceColor::Black) continue;
+        if (blk.hp <= 0 || blk.charmed_turns_left != 0) continue;
+        // Already in the avatar's room? That's the GameOver beat
+        // (handled by black_walker_tick already); treat as "adjacent"
+        // for the RUN interrupt so RUN halts before consuming it.
+        int blk_room = (blk.walk_pipe_index >= 0)
+            ? -1
+            : room_index_at(s.netspace, blk.x, blk.y);
+        if (blk_room == avatar_room) return true;
+        // In-transit: if its current pipe terminates in the avatar's
+        // room AND walker has reached (or passed) the arrival threshold,
+        // it's adjacent. Threshold = walk_seg_len (the clamped beat
+        // count), NOT walk_path.size() -- on clamped pipes the walker
+        // covers walk_path in walk_seg_len beats via walker_cell_idx,
+        // and arrival fires at walk_seg > walk_seg_len. Using
+        // walk_path.size() would never fire on a clamped pipe.
+        if (blk.walk_pipe_index >= 0 && !blk.walk_path.empty()) {
+            const auto& last = blk.walk_path.back();
+            int end_room = room_index_at(s.netspace, last.first, last.second);
+            if (end_room == avatar_room &&
+                blk.walk_seg >= blk.walk_seg_len)
+                return true;
+        }
+        // At a node: next-hop pipe's far room == avatar's room?
+        if (blk.walk_pipe_index < 0 && blk_room >= 0) {
+            int hop = pipe_graph_next_hop(s.netspace, blk_room, avatar_room);
+            if (hop < 0) continue;
+            int other = -1;
+            const auto& p =
+                s.netspace.pipes[static_cast<std::size_t>(hop)];
+            int ra = room_index_at(s.netspace, p.x0, p.y0);
+            int rb = room_index_at(s.netspace, p.x1, p.y1);
+            other = (ra == blk_room) ? rb : ra;
+            if (other == avatar_room) return true;
+        }
+    }
+    return false;
+}
 }  // namespace
 
 std::vector<std::size_t> net_node_targets(const NetSession& s,
@@ -488,53 +538,90 @@ void ice_cast_tick(NetSession& s) {
         if (ice.color != IceColor::Gray) continue;   // S3: Gray-only caster
         // Charm expiry: net_ice.cpp tick_all already decremented
         // charmed_turns_left this beat, so a Gray whose charm ticked to
-        // 0 may cast THIS same beat. Intentional and consistent with
-        // combat_should_lock (which also treats post-decrement ==0 as a
-        // threat) — do not "fix" to a one-beat delay.
-        if (ice.hp <= 0 || ice.charmed_turns_left != 0) continue;
+        // 0 may proceed THIS same beat. Consistent with S3.
+        if (ice.hp <= 0 || ice.charmed_turns_left != 0) {
+            // Charmed/dead Gray: cancel any in-progress windup so the
+            // telegraph doesn't lie about an inert ICE.
+            ice.cast_windup_left  = 0;
+            ice.cast_windup_total = 0;
+            continue;
+        }
+
+        // (A) Windup in progress: tick down, spawn at zero.
+        if (ice.cast_windup_left > 0) {
+            --ice.cast_windup_left;
+            if (ice.cast_windup_left > 0) continue;
+            // Windup just hit 0 -- spawn the telegraphed payload now.
+            ice.cast_windup_total = 0;
+            for (int idx : conn) {
+                auto path = pipe_path_cells(s.netspace, idx,
+                                            s.avatar_x, s.avatar_y);
+                if (path.empty()) continue;
+                int ri = room_index_at(s.netspace,
+                                       path.back().first, path.back().second);
+                if (ri < 0 || ri >= static_cast<int>(s.netspace.rooms.size()))
+                    continue;
+                const NetRoom& far =
+                    s.netspace.rooms[static_cast<std::size_t>(ri)];
+                if (!in_room(far, ice.x, ice.y)) continue;
+                std::vector<std::pair<int,int>> rpath(path.rbegin(),
+                                                      path.rend());
+                EffectSpec spec;
+                spec.damage = kIceGrayCastDamage;
+                spec.radius = kIceGrayCastRadius;
+                NetInFlight f;
+                f.slot           = -1;
+                f.hostile        = true;
+                f.compiled       = true;
+                f.spec           = spec;
+                f.prog_name      = "gray ICE";
+                f.turns_total    = 1;
+                f.turns_left     = 1;
+                f.ram_held       = 0;
+                f.launched       = false;
+                f.pipe_path      = rpath;
+                f.seg_len        = clamp_seg_len(static_cast<int>(rpath.size()));
+                f.iters_total    = 1;
+                f.iters_launched = 0;
+                f.payloads.clear();
+                f.target_x       = rpath.back().first;
+                f.target_y       = rpath.back().second;
+                f.pipe_index     = idx;
+                f.source_ice_idx = static_cast<int>(&ice - s.ice.data());
+                s.in_flight.push_back(std::move(f));
+                s.push_log(astra::net_voice::sys("gray ICE: fires."));
+                ice.cast_cooldown = kIceCastCadence;
+                break;   // one cast / ICE / beat
+            }
+            continue;
+        }
+
+        // (B) At rest: tick cooldown; if it's expired AND we have a
+        // valid engagement (a connected pipe whose far room contains
+        // this ICE), START a windup. The engagement check is the same
+        // predicate the legacy launch used -- we're just deferring the
+        // payload spawn by kIceGrayWindupBeats so the player has a
+        // visible window to react.
         if (ice.cast_cooldown > 0) { --ice.cast_cooldown; continue; }
 
+        bool engaged = false;
         for (int idx : conn) {
             auto path = pipe_path_cells(s.netspace, idx,
-                                        s.avatar_x, s.avatar_y);   // avatar -> far
+                                        s.avatar_x, s.avatar_y);
             if (path.empty()) continue;
             int ri = room_index_at(s.netspace,
                                    path.back().first, path.back().second);
             if (ri < 0 || ri >= static_cast<int>(s.netspace.rooms.size()))
                 continue;
-            const NetRoom& far = s.netspace.rooms[static_cast<size_t>(ri)];
-            if (!in_room(far, ice.x, ice.y)) continue;
-
-            // Engaged: cast ICE-node -> avatar-node (path reversed).
-            std::vector<std::pair<int,int>> rpath(path.rbegin(),
-                                                  path.rend());
-            EffectSpec spec;
-            spec.damage = kIceGrayCastDamage;
-            spec.radius = kIceGrayCastRadius;
-
-            NetInFlight f;
-            f.slot           = -1;
-            f.hostile        = true;
-            f.compiled       = true;
-            f.spec           = spec;
-            f.prog_name      = "gray ICE";
-            f.turns_total    = 1;
-            f.turns_left     = 1;
-            f.ram_held       = 0;
-            f.launched       = false;
-            f.pipe_path      = rpath;
-            f.seg_len        = clamp_seg_len(static_cast<int>(rpath.size()));
-            f.iters_total    = 1;
-            f.iters_launched = 0;
-            f.payloads.clear();
-            f.target_x       = rpath.back().first;     // avatar-end cell
-            f.target_y       = rpath.back().second;
-            f.pipe_index     = idx;
-            s.in_flight.push_back(std::move(f));
-            s.push_log(astra::net_voice::sys("gray ICE: casting."));
-            ice.cast_cooldown = kIceCastCadence;
-            break;                                     // one cast / ICE / beat
+            const NetRoom& far =
+                s.netspace.rooms[static_cast<std::size_t>(ri)];
+            if (in_room(far, ice.x, ice.y)) { engaged = true; break; }
         }
+        if (!engaged) continue;
+
+        ice.cast_windup_left  = kIceGrayWindupBeats;
+        ice.cast_windup_total = kIceGrayWindupBeats;
+        s.push_log(astra::net_voice::sys("gray ICE: charging."));
     }
 }
 
@@ -593,6 +680,41 @@ void resolve_inflight_impacts(Game& game, NetSession& s) {
                    :                            kXpIceBlack;
             grant_net_xp(game, xp);
         }
+    }
+}
+
+void core_action_run(Game& game) {
+    NetSession* sp = game.hacking().session();   // may be null pre-jack-in
+    if (!sp) return;
+    NetSession& s = *sp;
+    if (s.run_active) return;                    // re-entrancy guard
+
+    s.run_active = true;
+    s.push_log(astra::net_voice::cmd("autopilot engaged."));
+
+    bool pre_adjacent = any_black_one_hop(s);
+    const char* reason = "cap";                   // safety default
+    for (int i = 0; i < kRunAutopilotCap; ++i) {
+        game.hacking().tick_grid(game);
+        if (game.state() != GameState::Playing) {
+            reason = "session ended";
+            break;
+        }
+        // Session may have been reset by jack_out within tick_grid;
+        // re-fetch to avoid use-after-reset.
+        NetSession* re = game.hacking().session();
+        if (!re) { reason = "session ended"; break; }
+        NetSession& sn = *re;
+        bool now_adjacent = any_black_one_hop(sn);
+        if (!pre_adjacent && now_adjacent) { reason = "black adjacent"; break; }
+        pre_adjacent = now_adjacent;
+    }
+
+    NetSession* finals = game.hacking().session();
+    if (finals) {
+        finals->run_active = false;
+        finals->push_log(astra::net_voice::cmd(
+            std::string("autopilot halted: ") + reason + "."));
     }
 }
 

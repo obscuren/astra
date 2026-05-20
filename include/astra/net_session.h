@@ -125,6 +125,13 @@ struct NetInFlight {
     // physical pipe share this index (their pipe_path is merely
     // reversed). Set by confirm_armed (pidx) / ice_cast_tick (idx).
     int pipe_index = -1;
+
+    // Phase 5 S6.2: index into s.ice of the ICE that fired this
+    // hostile payload (-1 = none, e.g. player casts or legacy). Lets
+    // the renderer find the "running: <prog> [bar]" status for an ICE
+    // whose payload is currently in flight. Set by ice_cast_tick at
+    // spawn time.
+    int source_ice_idx = -1;
 };
 
 struct NetSession {
@@ -258,6 +265,17 @@ struct NetSession {
     std::array<NetCoreAction,4> core_actions{ NetCoreAction::None,
         NetCoreAction::None, NetCoreAction::None, NetCoreAction::None };
     int brace_turns = 0;   // S2 BRACE stub: 1-beat mitigation flag
+
+    // Phase 5 S6: SNIFF tier ladder. 0..kSniffMax (=2). Each SNIFF
+    // press: ++sniff_level (capped), AND consumes the beat. Persists
+    // across combat boundaries within one jack-in; resets to 0 only at
+    // session reset (jack-out auto-handles via NetSession reset).
+    int sniff_level = 0;
+
+    // Phase 5 S6: true while core_action_run's autopilot loop is
+    // ticking inside a single keypress. Renderer / log read this to
+    // suppress per-beat noise; the loop itself sets+clears the flag.
+    bool run_active = false;
 
     // Phase 5 slice 4: armed (pre-confirm) program slot; -1 = none.
     int armed_slot = -1;

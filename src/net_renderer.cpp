@@ -4,7 +4,9 @@
 #include "astra/net_window_anim.h"
 #include "astra/game.h"
 #include "astra/net_camera.h"
+#include "astra/net_combat.h"
 #include "astra/net_ice.h"
+#include "astra/net_ice_telegraph.h"
 #include "astra/net_pipe_path.h"
 #include "astra/net_session.h"
 #include "astra/net_theme.h"
@@ -26,6 +28,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 namespace astra::net_theme {
 
@@ -123,6 +126,7 @@ struct NetBands {
     Rect field;    // elastic
     Rect caption;  // 1 row
     Rect deck;     // 1 header row + eff_slots rows
+    Rect hostiles; // S6-followup: vertical sidebar carved off right of field
     Rect vitals;   // 1 row
     Rect log;      // kLogRows rows
     Rect footer;   // 1 row — row for the meatworld-clock footer — consumed in Slice 1 Task 8
@@ -134,21 +138,37 @@ NetBands compute_bands(const WindowRect& wr, int deck_slots) {
     const int ix = wr.x + 1;          // interior left
     const int iw = wr.w - 2;          // interior width
     const int deck_h = 1 + deck_slots;
-    // bottom_block = caption(1) + sep + deck(deck_h) + sep + vitals(1) + sep + log(kLogRows) + sep + footer(1)
-    // = deck_h + kLogRows + 7; footer is pinned at wr.h-2, no separator below it.
+    // S6-followup: HOSTILES is now a vertical sidebar inside the field rect,
+    // not a horizontal band between deck and vitals. The vertical row budget
+    // matches the pre-S6 layout (no extra band, no extra separator).
     const int bottom_block = 1 /*footer*/ + 1 + kLogRows + 1 + 1 /*vitals*/
-                           + 1 + deck_h + 1 + 1 /*caption*/;
+                           + 1 + deck_h
+                           + 1 + 1 /*caption*/;
     NetBands b{};
-    b.header  = { ix, wr.y + 1, iw, 1 };
+    b.header   = { ix, wr.y + 1, iw, 1 };
     int y = wr.y + 3;                 // after header (row +1) + its separator (row +2)
     const int field_h = std::max(1, wr.h - 2 /*chrome*/ - 1 /*header*/
                                  - 1 /*hdr sep*/ - bottom_block);
-    b.field   = { ix, y, iw, field_h };          y += field_h;
-    b.caption = { ix, y, iw, 1 };                y += 1 + 1; // caption + its sep
-    b.deck    = { ix, y, iw, deck_h };           y += deck_h + 1;
-    b.vitals  = { ix, y, iw, 1 };                y += 1 + 1;
-    b.log     = { ix, y, iw, kLogRows };         y += kLogRows + 1;
-    b.footer  = { ix, wr.y + wr.h - 2, iw, 1 };
+    b.field    = { ix, y, iw, field_h };          y += field_h;
+    b.caption  = { ix, y, iw, 1 };                y += 1 + 1; // caption + its sep
+    b.deck     = { ix, y, iw, deck_h };           y += deck_h + 1;
+    b.vitals   = { ix, y, iw, 1 };                y += 1 + 1;
+    b.log      = { ix, y, iw, kLogRows };         y += kLogRows + 1;
+    b.footer   = { ix, wr.y + wr.h - 2, iw, 1 };
+    // S6-followup: carve a vertical HOSTILES sidebar off the right edge of
+    // the field. Width = kHostilesSidebarW, separated from the world view by
+    // a 1-cell vertical chrome column. On extreme-narrow terminals (interior
+    // width too small to leave the field with ~30 usable cols) skip the
+    // carve: hostiles.h = 0 lets draw_hostiles_band no-op and the field
+    // keeps its full width.
+    constexpr int kMinFieldW = 30;
+    if (b.field.w >= kHostilesSidebarW + 1 + kMinFieldW) {
+        const int sidebar_x = b.field.x + b.field.w - kHostilesSidebarW;
+        b.hostiles = { sidebar_x, b.field.y, kHostilesSidebarW, b.field.h };
+        b.field.w  = b.field.w - kHostilesSidebarW - 1;   // -1 = separator col
+    } else {
+        b.hostiles = { b.field.x + b.field.w, b.field.y, 0, 0 };
+    }
     // Sub-minimum-window safety: the footer is pinned at wr.h-2 independently
     // of the top-down accumulator, so on windows below the documented minimum
     // the log band (kLogRows tall, drawn unconditionally by draw_log_pane) can
@@ -1333,6 +1353,141 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
     }
 }
 
+// S6-followup: HOSTILES vertical sidebar. Fills its full height with the
+// live hostile readout: Gray ICE in windup (2 lines each), Gray in-flight
+// payloads (2 lines each, from s.in_flight), then Black walkers (1 line
+// each). Each reveal kind is gated by sniff_show() against the per-ICE
+// telegraph_tier; in-flight rows have no live ICE behind them, so they
+// fall back to IceTelegraphTier::Watchdog (the only S6 tier in play).
+// Remaining rows are padded with a dim em-dash so the column reads as a
+// proper sidebar to the bottom of the field.
+void draw_hostiles_band(Renderer& r, const Rect& band,
+                        const NetSession& s) {
+    if (band.h <= 0 || band.w <= 0) return;
+    // Header row.
+    draw_colored_string(r, band.x + 1, band.y, "[ HOSTILES ]", Color::Red);
+
+    const int max_lines = std::max(0, band.h - 1);   // header eats one
+    const int ix        = band.x + 1;
+    int row_i           = 0;
+
+    // Max printable cols inside the band (1 col padding on each side).
+    const int max_cols = std::max(0, band.w - 2);
+    auto draw_row = [&](int rel, const std::string& text, Color col) {
+        const int row = band.y + 1 + rel;
+        if (row >= band.y + band.h) return;
+        // UTF-8-aware truncate to max_cols so labels never overrun the
+        // outer window border on narrow panels. Continuation bytes
+        // (0b10xxxxxx) don't count toward width.
+        std::string clipped;
+        clipped.reserve(text.size());
+        int vw = 0;
+        for (std::size_t i = 0; i < text.size(); ++i) {
+            unsigned char ch = static_cast<unsigned char>(text[i]);
+            const bool is_cont = (ch & 0xC0) == 0x80;
+            if (!is_cont) {
+                if (vw >= max_cols) break;
+                ++vw;
+            }
+            clipped.push_back(text[i]);
+        }
+        draw_colored_string(r, ix, row, clipped, col);
+    };
+
+    // (a) Gray ICE casts in windup — 2 lines each.
+    for (const auto& ice : s.ice) {
+        if (row_i + 2 > max_lines) break;
+        if (ice.color != IceColor::Gray) continue;
+        if (ice.hp <= 0) continue;
+        // Skip Gray that hasn't started winding -- not yet a hostile-
+        // action telegraph; the ICE glyph alone communicates presence.
+        if (ice.cast_windup_left <= 0) continue;
+        const bool show_name = sniff_show(ice.telegraph_tier,
+                                          s.sniff_level,
+                                          RevealKind::IceCastName);
+        std::string line1 = show_name ? "gray" : "???";
+        if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                       RevealKind::IceCastBar)) {
+            int left = ice.cast_windup_left;
+            int tot  = std::max(1, ice.cast_windup_total);
+            int filled = tot - left;
+            if (filled < 0) filled = 0;
+            if (filled > tot) filled = tot;
+            std::string bar = "  [";
+            for (int k = 0; k < tot; ++k)
+                bar += (k < filled) ? "\xe2\x96\x88"  // █
+                                    : "\xe2\x96\x91"; // ░
+            bar += "] " + std::to_string(filled) + "/" + std::to_string(tot);
+            line1 += bar;
+        }
+        if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                       RevealKind::IceHp)) {
+            line1 += "  hp " + std::to_string(ice.hp);
+        }
+        draw_row(row_i++, line1, net_theme::gray_ice);
+        draw_row(row_i++, "  charging", Color::DarkGray);
+    }
+
+    // (b) Gray in-flight payloads — 2 lines each. Source from s.in_flight:
+    // hostile entries with a non-empty pipe_path (skip legacy self-targeted).
+    // For multi-payload entries, show the payload closest to impact (largest
+    // seg value), since that's the most urgent threat in the pipe.
+    for (const auto& f : s.in_flight) {
+        if (row_i + 2 > max_lines) break;
+        if (!f.hostile) continue;
+        if (f.pipe_path.empty()) continue;
+        if (f.payloads.empty()) continue;
+        int seg = f.payloads.front();
+        for (int p : f.payloads) if (p > seg) seg = p;
+        const IceTelegraphTier tier = IceTelegraphTier::Watchdog;
+        const bool show_name = sniff_show(tier, s.sniff_level,
+                                          RevealKind::IceCastName);
+        std::string line1 = show_name ? "gray" : "???";
+        line1 += "  in flight";
+        draw_row(row_i++, line1, net_theme::gray_ice);
+        std::string line2 = "  \xc2\xa7"   // §
+                          + std::to_string(seg) + "/"
+                          + std::to_string(f.seg_len);
+        if (sniff_show(tier, s.sniff_level, RevealKind::PayloadDmg)) {
+            line2 += "  dmg " + std::to_string(f.spec.damage);
+        }
+        draw_row(row_i++, line2, Color::DarkGray);
+    }
+
+    // (c) Black walker rows — 1 line each.
+    for (const auto& ice : s.ice) {
+        if (row_i + 1 > max_lines) break;
+        if (ice.color != IceColor::Black) continue;
+        if (ice.hp <= 0) continue;
+        std::string label = "black";
+        if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                       RevealKind::BlackEtaPrecise)) {
+            int eta = black_eta_beats(s, ice);
+            if (eta >= 0)
+                label += "  \xe2\x96\xba"   // ►
+                       + std::to_string(eta) + " beats";
+            else
+                label += "  \xe2\x96\xba--";
+        } else if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                              RevealKind::BlackEtaCoarse)) {
+            int eta = black_eta_beats(s, ice);
+            const char* tag = (eta >= 0 && eta <= 8) ? "near" : "far";
+            label += "  \xe2\x96\xba";
+            label += tag;
+        }
+        if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                       RevealKind::IceHp)) {
+            label += "  hp " + std::to_string(ice.hp);
+        }
+        draw_row(row_i++, label, net_theme::black_ice);
+    }
+
+    // Pad remaining rows with a dim em-dash so the sidebar fills its column
+    // down to the bottom of the field.
+    for (; row_i < max_lines; ++row_i)
+        draw_row(row_i, "\xe2\x80\x94", Color::DarkGray);   // — em-dash
+}
+
 // ---------------------------------------------------------------------------
 // Playfield
 // ---------------------------------------------------------------------------
@@ -1601,7 +1756,26 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             int wy = f.pipe_path[idx].second;
             int sx, sy;
             if (!cull(wx, wy, sx, sy)) continue;
-            r.draw_glyph(pr.x + sx, pr.y + sy, "\xc2\xa7", Color::Cyan);  // §
+            const Color glyph_col = f.hostile ? Color::Red : Color::Cyan;
+            r.draw_glyph(pr.x + sx, pr.y + sy, "\xc2\xa7", glyph_col);  // §
+            // Phase 5 S6: hostile payload damage badge -- only when
+            // SNIFF has unlocked PayloadDmg AND we have room one cell
+            // right of the glyph. Cheap, single-codepoint badge so
+            // it's visually compact in the pipe.
+            if (f.hostile && f.spec.damage > 0 &&
+                sniff_show(IceTelegraphTier::Watchdog, s.sniff_level,
+                           RevealKind::PayloadDmg)) {
+                int dx = sx + 1;
+                if (dx < pr.w) {
+                    std::string badge = "(" + std::to_string(f.spec.damage) + ")";
+                    int vw = 0;
+                    for (unsigned char ch : badge)
+                        if ((ch & 0xC0) != 0x80) ++vw;
+                    if (dx + vw <= pr.w)
+                        draw_colored_string(r, pr.x + dx, pr.y + sy,
+                                            badge, Color::Red);
+                }
+            }
         }
     }
 
@@ -1718,6 +1892,447 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                 : ice.color == IceColor::Gray  ? net_theme::gray_ice
                 :                                net_theme::black_ice;
         r.draw_glyph(pr.x + sx, pr.y + sy, g, c);
+
+        // Phase 5 S6.2: in-world multi-line telegraph block. Three lines
+        // anchored at the ICE row, 1 cell to the right of the glyph:
+        //   line 1 : "<COLOR> ICE.EXE"      (name, gated by IceCastName)
+        //   line 2 : "HP [bar] cur/max"     (gated by IceHp)
+        //   line 3 : status verb line       (per-color rules below)
+        // Lines are independently sniff-gated; if line 2 is hidden but
+        // line 3 is shown the block compacts upward (no blank gap).
+        // Flips to the LEFT side of the glyph if right anchor would
+        // clip; skipped entirely if neither side fits. Bars cap at
+        // kInlineBarMaxCells cells (scaled proportionally for larger
+        // hp_max/windup_total than the cap). Per-color coloring:
+        // Yellow=Gray, Magenta=Black, White=White.
+        if (ice.hp > 0) {
+            const Color block_col = ice.color == IceColor::White ? net_theme::white_ice
+                                  : ice.color == IceColor::Gray  ? net_theme::gray_ice
+                                  :                                 net_theme::black_ice;
+
+            // Bar-cell helper (filled count); total cells = min(max, cap).
+            auto bar_cells = [](int filled_units, int max_units) -> int {
+                if (max_units <= 0) return 0;
+                int cap = std::min(max_units, kInlineBarMaxCells);
+                int f = filled_units * cap / max_units;
+                if (f < 0) f = 0; if (f > cap) f = cap;
+                return f;
+            };
+            auto bar_total = [](int max_units) -> int {
+                if (max_units <= 0) return 0;
+                return std::min(max_units, kInlineBarMaxCells);
+            };
+            auto make_bar = [](int filled_cells, int total_cells) -> std::string {
+                std::string out = "[";
+                for (int k = 0; k < total_cells; ++k)
+                    out += (k < filled_cells) ? "\xe2\x96\x88"
+                                              : "\xe2\x96\x91";
+                out += "]";
+                return out;
+            };
+
+            // ---- Line 1 : name ---------------------------------------
+            const bool show_name = sniff_show(ice.telegraph_tier,
+                                              s.sniff_level,
+                                              RevealKind::IceCastName);
+            const char* color_word = ice.color == IceColor::White ? "WHITE"
+                                   : ice.color == IceColor::Gray  ? "GRAY"
+                                   :                                 "BLACK";
+            std::string line1 = std::string(color_word) + " ICE.EXE";
+            if (!show_name) line1 = "???.EXE";
+
+            // ---- Line 2 : HP ----------------------------------------
+            bool have_line2 = sniff_show(ice.telegraph_tier, s.sniff_level,
+                                         RevealKind::IceHp);
+            std::string line2;
+            if (have_line2) {
+                int hp_max = std::max(1, ice.hp_max > 0 ? ice.hp_max : ice.hp);
+                int hp_cur = std::clamp(ice.hp, 0, hp_max);
+                int fc = bar_cells(hp_cur, hp_max);
+                int tc = bar_total(hp_max);
+                line2 = "HP " + make_bar(fc, tc) + " "
+                      + std::to_string(hp_cur) + "/"
+                      + std::to_string(hp_max);
+            }
+
+            // ---- Line 3 : status -------------------------------------
+            std::string line3;
+            if (ice.color == IceColor::Gray) {
+                // (a) Mid-windup: "executing: <prog> [bar] f/t"
+                if (ice.cast_windup_left > 0) {
+                    const bool show_bar = sniff_show(ice.telegraph_tier,
+                                                     s.sniff_level,
+                                                     RevealKind::IceCastBar);
+                    if (show_bar) {
+                        int total = std::max(1, ice.cast_windup_total);
+                        int left  = std::clamp(ice.cast_windup_left, 0, total);
+                        int filled = total - left;
+                        const std::string pname = show_name ? "gray ICE" : "???";
+                        int fc = bar_cells(filled, total);
+                        int tc = bar_total(total);
+                        line3 = "executing: " + pname + " "
+                              + make_bar(fc, tc) + " "
+                              + std::to_string(filled) + "/"
+                              + std::to_string(total);
+                    }
+                } else {
+                    // (b) Not winding: look for an in-flight hostile
+                    // payload sourced by this ICE -> "running: <prog>
+                    // [bar] seg/seg_len".
+                    const int my_idx = static_cast<int>(&ice - s.ice.data());
+                    const NetInFlight* my_f = nullptr;
+                    for (const auto& f : s.in_flight) {
+                        if (!f.hostile) continue;
+                        if (f.source_ice_idx != my_idx) continue;
+                        if (f.payloads.empty()) continue;
+                        my_f = &f;
+                        break;
+                    }
+                    if (my_f != nullptr) {
+                        const bool show_bar = sniff_show(ice.telegraph_tier,
+                                                         s.sniff_level,
+                                                         RevealKind::IceCastBar);
+                        if (show_bar) {
+                            int seg = my_f->payloads.front();
+                            for (int p : my_f->payloads) if (p > seg) seg = p;
+                            int seg_len = std::max(1, my_f->seg_len);
+                            seg = std::clamp(seg, 0, seg_len);
+                            const std::string pname =
+                                show_name ? (my_f->prog_name.empty()
+                                              ? "gray ICE"
+                                              : my_f->prog_name)
+                                          : "???";
+                            int fc = bar_cells(seg, seg_len);
+                            int tc = bar_total(seg_len);
+                            line3 = "running: " + pname + " "
+                                  + make_bar(fc, tc) + " "
+                                  + std::to_string(seg) + "/"
+                                  + std::to_string(seg_len);
+                        }
+                    }
+                }
+            } else if (ice.color == IceColor::Black) {
+                int eta = black_eta_beats(s, ice);
+                if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                               RevealKind::BlackEtaPrecise) && eta >= 0) {
+                    line3 = "walking: \xe2\x96\xba"
+                          + std::to_string(eta) + " beats";
+                } else if (sniff_show(ice.telegraph_tier, s.sniff_level,
+                                      RevealKind::BlackEtaCoarse)) {
+                    const char* tag = (eta >= 0 && eta <= 8) ? "near" : "far";
+                    line3 = std::string("walking: \xe2\x96\xba") + tag;
+                }
+            }
+            // White: line3 always omitted.
+
+            // Compact upward: drop empty lines, preserving order.
+            std::vector<std::string> lines;
+            lines.reserve(3);
+            lines.push_back(line1);
+            if (have_line2 && !line2.empty()) lines.push_back(std::move(line2));
+            if (!line3.empty()) lines.push_back(std::move(line3));
+
+            // S6.3: two-mode placement.
+            //   Mode A (room-outside): stationary ICE in a room. Anchor 2
+            //     cells outside the room's bbox on the side away from
+            //     JACK (dominant axis of room.center - jack_in.center).
+            //   Mode B (inline-near-glyph): Black walker in transit
+            //     (walk_pipe_index >= 0), or the room-outside anchor
+            //     can't fit on its chosen side — fall back to the
+            //     S6.2 right-of-glyph (left-flip) placement.
+            auto vwidth = [](const std::string& t) {
+                int w = 0;
+                for (unsigned char ch : t)
+                    if ((ch & 0xC0) != 0x80) ++w;
+                return w;
+            };
+            auto clip_to = [](const std::string& t, int max_cols) {
+                std::string out;
+                if (max_cols <= 0) return out;
+                out.reserve(t.size());
+                int w = 0;
+                for (std::size_t i = 0; i < t.size(); ++i) {
+                    unsigned char ch = static_cast<unsigned char>(t[i]);
+                    const bool is_cont = (ch & 0xC0) == 0x80;
+                    if (!is_cont) {
+                        if (w >= max_cols) break;
+                        ++w;
+                    }
+                    out.push_back(t[i]);
+                }
+                return out;
+            };
+
+            int max_w = 0;
+            for (const auto& ln : lines) max_w = std::max(max_w, vwidth(ln));
+            const int desired_w  = std::min(max_w, kInlineLabelMaxW);
+            const int block_h    = static_cast<int>(lines.size());
+            const int block_w    = desired_w;
+
+            const int glyph_screen_x = pr.x + sx;
+            const int glyph_screen_y = pr.y + sy;
+
+            // Emit the precomputed line vector starting at (ax, ay), each
+            // line clipped to max_cols cells. Both modes call this.
+            auto emit_block = [&](int ax, int ay, int max_cols) {
+                for (std::size_t li = 0; li < lines.size(); ++li) {
+                    int row_y = ay + static_cast<int>(li);
+                    if (row_y < pr.y || row_y >= pr.y + pr.h) continue;
+                    if (ax < pr.x || ax >= pr.x + pr.w) continue;
+                    std::string out = clip_to(lines[li], std::max(0, max_cols));
+                    if (out.empty()) continue;
+                    draw_colored_string(r, ax, row_y, out, block_col);
+                }
+            };
+
+            // Inline (Mode B) placement — same logic as S6.2.
+            auto draw_inline = [&]() {
+                const int right_anchor = glyph_screen_x + 1;
+                const int right_avail  = (pr.x + pr.w) - right_anchor;
+                int draw_x = -1;
+                int fit_w  = 0;
+                if (right_avail >= desired_w && right_avail > 0) {
+                    draw_x = right_anchor;
+                    fit_w  = std::min(right_avail, kInlineLabelMaxW);
+                } else {
+                    const int left_avail = glyph_screen_x - 1 - pr.x;
+                    if (left_avail >= desired_w && left_avail > 0) {
+                        fit_w  = std::min(left_avail, kInlineLabelMaxW);
+                        draw_x = glyph_screen_x - 1 - std::min(max_w, fit_w);
+                    }
+                }
+                if (draw_x >= pr.x)
+                    emit_block(draw_x, glyph_screen_y, fit_w);
+            };
+
+            // Mode selection: Black walker in transit always uses inline.
+            const bool black_in_transit =
+                (ice.color == IceColor::Black && ice.walk_pipe_index >= 0);
+
+            if (black_in_transit) {
+                draw_inline();
+            } else {
+                // Try Mode A. room_index_at returns the room containing
+                // (ice.x, ice.y) or the nearest room by Chebyshev — for
+                // a Black walker AT a node this still resolves to the
+                // node's room. -1 only if ns.rooms is empty.
+                int ridx = room_index_at(s.netspace, ice.x, ice.y);
+                bool placed = false;
+                if (ridx >= 0 && ridx < (int)s.netspace.rooms.size()) {
+                    const NetRoom& room = s.netspace.rooms[ridx];
+                    const int rcx = room.x + room.w / 2;
+                    const int rcy = room.y + room.h / 2;
+                    const int dx  = rcx - s.netspace.jack_in_x;
+                    const int dy  = rcy - s.netspace.jack_in_y;
+
+                    enum Dir { North = 0, South = 1, East = 2, West = 3 };
+                    Dir preferred;
+                    if (std::abs(dx) >= std::abs(dy))
+                        preferred = (dx >= 0) ? East : West;
+                    else
+                        preferred = (dy >= 0) ? South : North;
+
+                    // S6.3.1: try preferred direction first, then
+                    // CW-perpendicular, CCW-perpendicular, opposite.
+                    // Take the first direction that fits the playfield.
+                    static const Dir kTryOrder[4][4] = {
+                        /* North */ { North, East,  West,  South },
+                        /* South */ { South, East,  West,  North },
+                        /* East  */ { East,  South, North, West  },
+                        /* West  */ { West,  South, North, East  },
+                    };
+
+                    // S6.4: Mode A now wraps the text block in a
+                    // box_thin border and connects to the room's wall
+                    // with a 2-cell tether. Box geometry:
+                    //   box_w = block_w + 2, box_h = block_h + 2
+                    // Tether length = 2 cells. Anchor formulas place
+                    // block_top such that there's exactly tether_len
+                    // cells of empty between the room wall and the
+                    // outer box border.
+                    constexpr int kTetherLen = 2;
+                    const int box_w = block_w + 2;
+                    const int box_h = block_h + 2;
+
+                    for (int i = 0; i < 4 && !placed; ++i) {
+                        Dir dir = kTryOrder[static_cast<int>(preferred)][i];
+
+                        // World-coord anchors for the BLOCK (text) top-
+                        // left, plus the box's outer rect (top-left and
+                        // dimensions).
+                        int block_wx = 0, block_wy = 0;
+                        int box_wx   = 0, box_wy   = 0;
+                        // Tether: cells along the bridge from room wall
+                        // to box. Stored as up to 2 (wx, wy) pairs plus
+                        // the room-wall attach cell and the box-border
+                        // attach cell (for T-junction overdraw).
+                        int tether_a_wx = 0, tether_a_wy = 0;  // closer to room
+                        int tether_b_wx = 0, tether_b_wy = 0;  // closer to box
+                        int wall_attach_wx = 0, wall_attach_wy = 0;
+                        int box_attach_wx  = 0, box_attach_wy  = 0;
+                        const char* wall_tee = nullptr;
+                        const char* box_tee  = nullptr;
+                        switch (dir) {
+                            case North: {
+                                block_wx = room.x + 2;
+                                block_wy = room.y - kTetherLen - 1 - block_h;
+                                box_wx   = block_wx - 1;
+                                box_wy   = block_wy - 1;
+                                tether_a_wx = room.x + 2;
+                                tether_a_wy = room.y - 1;
+                                tether_b_wx = room.x + 2;
+                                tether_b_wy = room.y - 2;
+                                wall_attach_wx = room.x + 2;
+                                wall_attach_wy = room.y;
+                                box_attach_wx  = room.x + 2;
+                                box_attach_wy  = box_wy + box_h - 1;
+                                wall_tee = net_theme::tee_up;          // ┴ (thin, room side)
+                                box_tee  = net_theme::tee_dh_down_s;   // ╥ (double H, single down)
+                                break;
+                            }
+                            case South: {
+                                block_wx = room.x + 2;
+                                block_wy = room.y + room.h + kTetherLen + 1;
+                                box_wx   = block_wx - 1;
+                                box_wy   = block_wy - 1;
+                                tether_a_wx = room.x + 2;
+                                tether_a_wy = room.y + room.h;
+                                tether_b_wx = room.x + 2;
+                                tether_b_wy = room.y + room.h + 1;
+                                wall_attach_wx = room.x + 2;
+                                wall_attach_wy = room.y + room.h - 1;
+                                box_attach_wx  = room.x + 2;
+                                box_attach_wy  = box_wy;
+                                wall_tee = net_theme::tee_down;        // ┬ (thin, room side)
+                                box_tee  = net_theme::tee_dh_up_s;     // ╨ (double H, single up)
+                                break;
+                            }
+                            case East: {
+                                block_wx = room.x + room.w + kTetherLen + 1;
+                                block_wy = room.y + 1;
+                                box_wx   = block_wx - 1;
+                                box_wy   = block_wy - 1;
+                                tether_a_wx = room.x + room.w;
+                                tether_a_wy = room.y + 1;
+                                tether_b_wx = room.x + room.w + 1;
+                                tether_b_wy = room.y + 1;
+                                wall_attach_wx = room.x + room.w - 1;
+                                wall_attach_wy = room.y + 1;
+                                box_attach_wx  = box_wx;
+                                box_attach_wy  = room.y + 1;
+                                wall_tee = net_theme::tee_right;       // ├ (thin, room side)
+                                box_tee  = net_theme::tee_dv_left_s;   // ╢ (double V, single left)
+                                break;
+                            }
+                            case West: {
+                                block_wx = room.x - kTetherLen - 1 - block_w;
+                                block_wy = room.y + 1;
+                                box_wx   = block_wx - 1;
+                                box_wy   = block_wy - 1;
+                                tether_a_wx = room.x - 1;
+                                tether_a_wy = room.y + 1;
+                                tether_b_wx = room.x - 2;
+                                tether_b_wy = room.y + 1;
+                                wall_attach_wx = room.x;
+                                wall_attach_wy = room.y + 1;
+                                box_attach_wx  = box_wx + box_w - 1;
+                                box_attach_wy  = room.y + 1;
+                                wall_tee = net_theme::tee_left;        // ┤ (thin, room side)
+                                box_tee  = net_theme::tee_dv_right_s;  // ╟ (double V, single right)
+                                break;
+                            }
+                        }
+
+                        // Fit check on the EXTENDED rect (box + tether)
+                        // in screen space.
+                        const int ext_x0_w = std::min(box_wx, wall_attach_wx);
+                        const int ext_y0_w = std::min(box_wy, wall_attach_wy);
+                        const int ext_x1_w = std::max(box_wx + box_w - 1,
+                                                      wall_attach_wx);
+                        const int ext_y1_w = std::max(box_wy + box_h - 1,
+                                                      wall_attach_wy);
+                        const int ext_sx0 = ext_x0_w - s_camera.cam_x + pr.x;
+                        const int ext_sy0 = ext_y0_w - s_camera.cam_y + pr.y;
+                        const int ext_sx1 = ext_x1_w - s_camera.cam_x + pr.x;
+                        const int ext_sy1 = ext_y1_w - s_camera.cam_y + pr.y;
+                        const bool fits =
+                            ext_sx0 >= pr.x &&
+                            ext_sy0 >= pr.y &&
+                            ext_sx1 <  pr.x + pr.w &&
+                            ext_sy1 <  pr.y + pr.h;
+
+                        if (!fits) continue;
+
+                        // ---- Draw box border ---------------------
+                        // S6.5: box frame is double-line + white; the
+                        // text content INSIDE keeps the per-ICE
+                        // block_col coloring (emitted further below).
+                        const auto& bg     = net_theme::box_double;
+                        const auto& thin_g = net_theme::box_thin;
+                        auto draw_at = [&](int wx, int wy,
+                                           const char* glyph, Color c) {
+                            int dsx, dsy;
+                            if (!cull(wx, wy, dsx, dsy)) return;
+                            r.draw_glyph(pr.x + dsx, pr.y + dsy, glyph, c);
+                        };
+                        // Corners
+                        draw_at(box_wx,             box_wy,             bg.tl, Color::White);
+                        draw_at(box_wx + box_w - 1, box_wy,             bg.tr, Color::White);
+                        draw_at(box_wx,             box_wy + box_h - 1, bg.bl, Color::White);
+                        draw_at(box_wx + box_w - 1, box_wy + box_h - 1, bg.br, Color::White);
+                        // Top + bottom horizontals
+                        for (int hx = box_wx + 1; hx < box_wx + box_w - 1; ++hx) {
+                            draw_at(hx, box_wy,             bg.h, Color::White);
+                            draw_at(hx, box_wy + box_h - 1, bg.h, Color::White);
+                        }
+                        // Left + right verticals
+                        for (int vy = box_wy + 1; vy < box_wy + box_h - 1; ++vy) {
+                            draw_at(box_wx,             vy, bg.v, Color::White);
+                            draw_at(box_wx + box_w - 1, vy, bg.v, Color::White);
+                        }
+
+                        // ---- Draw tether (2 cells) ---------------
+                        // S6.5: tether stays SINGLE-line (thin) and
+                        // renders white — visual reads as
+                        // double box -> single tether -> thin room.
+                        const bool tether_horiz =
+                            (dir == East || dir == West);
+                        const char* tether_glyph =
+                            tether_horiz ? thin_g.h : thin_g.v;
+                        draw_at(tether_a_wx, tether_a_wy,
+                                tether_glyph, Color::White);
+                        draw_at(tether_b_wx, tether_b_wy,
+                                tether_glyph, Color::White);
+
+                        // ---- T-junctions ------------------------
+                        // S6.5: both attach junctions render white.
+                        // The room-side keeps a thin T (room border is
+                        // thin); the box-side uses a mixed-weight tee
+                        // (double edge with a single branch toward
+                        // the tether), so the weight transition reads
+                        // cleanly.
+                        draw_at(wall_attach_wx, wall_attach_wy,
+                                wall_tee, Color::White);
+                        draw_at(box_attach_wx, box_attach_wy,
+                                box_tee, Color::White);
+
+                        // ---- Block text -------------------------
+                        // Convert block_wx/wy to screen for emit_block.
+                        const int screen_ax =
+                            block_wx - s_camera.cam_x + pr.x;
+                        const int screen_ay =
+                            block_wy - s_camera.cam_y + pr.y;
+                        const int avail_w =
+                            (pr.x + pr.w) - screen_ax;
+                        const int fit_w =
+                            std::min(avail_w, kInlineLabelMaxW);
+                        emit_block(screen_ax, screen_ay, fit_w);
+                        placed = true;
+                    }
+                }
+                if (!placed) draw_inline();
+            }
+        }
     }
 
     {
@@ -2129,6 +2744,15 @@ void render(Game& game, Renderer& r) {
     draw_log_pane(r, b.log, *sess, game.hacking().blink_phase());
     draw_meatworld_footer(r, b.footer, *sess);
     draw_deck_panel(game, r, b.deck, *sess);
+    // S6-followup: vertical chrome separator between the field and the
+    // HOSTILES sidebar. Skipped on narrow terminals where the sidebar
+    // wasn't carved (hostiles.h == 0).
+    if (b.hostiles.h > 0) {
+        const int sep_x = b.hostiles.x - 1;
+        for (int j = 0; j < b.field.h; ++j)
+            r.draw_glyph(sep_x, b.field.y + j, "\xe2\x94\x82", kChrome);  // │
+    }
+    draw_hostiles_band(r, b.hostiles, *sess);
 
     if (sess->netspace.window_state == WindowState::Blackwall &&
         !sess->window_seq.active()) {
@@ -2181,6 +2805,20 @@ bool selftest_bands(std::string& err) {
         if (b.log.h     != kLogRows)    return fail("log.h!=kLogRows");
         if (b.deck.h    != 1 + deck_slots) return fail("deck.h!=1+deck_slots");
         if (b.field.h   < 1)            return fail("field.h<1");
+        // S6-followup: hostiles is a vertical sidebar inside the field. When
+        // carved, it must sit immediately right of the field with a 1-cell
+        // separator column, share the field's vertical extent, and match
+        // kHostilesSidebarW. When skipped (narrow terminal) hostiles.h == 0.
+        if (b.hostiles.h != 0) {
+            if (b.hostiles.x != b.field.x + b.field.w + 1)
+                return fail("hostiles.x not just-right-of-field-sep");
+            if (b.hostiles.y != b.field.y)
+                return fail("hostiles.y != field.y");
+            if (b.hostiles.h != b.field.h)
+                return fail("hostiles.h != field.h");
+            if (b.hostiles.w != kHostilesSidebarW)
+                return fail("hostiles.w != kHostilesSidebarW");
+        }
 
         // Interior containment for every band.
         const int ix = wr.x + 1;
@@ -2195,13 +2833,14 @@ bool selftest_bands(std::string& err) {
             if (r2.y + r2.h > ib) { std::snprintf(buf, sizeof(buf), "%s bottom>ib", name); return fail(buf); }
             return true;
         };
-        if (!check_rect(b.header,  "header"))  return false;
-        if (!check_rect(b.field,   "field"))   return false;
-        if (!check_rect(b.caption, "caption")) return false;
-        if (!check_rect(b.deck,    "deck"))    return false;
-        if (!check_rect(b.vitals,  "vitals"))  return false;
-        if (!check_rect(b.log,     "log"))     return false;
-        if (!check_rect(b.footer,  "footer"))  return false;
+        if (!check_rect(b.header,   "header"))   return false;
+        if (!check_rect(b.field,    "field"))    return false;
+        if (!check_rect(b.caption,  "caption"))  return false;
+        if (!check_rect(b.deck,     "deck"))     return false;
+        if (b.hostiles.h != 0 && !check_rect(b.hostiles, "hostiles")) return false;
+        if (!check_rect(b.vitals,   "vitals"))   return false;
+        if (!check_rect(b.log,      "log"))      return false;
+        if (!check_rect(b.footer,   "footer"))   return false;
 
         // Footer pinned at wr.y + wr.h - 2.
         if (b.footer.y != wr.y + wr.h - 2) return fail("footer.y!=wr.y+wr.h-2");
@@ -2210,11 +2849,11 @@ bool selftest_bands(std::string& err) {
         // header→field: a separator row sits between them, so field.y >= header.y+header.h+1.
         if (b.field.y < b.header.y + b.header.h + 1) return fail("field.y<header bottom+1");
         // Remaining adjacent pairs: next.y >= cur.y + cur.h (no overlap; separator may follow).
-        if (b.caption.y < b.field.y   + b.field.h)   return fail("caption overlaps field");
-        if (b.deck.y    < b.caption.y + b.caption.h)  return fail("deck overlaps caption");
-        if (b.vitals.y  < b.deck.y    + b.deck.h)     return fail("vitals overlaps deck");
-        if (b.log.y     < b.vitals.y  + b.vitals.h)   return fail("log overlaps vitals");
-        if (b.footer.y  < b.log.y     + b.log.h)      return fail("footer overlaps log");
+        if (b.caption.y  < b.field.y    + b.field.h)    return fail("caption overlaps field");
+        if (b.deck.y     < b.caption.y  + b.caption.h)  return fail("deck overlaps caption");
+        if (b.vitals.y   < b.deck.y     + b.deck.h)     return fail("vitals overlaps deck");
+        if (b.log.y      < b.vitals.y   + b.vitals.h)   return fail("log overlaps vitals");
+        if (b.footer.y   < b.log.y      + b.log.h)      return fail("footer overlaps log");
     }
     return true;
 }

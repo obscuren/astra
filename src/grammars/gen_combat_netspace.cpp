@@ -36,9 +36,12 @@ constexpr int kGapWallW  = 2;    // JACK -> VAULT (west)  : raw 4 -> seg 4 + bre
 uint8_t wall_density(int tier) { return tier <= 1 ? 3 : 4; }
 
 // Tier-scaled roster (see .claude/specs/netspace-combat-arena-spec.md). Bidirectional since S3: the GRAY station shoots back.
-int gray_pack(int tier)    { return 2 + tier / 2; }            // t1=2 t2=3 t3=3 t4=4 t5=4
-int white_count(int tier)  { return tier >= 2 ? 2 : 1; }
-int black_count(int tier)  { return tier >= 3 ? 2 : 1; }
+// S6.2: capped at exactly ONE ICE per station room across all tiers so the
+// per-ICE multi-line telegraph block reads cleanly without overlap. HP still
+// scales with tier (gray_hp/black_hp/white_hp below).
+int gray_pack(int tier)    { return tier >= 1 ? 1 : 0; }       // 1 per room
+int white_count(int tier)  { return tier >= 1 ? 1 : 0; }       // 1 per room
+int black_count(int tier)  { return tier >= 1 ? 1 : 0; }       // 1 per room
 int white_hp(int tier)     { return 1 + (tier >= 4 ? 1 : 0); }
 int gray_hp(int tier)      { return 2 + tier / 2; }
 int black_hp(int tier)     { return 4 + tier; }
@@ -92,8 +95,10 @@ void seed_ice(NetspaceBuilder& b, int cx, int cy, IceColor color,
         Ice ic;
         ic.x = c.first;
         ic.y = c.second;
+        ic.home_room_idx = room_index_at(b.ns, c.first, c.second);
         ic.color = color;
         ic.hp = hp;
+        ic.hp_max = ic.hp;          // S6.2: cache for HP bar render
         b.ns.initial_ice.push_back(ic);
         ++placed;
     }

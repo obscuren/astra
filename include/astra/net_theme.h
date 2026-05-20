@@ -120,6 +120,22 @@ constexpr const char* pipe_port_corner_tr_glyph = "\xe2\x95\x9c";  // ╜ — pi
 constexpr const char* pipe_port_down_d_glyph = "\xe2\x95\xa6";  // ╦ — pipe exits double-box bottom
 constexpr Color       pipe_color = Color::Cyan;
 
+// Fork-pipe T-junctions for box_thin — used by the S6.4 ICE telegraph
+// tether to splice into a room's wall and the wrapping label box.
+constexpr const char* tee_down  = "\xe2\x94\xac";  // ┬ U+252C — splits down from a horizontal edge
+constexpr const char* tee_up    = "\xe2\x94\xb4";  // ┴ U+2534 — splits up   from a horizontal edge
+constexpr const char* tee_right = "\xe2\x94\x9c";  // ├ U+251C — splits right from a vertical   edge
+constexpr const char* tee_left  = "\xe2\x94\xa4";  // ┤ U+2524 — splits left  from a vertical   edge
+
+// Mixed-weight tees for double<->single junctions. Useful when a double-
+// bordered overlay (e.g. the S6 telegraph box) tethers into a single-
+// bordered surface (a thin-bordered room). The "D" side is the double
+// edge, the branch is single.
+inline constexpr const char* tee_dh_down_s  = "\xe2\x95\xa5";  // ╥ — double horizontal, single down branch
+inline constexpr const char* tee_dh_up_s    = "\xe2\x95\xa8";  // ╨ — double horizontal, single up branch
+inline constexpr const char* tee_dv_left_s  = "\xe2\x95\xa2";  // ╢ — double vertical, single left branch
+inline constexpr const char* tee_dv_right_s = "\xe2\x95\x9f";  // ╟ — double vertical, single right branch
+
 // Canonical glyph vocabulary from the design doc.
 constexpr const char* glyph_jack_in_arrow = "\xe2\x97\x84";  // ◄
 constexpr const char* glyph_exit_arrow    = "\xe2\x96\xba";  // ►

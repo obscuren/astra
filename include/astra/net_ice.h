@@ -1,5 +1,7 @@
 #pragma once
 
+#include "astra/net_ice_telegraph.h"
+
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -12,6 +14,7 @@ struct Ice {
     int       x = 0;
     int       y = 0;
     int       hp = 1;
+    int       hp_max = 1;              // S6.2: cached starting hp for HP bar render
     IceColor  color = IceColor::White;
     int       patrol_dir = 0;          // 0..3 (white only)
     bool      sees_avatar = false;     // refreshed each turn for all colors
@@ -40,6 +43,27 @@ struct Ice {
     // end-sweep (which catches collision-killed ICE). Set in
     // kill_if_dead; reset only when a new ICE is constructed.
     bool      killed = false;
+
+    // Phase 5 S6: ICE-intrinsic obfuscation tier (combat.md's
+    // gradient). All S6 ICE default to Watchdog; Elite/Boss/Blackwall
+    // are seams for future content. Drives sniff_show() gating.
+    IceTelegraphTier telegraph_tier = IceTelegraphTier::Watchdog;
+
+    // Phase 5 S6: cast windup state. cast_windup_left > 0 means ICE is
+    // pre-spawning a payload (telegraph visible to player). When it
+    // ticks from 1 to 0, payload spawns + cast_cooldown resets to
+    // kIceCastCadence. cast_windup_total caches the starting beats for
+    // X/N rendering. Both default 0 (= not winding).
+    int cast_windup_left  = 0;
+    int cast_windup_total = 0;
+
+    // Phase 5 S6.3: room index this ICE was spawned in (-1 = unset /
+    // pre-S6.3, no constraint). Used by tick_all's White patrol case to
+    // keep White ICE bounded to its room rather than wandering into
+    // other rooms (which would collide other ICE's room-anchored labels
+    // in the renderer). Black walker ignores this -- it leaves its
+    // home room by design.
+    int home_room_idx = -1;
 };
 
 struct NetSession; // fwd

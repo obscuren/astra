@@ -469,6 +469,26 @@ bool place_ice_far(NetSession& s, IceColor color, int hp,
         bool occupied = false;
         for (auto& i : s.ice) if (i.x == x && i.y == y) { occupied = true; break; }
         if (occupied) continue;
+        // Phase 5 S6.3: preserve the 1-ICE-per-room invariant from the
+        // combat-bench seed. Refuse to spawn into a room that already
+        // contains a live ICE -- the renderer's room-anchored telegraph
+        // placement assumes at most one ICE per room. Falls through to
+        // the next retry; 96 retries provide plenty of headroom for
+        // rooms that ARE empty in the bench's 5-room layout.
+        {
+            int dest_room = astra::room_index_at(s.netspace, x, y);
+            if (dest_room >= 0) {
+                bool room_occupied = false;
+                for (auto& i : s.ice) {
+                    if (i.hp <= 0) continue;
+                    if (astra::room_index_at(s.netspace, i.x, i.y) == dest_room) {
+                        room_occupied = true;
+                        break;
+                    }
+                }
+                if (room_occupied) continue;
+            }
+        }
         // Phase 5 S5: never spawn Black inside the avatar's room — S5
         // walker treats that as "already reached you" and unconditional
         // GameOver fires the next beat, with zero player agency.
@@ -478,6 +498,7 @@ bool place_ice_far(NetSession& s, IceColor color, int hp,
         }
         Ice ice;
         ice.x = x; ice.y = y;
+        ice.home_room_idx = astra::room_index_at(s.netspace, x, y);
         ice.color = color;
         ice.hp = hp;
         s.ice.push_back(ice);
