@@ -1,6 +1,7 @@
 #include "astra/net_renderer.h"
 
 #include "astra/cyberdeck.h"
+#include "astra/daemon.h"
 #include "astra/net_window_anim.h"
 #include "astra/game.h"
 #include "astra/net_camera.h"
@@ -125,11 +126,11 @@ struct NetBands {
     Rect header;   // 1 row
     Rect field;    // elastic
     Rect caption;  // 1 row
-    Rect deck;     // 1 header row + eff_slots rows
+    Rect deck;     // eff_slots rows (label embedded in sep_caption)
     Rect hostiles; // S6-followup: vertical sidebar carved off right of field
     Rect vitals;   // 1 row
     Rect log;      // kLogRows rows
-    Rect footer;   // 1 row — row for the meatworld-clock footer — consumed in Slice 1 Task 8
+    Rect footer;   // 1 row — loadout strip (implant + cyberdeck name)
 };
 constexpr int kLogRows = 8;
 
@@ -137,11 +138,14 @@ constexpr int kLogRows = 8;
 NetBands compute_bands(const WindowRect& wr, int deck_slots) {
     const int ix = wr.x + 1;          // interior left
     const int iw = wr.w - 2;          // interior width
-    const int deck_h = 1 + deck_slots;
-    // S6-followup: HOSTILES is now a vertical sidebar inside the field rect,
-    // not a horizontal band between deck and vitals. The vertical row budget
-    // matches the pre-S6 layout (no extra band, no extra separator).
-    const int bottom_block = 1 /*footer*/ + 1 + kLogRows + 1 + 1 /*vitals*/
+    // S7c.1 followup: DECK label is embedded into the separator ABOVE
+    // the band (via draw_labeled_separator) instead of taking its own
+    // header row inside the band. So the band height = slot count only.
+    const int deck_h = deck_slots;
+    // S7c.1 followup: meatworld-clock footer repurposed as a loadout
+    // strip (implant + cyberdeck name). Footer pinned at wr.h-2;
+    // sep_log sits between log and footer.
+    const int bottom_block = 1 /*footer*/ + 1 /*sep_log*/ + kLogRows + 1 + 1 /*vitals*/
                            + 1 + deck_h
                            + 1 + 1 /*caption*/;
     NetBands b{};
@@ -150,10 +154,10 @@ NetBands compute_bands(const WindowRect& wr, int deck_slots) {
     const int field_h = std::max(1, wr.h - 2 /*chrome*/ - 1 /*header*/
                                  - 1 /*hdr sep*/ - bottom_block);
     b.field    = { ix, y, iw, field_h };          y += field_h;
-    b.caption  = { ix, y, iw, 1 };                y += 1 + 1; // caption + its sep
+    b.caption  = { ix, y, iw, 1 };                y += 1 + 1; // caption + DECK-labeled sep
     b.deck     = { ix, y, iw, deck_h };           y += deck_h + 1;
     b.vitals   = { ix, y, iw, 1 };                y += 1 + 1;
-    b.log      = { ix, y, iw, kLogRows };         y += kLogRows + 1;
+    b.log      = { ix, y, iw, kLogRows };
     b.footer   = { ix, wr.y + wr.h - 2, iw, 1 };
     // S6-followup: carve a vertical HOSTILES sidebar off the right edge of
     // the field. Width = kHostilesSidebarW, separated from the world view by
@@ -169,11 +173,8 @@ NetBands compute_bands(const WindowRect& wr, int deck_slots) {
     } else {
         b.hostiles = { b.field.x + b.field.w, b.field.y, 0, 0 };
     }
-    // Sub-minimum-window safety: the footer is pinned at wr.h-2 independently
-    // of the top-down accumulator, so on windows below the documented minimum
-    // the log band (kLogRows tall, drawn unconditionally by draw_log_pane) can
-    // run into the pinned footer or the bottom chrome row. Clamp its height so
-    // it never overruns the footer. <=0 height makes draw_log_pane no-op.
+    // Sub-minimum-window safety: footer is pinned at wr.h-2; clamp
+    // the log so it never overruns the footer or the bottom chrome.
     if (b.log.y + b.log.h > b.footer.y)
         b.log.h = std::max(0, b.footer.y - b.log.y);
     // NOTE: compute_bands assumes wr.h >= deck_h + kLogRows + 12 for all bands
@@ -296,6 +297,36 @@ void draw_horizontal_separator(Renderer& r, const WindowRect& wr, int y_in_windo
     for (int i = 1; i < wr.w - 1; ++i) {
         r.draw_glyph(wr.x + i, y, "\xe2\x95\x90", kChrome);
     }
+}
+
+// Forward decl — draw_colored_string is defined later in this TU.
+void draw_colored_string(Renderer& r, int x, int y,
+                         const std::string& text, Color c);
+
+// Labeled variant: embeds `═╡LABEL╞══════` style with the label
+// bracketed by single-vertical glyphs that sit on top of the double-
+// horizontal separator. Label starts 2 cells in from the left chrome.
+void draw_labeled_separator(Renderer& r, const WindowRect& wr,
+                            int y_in_window,
+                            const std::string& label, Color label_color) {
+    const int y = wr.y + y_in_window;
+    r.draw_glyph(wr.x,            y, "\xe2\x95\xa0", kChrome);  // ╠
+    r.draw_glyph(wr.x + wr.w - 1, y, "\xe2\x95\xa3", kChrome);  // ╣
+    // UTF-8-aware label width (count non-continuation bytes).
+    int label_w = 0;
+    for (unsigned char ch : label)
+        if ((ch & 0xC0) != 0x80) ++label_w;
+    const int bracket_l = wr.x + 2;
+    const int bracket_r = bracket_l + 1 + label_w;
+    // Fill ═ across the row, skipping the label region.
+    for (int i = 1; i < wr.w - 1; ++i) {
+        const int col = wr.x + i;
+        if (col >= bracket_l && col <= bracket_r) continue;
+        r.draw_glyph(col, y, "\xe2\x95\x90", kChrome);          // ═
+    }
+    r.draw_glyph(bracket_l, y, "\xe2\x95\xa1", kChrome);        // ╡
+    draw_colored_string(r, bracket_l + 1, y, label, label_color);
+    r.draw_glyph(bracket_r, y, "\xe2\x95\x9e", kChrome);        // ╞
 }
 
 
@@ -893,21 +924,22 @@ Color tag_color(const std::string& tag) {
     return Color::Cyan;
 }
 
-void draw_meatworld_footer(Renderer& r, const Rect& f, const NetSession& s) {
-    long secs = static_cast<long>(s.meat_clock_base_secs)
-              + static_cast<long>(s.net_turn)
-                * std::max(1, s.netspace.time_dilation);
-    long tod = ((secs % 86400) + 86400) % 86400;   // wrap to a day
-    int hh = static_cast<int>(tod / 3600);
-    int mm = static_cast<int>((tod % 3600) / 60);
-    int ss = static_cast<int>(tod % 60);
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "meatworld clock %02d:%02d:%02d", hh, mm, ss);
-    int x = f.x + 1;
-    draw_colored_string(r, x, f.y, buf, Color::Cyan);
-    x += static_cast<int>(std::strlen(buf));
-    draw_colored_string(r, x, f.y, "   [net paused \xe2\x80\x94 body is not]",
-                        Color::DarkGray);
+// S7c.1 followup: loadout strip — shows the equipped neural implant
+// (Relay Cortex) on the head, dash, and equipped cyberdeck name. If
+// either is missing, that side is shown as a dim "(none)".
+void draw_loadout_footer(Renderer& r, const Rect& f, Game& game) {
+    const auto& player = game.player();
+    std::string implant_name = "(no implant)";
+    const auto& head_slot = player.implant_at(ImplantSlot::Head);
+    if (head_slot && !head_slot->name.empty()) implant_name = head_slot->name;
+
+    std::string deck_name = "(no deck)";
+    auto* deck_slot = player.equipment.equipped_cyberdeck();
+    if (deck_slot && *deck_slot && !(*deck_slot)->name.empty())
+        deck_name = (*deck_slot)->name;
+
+    const std::string line = implant_name + " \xe2\x80\x94 " + deck_name;  // em-dash
+    draw_colored_string(r, f.x + 1, f.y, line, Color::Cyan);
 }
 
 void draw_field_caption(Renderer& r, const Rect& cap, const NetSession& s) {
@@ -928,6 +960,120 @@ std::string colorize_leading_tag(const std::string& line) {
     if (close == std::string::npos) return line;
     std::string tag = line.substr(0, close + 1);
     return colored(tag, tag_color(tag)) + line.substr(close + 1);
+}
+
+// S7c.1 followup: l33t-style substitution table for command-line
+// glitch. Returns the substituted char or `c` itself if unaffected.
+char corrupt_log_char(char c) {
+    switch (c) {
+        case 'o': case 'O': return '0';
+        case 's': case 'S': return '5';
+        case 'e': case 'E': return '3';
+        case 'a': case 'A': return '@';
+        case 'i': case 'I':
+        case 'l': case 'L': return '1';
+        case 't': case 'T': return '7';
+        case 'g': case 'G': return '9';
+        case 'b': case 'B': return '6';
+        default:            return c;
+    }
+}
+
+// Combining-mark glyphs for zalgo overlay (UTF-8, 2 bytes each). Each
+// stacks on the preceding base glyph with zero advance width.
+constexpr const char* kZalgoMarks[] = {
+    "\xcc\x80",  // ̀ grave
+    "\xcc\x81",  // ́ acute
+    "\xcc\x82",  // ̂ circumflex
+    "\xcc\x83",  // ̃ tilde
+    "\xcc\x84",  // ̄ macron
+    "\xcc\x88",  // ̈ diaeresis
+    "\xcc\x8a",  // ̊ ring above
+    "\xcc\x96",  // ̖ grave below
+    "\xcc\x98",  // ̘ left tack below
+    "\xcc\xa3",  // ̣ dot below
+};
+constexpr int kZalgoN =
+    sizeof(kZalgoMarks) / sizeof(kZalgoMarks[0]);
+
+// Deterministic hash for per-cell glitch randomness. Evolves with the
+// blink phase so the corruption pattern crawls between render frames.
+uint32_t glitch_hash(int row, int col, int phase, uint32_t salt) {
+    uint32_t x =
+        static_cast<uint32_t>(row) * 2654435761u ^
+        static_cast<uint32_t>(col) * 40503u      ^
+        static_cast<uint32_t>(phase) * 0x9E3779B9u ^
+        salt;
+    x ^= x >> 16; x *= 0x7feb352du;
+    x ^= x >> 15; x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+
+// Apply per-row corruption to a wrapped log line. sub_pct = ASCII-letter
+// substitution density (0..100). zal_pct = zalgo combining-mark
+// density (0..100). Walks the string byte-by-byte, preserving
+// draw_colored_string's COLOR_BEGIN/COLOR_END control bytes and UTF-8
+// continuation bytes unchanged.
+std::string corrupt_log_line(const std::string& src, int row, int phase,
+                             int sub_pct, int zal_pct) {
+    if (sub_pct <= 0 && zal_pct <= 0) return src;
+    std::string out;
+    out.reserve(src.size() + (src.size() * std::max(0, zal_pct)) / 50);
+    int col = 0;
+    for (std::size_t i = 0; i < src.size(); ) {
+        const unsigned char b = static_cast<unsigned char>(src[i]);
+        // Inline color markers: copy through, no column advance.
+        if (b == static_cast<unsigned char>(COLOR_BEGIN) &&
+            i + 1 < src.size()) {
+            out.push_back(src[i]);
+            out.push_back(src[i + 1]);
+            i += 2;
+            continue;
+        }
+        if (b == static_cast<unsigned char>(COLOR_END)) {
+            out.push_back(src[i]);
+            ++i;
+            continue;
+        }
+        // UTF-8 continuation byte: copy, no column advance.
+        if ((b & 0xC0) == 0x80) {
+            out.push_back(src[i]);
+            ++i;
+            continue;
+        }
+        // First byte of a glyph -- this is a column boundary.
+        char emit = static_cast<char>(b);
+        if (sub_pct > 0 && b < 128 &&
+            ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z'))) {
+            const uint32_t hs =
+                glitch_hash(row, col, phase, 0x53554253u);  // "SUBS"
+            if (static_cast<int>(hs % 100u) < sub_pct) {
+                emit = corrupt_log_char(static_cast<char>(b));
+            }
+        }
+        out.push_back(emit);
+        ++i;
+        // Copy any remaining UTF-8 continuation bytes for this glyph.
+        int extra = 0;
+        if      ((b & 0xF8) == 0xF0) extra = 3;
+        else if ((b & 0xF0) == 0xE0) extra = 2;
+        else if ((b & 0xE0) == 0xC0) extra = 1;
+        for (int k = 0; k < extra && i < src.size(); ++k) {
+            out.push_back(src[i]);
+            ++i;
+        }
+        // Maybe append a zalgo combining mark.
+        if (zal_pct > 0) {
+            const uint32_t hz =
+                glitch_hash(row, col, phase, 0x5A414C47u);  // "ZALG"
+            if (static_cast<int>(hz % 100u) < zal_pct) {
+                out.append(kZalgoMarks[(hz / 100u) % kZalgoN]);
+            }
+        }
+        ++col;
+    }
+    return out;
 }
 
 void draw_log_pane(Renderer& r, const Rect& log, const NetSession& s,
@@ -951,22 +1097,27 @@ void draw_log_pane(Renderer& r, const Rect& log, const NetSession& s,
     int start = max_start - s.log_scroll;   // scroll UP = earlier start
     if (start < 0) start = 0;
     if (start > max_start) start = max_start;
-    for (int i = 0; i < rows && start + i < total; ++i) {
-        draw_colored_string(r, log.x + 1, log.y + i, wrapped[start + i], Color::White);
+
+    // Command-line glitch: l33t substitution + zalgo overlay across all
+    // visible log rows. Density escalates with WindowState. Hunted is
+    // subtle ("decoded wrong"); Blackwall is heavy ("readouts lying").
+    int sub_pct = 0, zal_pct = 0;
+    switch (s.netspace.window_state) {
+        case WindowState::Hunted:    sub_pct =  5; zal_pct =  2; break;
+        case WindowState::Critical:  sub_pct = 15; zal_pct =  5; break;
+        case WindowState::Blackwall: sub_pct = 30; zal_pct = 15; break;
+        default: break;
     }
 
-    // Command-line glitch: Hunted+ states corrupt ~20% of the last visible
-    // log row with § glyphs, crawling with the blink phase.
-    if (s.netspace.window_state == WindowState::Hunted ||
-        s.netspace.window_state == WindowState::Critical ||
-        s.netspace.window_state == WindowState::Blackwall) {
-        int last = std::min(rows, total) - 1;
-        if (last >= 0) {
-            int yrow = log.y + last;
-            for (int cx = 0; cx < log.w - 2; ++cx) {
-                if ((cx * 31 + phase) % 5 == 0)
-                    r.draw_glyph(log.x + 1 + cx, yrow, "\xc2\xa7", Color::Magenta);
-            }
+    for (int i = 0; i < rows && start + i < total; ++i) {
+        const std::string& raw = wrapped[start + i];
+        if (sub_pct > 0 || zal_pct > 0) {
+            const std::string corrupted =
+                corrupt_log_line(raw, i, phase, sub_pct, zal_pct);
+            draw_colored_string(r, log.x + 1, log.y + i, corrupted,
+                                Color::White);
+        } else {
+            draw_colored_string(r, log.x + 1, log.y + i, raw, Color::White);
         }
     }
 
@@ -1153,10 +1304,10 @@ void draw_ghost_dialog(Renderer& r, const WindowRect& wr, const NetSession& s) {
 // TODO Slice 8: per-program signature glyph (replace § with program-specific icon)
 void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
                      const NetSession& s) {
-    // Header row.
-    draw_colored_string(r, deck.x + 1, deck.y, "[ DECK ]", Color::Cyan);
-
-    const int deck_slots = deck.h - 1;   // band was sized 1 + deck_slots
+    // S7c.1 followup: header label "DECK" is embedded in the separator
+    // above the band (drawn by render() via draw_labeled_separator).
+    // No header row inside the band anymore -- band.h == deck_slots.
+    const int deck_slots = deck.h;
 
     // Read the equipped cyberdeck (may be absent).
     auto* deck_slot_ptr = game.player().equipment.equipped_cyberdeck();
@@ -1183,7 +1334,7 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
     const int col_state  = ix + 33;
 
     for (int i = 0; i < deck_slots; ++i) {
-        const int row = deck.y + 1 + i;
+        const int row = deck.y + i;
         if (row >= deck.y + deck.h) break;   // guard: clip to band
 
         // Slot number tag "[n] ".
@@ -1328,7 +1479,7 @@ void draw_deck_panel(Game& game, Renderer& r, const Rect& deck,
         constexpr int kKGW    =  6;  // key+gap+glyph
         constexpr int kGap    =  3;  // requested spacing from the furthest
         for (int i = 0; i < 4; ++i) {
-            const int row = deck.y + 1 + i;
+            const int row = deck.y + i;
             if (row >= deck.y + deck.h) break;
             NetCoreAction act = s.core_actions[static_cast<size_t>(i)];
             Color col = core_action_color(act);
@@ -1405,7 +1556,9 @@ void draw_hostiles_band(Renderer& r, const Rect& band,
         const bool show_name = sniff_show(ice.telegraph_tier,
                                           s.sniff_level,
                                           RevealKind::IceCastName);
-        std::string line1 = show_name ? "gray" : "???";
+        std::string line1 = show_name
+            ? std::string(daemon_def(ice.kind).cast_prog_name)
+            : std::string("???");
         if (sniff_show(ice.telegraph_tier, s.sniff_level,
                        RevealKind::IceCastBar)) {
             int left = ice.cast_windup_left;
@@ -1442,7 +1595,14 @@ void draw_hostiles_band(Renderer& r, const Rect& band,
         const IceTelegraphTier tier = IceTelegraphTier::Watchdog;
         const bool show_name = sniff_show(tier, s.sniff_level,
                                           RevealKind::IceCastName);
-        std::string line1 = show_name ? "gray" : "???";
+        // Use the in-flight payload's prog_name (set in ice_cast_tick
+        // from daemon_def at spawn) so multiple Gray-class daemons
+        // (Watchdog, LOCK, BOLT) read distinct names here.
+        std::string line1 = show_name
+            ? (f.prog_name.empty()
+                 ? std::string("GRAY.exe")
+                 : f.prog_name)
+            : std::string("???");
         line1 += "  in flight";
         draw_row(row_i++, line1, net_theme::gray_ice);
         std::string line2 = "  \xc2\xa7"   // §
@@ -1491,6 +1651,42 @@ void draw_hostiles_band(Renderer& r, const Rect& band,
 // ---------------------------------------------------------------------------
 // Playfield
 // ---------------------------------------------------------------------------
+
+// Phase 5 S7c.1: paint a RoomFill daemon's wall-density visual across
+// its room's top interior row. Density level derives from the daemon's
+// HP fraction: ▓ at >75%, ▒ at 50-75%, ░ at 25-50%, · at 1-25%,
+// empty at hp <= 0. Glyph set matches the existing breakwall density
+// rendering so visually the conversion is seamless. The daemon's
+// color drives the glyph color.
+static void draw_roomfill_daemon(Renderer& r, int pr_x, int pr_y,
+                                 const NetCamera& cam,
+                                 const Netspace& ns,
+                                 const Ice& ice) {
+    if (ice.hp <= 0) return;
+    const DaemonDef& def = daemon_def(ice.kind);
+    if (def.render_style != DaemonRenderStyle::RoomFill) return;
+    const int ridx = room_index_at(ns, ice.x, ice.y);
+    if (ridx < 0 || ridx >= static_cast<int>(ns.rooms.size())) return;
+    const NetRoom& room = ns.rooms[static_cast<std::size_t>(ridx)];
+    const int hp_max = std::max(1, ice.hp_max > 0 ? ice.hp_max : ice.hp);
+    const int pct100 = std::clamp(ice.hp * 100 / hp_max, 0, 100);
+    const char* glyph =
+        pct100 >  75 ? "\xe2\x96\x93"   // ▓
+      : pct100 >  50 ? "\xe2\x96\x92"   // ▒
+      : pct100 >  25 ? "\xe2\x96\x91"   // ░
+      : pct100 >   0 ? "\xc2\xb7"       // ·
+      :                "";              // dead
+    if (glyph[0] == '\0') return;
+    // Top interior row: room.y + 1, cols room.x + 1 .. room.x + room.w - 2.
+    const int row = room.y + 1;
+    for (int wx = room.x + 1; wx < room.x + room.w - 1; ++wx) {
+        const int sx = wx - cam.cam_x;
+        const int sy = row - cam.cam_y;
+        if (sx < 0 || sy < 0) continue;
+        if (sx >= cam.viewport_w || sy >= cam.viewport_h) continue;
+        r.draw_glyph(pr_x + sx, pr_y + sy, glyph, def.color);
+    }
+}
 
 void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     const NetSession& s) {
@@ -1885,13 +2081,43 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
     for (const auto& ice : s.ice) {
         int sx, sy;
         if (!cull(ice.x, ice.y, sx, sy)) continue;
-        const char* g = ice.color == IceColor::White ? net_theme::white_ice_glyph
-                      : ice.color == IceColor::Gray  ? net_theme::gray_ice_glyph
-                      :                                 net_theme::black_ice_glyph;
-        Color c = ice.color == IceColor::White ? net_theme::white_ice
-                : ice.color == IceColor::Gray  ? net_theme::gray_ice
-                :                                net_theme::black_ice;
-        r.draw_glyph(pr.x + sx, pr.y + sy, g, c);
+        const DaemonDef& def = daemon_def(ice.kind);
+        // RoomFill daemons skip the single-glyph render -- their visual
+        // is painted by draw_roomfill_daemon() below. Glyph daemons
+        // (including the legacy Watchdog default) draw their single
+        // glyph here.
+        if (def.render_style == DaemonRenderStyle::Glyph) {
+            // Daemon-kind-specific glyph if the def supplies one; else
+            // fall back to the IceColor archetype glyph (preserves
+            // White ▼ / Black ▲ visuals, which Watchdog kind doesn't
+            // override).
+            const char* g =
+                (def.glyph && def.glyph[0])
+                    ? def.glyph
+                    : (ice.color == IceColor::White ? net_theme::white_ice_glyph
+                     : ice.color == IceColor::Gray  ? net_theme::gray_ice_glyph
+                     :                                 net_theme::black_ice_glyph);
+            Color c =
+                (def.glyph && def.glyph[0])
+                    ? def.color
+                    : (ice.color == IceColor::White ? net_theme::white_ice
+                     : ice.color == IceColor::Gray  ? net_theme::gray_ice
+                     :                                 net_theme::black_ice);
+            r.draw_glyph(pr.x + sx, pr.y + sy, g, c);
+        } else if (def.render_style == DaemonRenderStyle::RoomFill) {
+            draw_roomfill_daemon(r, pr.x, pr.y, s_camera, s.netspace, ice);
+        }
+    }
+
+    // Phase 5 S7c.1 followup: telegraph blocks render in a SECOND pass
+    // so every ICE's glyph / room-fill is laid down BEFORE any popout
+    // is drawn -- otherwise a later-iterated ICE's glyph would overdraw
+    // an earlier ICE's popout text. Two-pass guarantees popouts always
+    // composite on top.
+    for (const auto& ice : s.ice) {
+        int sx, sy;
+        if (!cull(ice.x, ice.y, sx, sy)) continue;
+        const DaemonDef& def = daemon_def(ice.kind);
 
         // Phase 5 S6.2: in-world multi-line telegraph block. Three lines
         // anchored at the ICE row, 1 cell to the right of the glyph:
@@ -1905,10 +2131,47 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
         // kInlineBarMaxCells cells (scaled proportionally for larger
         // hp_max/windup_total than the cap). Per-color coloring:
         // Yellow=Gray, Magenta=Black, White=White.
-        if (ice.hp > 0) {
-            const Color block_col = ice.color == IceColor::White ? net_theme::white_ice
-                                  : ice.color == IceColor::Gray  ? net_theme::gray_ice
-                                  :                                 net_theme::black_ice;
+        // Phase 5 S7c.1 followup: only render the telegraph block for
+        // ICE the avatar can currently engage (same room, or one pipe
+        // hop). Non-adjacent daemons still render their glyph and
+        // room-fill so the player can SEE them, but their info card is
+        // suppressed -- prevents the stack-of-cards visual when a
+        // chain of LOCK rooms or a crowded netspace puts many daemons
+        // in view. Adjacency matches ice_cast_tick's engagement rule.
+        bool ice_engageable = false;
+        {
+            // Avatar's room: STRICT-interior (pipe + wall cells excluded).
+            // ICE's room: non-strict (ICE may not be at strict-interior).
+            // Pipe far end: non-strict (path ends ON the far room's wall,
+            // which is in its bbox but not strict-interior).
+            // Mirrors ice_cast_tick's gating exactly.
+            const int avatar_room = room_index_at_strict(
+                s.netspace, s.avatar_x, s.avatar_y);
+            const int ice_room = room_index_at(
+                s.netspace, ice.x, ice.y);
+            if (avatar_room >= 0 && ice_room >= 0) {
+                if (avatar_room == ice_room) {
+                    ice_engageable = true;
+                } else {
+                    const auto conn = connected_pipe_indices(
+                        s.netspace, s.avatar_x, s.avatar_y);
+                    for (int pidx : conn) {
+                        const auto path = pipe_path_cells(
+                            s.netspace, pidx, s.avatar_x, s.avatar_y);
+                        if (path.empty()) continue;
+                        const int far_room = room_index_at(
+                            s.netspace,
+                            path.back().first, path.back().second);
+                        if (far_room == ice_room) {
+                            ice_engageable = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (ice.hp > 0 && ice_engageable) {
+            const Color block_col = daemon_def(ice.kind).color;
 
             // Bar-cell helper (filled count); total cells = min(max, cap).
             auto bar_cells = [](int filled_units, int max_units) -> int {
@@ -1935,11 +2198,10 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
             const bool show_name = sniff_show(ice.telegraph_tier,
                                               s.sniff_level,
                                               RevealKind::IceCastName);
-            const char* color_word = ice.color == IceColor::White ? "WHITE"
-                                   : ice.color == IceColor::Gray  ? "GRAY"
-                                   :                                 "BLACK";
-            std::string line1 = std::string(color_word) + " ICE.EXE";
-            if (!show_name) line1 = "???.EXE";
+            const DaemonDef& def_l1 = daemon_def(ice.kind);
+            std::string line1 = show_name
+                ? std::string(def_l1.cast_prog_name)
+                : std::string("???.EXE");
 
             // ---- Line 2 : HP ----------------------------------------
             bool have_line2 = sniff_show(ice.telegraph_tier, s.sniff_level,
@@ -1967,7 +2229,10 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                         int total = std::max(1, ice.cast_windup_total);
                         int left  = std::clamp(ice.cast_windup_left, 0, total);
                         int filled = total - left;
-                        const std::string pname = show_name ? "gray ICE" : "???";
+                        const std::string pname =
+                            show_name
+                                ? std::string(daemon_def(ice.kind).cast_prog_name)
+                                : std::string("???");
                         int fc = bar_cells(filled, total);
                         int tc = bar_total(total);
                         line3 = "executing: " + pname + " "
@@ -1998,10 +2263,11 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                             int seg_len = std::max(1, my_f->seg_len);
                             seg = std::clamp(seg, 0, seg_len);
                             const std::string pname =
-                                show_name ? (my_f->prog_name.empty()
-                                              ? "gray ICE"
-                                              : my_f->prog_name)
-                                          : "???";
+                                show_name
+                                    ? (my_f->prog_name.empty()
+                                         ? std::string(daemon_def(ice.kind).cast_prog_name)
+                                         : my_f->prog_name)
+                                    : std::string("???");
                             int fc = bar_cells(seg, seg_len);
                             int tc = bar_total(seg_len);
                             line3 = "running: " + pname + " "
@@ -2134,7 +2400,13 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
 
                     // S6.3.1: try preferred direction first, then
                     // CW-perpendicular, CCW-perpendicular, opposite.
-                    // Take the first direction that fits the playfield.
+                    // S7c.1 followup: pick the BEST direction (one that
+                    // doesn't put the popout box on top of another room's
+                    // bbox). Two passes: pass 0 requires zero overlap
+                    // with other rooms (the "clean" placement); pass 1
+                    // accepts any overlap (fallback so something always
+                    // draws). Within each pass, iterate kTryOrder and
+                    // pick the first direction that fits.
                     static const Dir kTryOrder[4][4] = {
                         /* North */ { North, East,  West,  South },
                         /* South */ { South, East,  West,  North },
@@ -2154,6 +2426,34 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     const int box_w = block_w + 2;
                     const int box_h = block_h + 2;
 
+                    // Helper: count how many cells of a box rect land
+                    // inside another room's bbox (excluding the daemon's
+                    // own room). Lower is better; 0 = clean placement.
+                    auto count_box_overlap =
+                        [&](int bx, int by, int bw, int bh) -> int {
+                        int bad = 0;
+                        for (int wy = by; wy < by + bh; ++wy) {
+                            for (int wx = bx; wx < bx + bw; ++wx) {
+                                for (int rj = 0;
+                                     rj < (int)s.netspace.rooms.size(); ++rj) {
+                                    if (rj == ridx) continue;
+                                    const NetRoom& other =
+                                        s.netspace.rooms[rj];
+                                    if (wx >= other.x &&
+                                        wx <  other.x + other.w &&
+                                        wy >= other.y &&
+                                        wy <  other.y + other.h) {
+                                        ++bad;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        return bad;
+                    };
+
+                    for (int pass = 0; pass < 2 && !placed; ++pass) {
+                    const bool require_clean = (pass == 0);
                     for (int i = 0; i < 4 && !placed; ++i) {
                         Dir dir = kTryOrder[static_cast<int>(preferred)][i];
 
@@ -2186,8 +2486,8 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                                 wall_attach_wy = room.y;
                                 box_attach_wx  = room.x + 2;
                                 box_attach_wy  = box_wy + box_h - 1;
-                                wall_tee = net_theme::tee_up;          // ┴ (thin, room side)
-                                box_tee  = net_theme::tee_dh_down_s;   // ╥ (double H, single down)
+                                wall_tee = net_theme::tee_up;          // ┴ at room top (thin)
+                                box_tee  = net_theme::tee_sh_down_d;   // ╤ at box bottom (single H + double down stem)
                                 break;
                             }
                             case South: {
@@ -2203,8 +2503,8 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                                 wall_attach_wy = room.y + room.h - 1;
                                 box_attach_wx  = room.x + 2;
                                 box_attach_wy  = box_wy;
-                                wall_tee = net_theme::tee_down;        // ┬ (thin, room side)
-                                box_tee  = net_theme::tee_dh_up_s;     // ╨ (double H, single up)
+                                wall_tee = net_theme::tee_down;        // ┬ at room bottom (thin)
+                                box_tee  = net_theme::tee_sh_up_d;     // ╧ at box top (single H + double up stem)
                                 break;
                             }
                             case East: {
@@ -2220,8 +2520,8 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                                 wall_attach_wy = room.y + 1;
                                 box_attach_wx  = box_wx;
                                 box_attach_wy  = room.y + 1;
-                                wall_tee = net_theme::tee_right;       // ├ (thin, room side)
-                                box_tee  = net_theme::tee_dv_left_s;   // ╢ (double V, single left)
+                                wall_tee = net_theme::tee_right;       // ├ at room right (thin)
+                                box_tee  = net_theme::tee_sv_left_d;   // ╡ at box left (single V + double left stem)
                                 break;
                             }
                             case West: {
@@ -2237,8 +2537,8 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                                 wall_attach_wy = room.y + 1;
                                 box_attach_wx  = box_wx + box_w - 1;
                                 box_attach_wy  = room.y + 1;
-                                wall_tee = net_theme::tee_left;        // ┤ (thin, room side)
-                                box_tee  = net_theme::tee_dv_right_s;  // ╟ (double V, single right)
+                                wall_tee = net_theme::tee_left;        // ┤ at room left (thin)
+                                box_tee  = net_theme::tee_sv_right_d;  // ╞ at box right (single V + double right stem)
                                 break;
                             }
                         }
@@ -2262,6 +2562,34 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                             ext_sy1 <  pr.y + pr.h;
 
                         if (!fits) continue;
+
+                        // S7c.1 followup: skip this direction in the
+                        // first pass if its box would overlap any other
+                        // room's bbox. The second pass accepts overlap
+                        // as a fallback.
+                        const int overlap =
+                            count_box_overlap(box_wx, box_wy,
+                                              box_w, box_h);
+                        if (require_clean && overlap > 0) continue;
+
+                        // ---- Fill box rect with black background ---
+                        // S7c.1 followup: clear the box's full rect to
+                        // a black bg BEFORE drawing border + text so
+                        // underlying pipe / room / room-fill glyphs
+                        // don't bleed through the popout. Subsequent
+                        // draw_glyph / draw_colored_string calls
+                        // preserve the cell's bg (they only overwrite
+                        // the glyph + fg), so the border + text inherit
+                        // the black bg automatically.
+                        for (int by = box_wy; by < box_wy + box_h; ++by) {
+                            for (int bx = box_wx;
+                                 bx < box_wx + box_w; ++bx) {
+                                int dsx, dsy;
+                                if (!cull(bx, by, dsx, dsy)) continue;
+                                r.draw_char(pr.x + dsx, pr.y + dsy, ' ',
+                                            Color::Black, Color::Black);
+                            }
+                        }
 
                         // ---- Draw box border ---------------------
                         // S6.5: box frame is double-line + white; the
@@ -2292,13 +2620,17 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                         }
 
                         // ---- Draw tether (2 cells) ---------------
-                        // S6.5: tether stays SINGLE-line (thin) and
-                        // renders white — visual reads as
-                        // double box -> single tether -> thin room.
+                        // S7c.1 followup: tether is SINGLE-line throughout
+                        // (matches the thin room T's single stem). The
+                        // box-side T (╧/╤/╡/╞) is the one cell where
+                        // single→double transition happens: its single
+                        // horizontal arms narrow the box border for one
+                        // cell, while its double stem extends INTO the
+                        // tether-adjacent area visually.
                         const bool tether_horiz =
                             (dir == East || dir == West);
                         const char* tether_glyph =
-                            tether_horiz ? thin_g.h : thin_g.v;
+                            tether_horiz ? thin_g.h : thin_g.v;  // ─ / │ single
                         draw_at(tether_a_wx, tether_a_wy,
                                 tether_glyph, Color::White);
                         draw_at(tether_b_wx, tether_b_wy,
@@ -2329,6 +2661,7 @@ void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                         emit_block(screen_ax, screen_ay, fit_w);
                         placed = true;
                     }
+                    }  // closes for (pass)
                 }
                 if (!placed) draw_inline();
             }
@@ -2677,7 +3010,7 @@ void render(Game& game, Renderer& r) {
     // Five band-boundary separators (window-relative rows).
     // Skip all of them if the window is too short to fit the full bottom block
     // (pathological resize) — avoids overwriting the bottom chrome border.
-    const int kMinBandH = deck_slots + 1 + kLogRows + 12;
+    const int kMinBandH = deck_slots + kLogRows + 12;
     const int sep_hdr     = (b.header.y  + b.header.h)  - wr.y; // under header
     const int sep_caption = (b.caption.y + b.caption.h) - wr.y; // under caption
     const int sep_deck    = (b.deck.y    + b.deck.h)    - wr.y; // under deck
@@ -2686,7 +3019,7 @@ void render(Game& game, Renderer& r) {
 
     if (wr.h >= kMinBandH) {
         draw_horizontal_separator(r, wr, sep_hdr);
-        draw_horizontal_separator(r, wr, sep_caption);
+        draw_labeled_separator(r, wr, sep_caption, "DECK", Color::Cyan);
         draw_horizontal_separator(r, wr, sep_deck);
         draw_horizontal_separator(r, wr, sep_vitals);
         draw_horizontal_separator(r, wr, sep_log);
@@ -2742,7 +3075,7 @@ void render(Game& game, Renderer& r) {
                                           b.field.w, b.field.h }, *sess);
     draw_field_caption(r, b.caption, *sess);
     draw_log_pane(r, b.log, *sess, game.hacking().blink_phase());
-    draw_meatworld_footer(r, b.footer, *sess);
+    draw_loadout_footer(r, b.footer, game);
     draw_deck_panel(game, r, b.deck, *sess);
     // S6-followup: vertical chrome separator between the field and the
     // HOSTILES sidebar. Skipped on narrow terminals where the sidebar
@@ -2785,7 +3118,7 @@ bool selftest_bands(std::string& err) {
     for (const auto& tc : kCases) {
         const int sw = tc.sw, sh = tc.sh, deck_slots = tc.deck_slots;
         WindowRect wr = compute_window_rect(sw, sh);
-        const int kmin = deck_slots + 1 + kLogRows + 12;
+        const int kmin = deck_slots + kLogRows + 12;
         if (wr.h < kmin) continue;   // below documented minimum — geometry intentionally degrades
 
         NetBands b = compute_bands(wr, deck_slots);

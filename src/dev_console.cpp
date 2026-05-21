@@ -1,6 +1,7 @@
 #include "astra/dev_console.h"
 #include "astra/animation.h"
 #include "astra/cyberdeck.h"
+#include "astra/daemon.h"
 #include "astra/grammars/gen_elevator_netspace.h"
 #include "astra/net_combat.h"
 #include "astra/net_combat_mode.h"
@@ -1097,6 +1098,82 @@ static void run_net_selftest(DevConsole& con) {
         // Detection logic is covered by the precision selftest above +
         // S5's s5tc5-reached-avatar.)
     }
+
+    // Slice-7c.1 daemon kind table + door grammar daemon seeding.
+    {
+        // Daemon table sanity.
+        const astra::DaemonDef& d_watch =
+            astra::daemon_def(astra::DaemonKind::Watchdog);
+        check(d_watch.archetype == astra::IceColor::Gray
+              && d_watch.windup_beats == 4
+              && d_watch.cast_damage == 1
+              && d_watch.cast_radius == 0
+              && d_watch.render_style == astra::DaemonRenderStyle::Glyph,
+              "s5tc7c1-watchdog-baseline");
+
+        const astra::DaemonDef& d_lock =
+            astra::daemon_def(astra::DaemonKind::Lock);
+        check(d_lock.archetype == astra::IceColor::Gray
+              && std::string(d_lock.cast_prog_name) == "LOCK.fw"
+              && d_lock.render_style == astra::DaemonRenderStyle::RoomFill
+              && d_lock.base_hp == 4
+              && d_lock.windup_beats == 5,
+              "s5tc7c1-lock-def");
+
+        const astra::DaemonDef& d_bolt =
+            astra::daemon_def(astra::DaemonKind::Bolt);
+        check(d_bolt.archetype == astra::IceColor::Gray
+              && std::string(d_bolt.cast_prog_name) == "BOLT.T9"
+              && d_bolt.render_style == astra::DaemonRenderStyle::Glyph
+              && d_bolt.color == astra::Color::Yellow
+              && d_bolt.is_boss == true
+              && d_bolt.base_hp == 12
+              && d_bolt.windup_beats == 6
+              && d_bolt.cast_damage == 2
+              && std::string(d_bolt.glyph) == "\xe2\x96\xa3",   // ▣
+              "s5tc7c1-bolt-def");
+
+        // Default Ice has Watchdog kind (back-compat with S6 selftests).
+        astra::Ice di;
+        check(di.kind == astra::DaemonKind::Watchdog
+              && di.windup_override == 0
+              && di.cast_damage_override == 0,
+              "s5tc7c1-ice-defaults");
+
+        // ice_cast_tick honors windup_override.
+        {
+            astra::NetSession ns;
+            astra::NetRoom a; a.x = 0;  a.y = 0; a.w = 3; a.h = 3;
+            astra::NetRoom b; b.x = 10; b.y = 0; b.w = 3; b.h = 3;
+            ns.netspace.rooms = { a, b };
+            astra::NetPipe p;
+            p.x0 = 1; p.y0 = 1; p.x1 = 11; p.y1 = 1;
+            for (int x = 1; x <= 11; ++x) p.cells.emplace_back(x, 1);
+            ns.netspace.pipes.push_back(p);
+            ns.avatar_x = 1; ns.avatar_y = 1;
+            ns.combat_mode = astra::NetSession::NetCombatMode::Combat;
+            astra::Ice gr;
+            gr.x = 11; gr.y = 1;
+            gr.color = astra::IceColor::Gray; gr.hp = 5; gr.hp_max = 5;
+            gr.kind = astra::DaemonKind::Lock;
+            gr.windup_override = 5;
+            gr.cast_damage_override = 0;     // use def baseline (1)
+            gr.cast_cooldown = 0;
+            ns.ice.push_back(gr);
+
+            astra::ice_cast_tick(ns);
+            check(ns.ice[0].cast_windup_left == 5
+                  && ns.ice[0].cast_windup_total == 5,
+                  "s5tc7c1-lock-windup-override-applied");
+            // 5 beats later the payload spawns with def's cast_damage=1.
+            for (int i = 0; i < 5; ++i) astra::ice_cast_tick(ns);
+            check(ns.in_flight.size() == 1
+                  && ns.in_flight[0].spec.damage == 1
+                  && ns.in_flight[0].prog_name == "LOCK.fw",
+                  "s5tc7c1-lock-fires-with-correct-name-and-dmg");
+        }
+    }
+
     con.log(fails == 0 ? "net selftest: PASS" : ("net selftest: " + std::to_string(fails) + " FAIL"));
 }
 

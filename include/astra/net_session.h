@@ -283,6 +283,12 @@ struct NetSession {
     // highlighted active pipe at the avatar's node (clamped on use).
     int active_pipe = 0;
 
+    // Phase 5 S7c.1 QoL: absolute netspace.pipes index of the
+    // most-recently-fired pipe (-1 = never fired). arm_slot consults
+    // this and prefers it as the default active_pipe so repeated
+    // casts down the same pipe don't need Tab-cycling each time.
+    int last_fired_pipe_index = -1;
+
     // Phase 5 slice 2: set by a tile-targeted program's Telegraph on_confirm
     // (which runs inside game.telegraph().handle_input on a later keypress).
     // The telegraph-active branch in net_input::handle consumes+clears it to

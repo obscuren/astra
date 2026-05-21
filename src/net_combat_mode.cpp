@@ -24,6 +24,11 @@ bool in_room(const NetRoom& r, int x, int y) {
 }  // namespace
 
 bool combat_should_lock(const NetSession& s) {
+    // S7c.1 followup: avatar must be STRICTLY inside a room (not in a
+    // pipe / on a wall) for combat-lock to engage. Mirrors the
+    // engagement gate in ice_cast_tick.
+    if (room_index_at_strict(s.netspace,
+                             s.avatar_x, s.avatar_y) < 0) return false;
     auto conn = connected_pipe_indices(s.netspace, s.avatar_x, s.avatar_y);
     for (int idx : conn) {
         auto path = pipe_path_cells(s.netspace, idx,

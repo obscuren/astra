@@ -182,6 +182,7 @@ set(ASTRA_SOURCES
     src/net_camera.cpp
     src/net_ice.cpp
     src/net_ice_telegraph.cpp
+    src/daemon.cpp
     src/net_theme.cpp
     src/rebirth_sequence.cpp
     src/net_session.cpp

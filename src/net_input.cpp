@@ -313,7 +313,21 @@ bool arm_slot(Game& game, NetSession& s, int slot) {
         return false;
     }
     s.armed_slot  = slot;
+    // QoL: restore the most-recently-fired pipe if it's still
+    // connected to the avatar's current room. Falls back to index 0
+    // (first connected pipe) when there's no prior fire OR the prior
+    // pipe is no longer reachable (avatar moved rooms).
     s.active_pipe = 0;
+    if (s.last_fired_pipe_index >= 0) {
+        const auto conn =
+            connected_pipe_indices(s.netspace, s.avatar_x, s.avatar_y);
+        for (int i = 0; i < static_cast<int>(conn.size()); ++i) {
+            if (conn[i] == s.last_fired_pipe_index) {
+                s.active_pipe = i;
+                break;
+            }
+        }
+    }
     s.push_log(astra::net_voice::cmd(
         "armed slot " + std::to_string(slot + 1)
         + ". Tab=pipe  Space=run  Esc=cancel."));
@@ -394,6 +408,7 @@ bool confirm_armed(Game& game, NetSession& s, const std::vector<int>& conn) {
         s.push_log(astra::net_voice::cmd(
             "run " + cd.loaded[slot].compiled->name + ". launching."));
         s.armed_slot = -1;
+        s.last_fired_pipe_index = pidx;   // QoL: persist for next arm
         return true;
     }
 
@@ -461,6 +476,7 @@ bool confirm_armed(Game& game, NetSession& s, const std::vector<int>& conn) {
     s.push_log(astra::net_voice::cmd(
         "run " + std::string(display_name(*def)) + ". launching."));
     s.armed_slot = -1;
+    s.last_fired_pipe_index = pidx;   // QoL: persist for next arm
     return true;
 }
 

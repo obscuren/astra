@@ -136,6 +136,21 @@ inline constexpr const char* tee_dh_up_s    = "\xe2\x95\xa8";  // ╨ — double
 inline constexpr const char* tee_dv_left_s  = "\xe2\x95\xa2";  // ╢ — double vertical, single left branch
 inline constexpr const char* tee_dv_right_s = "\xe2\x95\x9f";  // ╟ — double vertical, single right branch
 
+// Reverse mix: SINGLE edge, DOUBLE branch. Used at the room-side
+// (thin border) when the tether is double-line.
+inline constexpr const char* tee_sh_down_d  = "\xe2\x95\xa4";  // ╤ — single horizontal, double down branch
+inline constexpr const char* tee_sh_up_d    = "\xe2\x95\xa7";  // ╧ — single horizontal, double up branch
+inline constexpr const char* tee_sv_left_d  = "\xe2\x95\xa1";  // ╡ — single vertical, double left branch
+inline constexpr const char* tee_sv_right_d = "\xe2\x95\x9e";  // ╞ — single vertical, double right branch
+
+// Full-double T's. Used at the box-side (double border) when the
+// tether is also double-line — the box edge stays double and the
+// branch enters/leaves on the same weight.
+inline constexpr const char* tee_dd_down  = "\xe2\x95\xa6";  // ╦ — double T-down (all double)
+inline constexpr const char* tee_dd_up    = "\xe2\x95\xa9";  // ╩ — double T-up   (all double)
+inline constexpr const char* tee_dd_left  = "\xe2\x95\xa3";  // ╣ — double T-left (all double)
+inline constexpr const char* tee_dd_right = "\xe2\x95\xa0";  // ╠ — double T-right (all double)
+
 // Canonical glyph vocabulary from the design doc.
 constexpr const char* glyph_jack_in_arrow = "\xe2\x97\x84";  // ◄
 constexpr const char* glyph_exit_arrow    = "\xe2\x96\xba";  // ►

@@ -1,9 +1,13 @@
 #include "astra/grammars/gen_door_netspace.h"
 
+#include "astra/daemon.h"
+#include "astra/net_ice.h"
+#include "astra/net_pipe_path.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <random>
 #include <string>
@@ -39,6 +43,47 @@ std::string door_id(uint32_t seed) {
     const char suffix = static_cast<char>('A' + ((seed / 1000) % 26));
     std::snprintf(buf, sizeof buf, "DOOR_%03d%c", n, suffix);
     return buf;
+}
+
+// Phase 5 S7c.1: tier-scaled daemon stats for the door grammar.
+// Table values follow the design doc § 2.3. Tier-1 ships the
+// DaemonDef baseline; higher tiers multiply.
+struct LockTierScale { int hp; int windup; };
+constexpr LockTierScale kLockTiers[5] = {
+    /* T1 */ { 4, 5 },
+    /* T2 */ { 5, 5 },
+    /* T3 */ { 5, 4 },
+    /* T4 */ { 6, 4 },
+    /* T5 */ { 6, 3 },
+};
+struct BoltTierScale { int hp; int windup; int cast_damage; };
+constexpr BoltTierScale kBoltTiers[5] = {
+    /* T1 */ { 12, 6, 2 },
+    /* T2 */ { 16, 6, 2 },
+    /* T3 */ { 20, 5, 3 },
+    /* T4 */ { 28, 5, 3 },
+    /* T5 */ { 36, 4, 4 },
+};
+
+// Phase 5 S7c.1: construct an Ice for the given DaemonKind, position
+// it at the room's interior top-center, apply tier-scaled overrides
+// on top of the def baseline, set home_room_idx, and push it into
+// b.ns.initial_ice.
+void seed_daemon(NetspaceBuilder& b, const NetRoom& room,
+                 DaemonKind kind, int hp_override, int windup_override,
+                 int cast_dmg_override) {
+    Ice ic;
+    ic.x = room.x + room.w / 2;
+    ic.y = room.y + 1;
+    ic.kind = kind;
+    const DaemonDef& def = daemon_def(kind);
+    ic.color = def.archetype;
+    ic.hp = hp_override;
+    ic.hp_max = hp_override;
+    ic.windup_override      = windup_override;
+    ic.cast_damage_override = cast_dmg_override;
+    ic.home_room_idx = room_index_at(b.ns, ic.x, ic.y);
+    b.ns.initial_ice.push_back(ic);
 }
 
 }  // namespace
@@ -77,37 +122,47 @@ Netspace gen_door_netspace(const TargetDescriptor& desc) {
     x += kRoomW + kGap;
 
     // ── LOCK 1..n_locks ────────────────────────────────────────────
-    // Density per lock — earlier locks lighter, later locks heavier.
-    // With n_locks = 2 → ░ ▒; n_locks = 3 → ░ ▒ ▓; n_locks = 4 → · ░ ▒ ▓.
+    // Phase 5 S7c.1: each LOCK is a typed daemon whose HP drives the
+    // wall-density visual via the RoomFill render path. HP + windup
+    // scale by tier (kLockTiers[]); the static breakwall infrastructure
+    // is no longer consulted for door netspaces.
     NetRoom* prev = &jack;
+    const int t_lock = std::clamp(desc.tier - 1, 0, 4);
     for (int i = 0; i < n_locks; ++i) {
-        int den_idx = i + (4 - n_locks);
-        if (den_idx < 0) den_idx = 0;
-        if (den_idx > 3) den_idx = 3;
-
         NetRoom& lock = b.add_room(x, y, kRoomW, kRoomH, "LOCK",
                                    NetRoom::Border::Thin);
-        const uint8_t density = static_cast<uint8_t>(den_idx + 1);  // 0..3 -> 1..4 (·/░/▒/▓)
-        b.fill_top_row_with_breakwall(lock, density);
         lock.top_content    = "";
         lock.label_color    = net_theme::box_thin_color;
         lock.bottom_content = std::to_string(i + 1);
         lock.bottom_color   = net_theme::box_thin_color;
 
         b.connect(*prev, lock, NetPipe::Style::Double);
+        seed_daemon(b, lock, DaemonKind::Lock,
+                    kLockTiers[t_lock].hp,
+                    kLockTiers[t_lock].windup,
+                    /*cast_dmg_override*/ 0);   // Lock uses def baseline (1)
         prev = &lock;
         x += kRoomW + kGap;
     }
 
     // ── BOLT ───────────────────────────────────────────────────────
+    // Phase 5 S7c.1: BOLT is a typed micro-boss daemon (Yellow ▣
+    // glyph). Its bottom_content cell is left empty -- the daemon glyph
+    // itself communicates the BOLT identity.
     NetRoom& bolt = b.add_room(x, y, kRoomW, kRoomH, "BOLT",
                                NetRoom::Border::Thin);
-    b.fill_top_row_with_breakwall(bolt, /*density=*/4);   // ▓▓▓▓▓ — Breakwall heavy density
     bolt.top_content    = "";
     bolt.label_color    = net_theme::box_thin_color;
-    bolt.bottom_content = net_theme::glyph_loot;     // ◊
+    bolt.bottom_content = "";                         // daemon glyph replaces it
     bolt.bottom_color   = Color::Yellow;
     b.connect(*prev, bolt, NetPipe::Style::Double);
+    {
+        const int t_bolt = std::clamp(desc.tier - 1, 0, 4);
+        seed_daemon(b, bolt, DaemonKind::Bolt,
+                    kBoltTiers[t_bolt].hp,
+                    kBoltTiers[t_bolt].windup,
+                    kBoltTiers[t_bolt].cast_damage);
+    }
     x += kRoomW + kGap;
 
     // ── OUT ────────────────────────────────────────────────────────

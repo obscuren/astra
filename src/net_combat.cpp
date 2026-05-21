@@ -1,5 +1,6 @@
 #include "astra/net_combat.h"
 
+#include "astra/daemon.h"
 #include "astra/effect.h"
 #include "astra/game.h"
 #include "astra/net_ice.h"
@@ -533,6 +534,24 @@ std::string apply_effect_at_avatar(Game& game, NetSession& s,
 void ice_cast_tick(NetSession& s) {
     if (s.combat_mode != NetSession::NetCombatMode::Combat) return;
 
+    // Phase 5 S7c.1 followup: engagement requires the avatar to be
+    // STRICTLY inside a room. room_index_at's Chebyshev fallback (used
+    // by connected_pipe_indices) makes an avatar in a pipe appear "in
+    // the next room", which spuriously engages daemons one room ahead.
+    // While the avatar is in a pipe (or on a room's pipe-port wall),
+    // also CANCEL any in-progress windups so an earlier engagement
+    // doesn't persist on the HOSTILES sidebar / inline telegraph after
+    // the player has walked out of range. Re-entering the room
+    // restarts the daemon's windup from zero.
+    if (room_index_at_strict(s.netspace,
+                             s.avatar_x, s.avatar_y) < 0) {
+        for (auto& ice : s.ice) {
+            ice.cast_windup_left  = 0;
+            ice.cast_windup_total = 0;
+        }
+        return;
+    }
+
     auto conn = connected_pipe_indices(s.netspace, s.avatar_x, s.avatar_y);
     for (auto& ice : s.ice) {
         if (ice.color != IceColor::Gray) continue;   // S3: Gray-only caster
@@ -566,15 +585,19 @@ void ice_cast_tick(NetSession& s) {
                 if (!in_room(far, ice.x, ice.y)) continue;
                 std::vector<std::pair<int,int>> rpath(path.rbegin(),
                                                       path.rend());
+                const DaemonDef& def = daemon_def(ice.kind);
+                const int eff_dmg = ice.cast_damage_override > 0
+                                        ? ice.cast_damage_override
+                                        : def.cast_damage;
                 EffectSpec spec;
-                spec.damage = kIceGrayCastDamage;
-                spec.radius = kIceGrayCastRadius;
+                spec.damage = eff_dmg;
+                spec.radius = def.cast_radius;
                 NetInFlight f;
                 f.slot           = -1;
                 f.hostile        = true;
                 f.compiled       = true;
                 f.spec           = spec;
-                f.prog_name      = "gray ICE";
+                f.prog_name      = def.cast_prog_name;
                 f.turns_total    = 1;
                 f.turns_left     = 1;
                 f.ram_held       = 0;
@@ -589,7 +612,8 @@ void ice_cast_tick(NetSession& s) {
                 f.pipe_index     = idx;
                 f.source_ice_idx = static_cast<int>(&ice - s.ice.data());
                 s.in_flight.push_back(std::move(f));
-                s.push_log(astra::net_voice::sys("gray ICE: fires."));
+                s.push_log(astra::net_voice::sys(
+                    std::string(def.cast_prog_name) + ": fires."));
                 ice.cast_cooldown = kIceCastCadence;
                 break;   // one cast / ICE / beat
             }
@@ -619,9 +643,14 @@ void ice_cast_tick(NetSession& s) {
         }
         if (!engaged) continue;
 
-        ice.cast_windup_left  = kIceGrayWindupBeats;
-        ice.cast_windup_total = kIceGrayWindupBeats;
-        s.push_log(astra::net_voice::sys("gray ICE: charging."));
+        const DaemonDef& def = daemon_def(ice.kind);
+        const int eff_windup = ice.windup_override > 0
+                                   ? ice.windup_override
+                                   : def.windup_beats;
+        ice.cast_windup_left  = eff_windup;
+        ice.cast_windup_total = eff_windup;
+        s.push_log(astra::net_voice::sys(
+            std::string(def.cast_prog_name) + ": charging."));
     }
 }
 

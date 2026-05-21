@@ -42,6 +42,20 @@ static int chebyshev_to_rect(int px, int py, int rx, int ry, int rw, int rh) {
     return dx > dy ? dx : dy;
 }
 
+int room_index_at_strict(const Netspace& ns, int x, int y) {
+    // Strict INTERIOR test (excludes the wall ring at room.x / x+w-1 /
+    // y / y+h-1). Wall cells are pipe-port positions where the avatar
+    // is still visually inside a pipe; engagement shouldn't trigger
+    // until the avatar steps off the wall onto an interior floor cell.
+    for (int i = 0; i < static_cast<int>(ns.rooms.size()); ++i) {
+        const NetRoom& r = ns.rooms[i];
+        if (x > r.x && x < r.x + r.w - 1 &&
+            y > r.y && y < r.y + r.h - 1)
+            return i;
+    }
+    return -1;
+}
+
 int room_index_at(const Netspace& ns, int x, int y) {
     if (ns.rooms.empty()) return -1;
 

@@ -10,6 +10,17 @@ namespace astra {
 
 enum class IceColor : uint8_t { White, Gray, Black };
 
+// Phase 5 S7c.1: typed daemon kinds layered on top of IceColor archetype.
+// Defined here (rather than in daemon.h) because Ice::kind needs the
+// complete enum for its default initializer, and daemon.h includes
+// net_ice.h to read IceColor. The DaemonDef struct + daemon_def() lookup
+// live in daemon.h.
+enum class DaemonKind : std::uint16_t {
+    Watchdog = 0,   // legacy default: a generic Gray-archetype caster
+    Lock,           // door: room-fill defender
+    Bolt,           // door: micro-boss
+};
+
 struct Ice {
     int       x = 0;
     int       y = 0;
@@ -64,6 +75,22 @@ struct Ice {
     // in the renderer). Black walker ignores this -- it leaves its
     // home room by design.
     int home_room_idx = -1;
+
+    // Phase 5 S7c.1: typed daemon kind. Drives cosmetic + statistical
+    // specialization (name, glyph, color, HP, windup/cast stats, render
+    // style) on top of the behavior archetype selected by IceColor.
+    // Default Watchdog matches the S6 hardcoded Gray behavior, so all
+    // existing call sites that construct Ice without setting kind keep
+    // working unchanged.
+    DaemonKind kind = DaemonKind::Watchdog;
+
+    // Phase 5 S7c.1: per-spawn tier-scaling overrides. 0 = use the
+    // DaemonDef baseline (so combat-bench / place_ice_far ICE that
+    // don't set these read def.windup_beats / def.cast_damage,
+    // preserving S6 behavior). Door grammar's seed_daemon writes
+    // tier-scaled values from kLockTiers[] / kBoltTiers[] here.
+    int windup_override = 0;
+    int cast_damage_override = 0;
 };
 
 struct NetSession; // fwd
