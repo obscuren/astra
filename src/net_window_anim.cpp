@@ -81,7 +81,7 @@ int ram_lie(int true_ram, int ram_max, WindowState ws, uint32_t turn_seed) {
 namespace {
 struct SeqFrame { int ms; };
 constexpr SeqFrame kOpening[]       = { {1500},{1500},{1500},{1500},{1500},{1} };
-constexpr SeqFrame kClosingNormal[] = { {300},{300},{300},{300},{300},{1} };
+constexpr SeqFrame kClosingNormal[] = { {500},{500},{500},{500},{500},{1} };
 constexpr SeqFrame kClosingPanic[]  = { {120},{120},{120},{140} };
 constexpr SeqFrame kForcedHold[]    = { {1500} };
 constexpr SeqFrame kTakeover[]      = { {1000} };

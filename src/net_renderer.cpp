@@ -2902,29 +2902,191 @@ void draw_window_sequence(Renderer& r, const WindowRect& wr,
         }
     }
     else if (q.kind == WindowSeqKind::ClosingNormal) {
+        // Inverse of the Opening ritual: ghost room releases → dissolution
+        // returns → reality re-materialises with the cable rising back to
+        // meat → handshake closes. Frames mirror their Opening counterparts.
+        const int sep_in = 2;
+        const int by0    = wr.y + sep_in + 1;
+        const int by1    = wr.y + wr.h - 1;
+        const int bx0    = wr.x + 1;
+        const int bx1    = wr.x + wr.w - 1;
+
+        auto hdr_center = [&](const std::string& t, Color c) {
+            int sx = wr.x + (wr.w - visual_width(t)) / 2;
+            draw_colored_string(r, sx, wr.y+1, t, c);
+        };
+        auto body_center = [&](const std::string& t, Color c) {
+            int sx = wr.x + (wr.w - (int)t.size())/2;
+            draw_colored_string(r, sx, (by0+by1)/2, t, c);
+        };
+
         switch (q.frame_index) {
-            case 1: {
-                int bx = wr.x + wr.w/2 - 7, by = wr.y + wr.h/2 - 3;
-                for (int i = 0; i < 14; ++i) {
-                    r.draw_glyph(bx+i, by,   "\xe2\x95\x8c", Color::DarkGray);
-                    r.draw_glyph(bx+i, by+6, "\xe2\x95\x8c", Color::DarkGray);
+            case 0: {
+                // Mirror of Opening No.5 — ghost room releases.
+                hdr_center("\xe2\x96\x92\xe2\x96\x91  signal releasing  "
+                           "\xe2\x96\x91\xe2\x96\x92", Color::Cyan);
+                draw_horizontal_separator(r, wr, sep_in);
+                const int bw = 16, bh = 7;
+                const int bx = wr.x + (wr.w - bw) / 2;
+                const int by = (by0 + by1 - bh) / 2;
+                const Color gc = Color::DarkGray;
+                r.draw_glyph(bx,        by,        "\xe2\x94\x8c", gc); // ┌
+                r.draw_glyph(bx+bw-1,   by,        "\xe2\x94\x90", gc); // ┐
+                r.draw_glyph(bx,        by+bh-1,   "\xe2\x94\x94", gc); // └
+                r.draw_glyph(bx+bw-1,   by+bh-1,   "\xe2\x94\x98", gc); // ┘
+                auto edge = [&](int seed, const char* g) -> const char* {
+                    return ((seed + static_cast<int>(ph)) & 3) == 0 ? " " : g;
+                };
+                for (int i = 1; i < bw-1; ++i) {
+                    r.draw_glyph(bx+i, by,      edge(i,   "\xe2\x95\x8c"), gc);
+                    r.draw_glyph(bx+i, by+bh-1, edge(i+2, "\xe2\x95\x8c"), gc);
                 }
-                for (int j = 0; j < 6; ++j) {
-                    r.draw_glyph(bx,    by+j, "\xe2\x95\x8e", Color::DarkGray);
-                    r.draw_glyph(bx+14, by+j, "\xe2\x95\x8e", Color::DarkGray);
+                for (int j = 1; j < bh-1; ++j) {
+                    r.draw_glyph(bx,      by+j, edge(j+1, "\xe2\x95\x8e"), gc);
+                    r.draw_glyph(bx+bw-1, by+j, edge(j+3, "\xe2\x95\x8e"), gc);
                 }
-                center(wr.h-2, "disconnecting...", Color::Cyan);
+                const Color ac = ((ph / 3u) & 1u) ? Color::BrightWhite
+                                                  : Color::Cyan;
+                r.draw_glyph(bx+bw/2, by+bh/2, "@", ac);  // pulsing @
+                center(wr.h-2, "> unbinding topology...", Color::Cyan);
                 break;
             }
-            case 2:
-                for (int j = 1; j < wr.h-1; ++j)
-                    for (int i = 1; i < wr.w-1; ++i)
-                        if (((i*7 + j*13 + phase) % 9) == 0)
-                            r.draw_glyph(wr.x+i, wr.y+j, "\xe2\x96\x92", Color::Cyan);
+            case 1: {
+                // Mirror of Opening No.4 — dissolution returning.
+                hdr_center("\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 "
+                           "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 "
+                           "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93 "
+                           "\xe2\x96\x88\xe2\x96\x88\xe2\x96\x88\xe2\x96\x88 "
+                           "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93 "
+                           "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 "
+                           "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91",
+                           Color::Cyan);
+                draw_horizontal_separator(r, wr, sep_in);
+                const std::string D="\xe2\x96\x91", M="\xe2\x96\x92",
+                                  H="\xe2\x96\x93";
+                const std::string rows[5] = {
+                    ". .   .  "+D+" "+M+"  .   .   .  "+H+" "+M+"   .  . .",
+                    "    .       "+D+"         "+D+"       .",
+                    ".       "+D+"       @       "+D+"       .",
+                    "    .       "+D+"         "+D+"       .",
+                    ". .   .  "+H+" "+M+"  .   .   .  "+D+" "+M+"   .  . .",
+                };
+                int maxw=0;
+                for (const auto& s2:rows) maxw=std::max(maxw,visual_width(s2));
+                const int left = wr.x + (wr.w - maxw)/2;
+                const int top  = (by0 + by1 - 5)/2;
+                static const char* const dens[] = {
+                    "\xe2\x96\x91","\xe2\x96\x92","\xe2\x96\x93"," " }; // ░▒▓ ·
+                for (int k=0;k<5;++k){
+                    const std::string& row = rows[k];
+                    int col = 0;
+                    for (size_t bi=0; bi<row.size(); ) {
+                        unsigned char b = static_cast<unsigned char>(row[bi]);
+                        std::string gch;
+                        if (b < 0x80) { gch.assign(1, row[bi]); bi += 1; }
+                        else          { gch = row.substr(bi, 3); bi += 3; }
+                        const int cx = left + col; ++col;
+                        if (gch == " ") continue;
+                        if (gch == "@") {
+                            r.draw_glyph(cx, top+k, "@", Color::BrightWhite);
+                            continue;
+                        }
+                        uint32_t h = mix(static_cast<uint32_t>(
+                            cx*131 + (top+k)*977) ^ ph);
+                        if (gch == ".") {
+                            if (h & 1u)
+                                r.draw_glyph(cx, top+k, ".", Color::Cyan);
+                            continue;
+                        }
+                        r.draw_glyph(cx, top+k, dens[h % 4u], Color::Cyan);
+                    }
+                }
+                const std::string cap =
+                    "> "+D+M+" consciousness returning "+M+D;
+                draw_colored_string(r, wr.x+(wr.w-visual_width(cap))/2,
+                                    wr.y+wr.h-2, cap, Color::Cyan);
                 break;
-            case 3: fill("\xe2\x96\x93", Color::Cyan); break;
-            case 4: fill(" ", Color::DarkGray); break;
-            default: break;
+            }
+            case 2: {
+                // Mirror of Opening No.3 — reality re-materialises and the
+                // jack cable rises back up to meat. Gradient flipped so
+                // density thickens toward meatspace (right); cable extends
+                // UP from the @ to a ▲ just below the top border.
+                for (int i=bx0;i<bx1;++i)
+                    r.draw_glyph(i, wr.y+1, "\xe2\x96\x93", Color::Cyan);
+                draw_horizontal_separator(r, wr, sep_in);
+                int BW = std::min(41, bx1 - bx0);
+                if (BW < 21) BW = bx1 - bx0;
+                const int BH = 7;
+                const int L  = wr.x + (wr.w - BW) / 2;
+                const int T  = (by0 + by1 - BH) / 2;
+                static const char* const kInv[] = {
+                    "\xe2\x96\x93", "\xe2\x96\x88", "\xe2\x96\x92" }; // ▓ █ ▒
+                auto buzz = [&](int x, int y) {
+                    return kInv[mix(static_cast<uint32_t>(x*131 + y*977) ^ ph)
+                                % 3u];
+                };
+                for (int i=0;i<BW;++i){
+                    r.draw_glyph(L+i, T,      buzz(L+i,T),      Color::Cyan);
+                    r.draw_glyph(L+i, T+BH-1, buzz(L+i,T+BH-1), Color::Cyan);
+                }
+                for (int j=0;j<BH;++j){
+                    r.draw_glyph(L,      T+j, buzz(L,T+j),      Color::Cyan);
+                    r.draw_glyph(L+BW-1, T+j, buzz(L+BW-1,T+j), Color::Cyan);
+                }
+                const int fW=4, fH=3, fyt=T+2;
+                const int flx=L+4, frx=L+BW-1-4-fW;
+                for (int j=0;j<fH;++j) for (int i=0;i<fW;++i){
+                    r.draw_glyph(flx+i, fyt+j, buzz(flx+i,fyt+j), Color::Cyan);
+                    r.draw_glyph(frx+i, fyt+j, buzz(frx+i,fyt+j), Color::Cyan);
+                }
+                // Gradient ░░░ ░░░ @ ▒▒▒ ▓▓▓ — @ rising out of the net
+                // through thickening density toward meat.
+                const std::string grad =
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 "        // ░░░
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 @ "      // ░░░ @
+                    "\xe2\x96\x92\xe2\x96\x92\xe2\x96\x92 "        // ▒▒▒
+                    "\xe2\x96\x93\xe2\x96\x93\xe2\x96\x93";        // ▓▓▓
+                const int gy = T+4;
+                const int gx = wr.x + (wr.w - visual_width(grad))/2;
+                draw_colored_string(r, gx, gy, grad, Color::Cyan);
+                const int atx = gx + visual_width(
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 "
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 ");
+                r.draw_glyph(atx, gy,  "@",            Color::BrightWhite);
+                // Cable pulses as consciousness is reeled back up it.
+                const bool c1 = ((ph    ) & 1u) != 0u;
+                const bool c2 = ((ph + 1u) & 1u) != 0u;
+                r.draw_glyph(atx, T+1, "\xe2\x96\xb2", Color::Cyan); // ▲
+                r.draw_glyph(atx, T+2, c2 ? "\xe2\x94\x82" : " ", Color::Cyan);
+                r.draw_glyph(atx, T+3, c1 ? "\xe2\x94\x82" : " ", Color::Cyan);
+                const std::string cap =
+                    "> \xe2\x96\x91\xe2\x96\x91\xe2\x96\x91"
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91 neural unsync "
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91"
+                    "\xe2\x96\x91\xe2\x96\x91\xe2\x96\x91";
+                draw_colored_string(r, wr.x+(wr.w-visual_width(cap))/2,
+                                    wr.y+wr.h-2, cap, Color::Cyan);
+                break;
+            }
+            case 3: case 4: {
+                // Mirror of Opening No.1/No.2 — handshake closes. Heart
+                // rate descends from elevated back toward calm.
+                int hr = 80 - (q.frame_index - 3)*4 - (phase/5)%3;
+                if (hr < 60) hr = 60;
+                std::string hdr = "JACKING OUT :: " + (s.netspace.title.empty()
+                                  ? std::string("TARGET") : s.netspace.title);
+                draw_colored_string(r, wr.x+2, wr.y+1, hdr, Color::Cyan);
+                char hb[32]; std::snprintf(hb,sizeof(hb),"heart rate %d", hr);
+                draw_colored_string(r, wr.x+wr.w-2-(int)std::strlen(hb), wr.y+1,
+                                    hb, Color::Magenta);
+                draw_horizontal_separator(r, wr, sep_in);
+                const char* msg[] = {"closing channel...",
+                                     "channel closed."};
+                body_center(msg[q.frame_index - 3], Color::Cyan);
+                break;
+            }
+            default: break;   // case 5: instant; loop clears next frame
         }
     }
     else if (q.kind == WindowSeqKind::ClosingPanic) {
