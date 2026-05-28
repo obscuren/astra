@@ -1,10 +1,12 @@
 #include "astra/grammars/gen_elevator_netspace.h"
 
+#include "astra/grammars/seed_daemon.h"
 #include "astra/net_ice.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -57,6 +59,17 @@ const char* floor_label(int k, int n_floors) {
     if (k == mid + 1)      return "OFFICE";
     return "FLOOR";
 }
+
+// Phase 5 S7c.2: tier-scaled stats for ELEVATOR daemons.
+// FLOOR.K9 is not tier-scaled per daemon (count scales: k/2 per floor).
+struct ScrtyFwTier { int hp; int windup; };
+constexpr ScrtyFwTier kScrtyFwTiers[5] = {
+    /*T1*/{5,5}, /*T2*/{6,5}, /*T3*/{6,4}, /*T4*/{7,4}, /*T5*/{7,3}
+};
+struct HouseK9Tier { int hp; int windup; int cast_damage; };
+constexpr HouseK9Tier kHouseK9Tiers[5] = {
+    /*T1*/{14,6,2}, /*T2*/{18,6,2}, /*T3*/{24,5,3}, /*T4*/{32,5,4}, /*T5*/{42,4,4}
+};
 
 }  // namespace (anonymous)
 
@@ -181,16 +194,44 @@ Netspace gen_elevator_netspace(const TargetDescriptor& desc) {
         b.connect_vertical(lower, upper, NetPipe::Style::Double);
     }
 
-    // ── SECURITY breakwall: gate ascent past floor `mid` ────────────────
-    // Place a breakwall tile on the spine column, one cell above the
-    // SECURITY room's top border (i.e. in the gap between SECURITY and
-    // the floor above). This blocks upward traversal along the spine
-    // without affecting the SECURITY room's interior or any lower floor.
+    // ── SECURITY gate: SCRTY.fw daemon BLOCKS the spine ────────────────
+    // Phase 5 S7d: the spine gap cell above SECURITY is stamped as a
+    // solid wall at gen time; SCRTY.fw lives in floor mid+1 (the floor
+    // ABOVE the gate). The daemon IS the gate -- it carries the
+    // gate_tile_x/y coords of the gap, and tick_grid's
+    // daemon-death-clears-gate-tile hook flips that cell to Floor when
+    // SCRTY.fw dies. Player in SECURITY engages SCRTY.fw across the
+    // spine pipe via the far-room model; killing SCRTY.fw opens the
+    // gap and unlocks ascent. Retires the S7c.2 dual-mechanic
+    // breakwall_tile arrangement.
     {
         const int security_top_y = floor_top_y(n_floors, mid);
-        // The gap cell directly above SECURITY's top border:
-        const int bw_y = security_top_y - 1;
-        b.add_breakwall_tile(kSpineX, bw_y, /*density=*/3);  // ▒ = mid threat
+        const int bw_y           = security_top_y - 1;
+        const int t              = std::clamp(desc.tier - 1, 0, 4);
+
+        // Stamp the gap cell impassable (gate closed).
+        b.ns.set(kSpineX, bw_y, NetTile::WallSolid);
+
+        // Seed SCRTY.fw inside floor mid+1's interior. AMENDMENT (S7d
+        // plan): at tier 1, n_floors=4 -> mid=2 -> mid+1=3 = PENTHOUSE,
+        // where HOUSE.K9 also spawns at the room center. To avoid
+        // overlap, place SCRTY.fw at the top interior row instead of
+        // the center. At higher tiers SCRTY.fw lands in a non-PENTHOUSE
+        // floor and the offset is harmless.
+        const NetRoom& above = b.ns.rooms[static_cast<size_t>(mid + 1)];
+        const int scrty_x = above.x + kFloorW / 2;
+        const int scrty_y = above.y + 1;          // top interior row
+        seed_daemon_in_room_at(b, above, scrty_x, scrty_y,
+                               DaemonKind::ScrtyFw,
+                               kScrtyFwTiers[t].hp,
+                               kScrtyFwTiers[t].windup,
+                               /*cast_dmg_override*/ 0);
+
+        // Tag the just-seeded SCRTY.fw with the gap cell. The
+        // tick_grid hook (S7d Task 5) flips this cell to Floor when
+        // the daemon dies.
+        b.ns.initial_ice.back().gate_tile_x = kSpineX;
+        b.ns.initial_ice.back().gate_tile_y = bw_y;
     }
 
     // ── ICE + Stash nodes for floors 1..n_floors-1 ──────────────────────
@@ -201,17 +242,23 @@ Netspace gen_elevator_netspace(const TargetDescriptor& desc) {
         const int interior_left  = kMargX + 2;      // well inside left border
         const int interior_right = kMargX + kFloorW - 3;  // well inside right border
 
-        // ICE: spread across the middle row, left of spine.
+        // Phase 5 S7c.2: per-floor patrols are FLOOR.K9 daemons.
+        // Stats match the def baseline (Gray archetype, hp 2, windup 4,
+        // cast_damage 1). Count scales as k/2 (unchanged).
         for (int i = 0; i < ice_n; ++i) {
             Ice g;
-            g.color = IceColor::Gray;
-            g.hp    = 2;
-            g.x     = interior_left + i * 3;
-            g.y     = mid_y;
+            g.color  = IceColor::Gray;
+            g.hp     = 2;
+            g.hp_max = 2;
+            g.kind   = DaemonKind::FloorK9;
+            g.x      = interior_left + i * 3;
+            g.y      = mid_y;
+            g.home_room_idx = room_index_at(b.ns, g.x, g.y);
             b.ns.initial_ice.push_back(g);
         }
 
         // Stash node: right side of the floor interior, middle row.
+        // (HOUSE.K9 boss seeded below, after this loop completes.)
         NetNode loot;
         loot.kind    = NetNodeKind::Stash;
         loot.payload = static_cast<uint32_t>(20 + k * 25);
@@ -219,6 +266,21 @@ Netspace gen_elevator_netspace(const TargetDescriptor& desc) {
         loot.x       = interior_right;
         loot.y       = mid_y;
         b.ns.action_nodes.push_back(loot);
+    }
+
+    // Phase 5 S7c.2: HOUSE.K9 boss in PENTHOUSE interior center.
+    // PENTHOUSE = ns.rooms[n_floors - 1] (top floor, k = n_floors-1).
+    {
+        const int top_k          = n_floors - 1;
+        const int t              = std::clamp(desc.tier - 1, 0, 4);
+        const NetRoom& penthouse = b.ns.rooms[static_cast<size_t>(top_k)];
+        const int hk_x = penthouse.x + kFloorW / 2;
+        const int hk_y = penthouse.y + kFloorH / 2;
+        seed_daemon_in_room_at(b, penthouse, hk_x, hk_y,
+                               DaemonKind::HouseK9,
+                               kHouseK9Tiers[t].hp,
+                               kHouseK9Tiers[t].windup,
+                               kHouseK9Tiers[t].cast_damage);
     }
 
     return b.finalize();

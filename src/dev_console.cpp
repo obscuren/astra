@@ -2,7 +2,14 @@
 #include "astra/animation.h"
 #include "astra/cyberdeck.h"
 #include "astra/daemon.h"
+#include "astra/grammars/gen_atm_netspace.h"
+#include "astra/grammars/gen_camera_netspace.h"
+#include "astra/grammars/gen_corpse_netspace.h"
+#include "astra/grammars/gen_door_netspace.h"
 #include "astra/grammars/gen_elevator_netspace.h"
+#include "astra/grammars/gen_turret_netspace.h"
+#include "astra/grammars/gen_vending_netspace.h"
+#include "astra/net_camera.h"
 #include "astra/net_combat.h"
 #include "astra/net_combat_mode.h"
 #include "astra/net_ice_telegraph.h"
@@ -539,10 +546,10 @@ static void run_net_selftest(DevConsole& con) {
     }
     {
         // Slice 4 — pipe payload travel model (statically decidable).
-        // clamp_seg_len: bounds are [2,6] per net_pipe_path.h.
-        check(astra::clamp_seg_len(1) == 2, "s4-seg-clamp");   // below low → clamp to 2
-        check(astra::clamp_seg_len(9) == 6, "s4-seg-clamp");   // above high → clamp to 6
-        check(astra::clamp_seg_len(4) == 4, "s4-seg-clamp");   // in-range → identity
+        // clamp_seg_len: floor at 2; no upper cap (S7e — uncapped 2026-05-28).
+        check(astra::clamp_seg_len(1) == 2, "s4-seg-floor");      // below 2 → floored
+        check(astra::clamp_seg_len(9) == 9, "s7e-seg-no-cap");    // above 6 → identity now (was clamped to 6 pre-S7e)
+        check(astra::clamp_seg_len(4) == 4, "s4-seg-identity");   // in-range → identity
         // NetInFlight with a 3-cell pipe_path: seg_len == clamp_seg_len(3) == 3.
         astra::NetInFlight f;
         f.pipe_path = {{1,1},{2,1},{3,1}};
@@ -1171,6 +1178,554 @@ static void run_net_selftest(DevConsole& con) {
                   && ns.in_flight[0].spec.damage == 1
                   && ns.in_flight[0].prog_name == "LOCK.fw",
                   "s5tc7c1-lock-fires-with-correct-name-and-dmg");
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Slice-7c.2 grammar daemon sweep — table + per-grammar seeding.
+    // ───────────────────────────────────────────────────────────────────
+    {
+        using astra::DaemonKind;
+        using astra::DaemonRenderStyle;
+
+        // ─── Table sanity: every new entry resolves correctly. ─────────
+        const auto& d_vault = astra::daemon_def(DaemonKind::VaultFw);
+        check(std::string(d_vault.cast_prog_name) == "VAULT.fw"
+              && d_vault.render_style == DaemonRenderStyle::RoomFill
+              && d_vault.base_hp == 4
+              && d_vault.windup_beats == 5,
+              "s5tc7c2-vaultfw-def");
+
+        const auto& d_tellr = astra::daemon_def(DaemonKind::TellrK9);
+        check(std::string(d_tellr.cast_prog_name) == "TELLR.K9"
+              && d_tellr.render_style == DaemonRenderStyle::Glyph
+              && d_tellr.is_boss == true
+              && d_tellr.base_hp == 12
+              && d_tellr.windup_beats == 6
+              && d_tellr.cast_damage == 2
+              && std::string(d_tellr.glyph) == "\xe2\x97\x88",  // ◈
+              "s5tc7c2-tellrk9-def");
+
+        const auto& d_fraud = astra::daemon_def(DaemonKind::FraudExe);
+        check(std::string(d_fraud.cast_prog_name) == "FRAUD.exe"
+              && d_fraud.render_style == DaemonRenderStyle::Glyph
+              && d_fraud.base_hp == 2
+              && d_fraud.windup_beats == 4,
+              "s5tc7c2-fraudexe-def");
+
+        const auto& d_pkt = astra::daemon_def(DaemonKind::PktDat);
+        check(std::string(d_pkt.cast_prog_name) == "PKT.dat"
+              && d_pkt.color == astra::Color::BrightYellow
+              && d_pkt.base_hp == 1
+              && d_pkt.windup_beats == 3,
+              "s5tc7c2-pktdat-def");
+
+        const auto& d_lens = astra::daemon_def(DaemonKind::LensCam);
+        check(std::string(d_lens.cast_prog_name) == "LENS.cam"
+              && d_lens.color == astra::Color::Cyan
+              && std::string(d_lens.glyph) == "\xe2\x97\x8e"   // ◎
+              && d_lens.base_hp == 1
+              && d_lens.windup_beats == 4,
+              "s5tc7c2-lenscam-def");
+
+        const auto& d_arch = astra::daemon_def(DaemonKind::ArchiveK9);
+        check(std::string(d_arch.cast_prog_name) == "ARCHIVE.K9"
+              && d_arch.is_boss == true
+              && std::string(d_arch.glyph) == "\xe2\x96\xa4"   // ▤
+              && d_arch.base_hp == 10
+              && d_arch.windup_beats == 5
+              && d_arch.cast_damage == 2,
+              "s5tc7c2-archivek9-def");
+
+        const auto& d_memry = astra::daemon_def(DaemonKind::MemryKex);
+        check(std::string(d_memry.cast_prog_name) == "MEMRY.kex"
+              && d_memry.render_style == DaemonRenderStyle::RoomFill
+              && d_memry.base_hp == 6
+              && d_memry.windup_beats == 5,
+              "s5tc7c2-memrykex-def");
+
+        const auto& d_floor = astra::daemon_def(DaemonKind::FloorK9);
+        check(std::string(d_floor.cast_prog_name) == "FLOOR.K9"
+              && d_floor.render_style == DaemonRenderStyle::Glyph
+              && d_floor.base_hp == 2
+              && d_floor.windup_beats == 4,
+              "s5tc7c2-floork9-def");
+
+        const auto& d_scrty = astra::daemon_def(DaemonKind::ScrtyFw);
+        check(std::string(d_scrty.cast_prog_name) == "SCRTY.fw"
+              && d_scrty.render_style == DaemonRenderStyle::Glyph
+              && d_scrty.base_hp == 5
+              && d_scrty.windup_beats == 5,
+              "s5tc7c2-scrtyfw-def");
+
+        const auto& d_house = astra::daemon_def(DaemonKind::HouseK9);
+        check(std::string(d_house.cast_prog_name) == "HOUSE.K9"
+              && d_house.is_boss == true
+              && std::string(d_house.glyph) == "\xe2\x8c\x82"   // ⌂
+              && d_house.base_hp == 14
+              && d_house.windup_beats == 6
+              && d_house.cast_damage == 2,
+              "s5tc7c2-housek9-def");
+
+        const auto& d_trrt = astra::daemon_def(DaemonKind::TrrtDat);
+        check(std::string(d_trrt.cast_prog_name) == "TRRT.dat"
+              && d_trrt.color == astra::Color::Red
+              && d_trrt.windup_beats == 3   // FAST
+              && std::string(d_trrt.glyph) == "\xe2\x97\x86",   // ◆
+              "s5tc7c2-trrtdat-def");
+
+        const auto& d_lol = astra::daemon_def(DaemonKind::LolBin);
+        check(std::string(d_lol.cast_prog_name) == "LOL.bin"
+              && d_lol.is_boss == true
+              && d_lol.cast_damage == 0     // harmless
+              && d_lol.windup_beats == 8
+              && std::string(d_lol.glyph) == "\xce\xa6",        // Φ
+              "s5tc7c2-lolbin-def");
+
+        // NetSpawnSpec default kind = Watchdog (back-compat with pre-S7c.2
+        // triggers — combat-bench and other grammars that haven't set
+        // spawn.kind keep their anonymous-Watchdog spawn semantics).
+        astra::NetSpawnSpec defspec;
+        check(defspec.kind == DaemonKind::Watchdog,
+              "s5tc7c2-spawnspec-default-kind");
+
+        // ─── Per-grammar seeding sanity. ──────────────────────────────
+        auto count_kind = [](const astra::Netspace& ns, DaemonKind k) {
+            int n = 0;
+            for (const auto& ic : ns.initial_ice)
+                if (ic.kind == k) ++n;
+            return n;
+        };
+
+        // ATM tier 1: 1 VaultFw + 1 TellrK9. FRAUD + PACKETS are triggers
+        // (not initial_ice); spawn.kind is checked separately below.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1;
+            d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Atm;
+            astra::Netspace ns = astra::gen_atm_netspace(d);
+            check(count_kind(ns, DaemonKind::VaultFw) == 1
+                  && count_kind(ns, DaemonKind::TellrK9) == 1,
+                  "s5tc7c2-atm-seeding");
+            // FRAUD trigger spawn.kind == FraudExe; PACKETS spawn.kind == PktDat.
+            bool fraud_ok = false, pkt_ok = false;
+            for (const auto& tr : ns.triggers) {
+                if (tr.spawn.kind == DaemonKind::FraudExe) fraud_ok = true;
+                if (tr.spawn.kind == DaemonKind::PktDat)   pkt_ok   = true;
+            }
+            check(fraud_ok && pkt_ok, "s5tc7c2-atm-triggers-typed");
+        }
+
+        // CAMERA tier 1: 5 LensCam + 1 ArchiveK9.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1;
+            d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Camera;
+            astra::Netspace ns = astra::gen_camera_netspace(d);
+            check(count_kind(ns, DaemonKind::LensCam) == 5
+                  && count_kind(ns, DaemonKind::ArchiveK9) == 1,
+                  "s5tc7c2-camera-seeding");
+        }
+
+        // CORPSE tier 1: 1 MemryKex.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1;
+            d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Corpse;
+            astra::Netspace ns = astra::gen_corpse_netspace(d);
+            check(count_kind(ns, DaemonKind::MemryKex) == 1,
+                  "s5tc7c2-corpse-seeding");
+        }
+
+        // ELEVATOR tier 1 (4 floors, mid = 2): FloorK9 count + 1 ScrtyFw
+        // + 1 HouseK9. Floor k=1..3 contributes k/2 mooks each =
+        // 0 + 1 + 1 = 2 FloorK9 expected.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1;
+            d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Elevator;
+            astra::Netspace ns = astra::gen_elevator_netspace(d);
+            check(count_kind(ns, DaemonKind::FloorK9) == 2
+                  && count_kind(ns, DaemonKind::ScrtyFw) == 1
+                  && count_kind(ns, DaemonKind::HouseK9) == 1,
+                  "s5tc7c2-elevator-seeding");
+        }
+
+        // TURRET tier 1: 1 TrrtDat (1 + tier/2 = 1 + 0).
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1;
+            d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Turret;
+            astra::Netspace ns = astra::gen_turret_netspace(d);
+            check(count_kind(ns, DaemonKind::TrrtDat) == 1,
+                  "s5tc7c2-turret-seeding");
+        }
+
+        // VENDING: rare gate. seed=64 (% 64 == 0) ⇒ 1 LolBin;
+        // seed=1     (% 64 != 0) ⇒ 0 LolBin.
+        {
+            astra::TargetDescriptor d_hit{};  d_hit.tier = 1; d_hit.seed = 64;
+            d_hit.kind = astra::NetspaceTargetKind::VendingMachine;
+            astra::Netspace ns_hit = astra::gen_vending_netspace(d_hit);
+            check(count_kind(ns_hit, DaemonKind::LolBin) == 1,
+                  "s5tc7c2-vending-lolbin-spawn");
+            astra::TargetDescriptor d_miss{}; d_miss.tier = 1; d_miss.seed = 1;
+            d_miss.kind = astra::NetspaceTargetKind::VendingMachine;
+            astra::Netspace ns_miss = astra::gen_vending_netspace(d_miss);
+            check(count_kind(ns_miss, DaemonKind::LolBin) == 0,
+                  "s5tc7c2-vending-lolbin-miss");
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Slice-7d spawn-site discipline — every ICE in a non-jack-in room.
+    // ───────────────────────────────────────────────────────────────────
+    {
+        using astra::DaemonKind;
+
+        // Universal rule (1) + (2) checker, applied to every shipped
+        // grammar at tier 1. Each Ice in initial_ice must be inside
+        // SOME room (rule 1) AND that room must not be the jack-in
+        // room (rule 2).
+        auto check_grammar_spawn_discipline =
+            [&](const astra::Netspace& ns, const char* label) {
+                const int jack_room =
+                    astra::room_index_at(ns, ns.jack_in_x, ns.jack_in_y);
+                bool all_in_room = true;
+                bool none_in_jack_room = true;
+                for (const auto& ic : ns.initial_ice) {
+                    int ri = astra::room_index_at(ns, ic.x, ic.y);
+                    if (ri < 0) all_in_room = false;
+                    if (ri == jack_room) none_in_jack_room = false;
+                }
+                check(all_in_room,
+                      std::string("s5tc7d-") + label + "-all-ice-in-rooms");
+                check(none_in_jack_room,
+                      std::string("s5tc7d-") + label + "-no-ice-in-jack-room");
+            };
+
+        // DOOR (tier 1): ICE in LOCK rooms + BOLT room (none in JACK).
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Door;
+            astra::Netspace ns = astra::gen_door_netspace(d);
+            check_grammar_spawn_discipline(ns, "door");
+        }
+
+        // ATM (tier 1): VAULT.fw + TELLR.K9 in VAULT (none in AUTH).
+        // Trigger spawn.cells also checked — both outside AUTH.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Atm;
+            astra::Netspace ns = astra::gen_atm_netspace(d);
+            check_grammar_spawn_discipline(ns, "atm");
+            const int auth_room = astra::room_index_at(ns, ns.jack_in_x, ns.jack_in_y);
+            bool fraud_outside_auth = true;
+            bool pkt_outside_auth = true;
+            bool pkt_pool_nonempty = false;
+            for (const auto& tr : ns.triggers) {
+                if (tr.spawn.kind == DaemonKind::FraudExe) {
+                    for (const auto& c : tr.spawn.cells) {
+                        int ri = astra::room_index_at(ns, c.first, c.second);
+                        if (ri < 0 || ri == auth_room) fraud_outside_auth = false;
+                    }
+                }
+                if (tr.spawn.kind == DaemonKind::PktDat) {
+                    if (!tr.spawn.cells.empty()) pkt_pool_nonempty = true;
+                    for (const auto& c : tr.spawn.cells) {
+                        int ri = astra::room_index_at(ns, c.first, c.second);
+                        if (ri < 0 || ri == auth_room) pkt_outside_auth = false;
+                    }
+                }
+            }
+            check(fraud_outside_auth, "s5tc7d-atm-fraud-trigger-outside-auth");
+            check(pkt_pool_nonempty,  "s5tc7d-atm-packets-pool-populated");
+            check(pkt_outside_auth,   "s5tc7d-atm-packets-trigger-outside-auth");
+        }
+
+        // CAMERA (tier 1): 5 LensCam + 1 ArchiveK9, none in FEED.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Camera;
+            astra::Netspace ns = astra::gen_camera_netspace(d);
+            check_grammar_spawn_discipline(ns, "camera");
+        }
+
+        // CORPSE (tier 1): MemryKex in MEMORY (none in JACK).
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Corpse;
+            astra::Netspace ns = astra::gen_corpse_netspace(d);
+            check_grammar_spawn_discipline(ns, "corpse");
+        }
+
+        // ELEVATOR (tier 1): FloorK9 + ScrtyFw (floor mid+1, with gate
+        // tile set) + HouseK9 (PENTHOUSE). None in LOBBY.
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Elevator;
+            astra::Netspace ns = astra::gen_elevator_netspace(d);
+            check_grammar_spawn_discipline(ns, "elevator");
+            bool scrty_in_floor = false;
+            bool scrty_has_gate = false;
+            for (const auto& ic : ns.initial_ice) {
+                if (ic.kind != DaemonKind::ScrtyFw) continue;
+                const int ri = astra::room_index_at(ns, ic.x, ic.y);
+                const int mid = ns.floor_count / 2;
+                if (ri == mid + 1) scrty_in_floor = true;
+                if (ic.gate_tile_x >= 0 && ic.gate_tile_y >= 0)
+                    scrty_has_gate = true;
+            }
+            check(scrty_in_floor, "s5tc7d-elevator-scrty-in-floor-mid-plus-1");
+            check(scrty_has_gate, "s5tc7d-elevator-scrty-has-gate-tile");
+        }
+
+        // TURRET (tier 1): 1 TrrtDat in AMMO (none in JACK).
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Turret;
+            astra::Netspace ns = astra::gen_turret_netspace(d);
+            check_grammar_spawn_discipline(ns, "turret");
+        }
+
+        // VENDING with seed=64 -> LolBin in a SHELF (not DISPENSE).
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 64;
+            d.kind = astra::NetspaceTargetKind::VendingMachine;
+            astra::Netspace ns = astra::gen_vending_netspace(d);
+            check_grammar_spawn_discipline(ns, "vending-seed64");
+            const int dispense_room = astra::room_index_at(ns, ns.jack_in_x, ns.jack_in_y);
+            bool lol_in_shelf = false;
+            for (const auto& ic : ns.initial_ice) {
+                if (ic.kind != DaemonKind::LolBin) continue;
+                int ri = astra::room_index_at(ns, ic.x, ic.y);
+                if (ri >= 0 && ri != dispense_room) lol_in_shelf = true;
+            }
+            check(lol_in_shelf, "s5tc7d-vending-lolbin-in-shelf");
+        }
+
+        // Ice default gate fields = -1/-1 (back-compat: existing call
+        // sites that don't set the gate-tile coords keep working).
+        {
+            astra::Ice ic_default;
+            check(ic_default.gate_tile_x == -1
+               && ic_default.gate_tile_y == -1,
+                  "s5tc7d-ice-gate-defaults");
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Slice-7e — camera bob, ATM/CORPSE pipe registration, seg-len uncap.
+    // ───────────────────────────────────────────────────────────────────
+    {
+        using astra::DaemonKind;
+
+        // ── Camera deadzone cap stability ────────────────────────────
+        // viewport_h=10 with deadzone_margin=12: pre-fix oscillates,
+        // post-fix capped to (10-1)/2 = 4 and settles in one call.
+        {
+            astra::NetCamera cam;
+            cam.viewport_w = 20;
+            cam.viewport_h = 10;
+            cam.deadzone_margin = 12;
+            cam.follow(10, 5, 40, 20);
+            const int after1_x = cam.cam_x, after1_y = cam.cam_y;
+            cam.follow(10, 5, 40, 20);
+            check(cam.cam_x == after1_x && cam.cam_y == after1_y,
+                  "s7e-camera-stable-small-viewport");
+        }
+
+        // Large viewport: cap (80-1)/2 = 39 >> 12, so dz_x = 12 unchanged.
+        {
+            astra::NetCamera cam;
+            cam.viewport_w = 80;
+            cam.viewport_h = 40;
+            cam.deadzone_margin = 12;
+            cam.follow(40, 20, 200, 200);
+            const int after1_x = cam.cam_x, after1_y = cam.cam_y;
+            cam.follow(40, 20, 200, 200);
+            check(cam.cam_x == after1_x && cam.cam_y == after1_y,
+                  "s7e-camera-deadzone-preserved-large-viewport");
+        }
+
+        // ── ATM pipe registration ────────────────────────────────────
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Atm;
+            astra::Netspace ns = astra::gen_atm_netspace(d);
+            check(ns.pipes.size() == 2,
+                  "s7e-atm-pipes-registered");
+            bool all_endpoints_in_rooms = true;
+            for (const auto& p : ns.pipes) {
+                if (astra::room_index_at(ns, p.x0, p.y0) < 0)
+                    all_endpoints_in_rooms = false;
+                if (astra::room_index_at(ns, p.x1, p.y1) < 0)
+                    all_endpoints_in_rooms = false;
+            }
+            check(all_endpoints_in_rooms,
+                  "s7e-atm-pipe-endpoints-in-rooms");
+            // FRAUD trigger candidates span at least 2 distinct rooms.
+            int fraud_room_count = 0;
+            int last_room = -2;
+            for (const auto& tr : ns.triggers) {
+                if (tr.spawn.kind != DaemonKind::FraudExe) continue;
+                for (const auto& c : tr.spawn.cells) {
+                    int ri = astra::room_index_at(ns, c.first, c.second);
+                    if (ri != last_room) { ++fraud_room_count; last_room = ri; }
+                }
+            }
+            check(fraud_room_count >= 2,
+                  "s7e-atm-fraud-spans-multiple-rooms");
+        }
+
+        // ── CORPSE pipe registration (S7f: spines split at hub) ──────
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Corpse;
+            astra::Netspace ns = astra::gen_corpse_netspace(d);
+            check(ns.pipes.size() == 6,
+                  "s7f-corpse-pipes-registered");
+            const int njack = static_cast<int>(astra::connected_pipe_indices(
+                ns, ns.jack_in_x, ns.jack_in_y).size());
+            check(njack >= 2, "s7e-corpse-jack-has-pipes");
+            // S7f: avatar in LAST RUN (hub interior) sees 4 cast
+            // paths — one per direction per tee.
+            // hub is rooms[3] post-construction.
+            const astra::NetRoom& hub = ns.rooms[3];
+            const int hub_cx = hub.x + hub.w / 2;
+            const int hub_cy = hub.y + hub.h / 2;
+            const int nhub = static_cast<int>(astra::connected_pipe_indices(
+                ns, hub_cx, hub_cy).size());
+            check(nhub == 4, "s7f-corpse-hub-has-4-pipes");
+        }
+
+        // ── Trigger eval same-room skip (Game-free simulation) ────────
+        {
+            astra::TargetDescriptor d{};
+            d.tier = 1; d.seed = 1;
+            d.kind = astra::NetspaceTargetKind::Atm;
+            astra::NetSession sess;
+            sess.netspace = astra::gen_atm_netspace(d);
+            // Park avatar in BALANCE interior (room index 1).
+            sess.avatar_x = sess.netspace.rooms[1].x + 1;
+            sess.avatar_y = sess.netspace.rooms[1].y + 1;
+            const astra::NetTrigger* fraud = nullptr;
+            for (const auto& tr : sess.netspace.triggers)
+                if (tr.spawn.kind == DaemonKind::FraudExe) { fraud = &tr; break; }
+            check(fraud != nullptr, "s7e-trigger-eval-fraud-present");
+            if (fraud) {
+                const int avatar_room = astra::room_index_at(
+                    sess.netspace, sess.avatar_x, sess.avatar_y);
+                int spawned_room = -1;
+                for (const auto& c : fraud->spawn.cells) {
+                    int ri = astra::room_index_at(sess.netspace, c.first, c.second);
+                    if (ri == avatar_room) continue;
+                    spawned_room = ri;
+                    break;
+                }
+                check(spawned_room >= 0 && spawned_room != avatar_room,
+                      "s7e-trigger-eval-skips-avatar-room");
+            }
+        }
+
+        // ── clamp_seg_len identity above 6 ──────────────────────────
+        check(astra::clamp_seg_len(7)  == 7,  "s7e-seg-len-7");
+        check(astra::clamp_seg_len(20) == 20, "s7e-seg-len-20");
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Slice-7g — room_index_at reverse iteration (VENDING nesting fix).
+    // ───────────────────────────────────────────────────────────────────
+    {
+        using astra::DaemonKind;
+
+        // VENDING grammar with seed=64 has LOL.bin in shelf2.
+        astra::TargetDescriptor d{};
+        d.tier = 1; d.seed = 64;
+        d.kind = astra::NetspaceTargetKind::VendingMachine;
+        astra::Netspace ns = astra::gen_vending_netspace(d);
+
+        // Sanity: LOL.bin spawned in shelf2.
+        const astra::Ice* lolbin = nullptr;
+        for (const auto& ic : ns.initial_ice)
+            if (ic.kind == DaemonKind::LolBin) { lolbin = &ic; break; }
+        check(lolbin != nullptr, "s7g-lolbin-spawned");
+
+        if (lolbin != nullptr) {
+            // S7g fix: room_index_at on LOL.bin's position must NOT
+            // return the outer wrapper (index 0); it must return the
+            // actual shelf room (a non-zero index — shelf rooms are
+            // rooms[1], rooms[2], or rooms[3] depending on which shelf
+            // the seed picked). Pre-S7g this returned 0 (OUTER) for
+            // any cell inside the vending playfield.
+            const int lol_room = astra::room_index_at(ns, lolbin->x, lolbin->y);
+            check(lol_room >= 1 && lol_room <= 3,
+                  "s7g-vending-lolbin-resolves-to-shelf-not-outer");
+
+            // Avatar at jack-in (DISPENSE) must resolve to the dispense
+            // room (rooms[4]), not OUTER (rooms[0]).
+            const int avatar_room = astra::room_index_at(
+                ns, ns.jack_in_x, ns.jack_in_y);
+            check(avatar_room == 4,
+                  "s7g-vending-avatar-resolves-to-dispense-not-outer");
+
+            // Pipe endpoints resolve to shelves / dispense, not OUTER.
+            bool any_outer_endpoint = false;
+            for (const auto& p : ns.pipes) {
+                if (astra::room_index_at(ns, p.x0, p.y0) == 0) any_outer_endpoint = true;
+                if (astra::room_index_at(ns, p.x1, p.y1) == 0) any_outer_endpoint = true;
+            }
+            check(!any_outer_endpoint, "s7g-vending-pipe-endpoints-not-outer");
+
+            // Critical: connected_pipe_indices from the dispense
+            // interior must return the LOL.bin shelf's pipe (and
+            // pipe_path_cells must orient it near→far avatar→shelf,
+            // so the ice_cast_tick rpath reversal correctly lands
+            // pipe_path[0] at the SHELF end, not the dispense end).
+            const auto pipes = astra::connected_pipe_indices(
+                ns, ns.jack_in_x, ns.jack_in_y);
+            check(pipes.size() == 3,
+                  "s7g-vending-dispense-3-shelf-pipes");
+
+            // Find the pipe whose far end is in LOL.bin's room and
+            // verify pipe_path_cells orientation.
+            int lolbin_pipe_idx = -1;
+            for (int idx : pipes) {
+                const auto path = astra::pipe_path_cells(
+                    ns, idx, ns.jack_in_x, ns.jack_in_y);
+                if (path.empty()) continue;
+                const int far_room = astra::room_index_at(
+                    ns, path.back().first, path.back().second);
+                if (far_room == lol_room) {
+                    lolbin_pipe_idx = idx;
+                    // path is oriented near→far; verify:
+                    // - path[0] is at the avatar end (dispense room)
+                    // - path.back() is at the far end (LOL.bin's shelf)
+                    const int near_room = astra::room_index_at(
+                        ns, path.front().first, path.front().second);
+                    check(near_room == 4,
+                          "s7g-pipe_path_cells-near-is-dispense");
+                    check(far_room == lol_room,
+                          "s7g-pipe_path_cells-far-is-shelf");
+                    break;
+                }
+            }
+            check(lolbin_pipe_idx >= 0,
+                  "s7g-found-lolbin-shelf-pipe");
         }
     }
 

@@ -47,7 +47,16 @@ int room_index_at_strict(const Netspace& ns, int x, int y) {
     // y / y+h-1). Wall cells are pipe-port positions where the avatar
     // is still visually inside a pipe; engagement shouldn't trigger
     // until the avatar steps off the wall onto an interior floor cell.
-    for (int i = 0; i < static_cast<int>(ns.rooms.size()); ++i) {
+    //
+    // Phase 5 S7g: iterate in REVERSE registration order so later-
+    // registered (typically nested / smaller) rooms win the
+    // containment check over outer wrapper frames. VENDING's
+    // add_room_outline registers an OUTER decorative frame at
+    // rooms[0] whose rect strictly contains all interior rooms;
+    // forward iteration shadowed the inner rooms. All shipped
+    // grammars except VENDING have disjoint rooms (no nesting),
+    // so this is a no-op for them.
+    for (int i = static_cast<int>(ns.rooms.size()) - 1; i >= 0; --i) {
         const NetRoom& r = ns.rooms[i];
         if (x > r.x && x < r.x + r.w - 1 &&
             y > r.y && y < r.y + r.h - 1)
@@ -60,7 +69,10 @@ int room_index_at(const Netspace& ns, int x, int y) {
     if (ns.rooms.empty()) return -1;
 
     // First pass: containment check.
-    for (int i = 0; i < static_cast<int>(ns.rooms.size()); ++i) {
+    // Phase 5 S7g: iterate in REVERSE registration order so later-
+    // registered (nested / smaller) rooms win containment over outer
+    // wrapper frames. See room_index_at_strict for full rationale.
+    for (int i = static_cast<int>(ns.rooms.size()) - 1; i >= 0; --i) {
         const NetRoom& r = ns.rooms[i];
         if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h)
             return i;

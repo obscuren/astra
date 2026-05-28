@@ -1,5 +1,6 @@
 #include "astra/grammars/gen_vending_netspace.h"
 
+#include "astra/grammars/seed_daemon.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
@@ -112,6 +113,26 @@ Netspace gen_vending_netspace(const TargetDescriptor& desc) {
 
     // Avatar spawns inside DISPENSE on its bottom_content row.
     b.set_jack_in(dispense);
+
+    // Phase 5 S7d: LOL.bin lives on a SHELF (not DISPENSE -- DISPENSE
+    // is the jack-in room). Shelf picked deterministically from the
+    // upper bits of desc.seed so the spawn-gate (desc.seed % 64) and
+    // the shelf-index (desc.seed / 64 % 3) are independent. Player
+    // jacked in DISPENSE engages LOL.bin via the shelf↔DISPENSE pipe.
+    if (desc.seed % 64u == 0u) {
+        const int which = static_cast<int>((desc.seed / 64u) % 3u);
+        const int sx = (which == 0 ? kShelf1X
+                     :  which == 1 ? kShelf2X
+                     :               kShelf3X);
+        const NetRoom& shelf = (which == 0 ? shelf1
+                             :  which == 1 ? shelf2
+                             :               shelf3);
+        const int lol_x = sx + kShelfW / 2;
+        const int lol_y = kShelfY + kShelfH / 2;
+        seed_daemon_in_room_at(b, shelf, lol_x, lol_y,
+                               DaemonKind::LolBin,
+                               /*hp*/1, /*windup*/8, /*cast_dmg*/0);
+    }
 
     // ── Junctions where pipes meet DISPENSE top ───────────────────────
     // stamp_v leaves the BoxThin top row intact (so its border renders

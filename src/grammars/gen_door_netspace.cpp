@@ -1,11 +1,10 @@
 #include "astra/grammars/gen_door_netspace.h"
 
-#include "astra/daemon.h"
 #include "astra/net_ice.h"
-#include "astra/net_pipe_path.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
+#include "astra/grammars/seed_daemon.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -64,27 +63,6 @@ constexpr BoltTierScale kBoltTiers[5] = {
     /* T4 */ { 28, 5, 3 },
     /* T5 */ { 36, 4, 4 },
 };
-
-// Phase 5 S7c.1: construct an Ice for the given DaemonKind, position
-// it at the room's interior top-center, apply tier-scaled overrides
-// on top of the def baseline, set home_room_idx, and push it into
-// b.ns.initial_ice.
-void seed_daemon(NetspaceBuilder& b, const NetRoom& room,
-                 DaemonKind kind, int hp_override, int windup_override,
-                 int cast_dmg_override) {
-    Ice ic;
-    ic.x = room.x + room.w / 2;
-    ic.y = room.y + 1;
-    ic.kind = kind;
-    const DaemonDef& def = daemon_def(kind);
-    ic.color = def.archetype;
-    ic.hp = hp_override;
-    ic.hp_max = hp_override;
-    ic.windup_override      = windup_override;
-    ic.cast_damage_override = cast_dmg_override;
-    ic.home_room_idx = room_index_at(b.ns, ic.x, ic.y);
-    b.ns.initial_ice.push_back(ic);
-}
 
 }  // namespace
 

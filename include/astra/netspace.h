@@ -159,6 +159,9 @@ struct NetSpawnSpec {
     int hp = 1;
     int count = 1;
     std::vector<std::pair<int,int>> cells;
+    // Phase 5 S7c.2: typed daemon kind for the spawned Ice. Default
+    // Watchdog preserves pre-S7c.2 trigger semantics (anonymous Gray).
+    DaemonKind kind = DaemonKind::Watchdog;
 };
 struct NetTrigger {
     NetTriggerCond cond = NetTriggerCond::TraceAtLeast;

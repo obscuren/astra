@@ -1,11 +1,16 @@
 #include "astra/grammars/gen_atm_netspace.h"
 
+#include "astra/grammars/seed_daemon.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <random>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace astra {
 
@@ -47,6 +52,16 @@ std::string atm_id(uint32_t seed) {
     std::snprintf(buf, sizeof buf, "%04u", static_cast<unsigned>(seed % 10000u));
     return buf;
 }
+
+// Phase 5 S7c.2: tier-scaled stats for ATM daemons.
+struct VaultFwTier { int hp; int windup; };
+constexpr VaultFwTier kVaultFwTiers[5] = {
+    /*T1*/{4,5}, /*T2*/{5,5}, /*T3*/{5,4}, /*T4*/{6,4}, /*T5*/{6,3}
+};
+struct TellrK9Tier { int hp; int windup; int cast_damage; };
+constexpr TellrK9Tier kTellrK9Tiers[5] = {
+    /*T1*/{12,6,2}, /*T2*/{16,6,2}, /*T3*/{20,5,3}, /*T4*/{28,5,3}, /*T5*/{36,4,4}
+};
 
 }  // namespace
 
@@ -94,18 +109,26 @@ Netspace gen_atm_netspace(const TargetDescriptor& desc) {
     // make_passable ports so the avatar can actually traverse
     // AUTH → BALANCE → VAULT (the auto-router attached at corners, which
     // are impassable border tiles → no walkable path).
-    auto hrun = [&](int y, int x0, int x1) {
+    // Phase 5 S7e: hrun/vrun gain an optional `cells` outparam so the
+    // grammar can collect the painted tiles into a NetPipe.cells
+    // vector while still painting them. Existing call sites without
+    // the outparam pass nullptr (default) and behave identically.
+    auto hrun = [&](int y, int x0, int x1,
+                    std::vector<std::pair<int,int>>* cells = nullptr) {
         for (int x = x0; x <= x1; ++x) {
             NetTile cur = b.ns.at(x, y);
             b.ns.set(x, y, cur == NetTile::PipeV ? NetTile::PipeJunc
                                                  : NetTile::PipeH);
+            if (cells) cells->emplace_back(x, y);
         }
     };
-    auto vrun = [&](int x, int y0, int y1) {
+    auto vrun = [&](int x, int y0, int y1,
+                    std::vector<std::pair<int,int>>* cells = nullptr) {
         for (int y = y0; y <= y1; ++y) {
             NetTile cur = b.ns.at(x, y);
             b.ns.set(x, y, cur == NetTile::PipeH ? NetTile::PipeJunc
                                                  : NetTile::PipeV);
+            if (cells) cells->emplace_back(x, y);
         }
     };
 
@@ -114,10 +137,25 @@ Netspace gen_atm_netspace(const TargetDescriptor& desc) {
     const int auth_port_y = kAuthY + kAuthH / 2;
     const int bal_cx_     = kBalanceX + kBalanceW / 2;
     b.make_passable(auth_port_x, auth_port_y);
-    hrun(auth_port_y, auth_port_x + 1, bal_cx_);
-    vrun(bal_cx_, auth_port_y + 1, kBalanceY - 1);
+    std::vector<std::pair<int,int>> auth_bal_cells;
+    hrun(auth_port_y, auth_port_x + 1, bal_cx_, &auth_bal_cells);
+    vrun(bal_cx_, auth_port_y + 1, kBalanceY - 1, &auth_bal_cells);
     b.ns.set(bal_cx_, auth_port_y, NetTile::PipeJunc);  // bend → corner glyph
+    auth_bal_cells.emplace_back(bal_cx_, auth_port_y);  // the bend cell
     b.make_passable(bal_cx_, kBalanceY);
+    // Phase 5 S7e: register the NetPipe so combat_should_lock,
+    // ice_cast_tick engagement, and player cast aim can find it.
+    // Endpoints sit on the make_passable wall-port cells (which
+    // room_index_at containment-check resolves to the room they
+    // belong to).
+    {
+        NetPipe p;
+        p.x0 = auth_port_x; p.y0 = auth_port_y;
+        p.x1 = bal_cx_;     p.y1 = kBalanceY;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(auth_bal_cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
 
     // BALANCE right-centre → VAULT bottom-centre (gated by a breakwall on
     // VAULT's bottom interior row — Breach to enter).
@@ -126,13 +164,30 @@ Netspace gen_atm_netspace(const TargetDescriptor& desc) {
     const int vault_cx   = kVaultX + kVaultW / 2;
     const int vault_bot  = kVaultY + kVaultH - 1;
     b.make_passable(bal_port_x, bal_port_y);
-    hrun(bal_port_y, bal_port_x + 1, vault_cx);
+    std::vector<std::pair<int,int>> bal_vault_cells;
+    hrun(bal_port_y, bal_port_x + 1, vault_cx, &bal_vault_cells);
     vrun(vault_cx, vault_bot + 1 <= bal_port_y ? vault_bot + 1 : bal_port_y,
-                   bal_port_y);
+                   bal_port_y, &bal_vault_cells);
     b.make_passable(vault_cx, vault_bot);
-    // Breakwall across VAULT's bottom interior row — the entry gate.
-    b.add_breakwall_row(kVaultX + 1, kVaultX + kVaultW - 2,
-                        kVaultY + kVaultH - 2, 4);
+    // Phase 5 S7e: register the NetPipe.
+    {
+        NetPipe p;
+        p.x0 = bal_port_x; p.y0 = bal_port_y;
+        p.x1 = vault_cx;   p.y1 = vault_bot;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(bal_vault_cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
+    // Phase 5 S7c.2: VAULT.fw daemon replaces the breakwall-row gate.
+    // The RoomFill render path paints the same density gradient sourced
+    // from the daemon's HP fraction, so visually it reads identically.
+    {
+        const int t = std::clamp(desc.tier - 1, 0, 4);
+        seed_daemon(b, vault, DaemonKind::VaultFw,
+                    kVaultFwTiers[t].hp,
+                    kVaultFwTiers[t].windup,
+                    /*cast_dmg_override*/ 0);
+    }
 
     // ── EXIT (greedy / post-VAULT) ─────────────────────────────────────
     // Place exit tile one cell right of VAULT's right border so it is
@@ -147,6 +202,19 @@ Netspace gen_atm_netspace(const TargetDescriptor& desc) {
     b.ns.set(exit_x, exit_y, NetTile::Exit);
     b.ns.exit_x = exit_x;
     b.ns.exit_y = exit_y;
+
+    // Phase 5 S7c.2: TELLR.K9 vault enforcer — sits above the breakwall
+    // row at the vault interior center, defending the VaultGrab node.
+    {
+        const int t = std::clamp(desc.tier - 1, 0, 4);
+        const int tellr_x = kVaultX + kVaultW / 2;
+        const int tellr_y = kVaultY + 2;   // upper interior row (above vg_cy)
+        seed_daemon_in_room_at(b, vault, tellr_x, tellr_y,
+                               DaemonKind::TellrK9,
+                               kTellrK9Tiers[t].hp,
+                               kTellrK9Tiers[t].windup,
+                               kTellrK9Tiers[t].cast_damage);
+    }
 
     // ── EXIT (safe / BALANCE branch) ───────────────────────────────────
     // A second ungated Exit reachable from AUTH without touching the VAULT
@@ -238,8 +306,18 @@ Netspace gen_atm_netspace(const TargetDescriptor& desc) {
     fraud.spawn.color = IceColor::Gray;
     fraud.spawn.hp    = 2;
     fraud.spawn.count = 1;
-    // Deterministic floor cell just inside AUTH.
-    fraud.spawn.cells = { { kAuthX + 1, kAuthY + 1 } };
+    // Phase 5 S7d: spawn in BALANCE (NOT AUTH -- AUTH is the jack-in
+    // room). FRAUD interrupts the safe-payout side-branch.
+    // Phase 5 S7e: widen the candidate list so the §1b same-room
+    // skip guard has a viable fallback. If the player is in
+    // BALANCE when FRAUD triggers, the eval picks the VAULT cell
+    // instead. Both are non-AUTH (rule 2 preserved); the dynamic
+    // skip enforces "not in player's current room" too.
+    fraud.spawn.cells = {
+        { kBalanceX + 1, kBalanceY + 1 },
+        { kVaultX + 1,   kVaultY + 2   },   // VAULT interior, near TELLR.K9 row
+    };
+    fraud.spawn.kind  = DaemonKind::FraudExe;
     b.ns.triggers.push_back(fraud);
 
     // $ → hostile packet wave at 100% trace (empty cells ⇒ from $-border).
@@ -249,7 +327,25 @@ Netspace gen_atm_netspace(const TargetDescriptor& desc) {
     packets.spawn.color = IceColor::Gray;
     packets.spawn.hp    = 1;
     packets.spawn.count = 4 + (desc.tier >= 3 ? 2 : 0);
-    // cells intentionally empty — tick_grid converts random $ glyph_overrides.
+    packets.spawn.kind  = DaemonKind::PktDat;
+    // Phase 5 S7d: explicit in-room spawn pool (BALANCE + VAULT
+    // interior cells, AUTH-excluded because it's the jack-in room).
+    // Deterministic shuffle from desc.seed so the same fixture
+    // produces the same wave. Trigger eval pops the first `count`
+    // cells; extras unused.
+    {
+        std::vector<std::pair<int,int>> pool;
+        auto room_interior = [&](int rx, int ry, int rw, int rh) {
+            for (int yy = ry + 1; yy < ry + rh - 1; ++yy)
+                for (int xx = rx + 1; xx < rx + rw - 1; ++xx)
+                    pool.emplace_back(xx, yy);
+        };
+        room_interior(kBalanceX, kBalanceY, kBalanceW, kBalanceH);
+        room_interior(kVaultX,   kVaultY,   kVaultW,   kVaultH);
+        std::mt19937 rng(desc.seed ^ 0x504bu);   // 'PK' literal
+        std::shuffle(pool.begin(), pool.end(), rng);
+        packets.spawn.cells = pool;
+    }
     b.ns.triggers.push_back(packets);
 
     return b.finalize();

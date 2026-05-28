@@ -1,9 +1,11 @@
 #include "astra/grammars/gen_camera_netspace.h"
+#include "astra/grammars/seed_daemon.h"
 
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -40,6 +42,13 @@ std::string camera_id(uint32_t seed) {
     std::snprintf(buf, sizeof buf, "CAM_%02d", static_cast<int>(seed % 100));
     return buf;
 }
+
+// Phase 5 S7c.2: tier-scaled stats for ARCHIVE.K9.
+// LENS.cam is not tier-scaled (always hp 1 / windup 4 / dmg 1).
+struct ArchiveK9Tier { int hp; int windup; int cast_damage; };
+constexpr ArchiveK9Tier kArchiveK9Tiers[5] = {
+    /*T1*/{10,5,2}, /*T2*/{12,5,2}, /*T3*/{16,5,3}, /*T4*/{22,4,3}, /*T5*/{30,4,4}
+};
 
 }  // namespace
 
@@ -94,6 +103,14 @@ Netspace gen_camera_netspace(const TargetDescriptor& desc) {
         lenses[i] = &lens;
     }
 
+    // Phase 5 S7c.2: LENS.cam daemons — one per lens room. Each is a
+    // weak static caster firing 1-dmg scan-payloads down its lens→FEED
+    // pipe at the avatar. Five of them = persistent low-tempo pressure.
+    for (int i = 0; i < kLensCount; ++i) {
+        seed_daemon(b, *lenses[i], DaemonKind::LensCam,
+                    /*hp*/1, /*windup*/4, /*cast_dmg*/0);
+    }
+
     // ── FEED ───────────────────────────────────────────────────────
     NetRoom& feed = b.add_room(feed_x, feed_y, kFeedW, kFeedH, "FEED",
                                NetRoom::Border::Thin);
@@ -137,6 +154,20 @@ Netspace gen_camera_netspace(const TargetDescriptor& desc) {
 
     b.set_jack_in(feed);
     b.set_exit(dvr);
+
+    // Phase 5 S7c.2: ARCHIVE.K9 enforcer — sits at archive interior
+    // middle row, defending the §§§ data. Cleared ARCHIVE = data
+    // accessible. Walking to DVR jacks out regardless.
+    {
+        const int t = std::clamp(desc.tier - 1, 0, 4);
+        const int ak_x = archive.x + kArchiveW / 2;
+        const int ak_y = archive.y + kArchiveH / 2;
+        seed_daemon_in_room_at(b, archive, ak_x, ak_y,
+                               DaemonKind::ArchiveK9,
+                               kArchiveK9Tiers[t].hp,
+                               kArchiveK9Tiers[t].windup,
+                               kArchiveK9Tiers[t].cast_damage);
+    }
 
     return b.finalize();
 }

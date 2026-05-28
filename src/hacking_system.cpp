@@ -779,6 +779,15 @@ void HackingSystem::tick_grid(Game& game) {
             for (int i = 0; i < tr.spawn.count && i < static_cast<int>(pool.size()); ++i)
                 cells.push_back(pool[i]);
         }
+        // Phase 5 S7e: compute the avatar's current room ONCE per
+        // trigger so the spawn loop can skip cells in it (same-room
+        // engagement is structurally inert under the pipe-only
+        // combat model). cells lists with multiple candidates across
+        // rooms degrade gracefully -- if every candidate maps to the
+        // avatar room (degenerate), the trigger spawns nothing this
+        // beat.
+        const int avatar_room_idx =
+            room_index_at(s.netspace, s.avatar_x, s.avatar_y);
         int made = 0;
         for (auto& c : cells) {
             if (made >= tr.spawn.count) break;
@@ -786,8 +795,14 @@ void HackingSystem::tick_grid(Game& game) {
             for (const auto& existing : s.ice)
                 if (existing.x == c.first && existing.y == c.second) { occ = true; break; }
             if (occ) continue;
+            // Phase 5 S7e: same-room skip.
+            if (room_index_at(s.netspace, c.first, c.second) == avatar_room_idx)
+                continue;
             Ice ice; ice.x = c.first; ice.y = c.second;
-            ice.color = tr.spawn.color; ice.hp = tr.spawn.hp;
+            ice.color = tr.spawn.color;
+            ice.hp = tr.spawn.hp;
+            ice.hp_max = tr.spawn.hp;       // mirrors hp on construction
+            ice.kind = tr.spawn.kind;       // Phase 5 S7c.2: typed spawn
             s.ice.push_back(ice);
             ++made;
         }
@@ -815,6 +830,17 @@ void HackingSystem::tick_grid(Game& game) {
     net_inflight_advance(s);
     resolve_pipe_collisions(s);
     resolve_inflight_impacts(game, s);
+
+    // Phase 5 S7d: daemon-death-clears-gate-tile hook. For each ICE
+    // that has died this beat AND was tagged with a gate cell at
+    // spawn, flip that cell to Floor so the gate opens. Idempotent --
+    // once the tile is Floor, the set is a no-op on subsequent ticks.
+    for (const auto& ic : s.ice) {
+        if (ic.hp > 0) continue;
+        if (ic.gate_tile_x < 0 || ic.gate_tile_y < 0) continue;
+        if (!s.netspace.in_bounds(ic.gate_tile_x, ic.gate_tile_y)) continue;
+        s.netspace.set(ic.gate_tile_x, ic.gate_tile_y, NetTile::Floor);
+    }
 
     // 2. Heat decay on equipped deck + heat→trace coupling + forced reboot.
     auto* deck_slot = game.player().equipment.equipped_cyberdeck();

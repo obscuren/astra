@@ -1688,6 +1688,7 @@ static void draw_roomfill_daemon(Renderer& r, int pr_x, int pr_y,
     }
 }
 
+
 void draw_playfield(Game& game, Renderer& r, const PlayfieldRect& pr,
                     const NetSession& s) {
     static NetCamera s_camera;

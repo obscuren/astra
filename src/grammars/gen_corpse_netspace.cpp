@@ -1,10 +1,14 @@
 #include "astra/grammars/gen_corpse_netspace.h"
 
+#include "astra/grammars/seed_daemon.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace astra {
 
@@ -56,6 +60,12 @@ constexpr int kStashW = 9,  kStashH = 5;   // W=9 → centre aligns with JACK sp
 constexpr int kGhostW = 11, kGhostH = 6;   // W=11 → centre aligns with PROG spine; H+1 for ░▒▓
 constexpr int kHGap   = 4;
 constexpr int kVGap   = 5;
+
+// Phase 5 S7c.2: tier-scaled stats for MEMRY.kex.
+struct MemryKexTier { int hp; int windup; };
+constexpr MemryKexTier kMemryKexTiers[5] = {
+    /*T1*/{6,5}, /*T2*/{7,5}, /*T3*/{7,4}, /*T4*/{8,4}, /*T5*/{8,3}
+};
 
 }  // namespace
 
@@ -136,42 +146,174 @@ Netspace gen_corpse_netspace(const TargetDescriptor& desc) {
     const int hub_l     = hub.x;
     const int hub_r     = hub.x + kHubW - 1;
 
-    auto hrun = [&](int y, int x0, int x1) {
+    // Phase 5 S7e: hrun/vrun gain an optional `cells` outparam so the
+    // grammar can collect the painted tiles into a NetPipe.cells
+    // vector while still painting them. Existing call sites without
+    // the outparam pass nullptr (default) and behave identically.
+    auto hrun = [&](int y, int x0, int x1,
+                    std::vector<std::pair<int,int>>* cells = nullptr) {
         for (int x = x0; x <= x1; ++x) {
             NetTile cur = b.ns.at(x, y);
             b.ns.set(x, y, cur == NetTile::PipeV ? NetTile::PipeJunc
                                                  : NetTile::PipeH);
+            if (cells) cells->emplace_back(x, y);
         }
     };
-    auto vrun = [&](int x, int y0, int y1) {
+    auto vrun = [&](int x, int y0, int y1,
+                    std::vector<std::pair<int,int>>* cells = nullptr) {
         for (int y = y0; y <= y1; ++y) {
             NetTile cur = b.ns.at(x, y);
             b.ns.set(x, y, cur == NetTile::PipeH ? NetTile::PipeJunc
                                                  : NetTile::PipeV);
+            if (cells) cells->emplace_back(x, y);
         }
     };
 
     // (1) Top row: pipe only in the GAPS — never inside MEMORY.
     b.make_passable(jack.x + kJackW - 1, top_y);          // JACK right port
-    hrun(top_y, jack.x + kJackW, memory.x - 1);            // JACK ═══ MEMORY
-    hrun(top_y, memory.x + kMemW, prog.x - 1);             // MEMORY ═══ PROG
+    std::vector<std::pair<int,int>> jack_memory_cells;
+    hrun(top_y, jack.x + kJackW, memory.x - 1, &jack_memory_cells);
+    {
+        // Phase 5 S7e: register JACK↔MEMORY pipe. MEMORY is a
+        // WallHeavy blob with no Floor interior, but room_index_at
+        // resolves cells inside MEMORY's rect to MEMORY's index --
+        // so node-scoped Impact at the far-end engages MEMRY.kex.
+        NetPipe p;
+        p.x0 = jack.x + kJackW - 1; p.y0 = top_y;
+        p.x1 = memory.x;            p.y1 = top_y;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(jack_memory_cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
+    std::vector<std::pair<int,int>> memory_prog_cells;
+    hrun(top_y, memory.x + kMemW, prog.x - 1, &memory_prog_cells);
     b.make_passable(prog.x, top_y);                        // PROG left port
+    {
+        // Phase 5 S7e: register MEMORY↔PROG pipe (mirror of the
+        // JACK↔MEMORY pipe — engages MEMRY.kex from the PROG side).
+        NetPipe p;
+        p.x0 = memory.x + kMemW - 1; p.y0 = top_y;
+        p.x1 = prog.x;               p.y1 = top_y;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(memory_prog_cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
 
-    // (9) col0 spine: JACK bottom-centre → STASH top-centre (straight).
+    // (9) col0 + col2 spines and the LAST RUN tees — Phase 5 S7f.
+    // Visual: still a full vertical spine in each column with a
+    // horizontal tee going into the hub at hub_mid (unchanged tile-
+    // paint). Engine: each spine SPLITS into two NetPipes that
+    // route THROUGH the hub junction, so the avatar in LAST RUN
+    // sees 4 cast paths (JACK / STASH via col0; PROG / GHOST via
+    // col2). Each spine's lower half is a separate pipe from its
+    // upper half; the tee cells are shared between the two pipes
+    // on that spine (a payload's `pipe_index` keys per-pipe so
+    // they don't collide on shared cells).
+
+    // Col0 spine: paint, collecting cells into separate upper/lower
+    // half lists. Spine vrun + tee hrun + junction stamp.
     b.make_passable(jx, jack_bot);
-    vrun(jx, jack_bot + 1, stash_top - 1);
     b.make_passable(jx, stash_top);
-    // col2 spine: PROG bottom-centre → GHOST top-centre (straight).
-    b.make_passable(px, prog_bot);
-    vrun(px, prog_bot + 1, ghost_top - 1);
-    b.make_passable(px, ghost_top);
-
-    // (2) LAST RUN tees: full-length horizontals from each spine into the
-    //     hub's left/right border (these used to be a 2-cell stub).
-    hrun(hub_mid, jx, hub_l);                              // col0 spine ─── hub left
     b.make_passable(hub_l, hub_mid);
-    hrun(hub_mid, hub_r, px);                              // hub right ─── col2 spine
+    std::vector<std::pair<int,int>> col0_up_cells;     // jack_bot+1 .. hub_mid-1
+    std::vector<std::pair<int,int>> col0_down_cells;   // hub_mid+1 .. stash_top-1
+    vrun(jx, jack_bot + 1, hub_mid - 1, &col0_up_cells);
+    vrun(jx, hub_mid + 1, stash_top - 1, &col0_down_cells);
+    std::vector<std::pair<int,int>> col0_tee_cells;    // jx+1 .. hub_l (going east into hub port)
+    hrun(hub_mid, jx + 1, hub_l, &col0_tee_cells);
+    // Junction at (jx, hub_mid): hrun didn't touch it (range starts
+    // at jx+1); vrun didn't touch it either (gaps at hub_mid-1 and
+    // hub_mid+1). Stamp it explicitly as PipeJunc.
+    b.ns.set(jx, hub_mid, NetTile::PipeJunc);
+    const std::pair<int,int> col0_junction = {jx, hub_mid};
+
+    // Col2 spine: same shape, mirror direction (tee goes WEST from
+    // hub right port at hub_r into the col2 spine).
+    b.make_passable(px, prog_bot);
+    b.make_passable(px, ghost_top);
     b.make_passable(hub_r, hub_mid);
+    std::vector<std::pair<int,int>> col2_up_cells;
+    std::vector<std::pair<int,int>> col2_down_cells;
+    vrun(px, prog_bot + 1, hub_mid - 1, &col2_up_cells);
+    vrun(px, hub_mid + 1, ghost_top - 1, &col2_down_cells);
+    std::vector<std::pair<int,int>> col2_tee_cells;    // hub_r .. px-1 (going east from hub port into spine)
+    hrun(hub_mid, hub_r, px - 1, &col2_tee_cells);
+    b.ns.set(px, hub_mid, NetTile::PipeJunc);
+    const std::pair<int,int> col2_junction = {px, hub_mid};
+
+    // ── Pipe 3a: JACK ↔ LAST_RUN (col0 upper half + tee, JACK→hub) ─
+    {
+        std::vector<std::pair<int,int>> cells;
+        // From JACK (jack_bot) going down the col0 upper-half spine:
+        // col0_up_cells is ordered (jx, jack_bot+1), (jx, jack_bot+2), ..., (jx, hub_mid-1).
+        cells.insert(cells.end(), col0_up_cells.begin(), col0_up_cells.end());
+        cells.push_back(col0_junction);
+        // Tee cells: col0_tee_cells is ordered (jx+1, hub_mid), ..., (hub_l, hub_mid).
+        cells.insert(cells.end(), col0_tee_cells.begin(), col0_tee_cells.end());
+        NetPipe p;
+        p.x0 = jx;     p.y0 = jack_bot;
+        p.x1 = hub_l;  p.y1 = hub_mid;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
+
+    // ── Pipe 3b: LAST_RUN ↔ STASH (tee + col0 lower half, hub→STASH) ─
+    {
+        std::vector<std::pair<int,int>> cells;
+        // From hub_l going west along the tee to the junction:
+        // col0_tee_cells is ordered (jx+1, hub_mid), ..., (hub_l, hub_mid).
+        // We want hub→junction, so reverse-iterate the tee cells.
+        for (auto it = col0_tee_cells.rbegin(); it != col0_tee_cells.rend(); ++it)
+            cells.push_back(*it);
+        cells.push_back(col0_junction);
+        // From junction continuing down: col0_down_cells is
+        // (jx, hub_mid+1), ..., (jx, stash_top-1).
+        cells.insert(cells.end(), col0_down_cells.begin(), col0_down_cells.end());
+        NetPipe p;
+        p.x0 = hub_l;  p.y0 = hub_mid;
+        p.x1 = jx;     p.y1 = stash_top;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
+
+    // ── Pipe 4a: PROG ↔ LAST_RUN (col2 upper half + tee, PROG→hub) ─
+    {
+        std::vector<std::pair<int,int>> cells;
+        // From PROG (prog_bot) going down col2 upper-half spine:
+        // col2_up_cells ordered (px, prog_bot+1), ..., (px, hub_mid-1).
+        cells.insert(cells.end(), col2_up_cells.begin(), col2_up_cells.end());
+        cells.push_back(col2_junction);
+        // Tee cells: col2_tee_cells ordered (hub_r, hub_mid), ..., (px-1, hub_mid).
+        // We want PROG→hub direction, which means junction→hub_r — reverse-iterate.
+        for (auto it = col2_tee_cells.rbegin(); it != col2_tee_cells.rend(); ++it)
+            cells.push_back(*it);
+        NetPipe p;
+        p.x0 = px;     p.y0 = prog_bot;
+        p.x1 = hub_r;  p.y1 = hub_mid;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
+
+    // ── Pipe 4b: LAST_RUN ↔ GHOST (tee + col2 lower half, hub→GHOST) ─
+    {
+        std::vector<std::pair<int,int>> cells;
+        // From hub_r going east along the tee to the junction:
+        // col2_tee_cells ordered (hub_r, hub_mid), ..., (px-1, hub_mid).
+        cells.insert(cells.end(), col2_tee_cells.begin(), col2_tee_cells.end());
+        cells.push_back(col2_junction);
+        // From junction continuing down: col2_down_cells is
+        // (px, hub_mid+1), ..., (px, ghost_top-1).
+        cells.insert(cells.end(), col2_down_cells.begin(), col2_down_cells.end());
+        NetPipe p;
+        p.x0 = hub_r;  p.y0 = hub_mid;
+        p.x1 = px;     p.y1 = ghost_top;
+        p.style = NetPipe::Style::Thin;
+        p.cells = std::move(cells);
+        b.ns.pipes.push_back(std::move(p));
+    }
 
     // ── Jack-out stub off JACK's LEFT wall ──────────────────────────────
     {
@@ -189,6 +331,18 @@ Netspace gen_corpse_netspace(const TargetDescriptor& desc) {
     for (int yy = memory.y; yy < memory.y + memory.h; ++yy)
         for (int xx = memory.x; xx < memory.x + memory.w; ++xx)
             b.ns.set(xx, yy, NetTile::WallHeavy);
+
+    // Phase 5 S7c.2: MEMRY.kex daemon — the corruption blob becomes
+    // attackable. The RoomFill renderer overdraws the WallHeavy tiles
+    // with a density gradient sourced from daemon HP, so the visual
+    // matches the existing ▓ blob until the player damages it.
+    {
+        const int t = std::clamp(desc.tier - 1, 0, 4);
+        seed_daemon(b, memory, DaemonKind::MemryKex,
+                    kMemryKexTiers[t].hp,
+                    kMemryKexTiers[t].windup,
+                    /*cast_dmg_override*/ 0);
+    }
 
     // ── Action nodes ────────────────────────────────────────────────────
     {

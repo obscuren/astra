@@ -20,8 +20,8 @@
 namespace astra {
 
 enum class DaemonRenderStyle : std::uint8_t {
-    Glyph,          // single-cell glyph at (ice.x, ice.y)
-    RoomFill,       // density gradient across the room interior
+    Glyph,           // single-cell glyph at (ice.x, ice.y)
+    RoomFill,        // density gradient across the room interior top row
 };
 
 struct DaemonDef {

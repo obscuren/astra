@@ -1,11 +1,11 @@
 #include "astra/grammars/gen_turret_netspace.h"
 
-#include "astra/net_constants.h"
 #include "astra/net_ice.h"
 #include "astra/net_room.h"
 #include "astra/net_theme.h"
 #include "astra/netspace_layout.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -134,48 +134,33 @@ Netspace gen_turret_netspace(const TargetDescriptor& desc) {
     b.ns.exit_y = exit_y;
 
     // ── Gray ICE — hostile from frame 1 ──────────────────────────────
-    // Place n_ice Gray ICE in the arena interior, each within
-    // kIceVisionRange (Manhattan) of the jack-in tile, on a passable
-    // tile, not on the jack-in tile, not overlapping each other.
-    // The spine pipe cells between JACK and AMMO are passable Floor/Pipe.
-    // We place ICE in those corridors so they immediately engage.
+    // Phase 5 S7d: TRRT.dat spawns inside AMMO (the far room from JACK
+    // across the spine pipe). The pre-S7d try_place lambda placed mooks
+    // in pipe-corridor cells -- those are outside any NetRoom, so the
+    // far-room engagement predicate never fires for them and the
+    // daemon was inert. Spawning in AMMO restores the standard combat
+    // sequence: player jacks JACK -> COMBAT engages from AMMO across
+    // the JACK-AMMO pipe -> cast at TRRT.dat.
     //
-    // Passable cells near jack_cy in the pipe corridor (between JACK bottom
-    // edge and AMMO top edge). The pipe center column is jack_cx; cells
-    // at (jack_cx, jack_cy + 1) up to (jack_cx, kAmmoY - 1) are PipeV.
-    // All are within kIceVisionRange = 4 of (jack_cx, jack_cy).
-    int n_ice = 1 + desc.tier / 2;
+    // Plan amendment: AMMO's bottom interior row (kAmmoY + kRoomH - 2)
+    // holds the TurretDisarm action node; cap placement to the top
+    // two interior rows so we never collide with the node at any tier.
     {
-        // Shared placement helper: attempt to place one Gray ICE at (jack_cx, iy).
-        // Returns true and appends to initial_ice if the cell passes all guards;
-        // returns false (no-op) otherwise.
-        auto try_place = [&](int iy) -> bool {
-            const int ix = jack_cx;
-            if (iy == kJackY + kRoomH - 1) return false; // JACK bottom border — BoxThin, not passable
-            if (iy == kAmmoY)               return false; // AMMO top border — passable but visually bad
-            if (!b.ns.in_bounds(ix, iy)) return false;
-            if (ix == jack_cx && iy == jack_cy) return false; // jack-in tile itself
-            for (const auto& prev : b.ns.initial_ice)
-                if (prev.x == ix && prev.y == iy) return false; // already occupied
+        const int n_ice = 1 + desc.tier / 2;
+        const int ammo_cx = kSpineX + kRoomW / 2;
+        const int interior_top = kAmmoY + 1;
+        // Skip the bottom interior row -- TurretDisarm node lives there.
+        const int max_rows = kRoomH - 3;  // kRoomH=5 -> 2 (rows kAmmoY+1, kAmmoY+2)
+        const int placed_n = std::min(n_ice, max_rows);
+        for (int d = 0; d < placed_n; ++d) {
             Ice g;
-            g.color = IceColor::Gray;
-            g.hp    = 2;
-            g.x     = ix;
-            g.y     = iy;
+            g.color  = IceColor::Gray;
+            g.hp     = 2;
+            g.hp_max = 2;
+            g.kind   = DaemonKind::TrrtDat;
+            g.x      = ammo_cx;
+            g.y      = interior_top + d;
             b.ns.initial_ice.push_back(g);
-            return true;
-        };
-
-        // Forward scan: downward from jack-in into the pipe corridor.
-        int placed = 0;
-        for (int d = 1; placed < n_ice && d <= kIceVisionRange; ++d)
-            if (try_place(jack_cy + d)) ++placed;
-
-        // Fallback: upward scan into the JACK interior above jack-in.
-        for (int d = 1; placed < n_ice && d <= kIceVisionRange; ++d) {
-            int iy = jack_cy - d;
-            if (iy == kJackY) continue;  // top border of JACK room
-            if (try_place(iy)) ++placed;
         }
     }
 

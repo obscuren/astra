@@ -19,6 +19,19 @@ enum class DaemonKind : std::uint16_t {
     Watchdog = 0,   // legacy default: a generic Gray-archetype caster
     Lock,           // door: room-fill defender
     Bolt,           // door: micro-boss
+    // Phase 5 S7c.2 — grammar daemon sweep
+    VaultFw,        // ATM: VAULT breakwall (RoomFill)
+    TellrK9,        // ATM: vault enforcer (Glyph, boss)
+    FraudExe,       // ATM: FRAUD trigger spawn
+    PktDat,         // ATM: PACKETS trigger swarm
+    LensCam,        // CAMERA: per-lens scanner
+    ArchiveK9,      // CAMERA: archive enforcer (boss)
+    MemryKex,       // CORPSE: MEMORY corruption (RoomFill)
+    FloorK9,        // ELEVATOR: per-floor patrol
+    ScrtyFw,        // ELEVATOR: SECURITY enforcer above spine gate (Glyph, S7d)
+    HouseK9,        // ELEVATOR: penthouse enforcer (boss)
+    TrrtDat,        // TURRET: corridor mook (fast)
+    LolBin,         // VENDING: ultra-rare easter egg
 };
 
 struct Ice {
@@ -91,6 +104,14 @@ struct Ice {
     // tier-scaled values from kLockTiers[] / kBoltTiers[] here.
     int windup_override = 0;
     int cast_damage_override = 0;
+
+    // Phase 5 S7d: optional gate-tile coords. If set (>= 0), a tick_grid
+    // post-impacts hook flips this cell to NetTile::Floor when this ICE
+    // dies (hp <= 0). Used by ELEVATOR's SCRTY.fw -- the daemon IS the
+    // security gate; killing it opens the spine. Defaults to -1/-1 =
+    // "no gate" so existing call sites stay unchanged.
+    int gate_tile_x = -1;
+    int gate_tile_y = -1;
 };
 
 struct NetSession; // fwd

@@ -20,6 +20,9 @@ std::vector<int> connected_pipe_indices(const Netspace& ns, int ax, int ay);
 // its far-node end. {} if pipe_idx invalid or no path.
 std::vector<std::pair<int,int>> pipe_path_cells(const Netspace& ns,
                                                 int pipe_idx, int ax, int ay);
-// Clamp a raw path length to the segment band [2,6] (Fork-2 decision).
-inline int clamp_seg_len(int raw) { return raw < 2 ? 2 : (raw > 6 ? 6 : raw); }
+// Floor a raw path length at 2 so 0/1-cell pipes still take a visible
+// beat to traverse. Phase 5 S7e (2026-05-28): the [2,6] upper cap
+// was dropped -- payload travel now scales 1:1 with physical pipe
+// length, making pipe geometry a real tactical lever.
+inline int clamp_seg_len(int raw) { return raw < 2 ? 2 : raw; }
 }  // namespace astra
